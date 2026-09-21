@@ -539,6 +539,14 @@ pnpm ieumdoc format apps/editor/document/technical-document.md
 Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
 ```
 
+### I. Paragraph adapter error isolation (자동 regression)
+
+실제 unsupported Tiptap state는 일반 UI에서 의도적으로 만들 필요가 없다. 자동 regression이 다음을 확인한다.
+
+- paragraph A의 adapter error가 기록된 뒤 paragraph B를 정상 편집해도 A의 error가 남는다.
+- A를 정상 상태로 복구하면 A의 error만 제거된다.
+- 여러 paragraph에 error가 있으면 하나라도 남아 있는 동안 Save가 `Save failed` 상태로 차단된다.
+
 ## 3. 사람이 특히 볼 것
 
 1. CLI가 Markdown 문자열을 직접 치환하지 않는다. 같은 작업을 Core API로 재현하면 파일 내용이 같아야 한다.

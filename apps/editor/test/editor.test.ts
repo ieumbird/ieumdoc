@@ -19,6 +19,12 @@ import {
   editableTextTargets,
 } from "../src/edits.ts";
 import { fromTiptapContent, toTiptapContent } from "../src/tiptap-inline.ts";
+import {
+  clearParagraphError,
+  firstParagraphError,
+  recordParagraphError,
+  type ParagraphErrors,
+} from "../src/App.tsx";
 import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -147,6 +153,46 @@ test("Tiptap adapter rejects unsupported marks", () => {
       new RegExp(`unsupported Tiptap mark "${mark}"`),
     );
   }
+});
+
+test("paragraph errors stay isolated when another paragraph is edited", () => {
+  let errors: ParagraphErrors = {};
+  errors = recordParagraphError(errors, [1], new Error("paragraph A is invalid"));
+  errors = clearParagraphError(errors, [8]);
+
+  assert.deepEqual(errors, { "1": "paragraph A is invalid" });
+  assert.equal(firstParagraphError(errors), "paragraph A is invalid");
+});
+
+test("same paragraph recovery clears only its own error", () => {
+  let errors: ParagraphErrors = {};
+  errors = recordParagraphError(errors, [1], new Error("paragraph A is invalid"));
+  errors = clearParagraphError(errors, [1]);
+
+  assert.deepEqual(errors, {});
+  assert.equal(firstParagraphError(errors), "");
+});
+
+test("multiple paragraph errors keep Save blocked until all recover", () => {
+  let errors: ParagraphErrors = {};
+  errors = recordParagraphError(errors, [1], new Error("paragraph A is invalid"));
+  errors = recordParagraphError(errors, [8], new Error("paragraph B is invalid"));
+  errors = clearParagraphError(errors, [1]);
+
+  assert.deepEqual(errors, { "8": "paragraph B is invalid" });
+  assert.equal(firstParagraphError(errors), "paragraph B is invalid");
+
+  errors = clearParagraphError(errors, [8]);
+  assert.equal(firstParagraphError(errors), "");
+});
+
+test("paragraph errors block Save before the POST request", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const guard = app.indexOf("if (Object.keys(paragraphErrors).length > 0) {");
+  const post = app.indexOf('requestDocument("POST"');
+  assert.ok(guard >= 0);
+  assert.ok(post > guard);
+  assert.equal(app.includes('setStatus("Save failed")'), true);
 });
 
 test("Editor source does not import MyST packages or AST", () => {

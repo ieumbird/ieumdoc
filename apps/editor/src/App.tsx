@@ -3,14 +3,17 @@ import type { EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
 import { collectEdits, collectParagraphEdits, pathKey } from "./edits.ts";
 import { DocumentView } from "./DocumentView.tsx";
 
+export type ParagraphErrors = Record<string, string>;
+
 export function App() {
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
   const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, InlineContent[]>>({});
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
-  const [paragraphError, setParagraphError] = useState("");
+  const [paragraphErrors, setParagraphErrors] = useState<ParagraphErrors>({});
   const [revision, setRevision] = useState(0);
+  const paragraphError = firstParagraphError(paragraphErrors);
 
   useEffect(() => {
     void load();
@@ -18,13 +21,14 @@ export function App() {
 
   async function load(): Promise<void> {
     setError("");
+    setParagraphErrors({});
     setStatus("Loading…");
     try {
       const next = await requestDocument("GET");
       setDocument(next);
       setTextDrafts({});
       setParagraphDrafts({});
-      setParagraphError("");
+      setParagraphErrors({});
       setRevision((value) => value + 1);
       setStatus("Ready");
     } catch (cause) {
@@ -35,8 +39,7 @@ export function App() {
 
   async function save(): Promise<void> {
     if (!document) return;
-    if (paragraphError) {
-      setError(paragraphError);
+    if (Object.keys(paragraphErrors).length > 0) {
       setStatus("Save failed");
       return;
     }
@@ -50,7 +53,7 @@ export function App() {
       setDocument(next);
       setTextDrafts({});
       setParagraphDrafts({});
-      setParagraphError("");
+      setParagraphErrors({});
       setRevision((value) => value + 1);
       setStatus("Saved");
     } catch (cause) {
@@ -64,17 +67,18 @@ export function App() {
   }
 
   function onParagraphDraft(path: NodePath, content: InlineContent[]): void {
-    setParagraphError("");
+    setParagraphErrors((current) => clearParagraphError(current, path));
     setError("");
     setParagraphDrafts((current) => ({ ...current, [pathKey(path)]: content }));
   }
 
-  function onParagraphError(cause: unknown): void {
-    const message = cause instanceof Error ? cause.message : String(cause);
-    setParagraphError(message);
-    setError(message);
+  function onParagraphError(path: NodePath, cause: unknown): void {
+    setParagraphErrors((current) => recordParagraphError(current, path, cause));
+    setError("");
     setStatus("Save failed");
   }
+
+  const visibleError = paragraphError || error;
 
   return (
     <div className="app">
@@ -92,9 +96,9 @@ export function App() {
           </button>
         </div>
       </header>
-      {error ? (
+      {visibleError ? (
         <p className="error" data-testid="error">
-          {error}
+          {visibleError}
         </p>
       ) : null}
       {document ? (
@@ -108,6 +112,27 @@ export function App() {
       ) : null}
     </div>
   );
+}
+
+export function recordParagraphError(
+  errors: ParagraphErrors,
+  path: NodePath,
+  cause: unknown,
+): ParagraphErrors {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return { ...errors, [pathKey(path)]: message };
+}
+
+export function clearParagraphError(errors: ParagraphErrors, path: NodePath): ParagraphErrors {
+  const key = pathKey(path);
+  if (!(key in errors)) return errors;
+  const next = { ...errors };
+  delete next[key];
+  return next;
+}
+
+export function firstParagraphError(errors: ParagraphErrors): string {
+  return Object.values(errors)[0] ?? "";
 }
 
 async function requestDocument(method: "GET" | "POST", body?: unknown): Promise<EditableDocument> {
