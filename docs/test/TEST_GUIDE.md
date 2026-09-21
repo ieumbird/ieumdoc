@@ -1,4 +1,4 @@
-# MVP 1 Alpha Test Guide
+# IeumDoc Test Guide
 
 이 문서는 현재 구현을 사람이 실제 파일로 확인하는 절차다.
 
@@ -11,7 +11,7 @@ plain-text file
     → canonical plain-text file
 ```
 
-Editor, 서버, 브라우저 화면은 없다.
+확인 대상에는 Visual Editor도 포함된다. Editor는 Core read model로 문서를 보여주고, 저장은 Core operation으로 한다.
 
 ## 준비
 
@@ -51,7 +51,7 @@ pnpm install
 pnpm test
 ```
 
-통과 기준 — Core, 기술문서, CLI 테스트가 모두 PASS:
+통과 기준 — Core, 기술문서, CLI, Editor 테스트가 모두 PASS:
 
 ```
 ✔ Core can parse a real document
@@ -75,6 +75,15 @@ pnpm test
 ✔ serialized document reparses
 ✔ second serialization is stable
 ✔ CLI can check and modify a real file through Core
+✔ technical document exposes an editor read model
+✔ Editor uses the Core read model
+✔ Editor source does not import MyST packages or AST
+✔ paragraph edits are saved through Core operations
+✔ figure caption edits keep figure label and image
+✔ table cell edits keep table structure
+✔ saved document can be parsed again
+✔ canonical second serialization is stable
+✔ saved file matches the Core write path
 ```
 
 하나라도 FAIL이면 이번 MVP write path가 성립하지 않은 것이다.
@@ -226,6 +235,145 @@ pnpm ieumdoc check tmp/technical-document.md
 
 `format`을 한 번 더 실행해도 파일 내용이 같아야 한다.
 
+## Visual Editor
+
+브라우저에서 Core-backed Visual Editor를 확인한다.
+
+작업 파일:
+
+`apps/editor/document/technical-document.md`
+
+이 파일은 Editor 전용 복사본이다. `packages/core/test/fixtures/technical-document.md` 원본은 직접 수정하지 않는다.
+
+시작 전 내용이 바뀌어 있으면 원본에서 다시 복사한다.
+
+```powershell
+Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
+```
+
+### A. Editor 실행
+
+저장소 루트에서:
+
+```powershell
+pnpm --filter @ieumdoc/editor dev
+```
+
+브라우저에서 `http://localhost:5173` 을 연다.
+
+성공: 페이지 위에 `IeumDoc` 과 `technical-document.md` 가 보이고 `Save` 버튼이 있다.
+
+### B. 초기 렌더링 확인
+
+화면에서 다음을 직접 확인한다.
+
+- `Converter Control`, `Control Structure` 같은 제목이 heading으로 보인다.
+- 일반 본문 paragraph가 보인다. 예: `The current reference is calculated from the active power command.`
+- `warning` 상자가 일반 paragraph와 구분된다. 본문은 `The current controller parameters must be calibrated before operation.`
+- Figure에 그림과 caption `Control block diagram of the grid-connected converter.` 가 함께 보인다.
+- Ratings가 표 형태로 보인다. `Port`, `Type`, `U`, `AC`, `P`, `DC` 셀이 칸으로 나뉜다.
+- 수식 `i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}` 가 별도 equation 블록으로 보인다.
+
+성공: `:::{figure}` 나 표 파이프 문법, `{math}` 코드펜스 같은 소스 표기가 화면의 기본 모습이 아니다.
+
+### C. Paragraph 편집
+
+`The current reference is calculated from the active power command.` 문장을 클릭한다.
+
+다음으로 바꾼다.
+
+`The current reference follows the active power command.`
+
+`Save` 를 누른다. 상태가 `Saved` 가 되어야 한다.
+
+파일을 연다.
+
+`apps/editor/document/technical-document.md`
+
+확인할 것:
+
+- `The current reference follows the active power command.` 가 있다.
+- 원래 문장 `The current reference is calculated from the active power command.` 는 없다.
+
+### D. Figure caption 편집
+
+Figure caption `Control block diagram of the grid-connected converter.` 를 클릭한다.
+
+다음으로 바꾼다.
+
+`Control block diagram of the grid-tied converter.`
+
+`Save` 를 누른다.
+
+같은 `.md` 파일에서 확인할 것:
+
+- caption이 `grid-tied converter` 로 바뀌었다.
+- 이미지 경로 `./diagram.svg` 가 남아 있다.
+- figure label `fig-control` 이 남아 있다.
+- Figure 구조(`figure` / 이미지 / caption)가 남아 있다.
+
+### E. Table cell 편집
+
+표에서 `AC` 셀을 클릭한다.
+
+`AC-side` 로 바꾼다.
+
+`Save` 를 누른다.
+
+같은 `.md` 파일에서 확인할 것:
+
+- `AC` 가 `AC-side` 로 바뀌었다.
+- `Port`, `Type`, `U`, `P`, `DC` 는 그대로다.
+- 표 구조가 남아 있다.
+
+### F. Core write path 확인
+
+저장소 루트에서:
+
+```powershell
+pnpm ieumdoc check apps/editor/document/technical-document.md
+pnpm ieumdoc format apps/editor/document/technical-document.md
+```
+
+확인할 것:
+
+- `structure valid` 가 출력된다.
+- `format`을 한 번 더 실행해도 파일이 더 바뀌지 않는다.
+
+가능하면 변경 의미도 본다.
+
+```powershell
+git diff -- apps/editor/document/technical-document.md
+```
+
+확인할 것: paragraph, caption, `AC-side` 변경이 보이고 figure label/image와 표의 다른 칸은 유지된다.
+
+원문 공백이나 `:label:` / `:name:` 표기 차이는 실패가 아니다.
+
+### G. 재실행 확인
+
+브라우저를 새로고침한다. 또는 Editor를 끄고 A의 명령으로 다시 연다.
+
+화면에서 이전에 수정한 값이 그대로 보여야 한다.
+
+- paragraph: `The current reference follows the active power command.`
+- figure caption: `Control block diagram of the grid-tied converter.`
+- table cell: `AC-side`
+
+즉 다음 왕복이 사람 눈으로 성립해야 한다.
+
+```
+Editor → Core → canonical .md → Core → Editor
+```
+
+확인이 끝나면 Editor를 종료한다.
+
+원하면 작업 파일을 되돌린다.
+
+```powershell
+Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
+```
+
 ## 3. 사람이 특히 볼 것
 
 1. CLI가 Markdown 문자열을 직접 치환하지 않는다. 같은 작업을 Core API로 재현하면 파일 내용이 같아야 한다.
@@ -257,6 +405,10 @@ index는 `check`가 출력하는 top-level 번호다.
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
+- Visual Editor는 지정된 기술문서 하나만 연다. 파일 탐색기는 없다.
+- paragraph / figure caption / table cell 만 화면에서 직접 편집한다. heading, admonition, equation, cross-reference는 표시한다.
+- 굵게/기울임이 있는 paragraph를 통째로 바꾸면 그 표시는 풀릴 수 있다.
+- 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
 
 ## 6. 실패 시
 
@@ -264,3 +416,5 @@ index는 `check`가 출력하는 top-level 번호다.
 - `replaceText could not find paragraph or heading text`: `--from` 문장이 파일에 있는지 확인한다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
+- Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
+- Save 후 파일에 반영되지 않으면 해당 문장을 클릭해 수정한 뒤 `Save` 를 다시 누른다. heading이나 warning 본문은 이번 화면에서 저장 대상이 아니다.

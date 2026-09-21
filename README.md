@@ -70,6 +70,16 @@ pnpm test
 pnpm ieumdoc check packages/core/test/fixtures/document.md
 ```
 
+## MVP 2 Alpha
+
+Visual Editor is `apps/editor`. It displays a technical document and writes changes through IeumDoc Core.
+
+```bash
+pnpm --filter @ieumdoc/editor dev
+```
+
+Open `http://localhost:5173`. The working file is `apps/editor/document/technical-document.md`.
+
 사람이 따라 하는 절차는 [docs/test/TEST_GUIDE.md](docs/test/TEST_GUIDE.md)에 있다.
 
 

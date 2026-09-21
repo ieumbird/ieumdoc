@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/cli test",
-    "ieumdoc": "tsx packages/cli/src/cli.ts"
+    "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test",
+    "ieumdoc": "tsx packages/cli/src/cli.ts",
+    "editor": "pnpm --filter @ieumdoc/editor dev"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

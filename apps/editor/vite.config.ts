@@ -1,0 +1,33 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig, type ViteDevServer } from "vite";
+
+export default defineConfig({
+  plugins: [
+    react(),
+    {
+      name: "ieumdoc-document",
+      configureServer(server: ViteDevServer) {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url?.split("?")[0] ?? "";
+          if (url !== "/api/document" && !url.startsWith("/document/")) {
+            next();
+            return;
+          }
+          void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
+            const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
+              .handleDocumentRequest;
+            return handle(req, res, next);
+          }).catch((error: unknown) => {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+          });
+        });
+      },
+    },
+  ],
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
+});

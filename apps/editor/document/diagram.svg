@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="180" viewBox="0 0 560 180" role="img" aria-label="Control block diagram">
+  <rect width="560" height="180" fill="#ffffff"/>
+  <rect x="24" y="60" width="120" height="60" rx="6" fill="#eef4fb" stroke="#2a4b73"/>
+  <text x="84" y="96" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16">P*</text>
+  <rect x="220" y="50" width="140" height="80" rx="6" fill="#e8f6ee" stroke="#2a7348"/>
+  <text x="290" y="96" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16">Controller</text>
+  <rect x="430" y="60" width="110" height="60" rx="6" fill="#f8efe4" stroke="#8a5a22"/>
+  <text x="485" y="96" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16">Converter</text>
+  <line x1="144" y1="90" x2="220" y2="90" stroke="#334155" stroke-width="2"/>
+  <polygon points="220,84 232,90 220,96" fill="#334155"/>
+  <line x1="360" y1="90" x2="430" y2="90" stroke="#334155" stroke-width="2"/>
+  <polygon points="430,84 442,90 430,96" fill="#334155"/>
+</svg>

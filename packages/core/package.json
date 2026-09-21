@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "tsx --test test/core.test.ts test/technical-document.test.ts"
+    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts"
   },
   "dependencies": {
     "myst-common": "1.10.0",
