@@ -1,0 +1,9 @@
+{
+  "name": "ieumdoc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "pnpm --filter @ieumdoc/core test"
+  },
+  "packageManager": "pnpm@10.34.1"
+}

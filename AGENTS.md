@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> Document first. Semantics in Core. Interfaces replaceable.
+
 ## Working principles
 
 - 현재 요청을 해결하는 가장 작고 단순한 변경을 우선한다.
@@ -16,6 +18,11 @@
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
+
+## Layout
+
+- `packages/core` — headless document parse, operations, validate, serialize. No UI.
+- `spikes/` — exploratory experiments. Do not import spike code into `packages/core`.
 
 ## Verification
 
