@@ -51,6 +51,37 @@ export function insertBlock(document: Document, index: number, block: DocumentNo
   return next;
 }
 
+export function updateNodeText(
+  document: Document,
+  type: string,
+  from: string,
+  to: string,
+): Document {
+  if (type.length === 0) {
+    throw new Error("updateNodeText requires a node type");
+  }
+  if (from.length === 0) {
+    throw new Error("updateNodeText requires a non-empty search string");
+  }
+  const next = cloneDocument(document);
+  const node = findNodeWithText(next, type, from);
+  if (!node) {
+    throw new Error(`updateNodeText could not find ${type} text: ${from}`);
+  }
+  if (replaceInTextNodes(node, from, to)) {
+    return next;
+  }
+  if (typeof node.value === "string" && node.value.includes(from)) {
+    node.value = node.value.replaceAll(from, to);
+    return next;
+  }
+  if (toText(node) === from) {
+    node.children = [{ type: "text", value: to }];
+    return next;
+  }
+  throw new Error(`updateNodeText could not replace text in ${type}`);
+}
+
 export function removeBlock(document: Document, index: number): Document {
   const next = cloneDocument(document);
   const blocks = next.children;
@@ -62,6 +93,17 @@ export function removeBlock(document: Document, index: number): Document {
   }
   blocks.splice(index, 1);
   return next;
+}
+
+function findNodeWithText(node: DocumentNode, type: string, from: string): DocumentNode | undefined {
+  if (node.type === type && toText(node).includes(from)) {
+    return node;
+  }
+  for (const child of node.children ?? []) {
+    const found = findNodeWithText(child, type, from);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {

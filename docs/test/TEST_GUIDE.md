@@ -51,7 +51,7 @@ pnpm install
 pnpm test
 ```
 
-통과 기준:
+통과 기준 — Core, 기술문서, CLI 테스트가 모두 PASS:
 
 ```
 ✔ Core can parse a real document
@@ -63,6 +63,15 @@ pnpm test
 ✔ Modified document serializes canonically
 ✔ Serialized document reparses successfully
 ✔ Second serialization is stable
+✔ technical document parses
+✔ admonition content can be modified structurally
+✔ figure caption can be modified structurally
+✔ table cell can be modified structurally
+✔ figure/equation/reference semantics remain intact
+✔ modified document validates
+✔ canonical serialization succeeds
+✔ serialized document reparses
+✔ second serialization is stable
 ✔ CLI can check and modify a real file through Core
 ```
 
@@ -183,6 +192,38 @@ pnpm ieumdoc check tmp/document.md
 Remove-Item -Recurse -Force tmp
 ```
 
+## 2-7. 기술문서 구조 수정
+
+복사본을 새로 만든다.
+
+```powershell
+Copy-Item packages/core/test/fixtures/technical-document.md tmp/technical-document.md
+pnpm ieumdoc check tmp/technical-document.md
+```
+
+출력에 `container:figure` 와 `table` 이 있어야 한다.
+
+admonition / figure caption / table cell 을 구조적으로 수정한다.
+
+```powershell
+pnpm ieumdoc update-node-text tmp/technical-document.md --type admonition --from "The current controller parameters must be calibrated before operation." --to "The current controller parameters must be calibrated."
+pnpm ieumdoc update-node-text tmp/technical-document.md --type caption --from "Control block diagram of the grid-connected converter." --to "Control block diagram of the grid-tied converter."
+pnpm ieumdoc update-node-text tmp/technical-document.md --type tableCell --from "AC" --to "AC-side"
+pnpm ieumdoc format tmp/technical-document.md
+pnpm ieumdoc check tmp/technical-document.md
+```
+
+파일에서 확인할 것:
+
+- `The current controller parameters must be calibrated.` 가 있다. warning 블록은 남아 있다.
+- figure caption이 `grid-tied converter` 로 바뀌었다.
+- `:name: fig-control` 또는 `fig-control` 과 `./diagram.svg` 가 남아 있다.
+- `{math}` 의 `:label: eq-current` 가 남아 있다.
+- `#fig-control` 과 `#eq-current` 참조가 남아 있다.
+- 표의 `AC` 가 `AC-side` 로 바뀌었고 `| Port |` 행은 그대로다.
+
+`format`을 한 번 더 실행해도 파일 내용이 같아야 한다.
+
 ## 3. 사람이 특히 볼 것
 
 1. CLI가 Markdown 문자열을 직접 치환하지 않는다. 같은 작업을 Core API로 재현하면 파일 내용이 같아야 한다.
@@ -199,17 +240,21 @@ pnpm ieumdoc replace-text <file> --from <text> --to <text>
 pnpm ieumdoc insert-block <file> --at <index> --text <text>
 pnpm ieumdoc remove-block <file> --at <index>
 pnpm ieumdoc move-block <file> --from <index> --to <index>
+pnpm ieumdoc update-node-text <file> --type <type> --from <text> --to <text>
 ```
 
 `insert-block`은 paragraph를 넣는다.
 index는 `check`가 출력하는 top-level 번호다.
+`update-node-text`의 `--type` 예: `admonition`, `caption`, `tableCell`.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 
-- `replace-text`는 paragraph/heading 텍스트만 바꾼다.
+- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
-- 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다. 이번 fixture는 이미 canonical form이다.
-- Editor, GitHub, AI, 표/figure 전용 명령은 없다.
+- `{eq}`eq-current`` 는 serialize 후 `[](#eq-current)` 가 된다. 대상 label은 남는다.
+- figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
+- 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
+- merged cell 전용 시스템은 없다.
 
 ## 6. 실패 시
 

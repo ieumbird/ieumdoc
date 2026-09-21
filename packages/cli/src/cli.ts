@@ -6,6 +6,7 @@ import {
   removeBlock,
   replaceText,
   serialize,
+  updateNodeText,
   validate,
   type Document,
 } from "@ieumdoc/core";
@@ -17,6 +18,7 @@ const USAGE = `Usage:
   ieumdoc insert-block <file> --at <index> --text <text>
   ieumdoc remove-block <file> --at <index>
   ieumdoc move-block <file> --from <index> --to <index>
+  ieumdoc update-node-text <file> --type <type> --from <text> --to <text>
 `;
 
 function main(argv: string[]): number {
@@ -59,6 +61,13 @@ function main(argv: string[]): number {
     }
     case "move-block": {
       save(file, moveBlock(parse(readFile(file)), intFlag(rest, "--from"), intFlag(rest, "--to")));
+      return 0;
+    }
+    case "update-node-text": {
+      save(
+        file,
+        updateNodeText(parse(readFile(file)), flag(rest, "--type"), flag(rest, "--from"), flag(rest, "--to")),
+      );
       return 0;
     }
     default:
