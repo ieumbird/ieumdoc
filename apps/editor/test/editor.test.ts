@@ -63,6 +63,10 @@ test("Core InlineContent converts to and from Tiptap content", () => {
     { kind: "strong", children: [{ kind: "text", text: "DC-link voltage" }] },
     { kind: "text", text: " and " },
     { kind: "emphasis", children: [{ kind: "text", text: "phase current" }] },
+    {
+      kind: "strong",
+      children: [{ kind: "emphasis", children: [{ kind: "text", text: "with both marks" }] }],
+    },
     { kind: "text", text: "." },
   ];
   const tiptap = toTiptapContent(original);
@@ -70,6 +74,79 @@ test("Core InlineContent converts to and from Tiptap content", () => {
   assert.equal(tiptap.content?.[0]?.type, "paragraph");
   const roundTrip = fromTiptapContent(tiptap);
   assert.deepEqual(roundTrip, original);
+});
+
+test("Tiptap adapter accepts plain, bold, italic, and combined marks", () => {
+  const content = fromTiptapContent({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "plain" },
+          { type: "text", text: "bold", marks: [{ type: "bold" }] },
+          { type: "text", text: "italic", marks: [{ type: "italic" }] },
+          {
+            type: "text",
+            text: "both",
+            marks: [{ type: "bold" }, { type: "italic" }],
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.deepEqual(content, [
+    { kind: "text", text: "plain" },
+    { kind: "strong", children: [{ kind: "text", text: "bold" }] },
+    { kind: "emphasis", children: [{ kind: "text", text: "italic" }] },
+    {
+      kind: "strong",
+      children: [{ kind: "emphasis", children: [{ kind: "text", text: "both" }] }],
+    },
+  ]);
+  assert.deepEqual(fromTiptapContent({ type: "doc", content: [{ type: "paragraph" }] }), []);
+});
+
+test("Tiptap adapter rejects multiple paragraphs and unsupported nodes", () => {
+  assert.throws(
+    () =>
+      fromTiptapContent({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "A" }] },
+          { type: "paragraph", content: [{ type: "text", text: "B" }] },
+        ],
+      }),
+    /exactly one paragraph/,
+  );
+  assert.throws(
+    () => fromTiptapContent({ type: "doc", content: [{ type: "heading" }] }),
+    /expected paragraph/,
+  );
+  assert.throws(
+    () =>
+      fromTiptapContent({
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "hardBreak" }] }],
+      }),
+    /unsupported Tiptap node "hardBreak"/,
+  );
+});
+
+test("Tiptap adapter rejects unsupported marks", () => {
+  for (const mark of ["link", "underline", "strike", "code", "unknown"]) {
+    assert.throws(
+      () =>
+        fromTiptapContent({
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "unsupported", marks: [{ type: mark }] }] },
+          ],
+        }),
+      new RegExp(`unsupported Tiptap mark "${mark}"`),
+    );
+  }
 });
 
 test("Editor source does not import MyST packages or AST", () => {

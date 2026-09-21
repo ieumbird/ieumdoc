@@ -6,9 +6,10 @@ type DocumentViewProps = {
   document: EditableDocument;
   onTextDraft: (path: NodePath, text: string) => void;
   onParagraphDraft: (path: NodePath, content: InlineContent[]) => void;
+  onParagraphError: (cause: unknown) => void;
 };
 
-export function DocumentView({ document, onTextDraft, onParagraphDraft }: DocumentViewProps) {
+export function DocumentView({ document, onTextDraft, onParagraphDraft, onParagraphError }: DocumentViewProps) {
   return (
     <article className="document">
       {document.blocks.map((block) => (
@@ -17,6 +18,7 @@ export function DocumentView({ document, onTextDraft, onParagraphDraft }: Docume
           block={block}
           onTextDraft={onTextDraft}
           onParagraphDraft={onParagraphDraft}
+          onParagraphError={onParagraphError}
         />
       ))}
     </article>
@@ -27,10 +29,12 @@ function BlockView({
   block,
   onTextDraft,
   onParagraphDraft,
+  onParagraphError,
 }: {
   block: EditableBlock;
   onTextDraft: DocumentViewProps["onTextDraft"];
   onParagraphDraft: DocumentViewProps["onParagraphDraft"];
+  onParagraphError: DocumentViewProps["onParagraphError"];
 }) {
   if (block.block === "heading") {
     const Tag = block.level <= 1 ? "h1" : block.level === 2 ? "h2" : "h3";
@@ -42,6 +46,7 @@ function BlockView({
         <ParagraphEditor
           content={block.content}
           onChange={(content) => onParagraphDraft(block.path, content)}
+          onError={onParagraphError}
         />
       );
     }

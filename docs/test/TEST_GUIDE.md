@@ -395,7 +395,9 @@ Editor → Core → canonical .md → Core → Editor
 Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
 ```
 
-## Visual Editor · MVP 2 Beta Rich Paragraph Editing
+## Visual Editor · MVP 2 Beta Rich Paragraph Editing (Tiptap v3.31.3)
+
+아래 흐름은 기존 MVP 2 Beta 확인 절차이며, Tiptap v3 기준으로 같은 rich paragraph 의미와 저장 왕복을 확인한다.
 
 시작 전 작업 파일을 원본으로 되돌린다.
 

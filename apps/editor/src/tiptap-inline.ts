@@ -25,15 +25,27 @@ export function toTiptapContent(content: InlineContent[]): TiptapJSON {
 }
 
 export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
-  const content: InlineContent[] = [];
-  for (const block of doc.content ?? []) {
-    if (block.type !== "paragraph") continue;
-    for (const node of block.content ?? []) {
-      const item = fromTiptapText(node);
-      if (item) content.push(item);
-    }
+  if (!isTiptapJSON(doc) || doc.type !== "doc") {
+    throw new Error('Tiptap document must have type "doc"');
   }
-  return content;
+
+  if (!Array.isArray(doc.content) || doc.content.length !== 1) {
+    throw new Error("Tiptap document must contain exactly one paragraph");
+  }
+
+  const paragraph = doc.content[0];
+  if (!isTiptapJSON(paragraph) || paragraph.type !== "paragraph") {
+    throw new Error(`unsupported Tiptap block ${describeType(paragraph)}; expected paragraph`);
+  }
+
+  if (paragraph.content === undefined) {
+    return [];
+  }
+  if (!Array.isArray(paragraph.content)) {
+    throw new Error("Tiptap paragraph content must be an array");
+  }
+
+  return paragraph.content.map((node, index) => fromTiptapText(node, index));
 }
 
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
@@ -56,11 +68,34 @@ function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   return nodes;
 }
 
-function fromTiptapText(node: TiptapJSON): InlineContent | undefined {
-  if (node.type !== "text") return undefined;
-  const text = node.text ?? "";
-  if (text.length === 0) return undefined;
-  const marks = new Set((node.marks ?? []).map((mark) => mark.type));
+function fromTiptapText(node: TiptapJSON, index: number): InlineContent {
+  if (!isTiptapJSON(node) || node.type !== "text") {
+    throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
+  }
+
+  if (typeof node.text !== "string" || node.text.length === 0) {
+    throw new Error(`Tiptap text node at paragraph child ${index} must contain non-empty text`);
+  }
+
+  if (node.marks !== undefined && !Array.isArray(node.marks)) {
+    throw new Error(`Tiptap marks at paragraph child ${index} must be an array`);
+  }
+
+  const marks = new Set<string>();
+  for (const mark of node.marks ?? []) {
+    if (!isTiptapJSON(mark) || typeof mark.type !== "string") {
+      throw new Error(`unsupported Tiptap mark at paragraph child ${index}`);
+    }
+    if (mark.type !== "bold" && mark.type !== "italic") {
+      throw new Error(`unsupported Tiptap mark "${mark.type}" at paragraph child ${index}`);
+    }
+    if (marks.has(mark.type)) {
+      throw new Error(`duplicate Tiptap mark "${mark.type}" at paragraph child ${index}`);
+    }
+    marks.add(mark.type);
+  }
+
+  const text = node.text;
   let item: InlineContent = { kind: "text", text };
   if (marks.has("italic")) {
     item = { kind: "emphasis", children: [item] };
@@ -69,4 +104,15 @@ function fromTiptapText(node: TiptapJSON): InlineContent | undefined {
     item = { kind: "strong", children: [item] };
   }
   return item;
+}
+
+function isTiptapJSON(value: unknown): value is TiptapJSON {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function describeType(value: unknown): string {
+  if (isTiptapJSON(value) && typeof value.type === "string") {
+    return `"${value.type}"`;
+  }
+  return "unknown node";
 }

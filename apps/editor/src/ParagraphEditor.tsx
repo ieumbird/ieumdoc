@@ -6,24 +6,30 @@ import { fromTiptapContent, toTiptapContent } from "./tiptap-inline.ts";
 type ParagraphEditorProps = {
   content: InlineContent[];
   onChange: (content: InlineContent[]) => void;
+  onError: (cause: unknown) => void;
 };
 
-export function ParagraphEditor({ content, onChange }: ParagraphEditorProps) {
+export function ParagraphEditor({ content, onChange, onError }: ParagraphEditorProps) {
   const editor = useEditor({
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({
-        heading: false,
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
         blockquote: false,
-        codeBlock: false,
+        bulletList: false,
         code: false,
-        horizontalRule: false,
-        hardBreak: false,
-        strike: false,
+        codeBlock: false,
         dropcursor: false,
         gapcursor: false,
+        hardBreak: false,
+        heading: false,
+        horizontalRule: false,
+        link: false,
+        listItem: false,
+        listKeymap: false,
+        orderedList: false,
+        strike: false,
+        trailingNode: false,
+        underline: false,
       }),
     ],
     content: toTiptapContent(content),
@@ -38,7 +44,11 @@ export function ParagraphEditor({ content, onChange }: ParagraphEditorProps) {
       },
     },
     onUpdate: ({ editor: next }) => {
-      onChange(fromTiptapContent(next.getJSON()));
+      try {
+        onChange(fromTiptapContent(next.getJSON()));
+      } catch (cause) {
+        onError(cause);
+      }
     },
   });
 

@@ -9,6 +9,7 @@ export function App() {
   const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, InlineContent[]>>({});
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
+  const [paragraphError, setParagraphError] = useState("");
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function App() {
       setDocument(next);
       setTextDrafts({});
       setParagraphDrafts({});
+      setParagraphError("");
       setRevision((value) => value + 1);
       setStatus("Ready");
     } catch (cause) {
@@ -33,6 +35,11 @@ export function App() {
 
   async function save(): Promise<void> {
     if (!document) return;
+    if (paragraphError) {
+      setError(paragraphError);
+      setStatus("Save failed");
+      return;
+    }
     setError("");
     setStatus("Saving…");
     try {
@@ -43,6 +50,7 @@ export function App() {
       setDocument(next);
       setTextDrafts({});
       setParagraphDrafts({});
+      setParagraphError("");
       setRevision((value) => value + 1);
       setStatus("Saved");
     } catch (cause) {
@@ -56,7 +64,16 @@ export function App() {
   }
 
   function onParagraphDraft(path: NodePath, content: InlineContent[]): void {
+    setParagraphError("");
+    setError("");
     setParagraphDrafts((current) => ({ ...current, [pathKey(path)]: content }));
+  }
+
+  function onParagraphError(cause: unknown): void {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    setParagraphError(message);
+    setError(message);
+    setStatus("Save failed");
   }
 
   return (
@@ -86,6 +103,7 @@ export function App() {
           document={document}
           onTextDraft={onTextDraft}
           onParagraphDraft={onParagraphDraft}
+          onParagraphError={onParagraphError}
         />
       ) : null}
     </div>
