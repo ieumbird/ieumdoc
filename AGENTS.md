@@ -20,7 +20,7 @@
 - CLI는 Core operation을 호출하는 얇은 인터페이스로 유지하며, 문서 의미나 Markdown/AST를 별도로 구현하지 않는다.
 - cursor, focus, selection, toolbar, hover 등 Editor 전용 interaction은 CLI parity 대상이 아니다.
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
-- 현재 contentEditable 구현은 MVP 편집 검증용이다. Rich-text editing 기능을 직접 확장하여 자체 editor engine을 만들지 않는다.
+- Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. IeumDoc이 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
 - `apps/editor/server`는 현재 local development adapter다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
 
