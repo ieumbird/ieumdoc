@@ -264,3 +264,109 @@ h2.heading {
 .unsupported {
   color: #66707c;
 }
+
+.single-editor {
+  background: white;
+  border: 1px solid #d5dbe3;
+  border-radius: 0.7rem;
+  padding: 1.4rem 2.1rem 2rem;
+}
+
+.block-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e6ebf0;
+}
+
+.block-toolbar-label {
+  margin-right: 0.25rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.block-toolbar button {
+  background: #eef2f6;
+  color: #1b1f24;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+.block-toolbar .delete-block {
+  margin-left: auto;
+  background: #fff0f0;
+  color: #8a1f1f;
+}
+
+.single-editor .format-bar {
+  align-items: center;
+  margin: 0.8rem 0 0.35rem;
+}
+
+.selection-hint {
+  margin-left: 0.4rem;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.single-document-tiptap {
+  min-height: 18rem;
+  outline: none;
+}
+
+.single-document-tiptap > * {
+  margin: 0.9rem 0;
+}
+
+.single-document-tiptap > h1:first-child,
+.single-document-tiptap > h2:first-child,
+.single-document-tiptap > h3:first-child {
+  margin-top: 0.6rem;
+}
+
+.single-document-tiptap p {
+  outline: 1px dashed transparent;
+  border-radius: 0.2rem;
+}
+
+.single-document-tiptap p:hover,
+.single-document-tiptap p:focus-within {
+  outline-color: #8aa4d4;
+  background: #f7f9fc;
+}
+
+.equation-node {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  background: #f4f6fb;
+  border: 1px solid #d5dbe8;
+  border-radius: 0.45rem;
+  cursor: pointer;
+}
+
+.equation-node.ProseMirror-selectednode {
+  outline: 2px solid #6c8ed1;
+}
+
+.equation-node-kind {
+  color: #38558a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.equation-node-latex {
+  flex: 1;
+  font-family: "Cambria Math", "Times New Roman", serif;
+  font-size: 1.15rem;
+  white-space: pre-wrap;
+}
+
+.equation-node-label {
+  color: #5b6775;
+  font-size: 0.8rem;
+}

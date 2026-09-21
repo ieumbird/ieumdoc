@@ -5,24 +5,11 @@ import { fileURLToPath } from "node:url";
 import {
   getEditableDocument,
   parse,
+  replaceEditableBlocks,
   serialize,
-  updateNodeTextAtPath,
-  updateParagraphInlineContent,
   validateStructure,
   type EditableDocument,
-  type InlineContent,
 } from "@ieumdoc/core";
-
-export type TextEdit = {
-  path: readonly number[];
-  from: string;
-  to: string;
-};
-
-export type ParagraphEdit = {
-  path: readonly number[];
-  content: InlineContent[];
-};
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 export const DOCUMENT_DIR = path.join(editorRoot, "document");
@@ -32,21 +19,17 @@ export function loadEditableDocument(source: string): EditableDocument {
   return getEditableDocument(parse(source));
 }
 
-export function saveEdits(
+/** Tiptap JSON is converted in apps/editor and never becomes a Core API type. */
+export function saveEditorDocument(
   source: string,
-  edits: TextEdit[],
-  paragraphs: ParagraphEdit[] = [],
+  editable: EditableDocument,
 ): { markdown: string; document: EditableDocument } {
-  let document = parse(source);
-  for (const edit of edits) {
-    document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
-  }
-  for (const paragraph of paragraphs) {
-    document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
-  }
+  const document = replaceEditableBlocks(parse(source), editable);
   validateStructure(document);
   const markdown = serialize(document);
-  return { markdown, document: getEditableDocument(document) };
+  const reparsed = parse(markdown);
+  validateStructure(reparsed);
+  return { markdown, document: getEditableDocument(reparsed) };
 }
 
 export async function handleDocumentRequest(
@@ -70,10 +53,9 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as { edits?: TextEdit[]; paragraphs?: ParagraphEdit[] };
-      const edits = Array.isArray(body.edits) ? body.edits : [];
-      const paragraphs = Array.isArray(body.paragraphs) ? body.paragraphs : [];
-      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), edits, paragraphs);
+      const body = JSON.parse(await readBody(req)) as { document?: EditableDocument };
+      if (!body.document) throw new Error("POST /api/document requires a semantic document");
+      const saved = saveEditorDocument(readFileSync(DOCUMENT_FILE, "utf8"), body.document);
       writeFileSync(DOCUMENT_FILE, saved.markdown);
       sendJson(res, 200, { document: saved.document });
       return;

@@ -13,5 +13,6 @@ export {
   removeBlock,
   updateNodeTextAtPath,
   updateParagraphInlineContent,
+  replaceEditableBlocks,
 } from "./operations.ts";
 export { validateStructure } from "./validation.ts";

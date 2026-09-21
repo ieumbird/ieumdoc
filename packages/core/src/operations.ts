@@ -6,6 +6,7 @@ import {
   type DocumentNode,
   type NodePath,
 } from "./document.ts";
+import type { EditableBlock, EditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
   inlineContentToNodes,
@@ -124,6 +125,50 @@ export function removeBlock(document: Document, index: number): Document {
   }
   blocks.splice(index, 1);
   return next;
+}
+
+/**
+ * Replace the top-level blocks represented by the editor-neutral read model.
+ *
+ * This is intentionally a small spike operation: it only accepts the three
+ * block types supported by the single-editor experiment. Tiptap JSON stays in
+ * apps/editor and never crosses this Core boundary.
+ */
+export function replaceEditableBlocks(document: Document, editable: EditableDocument): Document {
+  if (!editable || !Array.isArray(editable.blocks) || editable.blocks.length === 0) {
+    throw new Error("replaceEditableBlocks requires at least one editable block");
+  }
+
+  const next = cloneDocument(document);
+  next.children = editable.blocks.map(toEditableNode);
+  return next;
+}
+
+function toEditableNode(block: EditableBlock): DocumentNode {
+  if (block.block === "heading") {
+    if (!Number.isInteger(block.level) || block.level < 1 || block.level > 6) {
+      throw new Error(`heading level out of range: ${block.level}`);
+    }
+    return {
+      type: "heading",
+      depth: block.level,
+      children: block.text.length > 0 ? [{ type: "text", value: block.text }] : [],
+    };
+  }
+  if (block.block === "paragraph") {
+    if (!block.editable) {
+      throw new Error("replaceEditableBlocks requires editable paragraphs");
+    }
+    return { type: "paragraph", children: inlineContentToNodes(block.content) };
+  }
+  if (block.block === "equation") {
+    return {
+      type: "math",
+      value: block.latex,
+      ...(block.label.length > 0 ? { label: block.label } : {}),
+    };
+  }
+  throw new Error(`replaceEditableBlocks does not support ${block.block} blocks`);
 }
 
 function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {

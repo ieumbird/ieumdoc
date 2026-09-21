@@ -1,19 +1,13 @@
 import { useEffect, useState } from "react";
-import type { EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
-import { collectEdits, collectParagraphEdits, pathKey } from "./edits.ts";
-import { DocumentView } from "./DocumentView.tsx";
-
-export type ParagraphErrors = Record<string, string>;
+import type { EditableDocument } from "@ieumdoc/core";
+import { SingleDocumentEditor } from "./SingleDocumentEditor.tsx";
 
 export function App() {
   const [document, setDocument] = useState<EditableDocument | null>(null);
-  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
-  const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, InlineContent[]>>({});
+  const [draft, setDraft] = useState<EditableDocument | null>(null);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
-  const [paragraphErrors, setParagraphErrors] = useState<ParagraphErrors>({});
   const [revision, setRevision] = useState(0);
-  const paragraphError = firstParagraphError(paragraphErrors);
 
   useEffect(() => {
     void load();
@@ -21,14 +15,11 @@ export function App() {
 
   async function load(): Promise<void> {
     setError("");
-    setParagraphErrors({});
     setStatus("Loading…");
     try {
       const next = await requestDocument("GET");
       setDocument(next);
-      setTextDrafts({});
-      setParagraphDrafts({});
-      setParagraphErrors({});
+      setDraft(next);
       setRevision((value) => value + 1);
       setStatus("Ready");
     } catch (cause) {
@@ -38,22 +29,13 @@ export function App() {
   }
 
   async function save(): Promise<void> {
-    if (!document) return;
-    if (Object.keys(paragraphErrors).length > 0) {
-      setStatus("Save failed");
-      return;
-    }
+    if (!draft) return;
     setError("");
     setStatus("Saving…");
     try {
-      const next = await requestDocument("POST", {
-        edits: collectEdits(document, textDrafts),
-        paragraphs: collectParagraphEdits(document, paragraphDrafts),
-      });
+      const next = await requestDocument("POST", { document: draft });
       setDocument(next);
-      setTextDrafts({});
-      setParagraphDrafts({});
-      setParagraphErrors({});
+      setDraft(next);
       setRevision((value) => value + 1);
       setStatus("Saved");
     } catch (cause) {
@@ -62,77 +44,40 @@ export function App() {
     }
   }
 
-  function onTextDraft(path: NodePath, text: string): void {
-    setTextDrafts((current) => ({ ...current, [pathKey(path)]: text }));
-  }
-
-  function onParagraphDraft(path: NodePath, content: InlineContent[]): void {
-    setParagraphErrors((current) => clearParagraphError(current, path));
-    setError("");
-    setParagraphDrafts((current) => ({ ...current, [pathKey(path)]: content }));
-  }
-
-  function onParagraphError(path: NodePath, cause: unknown): void {
-    setParagraphErrors((current) => recordParagraphError(current, path, cause));
-    setError("");
-    setStatus("Save failed");
-  }
-
-  const visibleError = paragraphError || error;
-
   return (
     <div className="app">
       <header className="toolbar">
         <div>
-          <h1 className="product">IeumDoc</h1>
+          <h1 className="product">IeumDoc · Single Editor Spike</h1>
           <p className="filename">technical-document.md</p>
         </div>
         <div className="toolbar-actions">
           <p className="status" data-testid="status">
             {status}
           </p>
-          <button type="button" onClick={() => void save()} disabled={!document}>
+          <button type="button" onClick={() => void save()} disabled={!draft}>
             Save
           </button>
         </div>
       </header>
-      {visibleError ? (
+      {error ? (
         <p className="error" data-testid="error">
-          {visibleError}
+          {error}
         </p>
       ) : null}
       {document ? (
-        <DocumentView
+        <SingleDocumentEditor
           key={revision}
           document={document}
-          onTextDraft={onTextDraft}
-          onParagraphDraft={onParagraphDraft}
-          onParagraphError={onParagraphError}
+          onChange={setDraft}
+          onError={(cause) => {
+            setError(cause instanceof Error ? cause.message : String(cause));
+            setStatus("Editing error");
+          }}
         />
       ) : null}
     </div>
   );
-}
-
-export function recordParagraphError(
-  errors: ParagraphErrors,
-  path: NodePath,
-  cause: unknown,
-): ParagraphErrors {
-  const message = cause instanceof Error ? cause.message : String(cause);
-  return { ...errors, [pathKey(path)]: message };
-}
-
-export function clearParagraphError(errors: ParagraphErrors, path: NodePath): ParagraphErrors {
-  const key = pathKey(path);
-  if (!(key in errors)) return errors;
-  const next = { ...errors };
-  delete next[key];
-  return next;
-}
-
-export function firstParagraphError(errors: ParagraphErrors): string {
-  return Object.values(errors)[0] ?? "";
 }
 
 async function requestDocument(method: "GET" | "POST", body?: unknown): Promise<EditableDocument> {
