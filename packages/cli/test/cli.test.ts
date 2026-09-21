@@ -6,13 +6,14 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  insertBlock,
+  inspectDocument,
+  insertParagraph,
   moveBlock,
   parse,
   removeBlock,
   replaceText,
   serialize,
-  validate,
+  validateStructure,
 } from "@ieumdoc/core";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -33,8 +34,14 @@ test("CLI can check and modify a real file through Core", () => {
   try {
     const checked = run(["check", file]);
     assert.equal(checked.status, 0, checked.stderr);
-    assert.match(checked.stdout, /^valid\n/);
-    assert.match(checked.stdout, /admonition:note/);
+    assert.match(checked.stdout, /^structure valid\n/);
+    const expectedLines = inspectDocument(parse(original)).map((block) => {
+      const kind = block.kind ? `:${block.kind}` : "";
+      return `${block.index} ${block.type}${kind}`;
+    });
+    for (const line of expectedLines) {
+      assert.equal(checked.stdout.includes(line), true);
+    }
 
     assert.equal(run(["replace-text", file, "--from", FROM, "--to", TO]).status, 0);
     assert.equal(run(["insert-block", file, "--at", "1", "--text", INSERTED]).status, 0);
@@ -44,7 +51,7 @@ test("CLI can check and modify a real file through Core", () => {
 
     const after = run(["check", file]);
     assert.equal(after.status, 0, after.stderr);
-    assert.match(after.stdout, /^valid\n/);
+    assert.match(after.stdout, /^structure valid\n/);
 
     const saved = readFileSync(file, "utf8");
     const expected = corePipeline(original);
@@ -61,13 +68,10 @@ test("CLI can check and modify a real file through Core", () => {
 
 function corePipeline(source: string): string {
   let document = replaceText(parse(source), FROM, TO);
-  document = insertBlock(document, 1, {
-    type: "paragraph",
-    children: [{ type: "text", value: INSERTED }],
-  });
+  document = insertParagraph(document, 1, INSERTED);
   document = moveBlock(document, 3, 1);
   document = removeBlock(document, 4);
-  validate(document);
+  validateStructure(document);
   return serialize(document);
 }
 

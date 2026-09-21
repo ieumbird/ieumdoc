@@ -31,16 +31,16 @@ importers:
   packages/core:
     dependencies:
       myst-common:
-        specifier: ^1.10.0
+        specifier: 1.10.0
         version: 1.10.0
       myst-parser:
-        specifier: ^1.7.3
+        specifier: 1.7.3
         version: 1.7.3
       myst-to-md:
-        specifier: ^1.0.16
+        specifier: 1.0.16
         version: 1.0.16
       myst-transforms:
-        specifier: ^1.3.50
+        specifier: 1.3.50
         version: 1.3.50
       vfile:
         specifier: ^6.0.3

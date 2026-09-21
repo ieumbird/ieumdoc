@@ -7,7 +7,7 @@
 ```
 plain-text file
     → ieumdoc CLI
-    → packages/core (parse / operation / validate / serialize)
+    → packages/core (parse / operation / validateStructure / serialize)
     → canonical plain-text file
 ```
 
@@ -67,6 +67,8 @@ pnpm test
 ✔ admonition content can be modified structurally
 ✔ figure caption can be modified structurally
 ✔ table cell can be modified structurally
+✔ exact node can be addressed with NodePath
+✔ node text mutation is unambiguous
 ✔ figure/equation/reference semantics remain intact
 ✔ modified document validates
 ✔ canonical serialization succeeds
@@ -97,7 +99,7 @@ pnpm ieumdoc check tmp/document.md
 기대 출력 시작:
 
 ```
-valid
+structure valid
 0 heading
 1 paragraph
 2 admonition:note
@@ -110,7 +112,7 @@ valid
 9 math
 ```
 
-`valid`가 아니면 실패다.
+`structure valid`가 아니면 실패다.
 
 ### 2-2. replace-text
 
@@ -183,7 +185,7 @@ pnpm ieumdoc format tmp/document.md
 pnpm ieumdoc check tmp/document.md
 ```
 
-다시 `valid`여야 한다.
+다시 `structure valid`여야 한다.
 `format`을 한 번 더 실행해도 파일 내용이 같아야 한다. 이것이 canonical serialization이다.
 
 끝나면 복사본을 지운다.
@@ -206,9 +208,9 @@ pnpm ieumdoc check tmp/technical-document.md
 admonition / figure caption / table cell 을 구조적으로 수정한다.
 
 ```powershell
-pnpm ieumdoc update-node-text tmp/technical-document.md --type admonition --from "The current controller parameters must be calibrated before operation." --to "The current controller parameters must be calibrated."
-pnpm ieumdoc update-node-text tmp/technical-document.md --type caption --from "Control block diagram of the grid-connected converter." --to "Control block diagram of the grid-tied converter."
-pnpm ieumdoc update-node-text tmp/technical-document.md --type tableCell --from "AC" --to "AC-side"
+pnpm ieumdoc update-node-text tmp/technical-document.md --path 4 --from "The current controller parameters must be calibrated before operation." --to "The current controller parameters must be calibrated."
+pnpm ieumdoc update-node-text tmp/technical-document.md --path 6,1 --from "Control block diagram of the grid-connected converter." --to "Control block diagram of the grid-tied converter."
+pnpm ieumdoc update-node-text tmp/technical-document.md --path 12,1,1 --from "AC" --to "AC-side"
 pnpm ieumdoc format tmp/technical-document.md
 pnpm ieumdoc check tmp/technical-document.md
 ```
@@ -240,16 +242,16 @@ pnpm ieumdoc replace-text <file> --from <text> --to <text>
 pnpm ieumdoc insert-block <file> --at <index> --text <text>
 pnpm ieumdoc remove-block <file> --at <index>
 pnpm ieumdoc move-block <file> --from <index> --to <index>
-pnpm ieumdoc update-node-text <file> --type <type> --from <text> --to <text>
+pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
 ```
 
-`insert-block`은 paragraph를 넣는다.
+`insert-block`은 Core `insertParagraph`로 paragraph를 넣는다.
 index는 `check`가 출력하는 top-level 번호다.
-`update-node-text`의 `--type` 예: `admonition`, `caption`, `tableCell`.
+`--path`는 현재 parse 결과 안의 위치다. 예: `4`, `6,1`, `12,1,1`.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 
-- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text`를 쓴다.
+- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
 - `{eq}`eq-current`` 는 serialize 후 `[](#eq-current)` 가 된다. 대상 label은 남는다.
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.

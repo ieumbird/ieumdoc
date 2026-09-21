@@ -1,5 +1,11 @@
 import { toText } from "myst-common";
-import { cloneDocument, type Document, type DocumentNode } from "./document.ts";
+import {
+  cloneDocument,
+  getNode,
+  type Document,
+  type DocumentNode,
+  type NodePath,
+} from "./document.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -51,23 +57,24 @@ export function insertBlock(document: Document, index: number, block: DocumentNo
   return next;
 }
 
-export function updateNodeText(
+export function insertParagraph(document: Document, index: number, text: string): Document {
+  return insertBlock(document, index, {
+    type: "paragraph",
+    children: [{ type: "text", value: text }],
+  });
+}
+
+export function updateNodeTextAtPath(
   document: Document,
-  type: string,
+  path: NodePath,
   from: string,
   to: string,
 ): Document {
-  if (type.length === 0) {
-    throw new Error("updateNodeText requires a node type");
-  }
   if (from.length === 0) {
-    throw new Error("updateNodeText requires a non-empty search string");
+    throw new Error("updateNodeTextAtPath requires a non-empty search string");
   }
   const next = cloneDocument(document);
-  const node = findNodeWithText(next, type, from);
-  if (!node) {
-    throw new Error(`updateNodeText could not find ${type} text: ${from}`);
-  }
+  const node = getNode(next, path);
   if (replaceInTextNodes(node, from, to)) {
     return next;
   }
@@ -79,7 +86,7 @@ export function updateNodeText(
     node.children = [{ type: "text", value: to }];
     return next;
   }
-  throw new Error(`updateNodeText could not replace text in ${type}`);
+  throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
 }
 
 export function removeBlock(document: Document, index: number): Document {
@@ -93,17 +100,6 @@ export function removeBlock(document: Document, index: number): Document {
   }
   blocks.splice(index, 1);
   return next;
-}
-
-function findNodeWithText(node: DocumentNode, type: string, from: string): DocumentNode | undefined {
-  if (node.type === type && toText(node).includes(from)) {
-    return node;
-  }
-  for (const child of node.children ?? []) {
-    const found = findNodeWithText(child, type, from);
-    if (found) return found;
-  }
-  return undefined;
 }
 
 function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {

@@ -1,5 +1,13 @@
-export type { Document, DocumentNode } from "./document.ts";
+export type { Document, DocumentNode, NodePath, BlockSummary } from "./document.ts";
+export { inspectDocument, getNode } from "./document.ts";
 export { parse } from "./myst/parse.ts";
 export { serialize } from "./myst/serialize.ts";
-export { replaceText, moveBlock, insertBlock, removeBlock, updateNodeText } from "./operations.ts";
-export { validate } from "./validation.ts";
+export {
+  replaceText,
+  moveBlock,
+  insertBlock,
+  insertParagraph,
+  removeBlock,
+  updateNodeTextAtPath,
+} from "./operations.ts";
+export { validateStructure } from "./validation.ts";

@@ -1,14 +1,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
-  insertBlock,
+  inspectDocument,
+  insertParagraph,
   moveBlock,
   parse,
   removeBlock,
   replaceText,
   serialize,
-  updateNodeText,
-  validate,
+  updateNodeTextAtPath,
+  validateStructure,
   type Document,
+  type NodePath,
 } from "@ieumdoc/core";
 
 const USAGE = `Usage:
@@ -18,7 +20,7 @@ const USAGE = `Usage:
   ieumdoc insert-block <file> --at <index> --text <text>
   ieumdoc remove-block <file> --at <index>
   ieumdoc move-block <file> --from <index> --to <index>
-  ieumdoc update-node-text <file> --type <type> --from <text> --to <text>
+  ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
 `;
 
 function main(argv: string[]): number {
@@ -35,7 +37,7 @@ function main(argv: string[]): number {
   switch (command) {
     case "check": {
       const document = parse(readFile(file));
-      validate(document);
+      validateStructure(document);
       process.stdout.write(`${summarize(document)}\n`);
       return 0;
     }
@@ -48,11 +50,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "insert-block": {
-      const block = {
-        type: "paragraph",
-        children: [{ type: "text", value: flag(rest, "--text") }],
-      };
-      save(file, insertBlock(parse(readFile(file)), intFlag(rest, "--at"), block));
+      save(file, insertParagraph(parse(readFile(file)), intFlag(rest, "--at"), flag(rest, "--text")));
       return 0;
     }
     case "remove-block": {
@@ -66,7 +64,12 @@ function main(argv: string[]): number {
     case "update-node-text": {
       save(
         file,
-        updateNodeText(parse(readFile(file)), flag(rest, "--type"), flag(rest, "--from"), flag(rest, "--to")),
+        updateNodeTextAtPath(
+          parse(readFile(file)),
+          pathFlag(rest),
+          flag(rest, "--from"),
+          flag(rest, "--to"),
+        ),
       );
       return 0;
     }
@@ -81,16 +84,16 @@ function readFile(path: string): string {
 }
 
 function save(path: string, document: Document): void {
-  validate(document);
+  validateStructure(document);
   writeFileSync(path, serialize(document));
 }
 
 function summarize(document: Document): string {
-  const lines = ["valid"];
-  document.children.forEach((node, index) => {
-    const kind = typeof node.kind === "string" && node.kind ? `:${node.kind}` : "";
-    lines.push(`${index} ${node.type}${kind}`);
-  });
+  const lines = ["structure valid"];
+  for (const block of inspectDocument(document)) {
+    const kind = block.kind ? `:${block.kind}` : "";
+    lines.push(`${block.index} ${block.type}${kind}`);
+  }
   return lines.join("\n");
 }
 
@@ -110,6 +113,15 @@ function intFlag(args: string[], name: string): number {
     throw new Error(`${name} must be an integer`);
   }
   return value;
+}
+
+function pathFlag(args: string[]): NodePath {
+  const raw = flag(args, "--path");
+  const path = raw.split(",").map((part) => Number(part.trim()));
+  if (path.length === 0 || path.some((index) => !Number.isInteger(index) || index < 0)) {
+    throw new Error("--path must be comma-separated non-negative integers");
+  }
+  return path;
 }
 
 try {

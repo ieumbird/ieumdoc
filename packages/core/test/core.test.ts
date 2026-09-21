@@ -3,13 +3,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { toText } from "myst-common";
 import {
-  insertBlock,
+  insertParagraph,
   moveBlock,
   parse,
   removeBlock,
   replaceText,
   serialize,
-  validate,
+  validateStructure,
   type Document,
   type DocumentNode,
 } from "../src/index.ts";
@@ -52,7 +52,7 @@ test("Core can replace text", () => {
 test("Core can insert a top-level block", () => {
   const document = parse(source);
   const originalLength = document.children.length;
-  const changed = insertBlock(document, 1, paragraph(INSERTED_TEXT));
+  const changed = insertParagraph(document, 1, INSERTED_TEXT);
   assert.equal(document.children.length, originalLength);
   assert.equal(changed.children.length, originalLength + 1);
   assert.equal(changed.children[1]?.type, "paragraph");
@@ -87,7 +87,7 @@ test("Core can move a top-level block", () => {
 
 test("Modified document validates", () => {
   const document = modify(parse(source));
-  validate(document);
+  validateStructure(document);
   assert.equal(document.type, "root");
   assert.ok(Array.isArray(document.children));
 });
@@ -117,13 +117,9 @@ test("Second serialization is stable", () => {
   assert.equal(output1, output2);
 });
 
-function paragraph(text: string): DocumentNode {
-  return { type: "paragraph", children: [{ type: "text", value: text }] };
-}
-
 function modify(document: Document): Document {
   const withText = replaceText(document, ORIGINAL_TEXT, MUTATED_TEXT);
-  const withInsert = insertBlock(withText, 1, paragraph(INSERTED_TEXT));
+  const withInsert = insertParagraph(withText, 1, INSERTED_TEXT);
   const withMove = moveBlock(withInsert, indexOfType(withInsert, "admonition"), 1);
   return removeBlock(withMove, 4);
 }

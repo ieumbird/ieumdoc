@@ -1,6 +1,6 @@
 import type { Document, DocumentNode } from "./document.ts";
 
-export function validate(document: Document): void {
+export function validateStructure(document: Document): void {
   if (!document || document.type !== "root") {
     throw new Error("document root must have type \"root\"");
   }
