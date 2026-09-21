@@ -1,0 +1,21 @@
+{
+  "name": "ieumdoc-spike-0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "spike": "tsx src/spike.ts"
+  },
+  "dependencies": {
+    "myst-common": "^1.10.0",
+    "myst-parser": "^1.7.3",
+    "myst-to-md": "^1.0.16",
+    "myst-transforms": "^1.3.50",
+    "unist-util-select": "^5.1.0",
+    "vfile": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
