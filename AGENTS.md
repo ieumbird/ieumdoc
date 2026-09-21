@@ -30,9 +30,85 @@
 - `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
 - `docs/test/` — 사람이 현재 구현을 직접 검증하기 위한 절차.
+- `.githooks/` — optional shared Git hooks, including commit-msg AI provenance checks.
 - `README.md` — 제품 목적과 장기적인 아키텍처 방향.
 
 ## Verification
 
 변경한 동작과 직접 관련된 검증을 수행한다.
 현재 작업과 관계없는 광범위한 테스트, 리팩터링 또는 구조 변경은 수행하지 않는다.
+
+## AI Commit Provenance
+
+Every commit created primarily by an AI coding agent MUST include
+machine-readable provenance trailers.
+
+Required:
+
+```
+AI-Agent: <agent>
+AI-Model: <provider>/<model>
+```
+
+Example:
+
+```
+AI-Agent: Grok
+AI-Model: xai/grok-4.6
+```
+
+Rules:
+
+- Record the AI agent that performed the implementation.
+- Record the actual model used for the implementation.
+- Use a stable canonical model identifier.
+- Keep AI attribution out of the commit subject.
+- Do not use `Co-authored-by` as a substitute for AI provenance.
+- Never invent the model name.
+- Never copy the previous commit's model metadata without verifying
+  which model actually performed the current work.
+- Do not add duplicate provenance trailers.
+
+`AI-Agent` / `AI-Model` name the agent and model that performed the
+implementation. A model that only reviewed the work is not the
+implementation model. If review provenance is needed later, use a
+separate trailer, for example:
+
+```
+AI-Reviewed-By: openai/gpt-5.6-sol
+```
+
+Review trailers are optional and are not required by this policy.
+
+### Canonical model identifiers
+
+Use a single analyzable identifier, not a display name:
+
+```
+<provider>/<model>
+```
+
+Examples:
+
+```
+xai/grok-4.6
+openai/gpt-5.6-luna
+openai/gpt-5.6-terra
+openai/gpt-6-astra
+```
+
+If a vendor's official identifier differs from this repository's
+identifier, use the repository canonical form above and keep it stable.
+
+This repository's canonical identifier for Grok 4.6 is `xai/grok-4.6`.
+
+### Commit-msg hook
+
+`.githooks/commit-msg` detects incomplete or duplicate AI provenance
+trailers. It does not insert a model name. Human commits that omit
+both trailers are allowed. Enable the shared hooks in a local clone
+with:
+
+```
+git config core.hooksPath .githooks
+```

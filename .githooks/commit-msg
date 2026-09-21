@@ -1,0 +1,91 @@
+#!/bin/sh
+# Validate AI provenance trailers when present.
+# Human commits without AI-Agent/AI-Model are allowed.
+# This hook never invents or inserts a model name.
+
+set -eu
+
+# Git for Windows hooks may start without /usr/bin on PATH.
+PATH="/usr/bin:$PATH"
+
+if ! command -v tr >/dev/null 2>&1 || ! command -v grep >/dev/null 2>&1; then
+  git_cmd=$(command -v git 2>/dev/null || true)
+  if [ -n "$git_cmd" ]; then
+    git_root=$(dirname "$git_cmd")/..
+    PATH="$git_root/usr/bin:$PATH"
+  fi
+fi
+
+msgfile=$1
+if [ ! -f "$msgfile" ]; then
+  echo "commit-msg: missing commit message file" >&2
+  exit 1
+fi
+
+# Strip CR so CRLF commit-message files still match POSIX line anchors.
+normalized=$(tr -d '\r' < "$msgfile")
+
+agent_count=$(printf '%s\n' "$normalized" | grep -c '^AI-Agent:' || true)
+model_count=$(printf '%s\n' "$normalized" | grep -c '^AI-Model:' || true)
+
+if [ "$agent_count" -eq 0 ] && [ "$model_count" -eq 0 ]; then
+  exit 0
+fi
+
+fail() {
+  echo "commit-msg: $1" >&2
+  exit 1
+}
+
+if [ "$agent_count" -eq 0 ]; then
+  fail "AI-Model is present but AI-Agent is missing"
+fi
+
+if [ "$model_count" -eq 0 ]; then
+  fail "AI-Agent is present but AI-Model is missing"
+fi
+
+if [ "$agent_count" -gt 1 ]; then
+  fail "duplicate AI-Agent trailers"
+fi
+
+if [ "$model_count" -gt 1 ]; then
+  fail "duplicate AI-Model trailers"
+fi
+
+agent_line=$(printf '%s\n' "$normalized" | grep '^AI-Agent:')
+model_line=$(printf '%s\n' "$normalized" | grep '^AI-Model:')
+
+case "$agent_line" in
+  "AI-Agent: "*)
+    agent_value=${agent_line#AI-Agent: }
+    ;;
+  *)
+    fail "AI-Agent trailer must be 'AI-Agent: <agent>'"
+    ;;
+esac
+
+case "$model_line" in
+  "AI-Model: "*)
+    model_value=${model_line#AI-Model: }
+    ;;
+  *)
+    fail "AI-Model trailer must be 'AI-Model: <provider>/<model>'"
+    ;;
+esac
+
+if [ -z "$agent_value" ]; then
+  fail "AI-Agent value is empty"
+fi
+
+if [ -z "$model_value" ]; then
+  fail "AI-Model value is empty"
+fi
+
+printf '%s' "$model_value" | grep -Eq '^[a-z0-9._/-]+$' || \
+  fail "AI-Model must be a canonical <provider>/<model> identifier"
+
+printf '%s' "$model_value" | grep -Eq / || \
+  fail "AI-Model must use <provider>/<model> form"
+
+exit 0
