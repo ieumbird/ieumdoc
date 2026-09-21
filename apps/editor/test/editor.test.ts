@@ -19,6 +19,7 @@ const fixture = fileURLToPath(
   new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url),
 );
 
+const FORMATTED_PARAGRAPH = "The converter regulates the DC-link voltage and phase current.";
 const PARAGRAPH_FROM = "The current reference is calculated from the active power command.";
 const PARAGRAPH_TO = "The current reference follows the active power command.";
 const CAPTION_FROM = "Control block diagram of the grid-connected converter.";
@@ -74,6 +75,34 @@ test("Editor source does not import MyST packages or AST", () => {
       assert.equal(text.includes("node.children"), false, file);
     }
   }
+});
+
+test("formatted content is not included in editable targets", () => {
+  const document = loadEditableDocument(source);
+  const formatted = document.blocks.find(
+    (block) => block.block === "paragraph" && block.text === FORMATTED_PARAGRAPH,
+  );
+  assert.equal(formatted?.block, "paragraph");
+  if (formatted?.block !== "paragraph") return;
+  assert.equal(formatted.editable, false);
+  assert.equal(
+    editableTargets(document).some((target) => target.text === FORMATTED_PARAGRAPH),
+    false,
+  );
+  assert.equal(
+    editableTargets(document).some((target) => target.text === PARAGRAPH_FROM),
+    true,
+  );
+});
+
+test("read-only content is not a contentEditable target", () => {
+  const view = readFileSync(path.join(editorRoot, "src", "DocumentView.tsx"), "utf8");
+  const editable = readFileSync(path.join(editorRoot, "src", "EditableText.tsx"), "utf8");
+  assert.equal(editable.includes("contentEditable"), true);
+  assert.equal(view.includes("contentEditable"), false);
+  assert.equal(view.includes("block.editable"), true);
+  assert.equal(view.includes("block.caption.editable"), true);
+  assert.equal(view.includes("cell.editable"), true);
 });
 
 test("paragraph edits are saved through Core operations", () => {

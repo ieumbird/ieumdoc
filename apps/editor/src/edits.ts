@@ -26,12 +26,14 @@ export function editableTargets(document: EditableDocument): { path: NodePath; t
   for (const block of document.blocks) {
     if (block.block === "paragraph" && block.editable) {
       targets.push({ path: block.path, text: block.text });
-    } else if (block.block === "figure") {
+    } else if (block.block === "figure" && block.caption.editable) {
       targets.push({ path: block.caption.path, text: block.caption.text });
     } else if (block.block === "table") {
       for (const row of block.rows) {
         for (const cell of row.cells) {
-          targets.push({ path: cell.path, text: cell.text });
+          if (cell.editable) {
+            targets.push({ path: cell.path, text: cell.text });
+          }
         }
       }
     }

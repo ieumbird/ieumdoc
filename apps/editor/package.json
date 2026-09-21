@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "tsx --test test/editor.test.ts"
+    "test": "tsx --test test/editor.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@ieumdoc/core": "workspace:*",
@@ -19,6 +20,6 @@
     "@vitejs/plugin-react": "^5.0.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.2",
-    "vite": "^7.1.7"
+    "vite": "7.3.6"
   }
 }

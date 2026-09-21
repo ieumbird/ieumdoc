@@ -84,6 +84,9 @@ pnpm test
 ✔ saved document can be parsed again
 ✔ canonical second serialization is stable
 ✔ saved file matches the Core write path
+✔ formatted inline content is not editable in the read model
+✔ formatted content is not included in editable targets
+✔ read-only content is not a contentEditable target
 ```
 
 하나라도 FAIL이면 이번 MVP write path가 성립하지 않은 것이다.
@@ -276,6 +279,16 @@ pnpm --filter @ieumdoc/editor dev
 
 성공: `:::{figure}` 나 표 파이프 문법, `{math}` 코드펜스 같은 소스 표기가 화면의 기본 모습이 아니다.
 
+### B-1. formatted paragraph는 읽기 전용
+
+`The converter regulates the DC-link voltage and phase current.` 문장은 화면에 보인다.
+
+이 paragraph에는 `DC-link voltage` 와 `phase current` 가 들어 있다. 클릭해도 이번 단계에서는 직접 편집되지 않아야 한다.
+
+반면 `The current reference is calculated from the active power command.` 는 기존처럼 클릭해서 수정할 수 있다.
+
+Figure caption `Control block diagram of the grid-connected converter.` 와 표의 `AC` 셀도 지금 문서에서는 기존처럼 수정할 수 있다.
+
 ### C. Paragraph 편집
 
 `The current reference is calculated from the active power command.` 문장을 클릭한다.
@@ -407,7 +420,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 지정된 기술문서 하나만 연다. 파일 탐색기는 없다.
 - paragraph / figure caption / table cell 만 화면에서 직접 편집한다. heading, admonition, equation, cross-reference는 표시한다.
-- 굵게/기울임이 있는 paragraph를 통째로 바꾸면 그 표시는 풀릴 수 있다.
+- 굵게/기울임이 있는 paragraph는 화면에 보이지만 이번 단계에서 직접 편집하지 않는다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
 
 ## 6. 실패 시

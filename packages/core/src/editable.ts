@@ -4,12 +4,14 @@ import type { Document, DocumentNode, NodePath } from "./document.ts";
 export type EditableCaption = {
   path: NodePath;
   text: string;
+  editable: boolean;
 };
 
 export type EditableTableCell = {
   path: NodePath;
   text: string;
   header: boolean;
+  editable: boolean;
 };
 
 export type EditableTableRow = {
@@ -83,7 +85,7 @@ function toBlock(node: DocumentNode, path: NodePath): EditableBlock {
       block: "paragraph",
       path,
       text: paragraphText(node),
-      editable: isPlainParagraph(node),
+      editable: isTextOnly(node),
     };
   }
   if (node.type === "admonition") {
@@ -130,6 +132,7 @@ function figureBlock(node: DocumentNode, path: NodePath): EditableBlock {
     caption: {
       path: captionIndex >= 0 ? [...path, captionIndex] : path,
       text: caption ? toText(caption) : "",
+      editable: caption ? isTextOnly(caption) : false,
     },
   };
 }
@@ -140,6 +143,7 @@ function tableBlock(node: DocumentNode, path: NodePath): EditableBlock {
       path: [...path, rowIndex, cellIndex] as NodePath,
       text: toText(cell),
       header: rowIndex === 0,
+      editable: isTextOnly(cell),
     })),
   }));
   return {
@@ -165,11 +169,17 @@ function paragraphText(node: DocumentNode): string {
   return (node.children ?? []).map(paragraphText).join("");
 }
 
-function isPlainParagraph(node: DocumentNode): boolean {
-  if (node.type === "link" || node.type === "crossReference") {
+function isTextOnly(node: DocumentNode): boolean {
+  if (node.type === "text") {
+    return true;
+  }
+  const children = node.children ?? [];
+  if (children.length === 0) {
     return false;
   }
-  return (node.children ?? []).every(isPlainParagraph);
+  return children.every(
+    (child) => child.type === "text" || (child.type === "paragraph" && isTextOnly(child)),
+  );
 }
 
 function nodeLabel(node: DocumentNode): string {

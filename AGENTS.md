@@ -16,6 +16,8 @@
 - 문서의 핵심 처리 로직은 특정 UI에 종속되지 않아야 한다.
 - Editor, CLI, AI 등 서로 다른 인터페이스가 문서 의미를 각각 별도로 구현하지 않도록 한다.
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
+- 현재 contentEditable 구현은 MVP 편집 검증용이다. Rich-text editing 기능을 직접 확장하여 자체 editor engine을 만들지 않는다.
+- `apps/editor/server`는 현재 local development adapter다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 

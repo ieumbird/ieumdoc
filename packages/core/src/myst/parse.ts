@@ -9,6 +9,6 @@ import type { Document } from "../document.ts";
 export function parse(source: string): Document {
   const document = mystParse(source) as Document;
   liftMystDirectivesAndRolesTransform(document);
-  containerChildrenTransform(document as never, new VFile());
+  containerChildrenTransform(document, new VFile());
   return document;
 }

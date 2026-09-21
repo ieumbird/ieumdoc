@@ -47,12 +47,16 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
     return (
       <figure className="figure">
         <img src={src} alt={block.imageAlt} />
-        <EditableText
-          className="caption"
-          tag="figcaption"
-          text={block.caption.text}
-          onChange={(text) => onDraft(block.caption.path, text)}
-        />
+        {block.caption.editable ? (
+          <EditableText
+            className="caption"
+            tag="figcaption"
+            text={block.caption.text}
+            onChange={(text) => onDraft(block.caption.path, text)}
+          />
+        ) : (
+          <figcaption className="caption">{block.caption.text}</figcaption>
+        )}
       </figure>
     );
   }
@@ -65,12 +69,7 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
             <tr>
               {header.cells.map((cell) => (
                 <th key={cell.path.join(",")}>
-                  <EditableText
-                    className="cell"
-                    tag="span"
-                    text={cell.text}
-                    onChange={(text) => onDraft(cell.path, text)}
-                  />
+                  <TableCellText cell={cell} onDraft={onDraft} />
                 </th>
               ))}
             </tr>
@@ -81,12 +80,7 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
             <tr key={row.cells.map((cell) => cell.path.join(",")).join(";")}>
               {row.cells.map((cell) => (
                 <td key={cell.path.join(",")}>
-                  <EditableText
-                    className="cell"
-                    tag="span"
-                    text={cell.text}
-                    onChange={(text) => onDraft(cell.path, text)}
-                  />
+                  <TableCellText cell={cell} onDraft={onDraft} />
                 </td>
               ))}
             </tr>
@@ -104,4 +98,24 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
     );
   }
   return <p className="unsupported">{block.text}</p>;
+}
+
+function TableCellText({
+  cell,
+  onDraft,
+}: {
+  cell: { path: NodePath; text: string; editable: boolean };
+  onDraft: DocumentViewProps["onDraft"];
+}) {
+  if (cell.editable) {
+    return (
+      <EditableText
+        className="cell"
+        tag="span"
+        text={cell.text}
+        onChange={(text) => onDraft(cell.path, text)}
+      />
+    );
+  }
+  return <span className="cell">{cell.text}</span>;
 }

@@ -26,12 +26,22 @@ test("technical document exposes an editor read model", () => {
   assert.equal(paragraph.editable, true);
   assert.deepEqual(paragraph.path, [8]);
 
+  const formatted = editable.blocks.find(
+    (block) =>
+      block.block === "paragraph" &&
+      block.text === "The converter regulates the DC-link voltage and phase current.",
+  );
+  assert.equal(formatted?.block, "paragraph");
+  if (formatted?.block !== "paragraph") return;
+  assert.equal(formatted.editable, false);
+
   const figure = editable.blocks.find((block) => block.block === "figure");
   assert.equal(figure?.block, "figure");
   if (figure?.block !== "figure") return;
   assert.equal(figure.label, "fig-control");
   assert.equal(figure.imageUrl, "./diagram.svg");
   assert.equal(figure.caption.text, "Control block diagram of the grid-connected converter.");
+  assert.equal(figure.caption.editable, true);
   assert.deepEqual(figure.caption.path, [6, 1]);
 
   const table = editable.blocks.find((block) => block.block === "table");
@@ -39,6 +49,7 @@ test("technical document exposes an editor read model", () => {
   if (table?.block !== "table") return;
   assert.equal(table.rows.length, 3);
   assert.equal(table.rows[1]?.cells[1]?.text, "AC");
+  assert.equal(table.rows[1]?.cells[1]?.editable, true);
   assert.deepEqual(table.rows[1]?.cells[1]?.path, [12, 1, 1]);
 
   const warning = editable.blocks.find((block) => block.block === "admonition");
@@ -51,4 +62,30 @@ test("technical document exposes an editor read model", () => {
   if (equation?.block !== "equation") return;
   assert.equal(equation.label, "eq-current");
   assert.equal(equation.latex.includes("P^{"), true);
+});
+
+test("formatted inline content is not editable in the read model", () => {
+  const formattedParagraph = getEditableDocument(parse(source)).blocks.find(
+    (block) =>
+      block.block === "paragraph" &&
+      block.text === "The converter regulates the DC-link voltage and phase current.",
+  );
+  assert.equal(formattedParagraph?.block, "paragraph");
+  if (formattedParagraph?.block !== "paragraph") return;
+  assert.equal(formattedParagraph.editable, false);
+
+  const formattedCaption = getEditableDocument(
+    parse("# Title\n\n:::{figure} ./diagram.svg\n**bold caption**\n:::\n"),
+  ).blocks.find((block) => block.block === "figure");
+  assert.equal(formattedCaption?.block, "figure");
+  if (formattedCaption?.block !== "figure") return;
+  assert.equal(formattedCaption.caption.editable, false);
+
+  const formattedCell = getEditableDocument(parse("| A |\n| --- |\n| *x* |\n")).blocks.find(
+    (block) => block.block === "table",
+  );
+  assert.equal(formattedCell?.block, "table");
+  if (formattedCell?.block !== "table") return;
+  assert.equal(formattedCell.rows[1]?.cells[0]?.editable, false);
+  assert.equal(formattedCell.rows[1]?.cells[0]?.text, "x");
 });

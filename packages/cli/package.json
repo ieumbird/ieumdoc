@@ -7,7 +7,8 @@
     "ieumdoc": "./src/cli.ts"
   },
   "scripts": {
-    "test": "tsx --test test/cli.test.ts"
+    "test": "tsx --test test/cli.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@ieumdoc/core": "workspace:*"
