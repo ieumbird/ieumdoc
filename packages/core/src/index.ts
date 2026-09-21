@@ -10,8 +10,12 @@ export {
   moveBlock,
   insertBlock,
   insertParagraph,
+  insertHeading,
+  insertEquation,
   removeBlock,
   updateNodeTextAtPath,
   updateParagraphInlineContent,
+  updateHeading,
+  updateEquation,
 } from "./operations.ts";
 export { validateStructure } from "./validation.ts";

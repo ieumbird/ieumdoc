@@ -264,3 +264,78 @@ h2.heading {
 .unsupported {
   color: #66707c;
 }
+
+.block-row {
+  margin: 0.35rem 0;
+}
+
+.block-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.block-actions button,
+.block-insert button,
+.insert-choices button {
+  background: transparent;
+  color: #4d5b6a;
+  border: 1px solid #d5dbe3;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+.block-insert {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.4rem;
+}
+
+.insert-choices {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.heading-input {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.heading-editor.level-1 .heading-input {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.heading-editor.level-2 .heading-input {
+  font-size: 1.35rem;
+  font-weight: 650;
+}
+
+.heading-editor.level-3 .heading-input {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.equation-source-label,
+.equation-expression-label {
+  display: block;
+  margin: 0 0 0.25rem;
+  color: #5b6775;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.equation-source {
+  display: block;
+  width: 100%;
+  margin-top: 0.2rem;
+  font: inherit;
+  font-family: Consolas, "Courier New", monospace;
+}

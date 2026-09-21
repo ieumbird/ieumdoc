@@ -70,6 +70,23 @@ export function insertParagraph(document: Document, index: number, text: string)
   });
 }
 
+export function insertHeading(document: Document, index: number, text: string, level = 1): Document {
+  assertHeadingLevel(level);
+  return insertBlock(document, index, {
+    type: "heading",
+    depth: level,
+    children: text.length > 0 ? [{ type: "text", value: text }] : [],
+  });
+}
+
+export function insertEquation(document: Document, index: number, latex: string): Document {
+  assertEquationLatex(latex);
+  return insertBlock(document, index, {
+    type: "math",
+    value: latex,
+  });
+}
+
 export function updateNodeTextAtPath(
   document: Document,
   path: NodePath,
@@ -113,6 +130,27 @@ export function updateParagraphInlineContent(
   return next;
 }
 
+export function updateHeading(document: Document, path: NodePath, text: string): Document {
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  if (node.type !== "heading") {
+    throw new Error(`updateHeading requires a heading at [${path.join(",")}]`);
+  }
+  node.children = text.length > 0 ? [{ type: "text", value: text }] : [];
+  return next;
+}
+
+export function updateEquation(document: Document, path: NodePath, latex: string): Document {
+  assertEquationLatex(latex);
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  if (node.type !== "math") {
+    throw new Error(`updateEquation requires an equation at [${path.join(",")}]`);
+  }
+  node.value = latex;
+  return next;
+}
+
 export function removeBlock(document: Document, index: number): Document {
   const next = cloneDocument(document);
   const blocks = next.children;
@@ -124,6 +162,18 @@ export function removeBlock(document: Document, index: number): Document {
   }
   blocks.splice(index, 1);
   return next;
+}
+
+function assertHeadingLevel(level: number): void {
+  if (!Number.isInteger(level) || level < 1 || level > 6) {
+    throw new Error(`heading level out of range: ${level}`);
+  }
+}
+
+function assertEquationLatex(latex: string): void {
+  if (latex.trim().length === 0) {
+    throw new Error("equation latex must be non-empty");
+  }
 }
 
 function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {

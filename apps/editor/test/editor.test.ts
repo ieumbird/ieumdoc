@@ -26,6 +26,8 @@ import {
   type ParagraphErrors,
 } from "../src/App.tsx";
 import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { mergeParagraphEdits } from "../src/edits.ts";
+import { concatInlineContent, splitInlineContent } from "../src/inline-edit.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = fileURLToPath(
@@ -337,6 +339,91 @@ test("canonical second serialization is stable", () => {
   const saved = saveAll();
   const second = serialize(parse(saved.markdown));
   assert.equal(saved.markdown, second);
+});
+
+const PER_BLOCK = [
+  "# Converter Control",
+  "",
+  "The converter regulates the DC-link voltage.",
+  "",
+  "```{math}",
+  "i* = P* / Vrms",
+  "```",
+  "",
+  "The current reference follows the active power command.",
+  "",
+].join("\n");
+
+test("cursor split keeps marks on both sides of a paragraph", () => {
+  const content: InlineContent[] = [
+    { kind: "text", text: "The converter regulates the " },
+    { kind: "strong", children: [{ kind: "text", text: "DC-link" }] },
+    { kind: "text", text: " voltage." },
+  ];
+  const split = splitInlineContent(content, "The converter regulates the DC".length);
+  assert.deepEqual(split.before, [
+    { kind: "text", text: "The converter regulates the " },
+    { kind: "strong", children: [{ kind: "text", text: "DC" }] },
+  ]);
+  assert.deepEqual(split.after, [
+    { kind: "strong", children: [{ kind: "text", text: "-link" }] },
+    { kind: "text", text: " voltage." },
+  ]);
+  assert.deepEqual(concatInlineContent(split.before, split.after), [
+    { kind: "text", text: "The converter regulates the " },
+    { kind: "strong", children: [{ kind: "text", text: "DC" }] },
+    { kind: "strong", children: [{ kind: "text", text: "-link" }] },
+    { kind: "text", text: " voltage." },
+  ]);
+});
+
+test("structural insert applies older paragraph paths before shifting them", () => {
+  const document = loadEditableDocument(PER_BLOCK);
+  const paragraph = editableParagraphs(document).find((item) => item.text.startsWith("The converter regulates"));
+  assert.ok(paragraph);
+  const merged = mergeParagraphEdits(
+    document,
+    { [paragraph.path.join(",")]: [{ kind: "text", text: "Edited paragraph." }] },
+    [],
+  );
+  const saved = saveEdits(PER_BLOCK, [], merged, {
+    insert: { index: 2, block: "heading", text: "Inserted", level: 2 },
+  });
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+  const blocks = saved.document.blocks.map((block) =>
+    block.block === "heading" || block.block === "paragraph"
+      ? `${block.block}:${block.text}`
+      : block.block === "equation"
+        ? `${block.block}:${block.latex}`
+        : block.block,
+  );
+  assert.deepEqual(blocks, [
+    "heading:Converter Control",
+    "paragraph:Edited paragraph.",
+    "heading:Inserted",
+    "equation:i* = P* / Vrms",
+    "paragraph:The current reference follows the active power command.",
+  ]);
+});
+
+test("insert paragraph, heading, and equation then delete round-trips", () => {
+  let saved = saveEdits(PER_BLOCK, [], [], { insert: { index: 2, block: "paragraph", text: "Added paragraph." } });
+  saved = saveEdits(saved.markdown, [], [], { insert: { index: 4, block: "equation", latex: "E = mc^2" } });
+  saved = saveEdits(saved.markdown, [], [], { insert: { index: 1, block: "heading", text: "", level: 2 } });
+  const equation = saved.document.blocks.find((block) => block.block === "equation" && block.latex === "i* = P* / Vrms");
+  assert.ok(equation);
+  saved = saveEdits(saved.markdown, [], [], {
+    equations: [{ path: equation.path, latex: "P / V" }],
+    remove: saved.document.blocks.findIndex((block) => block.block === "paragraph" && block.text === "Added paragraph."),
+  });
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+  assert.equal(saved.markdown.includes("Added paragraph."), false);
+  assert.equal(saved.markdown.includes("E = mc^2"), true);
+  assert.equal(saved.markdown.includes("P / V"), true);
+  assert.equal(
+    saved.document.blocks.some((block) => block.block === "heading" && block.text.length === 0),
+    true,
+  );
 });
 
 test("saved file matches the Core write path", () => {
