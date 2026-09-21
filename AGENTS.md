@@ -19,11 +19,14 @@
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 
-## Layout
+## Repository map
 
-- `packages/core` — headless document parse, operations, validateStructure, serialize. No UI.
-- `packages/cli` — thin file interface over `@ieumdoc/core`. Do not read or construct document AST here.
-- `spikes/` — exploratory experiments. Do not import spike code into `packages/core` or `packages/cli`.
+- `packages/core/` — IeumDoc의 headless document engine. 문서의 parse, semantic operations, structural validation, canonical serialization을 소유한다.
+- `packages/core/src/myst/` — MyST integration boundary. MyST-specific parsing/serialization logic은 이 경계 안에 둔다.
+- `packages/core/test/` — Core의 document semantics와 canonical round-trip 계약을 검증한다.
+- `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
+- `docs/test/` — 사람이 현재 구현을 직접 검증하기 위한 절차.
+- `README.md` — 제품 목적과 장기적인 아키텍처 방향.
 
 ## Verification
 
