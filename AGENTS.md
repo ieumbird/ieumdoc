@@ -15,6 +15,10 @@
 - 사람이 읽을 수 있는 plain-text document를 SSOT로 유지한다.
 - 문서의 핵심 처리 로직은 특정 UI에 종속되지 않아야 한다.
 - Editor, CLI, AI 등 서로 다른 인터페이스가 문서 의미를 각각 별도로 구현하지 않도록 한다.
+- 영속적인 문서 의미 변경은 Editor에만 구현하지 않으며, 먼저 또는 동시에 Core의 editor-neutral semantic operation으로 표현한다.
+- 새로운 주요 semantic document operation은 CLI에서도 headless하게 사용할 수 있도록 얇은 command surface를 제공한다. CLI 지원을 의도적으로 생략하면 그 이유를 작업 기록에 명시한다.
+- CLI는 Core operation을 호출하는 얇은 인터페이스로 유지하며, 문서 의미나 Markdown/AST를 별도로 구현하지 않는다.
+- cursor, focus, selection, toolbar, hover 등 Editor 전용 interaction은 CLI parity 대상이 아니다.
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
 - 현재 contentEditable 구현은 MVP 편집 검증용이다. Rich-text editing 기능을 직접 확장하여 자체 editor engine을 만들지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
