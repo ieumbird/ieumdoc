@@ -7,14 +7,21 @@ import {
   parse,
   serialize,
   updateNodeTextAtPath,
+  updateParagraphInlineContent,
   validateStructure,
   type EditableDocument,
+  type InlineContent,
 } from "@ieumdoc/core";
 
 export type TextEdit = {
   path: readonly number[];
   from: string;
   to: string;
+};
+
+export type ParagraphEdit = {
+  path: readonly number[];
+  content: InlineContent[];
 };
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -25,10 +32,17 @@ export function loadEditableDocument(source: string): EditableDocument {
   return getEditableDocument(parse(source));
 }
 
-export function saveEdits(source: string, edits: TextEdit[]): { markdown: string; document: EditableDocument } {
+export function saveEdits(
+  source: string,
+  edits: TextEdit[],
+  paragraphs: ParagraphEdit[] = [],
+): { markdown: string; document: EditableDocument } {
   let document = parse(source);
   for (const edit of edits) {
     document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
+  }
+  for (const paragraph of paragraphs) {
+    document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
   }
   validateStructure(document);
   const markdown = serialize(document);
@@ -56,9 +70,10 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as { edits?: TextEdit[] };
+      const body = JSON.parse(await readBody(req)) as { edits?: TextEdit[]; paragraphs?: ParagraphEdit[] };
       const edits = Array.isArray(body.edits) ? body.edits : [];
-      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), edits);
+      const paragraphs = Array.isArray(body.paragraphs) ? body.paragraphs : [];
+      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), edits, paragraphs);
       writeFileSync(DOCUMENT_FILE, saved.markdown);
       sendJson(res, 200, { document: saved.document });
       return;

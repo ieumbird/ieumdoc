@@ -33,7 +33,9 @@ test("technical document exposes an editor read model", () => {
   );
   assert.equal(formatted?.block, "paragraph");
   if (formatted?.block !== "paragraph") return;
-  assert.equal(formatted.editable, false);
+  assert.equal(formatted.editable, true);
+  assert.equal(formatted.content.some((item) => item.kind === "strong"), true);
+  assert.equal(formatted.content.some((item) => item.kind === "emphasis"), true);
 
   const figure = editable.blocks.find((block) => block.block === "figure");
   assert.equal(figure?.block, "figure");
@@ -64,16 +66,7 @@ test("technical document exposes an editor read model", () => {
   assert.equal(equation.latex.includes("P^{"), true);
 });
 
-test("formatted inline content is not editable in the read model", () => {
-  const formattedParagraph = getEditableDocument(parse(source)).blocks.find(
-    (block) =>
-      block.block === "paragraph" &&
-      block.text === "The converter regulates the DC-link voltage and phase current.",
-  );
-  assert.equal(formattedParagraph?.block, "paragraph");
-  if (formattedParagraph?.block !== "paragraph") return;
-  assert.equal(formattedParagraph.editable, false);
-
+test("formatted caption and table cell stay read-only", () => {
   const formattedCaption = getEditableDocument(
     parse("# Title\n\n:::{figure} ./diagram.svg\n**bold caption**\n:::\n"),
   ).blocks.find((block) => block.block === "figure");

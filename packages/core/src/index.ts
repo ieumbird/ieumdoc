@@ -2,6 +2,7 @@ export type { Document, DocumentNode, NodePath, BlockSummary } from "./document.
 export { inspectDocument, getNode } from "./document.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export { getEditableDocument } from "./editable.ts";
+export type { InlineContent } from "./inline.ts";
 export { parse } from "./myst/parse.ts";
 export { serialize } from "./myst/serialize.ts";
 export {
@@ -11,5 +12,6 @@ export {
   insertParagraph,
   removeBlock,
   updateNodeTextAtPath,
+  updateParagraphInlineContent,
 } from "./operations.ts";
 export { validateStructure } from "./validation.ts";

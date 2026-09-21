@@ -6,6 +6,12 @@ import {
   type DocumentNode,
   type NodePath,
 } from "./document.ts";
+import {
+  assertInlineContent,
+  inlineContentToNodes,
+  projectInlineContent,
+  type InlineContent,
+} from "./inline.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -87,6 +93,24 @@ export function updateNodeTextAtPath(
     return next;
   }
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
+}
+
+export function updateParagraphInlineContent(
+  document: Document,
+  path: NodePath,
+  content: InlineContent[],
+): Document {
+  assertInlineContent(content);
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  if (node.type !== "paragraph") {
+    throw new Error(`updateParagraphInlineContent requires a paragraph at [${path.join(",")}]`);
+  }
+  if (!projectInlineContent(node)) {
+    throw new Error(`updateParagraphInlineContent cannot replace unsupported inline content at [${path.join(",")}]`);
+  }
+  node.children = inlineContentToNodes(content);
+  return next;
 }
 
 export function removeBlock(document: Document, index: number): Document {

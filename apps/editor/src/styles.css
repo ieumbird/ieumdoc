@@ -102,6 +102,53 @@ h2.heading {
   margin: 0.8rem 0;
 }
 
+.rich-paragraph {
+  margin: 0.8rem 0;
+}
+
+.format-bar {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.25rem;
+}
+
+.format-bar button {
+  background: #eef2f6;
+  color: #1b1f24;
+  min-width: 2rem;
+  padding: 0.15rem 0.45rem;
+  font-weight: 700;
+}
+
+.format-bar button.active {
+  background: #1f4b99;
+  color: white;
+}
+
+.paragraph-tiptap {
+  outline: 1px dashed transparent;
+  border-radius: 0.2rem;
+  min-height: 1.5em;
+}
+
+.paragraph-tiptap:hover,
+.paragraph-tiptap:focus {
+  outline-color: #8aa4d4;
+  background: #f7f9fc;
+}
+
+.paragraph-tiptap p {
+  margin: 0;
+}
+
+.paragraph-tiptap strong {
+  font-weight: 700;
+}
+
+.paragraph-tiptap em {
+  font-style: italic;
+}
+
 .paragraph-readonly {
   color: #243040;
 }

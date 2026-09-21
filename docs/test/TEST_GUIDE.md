@@ -84,8 +84,16 @@ pnpm test
 ✔ saved document can be parsed again
 ✔ canonical second serialization is stable
 ✔ saved file matches the Core write path
-✔ formatted inline content is not editable in the read model
-✔ formatted content is not included in editable targets
+✔ formatted caption and table cell stay read-only
+✔ formatted paragraph projects to editor-neutral inline content
+✔ paragraph inline write preserves strong and emphasis
+✔ paragraph inline mutation round-trips through parse and serialize
+✔ unsupported inline remains read-only
+✔ Core InlineContent converts to and from Tiptap content
+✔ formatted paragraph is an editable target
+✔ unsupported paragraph stays read-only
+✔ rich paragraph saves through updateParagraphInlineContent
+✔ Core source does not import Tiptap or ProseMirror
 ✔ read-only content is not a contentEditable target
 ```
 
@@ -279,15 +287,15 @@ pnpm --filter @ieumdoc/editor dev
 
 성공: `:::{figure}` 나 표 파이프 문법, `{math}` 코드펜스 같은 소스 표기가 화면의 기본 모습이 아니다.
 
-### B-1. formatted paragraph는 읽기 전용
+### B-1. formatted paragraph 표시
 
 `The converter regulates the DC-link voltage and phase current.` 문장은 화면에 보인다.
 
-이 paragraph에는 `DC-link voltage` 와 `phase current` 가 들어 있다. 클릭해도 이번 단계에서는 직접 편집되지 않아야 한다.
+`DC-link voltage` 는 bold, `phase current` 는 italic으로 보여야 한다.
 
-반면 `The current reference is calculated from the active power command.` 는 기존처럼 클릭해서 수정할 수 있다.
+이 paragraph의 편집 확인은 아래 **MVP 2 Beta Rich Paragraph Editing** 절차를 따른다.
 
-Figure caption `Control block diagram of the grid-connected converter.` 와 표의 `AC` 셀도 지금 문서에서는 기존처럼 수정할 수 있다.
+Figure caption `Control block diagram of the grid-connected converter.` 와 표의 `AC` 셀은 기존처럼 수정할 수 있다.
 
 ### C. Paragraph 편집
 
@@ -387,6 +395,148 @@ Editor → Core → canonical .md → Core → Editor
 Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
 ```
 
+## Visual Editor · MVP 2 Beta Rich Paragraph Editing
+
+시작 전 작업 파일을 원본으로 되돌린다.
+
+```powershell
+Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
+```
+
+Editor가 꺼져 있으면 다시 실행한다.
+
+```powershell
+pnpm --filter @ieumdoc/editor dev
+```
+
+브라우저에서 `http://localhost:5173` 을 연다.
+
+### A. Rich paragraph rendering
+
+첫 본문 paragraph를 본다.
+
+원본 의미:
+
+`The converter regulates the **DC-link voltage** and *phase current*.`
+
+화면에서 확인할 것:
+
+- `DC-link voltage` 가 실제 bold로 보인다.
+- `phase current` 가 실제 italic으로 보인다.
+- `**`, `*` 같은 Markdown 문법 기호는 보이지 않는다.
+
+이 paragraph 위에 `B` 와 `I` 버튼이 있어야 한다.
+
+### B. Text 수정 후 formatting 보존
+
+같은 paragraph에서 일반 텍스트 `regulates` 를 클릭해 선택한다.
+
+`controls` 로 바꾼다.
+
+문장은 다음 의미여야 한다.
+
+`The converter controls the DC-link voltage and phase current.`
+
+이때 `DC-link voltage` 는 계속 bold, `phase current` 는 계속 italic이어야 한다.
+
+`Save` 를 누른다. 상태가 `Saved` 가 되어야 한다.
+
+파일을 연다.
+
+`apps/editor/document/technical-document.md`
+
+확인할 것:
+
+- `The converter controls the **DC-link voltage** and *phase current*.` 의미가 있다.
+- `regulates` 는 없다.
+- bold(`**DC-link voltage**`)와 italic(`*phase current*`)이 남아 있다.
+
+### C. Bold 변경
+
+같은 paragraph에서 아직 bold가 아닌 단어 `converter` 를 드래그해서 선택한다.
+
+`B` 버튼을 누른다.
+
+`converter` 가 bold로 보여야 한다.
+
+`Save` 를 누른다.
+
+같은 `.md` 파일에서 `**converter**` 또는 그에 해당하는 strong 표기가 있는지 확인한다.
+
+브라우저를 새로고침한다. `converter` 가 다시 bold로 보여야 한다.
+
+### D. Italic 변경
+
+같은 paragraph에서 아직 italic이 아닌 단어 `The` 를 드래그해서 선택한다.
+
+`I` 버튼을 누른다.
+
+`The` 가 italic으로 보여야 한다.
+
+`Save` 를 누른다.
+
+`.md` 파일에서 해당 단어가 italic 의미로 저장됐는지 확인한다.
+
+브라우저를 새로고침한다. `The` 가 다시 italic으로 보여야 한다.
+
+### E. Formatting 제거
+
+bold가 적용된 `converter` 를 다시 선택한다.
+
+`B` 버튼을 눌러 bold를 해제한다.
+
+italic이 적용된 `The` 를 다시 선택한다.
+
+`I` 버튼을 눌러 italic을 해제한다.
+
+`Save` 를 누른다.
+
+`.md` 파일과 새로고침한 화면에서 `converter` 와 `The` 의 extra formatting이 없어야 한다.
+
+`DC-link voltage` bold와 `phase current` italic은 남아 있어야 한다.
+
+### F. 기존 기능 regression
+
+Figure caption `Control block diagram of the grid-connected converter.` 를 `Control block diagram of the grid-tied converter.` 로 바꾼다.
+
+표의 `AC` 셀을 `AC-side` 로 바꾼다.
+
+`Save` 를 누른다.
+
+같은 `.md` 파일에서 caption과 `AC-side` 가 반영되고 figure image/label과 표 구조는 유지되어야 한다.
+
+### G. Core write path
+
+저장소 루트에서:
+
+```powershell
+pnpm ieumdoc check apps/editor/document/technical-document.md
+pnpm ieumdoc format apps/editor/document/technical-document.md
+```
+
+확인할 것:
+
+- `structure valid` 가 출력된다.
+- `format`을 한 번 더 실행해도 파일이 더 바뀌지 않는다.
+
+### H. Reload
+
+브라우저를 새로고침하거나 Editor를 다시 연다.
+
+화면에서 다음이 유지되어야 한다.
+
+- paragraph 텍스트 `controls`
+- `DC-link voltage` bold
+- `phase current` italic
+- figure caption `grid-tied converter`
+- table cell `AC-side`
+
+확인이 끝나면 작업 파일을 되돌린다.
+
+```powershell
+Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
+```
+
 ## 3. 사람이 특히 볼 것
 
 1. CLI가 Markdown 문자열을 직접 치환하지 않는다. 같은 작업을 Core API로 재현하면 파일 내용이 같아야 한다.
@@ -420,7 +570,8 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 지정된 기술문서 하나만 연다. 파일 탐색기는 없다.
 - paragraph / figure caption / table cell 만 화면에서 직접 편집한다. heading, admonition, equation, cross-reference는 표시한다.
-- 굵게/기울임이 있는 paragraph는 화면에 보이지만 이번 단계에서 직접 편집하지 않는다.
+- paragraph의 bold/italic 편집은 Tiptap을 사용한다. figure caption과 table cell은 기존처럼 일반 텍스트만 편집한다.
+- link 또는 cross-reference가 있는 paragraph는 화면에 보이지만 이번 단계에서 직접 편집하지 않는다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
 
 ## 6. 실패 시

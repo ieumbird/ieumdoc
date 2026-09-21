@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import type { EditableDocument, NodePath } from "@ieumdoc/core";
-import { collectEdits, pathKey } from "./edits.ts";
+import type { EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
+import { collectEdits, collectParagraphEdits, pathKey } from "./edits.ts";
 import { DocumentView } from "./DocumentView.tsx";
 
 export function App() {
   const [document, setDocument] = useState<EditableDocument | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
+  const [paragraphDrafts, setParagraphDrafts] = useState<Record<string, InlineContent[]>>({});
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
@@ -20,7 +21,8 @@ export function App() {
     try {
       const next = await requestDocument("GET");
       setDocument(next);
-      setDrafts({});
+      setTextDrafts({});
+      setParagraphDrafts({});
       setRevision((value) => value + 1);
       setStatus("Ready");
     } catch (cause) {
@@ -34,9 +36,13 @@ export function App() {
     setError("");
     setStatus("Saving…");
     try {
-      const next = await requestDocument("POST", { edits: collectEdits(document, drafts) });
+      const next = await requestDocument("POST", {
+        edits: collectEdits(document, textDrafts),
+        paragraphs: collectParagraphEdits(document, paragraphDrafts),
+      });
       setDocument(next);
-      setDrafts({});
+      setTextDrafts({});
+      setParagraphDrafts({});
       setRevision((value) => value + 1);
       setStatus("Saved");
     } catch (cause) {
@@ -45,8 +51,12 @@ export function App() {
     }
   }
 
-  function onDraft(path: NodePath, text: string): void {
-    setDrafts((current) => ({ ...current, [pathKey(path)]: text }));
+  function onTextDraft(path: NodePath, text: string): void {
+    setTextDrafts((current) => ({ ...current, [pathKey(path)]: text }));
+  }
+
+  function onParagraphDraft(path: NodePath, content: InlineContent[]): void {
+    setParagraphDrafts((current) => ({ ...current, [pathKey(path)]: content }));
   }
 
   return (
@@ -70,7 +80,14 @@ export function App() {
           {error}
         </p>
       ) : null}
-      {document ? <DocumentView key={revision} document={document} onDraft={onDraft} /> : null}
+      {document ? (
+        <DocumentView
+          key={revision}
+          document={document}
+          onTextDraft={onTextDraft}
+          onParagraphDraft={onParagraphDraft}
+        />
+      ) : null}
     </div>
   );
 }

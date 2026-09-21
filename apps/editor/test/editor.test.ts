@@ -9,9 +9,16 @@ import {
   getNode,
   parse,
   serialize,
+  type InlineContent,
   type NodePath,
 } from "@ieumdoc/core";
-import { collectEdits, editableTargets } from "../src/edits.ts";
+import {
+  collectEdits,
+  collectParagraphEdits,
+  editableParagraphs,
+  editableTextTargets,
+} from "../src/edits.ts";
+import { fromTiptapContent, toTiptapContent } from "../src/tiptap-inline.ts";
 import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -34,27 +41,35 @@ test("Editor uses the Core read model", () => {
   const fromCore = getEditableDocument(parse(source));
   assert.deepEqual(document, fromCore);
 
-  const targets = editableTargets(document);
+  const texts = editableTextTargets(document);
+  const paragraphs = editableParagraphs(document);
   assert.equal(
-    targets.some((target) => target.text === PARAGRAPH_FROM),
+    paragraphs.some((target) => target.text === PARAGRAPH_FROM),
     true,
   );
   assert.equal(
-    targets.some((target) => target.text === CAPTION_FROM),
+    texts.some((target) => target.text === CAPTION_FROM),
     true,
   );
   assert.equal(
-    targets.some((target) => target.text === CELL_FROM),
+    texts.some((target) => target.text === CELL_FROM),
     true,
   );
+});
 
-  const drafts = {
-    [pathOf(document, PARAGRAPH_FROM)]: PARAGRAPH_TO,
-  };
-  const edits = collectEdits(document, drafts);
-  assert.equal(edits.length, 1);
-  assert.deepEqual(edits[0]?.from, PARAGRAPH_FROM);
-  assert.deepEqual(edits[0]?.to, PARAGRAPH_TO);
+test("Core InlineContent converts to and from Tiptap content", () => {
+  const original: InlineContent[] = [
+    { kind: "text", text: "The converter regulates the " },
+    { kind: "strong", children: [{ kind: "text", text: "DC-link voltage" }] },
+    { kind: "text", text: " and " },
+    { kind: "emphasis", children: [{ kind: "text", text: "phase current" }] },
+    { kind: "text", text: "." },
+  ];
+  const tiptap = toTiptapContent(original);
+  assert.equal(tiptap.type, "doc");
+  assert.equal(tiptap.content?.[0]?.type, "paragraph");
+  const roundTrip = fromTiptapContent(tiptap);
+  assert.deepEqual(roundTrip, original);
 });
 
 test("Editor source does not import MyST packages or AST", () => {
@@ -77,21 +92,31 @@ test("Editor source does not import MyST packages or AST", () => {
   }
 });
 
-test("formatted content is not included in editable targets", () => {
+test("formatted paragraph is an editable target", () => {
   const document = loadEditableDocument(source);
   const formatted = document.blocks.find(
     (block) => block.block === "paragraph" && block.text === FORMATTED_PARAGRAPH,
   );
   assert.equal(formatted?.block, "paragraph");
   if (formatted?.block !== "paragraph") return;
-  assert.equal(formatted.editable, false);
+  assert.equal(formatted.editable, true);
   assert.equal(
-    editableTargets(document).some((target) => target.text === FORMATTED_PARAGRAPH),
-    false,
-  );
-  assert.equal(
-    editableTargets(document).some((target) => target.text === PARAGRAPH_FROM),
+    editableParagraphs(document).some((target) => target.text === FORMATTED_PARAGRAPH),
     true,
+  );
+});
+
+test("unsupported paragraph stays read-only", () => {
+  const document = loadEditableDocument(source);
+  const xref = document.blocks.find(
+    (block) => block.block === "paragraph" && block.text.includes("fig-control"),
+  );
+  assert.equal(xref?.block, "paragraph");
+  if (xref?.block !== "paragraph") return;
+  assert.equal(xref.editable, false);
+  assert.equal(
+    editableParagraphs(document).some((target) => target.text.includes("fig-control")),
+    false,
   );
 });
 
@@ -106,10 +131,39 @@ test("read-only content is not a contentEditable target", () => {
 });
 
 test("paragraph edits are saved through Core operations", () => {
-  const saved = saveWith({ [PARAGRAPH_FROM]: PARAGRAPH_TO });
+  const saved = saveParagraph(PARAGRAPH_FROM, [{ kind: "text", text: PARAGRAPH_TO }]);
   assert.equal(saved.markdown.includes(PARAGRAPH_TO), true);
   assert.equal(saved.markdown.includes(PARAGRAPH_FROM), false);
   assert.equal(saved.markdown.includes(":::{warning}"), true);
+});
+
+test("rich paragraph saves through updateParagraphInlineContent", () => {
+  const api = readFileSync(path.join(editorRoot, "server", "document-api.ts"), "utf8");
+  assert.equal(api.includes("updateParagraphInlineContent"), true);
+  assert.equal(api.includes("updateNodeTextAtPath"), true);
+
+  const document = loadEditableDocument(source);
+  const formatted = editableParagraphs(document).find((target) => target.text === FORMATTED_PARAGRAPH);
+  assert.ok(formatted);
+  const content = formatted.content.map((item) =>
+    item.kind === "text" ? { ...item, text: item.text.replaceAll("regulates", "controls") } : item,
+  );
+  const saved = saveEdits(source, [], [{ path: formatted.path, content }]);
+  assert.equal(
+    saved.markdown.includes("The converter controls the **DC-link voltage** and *phase current*."),
+    true,
+  );
+});
+
+test("Core source does not import Tiptap or ProseMirror", () => {
+  const coreRoot = fileURLToPath(new URL("../../../packages/core", import.meta.url));
+  const files = listSourceFiles(path.join(coreRoot, "src"));
+  assert.ok(files.length > 0);
+  for (const file of files) {
+    const text = readFileSync(file, "utf8");
+    assert.equal(/from\s+["']@tiptap\//.test(text), false, file);
+    assert.equal(/from\s+["']prosemirror-/.test(text), false, file);
+  }
 });
 
 test("figure caption edits keep figure label and image", () => {
@@ -179,22 +233,34 @@ function saveWith(replacements: Record<string, string>) {
   const document = loadEditableDocument(source);
   const drafts: Record<string, string> = {};
   for (const [from, to] of Object.entries(replacements)) {
-    drafts[pathOf(document, from)] = to;
+    drafts[textPathOf(document, from)] = to;
   }
   return saveEdits(source, collectEdits(document, drafts));
 }
 
-function saveAll() {
-  return saveWith({
-    [PARAGRAPH_FROM]: PARAGRAPH_TO,
-    [CAPTION_FROM]: CAPTION_TO,
-    [CELL_FROM]: CELL_TO,
-  });
+function saveParagraph(from: string, content: InlineContent[]) {
+  const document = loadEditableDocument(source);
+  const target = editableParagraphs(document).find((item) => item.text === from);
+  assert.ok(target, `missing editable paragraph: ${from}`);
+  return saveEdits(source, [], collectParagraphEdits(document, { [target.path.join(",")]: content }));
 }
 
-function pathOf(document: ReturnType<typeof loadEditableDocument>, text: string): string {
-  const target = editableTargets(document).find((item) => item.text === text);
-  assert.ok(target, `missing editable target: ${text}`);
+function saveAll() {
+  const document = loadEditableDocument(source);
+  const paragraph = editableParagraphs(document).find((item) => item.text === PARAGRAPH_FROM);
+  assert.ok(paragraph);
+  const textDrafts = {
+    [textPathOf(document, CAPTION_FROM)]: CAPTION_TO,
+    [textPathOf(document, CELL_FROM)]: CELL_TO,
+  };
+  return saveEdits(source, collectEdits(document, textDrafts), [
+    { path: paragraph.path, content: [{ kind: "text", text: PARAGRAPH_TO }] },
+  ]);
+}
+
+function textPathOf(document: ReturnType<typeof loadEditableDocument>, text: string): string {
+  const target = editableTextTargets(document).find((item) => item.text === text);
+  assert.ok(target, `missing editable text target: ${text}`);
   return target.path.join(",");
 }
 

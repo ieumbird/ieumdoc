@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts",
+    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts test/inline.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import { toText } from "myst-common";
 import type { Document, DocumentNode, NodePath } from "./document.ts";
+import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 
 export type EditableCaption = {
   path: NodePath;
@@ -29,6 +30,7 @@ export type EditableBlock =
       block: "paragraph";
       path: NodePath;
       text: string;
+      content: InlineContent[];
       editable: boolean;
     }
   | {
@@ -81,11 +83,13 @@ function toBlock(node: DocumentNode, path: NodePath): EditableBlock {
     };
   }
   if (node.type === "paragraph") {
+    const content = projectInlineContent(node);
     return {
       block: "paragraph",
       path,
-      text: paragraphText(node),
-      editable: isTextOnly(node),
+      text: content ? inlineContentText(content) : paragraphText(node),
+      content: content ?? [],
+      editable: content !== undefined,
     };
   }
   if (node.type === "admonition") {

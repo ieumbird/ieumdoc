@@ -1,22 +1,37 @@
-import type { EditableBlock, EditableDocument, NodePath } from "@ieumdoc/core";
+import type { EditableBlock, EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
 import { EditableText } from "./EditableText.tsx";
+import { ParagraphEditor } from "./ParagraphEditor.tsx";
 
 type DocumentViewProps = {
   document: EditableDocument;
-  onDraft: (path: NodePath, text: string) => void;
+  onTextDraft: (path: NodePath, text: string) => void;
+  onParagraphDraft: (path: NodePath, content: InlineContent[]) => void;
 };
 
-export function DocumentView({ document, onDraft }: DocumentViewProps) {
+export function DocumentView({ document, onTextDraft, onParagraphDraft }: DocumentViewProps) {
   return (
     <article className="document">
       {document.blocks.map((block) => (
-        <BlockView key={block.path.join(",")} block={block} onDraft={onDraft} />
+        <BlockView
+          key={block.path.join(",")}
+          block={block}
+          onTextDraft={onTextDraft}
+          onParagraphDraft={onParagraphDraft}
+        />
       ))}
     </article>
   );
 }
 
-function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: DocumentViewProps["onDraft"] }) {
+function BlockView({
+  block,
+  onTextDraft,
+  onParagraphDraft,
+}: {
+  block: EditableBlock;
+  onTextDraft: DocumentViewProps["onTextDraft"];
+  onParagraphDraft: DocumentViewProps["onParagraphDraft"];
+}) {
   if (block.block === "heading") {
     const Tag = block.level <= 1 ? "h1" : block.level === 2 ? "h2" : "h3";
     return <Tag className="heading">{block.text}</Tag>;
@@ -24,11 +39,9 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
   if (block.block === "paragraph") {
     if (block.editable) {
       return (
-        <EditableText
-          className="paragraph"
-          tag="p"
-          text={block.text}
-          onChange={(text) => onDraft(block.path, text)}
+        <ParagraphEditor
+          content={block.content}
+          onChange={(content) => onParagraphDraft(block.path, content)}
         />
       );
     }
@@ -52,7 +65,7 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
             className="caption"
             tag="figcaption"
             text={block.caption.text}
-            onChange={(text) => onDraft(block.caption.path, text)}
+            onChange={(text) => onTextDraft(block.caption.path, text)}
           />
         ) : (
           <figcaption className="caption">{block.caption.text}</figcaption>
@@ -69,7 +82,7 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
             <tr>
               {header.cells.map((cell) => (
                 <th key={cell.path.join(",")}>
-                  <TableCellText cell={cell} onDraft={onDraft} />
+                  <TableCellText cell={cell} onDraft={onTextDraft} />
                 </th>
               ))}
             </tr>
@@ -80,7 +93,7 @@ function BlockView({ block, onDraft }: { block: EditableBlock; onDraft: Document
             <tr key={row.cells.map((cell) => cell.path.join(",")).join(";")}>
               {row.cells.map((cell) => (
                 <td key={cell.path.join(",")}>
-                  <TableCellText cell={cell} onDraft={onDraft} />
+                  <TableCellText cell={cell} onDraft={onTextDraft} />
                 </td>
               ))}
             </tr>
@@ -105,7 +118,7 @@ function TableCellText({
   onDraft,
 }: {
   cell: { path: NodePath; text: string; editable: boolean };
-  onDraft: DocumentViewProps["onDraft"];
+  onDraft: DocumentViewProps["onTextDraft"];
 }) {
   if (cell.editable) {
     return (

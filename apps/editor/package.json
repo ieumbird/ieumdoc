@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@ieumdoc/core": "workspace:*",
+    "@tiptap/pm": "2.26.1",
+    "@tiptap/react": "2.26.1",
+    "@tiptap/starter-kit": "2.26.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
