@@ -22,7 +22,8 @@
 ## Layout
 
 - `packages/core` — headless document parse, operations, validate, serialize. No UI.
-- `spikes/` — exploratory experiments. Do not import spike code into `packages/core`.
+- `packages/cli` — thin file interface over `@ieumdoc/core`. Do not put document meaning here.
+- `spikes/` — exploratory experiments. Do not import spike code into `packages/core` or `packages/cli`.
 
 ## Verification
 

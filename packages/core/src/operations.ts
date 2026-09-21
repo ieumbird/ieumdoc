@@ -35,6 +35,35 @@ export function moveBlock(document: Document, fromIndex: number, toIndex: number
   return next;
 }
 
+export function insertBlock(document: Document, index: number, block: DocumentNode): Document {
+  if (!block || typeof block.type !== "string" || block.type.length === 0) {
+    throw new Error("insertBlock requires a block with a type");
+  }
+  const next = cloneDocument(document);
+  const blocks = next.children;
+  if (!Array.isArray(blocks)) {
+    throw new Error("insertBlock requires a document with top-level blocks");
+  }
+  if (!Number.isInteger(index) || index < 0 || index > blocks.length) {
+    throw new Error(`insertBlock index out of range: ${index}`);
+  }
+  blocks.splice(index, 0, structuredClone(block));
+  return next;
+}
+
+export function removeBlock(document: Document, index: number): Document {
+  const next = cloneDocument(document);
+  const blocks = next.children;
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    throw new Error("removeBlock requires a document with top-level blocks");
+  }
+  if (!Number.isInteger(index) || index < 0 || index >= blocks.length) {
+    throw new Error(`removeBlock index out of range: ${index}`);
+  }
+  blocks.splice(index, 1);
+  return next;
+}
+
 function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {
   if (TEXT_BLOCKS.has(node.type) && toText(node).includes(from)) {
     return node;

@@ -1,0 +1,20 @@
+{
+  "name": "@ieumdoc/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ieumdoc": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "tsx --test test/cli.test.ts"
+  },
+  "dependencies": {
+    "@ieumdoc/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.2"
+  }
+}

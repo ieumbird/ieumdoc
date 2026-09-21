@@ -60,13 +60,14 @@ flowchart TB
 > Writes Are Valid and Canonical
 > 공식 경로로 저장된 문서는 항상 유효하고 안정적으로 다시 처리 가능해야 한다.
 
-## Slice 1
+## MVP 1 Alpha
 
-Headless document core lives in `packages/core`.
+Headless document core is `packages/core`. File commands are `packages/cli`.
 
 ```bash
 pnpm install
 pnpm test
+pnpm ieumdoc check packages/core/test/fixtures/document.md
 ```
 
 사람이 따라 하는 절차는 [docs/test/TEST_GUIDE.md](docs/test/TEST_GUIDE.md)에 있다.

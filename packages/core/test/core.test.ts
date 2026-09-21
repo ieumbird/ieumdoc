@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { toText } from "myst-common";
 import {
+  insertBlock,
   moveBlock,
   parse,
+  removeBlock,
   replaceText,
   serialize,
   validate,
@@ -14,10 +16,11 @@ import {
 
 const ORIGINAL_TEXT = "The converter regulates voltage.";
 const MUTATED_TEXT = "The converter regulates voltage and current.";
+const INSERTED_TEXT = "Inserted block.";
 
 const source = readFileSync(new URL("./fixtures/document.md", import.meta.url), "utf8");
 
-test("parse document", () => {
+test("Core can parse a real document", () => {
   const document = parse(source);
   const types = collectTypes(document);
   assert.equal(document.type, "root");
@@ -31,7 +34,7 @@ test("parse document", () => {
   assert.ok(types.has("math"));
 });
 
-test("mutate text through Core operation", () => {
+test("Core can replace text", () => {
   const document = parse(source);
   const changed = replaceText(document, ORIGINAL_TEXT, MUTATED_TEXT);
   const originalBlock = findTextBlock(document, ORIGINAL_TEXT);
@@ -46,7 +49,32 @@ test("mutate text through Core operation", () => {
   assert.equal(source.includes(MUTATED_TEXT), false);
 });
 
-test("move block through Core operation", () => {
+test("Core can insert a top-level block", () => {
+  const document = parse(source);
+  const originalLength = document.children.length;
+  const changed = insertBlock(document, 1, paragraph(INSERTED_TEXT));
+  assert.equal(document.children.length, originalLength);
+  assert.equal(changed.children.length, originalLength + 1);
+  assert.equal(changed.children[1]?.type, "paragraph");
+  assert.equal(toText(changed.children[1]!), INSERTED_TEXT);
+  assert.equal(changed.children[2]?.type, "paragraph");
+  assert.equal(toText(changed.children[2]!), ORIGINAL_TEXT);
+});
+
+test("Core can remove a top-level block", () => {
+  const document = parse(source);
+  const noteIndex = indexOfType(document, "admonition");
+  const originalLength = document.children.length;
+  const changed = removeBlock(document, noteIndex);
+  assert.equal(document.children[noteIndex]?.type, "admonition");
+  assert.equal(changed.children.length, originalLength - 1);
+  assert.equal(
+    changed.children.some((node) => node.type === "admonition"),
+    false,
+  );
+});
+
+test("Core can move a top-level block", () => {
   const document = parse(source);
   const fromIndex = indexOfType(document, "admonition");
   const changed = moveBlock(document, fromIndex, 1);
@@ -57,38 +85,47 @@ test("move block through Core operation", () => {
   assert.notEqual(changed.children, document.children);
 });
 
-test("validate modified document", () => {
+test("Modified document validates", () => {
   const document = modify(parse(source));
   validate(document);
   assert.equal(document.type, "root");
   assert.ok(Array.isArray(document.children));
 });
 
-test("canonical serialize", () => {
+test("Modified document serializes canonically", () => {
   const output = serialize(modify(parse(source)));
   assert.equal(output.includes(MUTATED_TEXT), true);
+  assert.equal(output.includes(INSERTED_TEXT), true);
+  assert.equal(output.includes("phase current"), false);
   assert.match(output, /^# Converter Control\n\n:::{note}/);
   assert.equal(output.endsWith("\n"), true);
 });
 
-test("reparse serialized document", () => {
+test("Serialized document reparses successfully", () => {
   const output = serialize(modify(parse(source)));
   const reparsed = parse(output);
   assert.equal(reparsed.type, "root");
   assert.ok((reparsed.children?.length ?? 0) > 0);
   assert.equal(reparsed.children[1]?.type, "admonition");
   assert.equal(toText(findTextBlock(reparsed, MUTATED_TEXT)!), MUTATED_TEXT);
+  assert.equal(toText(findTextBlock(reparsed, INSERTED_TEXT)!), INSERTED_TEXT);
 });
 
-test("stable second serialization", () => {
+test("Second serialization is stable", () => {
   const output1 = serialize(modify(parse(source)));
   const output2 = serialize(parse(output1));
   assert.equal(output1, output2);
 });
 
+function paragraph(text: string): DocumentNode {
+  return { type: "paragraph", children: [{ type: "text", value: text }] };
+}
+
 function modify(document: Document): Document {
   const withText = replaceText(document, ORIGINAL_TEXT, MUTATED_TEXT);
-  return moveBlock(withText, indexOfType(withText, "admonition"), 1);
+  const withInsert = insertBlock(withText, 1, paragraph(INSERTED_TEXT));
+  const withMove = moveBlock(withInsert, indexOfType(withInsert, "admonition"), 1);
+  return removeBlock(withMove, 4);
 }
 
 function indexOfType(document: Document, type: string): number {
