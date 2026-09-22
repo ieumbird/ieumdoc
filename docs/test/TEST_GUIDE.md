@@ -75,6 +75,8 @@ pnpm test
 ✔ serialized document reparses
 ✔ second serialization is stable
 ✔ CLI can check and modify a real file through Core
+✔ ieumdoc help exits successfully
+✔ inspect prints Core editable targets
 ✔ technical document exposes an editor read model
 ✔ technical document exposes an editor read model
 ✔ heading with inline marks stays read-only
@@ -414,6 +416,9 @@ Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document
 ## 4. 명령 목록
 
 ```
+pnpm ieumdoc help
+pnpm ieumdoc help <command>
+pnpm ieumdoc inspect <file>
 pnpm ieumdoc check <file>
 pnpm ieumdoc format <file>
 pnpm ieumdoc replace-text <file> --from <text> --to <text>
@@ -423,9 +428,11 @@ pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
 ```
 
-`insert-block`은 Core `insertParagraph`로 paragraph를 넣는다.
+`pnpm ieumdoc help`와 `pnpm ieumdoc <command> --help`는 사용 가능한 명령을 보여 준다.
+`inspect`는 Core read model의 block, NodePath, editable target을 보여 준다.
+`insert-block`은 Core `insertParagraph`로 paragraph만 넣는다.
 index는 `check`가 출력하는 top-level 번호다.
-`--path`는 현재 parse 결과 안의 위치다. 예: `4`, `6,1`, `12,1,1`.
+`--path`는 현재 parse snapshot 안의 위치다. `inspect`로 찾는다. 구조를 바꾸면 path도 바뀐다. 예: `4`, `6,1`, `12,1,1`.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 

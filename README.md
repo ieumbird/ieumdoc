@@ -67,7 +67,9 @@ Headless document core is `packages/core`. File commands are `packages/cli`.
 ```bash
 pnpm install
 pnpm test
+pnpm ieumdoc help
 pnpm ieumdoc check packages/core/test/fixtures/document.md
+pnpm ieumdoc inspect packages/core/test/fixtures/technical-document.md
 ```
 
 ## MVP 2 Alpha
