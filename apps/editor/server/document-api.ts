@@ -8,6 +8,7 @@ import {
   parse,
   serialize,
   splitParagraph,
+  mergeParagraphWithPrevious,
   updateNodeTextAtPath,
   updateParagraphInlineContent,
   validateStructure,
@@ -32,6 +33,7 @@ export type SupportedEdits = {
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
+  merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
 };
 
 export type SaveRequest = SupportedEdits & {
@@ -70,6 +72,7 @@ export function saveCurrentDocument(
     headings: request.headings ?? [],
     paragraphs: request.paragraphs ?? [],
     splits: request.splits ?? [],
+    merges: request.merges ?? [],
   });
   return { ...saved, revision: documentRevision(saved.markdown) };
 }
@@ -117,26 +120,42 @@ export function saveEdits(
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
   }
   const splits = edits.splits ?? [];
-  const seen = new Set<number>();
-  for (const split of splits) {
-    assertPath(split.path, "split");
-    const block = blockAt(editable, split.path);
-    if (split.path.length !== 1 || block?.block !== "paragraph" || !block.editable ||
-        !Array.isArray(split.parts) || split.parts.length < 2 || seen.has(split.path[0]) ||
-        (edits.paragraphs ?? []).some(edit => edit.path.join(",") === split.path.join(","))) {
-      throw new Error("invalid paragraph split");
-    }
-    seen.add(split.path[0]);
+  const merges = edits.merges ?? [];
+  if (splits.some(split => !Array.isArray(split.parts) || split.parts.length < 2) ||
+      merges.some(merge => !Array.isArray(merge.paths) || merge.paths.length < 2)) {
+    throw new Error("invalid paragraph split or merge");
   }
-  // Descending snapshot paths keep subsequent targets unchanged. Core owns both
-  // inline replacement and splitting; the Editor never reconstructs the AST.
-  for (const split of [...splits].sort((a, b) => b.path[0] - a.path[0])) {
-    document = updateParagraphInlineContent(document, split.path, split.parts.flat());
-    const lengths = split.parts.map(part => inlineText(part).length);
+  const groups = [
+    ...splits.map(split => ({ paths: [split.path], parts: split.parts })),
+    ...merges,
+  ];
+  const seen = new Set<number>();
+  for (const group of groups) {
+    if (!Array.isArray(group.parts) || group.parts.length === 0) throw new Error("invalid paragraph parts");
+    for (const [index, path] of group.paths.entries()) {
+      assertPath(path, "paragraph");
+      const block = blockAt(editable, path);
+      if (path.length !== 1 || block?.block !== "paragraph" || !block.editable || seen.has(path[0]) ||
+          (index > 0 && path[0] !== group.paths[index - 1][0] + 1) ||
+          (edits.paragraphs ?? []).some(edit => edit.path.join(",") === path.join(","))) {
+        throw new Error("invalid paragraph split or merge");
+      }
+      seen.add(path[0]);
+    }
+  }
+  // Apply paragraph groups from the end so all paths still address the original
+  // snapshot. Structural meaning and canonical validation remain Core-owned.
+  for (const group of [...groups].sort((a, b) => b.paths[0][0] - a.paths[0][0])) {
+    for (let index = group.paths.length - 1; index > 0; index--) {
+      document = mergeParagraphWithPrevious(document, group.paths[index]);
+    }
+    const path = group.paths[0];
+    document = updateParagraphInlineContent(document, path, group.parts.flat());
+    const lengths = group.parts.map(part => inlineText(part).length);
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
-      document = splitParagraph(document, split.path, offset);
+      document = splitParagraph(document, path, offset);
     }
   }
   validateStructure(document);
@@ -179,6 +198,7 @@ export async function handleDocumentRequest(
             headings: Array.isArray(body.headings) ? body.headings : [],
             paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
             splits: Array.isArray(body.splits) ? body.splits : [],
+            merges: Array.isArray(body.merges) ? body.merges : [],
           },
         );
         sendJson(res, 200, { document: saved.document, revision: saved.revision });

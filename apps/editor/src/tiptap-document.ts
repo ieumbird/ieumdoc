@@ -18,6 +18,7 @@ export type SupportedEdits = {
   headings: HeadingEdit[];
   paragraphs: ParagraphEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
+  merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
 };
 
 const KNOWN_BLOCKS = new Set([
@@ -58,35 +59,34 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const headings: HeadingEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
-  document.blocks.forEach((block, index) => {
-    const nodes = next.content?.filter(node => sourcePathOf(node) === pathKey(block.path)) ?? [];
-    const node = nodes[0];
-    if (!node) {
-      throw new Error(`missing Tiptap block at ${index}`);
-    }
-    if (block.block === "heading" && block.editable) {
+  const merges: NonNullable<SupportedEdits["merges"]> = [];
+  const nodes = next.content ?? [];
+  for (let index = 0; index < nodes.length;) {
+    const node = nodes[index];
+    const key = sourcePathOf(node);
+    const paths = key.split(";");
+    const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
+    const group: TiptapJSON[] = [];
+    while (index < nodes.length && sourcePathOf(nodes[index]) === key) group.push(nodes[index++]);
+    if (paths.length > 1) {
+      merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
+    } else if (block.block === "heading" && block.editable) {
       const text = headingText(node);
-      if (text === block.text) return;
-      if (text.length === 0) {
-        throw new Error("empty heading text cannot be saved");
-      }
+      if (text === block.text) continue;
+      if (text.length === 0) throw new Error("empty heading text cannot be saved");
       headings.push({ path: block.path, from: block.text, to: text });
-      return;
-    }
-    if (block.block === "paragraph" && block.editable) {
-      if (nodes.length > 1) {
-        splits.push({ path: block.path, parts: nodes.map(paragraphInline) });
-        return;
+    } else if (block.block === "paragraph" && block.editable) {
+      if (group.length > 1) {
+        splits.push({ path: block.path, parts: group.map(paragraphInline) });
+        continue;
       }
       const content = paragraphInline(node);
-      if (sameInline(content, block.content)) return;
-      if (inlineText(content).length === 0) {
-        throw new Error("empty paragraph cannot be saved");
-      }
+      if (sameInline(content, block.content)) continue;
+      if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");
       paragraphs.push({ path: block.path, content });
     }
-  });
-  return { headings, paragraphs, ...(splits.length ? { splits } : {}) };
+  }
+  return { headings, paragraphs, ...(splits.length ? { splits } : {}), ...(merges.length ? { merges } : {}) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {
@@ -107,19 +107,26 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
   if (!Array.isArray(after)) {
     throw new Error("Tiptap document content must be an array");
   }
-  if (after.length < before.length) throw new Error("block deletion is not allowed");
-  let index = 0;
-  for (const block of before) {
-    if (sourcePathOf(after[index]) !== sourcePathOf(block)) {
-      throw new Error("top-level reorder is not allowed; block identity changed");
+  let original = 0;
+  for (let index = 0; index < after.length;) {
+    const key = sourcePathOf(after[index]);
+    const paths = key.split(";");
+    if (original >= before.length) throw new Error("block insertion is not allowed");
+    const originals = before.slice(original, original + paths.length);
+    if (originals.length !== paths.length || paths.some((path, i) => sourcePathOf(originals[i]) !== path)) {
+      throw new Error("top-level reorder is not allowed; block insertion or identity changed");
     }
-    assertBlockChange(block, after[index++]);
-    while (index < after.length && sourcePathOf(after[index]) === sourcePathOf(block)) {
-      if (block.type !== "paragraph") throw new Error("block insertion is not allowed");
-      assertBlockChange(block, after[index++]);
+    if (paths.length > 1 && originals.some(block => block.type !== "paragraph")) {
+      throw new Error("only editable paragraphs can merge");
     }
+    let count = 0;
+    while (index < after.length && sourcePathOf(after[index]) === key) {
+      if (count++ > 0 && originals[0].type !== "paragraph") throw new Error("block insertion is not allowed");
+      assertBlockChange(originals[0], after[index++]);
+    }
+    original += paths.length;
   }
-  if (index !== after.length) throw new Error("block insertion is not allowed");
+  if (original !== before.length) throw new Error("block deletion is not allowed");
 }
 
 function toTiptapBlock(block: EditableBlock): TiptapJSON {

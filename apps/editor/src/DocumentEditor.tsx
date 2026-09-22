@@ -64,10 +64,23 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           });
         });
         const tr = editor.state.tr;
+        const groups: { positions: number[]; paths: string[] }[] = [];
         editor.state.doc.forEach((node, pos) => {
-          const range = ranges.find(range => pos >= range.start && pos < range.end);
-          if (range) tr.setNodeMarkup(pos, undefined, { ...node.attrs, sourcePath: range.path });
+          const paths = ranges.filter(range => pos < range.end && pos + node.nodeSize > range.start).map(range => range.path);
+          if (!paths.length) return;
+          const group = { positions: [pos], paths };
+          // A pending merge can overlap two saved paragraphs and their pending
+          // split siblings. Keep that connected paragraph group together.
+          while (groups.length && groups.at(-1)!.paths.some(path => group.paths.includes(path))) {
+            const previous = groups.pop()!;
+            group.positions.unshift(...previous.positions);
+            group.paths = [...new Set([...previous.paths, ...group.paths])];
+          }
+          groups.push(group);
         });
+        for (const group of groups) for (const pos of group.positions) {
+          tr.setNodeMarkup(pos, undefined, { ...tr.doc.nodeAt(pos)!.attrs, sourcePath: group.paths.join(";") });
+        }
         baseline.current = toTiptapDocument(saved);
         editor.view.dispatch(tr.setMeta("savedPaths", true).setMeta("addToHistory", false));
       },

@@ -266,6 +266,35 @@ const ParagraphSplit = Extension.create({
   },
 });
 
+const ParagraphMerge = Extension.create({
+  name: "paragraphMerge",
+  priority: 110,
+  addKeyboardShortcuts() {
+    return {
+      Backspace: () => {
+        const { state } = this.editor;
+        const { selection } = state;
+        if (!selection.empty || selection.$from.parentOffset !== 0) return false;
+        if (selection.$from.depth !== 1 || selection.$from.parent.type.name !== "paragraph") return true;
+        const pos = selection.$from.before();
+        const previous = state.doc.resolve(pos).nodeBefore;
+        if (previous?.type.name !== "paragraph") return true;
+        // Snapshot provenance only: merge adjacent source groups, including any
+        // unsaved split siblings. Nothing is persisted as an identity.
+        const paths = [...new Set(`${previous.attrs.sourcePath};${selection.$from.parent.attrs.sourcePath}`.split(";"))];
+        const tr = state.tr.join(pos);
+        tr.doc.forEach((node, position) => {
+          if (node.type.name === "paragraph" && String(node.attrs.sourcePath).split(";").some(path => paths.includes(path))) {
+            tr.setNodeMarkup(position, undefined, { ...node.attrs, sourcePath: paths.join(";") });
+          }
+        });
+        this.editor.view.dispatch(tr.setMeta("paragraphMerge", true).scrollIntoView());
+        return true;
+      },
+    };
+  },
+});
+
 export function editorExtensions(): Extensions {
   return [
     StarterKit.configure({
@@ -289,6 +318,7 @@ export function editorExtensions(): Extensions {
     }),
     ParagraphHardBreak,
     ParagraphSplit,
+    ParagraphMerge,
     SourcedHeading,
     SourcedParagraph,
     ReadonlyHeading,
@@ -311,7 +341,7 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
     addProseMirrorPlugins() {
       return [
         new Plugin({
-          // Permit paragraph splits only through Enter or engine history.
+          // Permit paragraph splits/merges only through their keys or engine history.
           // Comparing with the loaded snapshot also keeps undo inside that set.
           filterTransaction(transaction, state) {
             if (!transaction.docChanged) return true;
@@ -321,7 +351,7 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
               return key.startsWith("history$") && transaction.getMeta(key);
             });
             const structural = transaction.doc.childCount !== state.doc.childCount;
-            if ((!structural || transaction.getMeta("paragraphSplit") || history) &&
+            if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") || history) &&
                 isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, transaction.doc.toJSON() as TiptapJSON)) return true;
             onReject();
             return false;

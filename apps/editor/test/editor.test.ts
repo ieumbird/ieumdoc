@@ -986,3 +986,61 @@ test("multiple split targets retain snapshot paths and heading edits", () => {
   });
   assert.equal(saved.markdown, "A\n\nB\n\nCD\n\n# Edited\n\nEF\n\nGH\n");
 });
+
+
+test("paragraph merges retain marks, breaks, post-merge edits and surrounding semantics", () => {
+  for (const pair of ["AB\n\nCD", "**AB**\n\n*CD*", "***AB***\n\n***CD***", "A\\\nB\n\nC\\\nD"]) {
+    const source = "# Before\n\n" + pair + "\n\n$$\nx=1\n$$\n\n[link](url)";
+    const editable = loadEditableDocument(source);
+    const projection = toTiptapDocument(editable);
+    const left = projection.content![1], right = projection.content![2];
+    const combined = [...left.content!, ...right.content!, {type: "text", text: "+edited"}];
+    projection.content!.splice(1, 2, {...left, attrs: {sourcePath: "1;2"}, content: combined});
+    const edits = collectSupportedEdits(editable, projection);
+    assert.equal(edits.merges?.length, 1);
+    const saved = saveEdits(source, edits);
+    const actual = normalizedDocument(toTiptapDocument(saved.document)).content![1].content;
+    const expected = normalizedDocument({...projection, content: [projection.content![1]]}).content![0].content;
+    assert.deepEqual(actual, expected);
+    const before = parse(source).children, after = parse(saved.markdown).children;
+    assert.equal(serialize({type: "root",children:[after[0],...after.slice(2)]}), serialize({type: "root",children:[before[0],...before.slice(3)]}));
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+  }
+});
+
+test("merge and split groups save together without path shifts or implicit spaces", () => {
+  const text = (text: string): InlineContent[] => [{kind: "text", text}];
+  const saved = saveEdits("AB\n\nCD\n\n# Divider\n\nEFGH", {
+    merges: [{paths: [[0],[1]], parts: [text("ABC"),text("D+")]}],
+    splits: [{path: [3], parts: [text("EF"),text("GH")]}],
+  });
+  assert.equal(saved.markdown,"ABC\n\nD+\n\n# Divider\n\nEF\n\nGH\n");
+  assert.equal(saveEdits("Hello\n\nWorld", {merges:[{paths:[[0],[1]],parts:[text("HelloWorld")]}]}).markdown,"HelloWorld\n");
+});
+
+test("invalid and stale merges do not write", () => {
+  const parts: InlineContent[][] = [[{kind:"text",text:"merged"}]];
+  for (const source of ["# Heading\n\nAB", "$$\nx=1\n$$\n\nAB", "[link](url)\n\nAB", "AB\n\n# Heading"]) {
+    let written = false;
+    assert.throws(() => commitDocumentSave(() => source, () => {written = true;}, {
+      revision: documentRevision(source), merges: [{paths:[[0],[1]],parts}],
+    }));
+    assert.equal(written,false);
+  }
+  for (const paths of [[[0],[2]], [[1],[0]], [[0],[0]], [[0,0],[1]], [[0]]]) {
+    assert.throws(() => saveEdits("A\n\nB\n\nC", {merges:[{paths,parts}]}));
+  }
+  let written = false;
+  assert.throws(() => commitDocumentSave(() => "Changed", () => {written = true;}, {
+    revision: documentRevision("A\n\nB"), merges:[{paths:[[0],[1]],parts}],
+  }), DocumentConflictError);
+  assert.equal(written,false);
+});
+
+test("merge provenance cannot skip, reorder or consume readonly blocks", () => {
+  const baseline = toTiptapDocument(loadEditableDocument("A\n\n# H\n\nB"));
+  for (const sourcePath of ["0;2", "0;1;2", "2;0"]) {
+    const next = {type:"doc",content:[{type:"paragraph",attrs:{sourcePath},content:[{type:"text",text:"AB"}]}]};
+    assert.throws(() => assertSupportedDocumentChange(baseline,next));
+  }
+});

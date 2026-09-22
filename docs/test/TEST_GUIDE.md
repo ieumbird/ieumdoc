@@ -359,7 +359,7 @@ Figure, equation, table, admonition, reference paragraph는 클릭해서 고칠 
 
 편집 가능한 paragraph 중간에서 Enter를 누른다. 같은 Editor 안에서 두 paragraph로 나뉘어야 한다.
 
-paragraph 맨 앞에서 Backspace를 누른다. 앞 블록과 합쳐지지 않아야 한다.
+paragraph 맨 앞에서 Backspace를 누른다. 바로 앞 블록이 편집 가능한 paragraph이면 공백 추가 없이 합쳐지고, 그 외 block이면 차단되어야 한다.
 
 Equation 또는 Figure를 선택하고 Delete 또는 Backspace를 누른다. 블록이 사라지지 않아야 한다.
 
@@ -444,7 +444,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - Visual Editor는 지정된 기술문서 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
 - link 또는 cross-reference가 있는 paragraph, admonition, figure, equation, table은 보이지만 읽기 전용이다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
-- Enter는 지원 paragraph를 나눈다. Backspace로 블록을 합치거나, 블록을 추가·삭제·이동하는 변경은 거부된다.
+- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. 그 외 block 추가·삭제·이동은 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
@@ -457,7 +457,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
 - Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, figure, equation, table, reference paragraph는 저장 대상이 아니다.
-- Heading Enter 또는 문단 경계 Backspace 뒤 문서 구조가 바뀌면 structural guard가 실패한 것이다.
+- Heading Enter 또는 paragraph가 아닌 이전 block과의 Backspace 병합은 차단되어야 한다.
 
 ## Single Editor 저장 경계 회귀 확인
 
@@ -516,7 +516,7 @@ UTF-16 surrogate pair 중간에서 잘라 UTF-8 파일에 저장할 수 없는 �
 MyST가 의미를 유지할 수 없는 경계(예: split 후 trailing break, mark 내부 끝 공백)는 명시적으로 거부한다.
 구조 변경 후에는 inspect로 path를 다시 찾는다. path는 영속 ID가 아니다.
 
-Editor의 Enter split은 지원하며 Backspace merge는 계속 비활성이다.
+Editor의 Enter split과 편집 가능한 인접 paragraph 사이의 Backspace merge를 지원한다.
 Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄바꿈을 추가한다.
 
 ## Editor Hard Break v1
@@ -525,7 +525,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 같은 paragraph 안에서 줄바꿈과 서식이 유지되는지 확인한다. Bold + Italic 조합도 반복한다.
 - Save 후 Reload하여 줄바꿈과 양쪽 서식이 유지되는지 확인한다. Markdown은 backslash + 개행으로 저장된다.
 - 문단 끝에 줄바꿈만 추가한 상태의 Save는 Core에서 거부될 수 있다. 뒤에 텍스트를 입력한 뒤 저장한다.
-- 문단 경계 Backspace merge 및 read-only reference paragraph 변경은 계속 차단되어야 한다.
+- read-only reference paragraph와의 병합 및 내용 변경은 계속 차단되어야 한다.
 
 ## Editor Paragraph Split v1
 
@@ -533,6 +533,15 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 양쪽 문단에 텍스트를 추가하고 Undo/Redo한다. 하나의 Editor 안에서 분할과 입력이 복구되어야 한다.
 - Save 후 Reload한다. 두 문단과 서식이 유지되고, 주변 Heading/Equation/Figure/Table/reference 내용이 같아야 한다.
 - 시작/끝에서 Enter를 눌러 빈 문단을 만든 뒤 Save한다. 파일을 쓰지 않고 실패해야 한다. 빈 문단에 텍스트를 입력하면 다시 저장할 수 있다.
-- Heading Enter, 문단 경계 Backspace, block 삭제/재정렬은 계속 차단된다. Shift+Enter는 같은 문단 안에 hard break를 만든다.
+- Heading Enter, block 삭제/재정렬은 계속 차단된다. Shift+Enter는 같은 문단 안에 hard break를 만든다.
 - 저장 응답을 지연시키고 추가 입력/분할한다. `Saved; newer edits pending` 후 입력이 남아야 하며 다음 Save 및 Reload에서도 유지되어야 한다.
 - sourcePath는 현재 저장 snapshot의 locator다. 분할 조각은 저장 전 원본 path를 공유하고, 성공 응답 후 새 path를 사용한다. 영속 ID를 생성하지 않는다.
+
+## Editor Paragraph Merge v1
+
+- 두 번째 지원 paragraph의 맨 앞에 cursor를 두고 Backspace한다. 이전 paragraph와 공백 추가 없이 합쳐져야 한다.
+- Bold/Italic/두 서식 조합과 hard break가 포함된 문단에서도 반복한다. Undo/Redo 후 같은 문단·서식으로 복구되어야 한다.
+- Enter로 나눈 직후 Backspace로 다시 합친다. 병합 후 내용을 추가하고 Save → Reload하여 서식과 줄바꿈이 유지되는지 확인한다.
+- 이전 block이 Heading/Equation/Figure/Table 또는 read-only paragraph이면 병합되지 않아야 한다. 문단 중간의 Backspace는 일반 문자 삭제다.
+- Save 응답을 지연한 동안 추가 입력·병합·분할한다. 응답 후 입력이 남고 다음 Save → Reload에서도 같아야 한다.
+- 병합 대상의 snapshot path 목록은 Editor 세션의 출처 정보이며, 파일에 저장되는 ID가 아니다. 서버는 Core merge/update/split operation만 호출한다.
