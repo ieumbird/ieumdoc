@@ -123,6 +123,53 @@ export function updateNodeTextAtPath(
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
 }
 
+/** Update one Equation's LaTeX source while preserving its semantic identity. */
+export function updateEquationLatex(
+  document: Document,
+  path: NodePath,
+  from: string,
+  to: string,
+): Document {
+  const current = getNode(document, path);
+  if (current.type !== "math") {
+    throw new Error(`updateEquationLatex requires an equation at [${path.join(",")}]`);
+  }
+  if (typeof current.value !== "string" || current.value !== from) {
+    throw new Error(`equation LaTeX does not match at [${path.join(",")}]`);
+  }
+  if (to.length === 0) {
+    throw new Error("empty equation LaTeX cannot be saved");
+  }
+
+  const next = cloneDocument(document);
+  getNode(next, path).value = to;
+  assertEquationRoundTrip(next, path, current.label, current.identifier, to);
+  return next;
+}
+
+function assertEquationRoundTrip(
+  document: Document,
+  path: NodePath,
+  label: string | undefined,
+  identifier: string | undefined,
+  latex: string,
+): void {
+  const markdown = serialize(document);
+  const reparsed = parse(markdown);
+  const equation = getNode(reparsed, path);
+  if (
+    equation.type !== "math" ||
+    equation.value !== latex ||
+    equation.label !== label ||
+    equation.identifier !== identifier
+  ) {
+    throw new Error("Equation LaTeX change cannot be preserved through canonical round-trip");
+  }
+  if (serialize(reparsed) !== markdown) {
+    throw new Error("Equation LaTeX change is not canonical after round-trip");
+  }
+}
+
 export function updateParagraphInlineContent(
   document: Document,
   path: NodePath,

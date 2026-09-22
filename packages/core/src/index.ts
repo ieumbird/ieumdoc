@@ -15,6 +15,7 @@ export {
   insertParagraph,
   removeBlock,
   updateNodeTextAtPath,
+  updateEquationLatex,
   updateParagraphInlineContent,
 } from "./operations.ts";
 export { validateStructure } from "./validation.ts";

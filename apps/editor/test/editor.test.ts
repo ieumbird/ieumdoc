@@ -119,6 +119,20 @@ test("projected technical document round-trips through the Tiptap schema without
   assert.deepEqual(collectSupportedEdits(editable, normalized), { headings: [], paragraphs: [] });
 });
 
+test("Equation LaTeX is the only editable Equation attribute", () => {
+  const baseline = toTiptapDocument(loadEditableDocument(source));
+  const changed = clone(baseline);
+  const equation = blockAt(changed, "9");
+  equation.attrs!.latex = `${String(equation.attrs!.latex)} + 1`;
+  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, changed));
+  const edits = collectSupportedEdits(loadEditableDocument(source), changed);
+  assert.deepEqual(edits.equations, [{ path: [9], from: String(baseline.content?.find(block => block.attrs?.sourcePath === "9")?.attrs?.latex), to: `${String(equation.attrs!.latex)}` }]);
+
+  const labelChanged = clone(baseline);
+  blockAt(labelChanged, "9").attrs!.label = "other";
+  assert.throws(() => assertSupportedDocumentChange(baseline, labelChanged), /equation identity/);
+});
+
 test("Core InlineContent converts to and from Tiptap content", () => {
   const original: InlineContent[] = [
     { kind: "text", text: "The converter regulates the " },
@@ -235,7 +249,7 @@ test("document adapter accepts reorder but rejects readonly mutation, insertion,
   const equation = blockAt(mutated, "9");
   assert.ok(equation.attrs);
   equation.attrs.latex = "changed";
-  assert.throws(() => assertSupportedDocumentChange(baseline, mutated), /read-only block changed/);
+    assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, mutated));
 
   const readonlyParagraph = clone(baseline);
   const reference = blockAt(readonlyParagraph, "2");
@@ -519,6 +533,39 @@ test("heading text edits keep the heading level", () => {
   assert.equal(updated.depth, heading.level);
   assert.equal(textOf(updated), HEADING_TO);
   assert.equal(getEditableDocument(reparsed).blocks[0]?.block, "heading");
+});
+
+test("Equation edit survives Apply projection, reorder, Save and reload", () => {
+  const editable = loadEditableDocument(source);
+  const projection = toTiptapDocument(editable);
+  const equation = blockAt(projection, "9");
+  const original = String(equation.attrs?.latex ?? "");
+  const changed = `${original} + 1`;
+  equation.attrs!.latex = changed;
+  projection.content!.unshift(projection.content!.splice(9, 1)[0]);
+
+  const edits = collectSupportedEdits(editable, projection);
+  assert.deepEqual(edits.equations, [{ path: [9], from: original, to: changed }]);
+  assert.ok(edits.order);
+  const saved = saveEdits(source, edits);
+  const reloaded = loadEditableDocument(saved.markdown);
+  const reloadedEquation = reloaded.blocks.find((block) => block.block === "equation");
+  assert.equal(reloadedEquation?.block, "equation");
+  if (reloadedEquation?.block !== "equation") return;
+  assert.equal(reloadedEquation.latex, changed);
+  assert.equal(reloadedEquation.label, "eq-current");
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+
+  let written = false;
+  assert.throws(
+    () => commitDocumentSave(
+      () => source,
+      () => { written = true; },
+      { revision: documentRevision(source), equations: [{ path: [9], from: original, to: "" }] },
+    ),
+    /empty equation LaTeX/,
+  );
+  assert.equal(written, false);
 });
 
 test("empty paragraph and empty heading saves are rejected", () => {
@@ -1130,6 +1177,22 @@ test("engine reorder history and pending-save ranges follow moves, edits, undo a
   dispatch(reorderBlock(state, 0, 2));
   assert.equal(state.doc.lastChild!.textContent,"CXD");
   assert.equal(ranges.find(range => range.path === "2")!.end, state.doc.content.size);
+});
+
+test("Equation edits participate in editor undo and redo", () => {
+  const { doc, schema } = schemaDocument();
+  let state = EditorState.create({ schema, doc, plugins: [history()] });
+  const position = positionOf(doc, "equation", "9");
+  const equation = doc.nodeAt(position);
+  assert.ok(equation);
+  const original = String(equation?.attrs.latex);
+  const changed = `${original} + 1`;
+  state = state.apply(state.tr.setNodeMarkup(position, undefined, { ...equation!.attrs, latex: changed }));
+  assert.equal(state.doc.nodeAt(position)?.attrs.latex, changed);
+  assert.equal(undo(state, (transaction) => { state = state.apply(transaction); }), true);
+  assert.equal(state.doc.nodeAt(position)?.attrs.latex, original);
+  assert.equal(redo(state, (transaction) => { state = state.apply(transaction); }), true);
+  assert.equal(state.doc.nodeAt(position)?.attrs.latex, changed);
 });
 
 

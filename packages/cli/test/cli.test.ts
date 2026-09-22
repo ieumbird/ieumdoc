@@ -95,6 +95,7 @@ test("ieumdoc help exits successfully", () => {
       "remove-block",
       "move-block",
       "update-node-text",
+      "update-equation-latex",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -119,6 +120,11 @@ test("command help is available from help and --help", () => {
   assert.match(update.stdout, /ieumdoc inspect <file>/);
   assert.match(update.stdout, /current document snapshot/);
   assert.equal(run(["update-node-text", "--help"]).stdout, update.stdout);
+
+  const equation = run(["help", "update-equation-latex"]);
+  assert.equal(equation.status, 0, equation.stderr);
+  assert.match(equation.stdout, /ieumdoc update-equation-latex <file>/);
+  assert.equal(run(["update-equation-latex", "--help"]).stdout, equation.stdout);
 
   const insert = run(["help", "insert-block"]);
   assert.match(insert.stdout, /The current implementation inserts a Paragraph block only/);
@@ -304,6 +310,30 @@ test("CLI rejects unknown, duplicate, and unnecessary arguments without writing"
       assert.notEqual(result.status, 0, args.join(" "));
       assert.deepEqual(readFileSync(file), before, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI updates Equation LaTeX through Core without partial writes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-equation-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const original = readFileSync(file, "utf8");
+    const equation = getEditableDocument(parse(original)).blocks.find((block) => block.block === "equation");
+    assert.equal(equation?.block, "equation");
+    if (equation?.block !== "equation") return;
+    const next = "i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}} + 1";
+    const result = run(["update-equation-latex", file, "--path", equation.path.join(","), "--from", equation.latex, "--to", next]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved.includes(next), true);
+    assert.equal(serialize(parse(saved)), saved);
+    const beforeFailure = readFileSync(file);
+    const failed = run(["update-equation-latex", file, "--path", equation.path.join(","), "--from", "stale", "--to", "bad"]);
+    assert.equal(failed.status, 1);
+    assert.deepEqual(readFileSync(file), beforeFailure);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

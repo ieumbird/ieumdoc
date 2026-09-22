@@ -14,10 +14,17 @@ export type ParagraphEdit = {
   content: InlineContent[];
 };
 
+export type EquationEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type SupportedEdits = {
   order?: { path: NodePath; part: number }[];
   headings: HeadingEdit[];
   paragraphs: ParagraphEdit[];
+  equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
 };
@@ -39,7 +46,6 @@ const READONLY_BLOCKS = new Set([
   "readonlyParagraph",
   "admonition",
   "figure",
-  "equation",
   "readonlyTable",
   "unsupportedBlock",
 ]);
@@ -59,6 +65,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
+  const equations: EquationEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const nodes = next.content ?? [];
@@ -84,6 +91,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (sameInline(content, block.content)) continue;
       if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");
       paragraphs.push({ path: block.path, content });
+    } else if (block.block === "equation") {
+      const latex = equationLatex(node);
+      if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
     }
   }
   const counts = new Map<string, number>();
@@ -95,7 +105,14 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   });
   const reordered = order.some((item, index) => index > 0 && item.path[0] < order[index - 1].path[0]) ||
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
-  return { ...(reordered ? { order } : {}), headings, paragraphs, ...(splits.length ? { splits } : {}), ...(merges.length ? { merges } : {}) };
+  return {
+    ...(reordered ? { order } : {}),
+    headings,
+    paragraphs,
+    ...(equations.length ? { equations } : {}),
+    ...(splits.length ? { splits } : {}),
+    ...(merges.length ? { merges } : {}),
+  };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {
@@ -217,6 +234,22 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType !== afterType) {
     throw new Error(`top-level block type changed from "${beforeType}" to "${afterType}"`);
   }
+  if (beforeType === "equation") {
+    const beforeAttrs = before.attrs ?? {};
+    const afterAttrs = after.attrs ?? {};
+    for (const key of ["sourcePath", "label"]) {
+      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
+        throw new Error(`equation identity cannot change (${key})`);
+      }
+    }
+    if (typeof afterAttrs.latex !== "string") {
+      throw new Error("equation LaTeX must be a string");
+    }
+    if ((after.content ?? []).length > 0) {
+      throw new Error("equation content cannot change");
+    }
+    return;
+  }
   if (READONLY_BLOCKS.has(beforeType)) {
     assertReadonlyUnchanged(before, after);
     return;
@@ -273,6 +306,11 @@ function paragraphInline(node: TiptapJSON): InlineContent[] {
     type: "doc",
     content: [{ type: "paragraph", content: node.content }],
   });
+}
+
+function equationLatex(node: TiptapJSON): string {
+  if (typeof node.attrs?.latex !== "string") throw new Error("equation LaTeX must be a string");
+  return node.attrs.latex;
 }
 
 function sourcePathOf(node: TiptapJSON | undefined): string {

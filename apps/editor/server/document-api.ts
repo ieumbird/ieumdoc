@@ -11,6 +11,7 @@ import {
   mergeParagraphWithPrevious,
   moveBlock,
   updateNodeTextAtPath,
+  updateEquationLatex,
   updateParagraphInlineContent,
   validateStructure,
   type EditableBlock,
@@ -30,10 +31,17 @@ export type ParagraphEdit = {
   content: InlineContent[];
 };
 
+export type EquationEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type SupportedEdits = {
   order?: { path: NodePath; part: number }[];
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
+  equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
 };
@@ -73,6 +81,7 @@ export function saveCurrentDocument(
   const saved = saveEdits(source, {
     headings: request.headings ?? [],
     paragraphs: request.paragraphs ?? [],
+    equations: request.equations ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     order: request.order,
@@ -121,6 +130,14 @@ export function saveEdits(
       throw new Error("empty paragraph cannot be saved");
     }
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
+  }
+  for (const equation of edits.equations ?? []) {
+    assertPath(equation.path, "equation");
+    const block = blockAt(editable, equation.path);
+    if (block?.block !== "equation") {
+      throw new Error(`equation edit is not allowed at [${equation.path.join(",")}]`);
+    }
+    document = updateEquationLatex(document, equation.path, equation.from, equation.to);
   }
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
@@ -226,6 +243,7 @@ export async function handleDocumentRequest(
             revision: body.revision,
             headings: Array.isArray(body.headings) ? body.headings : [],
             paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+            equations: Array.isArray(body.equations) ? body.equations : [],
             splits: Array.isArray(body.splits) ? body.splits : [],
             merges: Array.isArray(body.merges) ? body.merges : [],
             order: body.order,

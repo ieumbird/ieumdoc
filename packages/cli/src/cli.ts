@@ -12,6 +12,7 @@ import {
   replaceText,
   serialize,
   updateNodeTextAtPath,
+  updateEquationLatex,
   validateStructure,
   type Document,
   type EditableBlock,
@@ -137,6 +138,16 @@ const COMMANDS: CommandSpec[] = [
       ...PATH_NOTE,
     ],
   },
+  {
+    name: "update-equation-latex",
+    summary: "Update Equation LaTeX through Core",
+    usage: "ieumdoc update-equation-latex <file> --path <indexes> --from <latex> --to <latex>",
+    details: [
+      "Update one Equation's LaTeX source through Core.",
+      "The label and document structure must remain unchanged.",
+      ...PATH_NOTE,
+    ],
+  },
 ];
 
 function main(argv: string[]): number {
@@ -238,6 +249,18 @@ function main(argv: string[]): number {
       );
       return 0;
     }
+    case "update-equation-latex": {
+      save(
+        file,
+        updateEquationLatex(
+          parse(readFile(file)),
+          pathFlag(flags),
+          flag(flags, "--from"),
+          flag(flags, "--to"),
+        ),
+      );
+      return 0;
+    }
     default:
       process.stderr.write(topLevelHelp());
       return 2;
@@ -289,6 +312,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
+  "update-equation-latex": ["--path", "--from", "--to"],
 };
 
 function parseCommandArgs(command: string, args: string[]): ParsedArgs {

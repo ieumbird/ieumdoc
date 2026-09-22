@@ -2,7 +2,9 @@ import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { useEffect, useState } from "react";
 import { isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
+import { Button, Notice } from "./ui/primitives.tsx";
 
 const hiddenAttr = (defaultValue: string | number = ""): Attribute => ({
   default: defaultValue,
@@ -435,18 +437,87 @@ function FigureView({ node }: ReactNodeViewProps) {
   );
 }
 
-function EquationView({ node }: ReactNodeViewProps) {
+function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) {
   const label = String(node.attrs.label ?? "");
+  const latex = String(node.attrs.latex ?? "");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(latex);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!editing) setDraft(latex);
+  }, [editing, latex]);
+
+  useEffect(() => {
+    if (selected && !editing) {
+      setDraft(latex);
+      setError("");
+      setEditing(true);
+    }
+  }, [selected]);
+
+  const beginEdit = () => {
+    setDraft(latex);
+    setError("");
+    setEditing(true);
+  };
+  const cancel = () => {
+    setDraft(latex);
+    setError("");
+    setEditing(false);
+  };
+  const apply = () => {
+    if (draft.length === 0) {
+      setError("Equation LaTeX cannot be empty.");
+      return;
+    }
+    updateAttributes({ latex: draft });
+    setError("");
+    setEditing(false);
+  };
+
   return (
     <NodeViewWrapper
       className="equation"
       data-block="equation"
       data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
       contentEditable={false}
     >
       <p className="block-kind">{label ? `Equation · ${label}` : "Equation"}</p>
-      <pre className="equation-math">{String(node.attrs.latex ?? "")}</pre>
+      {!editing ? (
+        <>
+          <pre className="equation-math" data-testid="equation-preview">{latex}</pre>
+          <Button className="equation-edit" size="sm" variant="subtle" onClick={beginEdit}>
+            Edit
+          </Button>
+        </>
+      ) : (
+        <div className="equation-editor" data-testid="equation-editor">
+          <textarea
+            aria-label="Equation LaTeX"
+            autoFocus
+            className="equation-input"
+            data-testid="equation-latex"
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setError("");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancel();
+              }
+            }}
+          />
+          <pre className="equation-preview" data-testid="equation-edit-preview">{draft}</pre>
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          <div className="equation-actions">
+            <Button size="sm" onClick={apply} data-testid="equation-apply">Apply</Button>
+            <Button size="sm" variant="subtle" onClick={cancel} data-testid="equation-cancel">Cancel</Button>
+          </div>
+        </div>
+      )}
     </NodeViewWrapper>
   );
 }

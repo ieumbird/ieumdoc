@@ -6,6 +6,7 @@ import {
   getNode,
   parse,
   serialize,
+  updateEquationLatex,
   updateNodeTextAtPath,
   validateStructure,
   type Document,
@@ -115,6 +116,22 @@ test("figure/equation/reference semantics remain intact", () => {
   assert.equal(typeof math?.value, "string");
   assert.ok(hasReference(document, "fig-control"));
   assert.ok(hasReference(document, "eq-current"));
+});
+
+test("equation LaTeX changes preserve label and canonical round-trip", () => {
+  const document = parse(source);
+  const equation = getNode(document, [9]);
+  assert.equal(equation.type, "math");
+  const latex = String(equation.value);
+  const changed = updateEquationLatex(document, [9], latex, "i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}} + 1");
+  const reparsed = parse(serialize(changed));
+  const updated = getNode(reparsed, [9]);
+  assert.equal(updated.type, "math");
+  assert.equal(updated.value, "i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}} + 1");
+  assert.equal(updated.label ?? updated.identifier, "eq-current");
+  assert.equal(serialize(reparsed), serialize(changed));
+  assert.throws(() => updateEquationLatex(document, [9], latex, ""), /empty equation LaTeX/);
+  assert.throws(() => updateEquationLatex(document, [9], "stale", latex), /does not match/);
 });
 
 test("modified document validates", () => {
