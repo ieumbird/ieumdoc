@@ -6,6 +6,9 @@ export type { InlineContent } from "./inline.ts";
 export { parse } from "./myst/parse.ts";
 export { serialize } from "./myst/serialize.ts";
 export {
+  insertHardBreak,
+  splitParagraph,
+  mergeParagraphWithPrevious,
   replaceText,
   moveBlock,
   insertBlock,

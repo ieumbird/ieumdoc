@@ -77,6 +77,7 @@ function replacePlainText(content: InlineContent[], from: string, to: string): I
     if (item.kind === "text") {
       return { kind: "text", text: item.text.replaceAll(from, to) };
     }
+    if (item.kind === "break") return item;
     return { ...item, children: replacePlainText(item.children, from, to) };
   });
 }

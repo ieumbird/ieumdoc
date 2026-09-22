@@ -31,6 +31,7 @@ export function assertInlineBlockRoundTrip(node: DocumentNode): void {
 function markedText(content: InlineContent[], marks: string[] = []): [string, string][] {
   return content.flatMap((item): [string, string][] => {
     if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
+    if (item.kind === "break") return [["\n", [...marks, "break"].join(",")]];
     return markedText(item.children, [...new Set([...marks, item.kind])].sort());
   });
 }

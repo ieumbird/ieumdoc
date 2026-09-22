@@ -1,3 +1,4 @@
+import { assertPersistentParagraph } from "./myst/paragraph.ts";
 import { toText } from "myst-common";
 import {
   cloneDocument,
@@ -8,6 +9,10 @@ import {
 } from "./document.ts";
 import {
   assertInlineContent,
+  inlineContentLength,
+  splitInlineContent,
+  concatenateInlineContent,
+  insertInlineBreak,
   inlineContentToNodes,
   projectInlineContent,
   type InlineContent,
@@ -156,4 +161,61 @@ function replaceInTextNodes(node: DocumentNode, from: string, to: string): boole
     if (replaceInTextNodes(child, from, to)) replaced = true;
   }
   return replaced;
+}
+
+/** Insert an intentional line break at an interior rendered UTF-16 offset. */
+export function insertHardBreak(document: Document, path: NodePath, offset: number): Document {
+  const content = paragraphContent(document, path);
+  assertInteriorOffset(content, offset);
+  const next = cloneDocument(document);
+  getNode(next, path).children = inlineContentToNodes(insertInlineBreak(content, offset));
+  assertPersistentParagraph(getNode(next, path));
+  return next;
+}
+
+/** Split a top-level paragraph without creating persistent empty paragraphs. */
+export function splitParagraph(document: Document, path: NodePath, offset: number): Document {
+  assertTopLevelPath(path);
+  const content = paragraphContent(document, path);
+  assertInteriorOffset(content, offset);
+  const [left, right] = splitInlineContent(content, offset);
+  const next = cloneDocument(document);
+  const original = getNode(next, path);
+  next.children.splice(path[0], 1,
+    { ...original, children: inlineContentToNodes(left) },
+    { type: "paragraph", children: inlineContentToNodes(right) });
+  assertPersistentParagraph(next.children[path[0]]);
+  assertPersistentParagraph(next.children[path[0] + 1]);
+  return next;
+}
+
+/** Concatenate the current and previous top-level paragraphs; add no space. */
+export function mergeParagraphWithPrevious(document: Document, path: NodePath): Document {
+  assertTopLevelPath(path);
+  if (path[0] <= 0) throw new Error("merge requires a previous paragraph");
+  const current = paragraphContent(document, path);
+  const previous = paragraphContent(document, [path[0] - 1]);
+  const next = cloneDocument(document);
+  next.children[path[0] - 1].children = inlineContentToNodes(concatenateInlineContent(previous, current));
+  assertPersistentParagraph(next.children[path[0] - 1]);
+  next.children.splice(path[0], 1);
+  return next;
+}
+
+function paragraphContent(document: Document, path: NodePath): InlineContent[] {
+  const node = getNode(document, path);
+  if (node.type !== "paragraph") throw new Error("operation requires a paragraph");
+  const content = projectInlineContent(node);
+  if (!content) throw new Error("unsupported paragraph inline content");
+  return content;
+}
+
+function assertTopLevelPath(path: NodePath): void {
+  if (path.length !== 1) throw new Error("operation requires a top-level paragraph path [index]");
+}
+
+function assertInteriorOffset(content: InlineContent[], offset: number): void {
+  if (!Number.isInteger(offset) || offset <= 0 || offset >= inlineContentLength(content)) {
+    throw new Error("offset must be an interior UTF-16 position (0 < offset < paragraph length)");
+  }
 }

@@ -3,6 +3,9 @@ import {
   getEditableDocument,
   inspectDocument,
   insertParagraph,
+  insertHardBreak,
+  splitParagraph,
+  mergeParagraphWithPrevious,
   moveBlock,
   parse,
   removeBlock,
@@ -28,7 +31,36 @@ const PATH_NOTE = [
   "Structural edits may change them.",
 ];
 
+const PARAGRAPH_PATH_NOTE = [
+  "Use ieumdoc inspect <file> to find a NodePath in the current snapshot.",
+  "Structural edits may change paths; run inspect again after editing.",
+];
+const OFFSET_NOTE = [
+  "Offset is measured in UTF-16 code units over rendered paragraph content.",
+  "A hard break counts as one character position.",
+  "Offset must be strictly inside the paragraph (0 < offset < length).",
+  "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
+];
 const COMMANDS: CommandSpec[] = [
+  {
+    name: "insert-hard-break",
+    summary: "Insert a hard break within a supported Paragraph",
+    usage: "ieumdoc insert-hard-break <file> --path <indexes> --offset <number>",
+    details: ["Insert a line break without creating a new paragraph.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
+  },
+  {
+    name: "split-paragraph",
+    summary: "Split a top-level Paragraph",
+    usage: "ieumdoc split-paragraph <file> --path <indexes> --offset <number>",
+    details: ["Split a supported top-level paragraph; both sides must be non-empty.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
+  },
+  {
+    name: "merge-paragraph",
+    summary: "Merge a Paragraph with the previous Paragraph",
+    usage: "ieumdoc merge-paragraph <file> --path <indexes>",
+    details: ["Merge the current top-level paragraph with the immediately previous paragraph.",
+      "Both paragraphs must have supported inline content. No automatic space is inserted.", ...PARAGRAPH_PATH_NOTE],
+  },
   {
     name: "check",
     summary: "Validate a document",
@@ -138,6 +170,16 @@ function main(argv: string[]): number {
   }
 
   switch (command) {
+    case "insert-hard-break":
+    case "split-paragraph": {
+      const operation = command === "insert-hard-break" ? insertHardBreak : splitParagraph;
+      save(file, operation(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--offset")));
+      return 0;
+    }
+    case "merge-paragraph": {
+      save(file, mergeParagraphWithPrevious(parse(readFile(file)), pathFlag(flags)));
+      return 0;
+    }
     case "check": {
       const document = parse(readFile(file));
       validateStructure(document);

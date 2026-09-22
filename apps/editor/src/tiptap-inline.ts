@@ -52,6 +52,7 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
+    if (item.kind === "break") throw new Error("hard break paragraphs are read-only in the Editor");
     if (item.kind === "text") {
       if (item.text.length === 0) continue;
       const node: TiptapJSON = { type: "text", text: item.text };

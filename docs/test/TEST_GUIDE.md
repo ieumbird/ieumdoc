@@ -480,3 +480,41 @@ playwright-cli -s=ieumdoc-save-review close
 스크립트는 GET으로 현재 technical-document fixture를 읽고 모든 POST를 mock한다. 원본 파일은 쓰지 않는다.
 결과의 `before`, `after`, `retained`, `conflictRetained`는 `true`, `editorCount`는 `1`이어야 한다.
 이 검사는 `pnpm test`에 포함된 headless Core/adapter 테스트와 별도로 실행한다.
+
+## Paragraph Editing Semantics v1 (Core + CLI)
+
+새 복사본에서 실행한다. 원본 fixture는 수정하지 않는다.
+
+```powershell
+New-Item -ItemType Directory -Force tmp | Out-Null
+Copy-Item packages/core/test/fixtures/document.md tmp/paragraph.md
+pnpm ieumdoc help split-paragraph
+pnpm ieumdoc help insert-hard-break
+pnpm ieumdoc help merge-paragraph
+pnpm ieumdoc inspect tmp/paragraph.md
+pnpm ieumdoc split-paragraph tmp/paragraph.md --path 1 --offset 3
+pnpm ieumdoc inspect tmp/paragraph.md
+pnpm ieumdoc check tmp/paragraph.md
+pnpm ieumdoc insert-hard-break tmp/paragraph.md --path 2 --offset 5
+pnpm ieumdoc inspect tmp/paragraph.md
+pnpm ieumdoc check tmp/paragraph.md
+pnpm ieumdoc merge-paragraph tmp/paragraph.md --path 2
+pnpm ieumdoc inspect tmp/paragraph.md
+pnpm ieumdoc check tmp/paragraph.md
+pnpm ieumdoc format tmp/paragraph.md
+$first = Get-Content -Raw tmp/paragraph.md
+pnpm ieumdoc format tmp/paragraph.md
+$first -ceq (Get-Content -Raw tmp/paragraph.md)
+```
+
+마지막 결과는 `True`여야 한다. inspect는 Hard Break를 한 줄의 JSON 문자열 안에서 `\n`으로 표시한다.
+Core representation은 `{ kind: "break" }`, MyST node는 `break`이며 canonical Markdown은 backslash 뒤의 개행이다.
+Offset은 rendered UTF-16 code unit 기준이다. Hard Break는 1, mark는 children 길이만 센다.
+Split과 merge는 top-level paragraph만 지원하고, merge는 공백을 자동 추가하지 않는다.
+Split과 Hard Break 삽입 offset은 양 끝을 제외한다. 빈 문단이나 공백만 있는 결과는 저장하지 않는다.
+UTF-16 surrogate pair 중간에서 잘라 UTF-8 파일에 저장할 수 없는 결과도 거부한다.
+MyST가 의미를 유지할 수 없는 경계(예: split 후 trailing break, mark 내부 끝 공백)는 명시적으로 거부한다.
+구조 변경 후에는 inspect로 path를 다시 찾는다. path는 영속 ID가 아니다.
+
+Editor의 Enter split, Shift+Enter 삽입, Backspace merge는 계속 비활성이다.
+이미 Hard Break가 있는 paragraph는 줄바꿈을 유지한 읽기 전용 표시로 로드하고 저장 시 원문 의미를 보존한다.

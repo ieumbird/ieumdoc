@@ -9,6 +9,9 @@ import {
   getEditableDocument,
   inspectDocument,
   insertParagraph,
+  insertHardBreak,
+  splitParagraph,
+  mergeParagraphWithPrevious,
   moveBlock,
   parse,
   removeBlock,
@@ -326,4 +329,58 @@ test("replace-text and insert-block reject lossy text without overwriting file b
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("paragraph CLI help discovers the offset and path contracts", () => {
+  const top = run(["help"]).stdout;
+  for (const command of ["insert-hard-break", "split-paragraph", "merge-paragraph"]) {
+    assert.ok(top.includes(command));
+    const help = run(["help", command]);
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /ieumdoc inspect <file>/);
+    assert.match(help.stdout, /run inspect again/);
+    assert.equal(run([command, "--help"]).stdout, help.stdout);
+    if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break counts as one/);
+    else assert.match(help.stdout, /No automatic space/);
+  }
+});
+
+test("real-file paragraph workflow matches Core and remains canonical", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-paragraph-"));
+  const file = path.join(dir, "document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    let expected = parse(readFileSync(file, "utf8"));
+    const index = getEditableDocument(expected).blocks.findIndex(b => b.block === "paragraph" && b.editable);
+    const execute = (args: string[]) => {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout;
+    };
+    assert.ok(execute(["inspect", file]).includes(`${index} paragraph`));
+    expected = splitParagraph(expected, [index], 2);
+    execute(["split-paragraph", file, "--path", String(index), "--offset", "2"]);
+    assert.equal(readFileSync(file, "utf8"), serialize(expected));
+    assert.ok(execute(["inspect", file]).includes(`${index + 1} paragraph`));
+    execute(["check", file]);
+    expected = insertHardBreak(expected, [index + 1], 2);
+    execute(["insert-hard-break", file, "--path", String(index + 1), "--offset", "2"]);
+    assert.equal(readFileSync(file, "utf8"), serialize(expected));
+    assert.ok(execute(["inspect", file]).includes('\\n'));
+    execute(["check", file]);
+    expected = mergeParagraphWithPrevious(expected, [index + 1]);
+    execute(["merge-paragraph", file, "--path", String(index + 1)]);
+    assert.equal(readFileSync(file, "utf8"), serialize(expected));
+    execute(["inspect", file]);
+    execute(["check", file]);
+    const saved = readFileSync(file, "utf8");
+    for (let i = 0; i < 2; i++) {
+      execute(["format", file]);
+      assert.equal(readFileSync(file, "utf8"), saved);
+    }
+    for (const command of ["split-paragraph", "insert-hard-break"]) {
+      assert.equal(run([command, file, "--path", String(index), "--offset", "0"]).status, 1);
+      assert.equal(readFileSync(file, "utf8"), saved);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

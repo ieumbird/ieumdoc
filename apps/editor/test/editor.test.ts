@@ -886,3 +886,29 @@ test("lossy supported edits are rejected before the file write callback", () => 
     assert.equal(written, false);
   }
 });
+
+test("hard break paragraphs load read-only and remain unchanged on save", () => {
+  const source = "**AB\\\nCD**\n\nEditable text.\n";
+  const editable = loadEditableDocument(source);
+  const projection = toTiptapDocument(editable);
+  assert.equal(projection.content?.[0].type, "readonlyParagraph");
+  assert.equal(projection.content?.[0].attrs?.text, "AB\nCD");
+  const normalized = normalizedDocument(projection);
+  assert.deepEqual(collectSupportedEdits(editable, normalized), { headings: [], paragraphs: [] });
+  const modified = structuredClone(normalized);
+  modified.content![0].attrs!.text = "ABCD";
+  assert.equal(isSupportedDocumentChange(projection, modified), false);
+  assert.throws(() => toTiptapContent([{ kind: "break" }]), /read-only/);
+  const saved = saveEdits(source, {
+    headings: [],
+    paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed text." }] }],
+  });
+  const first = saved.document.blocks[0];
+  assert.equal(first.block, "paragraph");
+  if (first.block === "paragraph") {
+    const original = editable.blocks[0];
+    assert.equal(original.block, "paragraph");
+    if (original.block === "paragraph") assert.deepEqual(first.content, original.content);
+  }
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+});

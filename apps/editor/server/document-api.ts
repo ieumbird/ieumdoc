@@ -185,7 +185,7 @@ function assertPath(path: NodePath, label: string): void {
 
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
-  return content.map((item) => (item.kind === "text" ? item.text : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
 }
 
 function serveMedia(url: string, res: ServerResponse): void {

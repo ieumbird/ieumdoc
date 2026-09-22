@@ -70,7 +70,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       headings.push({ path: block.path, from: block.text, to: text });
       return;
     }
-    if (block.block === "paragraph" && block.editable) {
+    if (block.block === "paragraph" && block.editable && !hasBreak(block.content)) {
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) return;
       if (inlineText(content).length === 0) {
@@ -133,7 +133,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "paragraph") {
-    if (!block.editable) {
+    if (!block.editable || hasBreak(block.content)) {
       return readonlyNode("readonlyParagraph", block.path, { text: block.text });
     }
     return {
@@ -267,7 +267,7 @@ function sameInline(left: InlineContent[], right: InlineContent[]): boolean {
 }
 
 function inlineText(content: InlineContent[]): string {
-  return content.map((item) => (item.kind === "text" ? item.text : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
 }
 
 function normalizeAttr(value: unknown): string {
@@ -283,4 +283,9 @@ function describeType(value: TiptapJSON | undefined): string {
     return `"${value.type}"`;
   }
   return "unknown node";
+}
+
+function hasBreak(content: InlineContent[]): boolean {
+  return content.some((item) => item.kind === "break" ||
+    ((item.kind === "strong" || item.kind === "emphasis") && hasBreak(item.children)));
 }
