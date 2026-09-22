@@ -256,7 +256,7 @@ test("document adapter rejects readonly mutation, reorder, insertion, and deleti
   assert.throws(() => assertSupportedDocumentChange(baseline, deleted), /block deletion is not allowed/);
 });
 
-test("paragraph split is rejected", () => {
+test("paragraph split stays in its original snapshot group", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const split = clone(baseline);
   const content = split.content ?? [];
@@ -268,7 +268,7 @@ test("paragraph split is rejected", () => {
     attrs: { sourcePath: "8" },
     content: [{ type: "text", text: "tail" }],
   });
-  assert.throws(() => assertSupportedDocumentChange(baseline, split), /block insertion is not allowed/);
+  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, split));
 
   const { doc, schema } = schemaDocument();
   const paragraphPos = positionOf(doc, "paragraph", "8");
@@ -926,4 +926,63 @@ test("transient trailing break is editable but fails Core save without writing",
     revision: documentRevision(source), ...collectSupportedEdits(editable, projected),
   }), /round-trip/);
   assert.equal(written, false);
+});
+
+
+test("paragraph split saves final edited parts through Core and preserves other blocks", () => {
+  const cases: InlineContent[][][] = [
+    [[{kind: "text", text: "AB+"}], [{kind: "text", text: "+CD"}]],
+    ...(["strong", "emphasis"] as const).map(kind => [
+      [{kind, children: [{kind: "text" as const, text: "AB+"}]}],
+      [{kind, children: [{kind: "text" as const, text: "+CD"}]}],
+    ]),
+    [
+      [{kind: "strong", children: [{kind: "emphasis", children: [{kind: "text", text: "AB+"}]}]}],
+      [{kind: "strong", children: [{kind: "emphasis", children: [{kind: "text", text: "+CD"}]}]}],
+    ],
+    [[{kind: "text", text: "A"}, {kind: "break"}, {kind: "text", text: "B"}], [{kind: "text", text: "CD"}]],
+  ];
+  for (const parts of cases) {
+    const editable = loadEditableDocument(source);
+    const projection = toTiptapDocument(editable);
+    const original = projection.content![8];
+    projection.content!.splice(8, 1, ...parts.map(content => ({...original, content: toTiptapContent(content).content![0].content})));
+    const edits = collectSupportedEdits(editable, projection);
+    assert.deepEqual(edits.splits, [{path: [8], parts: parts.map(part => fromTiptapContent(toTiptapContent(part)))}]);
+    const saved = saveEdits(source, edits);
+    assert.deepEqual(normalizedDocument(toTiptapDocument(saved.document)).content!.slice(8,10).map(node => node.content), parts.map(part => toTiptapContent(part).content![0].content));
+    const before = parse(source).children;
+    const after = parse(saved.markdown).children;
+    assert.equal(serialize({type: "root", children: [...after.slice(0,8), ...after.slice(10)]}), serialize({type: "root", children: [...before.slice(0,8), ...before.slice(9)]}));
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+  }
+});
+
+test("invalid or stale paragraph splits never invoke the file writer", () => {
+  const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
+  for (const parts of [[[],text("AB")], [text("AB"),[]], [text(" "),text("AB")], [text("AB"),text(" ")]]) {
+    let written = false;
+    assert.throws(() => commitDocumentSave(() => "AB", () => {written = true;}, {
+      revision: documentRevision("AB"), splits: [{path: [0], parts}],
+    }));
+    assert.equal(written, false);
+  }
+  let written = false;
+  assert.throws(() => commitDocumentSave(() => "Changed", () => {written = true;}, {
+    revision: documentRevision("AB"), splits: [{path: [0], parts: [text("A"),text("B")]}],
+  }), DocumentConflictError);
+  assert.equal(written, false);
+  assert.throws(() => saveEdits("# AB", {splits: [{path: [0], parts: [text("A"),text("B")]}]}), /invalid/);
+});
+
+test("multiple split targets retain snapshot paths and heading edits", () => {
+  const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
+  const saved = saveEdits("ABCD\n\n# Title\n\nEFGH", {
+    headings: [{path: [1], from: "Title", to: "Edited"}],
+    splits: [
+      {path: [0], parts: [text("A"),text("B"),text("CD")]},
+      {path: [2], parts: [text("EF"),text("GH")]},
+    ],
+  });
+  assert.equal(saved.markdown, "A\n\nB\n\nCD\n\n# Edited\n\nEF\n\nGH\n");
 });

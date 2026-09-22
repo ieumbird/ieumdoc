@@ -244,6 +244,28 @@ const ParagraphHardBreak = Extension.create({
   },
 });
 
+const ParagraphSplit = Extension.create({
+  name: "paragraphSplit",
+  priority: 110,
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { selection } = this.editor.state;
+        if (selection.$from.parent.type.name !== "paragraph" || !selection.$from.sameParent(selection.$to)) return true;
+        const sourcePath = selection.$from.parent.attrs.sourcePath;
+        const start = selection.$from.before();
+        return this.editor.chain().splitBlock().command(({ tr }) => {
+          for (const pos of [start, tr.selection.$from.before()]) {
+            tr.setNodeMarkup(pos, this.editor.schema.nodes.paragraph, { sourcePath });
+          }
+          tr.setMeta("paragraphSplit", true);
+          return true;
+        }).run();
+      },
+    };
+  },
+});
+
 export function editorExtensions(): Extensions {
   return [
     StarterKit.configure({
@@ -266,6 +288,7 @@ export function editorExtensions(): Extensions {
       underline: false,
     }),
     ParagraphHardBreak,
+    ParagraphSplit,
     SourcedHeading,
     SourcedParagraph,
     ReadonlyHeading,
@@ -278,21 +301,28 @@ export function editorExtensions(): Extensions {
   ];
 }
 
-export function createEditorExtensions(baseline: TiptapJSON, onReject: () => void): Extensions {
+export function createEditorExtensions(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extensions {
   return [...editorExtensions(), structureGuard(baseline, onReject)];
 }
 
-function structureGuard(baseline: TiptapJSON, onReject: () => void): Extension {
+function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
       return [
         new Plugin({
-          // Heading text and supported paragraph inline content are the only persisted edits.
+          // Permit paragraph splits only through Enter or engine history.
           // Comparing with the loaded snapshot also keeps undo inside that set.
-          filterTransaction(transaction) {
+          filterTransaction(transaction, state) {
             if (!transaction.docChanged) return true;
-            if (isSupportedDocumentChange(baseline, transaction.doc.toJSON() as TiptapJSON)) return true;
+            if (transaction.getMeta("savedPaths")) return true;
+            const history = state.plugins.some(plugin => {
+              const key = (plugin as Plugin & { key: string }).key;
+              return key.startsWith("history$") && transaction.getMeta(key);
+            });
+            const structural = transaction.doc.childCount !== state.doc.childCount;
+            if ((!structural || transaction.getMeta("paragraphSplit") || history) &&
+                isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, transaction.doc.toJSON() as TiptapJSON)) return true;
             onReject();
             return false;
           },

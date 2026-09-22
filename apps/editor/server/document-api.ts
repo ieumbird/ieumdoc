@@ -7,6 +7,7 @@ import {
   getEditableDocument,
   parse,
   serialize,
+  splitParagraph,
   updateNodeTextAtPath,
   updateParagraphInlineContent,
   validateStructure,
@@ -30,6 +31,7 @@ export type ParagraphEdit = {
 export type SupportedEdits = {
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
+  splits?: { path: NodePath; parts: InlineContent[][] }[];
 };
 
 export type SaveRequest = SupportedEdits & {
@@ -67,6 +69,7 @@ export function saveCurrentDocument(
   const saved = saveEdits(source, {
     headings: request.headings ?? [],
     paragraphs: request.paragraphs ?? [],
+    splits: request.splits ?? [],
   });
   return { ...saved, revision: documentRevision(saved.markdown) };
 }
@@ -113,6 +116,29 @@ export function saveEdits(
     }
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
   }
+  const splits = edits.splits ?? [];
+  const seen = new Set<number>();
+  for (const split of splits) {
+    assertPath(split.path, "split");
+    const block = blockAt(editable, split.path);
+    if (split.path.length !== 1 || block?.block !== "paragraph" || !block.editable ||
+        !Array.isArray(split.parts) || split.parts.length < 2 || seen.has(split.path[0]) ||
+        (edits.paragraphs ?? []).some(edit => edit.path.join(",") === split.path.join(","))) {
+      throw new Error("invalid paragraph split");
+    }
+    seen.add(split.path[0]);
+  }
+  // Descending snapshot paths keep subsequent targets unchanged. Core owns both
+  // inline replacement and splitting; the Editor never reconstructs the AST.
+  for (const split of [...splits].sort((a, b) => b.path[0] - a.path[0])) {
+    document = updateParagraphInlineContent(document, split.path, split.parts.flat());
+    const lengths = split.parts.map(part => inlineText(part).length);
+    let offset = lengths.reduce((sum, length) => sum + length, 0);
+    for (let index = lengths.length - 1; index > 0; index--) {
+      offset -= lengths[index];
+      document = splitParagraph(document, split.path, offset);
+    }
+  }
   validateStructure(document);
   const markdown = serialize(document);
   return { markdown, document: getEditableDocument(parse(markdown)) };
@@ -152,6 +178,7 @@ export async function handleDocumentRequest(
             revision: body.revision,
             headings: Array.isArray(body.headings) ? body.headings : [],
             paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+            splits: Array.isArray(body.splits) ? body.splits : [],
           },
         );
         sendJson(res, 200, { document: saved.document, revision: saved.revision });

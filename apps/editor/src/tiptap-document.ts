@@ -17,6 +17,7 @@ export type ParagraphEdit = {
 export type SupportedEdits = {
   headings: HeadingEdit[];
   paragraphs: ParagraphEdit[];
+  splits?: { path: NodePath; parts: InlineContent[][] }[];
 };
 
 const KNOWN_BLOCKS = new Set([
@@ -56,8 +57,10 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
+  const splits: NonNullable<SupportedEdits["splits"]> = [];
   document.blocks.forEach((block, index) => {
-    const node = next.content?.[index];
+    const nodes = next.content?.filter(node => sourcePathOf(node) === pathKey(block.path)) ?? [];
+    const node = nodes[0];
     if (!node) {
       throw new Error(`missing Tiptap block at ${index}`);
     }
@@ -71,6 +74,10 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       return;
     }
     if (block.block === "paragraph" && block.editable) {
+      if (nodes.length > 1) {
+        splits.push({ path: block.path, parts: nodes.map(paragraphInline) });
+        return;
+      }
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) return;
       if (inlineText(content).length === 0) {
@@ -79,7 +86,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       paragraphs.push({ path: block.path, content });
     }
   });
-  return { headings, paragraphs };
+  return { headings, paragraphs, ...(splits.length ? { splits } : {}) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {
@@ -100,21 +107,19 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
   if (!Array.isArray(after)) {
     throw new Error("Tiptap document content must be an array");
   }
-  if (after.length > before.length) {
-    throw new Error("block insertion is not allowed");
+  if (after.length < before.length) throw new Error("block deletion is not allowed");
+  let index = 0;
+  for (const block of before) {
+    if (sourcePathOf(after[index]) !== sourcePathOf(block)) {
+      throw new Error("top-level reorder is not allowed; block identity changed");
+    }
+    assertBlockChange(block, after[index++]);
+    while (index < after.length && sourcePathOf(after[index]) === sourcePathOf(block)) {
+      if (block.type !== "paragraph") throw new Error("block insertion is not allowed");
+      assertBlockChange(block, after[index++]);
+    }
   }
-  if (after.length < before.length) {
-    throw new Error("block deletion is not allowed");
-  }
-  const beforePaths = before.map(sourcePathOf);
-  const afterPaths = after.map(sourcePathOf);
-  if (beforePaths.some((item, index) => item !== afterPaths[index])) {
-    const sameMembers = [...beforePaths].sort().join("\0") === [...afterPaths].sort().join("\0");
-    throw new Error(sameMembers ? "top-level reorder is not allowed" : "top-level block identity changed");
-  }
-  before.forEach((block, index) => {
-    assertBlockChange(block, after[index]);
-  });
+  if (index !== after.length) throw new Error("block insertion is not allowed");
 }
 
 function toTiptapBlock(block: EditableBlock): TiptapJSON {

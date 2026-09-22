@@ -1,4 +1,6 @@
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
+import { Mapping } from "@tiptap/pm/transform";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
@@ -7,6 +9,8 @@ import { toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
+  beginSave(): TiptapJSON;
+  finishSave(saved?: EditableDocument): void;
 };
 
 type DocumentEditorProps = {
@@ -19,11 +23,16 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   ref,
 ) {
   const projection = toTiptapDocument(document);
+  const baseline = useRef(projection);
+  const pending = useRef<{ doc: ProseMirrorNode; mapping: Mapping } | null>(null);
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(projection, onStructuralReject),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject),
     content: projection,
+    onTransaction({ transaction }) {
+      if (pending.current) pending.current.mapping.appendMapping(transaction.mapping);
+    },
     editorProps: {
       attributes: {
         class: "document-editor",
@@ -35,6 +44,33 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useImperativeHandle(
     ref,
     () => ({
+      beginSave() {
+        if (!editor) throw new Error("Editor is not ready");
+        pending.current = { doc: editor.state.doc, mapping: new Mapping() };
+        return editor.getJSON() as TiptapJSON;
+      },
+      finishSave(saved) {
+        const submission = pending.current;
+        pending.current = null;
+        if (!editor || !saved || !submission) return;
+        // Map only the in-flight save snapshot to the current editor positions.
+        // These paths are refreshed locators, never persistent block identities.
+        const ranges: { start: number; end: number; path: string }[] = [];
+        submission.doc.forEach((node, pos, index) => {
+          ranges.push({
+            start: submission.mapping.map(pos, -1),
+            end: submission.mapping.map(pos + node.nodeSize, -1),
+            path: saved.blocks[index].path.join(","),
+          });
+        });
+        const tr = editor.state.tr;
+        editor.state.doc.forEach((node, pos) => {
+          const range = ranges.find(range => pos >= range.start && pos < range.end);
+          if (range) tr.setNodeMarkup(pos, undefined, { ...node.attrs, sourcePath: range.path });
+        });
+        baseline.current = toTiptapDocument(saved);
+        editor.view.dispatch(tr.setMeta("savedPaths", true).setMeta("addToHistory", false));
+      },
       getDocument() {
         if (!editor) {
           throw new Error("Editor is not ready");
