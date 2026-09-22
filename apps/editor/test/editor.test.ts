@@ -22,6 +22,7 @@ import {
   type InlineContent,
 } from "@ieumdoc/core";
 import { editorExtensions } from "../src/editor-schema.tsx";
+import { renderEquation } from "../src/equation-render.ts";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
 import {
   assertSupportedDocumentChange,
@@ -131,6 +132,19 @@ test("Equation LaTeX is the only editable Equation attribute", () => {
   const labelChanged = clone(baseline);
   blockAt(labelChanged, "9").attrs!.label = "other";
   assert.throws(() => assertSupportedDocumentChange(baseline, labelChanged), /equation identity/);
+});
+
+test("Equation renderer displays valid LaTeX and fails closed on invalid input", () => {
+  const latex = "x^2 + 1";
+  const rendered = renderEquation(latex);
+  assert.equal(rendered.error, undefined);
+  assert.match(rendered.html ?? "", /katex/);
+
+  const invalid = "\\notARealKaTeXCommand";
+  const failed = renderEquation(invalid);
+  assert.equal(failed.html, undefined);
+  assert.match(failed.error ?? "", /notARealKaTeXCommand|KaTeX/i);
+  assert.equal(invalid, "\\notARealKaTeXCommand");
 });
 
 test("Core InlineContent converts to and from Tiptap content", () => {

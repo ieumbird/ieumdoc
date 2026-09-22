@@ -29,6 +29,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: 3.31.3
         version: 3.31.3
+      katex:
+        specifier: 0.15.6
+        version: 0.15.6
       react:
         specifier: ^19.1.1
         version: 19.3.0

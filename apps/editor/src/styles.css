@@ -348,9 +348,7 @@ h2.heading {
 
 .equation-math {
   margin: 0;
-  font-family: var(--font-family-math);
-  font-size: 1.15rem;
-  white-space: pre-wrap;
+  min-height: 2rem;
 }
 
 .equation-edit {
@@ -383,15 +381,21 @@ h2.heading {
 }
 
 .equation-input:focus {
-  outline: var(--focus-ring-width) solid var(--color-border-focus);
-  outline-offset: var(--focus-ring-offset);
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .equation-preview {
   margin: 0;
   min-height: 2.5rem;
-  font-family: var(--font-family-math);
-  white-space: pre-wrap;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.equation-preview-error {
+  text-align: left;
 }
 
 .equation-actions {

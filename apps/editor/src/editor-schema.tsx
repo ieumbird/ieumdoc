@@ -3,6 +3,7 @@ import { Plugin } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useState } from "react";
+import { renderEquation } from "./equation-render.ts";
 import { isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 
@@ -486,7 +487,7 @@ function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) 
       <p className="block-kind">{label ? `Equation · ${label}` : "Equation"}</p>
       {!editing ? (
         <>
-          <pre className="equation-math" data-testid="equation-preview">{latex}</pre>
+          <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
           <Button className="equation-edit" size="sm" variant="subtle" onClick={beginEdit}>
             Edit
           </Button>
@@ -510,7 +511,7 @@ function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) 
               }
             }}
           />
-          <pre className="equation-preview" data-testid="equation-edit-preview">{draft}</pre>
+          <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
           {error ? <Notice tone="error">{error}</Notice> : null}
           <div className="equation-actions">
             <Button size="sm" onClick={apply} data-testid="equation-apply">Apply</Button>
@@ -519,6 +520,24 @@ function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) 
         </div>
       )}
     </NodeViewWrapper>
+  );
+}
+
+function EquationFormula({ className, latex, testId }: { className: string; latex: string; testId: string }) {
+  const result = renderEquation(latex);
+  if (result.error) {
+    return (
+      <Notice className={`${className} equation-preview-error`} tone="error" data-testid={`${testId}-error`}>
+        Equation preview unavailable: {result.error}
+      </Notice>
+    );
+  }
+  return (
+    <div
+      className={className}
+      data-testid={testId}
+      dangerouslySetInnerHTML={{ __html: result.html ?? "" }}
+    />
   );
 }
 
