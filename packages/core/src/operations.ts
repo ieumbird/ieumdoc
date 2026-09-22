@@ -29,6 +29,7 @@ export function replaceText(document: Document, from: string, to: string): Docum
   if (!replaceInTextNodes(block, from, to) && toText(block) === from) {
     block.children = [{ type: "text", value: to }];
   }
+  assertInlineBlockRoundTrip(block);
   return next;
 }
 
@@ -66,10 +67,12 @@ export function insertBlock(document: Document, index: number, block: DocumentNo
 }
 
 export function insertParagraph(document: Document, index: number, text: string): Document {
-  return insertBlock(document, index, {
+  const paragraph: DocumentNode = {
     type: "paragraph",
     children: [{ type: "text", value: text }],
-  });
+  };
+  assertInlineBlockRoundTrip(paragraph);
+  return insertBlock(document, index, paragraph);
 }
 
 export function updateNodeTextAtPath(

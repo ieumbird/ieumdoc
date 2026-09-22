@@ -146,3 +146,19 @@ function collectTypes(node: DocumentNode, types = new Set<string>()): Set<string
   for (const child of node.children ?? []) collectTypes(child, types);
   return types;
 }
+
+test("replaceText rejects lossy paragraph and heading replacements without mutating the source", () => {
+  for (const source of ["Original.", "# Original."]) {
+    const document = parse(source);
+    const before = structuredClone(document);
+    assert.throws(() => replaceText(document, "Original.", "A\n\nB"), /round-trip/);
+    assert.deepEqual(document, before);
+  }
+});
+
+test("insertParagraph rejects text that serializes as multiple paragraphs without mutation", () => {
+  const document = parse("Original.");
+  const before = structuredClone(document);
+  assert.throws(() => insertParagraph(document, 1, "A\n\nB"), /round-trip/);
+  assert.deepEqual(document, before);
+});

@@ -307,3 +307,23 @@ test("Core rejects lossy text updates before CLI overwrites a real file", () => 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("replace-text and insert-block reject lossy text without overwriting file bytes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-canonical-writes-"));
+  const file = path.join(dir, "document.md");
+  try {
+    writeFileSync(file, "Original.\r\n");
+    const before = readFileSync(file);
+    for (const args of [
+      ["replace-text", file, "--from", "Original.", "--to", "A\n\nB"],
+      ["insert-block", file, "--at", "1", "--text", "A\n\nB"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /round-trip/);
+      assert.deepEqual(readFileSync(file), before);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

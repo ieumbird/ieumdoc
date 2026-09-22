@@ -2,7 +2,7 @@
 
 - Reviewed baseline: `bc5dae2ef1faf745627a890a5a582882f1eeb29f` (`origin/master`, fetched 2026-09-22).
 - History: foundation `4700785`, stale save `e101d57`, CLI help/inspect `c495687`, inspect labels `bc5dae2`.
-- Decision: **PASS WITH FIXES** for this reviewed foundation and the fixes described below.
+- Decision: **PASS WITH FIXES** for this reviewed foundation and the fixes described below, including the follow-up guard coverage for `replaceText` and `insertParagraph`.
 - Authority: Accepted ADR-0001 and AGENTS.md. A/B selection is not reopened.
 - `feat/paragraph-semantics-v1` is not in the reviewed master and was not merged or reviewed here.
 
@@ -14,7 +14,7 @@
 | Typed Blocks | `editor-schema.tsx` defines DOM representation, atom/selectability and available interactions. Core read models determine block meaning and editability. No canonical MyST model is created in the schema. |
 | Core-owned semantics | Paragraph replacement uses `updateParagraphInlineContent`; plain heading replacement uses `updateNodeTextAtPath`. The repaired persistence check stays in Core's MyST boundary. |
 | Editor/Core boundary | Tiptap JSON and engine positions stay in `apps/editor`. Runtime Editor code neither imports MyST nor mutates document AST nodes. Tests inspect AST as an oracle. |
-| Fail-closed | Unknown Editor nodes/marks and structural changes are rejected. Unsupported Core blocks are immutable projections; save reparses the original source and applies only supported edits. Lossy supported text writes now also fail before persistence. |
+| Fail-closed | Unknown Editor nodes/marks and structural changes are rejected. Unsupported Core blocks are immutable projections; save reparses the original source and applies only supported edits. Lossy supported text writes through `updateNodeTextAtPath`, `updateParagraphInlineContent`, `replaceText` and `insertParagraph` fail before persistence. |
 | `.md` SSOT | Original Markdown remains authoritative. Display projections are never reconstructed into a replacement document. Save responses now describe reparsed canonical bytes. |
 | CLI/Core | CLI delegates operations and read models to Core; help/inspect only format output. No CLI position/selection API is needed. Legacy rich inline replacement has a Core API but no dedicated CLI surface; it predates the CLI-first rule (`8886e23`). |
 
@@ -22,11 +22,11 @@
 
 ### F1 — Category 1, P1: supported inline save could silently change semantics (fixed)
 
-- Files/symbols: `packages/core/src/operations.ts` (`updateParagraphInlineContent`, `updateNodeTextAtPath`), `apps/editor/server/document-api.ts` (`saveEdits`).
+- Files/symbols: `packages/core/src/operations.ts` (`updateParagraphInlineContent`, `updateNodeTextAtPath`, `replaceText`, `insertParagraph`), `apps/editor/server/document-api.ts` (`saveEdits`).
 - Evidence: strong text `AB ` saved as `**AB **` and reloaded as literal text; one paragraph containing `A\n\nB` reloaded as two paragraphs. `validateStructure` only checked node shape. The returned read model described the pre-serialization tree rather than the stored bytes.
 - Impact: a successful save could violate mark/block preservation and make the Editor baseline disagree with the file, contrary to ADR-0001's canonical write and fail-closed contract.
-- Action: existing supported paragraph/heading edit paths check text, mark coverage, block type/heading depth and second serialization at the Core MyST boundary. Lossy requests fail before file writes. Save returns the read model of the actual canonical Markdown.
-- Counterevidence/scope: technical fixtures already preserved unsupported Figure/Equation/Table/Admonition/reference semantics. This was not whole-document reconstruction or a Tiptap type leak. Equivalent nesting order and adjacent text fragments remain supported. The new check is bounded to supported inline paragraph/heading targets, not a validator for all MyST constructs or every legacy write operation.
+- Action: `updateParagraphInlineContent`, supported paragraph/heading targets in `updateNodeTextAtPath` and `replaceText`, and new paragraphs in `insertParagraph` check text, mark coverage, block type/heading depth and second serialization at the Core MyST boundary. Lossy requests fail before file writes. Save returns the read model of the actual canonical Markdown.
+- Counterevidence/scope: technical fixtures already preserved unsupported Figure/Equation/Table/Admonition/reference semantics. This was not whole-document reconstruction or a Tiptap type leak. Equivalent nesting order and adjacent text fragments remain supported. The new check is bounded to supported inline paragraph/heading targets, not a validator for all MyST constructs, arbitrary `insertBlock` nodes or every Core operation. The follow-up closes the two identified bypasses; Core rejection preserves the original Document and CLI rejection preserves file bytes.
 
 ### F2 — Category 2, P1: successful delayed save discarded newer input (fixed)
 
