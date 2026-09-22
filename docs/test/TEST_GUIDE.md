@@ -553,3 +553,11 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 이동된 paragraph에 텍스트, Bold/Italic, Shift+Enter hard break를 추가한 뒤 Save → Reload한다. 순서와 의미가 유지되어야 한다.
 - Save 응답을 지연한 상태에서 다시 drag하거나 입력한 뒤 `Saved; newer edits pending`을 확인한다. 다음 Save → Reload에서도 pending 변경이 남아야 한다.
 - nested block, block 추가/삭제, multi-select, type conversion은 범위가 아니다. canonical serializer가 block 경계를 바꾸는 reorder는 파일을 쓰지 않고 실패한다.
+
+## Editor Equation Draft Save Guard v1
+
+- Equation에서 `Edit`를 누르고 LaTeX를 바꾼 뒤 `Apply` 없이 상단 `Save`를 누른다. 저장이 차단되어야 하고, `Apply or Cancel the Equation edit before saving.` 안내가 보이며, 편집창과 draft 내용이 그대로 남아야 한다.
+- 같은 상태에서 `Apply` → `Save` → Reload한다. 바꾼 LaTeX가 유지된다.
+- 다시 LaTeX를 바꾸고 `Apply` 없이 `Save`를 눌러 차단된 뒤 `Cancel` → `Save` → Reload한다. 원래 LaTeX가 유지되고 파일은 바뀌지 않는다.
+- Equation 편집창을 열기만 하고 내용을 바꾸지 않으면 `Save`는 정상 동작한다.
+- 이 차단은 파일 write와 API POST를 발생시키지 않는다. paragraph 편집, block reorder, delayed-save pending 동작은 그대로 유지된다.

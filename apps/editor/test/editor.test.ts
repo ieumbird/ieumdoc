@@ -21,7 +21,7 @@ import {
   type DocumentNode,
   type InlineContent,
 } from "@ieumdoc/core";
-import { editorExtensions } from "../src/editor-schema.tsx";
+import { editorExtensions, isUnappliedEquationDraft } from "../src/editor-schema.tsx";
 import { renderEquation } from "../src/equation-render.ts";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
 import {
@@ -145,6 +145,34 @@ test("Equation renderer displays valid LaTeX and fails closed on invalid input",
   assert.equal(failed.html, undefined);
   assert.match(failed.error ?? "", /notARealKaTeXCommand|KaTeX/i);
   assert.equal(invalid, "\\notARealKaTeXCommand");
+});
+
+test("an open Equation draft blocks saving only when it differs from the applied LaTeX", () => {
+  assert.equal(isUnappliedEquationDraft(false, "x + 1", "x"), false);
+  assert.equal(isUnappliedEquationDraft(true, "x", "x"), false);
+  assert.equal(isUnappliedEquationDraft(true, "x + 1", "x"), true);
+  assert.equal(isUnappliedEquationDraft(true, "", "x"), true);
+});
+
+test("top Save is guarded and Equation draft reporting is wired before persistence", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const guard = app.indexOf("if (equationDraftActive) return;");
+  const begin = app.indexOf("beginSave()");
+  const post = app.indexOf('requestDocument("POST"');
+  assert.ok(guard >= 0);
+  assert.ok(begin > guard);
+  assert.ok(post > guard);
+  assert.match(app, /Apply or Cancel the Equation edit before saving\./);
+
+  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
+  assert.match(documentEditor, /onEquationDraftChange/);
+  assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
+  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft\)/);
+
+  const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
+  assert.match(schema, /onDraftChange\?\.\(sourcePath, hasUnappliedDraft\)/);
+  assert.match(schema, /return \(\) => onDraftChange\?\.\(sourcePath, false\)/);
+  assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex\)/);
 });
 
 test("Core InlineContent converts to and from Tiptap content", () => {

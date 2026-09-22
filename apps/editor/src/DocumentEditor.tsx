@@ -17,19 +17,28 @@ export type DocumentEditorHandle = {
 type DocumentEditorProps = {
   document: EditableDocument;
   onStructuralReject: () => void;
+  onEquationDraftChange?: (active: boolean) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, onStructuralReject },
+  { document, onStructuralReject, onEquationDraftChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
   const baseline = useRef(projection);
   const pending = useRef<{ ranges: SavedRange[] } | null>(null);
+  const onEquationDraftChangeRef = useRef(onEquationDraftChange);
+  onEquationDraftChangeRef.current = onEquationDraftChange;
+  const activeEquationDrafts = useRef(new Set<string>());
+  const reportEquationDraft = (key: string, active: boolean) => {
+    if (active) activeEquationDrafts.current.add(key);
+    else activeEquationDrafts.current.delete(key);
+    onEquationDraftChangeRef.current?.(activeEquationDrafts.current.size > 0);
+  };
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft),
     content: projection,
     onTransaction({ transaction }) {
       if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);

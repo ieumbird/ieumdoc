@@ -12,6 +12,7 @@ export function App() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editorGeneration, setEditorGeneration] = useState(0);
+  const [equationDraftActive, setEquationDraftActive] = useState(false);
 
   useEffect(() => {
     void load();
@@ -35,6 +36,7 @@ export function App() {
 
   async function save(): Promise<void> {
     if (!document || !editorRef.current) return;
+    if (equationDraftActive) return;
     setError("");
     setNotice("");
     setStatus("Saving…");
@@ -72,6 +74,11 @@ export function App() {
           </Button>
         </div>
       </header>
+      {equationDraftActive ? (
+        <Notice data-testid="equation-draft-notice">
+          Apply or Cancel the Equation edit before saving.
+        </Notice>
+      ) : null}
       {notice ? (
         <Notice data-testid="notice">
           {notice}
@@ -87,6 +94,7 @@ export function App() {
           key={editorGeneration}
           ref={editorRef}
           document={document}
+          onEquationDraftChange={setEquationDraftActive}
           onStructuralReject={() =>
             setNotice("That change is not editable in this version, so it was discarded.")
           }

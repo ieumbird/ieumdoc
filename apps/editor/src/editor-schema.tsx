@@ -7,6 +7,13 @@ import { renderEquation } from "./equation-render.ts";
 import { isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 
+export type EquationDraftListener = (key: string, active: boolean) => void;
+
+/** An Equation draft blocks saving only while the editor is open and the draft differs from the applied LaTeX. */
+export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string): boolean {
+  return editing && draft !== latex;
+}
+
 const hiddenAttr = (defaultValue: string | number = ""): Attribute => ({
   default: defaultValue,
   rendered: false,
@@ -183,10 +190,21 @@ const Equation = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ["div", { ...HTMLAttributes, "data-equation": "" }];
   },
-  addNodeView() {
-    return ReactNodeViewRenderer(EquationView);
-  },
 });
+
+function equationNode(onDraftChange?: EquationDraftListener) {
+  return Equation.extend({
+    addNodeView() {
+      return ReactNodeViewRenderer(createEquationNodeView(onDraftChange));
+    },
+  });
+}
+
+function createEquationNodeView(onDraftChange?: EquationDraftListener) {
+  return function EquationDraftNodeView(props: ReactNodeViewProps) {
+    return <EquationView {...props} onDraftChange={onDraftChange} />;
+  };
+}
 
 const ReadonlyTable = Node.create({
   name: "readonlyTable",
@@ -298,7 +316,7 @@ const ParagraphMerge = Extension.create({
   },
 });
 
-export function editorExtensions(): Extensions {
+export function editorExtensions(onEquationDraftChange?: EquationDraftListener): Extensions {
   return [
     StarterKit.configure({
       blockquote: false,
@@ -328,14 +346,18 @@ export function editorExtensions(): Extensions {
     ReadonlyParagraph,
     Admonition,
     Figure,
-    Equation,
+    equationNode(onEquationDraftChange),
     ReadonlyTable,
     UnsupportedBlock,
   ];
 }
 
-export function createEditorExtensions(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extensions {
-  return [...editorExtensions(), structureGuard(baseline, onReject)];
+export function createEditorExtensions(
+  baseline: TiptapJSON | (() => TiptapJSON),
+  onReject: () => void,
+  onEquationDraftChange?: EquationDraftListener,
+): Extensions {
+  return [...editorExtensions(onEquationDraftChange), structureGuard(baseline, onReject)];
 }
 
 function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
@@ -438,7 +460,7 @@ function FigureView({ node }: ReactNodeViewProps) {
   );
 }
 
-function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) {
+function EquationView({ node, selected, updateAttributes, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
   const label = String(node.attrs.label ?? "");
   const latex = String(node.attrs.latex ?? "");
   const [editing, setEditing] = useState(false);
@@ -456,6 +478,13 @@ function EquationView({ node, selected, updateAttributes }: ReactNodeViewProps) 
       setEditing(true);
     }
   }, [selected]);
+
+  const sourcePath = String(node.attrs.sourcePath ?? "");
+  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex);
+  useEffect(() => {
+    onDraftChange?.(sourcePath, hasUnappliedDraft);
+    return () => onDraftChange?.(sourcePath, false);
+  }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   const beginEdit = () => {
     setDraft(latex);
