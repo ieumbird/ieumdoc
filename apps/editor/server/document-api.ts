@@ -9,6 +9,7 @@ import {
   serialize,
   splitParagraph,
   mergeParagraphWithPrevious,
+  moveBlock,
   updateNodeTextAtPath,
   updateParagraphInlineContent,
   validateStructure,
@@ -30,6 +31,7 @@ export type ParagraphEdit = {
 };
 
 export type SupportedEdits = {
+  order?: { path: NodePath; part: number }[];
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
@@ -73,6 +75,7 @@ export function saveCurrentDocument(
     paragraphs: request.paragraphs ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
+    order: request.order,
   });
   return { ...saved, revision: documentRevision(saved.markdown) };
 }
@@ -136,26 +139,52 @@ export function saveEdits(
       assertPath(path, "paragraph");
       const block = blockAt(editable, path);
       if (path.length !== 1 || block?.block !== "paragraph" || !block.editable || seen.has(path[0]) ||
-          (index > 0 && path[0] !== group.paths[index - 1][0] + 1) ||
+          (!edits.order && index > 0 && path[0] !== group.paths[index - 1][0] + 1) ||
           (edits.paragraphs ?? []).some(edit => edit.path.join(",") === path.join(","))) {
         throw new Error("invalid paragraph split or merge");
       }
       seen.add(path[0]);
     }
   }
-  // Apply paragraph groups from the end so all paths still address the original
-  // snapshot. Structural meaning and canonical validation remain Core-owned.
+  // Locators address this save's source snapshot, then each split result.
+  // Core alone performs every persistent move, merge, content update and split.
+  const locators = editable.blocks.map(block => ({ path: block.path, part: 0 }));
+  const key = (item: { path: NodePath; part: number }) => `${item.path.join(",")}:${item.part}`;
+  const move = (from: number, to: number) => {
+    document = moveBlock(document, from, to);
+    locators.splice(to, 0, locators.splice(from, 1)[0]);
+  };
   for (const group of [...groups].sort((a, b) => b.paths[0][0] - a.paths[0][0])) {
-    for (let index = group.paths.length - 1; index > 0; index--) {
-      document = mergeParagraphWithPrevious(document, group.paths[index]);
+    // Reordered neighbors may originate at non-adjacent snapshot paths.
+    for (let index = 1; index < group.paths.length; index++) {
+      const from = locators.findIndex(item => key(item) === key({path: group.paths[index], part: 0}));
+      let previous = locators.findIndex(item => key(item) === key({path: group.paths[index - 1], part: 0}));
+      if (from < previous) previous--;
+      move(from, previous + 1);
     }
-    const path = group.paths[0];
-    document = updateParagraphInlineContent(document, path, group.parts.flat());
+    const start = locators.findIndex(item => key(item) === key({path: group.paths[0], part: 0}));
+    for (let index = group.paths.length - 1; index > 0; index--) {
+      document = mergeParagraphWithPrevious(document, [start + index]);
+    }
+    document = updateParagraphInlineContent(document, [start], group.parts.flat());
     const lengths = group.parts.map(part => inlineText(part).length);
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
-      document = splitParagraph(document, path, offset);
+      document = splitParagraph(document, [start], offset);
+    }
+    locators.splice(start, group.paths.length, ...group.parts.map((_, part) => ({path: group.paths[0], part})));
+  }
+  if (edits.order !== undefined) {
+    if (!Array.isArray(edits.order) || edits.order.length !== locators.length) throw new Error("invalid block order");
+    const expected = new Set(locators.map(key));
+    for (const item of edits.order) {
+      assertPath(item.path, "order");
+      if (item.path.length !== 1 || !Number.isInteger(item.part) || !expected.delete(key(item))) throw new Error("invalid block order");
+    }
+    for (const [to, item] of edits.order.entries()) {
+      const from = locators.findIndex(locator => key(locator) === key(item));
+      if (from !== to) move(from, to);
     }
   }
   validateStructure(document);
@@ -199,6 +228,7 @@ export async function handleDocumentRequest(
             paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
             splits: Array.isArray(body.splits) ? body.splits : [],
             merges: Array.isArray(body.merges) ? body.merges : [],
+            order: body.order,
           },
         );
         sendJson(res, 200, { document: saved.document, revision: saved.revision });

@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
-import { Mapping } from "@tiptap/pm/transform";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { mapSavedRanges, type SavedRange } from "./block-reorder.ts";
+import { BlockHandles } from "./BlockHandles.tsx";
 import type { Editor } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
@@ -24,14 +24,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 ) {
   const projection = toTiptapDocument(document);
   const baseline = useRef(projection);
-  const pending = useRef<{ doc: ProseMirrorNode; mapping: Mapping } | null>(null);
+  const pending = useRef<{ ranges: SavedRange[] } | null>(null);
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
     extensions: createEditorExtensions(() => baseline.current, onStructuralReject),
     content: projection,
     onTransaction({ transaction }) {
-      if (pending.current) pending.current.mapping.appendMapping(transaction.mapping);
+      if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);
     },
     editorProps: {
       attributes: {
@@ -46,7 +46,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     () => ({
       beginSave() {
         if (!editor) throw new Error("Editor is not ready");
-        pending.current = { doc: editor.state.doc, mapping: new Mapping() };
+        const ranges: SavedRange[] = [];
+        editor.state.doc.forEach((node, pos, index) => ranges.push({start: pos, end: pos + node.nodeSize, path: String(index)}));
+        pending.current = { ranges };
         return editor.getJSON() as TiptapJSON;
       },
       finishSave(saved) {
@@ -55,24 +57,18 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (!editor || !saved || !submission) return;
         // Map only the in-flight save snapshot to the current editor positions.
         // These paths are refreshed locators, never persistent block identities.
-        const ranges: { start: number; end: number; path: string }[] = [];
-        submission.doc.forEach((node, pos, index) => {
-          ranges.push({
-            start: submission.mapping.map(pos, -1),
-            end: submission.mapping.map(pos + node.nodeSize, -1),
-            path: saved.blocks[index].path.join(","),
-          });
-        });
+        const ranges = submission.ranges.map(range => ({...range, path: saved.blocks[Number(range.path)].path.join(",")}));
         const tr = editor.state.tr;
         const groups: { positions: number[]; paths: string[] }[] = [];
         editor.state.doc.forEach((node, pos) => {
-          const paths = ranges.filter(range => pos < range.end && pos + node.nodeSize > range.start).map(range => range.path);
+          const paths = [...new Set(ranges.filter(range => pos < range.end && pos + node.nodeSize > range.start).map(range => range.path))];
           if (!paths.length) return;
           const group = { positions: [pos], paths };
           // A pending merge can overlap two saved paragraphs and their pending
           // split siblings. Keep that connected paragraph group together.
-          while (groups.length && groups.at(-1)!.paths.some(path => group.paths.includes(path))) {
-            const previous = groups.pop()!;
+          let overlap: number;
+          while ((overlap = groups.findIndex(previous => previous.paths.some(path => group.paths.includes(path)))) >= 0) {
+            const previous = groups.splice(overlap, 1)[0];
             group.positions.unshift(...previous.positions);
             group.paths = [...new Set([...previous.paths, ...group.paths])];
           }
@@ -124,6 +120,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       </div>
       <article className="document" data-testid="document-editor">
         <EditorContent editor={editor} />
+        <BlockHandles editor={editor} />
       </article>
     </div>
   );

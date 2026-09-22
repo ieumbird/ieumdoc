@@ -350,8 +350,13 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
               const key = (plugin as Plugin & { key: string }).key;
               return key.startsWith("history$") && transaction.getMeta(key);
             });
-            const structural = transaction.doc.childCount !== state.doc.childCount;
-            if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") || history) &&
+            const paths = (doc: typeof state.doc) => {
+              const result: string[] = [];
+              doc.forEach(node => result.push(String(node.attrs.sourcePath)));
+              return result.join("|");
+            };
+            const structural = paths(transaction.doc) !== paths(state.doc);
+            if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") || transaction.getMeta("blockReorder") || history) &&
                 isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, transaction.doc.toJSON() as TiptapJSON)) return true;
             onReject();
             return false;
