@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
@@ -31,12 +32,54 @@ export type SupportedEdits = {
   paragraphs?: ParagraphEdit[];
 };
 
+export type SaveRequest = SupportedEdits & {
+  revision?: string;
+};
+
+export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
+
+export class DocumentConflictError extends Error {
+  constructor() {
+    super(DOCUMENT_CONFLICT_MESSAGE);
+    this.name = "DocumentConflictError";
+  }
+}
+
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 export const DOCUMENT_DIR = path.join(editorRoot, "document");
 export const DOCUMENT_FILE = path.join(DOCUMENT_DIR, "technical-document.md");
 
 export function loadEditableDocument(source: string): EditableDocument {
   return getEditableDocument(parse(source));
+}
+
+export function documentRevision(source: string): string {
+  return createHash("sha256").update(source, "utf8").digest("hex");
+}
+
+export function saveCurrentDocument(
+  source: string,
+  request: SaveRequest,
+): { markdown: string; document: EditableDocument; revision: string } {
+  if (request.revision !== documentRevision(source)) {
+    throw new DocumentConflictError();
+  }
+  const saved = saveEdits(source, {
+    headings: request.headings ?? [],
+    paragraphs: request.paragraphs ?? [],
+  });
+  return { ...saved, revision: documentRevision(saved.markdown) };
+}
+
+export function commitDocumentSave(
+  readSource: () => string,
+  writeSource: (markdown: string) => void,
+  request: SaveRequest,
+): { markdown: string; document: EditableDocument; revision: string } {
+  const source = readSource();
+  const saved = saveCurrentDocument(source, request);
+  writeSource(saved.markdown);
+  return saved;
 }
 
 export function saveEdits(
@@ -92,17 +135,33 @@ export async function handleDocumentRequest(
 
   try {
     if (req.method === "GET") {
-      sendJson(res, 200, { document: loadEditableDocument(readFileSync(DOCUMENT_FILE, "utf8")) });
+      const source = readFileSync(DOCUMENT_FILE, "utf8");
+      sendJson(res, 200, {
+        document: loadEditableDocument(source),
+        revision: documentRevision(source),
+      });
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as SupportedEdits;
-      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), {
-        headings: Array.isArray(body.headings) ? body.headings : [],
-        paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
-      });
-      writeFileSync(DOCUMENT_FILE, saved.markdown);
-      sendJson(res, 200, { document: saved.document });
+      const body = JSON.parse(await readBody(req)) as SaveRequest;
+      try {
+        const saved = commitDocumentSave(
+          () => readFileSync(DOCUMENT_FILE, "utf8"),
+          (markdown) => writeFileSync(DOCUMENT_FILE, markdown),
+          {
+            revision: body.revision,
+            headings: Array.isArray(body.headings) ? body.headings : [],
+            paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+          },
+        );
+        sendJson(res, 200, { document: saved.document, revision: saved.revision });
+      } catch (error) {
+        if (error instanceof DocumentConflictError) {
+          sendJson(res, 409, { error: error.message });
+          return;
+        }
+        throw error;
+      }
       return;
     }
     res.statusCode = 405;

@@ -11,6 +11,7 @@ import { EditorState, NodeSelection, TextSelection, type Transaction } from "@ti
 import {
   getEditableDocument,
   getNode,
+  insertParagraph,
   parse,
   serialize,
   type Document,
@@ -25,7 +26,14 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import {
+  commitDocumentSave,
+  documentRevision,
+  DocumentConflictError,
+  loadEditableDocument,
+  saveCurrentDocument,
+  saveEdits,
+} from "../server/document-api.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = fileURLToPath(
@@ -335,6 +343,125 @@ test("save validates supported edits before POST", () => {
   const post = app.indexOf('requestDocument("POST"');
   assert.ok(guard >= 0);
   assert.ok(post > guard);
+});
+
+test("document revision changes with the source", () => {
+  const revision = documentRevision(source);
+  assert.equal(documentRevision(source), revision);
+  assert.equal(revision.length, 64);
+  assert.notEqual(documentRevision(`${source}\n`), revision);
+});
+
+test("current revision save returns the hash of the saved markdown", () => {
+  const loaded = documentRevision(source);
+  const saved = saveCurrentDocument(source, {
+    revision: loaded,
+    paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+  });
+  assert.notEqual(saved.revision, loaded);
+  assert.equal(saved.revision, documentRevision(saved.markdown));
+  assert.equal(saved.markdown.includes(PARAGRAPH_TO), true);
+  assert.equal(saved.markdown.includes("fig-control"), true);
+  assert.equal(saved.markdown.includes("eq-current"), true);
+});
+
+test("stale revision save leaves an externally edited file unchanged", () => {
+  const loaded = documentRevision(source);
+  const external = source.replace(PARAGRAPH_FROM, "Changed outside the editor.");
+  assert.notEqual(documentRevision(external), loaded);
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-conflict-"));
+  const file = path.join(dir, "technical-document.md");
+  try {
+    writeFileSync(file, external);
+    const before = readFileSync(file);
+    assert.throws(
+      () =>
+        commitDocumentSave(
+          () => readFileSync(file, "utf8"),
+          (markdown) => writeFileSync(file, markdown),
+          {
+            revision: loaded,
+            paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+          },
+        ),
+      DocumentConflictError,
+    );
+    assert.deepEqual(readFileSync(file), before);
+    assert.equal(readFileSync(file, "utf8").includes("Changed outside the editor."), true);
+    assert.equal(readFileSync(file, "utf8").includes(PARAGRAPH_TO), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("stale revision rejects a shifted paragraph path before the edit is applied", () => {
+  const loaded = documentRevision(source);
+  const external = serialize(insertParagraph(parse(source), 8, "External paragraph."));
+  const stale = {
+    revision: loaded,
+    paragraphs: [{ path: [8] as const, content: [{ kind: "text" as const, text: "Stale editor text." }] }],
+  };
+  const unguarded = saveEdits(external, { paragraphs: stale.paragraphs.map((edit) => ({ ...edit })) });
+  assert.equal(unguarded.markdown.includes("Stale editor text."), true);
+  assert.equal(unguarded.markdown.includes("External paragraph."), false);
+
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-structure-conflict-"));
+  const file = path.join(dir, "technical-document.md");
+  try {
+    writeFileSync(file, external);
+    const before = readFileSync(file);
+    assert.throws(
+      () =>
+        commitDocumentSave(
+          () => readFileSync(file, "utf8"),
+          (markdown) => writeFileSync(file, markdown),
+          { revision: stale.revision, paragraphs: stale.paragraphs.map((edit) => ({ ...edit })) },
+        ),
+      DocumentConflictError,
+    );
+    assert.deepEqual(readFileSync(file), before);
+    assert.equal(readFileSync(file, "utf8").includes("External paragraph."), true);
+    assert.equal(readFileSync(file, "utf8").includes("Stale editor text."), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a saved revision can save again and the loaded revision cannot", () => {
+  const loaded = documentRevision(source);
+  const first = saveCurrentDocument(source, {
+    revision: loaded,
+    headings: [{ path: [0], from: HEADING_FROM, to: HEADING_TO }],
+  });
+  const second = saveCurrentDocument(first.markdown, {
+    revision: first.revision,
+    paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+  });
+  assert.notEqual(first.revision, loaded);
+  assert.notEqual(second.revision, first.revision);
+  assert.equal(second.revision, documentRevision(second.markdown));
+  assert.equal(second.markdown.includes(HEADING_TO), true);
+  assert.equal(second.markdown.includes(PARAGRAPH_TO), true);
+  assert.throws(
+    () =>
+      saveCurrentDocument(first.markdown, {
+        revision: loaded,
+        paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+      }),
+    DocumentConflictError,
+  );
+});
+
+test("save conflict keeps the loaded editor mounted", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const saveStart = app.indexOf("async function save()");
+  const saveEnd = app.indexOf("return (", saveStart);
+  const saveFn = app.slice(saveStart, saveEnd);
+  const catchBlock = saveFn.slice(saveFn.indexOf("} catch (cause) {"));
+  assert.equal(catchBlock.includes("Save conflict"), true);
+  assert.equal(catchBlock.includes("setDocument"), false);
+  assert.equal(catchBlock.includes("setSourceRevision"), false);
+  assert.equal(catchBlock.includes("setEditorGeneration"), false);
 });
 
 test("save does not rebuild the document from Tiptap", () => {

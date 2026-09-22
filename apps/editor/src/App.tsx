@@ -6,10 +6,11 @@ import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
+  const [sourceRevision, setSourceRevision] = useState("");
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [revision, setRevision] = useState(0);
+  const [editorGeneration, setEditorGeneration] = useState(0);
 
   useEffect(() => {
     void load();
@@ -21,8 +22,9 @@ export function App() {
     setStatus("Loading…");
     try {
       const next = await requestDocument("GET");
-      setDocument(next);
-      setRevision((value) => value + 1);
+      setDocument(next.document);
+      setSourceRevision(next.revision);
+      setEditorGeneration((value) => value + 1);
       setStatus("Ready");
     } catch (cause) {
       setError(messageOf(cause));
@@ -37,13 +39,14 @@ export function App() {
     setStatus("Saving…");
     try {
       const payload = collectSupportedEdits(document, editorRef.current.getDocument());
-      const next = await requestDocument("POST", payload);
-      setDocument(next);
-      setRevision((value) => value + 1);
+      const next = await requestDocument("POST", { revision: sourceRevision, ...payload });
+      setDocument(next.document);
+      setSourceRevision(next.revision);
+      setEditorGeneration((value) => value + 1);
       setStatus("Saved");
     } catch (cause) {
       setError(messageOf(cause));
-      setStatus("Save failed");
+      setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");
     }
   }
 
@@ -75,7 +78,7 @@ export function App() {
       ) : null}
       {document ? (
         <DocumentEditor
-          key={revision}
+          key={editorGeneration}
           ref={editorRef}
           document={document}
           onStructuralReject={() =>
@@ -87,17 +90,35 @@ export function App() {
   );
 }
 
-async function requestDocument(method: "GET" | "POST", body?: SupportedEdits): Promise<EditableDocument> {
+type DocumentResponse = {
+  document: EditableDocument;
+  revision: string;
+};
+
+class SaveConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SaveConflictError";
+  }
+}
+
+async function requestDocument(
+  method: "GET" | "POST",
+  body?: SupportedEdits & { revision: string },
+): Promise<DocumentResponse> {
   const response = await fetch("/api/document", {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const payload = (await response.json()) as { document?: EditableDocument; error?: string };
-  if (!response.ok || !payload.document) {
+  const payload = (await response.json()) as { document?: EditableDocument; revision?: string; error?: string };
+  if (response.status === 409) {
+    throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
+  }
+  if (!response.ok || !payload.document || typeof payload.revision !== "string") {
     throw new Error(payload.error ?? `request failed (${response.status})`);
   }
-  return payload.document;
+  return { document: payload.document, revision: payload.revision };
 }
 
 function messageOf(cause: unknown): string {

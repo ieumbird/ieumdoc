@@ -94,6 +94,8 @@ pnpm test
 ✔ heading text edits keep the heading level
 ✔ supported edits preserve untouched semantics
 ✔ paragraph split is rejected
+✔ document revision changes with the source
+✔ stale revision save leaves an externally edited file unchanged
 ✔ canonical second serialization is stable
 ✔ saved file matches the Core write path
 ✔ Editor source does not import MyST packages or AST
@@ -438,6 +440,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - link 또는 cross-reference가 있는 paragraph, admonition, figure, equation, table은 보이지만 읽기 전용이다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
 - Enter로 paragraph를 나누거나, Backspace로 블록을 합치거나, 블록을 추가·삭제·이동하는 변경은 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
+- Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
 
 ## 6. 실패 시
