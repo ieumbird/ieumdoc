@@ -168,11 +168,23 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
   assert.match(documentEditor, /onEquationDraftChange/);
   assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
   assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft\)/);
+  assert.match(documentEditor, /hasUnappliedEquationDraft\(\)/);
 
   const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   assert.match(schema, /onDraftChange\?\.\(sourcePath, hasUnappliedDraft\)/);
   assert.match(schema, /return \(\) => onDraftChange\?\.\(sourcePath, false\)/);
   assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex\)/);
+});
+
+test("a save response keeps an Equation draft pending and avoids an editor remount", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const saveStart = app.indexOf("async function save()");
+  const saveEnd = app.indexOf("return (", saveStart);
+  const saveFn = app.slice(saveStart, saveEnd);
+  assert.match(saveFn, /hasPendingEquationDraft/);
+  assert.match(saveFn, /hasPendingUserState = hasPendingDocumentEdits \|\| hasPendingEquationDraft/);
+  assert.match(saveFn, /finishSave\(hasPendingUserState \? next\.document : undefined\)/);
+  assert.match(saveFn, /if \(!hasPendingUserState\) setEditorGeneration/);
 });
 
 test("Core InlineContent converts to and from Tiptap content", () => {

@@ -47,10 +47,12 @@ export function App() {
       setDocument(next.document);
       setSourceRevision(next.revision);
       // A successful response must not replace input entered while saving.
-      const hasPendingEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
-      editorRef.current?.finishSave(hasPendingEdits ? next.document : undefined);
-      if (!hasPendingEdits) setEditorGeneration((value) => value + 1);
-      setStatus(hasPendingEdits ? "Saved; newer edits pending" : "Saved");
+      const hasPendingDocumentEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
+      const hasPendingEquationDraft = editorRef.current?.hasUnappliedEquationDraft() ?? false;
+      const hasPendingUserState = hasPendingDocumentEdits || hasPendingEquationDraft;
+      editorRef.current?.finishSave(hasPendingUserState ? next.document : undefined);
+      if (!hasPendingUserState) setEditorGeneration((value) => value + 1);
+      setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
     } catch (cause) {
       editorRef.current?.finishSave();
       setError(messageOf(cause));

@@ -12,6 +12,7 @@ export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
   beginSave(): TiptapJSON;
   finishSave(saved?: EditableDocument): void;
+  hasUnappliedEquationDraft(): boolean;
 };
 
 type DocumentEditorProps = {
@@ -89,6 +90,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }
         baseline.current = toTiptapDocument(saved);
         editor.view.dispatch(tr.setMeta("savedPaths", true).setMeta("addToHistory", false));
+      },
+      hasUnappliedEquationDraft() {
+        return activeEquationDrafts.current.size > 0;
       },
       getDocument() {
         if (!editor) {
