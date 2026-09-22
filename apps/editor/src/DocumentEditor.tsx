@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
 import { createEditorExtensions } from "./editor-schema.tsx";
 import { toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import { IconButton } from "./ui/primitives.tsx";
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
@@ -97,26 +98,22 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   return (
     <div>
       <div className="format-bar">
-        <button
-          type="button"
-          aria-label="Bold"
+        <IconButton
+          label="Bold"
           aria-pressed={editor.isActive("bold")}
-          className={editor.isActive("bold") ? "active" : undefined}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => toggleMark(editor, "bold", onStructuralReject)}
         >
-          B
-        </button>
-        <button
-          type="button"
-          aria-label="Italic"
+          <strong aria-hidden="true">B</strong>
+        </IconButton>
+        <IconButton
+          label="Italic"
           aria-pressed={editor.isActive("italic")}
-          className={editor.isActive("italic") ? "active" : undefined}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => toggleMark(editor, "italic", onStructuralReject)}
         >
-          I
-        </button>
+          <em aria-hidden="true">I</em>
+        </IconButton>
       </div>
       <article className="document" data-testid="document-editor">
         <EditorContent editor={editor} />

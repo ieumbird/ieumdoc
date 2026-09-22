@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts";
+import { Button, Notice } from "./ui/primitives.tsx";
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
@@ -66,20 +67,20 @@ export function App() {
           <p className="status" data-testid="status">
             {status}
           </p>
-          <button type="button" onClick={() => void save()} disabled={!document || status === "Saving…"}>
+          <Button type="button" onClick={() => void save()} disabled={!document || status === "Saving…"}>
             Save
-          </button>
+          </Button>
         </div>
       </header>
       {notice ? (
-        <p className="notice" data-testid="notice">
+        <Notice data-testid="notice">
           {notice}
-        </p>
+        </Notice>
       ) : null}
       {error ? (
-        <p className="error" data-testid="error">
+        <Notice tone="error" data-testid="error">
           {error}
-        </p>
+        </Notice>
       ) : null}
       {document ? (
         <DocumentEditor

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { reorderBlock } from "./block-reorder.ts";
+import { IconButton } from "./ui/primitives.tsx";
 
 export function BlockHandles({ editor }: { editor: Editor }) {
   const gutter = useRef<HTMLDivElement>(null);
@@ -76,15 +77,15 @@ export function BlockHandles({ editor }: { editor: Editor }) {
     };
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
-    {blocks.map((block, index) => <button key={index} type="button" draggable
+    {blocks.map((block, index) => <IconButton key={index} draggable
       className={`block-handle${active === index ? " visible" : ""}`}
-      style={{top: block.top}} aria-label={`Move ${block.name} block ${index + 1}`}
+      style={{top: block.top}} label={`Move ${block.name} block ${index + 1}`}
       title="Drag to move block" onMouseDown={event => event.stopPropagation()}
       onDragStart={event => {
         drag.current = {index, doc: editor.state.doc};
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", "Move block");
-      }}>⠿</button>)}
+      }}>⠿</IconButton>)}
     {dropTop !== null && <div className="block-drop-line" style={{top: dropTop}} />}
   </div>;
 }
