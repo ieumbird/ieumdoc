@@ -9,19 +9,26 @@ import {
   updateNodeTextAtPath,
   updateParagraphInlineContent,
   validateStructure,
+  type EditableBlock,
   type EditableDocument,
   type InlineContent,
+  type NodePath,
 } from "@ieumdoc/core";
 
-export type TextEdit = {
-  path: readonly number[];
+export type HeadingEdit = {
+  path: NodePath;
   from: string;
   to: string;
 };
 
 export type ParagraphEdit = {
-  path: readonly number[];
+  path: NodePath;
   content: InlineContent[];
+};
+
+export type SupportedEdits = {
+  headings?: HeadingEdit[];
+  paragraphs?: ParagraphEdit[];
 };
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -34,14 +41,33 @@ export function loadEditableDocument(source: string): EditableDocument {
 
 export function saveEdits(
   source: string,
-  edits: TextEdit[],
-  paragraphs: ParagraphEdit[] = [],
+  edits: SupportedEdits,
 ): { markdown: string; document: EditableDocument } {
+  const editable = loadEditableDocument(source);
   let document = parse(source);
-  for (const edit of edits) {
+  for (const edit of edits.headings ?? []) {
+    assertPath(edit.path, "heading");
+    const block = blockAt(editable, edit.path);
+    if (block?.block !== "heading" || !block.editable) {
+      throw new Error(`heading edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== block.text) {
+      throw new Error(`heading text does not match at [${edit.path.join(",")}]`);
+    }
+    if (edit.to.length === 0) {
+      throw new Error("empty heading text cannot be saved");
+    }
     document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
   }
-  for (const paragraph of paragraphs) {
+  for (const paragraph of edits.paragraphs ?? []) {
+    assertPath(paragraph.path, "paragraph");
+    const block = blockAt(editable, paragraph.path);
+    if (block?.block !== "paragraph" || !block.editable) {
+      throw new Error(`paragraph edit is not allowed at [${paragraph.path.join(",")}]`);
+    }
+    if (inlineText(paragraph.content).length === 0) {
+      throw new Error("empty paragraph cannot be saved");
+    }
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
   }
   validateStructure(document);
@@ -70,10 +96,11 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as { edits?: TextEdit[]; paragraphs?: ParagraphEdit[] };
-      const edits = Array.isArray(body.edits) ? body.edits : [];
-      const paragraphs = Array.isArray(body.paragraphs) ? body.paragraphs : [];
-      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), edits, paragraphs);
+      const body = JSON.parse(await readBody(req)) as SupportedEdits;
+      const saved = saveEdits(readFileSync(DOCUMENT_FILE, "utf8"), {
+        headings: Array.isArray(body.headings) ? body.headings : [],
+        paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+      });
       writeFileSync(DOCUMENT_FILE, saved.markdown);
       sendJson(res, 200, { document: saved.document });
       return;
@@ -83,6 +110,23 @@ export async function handleDocumentRequest(
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
+}
+
+function blockAt(document: EditableDocument, path: NodePath): EditableBlock | undefined {
+  return document.blocks.find(
+    (block) => block.path.length === path.length && block.path.every((part, index) => part === path[index]),
+  );
+}
+
+function assertPath(path: NodePath, label: string): void {
+  if (!Array.isArray(path) || path.length === 0 || path.some((index) => !Number.isInteger(index) || index < 0)) {
+    throw new Error(`${label} path is invalid`);
+  }
+}
+
+function inlineText(content: InlineContent[]): string {
+  if (!Array.isArray(content)) return "";
+  return content.map((item) => (item.kind === "text" ? item.text : inlineText(item.children))).join("");
 }
 
 function serveMedia(url: string, res: ServerResponse): void {

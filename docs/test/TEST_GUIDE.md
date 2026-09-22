@@ -76,25 +76,28 @@ pnpm test
 ✔ second serialization is stable
 ✔ CLI can check and modify a real file through Core
 ✔ technical document exposes an editor read model
-✔ Editor uses the Core read model
-✔ Editor source does not import MyST packages or AST
-✔ paragraph edits are saved through Core operations
-✔ figure caption edits keep figure label and image
-✔ table cell edits keep table structure
-✔ saved document can be parsed again
-✔ canonical second serialization is stable
-✔ saved file matches the Core write path
+✔ technical document exposes an editor read model
+✔ heading with inline marks stays read-only
 ✔ formatted caption and table cell stay read-only
 ✔ formatted paragraph projects to editor-neutral inline content
 ✔ paragraph inline write preserves strong and emphasis
 ✔ paragraph inline mutation round-trips through parse and serialize
 ✔ unsupported inline remains read-only
+✔ Editor uses the Core read model
+✔ one Tiptap editor owns the document
+✔ technical document projects to one typed Tiptap document
 ✔ Core InlineContent converts to and from Tiptap content
 ✔ formatted paragraph is an editable target
 ✔ unsupported paragraph stays read-only
+✔ paragraph edits are saved through Core operations
 ✔ rich paragraph saves through updateParagraphInlineContent
+✔ heading text edits keep the heading level
+✔ supported edits preserve untouched semantics
+✔ paragraph split is rejected
+✔ canonical second serialization is stable
+✔ saved file matches the Core write path
+✔ Editor source does not import MyST packages or AST
 ✔ Core source does not import Tiptap or ProseMirror
-✔ read-only content is not a contentEditable target
 ```
 
 하나라도 FAIL이면 이번 MVP write path가 성립하지 않은 것이다.
@@ -287,67 +290,81 @@ pnpm --filter @ieumdoc/editor dev
 
 성공: `:::{figure}` 나 표 파이프 문법, `{math}` 코드펜스 같은 소스 표기가 화면의 기본 모습이 아니다.
 
-### B-1. formatted paragraph 표시
+문서 전체는 Tiptap 편집 영역 하나다. 편집 영역이 paragraph마다 따로 있으면 실패다.
 
-`The converter regulates the DC-link voltage and phase current.` 문장은 화면에 보인다.
+화면에서 다음이 서로 구분되어야 한다.
 
-`DC-link voltage` 는 bold, `phase current` 는 italic으로 보여야 한다.
+- Heading. 예: `Converter Control`, `Control Structure`
+- 편집 가능한 paragraph. 예: `The current reference is calculated from the active power command.`
+- bold / italic paragraph. `DC-link voltage` 는 bold, `phase current` 는 italic. `**` 와 `*` 는 보이지 않는다.
+- `Read-only` 로 표시된 reference paragraph. 예: `See fig-control and eq-current.`
+- Admonition. `Admonition: warning` 과 `The current controller parameters must be calibrated before operation.`
+- Figure. 그림, caption `Control block diagram of the grid-connected converter.`, label `fig-control`
+- Equation. `Equation · eq-current` 와 LaTeX `i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}`
+- Table. `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-이 paragraph의 편집 확인은 아래 **MVP 2 Beta Rich Paragraph Editing** 절차를 따른다.
-
-Figure caption `Control block diagram of the grid-connected converter.` 와 표의 `AC` 셀은 기존처럼 수정할 수 있다.
+문서 위쪽에 `B` 와 `I` 버튼이 하나 있다.
 
 ### C. Paragraph 편집
 
-`The current reference is calculated from the active power command.` 문장을 클릭한다.
-
-다음으로 바꾼다.
+`The current reference is calculated from the active power command.` 를 수정한다.
 
 `The current reference follows the active power command.`
 
 `Save` 를 누른다. 상태가 `Saved` 가 되어야 한다.
 
-파일을 연다.
+`apps/editor/document/technical-document.md` 에서 확인할 것:
 
-`apps/editor/document/technical-document.md`
+- 바꾼 문장이 있다.
+- 원래 문장은 없다.
+- figure, equation, table, warning은 그대로다.
 
-확인할 것:
+### D. Rich paragraph 편집
 
-- `The current reference follows the active power command.` 가 있다.
-- 원래 문장 `The current reference is calculated from the active power command.` 는 없다.
+`The converter regulates the DC-link voltage and phase current.` 에서 `regulates` 를 `controls` 로 바꾼다.
 
-### D. Figure caption 편집
+`DC-link voltage` 는 bold, `phase current` 는 italic으로 남는다.
 
-Figure caption `Control block diagram of the grid-connected converter.` 를 클릭한다.
+`converter` 를 선택하고 `B` 를 누른다. `The` 를 선택하고 `I` 를 누른다.
 
-다음으로 바꾼다.
+`Save` 후 파일에 `**DC-link voltage**`, `*phase current*` 와 추가한 strong / emphasis가 있다.
 
-`Control block diagram of the grid-tied converter.`
+브라우저를 새로고침하면 같은 서식이 다시 보인다.
 
-`Save` 를 누른다.
+### E. Heading 편집
 
-같은 `.md` 파일에서 확인할 것:
+`Converter Control` 을 `Converter Controls` 로 바꾼다.
 
-- caption이 `grid-tied converter` 로 바뀌었다.
-- 이미지 경로 `./diagram.svg` 가 남아 있다.
-- figure label `fig-control` 이 남아 있다.
-- Figure 구조(`figure` / 이미지 / caption)가 남아 있다.
+`Save` 후 새로고침한다.
 
-### E. Table cell 편집
+- 텍스트만 바뀐다.
+- heading level은 그대로다. 제목 1 수준이 제목 2가 되지 않는다.
 
-표에서 `AC` 셀을 클릭한다.
+### F. Read-only 의미 보존
 
-`AC-side` 로 바꾼다.
+Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는지 본다.
 
-`Save` 를 누른다.
+- warning admonition 본문
+- `./diagram.svg`, `fig-control`, figure caption
+- equation LaTeX와 `eq-current`
+- `fig-control`, `eq-current` 참조
+- 표의 행 수와 `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-같은 `.md` 파일에서 확인할 것:
+Figure, equation, table, admonition, reference paragraph는 클릭해서 고칠 수 없다.
 
-- `AC` 가 `AC-side` 로 바뀌었다.
-- `Port`, `Type`, `U`, `P`, `DC` 는 그대로다.
-- 표 구조가 남아 있다.
+### G. 구조 변경 거부
 
-### F. Core write path 확인
+편집 가능한 paragraph에서 Enter를 누른다. paragraph가 둘로 나뉘지 않아야 한다.
+
+paragraph 맨 앞에서 Backspace를 누른다. 앞 블록과 합쳐지지 않아야 한다.
+
+Equation 또는 Figure를 선택하고 Delete 또는 Backspace를 누른다. 블록이 사라지지 않아야 한다.
+
+화면의 안내 문장이 보일 수 있다. 저장 파일의 블록 구성은 바뀌지 않아야 한다.
+
+paragraph의 글을 모두 지우고 `Save` 를 누르면 `Save failed` 가 되고 파일은 저장되지 않아야 한다.
+
+### H. Core write path 확인
 
 저장소 루트에서:
 
@@ -360,192 +377,30 @@ pnpm ieumdoc format apps/editor/document/technical-document.md
 
 - `structure valid` 가 출력된다.
 - `format`을 한 번 더 실행해도 파일이 더 바뀌지 않는다.
-
-가능하면 변경 의미도 본다.
 
 ```powershell
 git diff -- apps/editor/document/technical-document.md
 ```
 
-확인할 것: paragraph, caption, `AC-side` 변경이 보이고 figure label/image와 표의 다른 칸은 유지된다.
+확인할 것: heading / paragraph 변경만 보이고 figure, equation, table, admonition, 참조는 유지된다.
 
 원문 공백이나 `:label:` / `:name:` 표기 차이는 실패가 아니다.
 
-### G. 재실행 확인
+### I. 재실행 확인
 
 브라우저를 새로고침한다. 또는 Editor를 끄고 A의 명령으로 다시 연다.
 
-화면에서 이전에 수정한 값이 그대로 보여야 한다.
-
-- paragraph: `The current reference follows the active power command.`
-- figure caption: `Control block diagram of the grid-tied converter.`
-- table cell: `AC-side`
-
-즉 다음 왕복이 사람 눈으로 성립해야 한다.
+수정한 heading과 paragraph는 남고, read-only 블록도 그대로 보여야 한다.
 
 ```
 Editor → Core → canonical .md → Core → Editor
 ```
 
-확인이 끝나면 Editor를 종료한다.
-
-원하면 작업 파일을 되돌린다.
+확인이 끝나면 Editor를 종료하고 작업 파일을 되돌린다.
 
 ```powershell
 Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
 ```
-
-## Visual Editor · MVP 2 Beta Rich Paragraph Editing (Tiptap v3.31.3)
-
-아래 흐름은 기존 MVP 2 Beta 확인 절차이며, Tiptap v3 기준으로 같은 rich paragraph 의미와 저장 왕복을 확인한다.
-
-시작 전 작업 파일을 원본으로 되돌린다.
-
-```powershell
-Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
-```
-
-Editor가 꺼져 있으면 다시 실행한다.
-
-```powershell
-pnpm --filter @ieumdoc/editor dev
-```
-
-브라우저에서 `http://localhost:5173` 을 연다.
-
-### A. Rich paragraph rendering
-
-첫 본문 paragraph를 본다.
-
-원본 의미:
-
-`The converter regulates the **DC-link voltage** and *phase current*.`
-
-화면에서 확인할 것:
-
-- `DC-link voltage` 가 실제 bold로 보인다.
-- `phase current` 가 실제 italic으로 보인다.
-- `**`, `*` 같은 Markdown 문법 기호는 보이지 않는다.
-
-이 paragraph 위에 `B` 와 `I` 버튼이 있어야 한다.
-
-### B. Text 수정 후 formatting 보존
-
-같은 paragraph에서 일반 텍스트 `regulates` 를 클릭해 선택한다.
-
-`controls` 로 바꾼다.
-
-문장은 다음 의미여야 한다.
-
-`The converter controls the DC-link voltage and phase current.`
-
-이때 `DC-link voltage` 는 계속 bold, `phase current` 는 계속 italic이어야 한다.
-
-`Save` 를 누른다. 상태가 `Saved` 가 되어야 한다.
-
-파일을 연다.
-
-`apps/editor/document/technical-document.md`
-
-확인할 것:
-
-- `The converter controls the **DC-link voltage** and *phase current*.` 의미가 있다.
-- `regulates` 는 없다.
-- bold(`**DC-link voltage**`)와 italic(`*phase current*`)이 남아 있다.
-
-### C. Bold 변경
-
-같은 paragraph에서 아직 bold가 아닌 단어 `converter` 를 드래그해서 선택한다.
-
-`B` 버튼을 누른다.
-
-`converter` 가 bold로 보여야 한다.
-
-`Save` 를 누른다.
-
-같은 `.md` 파일에서 `**converter**` 또는 그에 해당하는 strong 표기가 있는지 확인한다.
-
-브라우저를 새로고침한다. `converter` 가 다시 bold로 보여야 한다.
-
-### D. Italic 변경
-
-같은 paragraph에서 아직 italic이 아닌 단어 `The` 를 드래그해서 선택한다.
-
-`I` 버튼을 누른다.
-
-`The` 가 italic으로 보여야 한다.
-
-`Save` 를 누른다.
-
-`.md` 파일에서 해당 단어가 italic 의미로 저장됐는지 확인한다.
-
-브라우저를 새로고침한다. `The` 가 다시 italic으로 보여야 한다.
-
-### E. Formatting 제거
-
-bold가 적용된 `converter` 를 다시 선택한다.
-
-`B` 버튼을 눌러 bold를 해제한다.
-
-italic이 적용된 `The` 를 다시 선택한다.
-
-`I` 버튼을 눌러 italic을 해제한다.
-
-`Save` 를 누른다.
-
-`.md` 파일과 새로고침한 화면에서 `converter` 와 `The` 의 extra formatting이 없어야 한다.
-
-`DC-link voltage` bold와 `phase current` italic은 남아 있어야 한다.
-
-### F. 기존 기능 regression
-
-Figure caption `Control block diagram of the grid-connected converter.` 를 `Control block diagram of the grid-tied converter.` 로 바꾼다.
-
-표의 `AC` 셀을 `AC-side` 로 바꾼다.
-
-`Save` 를 누른다.
-
-같은 `.md` 파일에서 caption과 `AC-side` 가 반영되고 figure image/label과 표 구조는 유지되어야 한다.
-
-### G. Core write path
-
-저장소 루트에서:
-
-```powershell
-pnpm ieumdoc check apps/editor/document/technical-document.md
-pnpm ieumdoc format apps/editor/document/technical-document.md
-```
-
-확인할 것:
-
-- `structure valid` 가 출력된다.
-- `format`을 한 번 더 실행해도 파일이 더 바뀌지 않는다.
-
-### H. Reload
-
-브라우저를 새로고침하거나 Editor를 다시 연다.
-
-화면에서 다음이 유지되어야 한다.
-
-- paragraph 텍스트 `controls`
-- `DC-link voltage` bold
-- `phase current` italic
-- figure caption `grid-tied converter`
-- table cell `AC-side`
-
-확인이 끝나면 작업 파일을 되돌린다.
-
-```powershell
-Copy-Item packages/core/test/fixtures/technical-document.md apps/editor/document/technical-document.md
-```
-
-### I. Paragraph adapter error isolation (자동 regression)
-
-실제 unsupported Tiptap state는 일반 UI에서 의도적으로 만들 필요가 없다. 자동 regression이 다음을 확인한다.
-
-- paragraph A의 adapter error가 기록된 뒤 paragraph B를 정상 편집해도 A의 error가 남는다.
-- A를 정상 상태로 복구하면 A의 error만 제거된다.
-- 여러 paragraph에 error가 있으면 하나라도 남아 있는 동안 Save가 `Save failed` 상태로 차단된다.
 
 ## 3. 사람이 특히 볼 것
 
@@ -578,10 +433,11 @@ index는 `check`가 출력하는 top-level 번호다.
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
-- Visual Editor는 지정된 기술문서 하나만 연다. 파일 탐색기는 없다.
-- paragraph / figure caption / table cell 만 화면에서 직접 편집한다. heading, admonition, equation, cross-reference는 표시한다.
-- paragraph의 bold/italic 편집은 Tiptap을 사용한다. figure caption과 table cell은 기존처럼 일반 텍스트만 편집한다.
-- link 또는 cross-reference가 있는 paragraph는 화면에 보이지만 이번 단계에서 직접 편집하지 않는다.
+- Visual Editor는 지정된 기술문서 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
+- link 또는 cross-reference가 있는 paragraph, admonition, figure, equation, table은 보이지만 읽기 전용이다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
+- Enter로 paragraph를 나누거나, Backspace로 블록을 합치거나, 블록을 추가·삭제·이동하는 변경은 거부된다.
+- 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
 
 ## 6. 실패 시
@@ -591,4 +447,5 @@ index는 `check`가 출력하는 top-level 번호다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
-- Save 후 파일에 반영되지 않으면 해당 문장을 클릭해 수정한 뒤 `Save` 를 다시 누른다. heading이나 warning 본문은 이번 화면에서 저장 대상이 아니다.
+- Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, figure, equation, table, reference paragraph는 저장 대상이 아니다.
+- Enter나 Backspace 뒤 문서 구조가 바뀌면 structural guard가 실패한 것이다.

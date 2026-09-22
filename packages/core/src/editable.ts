@@ -25,6 +25,8 @@ export type EditableBlock =
       path: NodePath;
       level: number;
       text: string;
+      /** False when a text replacement would flatten inline marks. */
+      editable: boolean;
     }
   | {
       block: "paragraph";
@@ -80,6 +82,7 @@ function toBlock(node: DocumentNode, path: NodePath): EditableBlock {
       path,
       level: Number(node.depth ?? 1),
       text: toText(node),
+      editable: isPlainHeading(node),
     };
   }
   if (node.type === "paragraph") {
@@ -171,6 +174,13 @@ function paragraphText(node: DocumentNode): string {
     return nodeLabel(node);
   }
   return (node.children ?? []).map(paragraphText).join("");
+}
+
+function isPlainHeading(node: DocumentNode): boolean {
+  const children = node.children ?? [];
+  if (children.length === 0) return false;
+  if (!children.every((child) => child.type === "text" && typeof child.value === "string")) return false;
+  return toText(node).length > 0;
 }
 
 function isTextOnly(node: DocumentNode): boolean {

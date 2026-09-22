@@ -10,6 +10,10 @@ test("technical document exposes an editor read model", () => {
   const kinds = editable.blocks.map((block) => block.block);
 
   assert.equal(kinds.includes("heading"), true);
+  assert.equal(
+    editable.blocks.every((block) => block.block !== "heading" || block.editable),
+    true,
+  );
   assert.equal(kinds.includes("paragraph"), true);
   assert.equal(kinds.includes("admonition"), true);
   assert.equal(kinds.includes("figure"), true);
@@ -64,6 +68,15 @@ test("technical document exposes an editor read model", () => {
   if (equation?.block !== "equation") return;
   assert.equal(equation.label, "eq-current");
   assert.equal(equation.latex.includes("P^{"), true);
+});
+
+test("heading with inline marks stays read-only", () => {
+  const heading = getEditableDocument(parse("# Plain **bold** title\n")).blocks[0];
+  assert.equal(heading?.block, "heading");
+  if (heading?.block !== "heading") return;
+  assert.equal(heading.editable, false);
+  assert.equal(heading.text, "Plain bold title");
+  assert.equal(heading.level, 1);
 });
 
 test("formatted caption and table cell stay read-only", () => {

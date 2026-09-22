@@ -4,6 +4,7 @@ export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: { type: string }[];
+  attrs?: Record<string, string | number>;
   content?: TiptapJSON[];
 };
 
