@@ -362,7 +362,10 @@ function machineNodes(document: EditableDocument): MachineNode[] {
 
 function machineBlock(block: EditableBlock): MachineNode[] {
   const base = { path: [...block.path], type: block.block };
-  if (block.block === "heading" || block.block === "paragraph") {
+  if (block.block === "heading") {
+    return [{ ...base, level: block.level, editable: block.editable, text: block.text }];
+  }
+  if (block.block === "paragraph") {
     return [{ ...base, editable: block.editable, text: block.text }];
   }
   if (block.block === "admonition") {

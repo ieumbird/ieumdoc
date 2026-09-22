@@ -252,11 +252,16 @@ test("inspect and check expose stable machine-readable Core results", () => {
     const inspectResult = JSON.parse(inspected.stdout) as {
       ok: boolean;
       command: string;
-      nodes: Array<{ path: number[]; type: string; editable?: boolean; text?: string }>;
+      nodes: Array<{ path: number[]; type: string; level?: number; editable?: boolean; text?: string }>;
     };
     assert.equal(inspectResult.ok, true);
     assert.equal(inspectResult.command, "inspect");
     assert.ok(inspectResult.nodes.length > 0);
+    const heading = inspectResult.nodes.find((node) => node.type === "heading");
+    assert.ok(heading);
+    assert.equal(heading.level, 1);
+    assert.equal(typeof heading.editable, "boolean");
+    assert.equal(typeof heading.text, "string");
     const paragraph = inspectResult.nodes.find((node) => node.type === "paragraph");
     assert.ok(paragraph);
     assert.ok(Array.isArray(paragraph.path));
