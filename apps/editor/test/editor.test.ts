@@ -4,6 +4,8 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { history, undo, redo } from "@tiptap/pm/history";
+import { mapSavedRanges, reorderBlock, type SavedRange } from "../src/block-reorder.ts";
 import { getSchema } from "@tiptap/core";
 import { deleteSelection, joinBackward, splitBlock } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -12,6 +14,7 @@ import {
   getEditableDocument,
   getNode,
   insertParagraph,
+  moveBlock,
   parse,
   serialize,
   type Document,
@@ -225,7 +228,7 @@ test("document adapter rejects unknown blocks, inlines, and marks", () => {
   assert.throws(() => assertSupportedDocumentChange(baseline, unknownMark), /unsupported Tiptap mark "link"/);
 });
 
-test("document adapter rejects readonly mutation, reorder, insertion, and deletion", () => {
+test("document adapter accepts reorder but rejects readonly mutation, insertion, and deletion", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
 
   const mutated = clone(baseline);
@@ -245,11 +248,12 @@ test("document adapter rejects readonly mutation, reorder, insertion, and deleti
   const swapped = content[0];
   content[0] = content[1];
   content[1] = swapped;
-  assert.throws(() => assertSupportedDocumentChange(baseline, reordered), /top-level reorder is not allowed/);
+  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, reordered));
+  assert.ok(collectSupportedEdits(loadEditableDocument(source), reordered).order);
 
   const inserted = clone(baseline);
   inserted.content = [...(inserted.content ?? []), { type: "paragraph", attrs: { sourcePath: "99" } }];
-  assert.throws(() => assertSupportedDocumentChange(baseline, inserted), /block insertion is not allowed/);
+  assert.throws(() => assertSupportedDocumentChange(baseline, inserted), /block insertion/);
 
   const deleted = clone(baseline);
   deleted.content = (deleted.content ?? []).slice(0, -1);
@@ -1043,4 +1047,98 @@ test("merge provenance cannot skip, reorder or consume readonly blocks", () => {
     const next = {type:"doc",content:[{type:"paragraph",attrs:{sourcePath},content:[{type:"text",text:"AB"}]}]};
     assert.throws(() => assertSupportedDocumentChange(baseline,next));
   }
+});
+
+
+test("all top-level blocks reorder through Core without changing semantic content", () => {
+  const editable = loadEditableDocument(source);
+  const projection = toTiptapDocument(editable);
+  for (let from = 0; from < editable.blocks.length; from++) {
+    const next = clone(projection);
+    next.content!.splice(0, 0, next.content!.splice(from, 1)[0]);
+    const saved = saveEdits(source, collectSupportedEdits(editable, next));
+    assert.equal(saved.markdown, serialize(moveBlock(parse(source), from, 0)));
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+    assert.deepEqual(toTiptapDocument(saved.document).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: ""}})),
+      next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: ""}})));
+  }
+});
+
+test("reorder and subsequent marked text and break edits survive save and reload", () => {
+  const markdown = "# Heading\n\n**AB**\n\n*CD*";
+  const editable = loadEditableDocument(markdown);
+  const next = toTiptapDocument(editable);
+  const paragraph = next.content!.splice(2, 1)[0];
+  paragraph.content!.push({type:"hardBreak", marks:[{type:"italic"}]}, {type:"text", text:"extra", marks:[{type:"italic"}]});
+  next.content!.unshift(paragraph);
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, next));
+  assert.deepEqual(saved.document.blocks.map(block => block.block), ["paragraph","heading","paragraph"]);
+  const first = saved.document.blocks[0];
+  assert.equal(first.block === "paragraph" && first.text, "CD\nextra");
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+});
+
+test("reorder supports separated split siblings and merging reordered neighbors", () => {
+  const text = (value: string) => [{type:"text", text:value}];
+  const markdown = "AB\n\n# Middle\n\nCD";
+  const editable = loadEditableDocument(markdown);
+  const next = toTiptapDocument(editable);
+  const first = next.content![0];
+  first.content = text("A+");
+  next.content!.push({...first, content:text("B+")});
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, next));
+  assert.equal(saved.markdown, "A+\n\n# Middle\n\nCD\n\nB+\n");
+  const merged = toTiptapDocument(editable);
+  merged.content = [{type:"paragraph",attrs:{sourcePath:"2;0"},content:text("CDAB!")},merged.content![1]];
+  const mergedSave = saveEdits(markdown, collectSupportedEdits(editable, merged));
+  assert.equal(mergedSave.markdown, "CDAB!\n\n# Middle\n");
+});
+
+test("invalid reorder and stale reorder never invoke the writer", () => {
+  const markdown = "A\n\n# Heading\n\nB";
+  const orders = [
+    [{path:[0],part:0}],
+    [{path:[0],part:0},{path:[0],part:0},{path:[2],part:0}],
+    [{path:[0],part:0},{path:[1],part:0},{path:[2],part:1}],
+    [{path:[0],part:0},{path:[1],part:0},{path:[2,0],part:0}],
+  ];
+  let writes = 0;
+  for (const order of orders) assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {revision:documentRevision(markdown),order}));
+  assert.throws(() => commitDocumentSave(() => markdown + " changed", () => writes++, {
+    revision:documentRevision(markdown), order:[{path:[2],part:0},{path:[1],part:0},{path:[0],part:0}],
+  }), DocumentConflictError);
+  assert.equal(writes, 0);
+});
+
+test("engine reorder history and pending-save ranges follow moves, edits, undo and redo", () => {
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("AB\n\n# Heading\n\nCD")));
+  let state = EditorState.create({schema,doc,plugins:[history()]});
+  let ranges: SavedRange[] = [];
+  doc.forEach((node,pos,index) => ranges.push({start:pos,end:pos+node.nodeSize,path:String(index)}));
+  const initial = structuredClone(ranges);
+  const dispatch = (tr: Transaction) => { ranges = mapSavedRanges(ranges,tr); state = state.apply(tr); };
+  dispatch(reorderBlock(state, 2, 0));
+  assert.equal(state.doc.firstChild!.textContent,"CD");
+  assert.equal(ranges.find(range => range.path === "2")!.start,0);
+  assert.equal(undo(state,dispatch),true);
+  assert.deepEqual([...ranges].sort((a,b)=>a.start-b.start), initial);
+  assert.equal(redo(state,dispatch),true);
+  dispatch(state.tr.insertText("X",2));
+  assert.equal(state.doc.firstChild!.textContent,"CXD");
+  assert.equal(ranges.find(range => range.path === "2")!.end,5);
+  dispatch(reorderBlock(state, 0, 2));
+  assert.equal(state.doc.lastChild!.textContent,"CXD");
+  assert.equal(ranges.find(range => range.path === "2")!.end, state.doc.content.size);
+});
+
+
+test("canonical reorder that adds a separator block fails before persistence", () => {
+  const markdown = "- A\n\nMiddle\n\n- B";
+  let writes = 0;
+  assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {
+    revision: documentRevision(markdown),
+    order: [{path:[0],part:0},{path:[2],part:0},{path:[1],part:0}],
+  }), /changed block boundaries/);
+  assert.equal(writes, 0);
 });

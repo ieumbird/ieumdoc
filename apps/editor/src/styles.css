@@ -293,3 +293,12 @@ h2.heading {
 }
 
 .paragraph-readonly { white-space: pre-wrap; }
+
+/* One gutter for all top-level engine nodes, including atomic NodeViews. */
+.document { position: relative; padding-left: 3rem; }
+.document-editor > .paragraph { margin: 1rem 0; padding: 0.15rem 0; }
+.block-gutter { position: absolute; inset: 0; pointer-events: none; }
+.block-handle { position: absolute; left: 0.7rem; width: 1.7rem; padding: 0.1rem; background: transparent; color: #718096; cursor: grab; opacity: 0; pointer-events: auto; }
+.block-handle.visible, .block-handle:hover, .block-handle:focus-visible { opacity: 1; background: #eef2f6; }
+.block-handle:active { cursor: grabbing; }
+.block-drop-line { position: absolute; left: 3rem; right: 2rem; height: 2px; background: #1f4b99; }
