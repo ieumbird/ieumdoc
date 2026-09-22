@@ -39,7 +39,14 @@ const COMMANDS: CommandSpec[] = [
     name: "inspect",
     summary: "Inspect semantic blocks and editable targets",
     usage: "ieumdoc inspect <file>",
-    details: ["Inspect semantic blocks and editable targets.", "", ...PATH_NOTE],
+    details: [
+      "Inspect semantic blocks and editable targets.",
+      "",
+      "Editability fields describe the current semantic projection.",
+      "Other Core commands may support additional text operations.",
+      "",
+      ...PATH_NOTE,
+    ],
   },
   {
     name: "format",
@@ -219,34 +226,34 @@ function formatInspect(document: EditableDocument): string {
 function formatBlock(block: EditableBlock): string[] {
   const path = formatPath(block.path);
   if (block.block === "heading") {
-    return [`${path} heading level=${block.level} editable=${block.editable} text=${quote(block.text)}`];
+    return [`${path} heading level=${block.level} textEditable=${block.editable} text=${quote(block.text)}`];
   }
   if (block.block === "paragraph") {
-    return [`${path} paragraph editable=${block.editable} text=${quote(block.text)}`];
+    return [`${path} paragraph inlineEditable=${block.editable} text=${quote(block.text)}`];
   }
   if (block.block === "admonition") {
-    return [`${path} admonition variant=${quote(block.variant)} readonly=true text=${quote(block.text)}`];
+    return [`${path} admonition variant=${quote(block.variant)} text=${quote(block.text)}`];
   }
   if (block.block === "figure") {
     const captionPath = formatPath(block.caption.path);
     return [
-      `${path} figure label=${quote(block.label)} readonly=true`,
-      `  ${captionPath} caption editable=${block.caption.editable} text=${quote(block.caption.text)}`,
+      `${path} figure label=${quote(block.label)}`,
+      `  ${captionPath} caption textEditable=${block.caption.editable} text=${quote(block.caption.text)}`,
     ];
   }
   if (block.block === "equation") {
-    return [`${path} equation label=${quote(block.label)} readonly=true latex=${quote(block.latex)}`];
+    return [`${path} equation label=${quote(block.label)} latex=${quote(block.latex)}`];
   }
   if (block.block === "table") {
     const cells = block.rows.flatMap((row) =>
       row.cells.map(
         (cell) =>
-          `  ${formatPath(cell.path)} cell header=${cell.header} editable=${cell.editable} text=${quote(cell.text)}`,
+          `  ${formatPath(cell.path)} cell header=${cell.header} textEditable=${cell.editable} text=${quote(cell.text)}`,
       ),
     );
-    return [`${path} table readonly=true`, ...cells];
+    return [`${path} table`, ...cells];
   }
-  return [`${path} unsupported readonly=true text=${quote(block.text)}`];
+  return [`${path} unsupported text=${quote(block.text)}`];
 }
 
 function formatPath(path: NodePath): string {

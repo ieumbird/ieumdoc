@@ -141,45 +141,48 @@ test("inspect prints Core editable targets", () => {
 
   for (const block of editable.blocks) {
     const path = block.path.join(",");
-    const line = lines.find((item) => item.startsWith(`${path} ${block.block} `));
+    const line = lines.find((item) => item === `${path} ${block.block}` || item.startsWith(`${path} ${block.block} `));
     assert.ok(line, `${path} ${block.block}`);
     if (block.block === "heading") {
       assert.equal(line?.includes(`level=${block.level}`), true);
-      assert.equal(line?.includes(`editable=${block.editable}`), true);
+      assert.equal(line?.includes(`textEditable=${block.editable}`), true);
       assert.equal(line?.includes(`text=${JSON.stringify(block.text)}`), true);
     }
     if (block.block === "paragraph") {
-      assert.equal(line?.includes(`editable=${block.editable}`), true);
+      assert.equal(line?.includes(`inlineEditable=${block.editable}`), true);
       assert.equal(line?.includes(`text=${JSON.stringify(block.text)}`), true);
     }
     if (block.block === "admonition") {
       assert.equal(line?.includes(`variant=${JSON.stringify(block.variant)}`), true);
-      assert.equal(line?.includes("readonly=true"), true);
+      assert.equal(line?.includes("readonly="), false);
     }
     if (block.block === "figure") {
       assert.equal(line?.includes(`label=${JSON.stringify(block.label)}`), true);
+      assert.equal(line?.includes("readonly="), false);
       const caption = lines.find((item) => item.startsWith(`  ${block.caption.path.join(",")} caption `));
       assert.ok(caption);
-      assert.equal(caption?.includes(`editable=${block.caption.editable}`), true);
+      assert.equal(caption?.includes(`textEditable=${block.caption.editable}`), true);
       assert.equal(caption?.includes(`text=${JSON.stringify(block.caption.text)}`), true);
     }
     if (block.block === "equation") {
       assert.equal(line?.includes(`label=${JSON.stringify(block.label)}`), true);
       assert.equal(line?.includes(`latex=${JSON.stringify(block.latex)}`), true);
+      assert.equal(line?.includes("readonly="), false);
     }
     if (block.block === "table") {
-      assert.equal(line?.includes("readonly=true"), true);
+      assert.equal(line?.includes("readonly="), false);
       for (const row of block.rows) {
         for (const cell of row.cells) {
           const cellLine = lines.find((item) => item.startsWith(`  ${cell.path.join(",")} cell `));
           assert.ok(cellLine, cell.path.join(","));
           assert.equal(cellLine?.includes(`header=${cell.header}`), true);
-          assert.equal(cellLine?.includes(`editable=${cell.editable}`), true);
+          assert.equal(cellLine?.includes(`textEditable=${cell.editable}`), true);
           assert.equal(cellLine?.includes(`text=${JSON.stringify(cell.text)}`), true);
         }
       }
     }
   }
+  assert.equal(result.stdout.includes("readonly="), false);
 
   const listDocument = getEditableDocument(parse(readFileSync(fixture, "utf8")));
   const unsupported = listDocument.blocks.find((block) => block.block === "unsupported");
@@ -189,7 +192,7 @@ test("inspect prints Core editable targets", () => {
     assert.equal(listed.status, 0, listed.stderr);
     assert.equal(
       listed.stdout.includes(
-        `${unsupported.path.join(",")} unsupported readonly=true text=${JSON.stringify(unsupported.text)}`,
+        `${unsupported.path.join(",")} unsupported text=${JSON.stringify(unsupported.text)}`,
       ),
       true,
     );
@@ -207,7 +210,7 @@ test("inspect prints Core editable targets", () => {
     if (quotedParagraph?.block === "paragraph") {
       assert.equal(
         quoted.stdout,
-        `0 paragraph editable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
+        `0 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
       );
       assert.equal(quoted.stdout.includes("\n\n"), false);
     }
@@ -222,9 +225,46 @@ test("inspect prints Core editable targets", () => {
   if (reference?.block === "paragraph") {
     assert.equal(reference.editable, false);
     assert.equal(
-      lines.some((line) => line.startsWith(`${reference.path.join(",")} paragraph `) && line.includes("editable=false")),
+      lines.some((line) => line.startsWith(`${reference.path.join(",")} paragraph `) && line.includes("inlineEditable=false")),
       true,
     );
+  }
+});
+
+test("inspect does not call an admonition readonly when update-node-text can change it", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-admonition-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const admonition = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks.find(
+      (block) => block.block === "admonition",
+    );
+    assert.equal(admonition?.block, "admonition");
+    if (admonition?.block !== "admonition") return;
+    const inspected = run(["inspect", file]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const line = inspected.stdout.split("\n").find((item) => item.startsWith(`${admonition.path.join(",")} admonition `));
+    assert.ok(line);
+    assert.equal(line?.includes("readonly="), false);
+    const next = "Calibrated before operation.";
+    const updated = run([
+      "update-node-text",
+      file,
+      "--path",
+      admonition.path.join(","),
+      "--from",
+      admonition.text,
+      "--to",
+      next,
+    ]);
+    assert.equal(updated.status, 0, updated.stderr);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved.includes(next), true);
+    assert.equal(saved.includes(admonition.text), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

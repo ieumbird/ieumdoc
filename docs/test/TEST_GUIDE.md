@@ -78,7 +78,6 @@ pnpm test
 ✔ ieumdoc help exits successfully
 ✔ inspect prints Core editable targets
 ✔ technical document exposes an editor read model
-✔ technical document exposes an editor read model
 ✔ heading with inline marks stays read-only
 ✔ formatted caption and table cell stay read-only
 ✔ formatted paragraph projects to editor-neutral inline content
