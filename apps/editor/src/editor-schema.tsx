@@ -225,6 +225,25 @@ const UnsupportedBlock = Node.create({
   },
 });
 
+// Tiptap's default hard-break command keeps marks for following text only.
+// Preserve their coverage on the break itself as required by Core InlineContent.
+const ParagraphHardBreak = Extension.create({
+  name: "paragraphHardBreak",
+  priority: 110,
+  addKeyboardShortcuts() {
+    const insert = () => {
+      const { state } = this.editor;
+      if (state.selection.$from.parent.type.name !== "paragraph") return true;
+      const marks = state.storedMarks ?? state.selection.$from.marks();
+      return this.editor.chain()
+        .insertContent({ type: "hardBreak", marks: marks.map(mark => mark.toJSON()) })
+        .command(({ tr }) => { tr.ensureMarks(marks); return true; })
+        .run();
+    };
+    return { "Shift-Enter": insert, "Mod-Enter": insert };
+  },
+});
+
 export function editorExtensions(): Extensions {
   return [
     StarterKit.configure({
@@ -234,7 +253,7 @@ export function editorExtensions(): Extensions {
       codeBlock: false,
       dropcursor: false,
       gapcursor: false,
-      hardBreak: false,
+      hardBreak: { keepMarks: true },
       heading: false,
       horizontalRule: false,
       link: false,
@@ -246,6 +265,7 @@ export function editorExtensions(): Extensions {
       trailingNode: false,
       underline: false,
     }),
+    ParagraphHardBreak,
     SourcedHeading,
     SourcedParagraph,
     ReadonlyHeading,
@@ -268,7 +288,7 @@ function structureGuard(baseline: TiptapJSON, onReject: () => void): Extension {
     addProseMirrorPlugins() {
       return [
         new Plugin({
-          // Heading text and supported paragraph marks are the only persisted edits.
+          // Heading text and supported paragraph inline content are the only persisted edits.
           // Comparing with the loaded snapshot also keeps undo inside that set.
           filterTransaction(transaction) {
             if (!transaction.docChanged) return true;

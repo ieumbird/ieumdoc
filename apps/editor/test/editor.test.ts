@@ -186,9 +186,9 @@ test("Tiptap adapter rejects multiple paragraphs and unsupported nodes", () => {
     () =>
       fromTiptapContent({
         type: "doc",
-        content: [{ type: "paragraph", content: [{ type: "hardBreak" }] }],
+        content: [{ type: "paragraph", content: [{ type: "image" }] }],
       }),
-    /unsupported Tiptap node "hardBreak"/,
+    /unsupported Tiptap node "image"/,
   );
 });
 
@@ -217,8 +217,8 @@ test("document adapter rejects unknown blocks, inlines, and marks", () => {
 
   const unknownInline = clone(baseline);
   const paragraph = blockAt(unknownInline, "8");
-  paragraph.content = [{ type: "hardBreak" }];
-  assert.throws(() => assertSupportedDocumentChange(baseline, unknownInline), /unsupported Tiptap node "hardBreak"/);
+  paragraph.content = [{ type: "image" }];
+  assert.throws(() => assertSupportedDocumentChange(baseline, unknownInline), /unsupported Tiptap node "image"/);
 
   const unknownMark = clone(baseline);
   blockAt(unknownMark, "8").content = [{ type: "text", text: "unsupported", marks: [{ type: "link" }] }];
@@ -887,28 +887,43 @@ test("lossy supported edits are rejected before the file write callback", () => 
   }
 });
 
-test("hard break paragraphs load read-only and remain unchanged on save", () => {
-  const source = "**AB\\\nCD**\n\nEditable text.\n";
-  const editable = loadEditableDocument(source);
-  const projection = toTiptapDocument(editable);
-  assert.equal(projection.content?.[0].type, "readonlyParagraph");
-  assert.equal(projection.content?.[0].attrs?.text, "AB\nCD");
-  const normalized = normalizedDocument(projection);
-  assert.deepEqual(collectSupportedEdits(editable, normalized), { headings: [], paragraphs: [] });
-  const modified = structuredClone(normalized);
-  modified.content![0].attrs!.text = "ABCD";
-  assert.equal(isSupportedDocumentChange(projection, modified), false);
-  assert.throws(() => toTiptapContent([{ kind: "break" }]), /read-only/);
-  const saved = saveEdits(source, {
-    headings: [],
-    paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed text." }] }],
-  });
-  const first = saved.document.blocks[0];
-  assert.equal(first.block, "paragraph");
-  if (first.block === "paragraph") {
-    const original = editable.blocks[0];
-    assert.equal(original.block, "paragraph");
-    if (original.block === "paragraph") assert.deepEqual(first.content, original.content);
+test("hard breaks and marks survive editable projection, save and reload", () => {
+  for (const source of ["AB", "**AB**", "*AB*", "***AB***"]) {
+    const editable = loadEditableDocument(source);
+    const projected = normalizedDocument(toTiptapDocument(editable));
+    assert.equal(projected.content?.[0].type, "paragraph");
+    const first = projected.content![0].content![0];
+    projected.content![0].content = [
+      { ...first, text: "A" },
+      { type: "hardBreak", ...(first.marks ? { marks: first.marks } : {}) },
+      { ...first, text: "B" },
+    ];
+    const saved = saveEdits(source, collectSupportedEdits(editable, projected));
+    assert.deepEqual(normalizedDocument(toTiptapDocument(saved.document)), projected);
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+    assert.deepEqual(toTiptapContent(fromTiptapContent({type: "doc", content: [{type: "paragraph", content: projected.content![0].content}]})).content?.[0].content, projected.content![0].content);
+    const reloaded = loadEditableDocument(saved.markdown);
+    assert.equal(toTiptapDocument(reloaded).content?.[0].type, "paragraph");
   }
-  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+});
+
+test("break adapter rejects unsupported marks and malformed break content", () => {
+  for (const node of [
+    { type: "hardBreak", marks: [{ type: "link" }] },
+    { type: "hardBreak", content: [{ type: "text", text: "lost" }] },
+    { type: "hardBreak", text: "lost" },
+  ]) assert.throws(() => fromTiptapContent({type: "doc", content: [{type: "paragraph", content: [node]}]}));
+});
+
+test("transient trailing break is editable but fails Core save without writing", () => {
+  const source = "AB";
+  const editable = loadEditableDocument(source);
+  const projected = toTiptapDocument(editable);
+  projected.content![0].content!.push({type: "hardBreak"});
+  assert.equal(isSupportedDocumentChange(toTiptapDocument(editable), projected), true);
+  let written = false;
+  assert.throws(() => commitDocumentSave(() => source, () => { written = true; }, {
+    revision: documentRevision(source), ...collectSupportedEdits(editable, projected),
+  }), /round-trip/);
+  assert.equal(written, false);
 });

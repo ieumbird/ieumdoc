@@ -122,7 +122,7 @@ export function updateParagraphInlineContent(
   if (!projectInlineContent(node)) {
     throw new Error(`updateParagraphInlineContent cannot replace unsupported inline content at [${path.join(",")}]`);
   }
-  node.children = inlineContentToNodes(content);
+  node.children = inlineContentToNodes(concatenateInlineContent(content));
   assertInlineBlockRoundTrip(node);
   return next;
 }

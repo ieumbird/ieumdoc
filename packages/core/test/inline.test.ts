@@ -108,3 +108,18 @@ test("equivalent mark nesting and adjacent text fragments remain supported", () 
   assert.equal(markdown, "***AB*** CD\n");
   assert.equal(serialize(parse(markdown)), markdown);
 });
+
+
+test("adjacent equal marks around a break retain their semantic coverage", () => {
+  for (const kind of ["strong", "emphasis"] as const) {
+    const content: InlineContent[] = [
+      { kind, children: [{ kind: "text", text: "A" }] },
+      { kind, children: [{ kind: "break" }] },
+      { kind, children: [{ kind: "text", text: "B" }] },
+    ];
+    const changed = updateParagraphInlineContent(parse("Original."), [0], content);
+    const markdown = serialize(changed);
+    assert.deepEqual(getEditableDocument(parse(markdown)), getEditableDocument(changed));
+    assert.equal(serialize(parse(markdown)), markdown);
+  }
+});

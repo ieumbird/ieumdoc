@@ -516,5 +516,13 @@ UTF-16 surrogate pair 중간에서 잘라 UTF-8 파일에 저장할 수 없는 �
 MyST가 의미를 유지할 수 없는 경계(예: split 후 trailing break, mark 내부 끝 공백)는 명시적으로 거부한다.
 구조 변경 후에는 inspect로 path를 다시 찾는다. path는 영속 ID가 아니다.
 
-Editor의 Enter split, Shift+Enter 삽입, Backspace merge는 계속 비활성이다.
-이미 Hard Break가 있는 paragraph는 줄바꿈을 유지한 읽기 전용 표시로 로드하고 저장 시 원문 의미를 보존한다.
+Editor의 Enter split과 Backspace merge는 계속 비활성이다.
+Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄바꿈을 추가한다.
+
+## Editor Hard Break v1
+
+- 지원 paragraph에서 Bold 또는 Italic을 켜고 `AB`를 입력한다. Shift+Enter를 누르고 `CD`를 입력한다.
+- 같은 paragraph 안에서 줄바꿈과 서식이 유지되는지 확인한다. Bold + Italic 조합도 반복한다.
+- Save 후 Reload하여 줄바꿈과 양쪽 서식이 유지되는지 확인한다. Markdown은 backslash + 개행으로 저장된다.
+- 문단 끝에 줄바꿈만 추가한 상태의 Save는 Core에서 거부될 수 있다. 뒤에 텍스트를 입력한 뒤 저장한다.
+- Enter split, 문단 경계 Backspace merge 및 read-only reference paragraph 변경은 계속 차단되어야 한다.

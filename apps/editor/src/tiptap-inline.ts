@@ -46,16 +46,15 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
     throw new Error("Tiptap paragraph content must be an array");
   }
 
-  return paragraph.content.map((node, index) => fromTiptapText(node, index));
+  return paragraph.content.map((node, index) => fromTiptapInline(node, index));
 }
 
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "break") throw new Error("hard break paragraphs are read-only in the Editor");
-    if (item.kind === "text") {
-      if (item.text.length === 0) continue;
-      const node: TiptapJSON = { type: "text", text: item.text };
+    if (item.kind === "text" || item.kind === "break") {
+      if (item.kind === "text" && item.text.length === 0) continue;
+      const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" } : { type: "text", text: item.text };
       const applied: { type: string }[] = [];
       if (marks.bold) applied.push({ type: "bold" });
       if (marks.italic) applied.push({ type: "italic" });
@@ -70,12 +69,12 @@ function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   return nodes;
 }
 
-function fromTiptapText(node: TiptapJSON, index: number): InlineContent {
-  if (!isTiptapJSON(node) || node.type !== "text") {
+function fromTiptapInline(node: TiptapJSON, index: number): InlineContent {
+  if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
   }
 
-  if (typeof node.text !== "string" || node.text.length === 0) {
+  if (node.type === "text" && (typeof node.text !== "string" || node.text.length === 0)) {
     throw new Error(`Tiptap text node at paragraph child ${index} must contain non-empty text`);
   }
 
@@ -97,8 +96,10 @@ function fromTiptapText(node: TiptapJSON, index: number): InlineContent {
     marks.add(mark.type);
   }
 
-  const text = node.text;
-  let item: InlineContent = { kind: "text", text };
+  if (node.type === "hardBreak" && (node.text !== undefined || node.content !== undefined)) {
+    throw new Error("hardBreak cannot contain text or children");
+  }
+  let item: InlineContent = node.type === "hardBreak" ? { kind: "break" } : { kind: "text", text: node.text! };
   if (marks.has("italic")) {
     item = { kind: "emphasis", children: [item] };
   }

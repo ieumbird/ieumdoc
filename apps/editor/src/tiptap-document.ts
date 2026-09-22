@@ -70,7 +70,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       headings.push({ path: block.path, from: block.text, to: text });
       return;
     }
-    if (block.block === "paragraph" && block.editable && !hasBreak(block.content)) {
+    if (block.block === "paragraph" && block.editable) {
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) return;
       if (inlineText(content).length === 0) {
@@ -133,7 +133,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "paragraph") {
-    if (!block.editable || hasBreak(block.content)) {
+    if (!block.editable) {
       return readonlyNode("readonlyParagraph", block.path, { text: block.text });
     }
     return {
@@ -283,9 +283,4 @@ function describeType(value: TiptapJSON | undefined): string {
     return `"${value.type}"`;
   }
   return "unknown node";
-}
-
-function hasBreak(content: InlineContent[]): boolean {
-  return content.some((item) => item.kind === "break" ||
-    ((item.kind === "strong" || item.kind === "emphasis") && hasBreak(item.children)));
 }

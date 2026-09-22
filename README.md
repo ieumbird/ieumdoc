@@ -74,7 +74,7 @@ pnpm ieumdoc inspect packages/core/test/fixtures/technical-document.md
 
 Paragraph hard breaks, splits, and merges are available through Core and CLI.
 Run `pnpm ieumdoc help split-paragraph` for the UTF-16 offset and snapshot-path contract.
-Editor keyboard interaction for these operations is not enabled.
+The Editor supports Shift+Enter for hard breaks; paragraph split/merge keyboard interaction is not enabled.
 
 ## MVP 2 Alpha
 
