@@ -115,7 +115,7 @@ export function saveEdits(
   }
   validateStructure(document);
   const markdown = serialize(document);
-  return { markdown, document: getEditableDocument(document) };
+  return { markdown, document: getEditableDocument(parse(markdown)) };
 }
 
 export async function handleDocumentRequest(

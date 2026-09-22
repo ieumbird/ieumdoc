@@ -13,6 +13,8 @@ import {
   type InlineContent,
 } from "./inline.ts";
 
+import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
+
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
 export function replaceText(document: Document, from: string, to: string): Document {
@@ -82,14 +84,17 @@ export function updateNodeTextAtPath(
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (replaceInTextNodes(node, from, to)) {
+    assertInlineBlockRoundTrip(node);
     return next;
   }
   if (typeof node.value === "string" && node.value.includes(from)) {
     node.value = node.value.replaceAll(from, to);
+    assertInlineBlockRoundTrip(node);
     return next;
   }
   if (toText(node) === from) {
     node.children = [{ type: "text", value: to }];
+    assertInlineBlockRoundTrip(node);
     return next;
   }
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
@@ -110,6 +115,7 @@ export function updateParagraphInlineContent(
     throw new Error(`updateParagraphInlineContent cannot replace unsupported inline content at [${path.join(",")}]`);
   }
   node.children = inlineContentToNodes(content);
+  assertInlineBlockRoundTrip(node);
   return next;
 }
 

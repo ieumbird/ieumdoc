@@ -859,3 +859,30 @@ function listSourceFiles(dir: string): string[] {
   }
   return out;
 }
+
+test("schema-normalized nested marks survive the complete save and reload path", () => {
+  for (const source of ["**A*B*C**", "*A**B**C*", "***AB***"]) {
+    const editable = loadEditableDocument(source);
+    const projected = normalizedDocument(toTiptapDocument(editable));
+    const saved = saveEdits(source, collectSupportedEdits(editable, projected));
+    assert.deepEqual(saved.document, loadEditableDocument(saved.markdown));
+    const reloaded = normalizedDocument(toTiptapDocument(saved.document));
+    assert.deepEqual(reloaded, projected);
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+  }
+});
+
+test("lossy supported edits are rejected before the file write callback", () => {
+  for (const content of [
+    [{ kind: "strong", children: [{ kind: "text", text: "AB " }] }],
+    [{ kind: "text", text: "A\n\nB" }],
+  ] as InlineContent[][]) {
+    let written = false;
+    assert.throws(() => commitDocumentSave(
+      () => source,
+      () => { written = true; },
+      { revision: documentRevision(source), paragraphs: [{ path: [8], content }] },
+    ), /round-trip/);
+    assert.equal(written, false);
+  }
+});

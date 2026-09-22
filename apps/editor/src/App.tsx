@@ -38,12 +38,15 @@ export function App() {
     setNotice("");
     setStatus("Saving…");
     try {
-      const payload = collectSupportedEdits(document, editorRef.current.getDocument());
+      const submitted = editorRef.current.getDocument();
+      const payload = collectSupportedEdits(document, submitted);
       const next = await requestDocument("POST", { revision: sourceRevision, ...payload });
       setDocument(next.document);
       setSourceRevision(next.revision);
-      setEditorGeneration((value) => value + 1);
-      setStatus("Saved");
+      // A successful response must not replace input entered while saving.
+      const hasPendingEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
+      if (!hasPendingEdits) setEditorGeneration((value) => value + 1);
+      setStatus(hasPendingEdits ? "Saved; newer edits pending" : "Saved");
     } catch (cause) {
       setError(messageOf(cause));
       setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");

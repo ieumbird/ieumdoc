@@ -292,3 +292,18 @@ function run(args: string[]) {
     encoding: "utf8",
   });
 }
+
+test("Core rejects lossy text updates before CLI overwrites a real file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
+  const file = path.join(dir, "document.md");
+  try {
+    writeFileSync(file, "Original.\n");
+    const before = readFileSync(file);
+    const result = run(["update-node-text", file, "--path", "0", "--from", "Original.", "--to", "A\n\nB"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /round-trip/);
+    assert.deepEqual(readFileSync(file), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

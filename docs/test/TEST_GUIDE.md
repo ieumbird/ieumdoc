@@ -458,3 +458,25 @@ index는 `check`가 출력하는 top-level 번호다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
 - Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, figure, equation, table, reference paragraph는 저장 대상이 아니다.
 - Enter나 Backspace 뒤 문서 구조가 바뀌면 structural guard가 실패한 것이다.
+
+## Single Editor 저장 경계 회귀 확인
+
+- 문단의 bold 또는 italic 범위 끝에 공백을 포함해 저장한다. MyST가 그 서식을 유지할 수 없으면 `Save failed`로 거부하고 파일은 변경하지 않아야 한다. 공백을 서식 범위 밖으로 옮기면 저장할 수 있다.
+- `**A*B*C**`, `*A**B**C*`, `***AB***` 같은 중첩 서식은 저장·재로드 후 같은 텍스트와 mark 범위를 유지해야 한다. AST nesting이나 text node 분할이 같을 필요는 없다.
+- Save 응답을 지연한 상태에서 추가 입력한다. 응답 뒤 입력이 남고 `Saved; newer edits pending`이 표시되어야 한다. 다음 Save는 갱신된 revision을 사용하며 추가 입력을 포함한다.
+- 409 충돌에서는 현재 입력과 Editor가 유지되어야 한다.
+
+선택적 브라우저 회귀 스크립트(별도로 설치된 `playwright-cli` 사용):
+
+```powershell
+# 첫 터미널
+pnpm --filter @ieumdoc/editor dev
+# 다른 터미널
+playwright-cli -s=ieumdoc-save-review open http://127.0.0.1:5173
+playwright-cli -s=ieumdoc-save-review run-code --filename=apps/editor/test/save-during-edit.browser.js
+playwright-cli -s=ieumdoc-save-review close
+```
+
+스크립트는 GET으로 현재 technical-document fixture를 읽고 모든 POST를 mock한다. 원본 파일은 쓰지 않는다.
+결과의 `before`, `after`, `retained`, `conflictRetained`는 `true`, `editorCount`는 `1`이어야 한다.
+이 검사는 `pnpm test`에 포함된 headless Core/adapter 테스트와 별도로 실행한다.

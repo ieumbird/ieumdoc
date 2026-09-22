@@ -6,6 +6,7 @@ import {
   parse,
   serialize,
   updateParagraphInlineContent,
+  updateNodeTextAtPath,
   type InlineContent,
 } from "../src/index.ts";
 
@@ -79,3 +80,30 @@ function replacePlainText(content: InlineContent[], from: string, to: string): I
     return { ...item, children: replacePlainText(item.children, from, to) };
   });
 }
+
+test("Core rejects persistent inline edits that lose text, marks or block shape", () => {
+  const document = parse("Original.");
+  const before = structuredClone(document);
+  for (const content of [
+    [{ kind: "strong", children: [{ kind: "text", text: "AB " }] }],
+    [{ kind: "emphasis", children: [{ kind: "text", text: " AB" }] }],
+    [{ kind: "text", text: "A\n\nB" }],
+    [],
+  ] as InlineContent[][]) {
+    assert.throws(() => updateParagraphInlineContent(document, [0], content), /cannot.*(round-trip|saved)/);
+    assert.deepEqual(document, before);
+  }
+  assert.throws(() => updateNodeTextAtPath(parse("# Original"), [0], "Original", "A\n\nB"), /round-trip/);
+  assert.throws(() => updateNodeTextAtPath(document, [0], "Original.", "A\n\nB"), /round-trip/);
+});
+
+test("equivalent mark nesting and adjacent text fragments remain supported", () => {
+  const expected: InlineContent[] = [
+    { kind: "strong", children: [{ kind: "emphasis", children: [{ kind: "text", text: "AB" }] }] },
+    { kind: "text", text: " C" }, { kind: "text", text: "D" },
+  ];
+  const changed = updateParagraphInlineContent(parse("Original."), [0], expected);
+  const markdown = serialize(changed);
+  assert.equal(markdown, "***AB*** CD\n");
+  assert.equal(serialize(parse(markdown)), markdown);
+});
