@@ -311,6 +311,21 @@ test("Core rejects lossy text updates before CLI overwrites a real file", () => 
   }
 });
 
+test("CLI move-block rejects a lossy canonical reorder without overwriting the file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-reorder-"));
+  const file = path.join(dir, "document.md");
+  try {
+    writeFileSync(file, "- A\n\nMiddle\n\n- B");
+    const before = readFileSync(file);
+    const result = run(["move-block", file, "--from", "2", "--to", "1"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Canonical save changed block boundaries/);
+    assert.deepEqual(readFileSync(file), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("replace-text and insert-block reject lossy text without overwriting file bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-canonical-writes-"));
   const file = path.join(dir, "document.md");

@@ -4,6 +4,7 @@ import test from "node:test";
 import { toText } from "myst-common";
 import {
   insertParagraph,
+  getEditableDocument,
   moveBlock,
   parse,
   removeBlock,
@@ -19,6 +20,7 @@ const MUTATED_TEXT = "The converter regulates voltage and current.";
 const INSERTED_TEXT = "Inserted block.";
 
 const source = readFileSync(new URL("./fixtures/document.md", import.meta.url), "utf8");
+const technicalSource = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 
 test("Core can parse a real document", () => {
   const document = parse(source);
@@ -83,6 +85,31 @@ test("Core can move a top-level block", () => {
   assert.equal(changed.children[2]?.type, "paragraph");
   assert.equal(toText(changed.children[2]!), ORIGINAL_TEXT);
   assert.notEqual(changed.children, document.children);
+});
+
+test("Core rejects a reorder that changes canonical top-level block boundaries", () => {
+  const document = parse("- A\n\nMiddle\n\n- B");
+  const before = structuredClone(document);
+  assert.throws(
+    () => moveBlock(document, 2, 1),
+    /Canonical save changed block boundaries; this order cannot be saved/,
+  );
+  assert.deepEqual(document, before);
+});
+
+test("Core preserves canonical semantics when reordering paragraph, heading, figure, and equation blocks", () => {
+  const document = parse(technicalSource);
+  for (const type of ["paragraph", "heading", "container", "math"]) {
+    const index = document.children.findIndex((node) =>
+      node.type === type && (type !== "container" || node.kind === "figure"),
+    );
+    assert.ok(index >= 0, `missing ${type} block`);
+    const changed = moveBlock(document, index, 0);
+    assert.deepEqual(
+      getEditableDocument(parse(serialize(changed))).blocks.map((block) => block.block),
+      getEditableDocument(changed).blocks.map((block) => block.block),
+    );
+  }
 });
 
 test("Modified document validates", () => {

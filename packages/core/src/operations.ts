@@ -7,6 +7,7 @@ import {
   type DocumentNode,
   type NodePath,
 } from "./document.ts";
+import { getEditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
   inlineContentLength,
@@ -19,6 +20,8 @@ import {
 } from "./inline.ts";
 
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
+import { parse } from "./myst/parse.ts";
+import { serialize } from "./myst/serialize.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -52,7 +55,19 @@ export function moveBlock(document: Document, fromIndex: number, toIndex: number
   }
   const [block] = blocks.splice(fromIndex, 1);
   blocks.splice(toIndex, 0, block);
+  assertCanonicalBlockBoundaries(next);
   return next;
+}
+
+function assertCanonicalBlockBoundaries(document: Document): void {
+  const expectedBlocks = getEditableDocument(document).blocks;
+  const reloadedBlocks = getEditableDocument(parse(serialize(document))).blocks;
+  if (
+    reloadedBlocks.length !== expectedBlocks.length ||
+    reloadedBlocks.some((block, index) => block.block !== expectedBlocks[index].block)
+  ) {
+    throw new Error("Canonical save changed block boundaries; this order cannot be saved");
+  }
 }
 
 export function insertBlock(document: Document, index: number, block: DocumentNode): Document {

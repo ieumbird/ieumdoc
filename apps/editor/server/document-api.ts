@@ -189,14 +189,7 @@ export function saveEdits(
   }
   validateStructure(document);
   const markdown = serialize(document);
-  const reloaded = getEditableDocument(parse(markdown));
-  const expectedBlocks = getEditableDocument(document).blocks;
-  // Save acknowledgement needs one reloaded locator per submitted block.
-  // Some unsupported read-only combinations serialize with extra separators.
-  if (reloaded.blocks.length !== expectedBlocks.length || reloaded.blocks.some((block, index) => block.block !== expectedBlocks[index].block)) {
-    throw new Error("Canonical save changed block boundaries; this order cannot be saved");
-  }
-  return { markdown, document: reloaded };
+  return { markdown, document: getEditableDocument(parse(markdown)) };
 }
 
 export async function handleDocumentRequest(
