@@ -26,6 +26,14 @@ type CommandSpec = {
   details: string[];
 };
 
+type OutputFormat = "text" | "json";
+
+type ParsedArgs = {
+  file: string;
+  flags: string[];
+  format: OutputFormat;
+};
+
 const PATH_NOTE = [
   "Paths identify nodes in the current document snapshot.",
   "Structural edits may change them.",
@@ -64,13 +72,13 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "check",
     summary: "Validate a document",
-    usage: "ieumdoc check <file>",
-    details: ["Validate a document."],
+    usage: "ieumdoc check <file> [--format <text|json>]",
+    details: ["Validate a document.", "Output format is text by default; JSON is available with --format json."],
   },
   {
     name: "inspect",
     summary: "Inspect semantic blocks and editable targets",
-    usage: "ieumdoc inspect <file>",
+    usage: "ieumdoc inspect <file> [--format <text|json>]",
     details: [
       "Inspect semantic blocks and editable targets.",
       "",
@@ -159,15 +167,15 @@ function main(argv: string[]): number {
     process.stderr.write(`unknown command: ${command}\n\n${topLevelHelp()}`);
     return 2;
   }
-  if (rest.includes("-h") || rest.includes("--help")) {
+  if (isCommandHelpRequest(rest)) {
     process.stdout.write(commandHelp(command));
     return 0;
   }
-  const [file, ...flags] = rest;
-  if (!file) {
+  if (!rest[0]) {
     process.stderr.write(commandHelp(command));
     return 2;
   }
+  const { file, flags, format } = parseCommandArgs(command, rest);
 
   switch (command) {
     case "insert-hard-break":
@@ -183,11 +191,19 @@ function main(argv: string[]): number {
     case "check": {
       const document = parse(readFile(file));
       validateStructure(document);
-      process.stdout.write(`${summarize(document)}\n`);
+      if (format === "json") {
+        process.stdout.write(`${JSON.stringify({
+          ok: true,
+          command: "check",
+          validation: { valid: true },
+        })}\n`);
+      } else {
+        process.stdout.write(`${summarize(document)}\n`);
+      }
       return 0;
     }
     case "inspect": {
-      process.stdout.write(inspectFile(file));
+      process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
       return 0;
     }
     case "format": {
@@ -232,6 +248,11 @@ function findCommand(name: string): CommandSpec | undefined {
   return COMMANDS.find((command) => command.name === name);
 }
 
+function isCommandHelpRequest(args: string[]): boolean {
+  if (args.length === 1) return args[0] === "-h" || args[0] === "--help";
+  return args.length === 2 && !args[0].startsWith("-") && (args[1] === "-h" || args[1] === "--help");
+}
+
 function topLevelHelp(): string {
   const width = Math.max(...COMMANDS.map((command) => command.name.length));
   const lines = [
@@ -256,9 +277,131 @@ function commandHelp(name: string): string {
   return ["Usage:", `  ${spec.usage}`, "", ...spec.details, ""].join("\n");
 }
 
+const COMMAND_OPTIONS: Record<string, readonly string[]> = {
+  "insert-hard-break": ["--path", "--offset"],
+  "split-paragraph": ["--path", "--offset"],
+  "merge-paragraph": ["--path"],
+  check: ["--format"],
+  inspect: ["--format"],
+  format: [],
+  "replace-text": ["--from", "--to"],
+  "insert-block": ["--at", "--text"],
+  "remove-block": ["--at"],
+  "move-block": ["--from", "--to"],
+  "update-node-text": ["--path", "--from", "--to"],
+};
+
+function parseCommandArgs(command: string, args: string[]): ParsedArgs {
+  const [file, ...tokens] = args;
+  if (!file || file.startsWith("-")) {
+    throw new Error(`unexpected argument: ${file ?? "<missing file>"}`);
+  }
+
+  const allowed = COMMAND_OPTIONS[command] ?? [];
+  const seen = new Set<string>();
+  const flags: string[] = [];
+  let format: OutputFormat = "text";
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token.startsWith("--")) {
+      throw new Error(`unexpected argument: ${token}`);
+    }
+    if (!allowed.includes(token)) {
+      throw new Error(`unknown option: ${token}`);
+    }
+    if (seen.has(token)) {
+      throw new Error(`duplicate option: ${token}`);
+    }
+    seen.add(token);
+    flags.push(token);
+
+    const value = tokens[index + 1];
+    if (value === undefined || value.startsWith("--")) {
+      throw new Error(`missing ${token}`);
+    }
+    if (token === "--format") {
+      if (value !== "text" && value !== "json") {
+        throw new Error(`--format must be text or json`);
+      }
+      format = value;
+    } else {
+      flags.push(value);
+    }
+    index += 1;
+  }
+
+  return { file, flags, format };
+}
+
 function inspectFile(file: string): string {
   const editable = getEditableDocument(parse(readFile(file)));
   return `${formatInspect(editable)}\n`;
+}
+
+function inspectFileJson(file: string): string {
+  const editable = getEditableDocument(parse(readFile(file)));
+  return `${JSON.stringify({
+    ok: true,
+    command: "inspect",
+    nodes: machineNodes(editable),
+  })}\n`;
+}
+
+type MachineNode = {
+  path: number[];
+  type: string;
+  editable?: boolean;
+  text?: string;
+  [key: string]: unknown;
+};
+
+function machineNodes(document: EditableDocument): MachineNode[] {
+  return document.blocks.flatMap(machineBlock);
+}
+
+function machineBlock(block: EditableBlock): MachineNode[] {
+  const base = { path: [...block.path], type: block.block };
+  if (block.block === "heading" || block.block === "paragraph") {
+    return [{ ...base, editable: block.editable, text: block.text }];
+  }
+  if (block.block === "admonition") {
+    return [{ ...base, variant: block.variant, text: block.text }];
+  }
+  if (block.block === "figure") {
+    return [
+      {
+        ...base,
+        label: block.label,
+        imageUrl: block.imageUrl,
+        imageAlt: block.imageAlt,
+      },
+      {
+        path: [...block.caption.path],
+        type: "caption",
+        editable: block.caption.editable,
+        text: block.caption.text,
+      },
+    ];
+  }
+  if (block.block === "equation") {
+    return [{ ...base, label: block.label, latex: block.latex }];
+  }
+  if (block.block === "table") {
+    return [
+      base,
+      ...block.rows.flatMap((row) =>
+        row.cells.map((cell) => ({
+          path: [...cell.path],
+          type: "cell",
+          header: cell.header,
+          editable: cell.editable,
+          text: cell.text,
+        })),
+      ),
+    ];
+  }
+  return [{ ...base, text: block.text }];
 }
 
 function formatInspect(document: EditableDocument): string {

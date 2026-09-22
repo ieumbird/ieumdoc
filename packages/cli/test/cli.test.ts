@@ -234,6 +234,76 @@ test("inspect prints Core editable targets", () => {
   }
 });
 
+test("inspect and check expose stable machine-readable Core results", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-machine-contract-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  const before = readFileSync(file);
+
+  try {
+    const textInspect = run(["inspect", file]);
+    const explicitTextInspect = run(["inspect", file, "--format", "text"]);
+    assert.equal(textInspect.status, 0, textInspect.stderr);
+    assert.equal(explicitTextInspect.status, 0, explicitTextInspect.stderr);
+    assert.equal(explicitTextInspect.stdout, textInspect.stdout);
+
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const inspectResult = JSON.parse(inspected.stdout) as {
+      ok: boolean;
+      command: string;
+      nodes: Array<{ path: number[]; type: string; editable?: boolean; text?: string }>;
+    };
+    assert.equal(inspectResult.ok, true);
+    assert.equal(inspectResult.command, "inspect");
+    assert.ok(inspectResult.nodes.length > 0);
+    const paragraph = inspectResult.nodes.find((node) => node.type === "paragraph");
+    assert.ok(paragraph);
+    assert.ok(Array.isArray(paragraph.path));
+    assert.equal(typeof paragraph.editable, "boolean");
+    assert.equal(typeof paragraph.text, "string");
+
+    const checked = run(["check", file, "--format", "json"]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.deepEqual(JSON.parse(checked.stdout), {
+      ok: true,
+      command: "check",
+      validation: { valid: true },
+    });
+    const textCheck = run(["check", file]);
+    const explicitTextCheck = run(["check", file, "--format", "text"]);
+    assert.equal(textCheck.status, 0, textCheck.stderr);
+    assert.equal(explicitTextCheck.status, 0, explicitTextCheck.stderr);
+    assert.equal(explicitTextCheck.stdout, textCheck.stdout);
+    assert.deepEqual(readFileSync(file), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI rejects unknown, duplicate, and unnecessary arguments without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-strict-options-"));
+  const file = path.join(dir, "document.md");
+  copyFileSync(fixture, file);
+  const before = readFileSync(file);
+
+  try {
+    for (const args of [
+      ["inspect", file, "--json"],
+      ["check", file, "--unknown"],
+      ["inspect", file, "--format", "yaml"],
+      ["check", file, "--format", "json", "--format", "text"],
+      ["check", file, "extra"],
+    ]) {
+      const result = run(args);
+      assert.notEqual(result.status, 0, args.join(" "));
+      assert.deepEqual(readFileSync(file), before, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("inspect does not call an admonition readonly when update-node-text can change it", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-admonition-"));
   const file = path.join(dir, "technical-document.md");
