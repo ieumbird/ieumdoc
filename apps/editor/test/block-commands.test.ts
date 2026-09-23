@@ -17,6 +17,7 @@ import {
   INSERT_COMMANDS,
   slashQueryAt,
   insertEquationAfter,
+  insertFigureAfter,
 } from "../src/block-commands.ts";
 import { declaredDeletions, differsFromBaseline, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -77,7 +78,7 @@ test("heading commands insert H1-H3 and place the caret inside the heading", () 
 test("shared insert commands include Equation and select its new atom", () => {
   const state = EditorState.create({ schema, doc: docOf("AB") });
   assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
-    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation",
+    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure",
   ]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
@@ -99,6 +100,40 @@ test("Equation slash insertion replaces a transient empty paragraph", () => {
   assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
   assert.equal(next.doc.child(1).attrs.sourcePath.startsWith("new:"), true);
   assert.equal(next.selection instanceof NodeSelection, true);
+});
+
+test("Figure insertion selects a new unlabeled editable atom", () => {
+  const state = EditorState.create({ schema, doc: docOf("AB") });
+  assert.deepEqual(filterInsertCommands("fig").map(command => command.id), ["figure"]);
+  assert.deepEqual(filterInsertCommands("image").map(command => command.id), ["figure"]);
+  const next = state.apply(insertFigureAfter(state, 0));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  const figure = next.doc.child(1);
+  assert.ok(isNewBlockPath(String(figure.attrs.sourcePath)));
+  assert.deepEqual(
+    [figure.attrs.label, figure.attrs.imageUrl, figure.attrs.imageAlt, figure.attrs.caption, figure.attrs.editable],
+    ["", "", "", "", true],
+  );
+  assert.equal(next.selection instanceof NodeSelection, true);
+  assert.equal(next.selection.from, positionOf(next.doc, String(figure.attrs.sourcePath)));
+});
+
+test("Figure slash insertion replaces a transient empty paragraph but not a persistent one", () => {
+  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
+  const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/figure"));
+  const slash = slashQueryAt(typed);
+  assert.ok(slash);
+  const next = typed.apply(insertFigureAfter(typed, slash.index, slash));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  assert.equal(next.doc.child(0).textContent, "AB");
+  assert.equal(String(next.doc.child(1).attrs.sourcePath).startsWith("new:"), true);
+
+  // An emptied persistent paragraph is never converted into a Figure.
+  const persistent = initial.apply(initial.tr.delete(1, 3));
+  const inserted = persistent.apply(insertFigureAfter(persistent, 0));
+  assert.deepEqual(inserted.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  assert.equal(inserted.doc.child(0).attrs.sourcePath, "0");
 });
 
 test("heading slash insertion replaces an otherwise-empty paragraph", () => {

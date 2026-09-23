@@ -175,7 +175,7 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
   assert.match(documentEditor, /onEquationDraftChange/);
   assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
-  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft, documentPath\)/);
+  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure\)/);
   assert.match(documentEditor, /hasUnappliedEquationDraft\(\)/);
 
   const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");

@@ -15,6 +15,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
+  type FigureValidator,
   DECLARED_DELETIONS_META,
   declaredDeletions,
   differsFromBaseline,
@@ -29,6 +30,7 @@ export type DocumentEditorHandle = {
   beginSave(): TiptapJSON;
   finishSave(saved?: EditableDocument): void;
   hasUnappliedEquationDraft(): boolean;
+  hasUnappliedFigureDraft(): boolean;
   hasUnsavedChanges(): boolean;
 };
 
@@ -37,6 +39,8 @@ type DocumentEditorProps = {
   documentPath: string;
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
+  onFigureDraftChange?: (active: boolean) => void;
+  validateFigure?: FigureValidator;
 };
 
 export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
@@ -47,7 +51,7 @@ export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument):
 }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onEquationDraftChange },
+  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -56,6 +60,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const onEquationDraftChangeRef = useRef(onEquationDraftChange);
   onEquationDraftChangeRef.current = onEquationDraftChange;
   const activeEquationDrafts = useRef(new Set<string>());
+  const onFigureDraftChangeRef = useRef(onFigureDraftChange);
+  onFigureDraftChangeRef.current = onFigureDraftChange;
+  const activeFigureDrafts = useRef(new Set<string>());
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
   const [slashActive, setSlashActive] = useState(0);
@@ -67,10 +74,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     else activeEquationDrafts.current.delete(key);
     onEquationDraftChangeRef.current?.(activeEquationDrafts.current.size > 0);
   };
+  const reportFigureDraft = (key: string, active: boolean) => {
+    if (active) activeFigureDrafts.current.add(key);
+    else activeFigureDrafts.current.delete(key);
+    onFigureDraftChangeRef.current?.(activeFigureDrafts.current.size > 0);
+  };
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
     content: projection,
     onTransaction({ transaction }) {
       if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);
@@ -139,9 +151,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       hasUnappliedEquationDraft() {
         return activeEquationDrafts.current.size > 0;
       },
+      hasUnappliedFigureDraft() {
+        return activeFigureDrafts.current.size > 0;
+      },
       hasUnsavedChanges() {
         if (!editor) return false;
-        return activeEquationDrafts.current.size > 0 || differsFromBaseline(editor.state, baseline.current);
+        return activeEquationDrafts.current.size > 0 || activeFigureDrafts.current.size > 0 ||
+          differsFromBaseline(editor.state, baseline.current);
       },
       getDocument() {
         if (!editor) {

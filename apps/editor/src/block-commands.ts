@@ -3,7 +3,7 @@ import { NodeSelection, Selection, TextSelection, type EditorState, type Transac
 import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete. Each command is one engine transaction;
-// Save maps the result to Core insertParagraph/insertHeading/insertEquation/removeBlock. Only blocks whose
+// Save maps the result to Core insertParagraph/insertHeading/insertEquation/insertFigure/removeBlock. Only blocks whose
 // Core create/edit/save path exists are listed.
 
 export type SlashRange = { from: number; to: number };
@@ -58,6 +58,12 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["equation", "math", "latex"],
     run: insertEquationAfter,
   },
+  {
+    id: "figure",
+    label: "Figure",
+    keywords: ["figure", "image", "picture"],
+    run: insertFigureAfter,
+  },
 ];
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
@@ -96,6 +102,28 @@ export function insertParagraphAfter(state: EditorState, index: number, slash?: 
 
 /** Insert an empty Equation after the target, reusing only a transient empty paragraph. */
 export function insertEquationAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  return insertAtomAfter(state, index, "equation", { latex: "", label: "" }, slash);
+}
+
+/** Insert an empty, unlabeled Figure after the target, reusing only a transient empty paragraph. */
+export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  return insertAtomAfter(state, index, "figure", {
+    label: "",
+    imageUrl: "",
+    imageAlt: "",
+    caption: "",
+    editable: true,
+  }, slash);
+}
+
+/** The new atom block is node-selected so its NodeView opens its authoring UI. */
+function insertAtomAfter(
+  state: EditorState,
+  index: number,
+  type: "equation" | "figure",
+  attrs: Record<string, unknown>,
+  slash?: SlashRange,
+): Transaction {
   if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
   const tr = closeHistory(state.tr);
   if (slash) tr.delete(slash.from, slash.to);
@@ -104,23 +132,14 @@ export function insertEquationAfter(state: EditorState, index: number, slash?: S
   const target = tr.doc.child(index);
   const sourcePath = String(target.attrs.sourcePath ?? "");
   if (target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(sourcePath)) {
-    tr.setNodeMarkup(pos, state.schema.nodes.equation, {
-      sourcePath,
-      latex: "",
-      label: "",
-    });
+    tr.setNodeMarkup(pos, state.schema.nodes[type], { sourcePath, ...attrs });
     return tr
       .setSelection(NodeSelection.create(tr.doc, pos))
       .setMeta(BLOCK_COMMAND_META, true)
       .scrollIntoView();
   }
   const at = pos + target.nodeSize;
-  const equation = state.schema.nodes.equation.create({
-    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
-    latex: "",
-    label: "",
-  });
-  tr.insert(at, equation);
+  tr.insert(at, state.schema.nodes[type].create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`, ...attrs }));
   return tr.setSelection(NodeSelection.create(tr.doc, at)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 

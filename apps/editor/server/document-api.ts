@@ -7,6 +7,7 @@ import {
   getEditableDocument,
   insertHeading,
   insertEquation,
+  insertFigure,
   insertParagraph,
   parse,
   removeBlock,
@@ -16,10 +17,13 @@ import {
   moveBlock,
   updateNodeTextAtPath,
   updateEquationLatex,
+  updateFigure,
   updateParagraphInlineContent,
+  validateFigure,
   validateStructure,
   type EditableBlock,
   type EditableDocument,
+  type FigureContent,
   type InlineContent,
   type NodePath,
 } from "@ieumdoc/core";
@@ -41,10 +45,17 @@ export type EquationEdit = {
   to: string;
 };
 
+export type FigureEdit = {
+  path: NodePath;
+  from: FigureContent;
+  to: FigureContent;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string };
+  | { block: "equation"; latex: string }
+  | ({ block: "figure" } & FigureContent);
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -53,6 +64,7 @@ export type SupportedEdits = {
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
   equations?: EquationEdit[];
+  figures?: FigureEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -159,6 +171,7 @@ export function saveCurrentDocument(
     headings: request.headings ?? [],
     paragraphs: request.paragraphs ?? [],
     equations: request.equations ?? [],
+    figures: request.figures ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     inserts: request.inserts ?? [],
@@ -218,6 +231,18 @@ export function saveEdits(
     }
     document = updateEquationLatex(document, equation.path, equation.from, equation.to);
   }
+  for (const figure of edits.figures ?? []) {
+    assertPath(figure.path, "figure");
+    const block = blockAt(editable, figure.path);
+    if (block?.block !== "figure" || !block.editable) {
+      throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
+    }
+    if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
+        figure.from.caption !== block.caption.text) {
+      throw new Error(`figure does not match at [${figure.path.join(",")}]`);
+    }
+    document = updateFigure(document, figure.path, figureContent(figure.to));
+  }
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
   if (splits.some(split => !Array.isArray(split.parts) || split.parts.length < 2) ||
@@ -248,6 +273,7 @@ export function saveEdits(
     ...(edits.headings ?? []).map(edit => edit.path),
     ...(edits.paragraphs ?? []).map(edit => edit.path),
     ...(edits.equations ?? []).map(edit => edit.path),
+    ...(edits.figures ?? []).map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
@@ -269,6 +295,10 @@ export function saveEdits(
       if (insert.latex.length === 0) {
         throw new Error("empty equation LaTeX cannot be saved");
       }
+      continue;
+    }
+    if (insert.block === "figure") {
+      figureContent(insert);
       continue;
     }
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
@@ -322,8 +352,10 @@ export function saveEdits(
       document = updateParagraphInlineContent(document, [index], item.content);
     } else if (item.block === "heading") {
       document = insertHeading(document, index, item.level, item.text);
-    } else {
+    } else if (item.block === "equation") {
       document = insertEquation(document, index, item.latex);
+    } else {
+      document = insertFigure(document, index, figureContent(item));
     }
     locators.push({ insert });
   }
@@ -359,6 +391,19 @@ export async function handleDocumentRequest(
     serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined);
     return;
   }
+  if (url === "/api/figure-validation") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
+    } catch (error) {
+      sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+    return;
+  }
   if (url !== "/api/document") {
     next();
     return;
@@ -383,6 +428,7 @@ export async function handleDocumentRequest(
           headings: Array.isArray(body.headings) ? body.headings : [],
           paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
           equations: Array.isArray(body.equations) ? body.equations : [],
+          figures: Array.isArray(body.figures) ? body.figures : [],
           splits: Array.isArray(body.splits) ? body.splits : [],
           merges: Array.isArray(body.merges) ? body.merges : [],
           inserts: Array.isArray(body.inserts) ? body.inserts : [],
@@ -422,6 +468,19 @@ function assertPath(path: NodePath, label: string): void {
   if (!Array.isArray(path) || path.length === 0 || path.some((index) => !Number.isInteger(index) || index < 0)) {
     throw new Error(`${label} path is invalid`);
   }
+}
+
+/** Core's persistent Figure validation for Editor Apply; returns the error message, if any. */
+export function validateFigureRequest(value: FigureContent | undefined): string | undefined {
+  return validateFigure(figureContent(value));
+}
+
+/** A complete typed Figure value; omitted properties are not treated as unchanged. */
+function figureContent(value: FigureContent | undefined): FigureContent {
+  if (typeof value?.imageUrl !== "string" || typeof value.imageAlt !== "string" || typeof value.caption !== "string") {
+    throw new Error("figure image URL, alt text, and caption must be strings");
+  }
+  return { imageUrl: value.imageUrl, imageAlt: value.imageAlt, caption: value.caption };
 }
 
 function inlineText(content: InlineContent[]): string {

@@ -1,4 +1,5 @@
-import type { EditableBlock, EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
+import type { EditableBlock, EditableDocument, FigureContent, InlineContent, NodePath } from "@ieumdoc/core";
+import { figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
 export type { TiptapJSON };
@@ -20,10 +21,17 @@ export type EquationEdit = {
   to: string;
 };
 
+export type FigureEdit = {
+  path: NodePath;
+  from: FigureContent;
+  to: FigureContent;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string };
+  | { block: "equation"; latex: string }
+  | ({ block: "figure" } & FigureContent);
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -33,6 +41,7 @@ export type SupportedEdits = {
   headings: HeadingEdit[];
   paragraphs: ParagraphEdit[];
   equations?: EquationEdit[];
+  figures?: FigureEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -72,7 +81,6 @@ const READONLY_BLOCKS = new Set([
   "readonlyHeading",
   "readonlyParagraph",
   "admonition",
-  "figure",
   "readonlyTable",
   "unsupportedBlock",
 ]);
@@ -95,6 +103,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const headings: HeadingEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
   const equations: EquationEdit[] = [];
+  const figures: FigureEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -122,6 +131,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         if (insert.block === "equation" && insert.latex.length === 0) {
           throw new Error("empty equation LaTeX cannot be saved");
         }
+        if (insert.block === "figure") assertFigureContent(insert);
         insertOf.set(node, inserts.length);
         inserts.push(insert);
       }
@@ -148,6 +158,12 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "equation") {
       const latex = equationLatex(node);
       if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
+    } else if (block.block === "figure" && block.editable) {
+      const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: block.caption.text };
+      const to = figureContent(node);
+      if (JSON.stringify(to) === JSON.stringify(from)) continue;
+      assertFigureContent(to);
+      figures.push({ path: block.path, from, to });
     }
   }
   const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
@@ -169,6 +185,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     headings,
     paragraphs,
     ...(equations.length ? { equations } : {}),
+    ...(figures.length ? { figures } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -261,12 +278,17 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     });
   }
   if (block.block === "figure") {
-    return readonlyNode("figure", block.path, {
-      label: block.label,
-      imageUrl: block.imageUrl,
-      imageAlt: block.imageAlt,
-      caption: block.caption.text,
-    });
+    return {
+      type: "figure",
+      attrs: {
+        sourcePath: pathKey(block.path),
+        label: block.label,
+        imageUrl: block.imageUrl,
+        imageAlt: block.imageAlt,
+        caption: block.caption.text,
+        editable: block.editable,
+      },
+    };
   }
   if (block.block === "equation") {
     return readonlyNode("equation", block.path, {
@@ -310,7 +332,26 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "equation") {
     return { block: "equation", latex: equationLatex(node) };
   }
-  throw new Error("only paragraphs, headings, and equations can be inserted");
+  if (node.type === "figure") {
+    if (node.attrs?.editable !== true || normalizeAttr(node.attrs?.label) !== "") {
+      throw new Error("a new figure must be editable and unlabeled");
+    }
+    return { block: "figure", ...figureContent(node) };
+  }
+  throw new Error("only paragraphs, headings, equations, and figures can be inserted");
+}
+
+function figureContent(node: TiptapJSON): FigureContent {
+  const { imageUrl, imageAlt, caption } = node.attrs ?? {};
+  if (typeof imageUrl !== "string" || typeof imageAlt !== "string" || typeof caption !== "string") {
+    throw new Error("figure image URL, alt text, and caption must be strings");
+  }
+  return { imageUrl, imageAlt, caption };
+}
+
+function assertFigureContent(figure: FigureContent): void {
+  const error = figureContentError(figure);
+  if (error) throw new Error(error);
 }
 
 function headingLevel(node: TiptapJSON): number {
@@ -346,6 +387,25 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     }
     if ((after.content ?? []).length > 0) {
       throw new Error("equation content cannot change");
+    }
+    return;
+  }
+  if (beforeType === "figure") {
+    const beforeAttrs = before.attrs ?? {};
+    const afterAttrs = after.attrs ?? {};
+    // The label is displayed only; unsupported Figure structures stay read-only.
+    for (const key of ["sourcePath", "label", "editable"]) {
+      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
+        throw new Error(`figure identity cannot change (${key})`);
+      }
+    }
+    if (beforeAttrs.editable !== true) {
+      assertReadonlyUnchanged(before, after);
+      return;
+    }
+    figureContent(after);
+    if ((after.content ?? []).length > 0) {
+      throw new Error("figure content cannot change");
     }
     return;
   }

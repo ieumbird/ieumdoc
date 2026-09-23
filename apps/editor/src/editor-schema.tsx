@@ -4,6 +4,9 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/p
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
+import type { FigureContent } from "@ieumdoc/core";
+import { figureContentError } from "@ieumdoc/core/figure";
+import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMAND_META } from "./block-commands.ts";
 import { renderEquation } from "./equation-render.ts";
@@ -16,14 +19,25 @@ import {
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 
-export type EquationDraftListener = (key: string, active: boolean) => void;
+/** Reports whether the block at a source path holds an unapplied draft. */
+export type DraftListener = (key: string, active: boolean) => void;
+export type EquationDraftListener = DraftListener;
+
+/** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
+export type FigureValidator = (figure: FigureContent) => Promise<string | undefined>;
 
 /** An Equation draft blocks saving only while the editor is open and the draft differs from the applied LaTeX. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
   return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
 }
 
-const hiddenAttr = (defaultValue: string | number = ""): Attribute => ({
+/** A Figure draft blocks saving while its editor is open and differs from the applied Figure, or while a new Figure was never applied. */
+export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent, sourcePath = ""): boolean {
+  const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt || draft.caption !== applied.caption;
+  return editing && (changed || (isNewBlockPath(sourcePath) && applied.imageUrl.length === 0));
+}
+
+const hiddenAttr = (defaultValue: string | number | boolean = ""): Attribute => ({
   default: defaultValue,
   rendered: false,
 });
@@ -173,6 +187,7 @@ const Figure = Node.create({
       imageUrl: hiddenAttr(""),
       imageAlt: hiddenAttr(""),
       caption: hiddenAttr(""),
+      editable: hiddenAttr(false),
     });
   },
   parseHTML() {
@@ -211,17 +226,17 @@ function equationNode(onDraftChange?: EquationDraftListener) {
   });
 }
 
-function figureNode(documentPath?: string) {
+function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
   return Figure.extend({
     addNodeView() {
-      return ReactNodeViewRenderer(createFigureNodeView(documentPath));
+      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure));
     },
   });
 }
 
-function createFigureNodeView(documentPath?: string) {
+function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
   return function FigureAssetNodeView(props: ReactNodeViewProps) {
-    return <FigureView {...props} documentPath={documentPath} />;
+    return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} validateFigure={validateFigure} />;
   };
 }
 
@@ -348,6 +363,8 @@ const ParagraphMerge = Extension.create({
 export function editorExtensions(
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
+  onFigureDraftChange?: DraftListener,
+  validateFigure?: FigureValidator,
 ): Extensions {
   return [
     StarterKit.configure({
@@ -377,7 +394,7 @@ export function editorExtensions(
     ReadonlyHeading,
     ReadonlyParagraph,
     Admonition,
-    figureNode(documentPath),
+    figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
     ReadonlyTable,
     UnsupportedBlock,
@@ -389,8 +406,10 @@ export function createEditorExtensions(
   onReject: () => void,
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
+  onFigureDraftChange?: DraftListener,
+  validateFigure?: FigureValidator,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange, documentPath), structureGuard(baseline, onReject)];
+  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure), structureGuard(baseline, onReject)];
 }
 
 function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
@@ -527,56 +546,222 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
   );
 }
 
-function FigureView({ node, selected, documentPath }: ReactNodeViewProps & { documentPath?: string }) {
+function figureAttrs(node: ProseMirrorNode): FigureContent {
+  return {
+    imageUrl: String(node.attrs.imageUrl ?? ""),
+    imageAlt: String(node.attrs.imageAlt ?? ""),
+    caption: String(node.attrs.caption ?? ""),
+  };
+}
+
+function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
   const anchor = useRef<HTMLParagraphElement>(null);
-  const imageUrl = String(node.attrs.imageUrl ?? "");
-  const src = resolveFigureSource(imageUrl, documentPath);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const applied = figureAttrs(node);
+  const src = resolveFigureSource(applied.imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
+  const sourcePath = String(node.attrs.sourcePath ?? "");
+  const editableFigure = node.attrs.editable === true;
+  // A new Figure has no persistent state until a valid value is applied.
+  const neverApplied = isNewBlockPath(sourcePath) && applied.imageUrl.length === 0;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(applied);
+  const [error, setError] = useState("");
+  const [validating, setValidating] = useState(false);
+  const validation = useRef(0);
+  const hasUnappliedDraft = isUnappliedFigureDraft(editing, draft, applied, sourcePath);
+
+  useEffect(() => {
+    if (!editing) setDraft(applied);
+  }, [editing, applied.imageUrl, applied.imageAlt, applied.caption]);
+
+  // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form,
+  // and leaving a Figure closes its form unless a draft is pending.
+  useEffect(() => {
+    if (!editableFigure) return;
+    if (selected && neverApplied && !editing) beginEdit();
+    if (!selected && editing && !hasUnappliedDraft) setEditing(false);
+  }, [selected]);
+
+  useEffect(() => {
+    onDraftChange?.(sourcePath, hasUnappliedDraft);
+    return () => onDraftChange?.(sourcePath, false);
+  }, [sourcePath, hasUnappliedDraft, onDraftChange]);
+
+  function beginEdit() {
+    setDraft(applied);
+    setError("");
+    setEditing(true);
+    // After the form renders and after an insert command refocuses the editor.
+    requestAnimationFrame(() => imageInput.current?.focus());
+  }
+  const cancel = () => {
+    validation.current++;
+    setValidating(false);
+    if (neverApplied) removeUnappliedBlock(view, getPos, node, deleteNode);
+    setDraft(applied);
+    setError("");
+    setEditing(false);
+  };
+  // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
+  const apply = async () => {
+    const candidate = draft;
+    const local = figureContentError(candidate) ?? (validateFigure ? undefined : "Figure validation is unavailable.");
+    if (local) {
+      setError(local);
+      return;
+    }
+    const request = ++validation.current;
+    setValidating(true);
+    setError("");
+    let message: string | undefined;
+    try {
+      message = await validateFigure!(candidate);
+    } catch (cause) {
+      message = `Figure validation failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+    }
+    // Cancel or a newer Apply supersedes this result.
+    if (request !== validation.current) return;
+    setValidating(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    updateAttributes(candidate);
+    setEditing(false);
+  };
+  const field = (key: keyof FigureContent, name: string, testId: string) => (
+    <label className="figure-field">
+      <span>{name}</span>
+      <Input
+        ref={key === "imageUrl" ? imageInput : undefined}
+        data-testid={testId}
+        disabled={validating}
+        value={draft[key]}
+        onChange={(event) => {
+          setDraft({ ...draft, [key]: event.target.value });
+          setError("");
+        }}
+      />
+    </label>
+  );
+
   const properties: [string, string][] = [
     ["Label", label],
-    ["Image", imageUrl],
-    ["Alt text", String(node.attrs.imageAlt ?? "")],
-    ["Caption", String(node.attrs.caption ?? "")],
+    ["Image", applied.imageUrl],
+    ["Alt text", applied.imageAlt],
+    ["Caption", applied.caption],
   ];
   return (
     <NodeViewWrapper
       as="figure"
       className="figure"
       data-block="figure"
-      data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
+      data-source-path={sourcePath}
+      data-readonly={editableFigure ? "false" : "true"}
       contentEditable={false}
     >
       <p ref={anchor} className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
-      {src ? <img src={src} alt={String(node.attrs.imageAlt ?? "")} /> : null}
-      <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>
-      <Popover open={selected} onOpenChange={() => {}}>
+      {hasUnappliedDraft ? (
+        <p className="equation-draft-status" role="status" data-testid="figure-draft-status">
+          Unapplied changes. Apply or Cancel before saving.
+        </p>
+      ) : null}
+      {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" /> : null}
+      <figcaption className="caption">{applied.caption}</figcaption>
+      {editableFigure && !editing ? (
+        <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" onClick={beginEdit}>
+          Edit
+        </Button>
+      ) : null}
+      <Popover open={selected || editing} onOpenChange={() => {}}>
         <PopoverContent
           anchor={anchor}
           side="bottom"
           align="start"
-          // The popover only annotates the still-selected block; keep focus (and so
-          // keyboard interaction, e.g. Delete) on the editor instead of the popup.
+          // Selection only annotates the block; keep focus (and so keyboard
+          // interaction, e.g. Delete) on the editor. Edit focuses the form itself.
           initialFocus={false}
           finalFocus={false}
           aria-label="Figure properties"
           data-testid="figure-properties"
           className="figure-properties"
         >
-          <dl>
-            {properties.map(([name, value]) => (
-              <div key={name} className="figure-property">
-                <dt>{name}</dt>
-                <dd>{value || "—"}</dd>
+          {editing ? (
+            <form
+              className="figure-editor"
+              data-testid="figure-editor"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void apply();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancel();
+                }
+              }}
+            >
+              <dl>
+                <div className="figure-property">
+                  <dt>Label</dt>
+                  <dd data-testid="figure-label">{label || "—"}</dd>
+                </div>
+              </dl>
+              {field("imageUrl", "Image", "figure-image-url")}
+              {field("imageAlt", "Alt text", "figure-alt")}
+              {field("caption", "Caption", "figure-caption")}
+              {error ? <Notice tone="error">{error}</Notice> : null}
+              <div className="equation-actions">
+                <Button type="submit" size="sm" disabled={validating} data-testid="figure-apply">Apply</Button>
+                <Button type="button" size="sm" variant="subtle" onClick={cancel} data-testid="figure-cancel">Cancel</Button>
               </div>
-            ))}
-          </dl>
-          {/* No Core operation updates Figure properties yet. */}
-          <p className="block-popover-note">Figure properties are read-only in this version.</p>
+            </form>
+          ) : (
+            <>
+              <dl>
+                {properties.map(([name, value]) => (
+                  <div key={name} className="figure-property">
+                    <dt>{name}</dt>
+                    <dd>{value || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+              {editableFigure ? null : (
+                <p className="block-popover-note">This Figure's structure is read-only in this version.</p>
+              )}
+            </>
+          )}
         </PopoverContent>
       </Popover>
     </NodeViewWrapper>
   );
+}
+
+/** Remove a transient block that never held a persistent value, keeping one editor block. */
+function removeUnappliedBlock(
+  view: ReactNodeViewProps["view"],
+  getPos: ReactNodeViewProps["getPos"],
+  node: ProseMirrorNode,
+  deleteNode: () => void,
+): void {
+  const position = getPos();
+  if (view.state.doc.childCount === 1) {
+    if (typeof position === "number") {
+      view.dispatch(view.state.tr
+        .setNodeMarkup(position, view.state.schema.nodes.paragraph, {
+          sourcePath: `${NEW_BLOCK_PREFIX}empty`,
+        })
+        .setMeta(BLOCK_COMMAND_META, true));
+    }
+  } else if (typeof position === "number") {
+    view.dispatch(view.state.tr
+      .delete(position, position + node.nodeSize)
+      .setMeta(BLOCK_COMMAND_META, true)
+      .scrollIntoView());
+  } else {
+    deleteNode();
+  }
 }
 
 export function resolveFigureSource(imageUrl: string, documentPath?: string): string {
@@ -621,28 +806,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
   };
   const cancel = () => {
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
-    if (isUnappliedNewEquation) {
-      if (view.state.doc.childCount === 1) {
-        const position = getPos();
-        if (typeof position === "number") {
-          view.dispatch(view.state.tr
-            .setNodeMarkup(position, view.state.schema.nodes.paragraph, {
-              sourcePath: `${NEW_BLOCK_PREFIX}empty`,
-            })
-            .setMeta(BLOCK_COMMAND_META, true));
-        }
-      } else {
-        const position = getPos();
-        if (typeof position === "number") {
-          view.dispatch(view.state.tr
-            .delete(position, position + node.nodeSize)
-            .setMeta(BLOCK_COMMAND_META, true)
-            .scrollIntoView());
-        } else {
-          deleteNode();
-        }
-      }
-    }
+    if (isUnappliedNewEquation) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(latex);
     setError("");
     setEditing(false);
