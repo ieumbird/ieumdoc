@@ -145,6 +145,7 @@ export function App() {
           key={editorGeneration}
           ref={editorRef}
           document={document}
+          documentPath={openedPath}
           onEquationDraftChange={setEquationDraftActive}
           onStructuralReject={() =>
             setNotice("That change is not editable in this version, so it was discarded.")

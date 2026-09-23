@@ -18,12 +18,13 @@ export type DocumentEditorHandle = {
 
 type DocumentEditorProps = {
   document: EditableDocument;
+  documentPath: string;
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, onStructuralReject, onEquationDraftChange },
+  { document, documentPath, onStructuralReject, onEquationDraftChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -40,7 +41,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath),
     content: projection,
     onTransaction({ transaction }) {
       if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);

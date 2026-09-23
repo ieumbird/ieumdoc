@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -21,7 +21,7 @@ import {
   type DocumentNode,
   type InlineContent,
 } from "@ieumdoc/core";
-import { editorExtensions, isUnappliedEquationDraft } from "../src/editor-schema.tsx";
+import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
 import { renderEquation } from "../src/equation-render.ts";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
 import {
@@ -36,6 +36,7 @@ import {
   DocumentConflictError,
   loadDocumentFile,
   loadEditableDocument,
+  resolveMediaPath,
   resolveDocumentPath,
   saveCurrentDocument,
   saveDocumentFile,
@@ -170,7 +171,7 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
   assert.match(documentEditor, /onEquationDraftChange/);
   assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
-  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft\)/);
+  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft, documentPath\)/);
   assert.match(documentEditor, /hasUnappliedEquationDraft\(\)/);
 
   const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
@@ -478,6 +479,37 @@ test("file switching is guarded by Editor unsaved state and uses the selected pa
   assert.doesNotMatch(api, /DOCUMENT_FILE/);
   assert.match(api, /resolveDocumentPath/);
   assert.match(api, /saveDocumentFile/);
+  assert.match(api, /resolveMediaPath/);
+});
+
+test("relative figure media follows the opened document directory", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-media-"));
+  const aDir = path.join(dir, "a");
+  const bDir = path.join(dir, "b");
+  const outside = path.join(dir, "outside.svg");
+  const fileA = path.join(aDir, "a.md");
+  const fileB = path.join(bDir, "b.md");
+  try {
+    mkdirSync(aDir);
+    mkdirSync(bDir);
+    writeFileSync(fileA, "A\n");
+    writeFileSync(fileB, "B\n");
+    writeFileSync(path.join(aDir, "image.svg"), "A image");
+    writeFileSync(path.join(bDir, "image.svg"), "B image");
+    writeFileSync(outside, "outside");
+    assert.equal(readFileSync(resolveMediaPath("image.svg", fileA), "utf8"), "A image");
+    assert.equal(readFileSync(resolveMediaPath("image.svg", fileB), "utf8"), "B image");
+    assert.throws(() => resolveMediaPath("../outside.svg", fileA), /escapes the document directory/);
+    assert.throws(() => resolveMediaPath("..%2Foutside.svg", fileA), /escapes the document directory/);
+    assert.equal(
+      resolveFigureSource("./image.svg", fileA),
+      `/document/image.svg?path=${encodeURIComponent(fileA)}`,
+    );
+    assert.equal(resolveFigureSource("https://example.com/image.svg", fileA), "https://example.com/image.svg");
+    assert.equal(resolveFigureSource("/assets/image.svg", fileA), "/assets/image.svg");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("document revision changes with the source", () => {

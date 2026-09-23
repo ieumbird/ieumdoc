@@ -200,6 +200,20 @@ function equationNode(onDraftChange?: EquationDraftListener) {
   });
 }
 
+function figureNode(documentPath?: string) {
+  return Figure.extend({
+    addNodeView() {
+      return ReactNodeViewRenderer(createFigureNodeView(documentPath));
+    },
+  });
+}
+
+function createFigureNodeView(documentPath?: string) {
+  return function FigureAssetNodeView(props: ReactNodeViewProps) {
+    return <FigureView {...props} documentPath={documentPath} />;
+  };
+}
+
 function createEquationNodeView(onDraftChange?: EquationDraftListener) {
   return function EquationDraftNodeView(props: ReactNodeViewProps) {
     return <EquationView {...props} onDraftChange={onDraftChange} />;
@@ -316,7 +330,10 @@ const ParagraphMerge = Extension.create({
   },
 });
 
-export function editorExtensions(onEquationDraftChange?: EquationDraftListener): Extensions {
+export function editorExtensions(
+  onEquationDraftChange?: EquationDraftListener,
+  documentPath?: string,
+): Extensions {
   return [
     StarterKit.configure({
       blockquote: false,
@@ -345,7 +362,7 @@ export function editorExtensions(onEquationDraftChange?: EquationDraftListener):
     ReadonlyHeading,
     ReadonlyParagraph,
     Admonition,
-    Figure,
+    figureNode(documentPath),
     equationNode(onEquationDraftChange),
     ReadonlyTable,
     UnsupportedBlock,
@@ -356,8 +373,9 @@ export function createEditorExtensions(
   baseline: TiptapJSON | (() => TiptapJSON),
   onReject: () => void,
   onEquationDraftChange?: EquationDraftListener,
+  documentPath?: string,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange), structureGuard(baseline, onReject)];
+  return [...editorExtensions(onEquationDraftChange, documentPath), structureGuard(baseline, onReject)];
 }
 
 function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
@@ -440,9 +458,9 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
   );
 }
 
-function FigureView({ node }: ReactNodeViewProps) {
+function FigureView({ node, documentPath }: ReactNodeViewProps & { documentPath?: string }) {
   const imageUrl = String(node.attrs.imageUrl ?? "");
-  const src = imageUrl.startsWith("./") ? `/document/${imageUrl.slice(2)}` : imageUrl;
+  const src = resolveFigureSource(imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
   return (
     <NodeViewWrapper
@@ -458,6 +476,15 @@ function FigureView({ node }: ReactNodeViewProps) {
       <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>
     </NodeViewWrapper>
   );
+}
+
+export function resolveFigureSource(imageUrl: string, documentPath?: string): string {
+  const isRelative = imageUrl.startsWith("./") || imageUrl.startsWith("../");
+  if (!isRelative) return imageUrl;
+  const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
+  const encodedPath = relativePath.split("/").map(encodeURIComponent).join("/");
+  const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
+  return `/document/${encodedPath}${query}`;
 }
 
 function EquationView({ node, selected, updateAttributes, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {

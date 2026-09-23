@@ -255,7 +255,7 @@ export async function handleDocumentRequest(
   const requestUrl = new URL(req.url ?? "", "http://localhost");
   const url = requestUrl.pathname;
   if (url.startsWith("/document/")) {
-    serveMedia(url, res);
+    serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined);
     return;
   }
   if (url !== "/api/document") {
@@ -314,18 +314,34 @@ function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
 }
 
-function serveMedia(url: string, res: ServerResponse): void {
-  const name = path.basename(url);
-  if (name !== url.slice("/document/".length) || name.includes("..")) {
+export function resolveMediaPath(assetPath: string, documentPath?: string): string {
+  const decodedPath = decodeURIComponent(assetPath);
+  const documentFile = resolveDocumentPath(documentPath);
+  const documentDirectory = path.dirname(documentFile);
+  if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath)) {
+    throw new Error("media path must be relative to the document");
+  }
+  const resolved = path.resolve(documentDirectory, decodedPath);
+  const relative = path.relative(documentDirectory, resolved);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error("media path escapes the document directory");
+  }
+  return resolved;
+}
+
+function serveMedia(assetPath: string, res: ServerResponse, documentPath?: string): void {
+  let file: string;
+  try {
+    file = resolveMediaPath(assetPath, documentPath);
+  } catch {
     res.statusCode = 400;
     res.end();
     return;
   }
-  const file = path.join(DOCUMENT_DIR, name);
   try {
     const data = readFileSync(file);
     res.statusCode = 200;
-    res.setHeader("Content-Type", name.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream");
+    res.setHeader("Content-Type", path.extname(file).toLowerCase() === ".svg" ? "image/svg+xml" : "application/octet-stream");
     res.end(data);
   } catch {
     res.statusCode = 404;
