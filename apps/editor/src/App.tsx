@@ -9,6 +9,7 @@ import { TopBar } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts";
 
 const EQUATION_DRAFT_SAVE_HINT = "Apply or Cancel the Equation edit before saving.";
+const FIGURE_DRAFT_SAVE_HINT = "Apply or Cancel the Figure edit before saving.";
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
@@ -23,6 +24,8 @@ export function App() {
   const [notice, setNotice] = useState("");
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [equationDraftActive, setEquationDraftActive] = useState(false);
+  const [figureDraftActive, setFigureDraftActive] = useState(false);
+  const saveHint = equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
 
   useEffect(() => {
     void load();
@@ -42,6 +45,7 @@ export function App() {
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
       setEquationDraftActive(false);
+      setFigureDraftActive(false);
       setStatus("Ready");
       return "";
     } catch (cause) {
@@ -66,6 +70,7 @@ export function App() {
   async function save(): Promise<void> {
     if (!document || !editorRef.current || !openedPath) return;
     if (equationDraftActive) return;
+    if (figureDraftActive) return;
     setError("");
     setNotice("");
     setStatus("Saving…");
@@ -79,7 +84,8 @@ export function App() {
       // A successful response must not replace input entered while saving.
       const hasPendingDocumentEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
       const hasPendingEquationDraft = editorRef.current?.hasUnappliedEquationDraft() ?? false;
-      const hasPendingUserState = hasPendingDocumentEdits || hasPendingEquationDraft;
+      const hasPendingFigureDraft = editorRef.current?.hasUnappliedFigureDraft() ?? false;
+      const hasPendingUserState = hasPendingDocumentEdits || hasPendingEquationDraft || hasPendingFigureDraft;
       editorRef.current?.finishSave(hasPendingUserState ? next.document : undefined);
       if (!hasPendingUserState) setEditorGeneration((value) => value + 1);
       setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
@@ -108,6 +114,7 @@ export function App() {
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
       setEquationDraftActive(false);
+      setFigureDraftActive(false);
       setStatus("Ready");
       return "";
     } catch (cause) {
@@ -132,8 +139,8 @@ export function App() {
           <TopBar
             documentPath={openedPath}
             status={status}
-            saveDisabled={!document || status === "Saving…" || equationDraftActive}
-            saveHint={equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : undefined}
+            saveDisabled={!document || status === "Saving…" || equationDraftActive || figureDraftActive}
+            saveHint={saveHint}
             onSave={() => void save()}
           />
           <MessageArea
@@ -151,6 +158,7 @@ export function App() {
               document={document}
               documentPath={openedPath}
               onEquationDraftChange={setEquationDraftActive}
+              onFigureDraftChange={setFigureDraftActive}
               onStructuralReject={() =>
                 setNotice("That change is not editable in this version, so it was discarded.")
               }

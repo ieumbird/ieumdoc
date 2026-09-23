@@ -687,6 +687,24 @@ h2.heading {
   overflow-wrap: anywhere;
 }
 
+.figure-edit {
+  margin-top: var(--space-2);
+}
+
+.figure-editor {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.figure-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.figure-field > span {
+  color: var(--color-text-muted);
+}
+
 .block-popover-note {
   margin: var(--space-2) 0 0;
   color: var(--color-text-subtle);
