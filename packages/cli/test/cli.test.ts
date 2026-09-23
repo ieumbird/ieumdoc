@@ -100,6 +100,7 @@ test("ieumdoc help exits successfully", () => {
       "update-node-text",
       "update-equation-latex",
       "update-figure",
+      "update-table-cell",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -552,6 +553,38 @@ test("CLI format keeps semantic references distinct from fragment links", () => 
     assert.equal(failed.status, 1);
     assert.match(failed.stderr, /cannot be preserved/);
     assert.equal(readFileSync(unsupported, "utf8"), "See {term}`glossary`.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI updates Markdown table cells through Core and rejects unsupported text", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    for (const [cell, text] of [["12,0,0", "Port name"], ["12,1,1", "AC-side"], ["12,2,1", ""]]) {
+      const result = run(["update-table-cell", file, "--path", cell, "--text", text]);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    const saved = readFileSync(file, "utf8");
+    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| P +\| +\|\n$/);
+    assert.equal(serialize(parse(saved)), saved);
+    const table = getEditableDocument(parse(saved)).blocks[12];
+    assert.equal(table?.block, "table");
+    if (table?.block === "table") {
+      assert.deepEqual(table.rows.map((row) => row.cells.map((item) => item.text)), [["Port name", "Type"], ["U", "AC-side"], ["P", ""]]);
+    }
+    for (const args of [
+      ["--path", "12,1,1", "--text", " padded"],
+      ["--path", "12,1,1", "--text", "cost $x$"],
+      ["--path", "2,0,0", "--text", "x"],
+      ["--path", "12,1", "--text", "x"],
+    ]) {
+      const result = run(["update-table-cell", file, ...args]);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
