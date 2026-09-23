@@ -60,6 +60,12 @@ flowchart TB
 > Writes Are Valid and Canonical
 > 공식 경로로 저장된 문서는 항상 유효하고 안정적으로 다시 처리 가능해야 한다.
 
+Architecture decisions:
+
+- [ADR-0001: Single-document editor architecture](docs/adr/0001-single-document-editor-architecture.md)
+- [ADR-0002: Document persistence and semantic ownership](docs/adr/0002-document-persistence-semantic-ownership.md)
+- [ADR-0003: Document addressing and identity boundary](docs/adr/0003-document-addressing-identity-boundary.md)
+
 ## MVP 1 Alpha
 
 Headless document core is `packages/core`. File commands are `packages/cli`.
