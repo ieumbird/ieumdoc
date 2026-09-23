@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
-import { parse, serialize, type Document, type DocumentNode } from "../src/index.ts";
+import { parse, serialize, type MystDocument, type MystNode } from "./core-internal.ts";
 import { semanticDifference, semanticFingerprint } from "../src/myst/fingerprint.ts";
 
 // Core canonical serialization never returns Markdown that loses document semantics.
@@ -83,7 +83,7 @@ test("legitimate canonicalizations are normalized explicitly", () => {
     assert.match(serialize(parse(source)), /^:::\{list-table\} Cap\n/);
   }
   // Equivalent mark nesting and text fragmentation carry the same meaning.
-  const nested = (outer: string, inner: string): Document => ({
+  const nested = (outer: string, inner: string): MystDocument => ({
     type: "root",
     children: [{ type: "paragraph", children: [{ type: outer, children: [{ type: inner, children: [
       { type: "text", value: "A" }, { type: "text", value: "B" },
@@ -107,7 +107,7 @@ test("the semantic fingerprint detects mutations that keep the node type", () =>
     "| a | b |\n| --- | --- |\n| 1 | 2 |",
     "",
   ].join("\n"));
-  const mutations: [string, (document: Document) => void, RegExp][] = [
+  const mutations: [string, (document: MystDocument) => void, RegExp][] = [
     ["image url", (d) => { node(d, [1, 0]).url = "./b.png"; }, /image: url/],
     ["image alt", (d) => { node(d, [1, 0]).alt = "other"; }, /image: alt/],
     ["image title", (d) => { node(d, [1, 0]).title = "other"; }, /image: title/],
@@ -132,6 +132,6 @@ test("the semantic fingerprint detects mutations that keep the node type", () =>
   assert.equal(semanticDifference(expected, semanticFingerprint(moved)), undefined);
 });
 
-function node(document: Document, path: number[]): DocumentNode {
-  return path.reduce<DocumentNode>((current, index) => current.children![index], document);
+function node(document: MystDocument, path: number[]): MystNode {
+  return path.reduce<MystNode>((current, index) => current.children![index], document);
 }

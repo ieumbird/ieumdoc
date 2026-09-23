@@ -82,7 +82,7 @@ export type DocumentFileResponse = {
 };
 
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
-const EMPTY_DOCUMENT_MARKDOWN = serialize({ type: "root", children: [] });
+const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
 
 export class DocumentConflictError extends Error {
   constructor() {

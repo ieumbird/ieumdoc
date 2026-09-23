@@ -4,10 +4,10 @@ import {
   liftMystDirectivesAndRolesTransform,
 } from "myst-transforms";
 import { VFile } from "vfile";
-import type { Document } from "../document.ts";
+import type { MystDocument } from "./tree.ts";
 
-export function parse(source: string): Document {
-  const document = mystParse(source) as Document;
+export function parse(source: string): MystDocument {
+  const document = mystParse(source) as MystDocument;
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
   return document;

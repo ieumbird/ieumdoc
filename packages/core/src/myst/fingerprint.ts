@@ -1,5 +1,5 @@
 import { createHtmlId } from "myst-common";
-import type { DocumentNode } from "../document.ts";
+import type { MystNode } from "./tree.ts";
 
 /**
  * Serializer verification only: the semantics a document must keep through
@@ -15,7 +15,7 @@ const MARKS_FIELD = "(marks)";
 
 type Fingerprint = { type: string; fields: Record<string, unknown>; children: Fingerprint[] };
 
-export function semanticFingerprint(node: DocumentNode): Fingerprint {
+export function semanticFingerprint(node: MystNode): Fingerprint {
   const fields: Record<string, unknown> = {};
   for (const key of Object.keys(node).sort()) {
     // An undefined field and an absent field mean the same thing.
@@ -33,7 +33,7 @@ export function semanticFingerprint(node: DocumentNode): Fingerprint {
  * Explicit canonicalizations observed in myst-parser/myst-to-md round-trips.
  * Anything not listed here must match exactly.
  */
-function normalizeChildren(node: DocumentNode, children: Fingerprint[]): Fingerprint[] {
+function normalizeChildren(node: MystNode, children: Fingerprint[]): Fingerprint[] {
   // Marks are flattened by the nearest non-mark parent below.
   if (MARKS.has(node.type)) return children;
   // Table directives (`table`, `csv-table`) are written as `list-table`, whose cells

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { getEditableDocument, parse } from "../src/index.ts";
+import { getEditableDocument, parse } from "./core-internal.ts";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 

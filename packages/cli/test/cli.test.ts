@@ -542,10 +542,11 @@ test("CLI format keeps semantic references distinct from fragment links", () => 
   try {
     for (let i = 0; i < 2; i++) assert.equal(run(["format", file]).status, 0);
     const saved = readFileSync(file, "utf8");
+    // CLI writes exactly Core's canonical form: the {eq} role stays a role and the
+    // `[](#...)` fragment links stay links (Core's regression pins their semantics).
+    assert.equal(saved, serialize(parse(readFileSync(technicalFixture, "utf8"))));
     assert.match(saved, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
-    const paragraph = parse(saved).children[2].children ?? [];
-    assert.deepEqual([paragraph[1].type, paragraph[1].url], ["link", "#fig-control"]);
-    assert.deepEqual([paragraph[3].type, paragraph[3].kind, paragraph[3].identifier], ["crossReference", "eq", "eq-current"]);
+    assert.match(saved, /^The rated current follows from \[\]\(#eq-current\)\.$/m);
 
     const failed = run(["format", unsupported]);
     assert.equal(failed.status, 1);

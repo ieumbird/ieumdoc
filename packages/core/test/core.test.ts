@@ -13,9 +13,9 @@ import {
   replaceText,
   serialize,
   validateStructure,
-  type Document,
-  type DocumentNode,
-} from "../src/index.ts";
+  type MystDocument,
+  type MystNode,
+} from "./core-internal.ts";
 
 const ORIGINAL_TEXT = "The converter regulates voltage.";
 const MUTATED_TEXT = "The converter regulates voltage and current.";
@@ -176,20 +176,20 @@ test("Second serialization is stable", () => {
   assert.equal(output1, output2);
 });
 
-function modify(document: Document): Document {
+function modify(document: MystDocument): MystDocument {
   const withText = replaceText(document, ORIGINAL_TEXT, MUTATED_TEXT);
   const withInsert = insertParagraph(withText, 1, INSERTED_TEXT);
   const withMove = moveBlock(withInsert, indexOfType(withInsert, "admonition"), 1);
   return removeBlock(withMove, 4);
 }
 
-function indexOfType(document: Document, type: string): number {
+function indexOfType(document: MystDocument, type: string): number {
   const index = document.children.findIndex((node) => node.type === type);
   assert.ok(index >= 0, `missing top-level ${type}`);
   return index;
 }
 
-function findTextBlock(node: DocumentNode, text: string): DocumentNode | undefined {
+function findTextBlock(node: MystNode, text: string): MystNode | undefined {
   if ((node.type === "paragraph" || node.type === "heading") && toText(node).includes(text)) {
     return node;
   }
@@ -200,7 +200,7 @@ function findTextBlock(node: DocumentNode, text: string): DocumentNode | undefin
   return undefined;
 }
 
-function collectTypes(node: DocumentNode, types = new Set<string>()): Set<string> {
+function collectTypes(node: MystNode, types = new Set<string>()): Set<string> {
   types.add(node.type);
   for (const child of node.children ?? []) collectTypes(child, types);
   return types;

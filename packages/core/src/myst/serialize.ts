@@ -1,9 +1,9 @@
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
-import { cloneDocument, type Document } from "../document.ts";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
 import { parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
+import { cloneDocument, type MystDocument } from "./tree.ts";
 
 const LOSS = "Document contains semantic content that cannot be preserved in canonical Markdown";
 
@@ -15,7 +15,7 @@ export class SemanticLossError extends Error {
 }
 
 /** Serialize for an operation's own round-trip check, reporting a loss as that operation's failure. */
-export function serializeFor(document: Document, failure: string): string {
+export function serializeFor(document: MystDocument, failure: string): string {
   try {
     return serialize(document);
   } catch (error) {
@@ -29,7 +29,7 @@ export function serializeFor(document: Document, failure: string): string {
  * 1. myst-to-md diagnostics mean output it could not render;
  * 2. the reparsed Markdown must keep the original semantic fingerprint.
  */
-export function serialize(document: Document): string {
+export function serialize(document: MystDocument): string {
   const expected = semanticFingerprint(document);
   const tree = cloneDocument(document);
   prepareReferences(tree);
