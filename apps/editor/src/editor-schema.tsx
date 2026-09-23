@@ -7,7 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMAND_META } from "./block-commands.ts";
 import { renderEquation } from "./equation-render.ts";
-import { DELETED_PATHS_ATTR, isNewBlockPath, isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
+import {
+  DELETED_PATHS_ATTR,
+  isNewBlockPath,
+  isSupportedDocumentChange,
+  NEW_BLOCK_PREFIX,
+  type TiptapJSON,
+} from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 
 export type EquationDraftListener = (key: string, active: boolean) => void;
@@ -21,6 +27,8 @@ const hiddenAttr = (defaultValue: string | number = ""): Attribute => ({
   default: defaultValue,
   rendered: false,
 });
+
+let nextEmptySplitLocator = 0;
 
 function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
   switch (Number(level)) {
@@ -293,9 +301,13 @@ const ParagraphSplit = Extension.create({
         const sourcePath = selection.$from.parent.attrs.sourcePath;
         const start = selection.$from.before();
         return this.editor.chain().splitBlock().command(({ tr }) => {
-          for (const pos of [start, tr.selection.$from.before()]) {
-            tr.setNodeMarkup(pos, this.editor.schema.nodes.paragraph, { sourcePath });
-          }
+          const right = tr.selection.$from.before();
+          const rightNode = tr.doc.nodeAt(right);
+          const rightSourcePath = rightNode?.content.size === 0
+            ? `${NEW_BLOCK_PREFIX}split:${++nextEmptySplitLocator}`
+            : sourcePath;
+          tr.setNodeMarkup(start, this.editor.schema.nodes.paragraph, { sourcePath });
+          tr.setNodeMarkup(right, this.editor.schema.nodes.paragraph, { sourcePath: rightSourcePath });
           tr.setMeta("paragraphSplit", true);
           return true;
         }).run();

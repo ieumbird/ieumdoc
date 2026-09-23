@@ -20,7 +20,11 @@ export type EquationEdit = {
   to: string;
 };
 
-/** A new top-level paragraph's position in the next order, or an original snapshot block part. */
+export type InsertEdit =
+  | { block: "paragraph"; content: InlineContent[] }
+  | { block: "heading"; level: number; text: string };
+
+/** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
@@ -30,7 +34,7 @@ export type SupportedEdits = {
   equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
-  inserts?: InlineContent[][];
+  inserts?: InsertEdit[];
   deletes?: NodePath[];
 };
 
@@ -92,7 +96,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const equations: EquationEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
-  const inserts: InlineContent[][] = [];
+  const inserts: InsertEdit[] = [];
   const insertOf = new Map<TiptapJSON, number>();
   const used = new Set<string>();
   const nodes = next.content ?? [];
@@ -102,14 +106,20 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     const paths = snapshotPaths(key);
     paths.forEach(path => used.add(path));
     if (paths.length === 0) {
-      if (document.blocks.length === 0 && key === EMPTY_DOCUMENT_BLOCK_PATH && inlineText(paragraphInline(group[0])).length === 0) {
+      if (document.blocks.length === 0 && key === EMPTY_DOCUMENT_BLOCK_PATH && group[0]?.type === "paragraph" &&
+          inlineText(paragraphInline(group[0])).length === 0) {
         continue;
       }
       for (const node of group) {
-        const content = paragraphInline(node);
-        if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");
+        const insert = insertEdit(node);
+        if (insert.block === "paragraph" && inlineText(insert.content).length === 0) {
+          throw new Error("empty paragraph cannot be saved");
+        }
+        if (insert.block === "heading" && insert.text.length === 0) {
+          throw new Error("empty heading cannot be saved");
+        }
         insertOf.set(node, inserts.length);
-        inserts.push(content);
+        inserts.push(insert);
       }
       continue;
     }
@@ -172,7 +182,7 @@ export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON
 }
 
 /**
- * Validates the editor document against the loaded snapshot. New paragraphs are
+ * Validates the editor document against the loaded snapshot. New paragraphs and headings are
  * representable here; a missing snapshot block must be declared as deleted.
  * The editor's structure guard admits both only from explicit block commands.
  */
@@ -198,8 +208,7 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
     const paths = snapshotPaths(key);
     if (paths.length === 0) {
       for (const node of group) {
-        if (node.type !== "paragraph") throw new Error("only paragraphs can be inserted");
-        paragraphInline(node);
+        insertEdit(node);
       }
       continue;
     }
@@ -285,6 +294,24 @@ function readonlyNode(
 function paragraphContent(content: InlineContent[]): TiptapJSON[] {
   const projected = toTiptapContent(content);
   return projected.content?.[0]?.content ?? [];
+}
+
+function insertEdit(node: TiptapJSON): InsertEdit {
+  if (node.type === "paragraph") {
+    return { block: "paragraph", content: paragraphInline(node) };
+  }
+  if (node.type === "heading") {
+    return { block: "heading", level: headingLevel(node), text: headingText(node) };
+  }
+  throw new Error("only paragraphs and headings can be inserted");
+}
+
+function headingLevel(node: TiptapJSON): number {
+  const level = Number(node.attrs?.level ?? 1);
+  if (!Number.isInteger(level) || level < 1 || level > 6) {
+    throw new Error("heading level must be an integer from 1 to 6");
+  }
+  return level;
 }
 
 function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | undefined): void {

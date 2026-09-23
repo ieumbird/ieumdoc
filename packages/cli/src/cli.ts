@@ -3,6 +3,7 @@ import {
   getEditableDocument,
   inspectDocument,
   insertParagraph,
+  insertHeading,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -109,6 +110,15 @@ const COMMANDS: CommandSpec[] = [
       "Insert a Paragraph block at a top-level index.",
       "",
       "The current implementation inserts a Paragraph block only.",
+    ],
+  },
+  {
+    name: "insert-heading",
+    summary: "Insert a Heading block at a top-level index",
+    usage: "ieumdoc insert-heading <file> --at <index> --level <1-6> --text <text>",
+    details: [
+      "Insert a Heading block at a top-level index.",
+      "Heading levels 1 through 6 are supported.",
     ],
   },
   {
@@ -229,6 +239,15 @@ function main(argv: string[]): number {
       save(file, insertParagraph(parse(readFile(file)), intFlag(flags, "--at"), flag(flags, "--text")));
       return 0;
     }
+    case "insert-heading": {
+      save(file, insertHeading(
+        parse(readFile(file)),
+        intFlag(flags, "--at"),
+        intFlag(flags, "--level"),
+        flag(flags, "--text"),
+      ));
+      return 0;
+    }
     case "remove-block": {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -309,6 +328,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   format: [],
   "replace-text": ["--from", "--to"],
   "insert-block": ["--at", "--text"],
+  "insert-heading": ["--at", "--level", "--text"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],

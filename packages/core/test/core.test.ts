@@ -4,6 +4,7 @@ import test from "node:test";
 import { toText } from "myst-common";
 import {
   insertParagraph,
+  insertHeading,
   getEditableDocument,
   moveBlock,
   parse,
@@ -61,6 +62,22 @@ test("Core can insert a top-level block", () => {
   assert.equal(toText(changed.children[1]!), INSERTED_TEXT);
   assert.equal(changed.children[2]?.type, "paragraph");
   assert.equal(toText(changed.children[2]!), ORIGINAL_TEXT);
+});
+
+test("Core inserts headings with a canonical semantic round-trip", () => {
+  const changed = insertHeading(parse("Intro"), 1, 3, "Details");
+  const editable = getEditableDocument(parse(serialize(changed)));
+  assert.deepEqual(editable.blocks.map((block) => block.block), ["paragraph", "heading"]);
+  assert.deepEqual(editable.blocks[1], {
+    block: "heading",
+    path: [1],
+    level: 3,
+    text: "Details",
+    editable: true,
+  });
+  assert.throws(() => insertHeading(parse("Intro"), 1, 0, "Invalid"), /1 to 6/);
+  assert.throws(() => insertHeading(parse("Intro"), 1, 7, "Invalid"), /1 to 6/);
+  assert.throws(() => insertHeading(parse("Intro"), 1, 1, ""), /empty heading/);
 });
 
 test("Core can remove a top-level block", () => {

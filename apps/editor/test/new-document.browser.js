@@ -33,7 +33,10 @@ async page => {
       stored = clone(empty);
       return route.fulfill({json:stored});
     }
-    const text = body.inserts[0].map(item => item.text ?? '').join('');
+    const firstInsert = body.inserts[0];
+    const text = firstInsert.block === 'paragraph'
+      ? firstInsert.content.map(item => item.text ?? '').join('')
+      : firstInsert.text;
     if (!text) throw new Error('New document text was not sent through inserts');
     stored = {
       path:newPath,

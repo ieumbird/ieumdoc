@@ -360,6 +360,44 @@ test("paragraph split stays in its original snapshot group", () => {
   assert.equal(isSupportedDocumentChange(baseline, dispatched.transaction?.doc.toJSON() as TiptapJSON), false);
 });
 
+test("an empty split sibling becomes a new heading insertion without converting the paragraph", () => {
+  const markdown = "Original paragraph\n";
+  const editable = loadEditableDocument(markdown);
+  const split = toTiptapDocument(editable);
+  split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
+  assert.equal(split.content![0].attrs?.sourcePath, "0");
+  assert.equal(split.content![1].attrs?.sourcePath, "new:split:end");
+  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), split));
+
+  const heading = clone(split);
+  heading.content![1] = {
+    type: "heading",
+    attrs: { sourcePath: "new:split:end", level: 2 },
+    content: [{ type: "text", text: "Inserted heading" }],
+  };
+  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading));
+  const edits = collectSupportedEdits(editable, heading);
+  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, text: "Inserted heading" }]);
+  const saved = saveEdits(markdown, edits);
+  assert.deepEqual(saved.document.blocks.map((block) => block.block), ["paragraph", "heading"]);
+  assert.deepEqual(saved.document.blocks[1], {
+    block: "heading",
+    path: [1],
+    level: 2,
+    text: "Inserted heading",
+    editable: true,
+  });
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+
+  const conversion = clone(toTiptapDocument(editable));
+  conversion.content![0] = {
+    type: "heading",
+    attrs: { sourcePath: "0", level: 2 },
+    content: [{ type: "text", text: "Not a conversion" }],
+  };
+  assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
+});
+
 test("ProseMirror block-boundary and read-only deletions are rejected", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const { doc, schema } = schemaDocument();
@@ -476,7 +514,7 @@ test("empty documents project to a transient paragraph without persisting empty 
   assert.deepEqual(collectSupportedEdits(editable, typed), {
     headings: [],
     paragraphs: [],
-    inserts: [[{ kind: "text", text: "Draft" }]],
+    inserts: [{ block: "paragraph", content: [{ kind: "text", text: "Draft" }] }],
     order: [{ insert: 0 }],
   });
 });
@@ -491,7 +529,51 @@ test("empty saves skip transient range remapping and keep later inserts represen
   assert.deepEqual(collectSupportedEdits(editable, projected), { headings: [], paragraphs: [] });
   const typed = clone(projected);
   typed.content![0].content = [{ type: "text", text: "After empty save" }];
-  assert.deepEqual(collectSupportedEdits(editable, typed).inserts, [[{ kind: "text", text: "After empty save" }]]);
+  assert.deepEqual(collectSupportedEdits(editable, typed).inserts, [
+    { block: "paragraph", content: [{ kind: "text", text: "After empty save" }] },
+  ]);
+});
+
+test("new heading inserts save and reload through Core semantics", () => {
+  const editable = loadEditableDocument("Intro\n");
+  const next = toTiptapDocument(editable);
+  next.content!.push({
+    type: "heading",
+    attrs: { sourcePath: "new:heading", level: 2 },
+    content: [{ type: "text", text: "Details" }],
+  });
+  const edits = collectSupportedEdits(editable, next);
+  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, text: "Details" }]);
+  const saved = saveEdits("Intro\n", edits);
+  assert.equal(saved.markdown, "Intro\n\n## Details\n");
+  assert.deepEqual(saved.document.blocks[1], {
+    block: "heading",
+    path: [1],
+    level: 2,
+    text: "Details",
+    editable: true,
+  });
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+
+  const empty = toTiptapDocument(editable);
+  empty.content!.push({ type: "heading", attrs: { sourcePath: "new:empty-heading", level: 1 } });
+  assert.throws(() => collectSupportedEdits(editable, empty), /empty heading cannot be saved/);
+  assert.throws(
+    () => saveEdits("Intro\n", {
+      headings: [],
+      paragraphs: [],
+      inserts: [{ block: "heading", level: 1, text: "" }],
+      order: [{ path: [0], part: 0 }, { insert: 0 }],
+    }),
+    /empty heading cannot be saved/,
+  );
+});
+
+test("an empty new document can hold a transient heading but cannot save it empty", () => {
+  const editable = loadEditableDocument("\n");
+  const heading = toTiptapDocument(editable);
+  heading.content = [{ type: "heading", attrs: { sourcePath: "new:empty", level: 1 } }];
+  assert.throws(() => collectSupportedEdits(editable, heading), /empty heading cannot be saved/);
 });
 
 test("new Markdown files use Core's canonical empty document and can be edited and saved", () => {
@@ -506,7 +588,7 @@ test("new Markdown files use Core's canonical empty document and can be edited a
 
     const saved = saveDocumentFile(file, {
       revision: created.revision,
-      inserts: [[{ kind: "text", text: "A new document" }]],
+      inserts: [{ block: "paragraph", content: [{ kind: "text", text: "A new document" }] }],
       order: [{ insert: 0 }],
     });
     assert.equal(readFileSync(file, "utf8"), "A new document\n");
