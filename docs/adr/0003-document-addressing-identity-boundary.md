@@ -42,9 +42,9 @@ snapshot locator와 persistent identity를 분리하면 현재 parsed tree와 Ed
 
 ## Revisit Conditions
 
-다음과 같은 요구나 증거가 생기는 경우에만 이 결정을 재검토한다.
+Reference, transclusion 또는 requirement identity가 필요해지면 별도 ADR에서 identity model을 결정한다. 그 사실만으로 `NodePath` 또는 `sourcePath`를 persistent identity로 승격하지 않는다.
 
-- 문서 내부 또는 문서 간에 구조 변경을 넘어 유지되어야 하는 참조가 제품 요구가 되는 경우
-- requirement, transclusion 또는 외부 integration이 durable identity 없이는 구현될 수 없는 경우
-- snapshot locator 갱신 비용이 실제 문서 규모나 편집 동작에서 중대한 한계로 재현되는 경우
-- collaboration 또는 장기적인 외부 링크가 별도의 identity boundary를 요구하는 경우
+- `NodePath` 또는 `sourcePath` 자체가 durable identity여야 한다는 강한 제품 또는 기술적 근거가 생기는 경우
+- snapshot locator 모델 자체가 실제 Core/Editor operation을 감당하지 못한다는 재현 가능한 한계가 확인되는 경우
+
+The introduction of persistent identity features alone is not a reason to revisit this ADR.

@@ -49,9 +49,11 @@ plain-text 문서를 SSOT로 두면 Git diff, review, history 및 다른 도구�
 
 ## Revisit Conditions
 
-다음과 같은 구체적인 요구나 증거가 생기는 경우에만 이 결정을 재검토한다.
+plain-text `.md` SSOT와 Core의 semantic ownership을 유지하는 한 MyST/parser/serializer 구현은 교체할 수 있으며, 이는 이 ADR의 결정을 바꾸지 않는다.
+
+다음과 같은 핵심 결정의 변경을 요구하는 구체적인 요구나 증거가 생기는 경우에만 이 결정을 재검토한다.
 
 - 제품이 Git 검토 가능한 plain-text 문서를 영속 데이터의 중심으로 더 이상 요구하지 않는 경우
-- 실제 문서 의미를 보존하면서 Core 중심 semantic operation을 유지할 수 없다는 증거가 생기는 경우
+- 실제 문서 의미를 보존하면서 Core 중심 semantic operation을 유지할 수 없다는 명확한 요구나 증거가 생기는 경우
 - 파생 저장소가 원본 문서와 독립적인 권위가 되어야 한다는 요구가 생기는 경우
-- 현재 parser/serializer 경계가 목표 문서 의미를 보존할 수 없고 교체 비용이 명확히 정당화되는 경우
+- Parser/serializer implementation replacement alone is not a reason to revisit this ADR.
