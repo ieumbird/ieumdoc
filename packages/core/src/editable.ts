@@ -1,5 +1,6 @@
 import type { NodePath } from "./document.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
+import { tableCellText } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
@@ -154,7 +155,7 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
       path: [...path, rowIndex, cellIndex] as NodePath,
       text: toText(cell),
       header: rowIndex === 0,
-      editable: isTextOnly(cell),
+      editable: tableCellText(cell) !== undefined,
     })),
   }));
   return {

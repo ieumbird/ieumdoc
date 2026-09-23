@@ -23,6 +23,7 @@ import {
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
+import { setTableCellText, tableCellText } from "./myst/table.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
@@ -150,6 +151,32 @@ export function insertFigure(document: MystDocument, index: number, figure: Figu
 }
 
 /** Update a Figure's image URL, alt text or plain-text caption; its label is preserved. */
+const TABLE_CELL_FAILURE = "table cell text cannot be preserved through canonical round-trip";
+
+/** Replace the whole plain text of an editable cell in a top-level table ([table, row, cell]). */
+export function updateTableCell(document: MystDocument, path: NodePath, text: string): MystDocument {
+  if (path.length !== 3) {
+    throw new Error("updateTableCell requires a top-level table cell path [table,row,cell]");
+  }
+  if (getNode(document, [path[0]]).type !== "table" || tableCellText(getNode(document, path)) === undefined) {
+    throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
+  }
+  if (/[\r\n]/.test(text)) {
+    throw new Error("table cell text cannot contain line breaks");
+  }
+  if (text !== text.trim()) {
+    throw new Error("table cell text cannot start or end with whitespace");
+  }
+  const next = cloneDocument(document);
+  setTableCellText(getNode(next, path), text);
+  // serialize() rejects any semantic change; also require a stable canonical form.
+  const markdown = serializeFor(next, TABLE_CELL_FAILURE);
+  if (serialize(parse(markdown)) !== markdown) {
+    throw new Error(TABLE_CELL_FAILURE);
+  }
+  return next;
+}
+
 export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {
   const current = getNode(document, path);
   if (!isFigure(current)) {
