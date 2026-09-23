@@ -360,6 +360,44 @@ test("paragraph split stays in its original snapshot group", () => {
   assert.equal(isSupportedDocumentChange(baseline, dispatched.transaction?.doc.toJSON() as TiptapJSON), false);
 });
 
+test("an empty split sibling becomes a new heading insertion without converting the paragraph", () => {
+  const markdown = "Original paragraph\n";
+  const editable = loadEditableDocument(markdown);
+  const split = toTiptapDocument(editable);
+  split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
+  assert.equal(split.content![0].attrs?.sourcePath, "0");
+  assert.equal(split.content![1].attrs?.sourcePath, "new:split:end");
+  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), split));
+
+  const heading = clone(split);
+  heading.content![1] = {
+    type: "heading",
+    attrs: { sourcePath: "new:split:end", level: 2 },
+    content: [{ type: "text", text: "Inserted heading" }],
+  };
+  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading));
+  const edits = collectSupportedEdits(editable, heading);
+  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, text: "Inserted heading" }]);
+  const saved = saveEdits(markdown, edits);
+  assert.deepEqual(saved.document.blocks.map((block) => block.block), ["paragraph", "heading"]);
+  assert.deepEqual(saved.document.blocks[1], {
+    block: "heading",
+    path: [1],
+    level: 2,
+    text: "Inserted heading",
+    editable: true,
+  });
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+
+  const conversion = clone(toTiptapDocument(editable));
+  conversion.content![0] = {
+    type: "heading",
+    attrs: { sourcePath: "0", level: 2 },
+    content: [{ type: "text", text: "Not a conversion" }],
+  };
+  assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
+});
+
 test("ProseMirror block-boundary and read-only deletions are rejected", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const { doc, schema } = schemaDocument();

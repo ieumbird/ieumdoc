@@ -87,6 +87,31 @@ test("heading slash insertion replaces an otherwise-empty paragraph", () => {
   assert.equal(next.selection.$from.parent.type.name, "heading");
 });
 
+test("heading slash insertion from an empty split sibling passes the structure guard", () => {
+  const markdown = "Original paragraph";
+  const baseline = toTiptapDocument(loadEditableDocument(markdown));
+  const split = structuredClone(baseline);
+  split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
+  const doc = schema.nodeFromJSON(split);
+  let rejected = 0;
+  let state = EditorState.create({
+    schema,
+    doc,
+    selection: TextSelection.create(doc, doc.child(0).nodeSize + 1),
+    plugins: [structureGuardPlugin(baseline, () => rejected++)],
+  });
+  state = state.apply(state.tr.insertText("/h2"));
+  const slash = slashQueryAt(state);
+  assert.ok(slash);
+  const command = INSERT_COMMANDS.find(item => item.id === "heading-2")!;
+  state = state.apply(command.run(state, slash.index, slash));
+  assert.equal(rejected, 0);
+  assert.deepEqual(state.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
+  assert.equal(state.doc.child(0).attrs.sourcePath, "0");
+  assert.equal(state.doc.child(1).attrs.sourcePath, "new:split:end");
+  assert.equal(state.doc.child(1).attrs.level, 2);
+});
+
 test("slash command removes its query and shares the insert command list", () => {
   let state = EditorState.create({ schema, doc: docOf("AB"), selection: TextSelection.create(docOf("AB"), 3) });
   state = state.apply(state.tr.insertText(" /par"));
