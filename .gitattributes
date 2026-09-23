@@ -1,0 +1,2 @@
+# Keep pnpm patches stable; unified-diff blank context lines need their space prefix.
+patches/*.patch text eol=lf -whitespace
