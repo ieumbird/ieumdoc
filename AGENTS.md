@@ -34,6 +34,7 @@
 - `packages/core/test/` — Core의 document semantics와 canonical round-trip 계약을 검증한다.
 - `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
+- `docs/design/editor-layout-rules-v1.md` — Editor UI 변경 시 정렬, 간격 및 control 치수 기준으로 참고한다.
 - `docs/test/` — 사람이 현재 구현을 직접 검증하기 위한 절차.
 - `.githooks/` — optional shared Git hooks, including commit-msg AI provenance checks.
 - `README.md` — 제품 목적과 장기적인 아키텍처 방향.

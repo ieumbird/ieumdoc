@@ -28,8 +28,8 @@
   --font-family-sans: "Segoe UI", "Noto Sans", sans-serif;
   --font-family-math: "Cambria Math", "Times New Roman", serif;
   --font-size-xs: 0.75rem;
-  --font-size-sm: 0.85rem;
-  --font-size-md: 0.95rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
   --font-size-lg: 1.05rem;
   --font-size-xl: 1.35rem;
   --font-size-2xl: 2rem;
@@ -37,6 +37,8 @@
   --font-weight-bold: 700;
   --line-height-body: 1.5;
   --line-height-tight: 1.25;
+  --line-height-label: 1.25rem;
+  --line-height-meta: 1rem;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -59,9 +61,15 @@
   --layout-content-width: 52rem;
   --layout-content-gutter: 1.25rem;
   --layout-document-block-padding: 2rem;
-  --layout-document-inline-padding: 2.1rem;
-  --layout-document-gutter: 4.25rem;
+  --layout-document-inline-padding: var(--space-8);
+  --layout-document-gutter: calc(var(--space-2) + var(--size-control-compact) + var(--layout-gutter-gap) + var(--size-control-compact));
   --layout-sidebar-width: 15rem;
   --layout-sidebar-rail-width: 3rem;
+  --layout-header-row: 3rem;
+  --layout-ui-inset: var(--space-5);
+  --size-control: 2rem;
+  --size-control-compact: 1.75rem;
+  --size-icon-slot: 1rem;
+  --layout-gutter-gap: var(--space-1);
   --size-drop-indicator: 2px;
 }

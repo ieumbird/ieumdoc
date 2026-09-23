@@ -24,7 +24,7 @@ test("sidebar holds only product, Open and the current document, and collapses",
   assert.match(open, /IeumDoc/);
   assert.match(open, />Open…</);
   assert.match(open, />New</);
-  assert.match(open, /aria-current="page" title="C:\\docs\\guide.md">guide.md</);
+  assert.match(open, /aria-current="page" title="C:\\docs\\guide.md">[\s\S]*>guide\.md<\/span>/);
   assert.match(open, /aria-label="Collapse sidebar"/);
   const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
