@@ -353,7 +353,7 @@ Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는
 - `fig-control`, `eq-current` 참조
 - 표의 행 수와 `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-Figure, table, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다.
+Figure, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다. Table은 plain-text cell만 수정할 수 있다(아래 "Table cell editing v1").
 
 Save 후 파일의 `See [](#fig-control) and {eq}`eq-current`.` 줄은 그대로여야 한다. `{eq}` reference가 `[](#eq-current)` link로 바뀌면 실패다.
 
@@ -451,7 +451,7 @@ index는 `check`가 출력하는 top-level 번호다.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 
-- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text --path`를 쓴다.
+- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption은 `update-node-text --path`, table cell은 `update-table-cell --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
@@ -460,7 +460,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
-- link 또는 cross-reference가 있는 paragraph, admonition, table은 보이지만 읽기 전용이다. Equation은 Equation editor에서 LaTeX를 수정할 수 있다. Figure는 image/alt/caption만 Figure editor에서 수정하고 label은 표시만 한다. legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. table cell은 이번 화면에서 수정하지 않는다. CLI `update-node-text` 는 그대로다.
+- link 또는 cross-reference가 있는 paragraph, admonition은 보이지만 읽기 전용이다. Table은 plain-text cell만 수정할 수 있고 행/열 구조와 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX를 수정할 수 있다. Figure는 image/alt/caption만 Figure editor에서 수정하고 label은 표시만 한다. legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -473,7 +473,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
-- Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, figure, equation, table, reference paragraph는 저장 대상이 아니다.
+- Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, reference paragraph, 서식 있는 table cell은 저장 대상이 아니다.
 - Heading Enter 또는 paragraph가 아닌 이전 block과의 Backspace 병합은 차단되어야 한다.
 
 ## Single Editor 저장 경계 회귀 확인
@@ -650,3 +650,41 @@ pnpm exec playwright-cli -s=ieumdoc-figure close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+
+## Table cell editing v1
+
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가·삭제·이동, 정렬, merged cell은 범위가 아니다.
+
+유효 조건(Core round-trip에서 확인한 조건이다):
+
+- 한 줄 텍스트만 된다. 앞뒤 공백은 안 된다. 비우면 빈 cell이 된다.
+- `|`, `*`, `_`, `` ` `` 같은 Markdown 문자는 escape되어 글자 그대로 남는다.
+- MyST가 다른 의미로 읽는 텍스트(예: `cost $x$`)는 거부된다.
+
+CLI:
+
+```bash
+pnpm ieumdoc update-table-cell <file> --path 12,1,1 --text "AC-side"
+pnpm ieumdoc update-table-cell <file> --path 12,2,1 --text ""
+```
+
+`--path`는 `table,row,cell`이다(header 행은 row 0). 거부되면 exit 1이고 파일은 그대로다.
+
+Editor:
+
+- Table은 문서 안의 일반 표로 보인다. 수정 가능한 cell을 클릭하고 바로 입력한다. 읽기 전용 cell은 흐린 글자이고 입력해도 바뀌지 않는다.
+- Enter, Shift+Enter, cell 시작의 Backspace는 표 구조를 바꾸지 않는다. cell 안에서는 굵게/기울임이 적용되지 않는다. Undo/Redo는 다른 편집과 같다.
+- Save → Reload 후 수정한 header/body cell이 canonical Markdown에 남고, 다른 block은 그대로다. 유효하지 않은 cell 텍스트는 `Save failed`로 거부되고 파일은 바뀌지 않는다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+
+```bash
+rm -rf tmp/table-cell-editing && mkdir -p tmp/table-cell-editing
+cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/table-cell-editing/
+printf '| Name | Note |\n| --- | --- |\n| U | **bold** |\n' > tmp/table-cell-editing/mixed-table.md
+pnpm exec playwright-cli -s=ieumdoc-table open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-table run-code --filename=apps/editor/test/table-cell-editing.browser.js
+pnpm exec playwright-cli -s=ieumdoc-table close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
