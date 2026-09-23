@@ -11,3 +11,8 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - cn@0.4.0
   - fs-extra@11.4.1
+
+# Upstream smartquotes DoS fix, backported without changing MyST's 13.x API/peers.
+# Rationale and removal condition: docs/reviews/myst-security-alignment-v1.md
+patchedDependencies:
+  markdown-it@13.0.2: patches/markdown-it@13.0.2.patch
