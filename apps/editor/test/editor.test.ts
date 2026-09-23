@@ -23,6 +23,7 @@ import {
 } from "@ieumdoc/core";
 import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
 import { renderEquation } from "../src/equation-render.ts";
+import { remapSavedRanges } from "../src/DocumentEditor.tsx";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
 import {
   assertSupportedDocumentChange,
@@ -478,6 +479,19 @@ test("empty documents project to a transient paragraph without persisting empty 
     inserts: [[{ kind: "text", text: "Draft" }]],
     order: [{ insert: 0 }],
   });
+});
+
+test("empty saves skip transient range remapping and keep later inserts representable", () => {
+  assert.deepEqual(
+    remapSavedRanges([{ start: 0, end: 2, path: "0" }], { blocks: [] }),
+    [],
+  );
+  const editable = loadEditableDocument("\n");
+  const projected = toTiptapDocument(editable);
+  assert.deepEqual(collectSupportedEdits(editable, projected), { headings: [], paragraphs: [] });
+  const typed = clone(projected);
+  typed.content![0].content = [{ type: "text", text: "After empty save" }];
+  assert.deepEqual(collectSupportedEdits(editable, typed).inserts, [[{ kind: "text", text: "After empty save" }]]);
 });
 
 test("new Markdown files use Core's canonical empty document and can be edited and saved", () => {
