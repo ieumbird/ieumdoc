@@ -18,7 +18,9 @@ const TARGET_KEYS = new Set(["type", "label", "position"]);
 
 /** Rewrite semantic references in a serializer-owned clone, or fail closed. */
 export function prepareReferences(node: DocumentNode): void {
-  node.children = node.children?.map((child) => {
+  // Never add a `children` key to leaf nodes: mdast handlers treat its presence as meaningful.
+  if (!node.children) return;
+  node.children = node.children.map((child) => {
     if (child.type === "crossReference") return referenceRole(child);
     if (child.type === "mystTarget") return targetLine(child);
     prepareReferences(child);

@@ -65,6 +65,15 @@ test("ordinary fragment links and semantic references stay distinct", () => {
   assert.notEqual(serialize(parse("[](#eq-current)\n")), serialize(parse("{eq}`eq-current`\n")));
 });
 
+test("reference preparation leaves unrelated leaf nodes untouched", () => {
+  // {doc} and {download} parse to links without a children key.
+  for (const [source, expected] of [["{doc}`other`\n", "[](other)\n"], ["{download}`./file.zip`\n", "[](./file.zip)\n"]]) {
+    const document = parse(source);
+    assert.equal(document.children[0].children?.[0].children, undefined);
+    assert.equal(serialize(document), expected);
+  }
+});
+
 test("references that cannot be preserved fail closed instead of becoming links", () => {
   // {term} parses to a crossReference without a supported role kind.
   assert.throws(() => serialize(parse("See {term}`glossary`.\n")), /cannot be preserved/);
