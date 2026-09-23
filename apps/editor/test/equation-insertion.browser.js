@@ -48,9 +48,15 @@ async page => {
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation'}).click();
-    await page.getByTestId('equation-latex').fill('x^2 + 1');
+    await page.getByTestId('equation-latex').fill('x');
     const saveBlockedBeforeApply = await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').count() === 1;
     await page.getByTestId('equation-apply').click();
+    const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
+    await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-latex').fill('x + 1');
+    await page.getByTestId('equation-cancel').click();
+    const appliedCancelKeepsBlock = await newEquation.count() === 1;
+    const appliedCancelRestoresLatex = await newEquation.locator('[data-testid="equation-preview"]').count() === 1;
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
@@ -58,14 +64,20 @@ async page => {
     await page.reload();
     await page.getByText('Ready', {exact:true}).waitFor();
     const reloaded = await page.locator('[data-block="equation"]').count();
+    const reloadedEquation = page.locator('[data-block="equation"]').last();
+    await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    const reloadedLatex = await page.getByTestId('equation-latex').inputValue();
+    await page.getByTestId('equation-cancel').click();
     return {
       menuHasEquation: true,
       enteredEditor: afterCancel === baselineEquationCount + 1,
       noEmptyParagraphAfterSlash,
       cancelRemoved,
       saveBlockedBeforeApply,
-      appliedAndSaved: insert?.latex === 'x^2 + 1',
-      reloadKeptEquation: reloaded === baselineEquationCount + 1,
+      appliedCancelKeepsBlock,
+      appliedCancelRestoresLatex,
+      appliedAndSaved: insert?.latex === 'x',
+      reloadKeptEquation: reloaded === baselineEquationCount + 1 && reloadedLatex === 'x',
     };
   } finally {
     await page.unroute('**/api/document**');

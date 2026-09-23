@@ -620,7 +620,8 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
     setEditing(true);
   };
   const cancel = () => {
-    if (isNewBlockPath(sourcePath)) {
+    const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
+    if (isUnappliedNewEquation) {
       if (view.state.doc.childCount === 1) {
         const position = getPos();
         if (typeof position === "number") {

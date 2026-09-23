@@ -443,7 +443,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
-- link 또는 cross-reference가 있는 paragraph, admonition, figure, equation, table은 보이지만 읽기 전용이다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
+- link 또는 cross-reference가 있는 paragraph, admonition, figure, table은 보이지만 읽기 전용이다. Equation은 Equation editor에서 LaTeX를 수정할 수 있다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
 - Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.

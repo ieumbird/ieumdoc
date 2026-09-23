@@ -610,7 +610,7 @@ test("new Equation inserts save and reload through Core semantics", () => {
 
 test("new Equation cancel removes the transient block while persisted Equation cancel remains local", () => {
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  assert.match(schemaSource, /if \(isNewBlockPath\(sourcePath\)\)/);
+  assert.match(schemaSource, /isNewBlockPath\(sourcePath\) && latex\.length === 0/);
   assert.match(schemaSource, /deleteNode\(\)/);
   assert.match(schemaSource, /nodes\.paragraph/);
   assert.match(schemaSource, /updateAttributes\(\{ latex: draft \}\)/);
