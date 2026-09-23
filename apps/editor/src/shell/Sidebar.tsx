@@ -7,10 +7,11 @@ type SidebarProps = {
   documentPath: string;
   onToggle(): void;
   onOpen(): void;
+  onNew(): void;
 };
 
 /** App-level entry points only. No workspace tree until that structure is decided. */
-export function Sidebar({ open, documentPath, onToggle, onOpen }: SidebarProps) {
+export function Sidebar({ open, documentPath, onToggle, onOpen, onNew }: SidebarProps) {
   const { name } = splitDocumentPath(documentPath);
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
@@ -28,9 +29,14 @@ export function Sidebar({ open, documentPath, onToggle, onOpen }: SidebarProps) 
       </div>
       {open ? (
         <>
-          <Button className="justify-start" size="sm" variant="secondary" onClick={onOpen}>
-            Open…
-          </Button>
+          <div className="flex gap-2">
+            <Button className="min-w-0 flex-1 justify-start" size="sm" variant="secondary" onClick={onOpen}>
+              Open…
+            </Button>
+            <Button className="min-w-0 flex-1 justify-start" size="sm" variant="outline" onClick={onNew}>
+              New
+            </Button>
+          </div>
           {documentPath ? (
             <ul className="sidebar-documents" aria-label="Open documents">
               <li className="sidebar-document" aria-current="page" title={documentPath}>{name}</li>

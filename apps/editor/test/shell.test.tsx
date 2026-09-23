@@ -5,6 +5,7 @@ import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
+import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { OpenDialog } from "../src/shell/OpenDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
@@ -19,12 +20,13 @@ test("document path splits for display without changing the address", () => {
 });
 
 test("sidebar holds only product, Open and the current document, and collapses", () => {
-  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} />);
+  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
   assert.match(open, /IeumDoc/);
   assert.match(open, />Open…</);
+  assert.match(open, />New</);
   assert.match(open, /aria-current="page" title="C:\\docs\\guide.md">guide.md</);
   assert.match(open, /aria-label="Collapse sidebar"/);
-  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} />);
+  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(collapsed, /Open…|guide\.md|IeumDoc/);
 });
@@ -66,6 +68,11 @@ test("Open dialog renders nothing while closed", () => {
   const html = renderToStaticMarkup(
     <OpenDialog open={false} initialPath={PATH} busy={false} onOpen={async () => ""} onClose={noop} />,
   );
+  assert.equal(html, "");
+});
+
+test("New dialog renders nothing while closed", () => {
+  const html = renderToStaticMarkup(<NewDialog open={false} busy={false} onCreate={async () => ""} onClose={noop} />);
   assert.equal(html, "");
 });
 

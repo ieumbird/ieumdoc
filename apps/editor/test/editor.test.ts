@@ -32,6 +32,7 @@ import {
 } from "../src/tiptap-document.ts";
 import {
   commitDocumentSave,
+  createDocumentFile,
   documentRevision,
   DocumentConflictError,
   loadDocumentFile,
@@ -183,7 +184,7 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
 test("a save response keeps an Equation draft pending and avoids an editor remount", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   const saveStart = app.indexOf("async function save()");
-  const saveEnd = app.indexOf("return (", saveStart);
+  const saveEnd = app.indexOf("async function createFile", saveStart);
   const saveFn = app.slice(saveStart, saveEnd);
   assert.match(saveFn, /hasPendingEquationDraft/);
   assert.match(saveFn, /hasPendingUserState = hasPendingDocumentEdits \|\| hasPendingEquationDraft/);
@@ -463,12 +464,50 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
   }
 });
 
+test("new Markdown files use Core's canonical empty document and can be edited and saved", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-files-"));
+  const file = path.join(dir, "new-document.md");
+  try {
+    const created = createDocumentFile(file);
+    assert.equal(created.path, path.resolve(file));
+    assert.equal(readFileSync(file, "utf8"), "\n");
+    assert.deepEqual(created.document.blocks, []);
+    assert.deepEqual(parse(readFileSync(file, "utf8")).children, []);
+
+    const saved = saveDocumentFile(file, {
+      revision: created.revision,
+      inserts: [[{ kind: "text", text: "A new document" }]],
+      order: [{ insert: 0 }],
+    });
+    assert.equal(readFileSync(file, "utf8"), "A new document\n");
+    assert.equal(saved.document.blocks[0]?.block, "paragraph");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("new Markdown files reject overwrite, invalid extensions, and missing parent directories", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-file-errors-"));
+  const existing = path.join(dir, "existing.md");
+  try {
+    writeFileSync(existing, "Keep this content\n");
+    assert.throws(() => createDocumentFile(existing), /file already exists/);
+    assert.equal(readFileSync(existing, "utf8"), "Keep this content\n");
+    assert.throws(() => createDocumentFile(path.join(dir, "invalid.txt")), /\.md file/);
+    assert.throws(() => createDocumentFile(path.join(dir, "missing", "new.md")), /parent directory does not exist/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("file switching is guarded by Editor unsaved state and uses the selected path", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   assert.match(app, /hasUnsavedChanges\(\)/);
   assert.match(app, /Save or discard the current changes before opening another file\./);
   assert.match(app, /requestDocument\("GET", requestedPath\)/);
   assert.match(app, /requestDocument\("POST", openedPath/);
+  assert.match(app, /requestDocument\("PUT", requestedPath/);
+  assert.match(app, /Save or discard the current changes before creating another file\./);
   assert.doesNotMatch(app, /technical-document\.md/);
 
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
@@ -622,7 +661,7 @@ test("a saved revision can save again and the loaded revision cannot", () => {
 test("save conflict keeps the loaded editor mounted", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   const saveStart = app.indexOf("async function save()");
-  const saveEnd = app.indexOf("return (", saveStart);
+  const saveEnd = app.indexOf("async function createFile", saveStart);
   const saveFn = app.slice(saveStart, saveEnd);
   const catchBlock = saveFn.slice(saveFn.indexOf("} catch (cause) {"));
   assert.equal(catchBlock.includes("Save conflict"), true);

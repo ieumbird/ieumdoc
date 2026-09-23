@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
+import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { TopBar } from "./shell/TopBar.tsx";
@@ -16,6 +17,7 @@ export function App() {
   const [openedPath, setOpenedPath] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [newDialog, setNewDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -26,7 +28,7 @@ export function App() {
     void load();
   }, []);
 
-  const busy = status === "Loading…" || status === "Opening…" || status === "Saving…";
+  const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…";
 
   /** Resolves to an error message for a requested path, or "" on success. */
   async function load(requestedPath?: string): Promise<string> {
@@ -88,6 +90,34 @@ export function App() {
     }
   }
 
+  async function createFile(path: string): Promise<string> {
+    const requestedPath = path.trim();
+    if (!requestedPath) return "Enter a Markdown file path.";
+    if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be created.";
+    if (busy) return "Wait for the current operation to finish.";
+    if (editorRef.current?.hasUnsavedChanges()) {
+      return "Save or discard the current changes before creating another file.";
+    }
+    setError("");
+    setNotice("");
+    setStatus("Creating…");
+    try {
+      const next = await requestDocument("PUT", requestedPath, { path: requestedPath });
+      setDocument(next.document);
+      setSourceRevision(next.revision);
+      setOpenedPath(next.path);
+      setEditorGeneration((value) => value + 1);
+      setEquationDraftActive(false);
+      setStatus("Ready");
+      return "";
+    } catch (cause) {
+      const message = messageOf(cause);
+      setError(message);
+      setStatus("Create failed");
+      return message;
+    }
+  }
+
   return (
     <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}`}>
       <Sidebar
@@ -95,6 +125,7 @@ export function App() {
         documentPath={openedPath}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
+        onNew={() => setNewDialog(true)}
       />
       <div className="app-main">
         <div className="app-header">
@@ -134,6 +165,12 @@ export function App() {
         onOpen={openFile}
         onClose={() => setOpenDialog(false)}
       />
+      <NewDialog
+        open={newDialog}
+        busy={busy}
+        onCreate={createFile}
+        onClose={() => setNewDialog(false)}
+      />
     </div>
   );
 }
@@ -152,9 +189,9 @@ class SaveConflictError extends Error {
 }
 
 async function requestDocument(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT",
   filePath?: string,
-  body?: SupportedEdits & { revision: string },
+  body?: (SupportedEdits & { revision: string; path?: string }) | { path: string },
 ): Promise<DocumentResponse> {
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
   const response = await fetch(`/api/document${query}`, {
