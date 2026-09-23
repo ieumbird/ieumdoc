@@ -127,14 +127,13 @@ export function App() {
           ) : null}
         </main>
       </div>
-      {openDialog ? (
-        <OpenDialog
-          initialPath={openedPath}
-          busy={busy}
-          onOpen={openFile}
-          onClose={() => setOpenDialog(false)}
-        />
-      ) : null}
+      <OpenDialog
+        open={openDialog}
+        initialPath={openedPath}
+        busy={busy}
+        onOpen={openFile}
+        onClose={() => setOpenDialog(false)}
+      />
     </div>
   );
 }

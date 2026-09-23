@@ -1,4 +1,5 @@
-import { Button, IconButton } from "../ui/primitives.tsx";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
 type SidebarProps = {
@@ -15,18 +16,19 @@ export function Sidebar({ open, documentPath, onToggle, onOpen }: SidebarProps) 
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
       <div className="sidebar-header">
         {open ? <span className="product">IeumDoc</span> : null}
-        <IconButton
-          className="sidebar-toggle"
-          label={open ? "Collapse sidebar" : "Expand sidebar"}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
           aria-expanded={open}
           onClick={onToggle}
         >
-          {open ? "«" : "»"}
-        </IconButton>
+          {open ? <PanelLeftClose /> : <PanelLeftOpen />}
+        </Button>
       </div>
       {open ? (
         <>
-          <Button className="sidebar-open" size="sm" variant="subtle" onClick={onOpen}>
+          <Button className="justify-start" size="sm" variant="secondary" onClick={onOpen}>
             Open…
           </Button>
           {documentPath ? (

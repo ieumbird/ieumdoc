@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CommandMenu } from "../src/CommandMenu.tsx";
+import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { OpenDialog } from "../src/shell/OpenDialog.tsx";
@@ -30,16 +31,23 @@ test("sidebar holds only product, Open and the current document, and collapses",
 
 test("top bar shows the current path on the left and save state with Save on the right", () => {
   const html = renderToStaticMarkup(
-    <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} />,
+    <TooltipProvider>
+      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} />
+    </TooltipProvider>,
   );
   assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-directory">C:\\docs\\<\/span><span class="document-path-name">guide.md<\/span>/);
   assert.ok(html.indexOf("current-file") < html.indexOf('data-testid="status"'));
-  assert.ok(html.indexOf('data-testid="status"') < html.indexOf(">Save<"));
+  assert.ok(html.indexOf('data-testid="status"') < html.indexOf('data-testid="save"'));
+  assert.doesNotMatch(html, /aria-disabled="true"/);
+  // The disabled Save button keeps focus/hover so its Tooltip is reachable; the tooltip's
+  // own text only mounts in a browser (see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section).
   const blocked = renderToStaticMarkup(
-    <TopBar documentPath="" status="Ready" saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />,
+    <TooltipProvider>
+      <TopBar documentPath="" status="Ready" saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
+    </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
-  assert.match(blocked, /<button disabled="" title="Apply or Cancel the Equation edit before saving\."[^>]*>Save/);
+  assert.match(blocked, /<button type="button" data-disabled="" tabindex="0" aria-disabled="true"[^>]*data-testid="save"[^>]*>Save<\/button>/);
 });
 
 test("message area separates dismissible errors from expiring notices", () => {
@@ -52,13 +60,13 @@ test("message area separates dismissible errors from expiring notices", () => {
   assert.match(html, /data-testid="notice" role="status"[^>]*><span class="message-text">Discarded<\/span><\/div>/);
 });
 
-test("Open dialog keeps direct path entry", () => {
+test("Open dialog renders nothing while closed", () => {
+  // The dialog content is portaled and only mounts in a browser once open (see the
+  // "Editor UX Shell v1" browser script for the Open/Cancel/error flow it drives).
   const html = renderToStaticMarkup(
-    <OpenDialog initialPath={PATH} busy={false} onOpen={async () => ""} onClose={noop} />,
+    <OpenDialog open={false} initialPath={PATH} busy={false} onOpen={async () => ""} onClose={noop} />,
   );
-  assert.match(html, /<dialog/);
-  assert.match(html, /data-testid="file-path"[^>]*value="C:\\docs\\guide.md"/);
-  assert.match(html, />Open<\/button>/);
+  assert.equal(html, "");
 });
 
 test("command menu renders enabled and disabled commands and an empty state", () => {
