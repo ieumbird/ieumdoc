@@ -104,7 +104,9 @@ async page => {
     await page.getByTestId('error').waitFor();
     const request = requests.at(-1);
     result.saveRequest = {
-      inserts: request.inserts?.map(content => content.map(item => item.text).join('')),
+      inserts: request.inserts?.map(insert => insert.block === 'paragraph'
+        ? insert.content.map(item => item.text).join('')
+        : insert.text),
       deletes: request.deletes,
       orderLength: request.order?.length,
     };

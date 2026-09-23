@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   getEditableDocument,
+  insertHeading,
   insertParagraph,
   parse,
   removeBlock,
@@ -39,6 +40,10 @@ export type EquationEdit = {
   to: string;
 };
 
+export type InsertEdit =
+  | { block: "paragraph"; content: InlineContent[] }
+  | { block: "heading"; level: number; text: string };
+
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
@@ -48,7 +53,7 @@ export type SupportedEdits = {
   equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
-  inserts?: InlineContent[][];
+  inserts?: InsertEdit[];
   deletes?: NodePath[];
 };
 
@@ -251,8 +256,19 @@ export function saveEdits(
     }
     deleted.add(path.join(","));
   }
-  if (inserts.some(content => !Array.isArray(content) || inlineText(content).length === 0)) {
-    throw new Error("empty paragraph cannot be saved");
+  for (const insert of inserts) {
+    if (insert.block === "paragraph") {
+      if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
+        throw new Error("empty paragraph cannot be saved");
+      }
+      continue;
+    }
+    if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
+      throw new Error("invalid heading insertion");
+    }
+    if (insert.text.length === 0) {
+      throw new Error("empty heading cannot be saved");
+    }
   }
   if ((inserts.length > 0 || deletes.length > 0) && edits.order === undefined) {
     throw new Error("block insertion or deletion requires a block order");
@@ -290,11 +306,15 @@ export function saveEdits(
     document = removeBlock(document, index);
     locators.splice(index, 1);
   }
-  for (const [insert, content] of inserts.entries()) {
-    // New paragraphs start at the end; the requested order places them.
+  for (const [insert, item] of inserts.entries()) {
+    // New blocks start at the end; the requested order places them.
     const index = locators.length;
-    document = insertParagraph(document, index, inlineText(content));
-    document = updateParagraphInlineContent(document, [index], content);
+    if (item.block === "paragraph") {
+      document = insertParagraph(document, index, inlineText(item.content));
+      document = updateParagraphInlineContent(document, [index], item.content);
+    } else {
+      document = insertHeading(document, index, item.level, item.text);
+    }
     locators.push({ insert });
   }
   if (edits.order !== undefined) {

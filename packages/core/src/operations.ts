@@ -95,6 +95,32 @@ export function insertParagraph(document: Document, index: number, text: string)
   return insertBlock(document, index, paragraph);
 }
 
+/** Insert a persistent top-level heading while keeping its MyST details inside Core. */
+export function insertHeading(document: Document, index: number, level: number, text: string): Document {
+  if (!Number.isInteger(level) || level < 1 || level > 6) {
+    throw new Error(`heading level must be an integer from 1 to 6: ${level}`);
+  }
+  const heading: DocumentNode = {
+    type: "heading",
+    depth: level,
+    children: [{ type: "text", value: text }],
+  };
+  assertInlineBlockRoundTrip(heading);
+  const next = insertBlock(document, index, heading);
+  const markdown = serialize(next);
+  const reparsed = parse(markdown);
+  const reparsedHeading = reparsed.children[index];
+  if (
+    reparsedHeading?.type !== "heading" ||
+    Number(reparsedHeading.depth) !== level ||
+    toText(reparsedHeading) !== text ||
+    serialize(reparsed) !== markdown
+  ) {
+    throw new Error("heading insertion cannot round-trip losslessly through canonical Markdown");
+  }
+  return next;
+}
+
 export function updateNodeTextAtPath(
   document: Document,
   path: NodePath,

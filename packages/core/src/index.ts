@@ -13,6 +13,7 @@ export {
   moveBlock,
   insertBlock,
   insertParagraph,
+  insertHeading,
   removeBlock,
   updateNodeTextAtPath,
   updateEquationLatex,

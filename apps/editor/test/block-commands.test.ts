@@ -60,6 +60,33 @@ test("insert command adds one new paragraph after the target and reuses an empty
   assert.equal(reused.selection.$from.index(0), 1);
 });
 
+test("heading commands insert H1-H3 and place the caret inside the heading", () => {
+  const state = EditorState.create({ schema, doc: docOf("AB") });
+  const commands = INSERT_COMMANDS.filter(command => command.id.startsWith("heading-"));
+  assert.deepEqual(commands.map(command => command.label), ["Heading 1", "Heading 2", "Heading 3"]);
+  assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
+  assert.deepEqual(filterInsertCommands("heading").map(command => command.id), ["heading-1", "heading-2", "heading-3"]);
+  const next = state.apply(commands[1].run(state, 0));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
+  assert.equal(next.doc.child(1).attrs.level, 2);
+  assert.equal(next.selection.$from.parent.type.name, "heading");
+  assert.equal(next.selection.$from.parentOffset, 0);
+});
+
+test("heading slash insertion replaces an otherwise-empty paragraph", () => {
+  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
+  const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/h3"));
+  const slash = slashQueryAt(typed);
+  assert.ok(slash);
+  const command = INSERT_COMMANDS.find(item => item.id === "heading-3")!;
+  const next = typed.apply(command.run(typed, slash.index, slash));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
+  assert.equal(next.doc.child(1).attrs.level, 3);
+  assert.equal(next.doc.child(1).content.size, 0);
+  assert.equal(next.selection.$from.parent.type.name, "heading");
+});
+
 test("slash command removes its query and shares the insert command list", () => {
   let state = EditorState.create({ schema, doc: docOf("AB"), selection: TextSelection.create(docOf("AB"), 3) });
   state = state.apply(state.tr.insertText(" /par"));
@@ -174,7 +201,7 @@ test("inserted and deleted blocks save through Core insertParagraph and removeBl
   assert.deepEqual(withoutPaths(toTiptapDocument(saved.document).content!), withoutPaths(next.content!));
 });
 
-test("new paragraphs split, merge into snapshot paragraphs, and reject empty saves", () => {
+test("new paragraphs and headings split, merge, and reject empty saves", () => {
   const markdown = "AB\n\nCD";
   const editable = loadEditableDocument(markdown);
   const merged = toTiptapDocument(editable);
@@ -197,7 +224,8 @@ test("new paragraphs split, merge into snapshot paragraphs, and reject empty sav
 
   const heading = toTiptapDocument(editable);
   heading.content!.push({ type: "heading", attrs: { sourcePath: "new:4", level: 1 }, content: text("H") });
-  assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading), /only paragraphs can be inserted/);
+  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading));
+  assert.deepEqual(collectSupportedEdits(editable, heading).inserts, [{ block: "heading", level: 1, text: "H" }]);
 });
 
 test("invalid inserts and deletes never invoke the writer", () => {
@@ -207,12 +235,12 @@ test("invalid inserts and deletes never invoke the writer", () => {
   const all = [{ path: [0], part: 0 }, { path: [1], part: 0 }, { path: [2], part: 0 }];
   const requests = [
     { deletes: [[1]] },
-    { inserts: [paragraph] },
+    { inserts: [{ block: "paragraph" as const, content: paragraph }] },
     { deletes: [[7]], order: all },
     { deletes: [[1], [1]], order: [all[0], all[2]] },
     { deletes: [[0]], paragraphs: [{ path: [0], content: paragraph }], order: [all[1], all[2]] },
-    { inserts: [[]], order: [...all, { insert: 0 }] },
-    { inserts: [paragraph], order: all },
+    { inserts: [{ block: "paragraph" as const, content: [] }], order: [...all, { insert: 0 }] },
+    { inserts: [{ block: "paragraph" as const, content: paragraph }], order: all },
     { deletes: [[1]], order: all },
   ];
   let writes = 0;

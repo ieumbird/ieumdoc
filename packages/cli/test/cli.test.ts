@@ -92,6 +92,7 @@ test("ieumdoc help exits successfully", () => {
       "format",
       "replace-text",
       "insert-block",
+      "insert-heading",
       "remove-block",
       "move-block",
       "update-node-text",
@@ -129,6 +130,31 @@ test("command help is available from help and --help", () => {
   const insert = run(["help", "insert-block"]);
   assert.match(insert.stdout, /The current implementation inserts a Paragraph block only/);
   assert.equal(run(["insert-block", "-h"]).stdout, insert.stdout);
+});
+
+test("CLI insert-heading persists a Core heading", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro\n");
+  try {
+    const result = run(["insert-heading", file, "--at", "1", "--level", "2", "--text", "Details"]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading"]);
+    assert.deepEqual(blocks[1], {
+      block: "heading",
+      path: [1],
+      level: 2,
+      text: "Details",
+      editable: true,
+    });
+    assert.equal(saved, serialize(parse(saved)));
+    assert.equal(run(["insert-heading", file, "--at", "0", "--level", "7", "--text", "Invalid"]).status, 1);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("unknown command exits 2", () => {

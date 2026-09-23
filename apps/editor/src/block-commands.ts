@@ -3,7 +3,7 @@ import { Selection, TextSelection, type EditorState, type Transaction } from "@t
 import { NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete. Each command is one engine transaction;
-// Save maps the result to Core insertParagraph/removeBlock. Only blocks whose
+// Save maps the result to Core insertParagraph/insertHeading/removeBlock. Only blocks whose
 // Core create/edit/save path exists are listed.
 
 export type SlashRange = { from: number; to: number };
@@ -33,6 +33,24 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     label: "Paragraph",
     keywords: ["text", "p"],
     run: insertParagraphAfter,
+  },
+  {
+    id: "heading-1",
+    label: "Heading 1",
+    keywords: ["heading", "h1"],
+    run: (state, index, slash) => insertHeadingAfter(state, index, 1, slash),
+  },
+  {
+    id: "heading-2",
+    label: "Heading 2",
+    keywords: ["heading", "h2"],
+    run: (state, index, slash) => insertHeadingAfter(state, index, 2, slash),
+  },
+  {
+    id: "heading-3",
+    label: "Heading 3",
+    keywords: ["heading", "h3"],
+    run: (state, index, slash) => insertHeadingAfter(state, index, 3, slash),
   },
 ];
 
@@ -67,6 +85,39 @@ export function insertParagraphAfter(state: EditorState, index: number, slash?: 
   const at = pos + target.nodeSize;
   const paragraph = state.schema.nodes.paragraph.create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
   tr.insert(at, paragraph);
+  return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** Insert a heading after the target, reusing a transient empty paragraph as its editable block. */
+export function insertHeadingAfter(
+  state: EditorState,
+  index: number,
+  level: number,
+  slash?: SlashRange,
+): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  if (!Number.isInteger(level) || level < 1 || level > 6) throw new Error("invalid heading level");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  let pos = 0;
+  for (let i = 0; i < index; i++) pos += tr.doc.child(i).nodeSize;
+  const target = tr.doc.child(index);
+  if (target.type.name === "paragraph" && target.content.size === 0) {
+    tr.setNodeMarkup(pos, state.schema.nodes.heading, {
+      level,
+      sourcePath: target.attrs.sourcePath,
+    });
+    return tr
+      .setSelection(TextSelection.create(tr.doc, pos + 1))
+      .setMeta(BLOCK_COMMAND_META, true)
+      .scrollIntoView();
+  }
+  const at = pos + target.nodeSize;
+  const heading = state.schema.nodes.heading.create({
+    level,
+    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
+  });
+  tr.insert(at, heading);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
