@@ -603,7 +603,7 @@ Core `updateFigure` / `insertFigure`가 Figure의 image URL, alt text, caption�
 
 - image URL은 필수다. 앞뒤 공백과 줄바꿈은 안 된다(빈 URL은 Figure가 사라지고, 공백은 저장 후 바뀐다).
 - alt text는 비워도 된다(비우면 `:alt:`가 없어진다). 줄바꿈과 앞 공백은 안 된다.
-- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `$x$`, `% ...`, `+++`)은 Core round-trip에서 거부되어 Save가 실패하고 파일은 바뀌지 않는다.
+- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않으며 Save도 계속 비활성이다.
 - legend, 서식 있는 caption 등 v1이 지원하지 않는 구조의 Figure는 읽기 전용이다(`inspect`의 `figureEditable=false`).
 
 CLI:

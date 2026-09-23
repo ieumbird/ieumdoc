@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { EditableDocument } from "@ieumdoc/core";
+import type { EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
@@ -159,6 +159,7 @@ export function App() {
               documentPath={openedPath}
               onEquationDraftChange={setEquationDraftActive}
               onFigureDraftChange={setFigureDraftActive}
+              validateFigure={validateFigure}
               onStructuralReject={() =>
                 setNotice("That change is not editable in this version, so it was discarded.")
               }
@@ -220,6 +221,18 @@ async function requestDocument(
     throw new Error(payload.error ?? `request failed (${response.status})`);
   }
   return { path: payload.path, document: payload.document, revision: payload.revision };
+}
+
+/** Asks the Host to run Core's persistent Figure validation. */
+async function validateFigure(figure: FigureContent): Promise<string | undefined> {
+  const response = await fetch("/api/figure-validation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(figure),
+  });
+  const payload = (await response.json()) as { error?: string | null };
+  if (!response.ok) throw new Error(payload.error ?? `request failed (${response.status})`);
+  return payload.error ?? undefined;
 }
 
 function messageOf(cause: unknown): string {

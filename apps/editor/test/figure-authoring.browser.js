@@ -99,6 +99,29 @@ async page => {
     result.existingReloadedPreview = String(await imageLoaded(figures.first())).startsWith('/document/diagram-v2.svg?path=');
     result.existingReloadedCaption = await figures.first().locator('figcaption').innerText() === 'Updated converter control diagram.';
 
+    // A2. Apply asks Core: a caption MyST would reinterpret keeps the form open and never becomes applied state.
+    const appliedCaption = 'Updated converter control diagram.';
+    await figures.first().getByRole('button', {name:'Edit figure'}).click();
+    await editor.waitFor();
+    await page.getByTestId('figure-caption').fill('cost $5 and $x$');
+    await page.getByTestId('figure-apply').click();
+    const coreError = editor.getByText(/canonical round-trip|not canonical/);
+    await coreError.waitFor();
+    result.invalidApplyKeepsForm = await editor.isVisible() &&
+      await page.getByTestId('figure-caption').inputValue() === 'cost $5 and $x$';
+    result.invalidApplyShowsCoreError = await coreError.isVisible();
+    result.invalidApplyKeepsAppliedValue = await figures.first().locator('figcaption').innerText() === appliedCaption;
+    result.invalidApplyKeepsSaveBlocked = await saveDisabled.count() === 1;
+    await page.getByTestId('figure-caption').fill('Cost is 5 units.');
+    await page.getByTestId('figure-apply').click();
+    await editor.waitFor({state:'detached'});
+    result.validApplyAfterError = await figures.first().locator('figcaption').innerText() === 'Cost is 5 units.';
+    await save();
+    await openScratch();
+    const revalidated = (await semantic())[0];
+    result.validCaptionSavedAndReloaded = revalidated.caption === 'Cost is 5 units.' && revalidated.label === 'fig-control' &&
+      await figures.first().locator('figcaption').innerText() === 'Cost is 5 units.';
+
     // C1. A new Figure canceled before any Apply is removed.
     await insertAfterParagraph('Figure');
     await editor.waitFor();

@@ -23,6 +23,9 @@ import { Button, Notice } from "./ui/primitives.tsx";
 export type DraftListener = (key: string, active: boolean) => void;
 export type EquationDraftListener = DraftListener;
 
+/** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
+export type FigureValidator = (figure: FigureContent) => Promise<string | undefined>;
+
 /** An Equation draft blocks saving only while the editor is open and the draft differs from the applied LaTeX. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
   return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
@@ -223,17 +226,17 @@ function equationNode(onDraftChange?: EquationDraftListener) {
   });
 }
 
-function figureNode(documentPath?: string, onDraftChange?: DraftListener) {
+function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
   return Figure.extend({
     addNodeView() {
-      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange));
+      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure));
     },
   });
 }
 
-function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener) {
+function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
   return function FigureAssetNodeView(props: ReactNodeViewProps) {
-    return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} />;
+    return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} validateFigure={validateFigure} />;
   };
 }
 
@@ -361,6 +364,7 @@ export function editorExtensions(
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
   onFigureDraftChange?: DraftListener,
+  validateFigure?: FigureValidator,
 ): Extensions {
   return [
     StarterKit.configure({
@@ -390,7 +394,7 @@ export function editorExtensions(
     ReadonlyHeading,
     ReadonlyParagraph,
     Admonition,
-    figureNode(documentPath, onFigureDraftChange),
+    figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
     ReadonlyTable,
     UnsupportedBlock,
@@ -403,8 +407,9 @@ export function createEditorExtensions(
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
   onFigureDraftChange?: DraftListener,
+  validateFigure?: FigureValidator,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange), structureGuard(baseline, onReject)];
+  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure), structureGuard(baseline, onReject)];
 }
 
 function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
@@ -549,7 +554,7 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   };
 }
 
-function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view, documentPath, onDraftChange }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener }) {
+function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const applied = figureAttrs(node);
@@ -562,6 +567,8 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [error, setError] = useState("");
+  const [validating, setValidating] = useState(false);
+  const validation = useRef(0);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing, draft, applied, sourcePath);
 
   useEffect(() => {
@@ -589,19 +596,38 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
     requestAnimationFrame(() => imageInput.current?.focus());
   }
   const cancel = () => {
+    validation.current++;
+    setValidating(false);
     if (neverApplied) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(applied);
     setError("");
     setEditing(false);
   };
-  const apply = () => {
-    const message = figureContentError(draft);
+  // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
+  const apply = async () => {
+    const candidate = draft;
+    const local = figureContentError(candidate) ?? (validateFigure ? undefined : "Figure validation is unavailable.");
+    if (local) {
+      setError(local);
+      return;
+    }
+    const request = ++validation.current;
+    setValidating(true);
+    setError("");
+    let message: string | undefined;
+    try {
+      message = await validateFigure!(candidate);
+    } catch (cause) {
+      message = `Figure validation failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+    }
+    // Cancel or a newer Apply supersedes this result.
+    if (request !== validation.current) return;
+    setValidating(false);
     if (message) {
       setError(message);
       return;
     }
-    updateAttributes(draft);
-    setError("");
+    updateAttributes(candidate);
     setEditing(false);
   };
   const field = (key: keyof FigureContent, name: string, testId: string) => (
@@ -610,6 +636,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       <Input
         ref={key === "imageUrl" ? imageInput : undefined}
         data-testid={testId}
+        disabled={validating}
         value={draft[key]}
         onChange={(event) => {
           setDraft({ ...draft, [key]: event.target.value });
@@ -666,7 +693,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
               data-testid="figure-editor"
               onSubmit={(event) => {
                 event.preventDefault();
-                apply();
+                void apply();
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -686,7 +713,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
               {field("caption", "Caption", "figure-caption")}
               {error ? <Notice tone="error">{error}</Notice> : null}
               <div className="equation-actions">
-                <Button type="submit" size="sm" data-testid="figure-apply">Apply</Button>
+                <Button type="submit" size="sm" disabled={validating} data-testid="figure-apply">Apply</Button>
                 <Button type="button" size="sm" variant="subtle" onClick={cancel} data-testid="figure-cancel">Cancel</Button>
               </div>
             </form>

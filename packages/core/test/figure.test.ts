@@ -9,6 +9,7 @@ import {
   parse,
   serialize,
   updateFigure,
+  validateFigure,
   validateStructure,
   type Document,
   type FigureContent,
@@ -139,6 +140,18 @@ test("Figure validity rules reject values that canonical MyST cannot persist", (
     assert.throws(() => insertFigure(parse("Intro"), 1, { ...valid, caption }), /canonical round-trip|not canonical/);
     assert.throws(() => updateFigure(parse(source), FIGURE_PATH, { caption }), /canonical round-trip|not canonical/);
   }
+});
+
+test("validateFigure is the persistent validity used by insertFigure", () => {
+  const valid: FigureContent = { imageUrl: "./a.png", imageAlt: "Alt", caption: "Caption" };
+  assert.equal(validateFigure(valid), undefined);
+  assert.equal(validateFigure({ ...valid, imageAlt: "", caption: "" }), undefined);
+  assert.match(validateFigure({ ...valid, imageUrl: "" }) ?? "", /image URL is required/);
+  // Field rules alone accept this caption; only the canonical round-trip rejects it.
+  const reinterpreted = { ...valid, caption: "cost $5 and $x$" };
+  assert.equal(figureContentError(reinterpreted), undefined);
+  assert.match(validateFigure(reinterpreted) ?? "", /canonical round-trip|not canonical/);
+  assert.throws(() => insertFigure(parse("Intro"), 1, reinterpreted), /canonical round-trip|not canonical/);
 });
 
 test("updateFigure rejects non-Figure and invalid paths", () => {

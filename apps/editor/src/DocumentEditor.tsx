@@ -15,6 +15,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
+  type FigureValidator,
   DECLARED_DELETIONS_META,
   declaredDeletions,
   differsFromBaseline,
@@ -39,6 +40,7 @@ type DocumentEditorProps = {
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
   onFigureDraftChange?: (active: boolean) => void;
+  validateFigure?: FigureValidator;
 };
 
 export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
@@ -49,7 +51,7 @@ export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument):
 }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange },
+  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -80,7 +82,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
     content: projection,
     onTransaction({ transaction }) {
       if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);

@@ -19,6 +19,7 @@ import {
   updateEquationLatex,
   updateFigure,
   updateParagraphInlineContent,
+  validateFigure,
   validateStructure,
   type EditableBlock,
   type EditableDocument,
@@ -390,6 +391,19 @@ export async function handleDocumentRequest(
     serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined);
     return;
   }
+  if (url === "/api/figure-validation") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
+    } catch (error) {
+      sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+    return;
+  }
   if (url !== "/api/document") {
     next();
     return;
@@ -454,6 +468,11 @@ function assertPath(path: NodePath, label: string): void {
   if (!Array.isArray(path) || path.length === 0 || path.some((index) => !Number.isInteger(index) || index < 0)) {
     throw new Error(`${label} path is invalid`);
   }
+}
+
+/** Core's persistent Figure validation for Editor Apply; returns the error message, if any. */
+export function validateFigureRequest(value: FigureContent | undefined): string | undefined {
+  return validateFigure(figureContent(value));
 }
 
 /** A complete typed Figure value; omitted properties are not treated as unchanged. */

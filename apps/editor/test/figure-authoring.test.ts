@@ -16,7 +16,13 @@ import {
   toTiptapDocument,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, documentRevision, loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import {
+  commitDocumentSave,
+  documentRevision,
+  loadEditableDocument,
+  saveEdits,
+  validateFigureRequest,
+} from "../server/document-api.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const source = readFileSync(
@@ -209,7 +215,21 @@ test("an open Figure draft blocks saving until applied or canceled", () => {
   // Cancel removes only a never-applied transient Figure; Apply writes the validated draft.
   assert.match(schemaSource, /const neverApplied = isNewBlockPath\(sourcePath\) && applied\.imageUrl\.length === 0;/);
   assert.match(schemaSource, /if \(neverApplied\) removeUnappliedBlock\(view, getPos, node, deleteNode\);/);
-  assert.match(schemaSource, /const message = figureContentError\(draft\);[\s\S]*updateAttributes\(draft\);/);
+  // Apply commits only after Core's persistent validation through the Host accepts the value.
+  assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}\s*updateAttributes\(candidate\);/);
+  assert.match(app, /fetch\("\/api\/figure-validation"/);
+  assert.match(app, /validateFigure=\{validateFigure\}/);
+});
+
+test("the Host Figure validation endpoint returns Core's persistent validation", () => {
+  assert.equal(validateFigureRequest(CHANGED), undefined);
+  assert.match(validateFigureRequest({ ...CHANGED, caption: "cost $5 and $x$" }) ?? "", /canonical round-trip|not canonical/);
+  assert.match(validateFigureRequest({ ...CHANGED, imageUrl: "" }) ?? "", /image URL is required/);
+  assert.throws(() => validateFigureRequest({ imageUrl: "./a.svg" } as never), /must be strings/);
+  // The same value is rejected by the Save path, so Apply and Save agree.
+  assert.throws(() => saveEdits(source, {
+    figures: [{ path: [6], from: ORIGINAL, to: { ...CHANGED, caption: "cost $5 and $x$" } }],
+  }), /canonical round-trip|not canonical/);
 });
 
 test("Figure Apply participates in the structure guard and undo/redo", () => {

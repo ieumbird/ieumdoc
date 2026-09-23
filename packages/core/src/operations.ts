@@ -176,6 +176,19 @@ export function updateFigure(document: Document, path: NodePath, changes: Partia
   return next;
 }
 
+/**
+ * Authoritative persistent validity of Figure v1 properties: the same field rules and
+ * canonical round-trip that insertFigure and updateFigure enforce. Returns the error message.
+ */
+export function validateFigure(figure: FigureContent): string | undefined {
+  try {
+    insertFigure({ type: "root", children: [] }, 0, figure);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
   if (error) throw new Error(error);

@@ -22,6 +22,7 @@ export {
   updateNodeTextAtPath,
   updateEquationLatex,
   updateFigure,
+  validateFigure,
   updateParagraphInlineContent,
 } from "./operations.ts";
 export { validateStructure } from "./validation.ts";
