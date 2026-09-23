@@ -64,12 +64,13 @@ for(const offset of [0,4,5,-1,1.5,NaN,Infinity]) {
 }
 test('paragraph operations fail closed for paths, types and unsupported inline',()=>{
   for(const operation of [insertHardBreak,splitParagraph]) {
-    for(const source of ['# Heading','[link](https://example.com)','See {ref}`target`.']) assert.throws(()=>operation(parse(source),[0],2));
+    // Plain links are supported inline content (see link.test.ts); these forms are not.
+    for(const source of ['# Heading','See {ref}`target`.','[](#target) and text','[a `code` link](u)','{download}`./file.zip` text']) assert.throws(()=>operation(parse(source),[0],2));
     for(const path of [[],[99],[-1],[0.5]]) assert.throws(()=>operation(parse('ABCD'),path,2));
   }
   assert.throws(()=>splitParagraph(parse('> ABCD'),[0,0],2),/top-level/);
   assert.throws(()=>mergeParagraphWithPrevious(parse('> ABCD'),[0,0]),/top-level/);
-  for(const source of ['ABCD','# Heading\n\nABCD','$$\nx=1\n$$\n\nABCD','[link](url)\n\nABCD','ABCD\n\n[link](url)','ABCD\n\n# Heading']) {
+  for(const source of ['ABCD','# Heading\n\nABCD','$$\nx=1\n$$\n\nABCD','[](#target)\n\nABCD','ABCD\n\n[a `code` link](u)','ABCD\n\n# Heading']) {
     assert.throws(()=>mergeParagraphWithPrevious(parse(source),[source==='ABCD'?0:1]));
   }
 });

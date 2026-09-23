@@ -1,4 +1,4 @@
-import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
+import { inlineContentText, inlineMarkKey, projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -9,7 +9,7 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
   if (node.type !== "paragraph" && node.type !== "heading") return;
   const content = projectInlineContent(node);
   // This check covers the supported inline contract only. It does not rebuild
-  // or reinterpret links, references or other unsupported inline semantics.
+  // or reinterpret references or other unsupported inline semantics.
   if (!content) return;
   if (inlineContentText(content).length === 0) {
     throw new Error(`empty ${node.type} cannot be saved`);
@@ -27,12 +27,12 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
   }
 }
 
-// Compare rendered text and mark coverage, not text-node fragmentation or the
-// nesting order of equivalent strong/emphasis marks produced by adapters.
+// Compare rendered text and mark coverage (including each link's target), not
+// text-node fragmentation or the nesting order of marks produced by adapters.
 function markedText(content: InlineContent[], marks: string[] = []): [string, string][] {
   return content.flatMap((item): [string, string][] => {
     if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
     if (item.kind === "break") return [["\n", [...marks, "break"].join(",")]];
-    return markedText(item.children, [...new Set([...marks, item.kind])].sort());
+    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
 }

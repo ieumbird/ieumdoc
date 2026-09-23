@@ -1,4 +1,4 @@
-import { projectInlineContent, type InlineContent } from "../inline.ts";
+import { inlineMarkKey, projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -28,8 +28,9 @@ export function assertPersistentParagraph(node: MystNode): void {
 
 function semanticUnits(content: InlineContent[], marks: string[] = []): { kind: string; text: string; marks: string[] }[] {
   return content.flatMap((item) => {
-    if (item.kind === "strong" || item.kind === "emphasis") {
-      return semanticUnits(item.children, [...new Set([...marks, item.kind])].sort());
+    const mark = inlineMarkKey(item);
+    if (mark !== undefined && "children" in item) {
+      return semanticUnits(item.children, [...new Set([...marks, mark])].sort());
     }
     // split("") deliberately counts UTF-16 units, not Unicode code points.
     return (item.kind === "text" ? item.text.split("") : ["\n"])
