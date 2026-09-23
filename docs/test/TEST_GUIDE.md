@@ -15,13 +15,13 @@ plain-text file
 
 ## 준비
 
-- Node.js 24 이상
-- pnpm 10 이상
+- Node.js 24 LTS (`24.21.0` 이상, 24.x)
+- 루트 `package.json`의 `packageManager`에 고정된 pnpm `12.5.1`
 
 저장소 루트에서:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 문서 fixture:
@@ -466,15 +466,15 @@ index는 `check`가 출력하는 top-level 번호다.
 - Save 응답을 지연한 상태에서 추가 입력한다. 응답 뒤 입력이 남고 `Saved; newer edits pending`이 표시되어야 한다. 다음 Save는 갱신된 revision을 사용하며 추가 입력을 포함한다.
 - 409 충돌에서는 현재 입력과 Editor가 유지되어야 한다.
 
-선택적 브라우저 회귀 스크립트(별도로 설치된 `playwright-cli` 사용):
+선택적 브라우저 회귀 스크립트(루트 개발 의존성에 고정된 `@playwright/cli` 사용):
 
 ```powershell
 # 첫 터미널
 pnpm --filter @ieumdoc/editor dev
 # 다른 터미널
-playwright-cli -s=ieumdoc-save-review open http://127.0.0.1:5173
-playwright-cli -s=ieumdoc-save-review run-code --filename=apps/editor/test/save-during-edit.browser.js
-playwright-cli -s=ieumdoc-save-review close
+pnpm exec playwright-cli -s=ieumdoc-save-review open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-save-review run-code --filename=apps/editor/test/save-during-edit.browser.js
+pnpm exec playwright-cli -s=ieumdoc-save-review close
 ```
 
 스크립트는 GET으로 현재 technical-document fixture를 읽고 모든 POST를 mock한다. 원본 파일은 쓰지 않는다.
@@ -582,13 +582,13 @@ Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popove
 선택적 브라우저 회귀 스크립트(POST는 모두 mock):
 
 ```powershell
-playwright-cli -s=ieumdoc-shell open http://127.0.0.1:5173
-playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/editor-shell.browser.js
-playwright-cli -s=ieumdoc-equation open http://127.0.0.1:5173
-playwright-cli -s=ieumdoc-equation run-code --filename=apps/editor/test/equation-insertion.browser.js
-playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/open-files.browser.js
-playwright-cli -s=ieumdoc-shell close
-playwright-cli -s=ieumdoc-equation close
+pnpm exec playwright-cli -s=ieumdoc-shell open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/editor-shell.browser.js
+pnpm exec playwright-cli -s=ieumdoc-equation open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-equation run-code --filename=apps/editor/test/equation-insertion.browser.js
+pnpm exec playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/open-files.browser.js
+pnpm exec playwright-cli -s=ieumdoc-shell close
+pnpm exec playwright-cli -s=ieumdoc-equation close
 ```
 
 `editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `saveTooltipShown`은 Equation draft로 Save가 막혔을 때 hover하면 tooltip이 뜨는지 확인한다.

@@ -2,6 +2,9 @@
   "name": "ieumdoc",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  },
   "scripts": {
     "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test",
     "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck",
@@ -9,7 +12,8 @@
     "editor": "pnpm --filter @ieumdoc/editor dev"
   },
   "devDependencies": {
+    "@playwright/cli": "0.1.21",
     "tsx": "^4.23.15"
   },
-  "packageManager": "pnpm@10.34.1"
+  "packageManager": "pnpm@12.5.1"
 }

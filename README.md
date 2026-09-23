@@ -70,8 +70,11 @@ Architecture decisions:
 
 Headless document core is `packages/core`. File commands are `packages/cli`.
 
+Development requires Node.js 24 LTS (24.21.0 or newer within 24.x) and the
+pnpm version pinned in the root `package.json` (`12.5.1`).
+
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm test
 pnpm ieumdoc help
 pnpm ieumdoc check packages/core/test/fixtures/document.md

@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/open-files.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/open-files.browser.js.
 // Mocks two selected Markdown files while exercising the real Editor state flow.
 async page => {
   await page.unroute('**/api/document');

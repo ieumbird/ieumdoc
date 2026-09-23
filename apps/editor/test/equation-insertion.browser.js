@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/equation-insertion.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/equation-insertion.browser.js.
 // Exercises new Equation insertion, draft guard, Cancel, Apply, Save, and reload.
 async page => {
   await page.unrouteAll();
