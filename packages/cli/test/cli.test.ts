@@ -94,10 +94,12 @@ test("ieumdoc help exits successfully", () => {
       "insert-block",
       "insert-heading",
       "insert-equation",
+      "insert-figure",
       "remove-block",
       "move-block",
       "update-node-text",
       "update-equation-latex",
+      "update-figure",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -177,6 +179,85 @@ test("CLI insert-equation persists a Core equation", () => {
     assert.equal(saved, serialize(parse(saved)));
     assert.equal(run(["insert-equation", file, "--at", "0", "--latex", ""]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI insert-figure persists a Core Figure", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-figure-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro\n");
+  try {
+    const result = run(["insert-figure", file, "--at", "1", "--image", "./plot.svg", "--alt", "Plot", "--caption", "Measured plot."]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
+    const figure = getEditableDocument(parse(saved)).blocks[1];
+    assert.equal(figure?.block, "figure");
+    if (figure?.block !== "figure") return;
+    assert.deepEqual(
+      [figure.editable, figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
+      [true, "", "./plot.svg", "Plot", "Measured plot."],
+    );
+    assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
+    const minimal = readFileSync(file, "utf8");
+    assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
+    for (const args of [
+      ["insert-figure", file, "--at", "0", "--image", ""],
+      ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
+      ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "cost $5 and $x$"],
+      ["insert-figure", file, "--at", "9", "--image", "./a.svg"],
+      ["insert-figure", file, "--at", "0", "--alt", "missing image"],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), minimal, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI update-figure changes Figure properties through Core and preserves the label", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-figure-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const figurePath = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks
+      .find((block) => block.block === "figure")!.path.join(",");
+    const result = run(["update-figure", file, "--path", figurePath, "--image", "./diagram-v2.svg", "--alt", "New alt", "--caption", "New caption."]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(serialize(parse(saved)), saved);
+    const figure = getEditableDocument(parse(saved)).blocks.find((block) => block.block === "figure");
+    assert.equal(figure?.block, "figure");
+    if (figure?.block !== "figure") return;
+    assert.deepEqual(
+      [figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
+      ["fig-control", "./diagram-v2.svg", "New alt", "New caption."],
+    );
+    assert.equal(saved.includes("See [](#fig-control)"), true);
+
+    assert.equal(run(["update-figure", file, "--path", figurePath, "--caption", "Only caption."]).status, 0);
+    const partial = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks.find((block) => block.block === "figure");
+    assert.equal(partial?.block === "figure" && partial.imageUrl, "./diagram-v2.svg");
+    assert.equal(partial?.block === "figure" && partial.caption.text, "Only caption.");
+
+    const before = readFileSync(file);
+    for (const args of [
+      ["update-figure", file, "--path", "0", "--caption", "not a figure"],
+      ["update-figure", file, "--path", "99", "--caption", "out of range"],
+      ["update-figure", file, "--path", figurePath],
+      ["update-figure", file, "--path", figurePath, "--image", ""],
+      ["update-figure", file, "--path", figurePath, "--alt", "line\nbreak"],
+      ["update-figure", file, "--path", figurePath, "--caption", "% comment"],
+      ["update-figure", file, "--path", figurePath, "--label", "fig-other"],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.deepEqual(readFileSync(file), before, args.join(" "));
+    }
+    assert.match(run(["help", "update-figure"]).stdout, /label is preserved/);
+    assert.match(run(["inspect", file]).stdout, / figure figureEditable=true label="fig-control" image="\.\/diagram-v2\.svg" alt="New alt"/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

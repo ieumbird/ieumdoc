@@ -19,6 +19,14 @@ import {
   type InlineContent,
 } from "./inline.ts";
 
+import { figureContentError, type FigureContent } from "./figure.ts";
+import {
+  assertFigureRoundTrip,
+  createFigureNode,
+  isFigure,
+  setFigureContent,
+  supportedFigureContent,
+} from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize } from "./myst/serialize.ts";
@@ -133,6 +141,44 @@ export function insertEquation(document: Document, index: number, latex: string)
   const next = insertBlock(document, index, equation);
   assertEquationRoundTrip(next, [index], undefined, undefined, latex);
   return next;
+}
+
+/** Insert a persistent top-level Figure without a label. */
+export function insertFigure(document: Document, index: number, figure: FigureContent): Document {
+  assertFigureContent(figure);
+  const next = insertBlock(document, index, createFigureNode(figure));
+  assertFigureRoundTrip(next, index, figure, undefined, undefined);
+  return next;
+}
+
+/** Update a Figure's image URL, alt text or plain-text caption; its label is preserved. */
+export function updateFigure(document: Document, path: NodePath, changes: Partial<FigureContent>): Document {
+  const current = getNode(document, path);
+  if (!isFigure(current)) {
+    throw new Error(`updateFigure requires a figure at [${path.join(",")}]`);
+  }
+  if (path.length !== 1) {
+    throw new Error("updateFigure requires a top-level figure path [index]");
+  }
+  const content = supportedFigureContent(current);
+  if (!content) {
+    throw new Error(`figure structure at [${path.join(",")}] is not editable in this version`);
+  }
+  const figure: FigureContent = {
+    imageUrl: changes.imageUrl ?? content.imageUrl,
+    imageAlt: changes.imageAlt ?? content.imageAlt,
+    caption: changes.caption ?? content.caption,
+  };
+  assertFigureContent(figure);
+  const next = cloneDocument(document);
+  setFigureContent(getNode(next, path), figure);
+  assertFigureRoundTrip(next, path[0], figure, current.label, current.identifier);
+  return next;
+}
+
+function assertFigureContent(figure: FigureContent): void {
+  const error = figureContentError(figure);
+  if (error) throw new Error(error);
 }
 
 export function updateNodeTextAtPath(

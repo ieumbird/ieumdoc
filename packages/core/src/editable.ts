@@ -1,5 +1,6 @@
 import { toText } from "myst-common";
 import type { Document, DocumentNode, NodePath } from "./document.ts";
+import { supportedFigureContent } from "./myst/figure.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 
 export type EditableCaption = {
@@ -48,6 +49,8 @@ export type EditableBlock =
       imageUrl: string;
       imageAlt: string;
       caption: EditableCaption;
+      /** True when Figure v1 authoring can replace image, alt text and caption without flattening content. */
+      editable: boolean;
     }
   | {
       block: "table";
@@ -141,6 +144,7 @@ function figureBlock(node: DocumentNode, path: NodePath): EditableBlock {
       text: caption ? toText(caption) : "",
       editable: caption ? isTextOnly(caption) : false,
     },
+    editable: supportedFigureContent(node) !== undefined,
   };
 }
 

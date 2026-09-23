@@ -5,6 +5,7 @@ import {
   insertParagraph,
   insertHeading,
   insertEquation,
+  insertFigure,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -15,6 +16,7 @@ import {
   serialize,
   updateNodeTextAtPath,
   updateEquationLatex,
+  updateFigure,
   validateStructure,
   type Document,
   type EditableBlock,
@@ -51,6 +53,10 @@ const OFFSET_NOTE = [
   "A hard break counts as one character position.",
   "Offset must be strictly inside the paragraph (0 < offset < length).",
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
+];
+const FIGURE_NOTE = [
+  "The image URL is required. An empty --alt or --caption removes that property.",
+  "The caption is plain text. Values that cannot round-trip through canonical Markdown are rejected.",
 ];
 const COMMANDS: CommandSpec[] = [
   {
@@ -129,6 +135,27 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Insert an Equation block at a top-level index.",
       "The Equation LaTeX source must be non-empty.",
+    ],
+  },
+  {
+    name: "insert-figure",
+    summary: "Insert a Figure block at a top-level index",
+    usage: "ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]",
+    details: [
+      "Insert a Figure block at a top-level index.",
+      ...FIGURE_NOTE,
+      "The new Figure has no label.",
+    ],
+  },
+  {
+    name: "update-figure",
+    summary: "Update a Figure's image, alt text, or caption through Core",
+    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]",
+    details: [
+      "Update one top-level Figure through Core. Omitted properties are unchanged.",
+      ...FIGURE_NOTE,
+      "The Figure label is preserved and cannot be changed.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -266,6 +293,26 @@ function main(argv: string[]): number {
       ));
       return 0;
     }
+    case "insert-figure": {
+      save(file, insertFigure(parse(readFile(file)), intFlag(flags, "--at"), {
+        imageUrl: flag(flags, "--image"),
+        imageAlt: optionalFlag(flags, "--alt") ?? "",
+        caption: optionalFlag(flags, "--caption") ?? "",
+      }));
+      return 0;
+    }
+    case "update-figure": {
+      const changes = {
+        imageUrl: optionalFlag(flags, "--image"),
+        imageAlt: optionalFlag(flags, "--alt"),
+        caption: optionalFlag(flags, "--caption"),
+      };
+      if (Object.values(changes).every((value) => value === undefined)) {
+        throw new Error("update-figure requires --image, --alt, or --caption");
+      }
+      save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
+      return 0;
+    }
     case "remove-block": {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -348,6 +395,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-block": ["--at", "--text"],
   "insert-heading": ["--at", "--level", "--text"],
   "insert-equation": ["--at", "--latex"],
+  "insert-figure": ["--at", "--image", "--alt", "--caption"],
+  "update-figure": ["--path", "--image", "--alt", "--caption"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
@@ -438,6 +487,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
     return [
       {
         ...base,
+        editable: block.editable,
         label: block.label,
         imageUrl: block.imageUrl,
         imageAlt: block.imageAlt,
@@ -488,7 +538,7 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "figure") {
     const captionPath = formatPath(block.caption.path);
     return [
-      `${path} figure label=${quote(block.label)}`,
+      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)}`,
       `  ${captionPath} caption textEditable=${block.caption.editable} text=${quote(block.caption.text)}`,
     ];
   }
@@ -540,6 +590,10 @@ function flag(args: string[], name: string): string {
     throw new Error(`missing ${name}`);
   }
   return value;
+}
+
+function optionalFlag(args: string[], name: string): string | undefined {
+  return args.includes(name) ? flag(args, name) : undefined;
 }
 
 function intFlag(args: string[], name: string): number {
