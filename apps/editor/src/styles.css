@@ -470,6 +470,14 @@ h2.heading {
   font-weight: var(--font-weight-semibold);
 }
 
+.table [data-table-cell] {
+  cursor: text;
+}
+
+.table [data-readonly-cell] {
+  color: var(--color-text-readonly);
+}
+
 .cell {
   display: inline-block;
   min-width: 2rem;

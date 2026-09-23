@@ -102,7 +102,7 @@ test("technical document projects to one typed Tiptap document", () => {
       "equation",
       "readonlyParagraph",
       "heading",
-      "readonlyTable",
+      "table",
     ],
   );
   const figure = projection.content?.find((block) => block.type === "figure");
@@ -115,10 +115,11 @@ test("technical document projects to one typed Tiptap document", () => {
   assert.equal(String(equation?.attrs?.latex ?? "").includes("P^{"), true);
   const admonition = projection.content?.find((block) => block.type === "admonition");
   assert.equal(admonition?.attrs?.variant, "warning");
-  const table = projection.content?.find((block) => block.type === "readonlyTable");
-  const rows = JSON.parse(String(table?.attrs?.rows ?? "[]")) as { text: string }[][];
+  const table = projection.content?.find((block) => block.type === "table");
+  const rows = table?.content ?? [];
   assert.equal(rows.length, 3);
-  assert.equal(rows[1]?.[1]?.text, "AC");
+  assert.deepEqual(rows[0]?.content?.map((cell) => [cell.type, cell.attrs?.header]), [["tableCell", true], ["tableCell", true]]);
+  assert.deepEqual(rows[1]?.content?.[1], { type: "tableCell", attrs: { header: false }, content: [{ type: "text", text: "AC" }] });
 });
 
 test("projected technical document round-trips through the Tiptap schema without semantic edits", () => {

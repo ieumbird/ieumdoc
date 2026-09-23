@@ -8,7 +8,7 @@
     "./figure": "./src/figure.ts"
   },
   "scripts": {
-    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts test/inline.test.ts test/paragraph.test.ts test/myst-regression.test.ts test/figure.test.ts test/reference.test.ts test/serialize-guard.test.ts test/public-api.test.ts",
+    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts test/inline.test.ts test/paragraph.test.ts test/myst-regression.test.ts test/figure.test.ts test/reference.test.ts test/serialize-guard.test.ts test/public-api.test.ts test/table.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

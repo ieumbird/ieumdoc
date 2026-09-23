@@ -17,6 +17,7 @@ import {
   updateNodeTextAtPath,
   updateEquationLatex,
   updateFigure,
+  updateTableCell,
   validateStructure,
   type Document,
   type EditableBlock,
@@ -171,6 +172,16 @@ const COMMANDS: CommandSpec[] = [
     details: ["Move a top-level block."],
   },
   {
+    name: "update-table-cell",
+    summary: "Replace the text of a Markdown table cell through Core",
+    usage: "ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>",
+    details: [
+      "Replace the whole text of one cell in a top-level Markdown table. Use an empty --text to clear it.",
+      "Only empty or plain-text cells are editable; the text must be one line without leading or trailing whitespace.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
     name: "update-node-text",
     summary: "Update text at a NodePath through Core",
     usage: "ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>",
@@ -313,6 +324,10 @@ function main(argv: string[]): number {
       save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
       return 0;
     }
+    case "update-table-cell": {
+      save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), flag(flags, "--text")));
+      return 0;
+    }
     case "remove-block": {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -397,6 +412,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-equation": ["--at", "--latex"],
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],
+  "update-table-cell": ["--path", "--text"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
