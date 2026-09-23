@@ -29,7 +29,11 @@ async page => {
     }
     if (request.method() !== 'POST') return route.continue();
 
-    const text = body.inserts?.[0]?.map(item => item.text ?? '').join('') ?? '';
+    if (!body.inserts?.length) {
+      stored = clone(empty);
+      return route.fulfill({json:stored});
+    }
+    const text = body.inserts[0].map(item => item.text ?? '').join('');
     if (!text) throw new Error('New document text was not sent through inserts');
     stored = {
       path:newPath,
@@ -70,7 +74,7 @@ async page => {
 
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
-    const saveRequest = requests.find(request => request.method === 'POST');
+    const saveRequest = requests.find(request => request.method === 'POST' && request.body.inserts?.length);
     if (!saveRequest?.body.inserts?.length) throw new Error('Save did not use Core insert edits');
 
     await page.reload();
