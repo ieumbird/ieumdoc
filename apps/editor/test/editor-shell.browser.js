@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/editor-shell.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/editor-shell.browser.js.
 // Exercises the shell and block interactions. Every POST is mocked; no file is written.
 async page => {
   await page.unroute('**/api/document');

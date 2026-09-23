@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/save-during-edit.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/save-during-edit.browser.js.
 // Uses the technical-document fixture and mocks every POST; never writes the document.
 async page => {
   await page.unroute('**/api/document');

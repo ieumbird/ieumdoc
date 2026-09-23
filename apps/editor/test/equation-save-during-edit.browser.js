@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/equation-save-during-edit.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/equation-save-during-edit.browser.js.
 // Mocks delayed saves and subsequent reloads without writing the document.
 async page => {
   await page.unroute('**/api/document');

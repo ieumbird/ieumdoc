@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/new-document.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/new-document.browser.js.
 // Exercises New -> empty Save -> type -> Save -> Reload with the real Editor projection and save flow.
 // Host responses are mocked so this scenario does not leave a test file in the repository.
 async page => {
@@ -70,6 +70,8 @@ async page => {
     await page.getByText('Saved', {exact:true}).waitFor();
     if (await editor.count() !== 1) throw new Error('Empty save removed the editor paragraph');
 
+    // Save remounts the clean editor; focus its new instance before typing.
+    await editor.click();
     await page.keyboard.type('Browser-created paragraph');
     if (!(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
       throw new Error('Empty document was not editable');

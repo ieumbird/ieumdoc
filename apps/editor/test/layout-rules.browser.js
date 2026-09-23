@@ -1,4 +1,4 @@
-// Run with playwright-cli run-code --filename=apps/editor/test/layout-rules.browser.js.
+// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/layout-rules.browser.js.
 // Measures the layout contract at the required viewport widths without changing document content.
 async page => {
   await page.unrouteAll();
