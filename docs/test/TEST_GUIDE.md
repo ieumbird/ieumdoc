@@ -247,7 +247,7 @@ pnpm ieumdoc check tmp/technical-document.md
 - figure caption이 `grid-tied converter` 로 바뀌었다.
 - `:name: fig-control` 또는 `fig-control` 과 `./diagram.svg` 가 남아 있다.
 - `{math}` 의 `:label: eq-current` 가 남아 있다.
-- `#fig-control` 과 `#eq-current` 참조가 남아 있다.
+- `[](#fig-control)` link와 `{eq}`eq-current`` reference가 그대로 남아 있다.
 - 표의 `AC` 가 `AC-side` 로 바뀌었고 `| Port |` 행은 그대로다.
 
 `format`을 한 번 더 실행해도 파일 내용이 같아야 한다.
@@ -355,6 +355,20 @@ Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는
 
 Figure, table, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다.
 
+Save 후 파일의 `See [](#fig-control) and {eq}`eq-current`.` 줄은 그대로여야 한다. `{eq}` reference가 `[](#eq-current)` link로 바뀌면 실패다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+
+```bash
+rm -rf tmp/reference-save-reload && mkdir -p tmp/reference-save-reload
+cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/reference-save-reload/
+pnpm exec playwright-cli -s=ieumdoc-reference open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-reference run-code --filename=apps/editor/test/reference-save-reload.browser.js
+pnpm exec playwright-cli -s=ieumdoc-reference close
+```
+
+결과의 값은 모두 `true`여야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+
 ### G. 구조 변경 거부
 
 편집 가능한 paragraph 중간에서 Enter를 누른다. 같은 Editor 안에서 두 paragraph로 나뉘어야 한다.
@@ -439,7 +453,7 @@ index는 `check`가 출력하는 top-level 번호다.
 
 - `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
-- `{eq}`eq-current`` 는 serialize 후 `[](#eq-current)` 가 된다. 대상 label은 남는다.
+- `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
