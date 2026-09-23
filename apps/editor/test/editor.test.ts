@@ -14,13 +14,13 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import {
   getEditableDocument,
-  getNode,
+  inspectDocument,
   insertParagraph,
   moveBlock,
   parse,
+  removeBlock,
   serialize,
   type Document,
-  type DocumentNode,
   type InlineContent,
 } from "@ieumdoc/core";
 import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
@@ -634,7 +634,7 @@ test("new Markdown files use Core's canonical empty document and can be edited a
     assert.equal(created.path, path.resolve(file));
     assert.equal(readFileSync(file, "utf8"), "\n");
     assert.deepEqual(created.document.blocks, []);
-    assert.deepEqual(parse(readFileSync(file, "utf8")).children, []);
+    assert.deepEqual(inspectDocument(parse(readFileSync(file, "utf8"))), []);
 
     const saved = saveDocumentFile(file, {
       revision: created.revision,
@@ -918,10 +918,11 @@ test("heading text edits keep the heading level", () => {
   if (heading?.block !== "heading") return;
   const saved = saveEdits(source, { headings: [{ path: heading.path, from: heading.text, to: HEADING_TO }] });
   const reparsed = parse(saved.markdown);
-  const updated = getNode(reparsed, heading.path);
-  assert.equal(updated.type, "heading");
-  assert.equal(updated.depth, heading.level);
-  assert.equal(textOf(updated), HEADING_TO);
+  const updated = getEditableDocument(reparsed).blocks[heading.path[0]];
+  assert.equal(updated?.block, "heading");
+  if (updated?.block !== "heading") return;
+  assert.equal(updated.level, heading.level);
+  assert.equal(updated.text, HEADING_TO);
   assert.equal(getEditableDocument(reparsed).blocks[0]?.block, "heading");
 });
 
@@ -998,7 +999,7 @@ test("read-only targets and rich headings are rejected by save", () => {
   const saved = saveEdits(richSource, {
     paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed body." }] }],
   });
-  assert.equal(getNode(parse(saved.markdown), [0]).children?.some((child) => child.type === "strong"), true);
+  assert.match(saved.markdown, /^# Plain \*\*bold\*\* title$/m);
 });
 
 test("supported edits preserve untouched semantics", () => {
@@ -1022,34 +1023,51 @@ test("supported edits preserve untouched semantics", () => {
       { path: plain.path, content: [{ kind: "text", text: PARAGRAPH_TO }] },
     ],
   });
-  const canonical = parse(serialize(before));
-  const after = parse(saved.markdown);
+  // The persisted Markdown is the canonical form with exactly the three edited lines
+  // changed: every untouched block, including the {eq} reference and the ordinary
+  // `[](#...)` links (issue #12), is written byte-for-byte as before.
+  const canonicalMarkdown = serialize(before);
+  const expected = canonicalMarkdown
+    .replace(`# ${HEADING_FROM}\n`, `# ${HEADING_TO}\n`)
+    .replace("The converter regulates the", "The converter controls the")
+    .replace(PARAGRAPH_FROM, PARAGRAPH_TO);
+  assert.notEqual(expected, canonicalMarkdown);
+  assert.equal(saved.markdown, expected);
+  assert.match(saved.markdown, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
+  assert.match(saved.markdown, /^The rated current follows from \[\]\(#eq-current\)\.$/m);
 
-  assert.deepEqual(topLevelTypes(after), topLevelTypes(canonical));
+  const canonical = parse(canonicalMarkdown);
+  const after = parse(saved.markdown);
+  assert.deepEqual(inspectDocument(after), inspectDocument(canonical));
+  const afterBlocks = getEditableDocument(after).blocks;
+  const canonicalBlocks = getEditableDocument(canonical).blocks;
   for (const index of PRESERVED_INDEXES) {
-    assert.deepEqual(strip(after.children?.[index]), strip(canonical.children?.[index]), `block ${index}`);
+    assert.deepEqual(afterBlocks[index], canonicalBlocks[index], `block ${index}`);
   }
 
-  const updatedHeading = getNode(after, heading.path);
-  assert.equal(updatedHeading.type, "heading");
-  assert.equal(updatedHeading.depth, getNode(canonical, heading.path).depth);
-  assert.equal(textOf(updatedHeading), HEADING_TO);
+  const updatedHeading = afterBlocks[heading.path[0]];
+  const canonicalHeading = canonicalBlocks[heading.path[0]];
+  assert.equal(updatedHeading.block, "heading");
+  assert.equal(canonicalHeading.block, "heading");
+  if (updatedHeading.block === "heading" && canonicalHeading.block === "heading") {
+    assert.equal(updatedHeading.level, canonicalHeading.level);
+    assert.equal(updatedHeading.text, HEADING_TO);
+  }
 
-  const updatedRich = getEditableDocument(after).blocks.find(
-    (block) => block.block === "paragraph" && block.path[0] === rich.path[0],
-  );
+  const updatedRich = afterBlocks[rich.path[0]];
   assert.equal(updatedRich?.block, "paragraph");
   if (updatedRich?.block === "paragraph") {
     assert.deepEqual(updatedRich.content, richContent);
   }
 
-  assert.deepEqual(figureSemantic(after), figureSemantic(canonical));
-  assert.deepEqual(equationSemantic(after), equationSemantic(canonical));
-  assert.deepEqual(tableSemantic(after), tableSemantic(canonical));
-  assert.deepEqual(admonitionSemantic(after), admonitionSemantic(canonical));
-  assert.deepEqual(referenceSemantic(after), referenceSemantic(canonical));
-  // Save → Reload keeps {eq} a crossReference and `[](#...)` a link (issue #12).
-  assert.deepEqual(referenceSemantic(after), referenceSemantic(before));
+  // Figure, equation, table and admonition keep their Core semantic projections.
+  for (const block of ["figure", "equation", "table", "admonition"]) {
+    assert.deepEqual(
+      afterBlocks.filter((item) => item.block === block),
+      canonicalBlocks.filter((item) => item.block === block),
+      block,
+    );
+  }
 });
 
 test("Core source does not import Tiptap or ProseMirror", () => {
@@ -1089,7 +1107,7 @@ test("Editor source does not import MyST packages or AST", () => {
 test("saved document can be parsed again", () => {
   const saved = saveSample();
   const reparsed = parse(saved.markdown);
-  assert.equal(reparsed.type, "root");
+  assert.ok(inspectDocument(reparsed).length > 0);
   const editable = getEditableDocument(reparsed);
   assert.equal(
     editable.blocks.some((block) => block.block === "paragraph" && block.text === PARAGRAPH_TO),
@@ -1198,97 +1216,6 @@ function clone(value: TiptapJSON): TiptapJSON {
   return structuredClone(value);
 }
 
-function topLevelTypes(document: Document): string[] {
-  return (document.children ?? []).map((node) => node.type);
-}
-
-function figureSemantic(document: Document) {
-  const figure = getNode(document, [6]);
-  const image = getNode(document, [6, 0]);
-  const caption = getNode(document, [6, 1]);
-  return {
-    type: figure.type,
-    kind: figure.kind ?? null,
-    label: figure.label ?? null,
-    identifier: figure.identifier ?? null,
-    image: { type: image.type, url: image.url ?? null, alt: image.alt ?? null },
-    caption: { type: caption.type, text: textOf(caption) },
-  };
-}
-
-function equationSemantic(document: Document) {
-  const math = getNode(document, [9]);
-  return {
-    type: math.type,
-    value: math.value ?? null,
-    label: math.label ?? null,
-    identifier: math.identifier ?? null,
-  };
-}
-
-function tableSemantic(document: Document) {
-  const table = getNode(document, [12]);
-  return {
-    type: table.type,
-    rows: (table.children ?? []).map((row) => ({
-      type: row.type,
-      cells: (row.children ?? []).map((cell) => ({ type: cell.type, text: textOf(cell) })),
-    })),
-  };
-}
-
-function admonitionSemantic(document: Document) {
-  const admonition = getNode(document, [4]);
-  return {
-    type: admonition.type,
-    kind: admonition.kind ?? null,
-    text: textOf(admonition),
-  };
-}
-
-function referenceSemantic(document: Document): ReferenceSnapshot[] {
-  const references: ReferenceSnapshot[] = [];
-  collectReferences(document, references);
-  return references;
-}
-
-type ReferenceSnapshot = {
-  type: string;
-  url: string | null;
-  identifier: string | null;
-  label: string | null;
-  kind: string | null;
-};
-
-function collectReferences(node: DocumentNode, references: ReferenceSnapshot[]): void {
-  if (node.type === "link" || node.type === "crossReference") {
-    references.push({
-      type: node.type,
-      url: typeof node.url === "string" ? node.url : null,
-      identifier: typeof node.identifier === "string" ? node.identifier : null,
-      label: typeof node.label === "string" ? node.label : null,
-      kind: typeof node.kind === "string" ? node.kind : null,
-    });
-  }
-  for (const child of node.children ?? []) collectReferences(child, references);
-}
-
-function textOf(node: DocumentNode): string {
-  if (typeof node.value === "string") return node.value;
-  return (node.children ?? []).map((child) => textOf(child)).join("");
-}
-
-function strip(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((item) => strip(item));
-  if (!value || typeof value !== "object") return value;
-  const output: Record<string, unknown> = {};
-  for (const [key, child] of Object.entries(value)) {
-    if (key === "position") continue;
-    output[key] = strip(child);
-  }
-  return output;
-}
-
 function listSourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -1394,9 +1321,10 @@ test("paragraph split saves final edited parts through Core and preserves other 
     assert.deepEqual(edits.splits, [{path: [8], parts: parts.map(part => fromTiptapContent(toTiptapContent(part)))}]);
     const saved = saveEdits(source, edits);
     assert.deepEqual(normalizedDocument(toTiptapDocument(saved.document)).content!.slice(8,10).map(node => node.content), parts.map(part => toTiptapContent(part).content![0].content));
-    const before = parse(source).children;
-    const after = parse(saved.markdown).children;
-    assert.equal(serialize({type: "root", children: [...after.slice(0,8), ...after.slice(10)]}), serialize({type: "root", children: [...before.slice(0,8), ...before.slice(9)]}));
+    // Blocks outside the split keep their canonical Markdown.
+    const before = removeBlock(parse(source), 8);
+    const after = removeBlock(removeBlock(parse(saved.markdown), 9), 8);
+    assert.equal(serialize(after), serialize(before));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
 });
@@ -1445,8 +1373,10 @@ test("paragraph merges retain marks, breaks, post-merge edits and surrounding se
     const actual = normalizedDocument(toTiptapDocument(saved.document)).content![1].content;
     const expected = normalizedDocument({...projection, content: [projection.content![1]]}).content![0].content;
     assert.deepEqual(actual, expected);
-    const before = parse(source).children, after = parse(saved.markdown).children;
-    assert.equal(serialize({type: "root",children:[after[0],...after.slice(2)]}), serialize({type: "root",children:[before[0],...before.slice(3)]}));
+    // Blocks outside the merge keep their canonical Markdown.
+    const before = removeBlock(removeBlock(parse(source), 2), 1);
+    const after = removeBlock(parse(saved.markdown), 1);
+    assert.equal(serialize(after), serialize(before));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
 });
