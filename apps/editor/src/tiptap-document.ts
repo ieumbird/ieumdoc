@@ -21,6 +21,12 @@ export type EquationEdit = {
   to: string;
 };
 
+export type TableCellEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type FigureEdit = {
   path: NodePath;
   from: FigureContent;
@@ -42,6 +48,7 @@ export type SupportedEdits = {
   paragraphs: ParagraphEdit[];
   equations?: EquationEdit[];
   figures?: FigureEdit[];
+  cells?: TableCellEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -73,7 +80,7 @@ const KNOWN_BLOCKS = new Set([
   "admonition",
   "figure",
   "equation",
-  "readonlyTable",
+  "table",
   "unsupportedBlock",
 ]);
 
@@ -81,7 +88,6 @@ const READONLY_BLOCKS = new Set([
   "readonlyHeading",
   "readonlyParagraph",
   "admonition",
-  "readonlyTable",
   "unsupportedBlock",
 ]);
 
@@ -104,6 +110,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const paragraphs: ParagraphEdit[] = [];
   const equations: EquationEdit[] = [];
   const figures: FigureEdit[] = [];
+  const cells: TableCellEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -164,6 +171,12 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (JSON.stringify(to) === JSON.stringify(from)) continue;
       assertFigureContent(to);
       figures.push({ path: block.path, from, to });
+    } else if (block.block === "table") {
+      const next = tableCells(node);
+      block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
+        const text = next[rowIndex]?.[index]?.text;
+        if (cell.editable && text !== undefined && text !== cell.text) cells.push({ path: cell.path, from: cell.text, to: text });
+      }));
     }
   }
   const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
@@ -186,6 +199,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     paragraphs,
     ...(equations.length ? { equations } : {}),
     ...(figures.length ? { figures } : {}),
+    ...(cells.length ? { cells } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -297,11 +311,16 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     });
   }
   if (block.block === "table") {
-    return readonlyNode("readonlyTable", block.path, {
-      rows: JSON.stringify(
-        block.rows.map((row) => row.cells.map((cell) => ({ text: cell.text, header: cell.header }))),
-      ),
-    });
+    return {
+      type: "table",
+      attrs: { sourcePath: pathKey(block.path) },
+      content: block.rows.map((row) => ({
+        type: "tableRow",
+        content: row.cells.map((cell): TiptapJSON => cell.editable
+          ? { type: "tableCell", attrs: { header: cell.header }, content: cell.text ? [{ type: "text", text: cell.text }] : [] }
+          : { type: "readonlyTableCell", attrs: { header: cell.header, text: cell.text } }),
+      })),
+    };
   }
   return readonlyNode("unsupportedBlock", block.path, { text: block.text });
 }
@@ -409,6 +428,23 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     }
     return;
   }
+  if (beforeType === "table") {
+    if (normalizeAttr(before.attrs?.sourcePath) !== normalizeAttr(after.attrs?.sourcePath)) {
+      throw new Error("table identity cannot change");
+    }
+    const was = tableCells(before);
+    const is = tableCells(after);
+    if (is.length !== was.length || is.some((row, index) => row.length !== was[index].length)) {
+      throw new Error("table rows and cells cannot be added or removed");
+    }
+    was.forEach((row, rowIndex) => row.forEach((cell, index) => {
+      const next = is[rowIndex][index];
+      if (next.editable !== cell.editable || next.header !== cell.header || (!cell.editable && next.text !== cell.text)) {
+        throw new Error("read-only table cells and cell kinds cannot change");
+      }
+    }));
+    return;
+  }
   if (READONLY_BLOCKS.has(beforeType)) {
     assertReadonlyUnchanged(before, after);
     return;
@@ -437,6 +473,28 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
   if ((after.content ?? []).length > 0) {
     throw new Error(`read-only block changed (${before.type ?? "block"} content)`);
   }
+}
+
+type TableCellShape = { editable: boolean; header: boolean; text: string };
+
+/** The cell grid of a table node; editable cells must hold unmarked text only. */
+function tableCells(node: TiptapJSON): TableCellShape[][] {
+  return (node.content ?? []).map((row) => {
+    if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
+    return (row.content ?? []).map((cell) => {
+      const header = cell.attrs?.header === true;
+      if (cell.type === "readonlyTableCell") return { editable: false, header, text: String(cell.attrs?.text ?? "") };
+      if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
+      let text = "";
+      for (const child of cell.content ?? []) {
+        if (child.type !== "text" || typeof child.text !== "string" || (child.marks?.length ?? 0) > 0) {
+          throw new Error("table cells hold plain text only");
+        }
+        text += child.text;
+      }
+      return { editable: true, header, text };
+    });
+  });
 }
 
 function headingText(node: TiptapJSON): string {

@@ -18,6 +18,7 @@ import {
   updateNodeTextAtPath,
   updateEquationLatex,
   updateFigure,
+  updateTableCell,
   updateParagraphInlineContent,
   validateFigure,
   validateStructure,
@@ -51,6 +52,12 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+export type TableCellEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
@@ -65,6 +72,7 @@ export type SupportedEdits = {
   paragraphs?: ParagraphEdit[];
   equations?: EquationEdit[];
   figures?: FigureEdit[];
+  cells?: TableCellEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -172,6 +180,7 @@ export function saveCurrentDocument(
     paragraphs: request.paragraphs ?? [],
     equations: request.equations ?? [],
     figures: request.figures ?? [],
+    cells: request.cells ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     inserts: request.inserts ?? [],
@@ -242,6 +251,19 @@ export function saveEdits(
       throw new Error(`figure does not match at [${figure.path.join(",")}]`);
     }
     document = updateFigure(document, figure.path, figureContent(figure.to));
+  }
+  for (const edit of edits.cells ?? []) {
+    assertPath(edit.path, "table cell");
+    const [table, row, index] = edit.path;
+    const block = blockAt(editable, [table]);
+    const cell = edit.path.length === 3 && block?.block === "table" ? block.rows[row]?.cells[index] : undefined;
+    if (!cell?.editable) {
+      throw new Error(`table cell edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== cell.text || typeof edit.to !== "string") {
+      throw new Error(`table cell text does not match at [${edit.path.join(",")}]`);
+    }
+    document = updateTableCell(document, edit.path, edit.to);
   }
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
@@ -429,6 +451,7 @@ export async function handleDocumentRequest(
           paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
           equations: Array.isArray(body.equations) ? body.equations : [],
           figures: Array.isArray(body.figures) ? body.figures : [],
+          cells: Array.isArray(body.cells) ? body.cells : [],
           splits: Array.isArray(body.splits) ? body.splits : [],
           merges: Array.isArray(body.merges) ? body.merges : [],
           inserts: Array.isArray(body.inserts) ? body.inserts : [],

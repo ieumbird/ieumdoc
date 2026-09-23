@@ -246,23 +246,86 @@ function createEquationNodeView(onDraftChange?: EquationDraftListener) {
   };
 }
 
-const ReadonlyTable = Node.create({
-  name: "readonlyTable",
+// A Markdown table lives in the single document state: editable cells hold plain
+// text (no marks), other cells are read-only leaves. Rows and cells cannot be added,
+// removed or moved; the structure guard rejects any such change.
+const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (element) => element.tagName === "TH" };
+
+const Table = Node.create({
+  name: "table",
   group: "block",
-  atom: true,
+  content: "tableRow+",
+  isolating: true,
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ rows: hiddenAttr("[]") });
+    return blockAttrs({});
   },
   parseHTML() {
-    return [{ tag: "div[data-readonly-table]" }];
+    return [{ tag: "div[data-table-block]" }];
   },
-  renderHTML({ HTMLAttributes }) {
-    return ["div", { ...HTMLAttributes, "data-readonly-table": "" }];
+  renderHTML({ node, HTMLAttributes }) {
+    return [
+      "div",
+      {
+        ...HTMLAttributes,
+        class: "table-block",
+        "data-block": "table",
+        "data-table-block": "",
+        "data-source-path": String(node.attrs.sourcePath ?? ""),
+      },
+      ["p", { class: "block-kind", contenteditable: "false" }, "Table"],
+      ["table", { class: "table" }, ["tbody", 0]],
+    ];
   },
-  addNodeView() {
-    return ReactNodeViewRenderer(TableView);
+});
+
+const TableRow = Node.create({
+  name: "tableRow",
+  content: "(tableCell | readonlyTableCell)+",
+  parseHTML() {
+    return [{ tag: "tr" }];
+  },
+  renderHTML() {
+    return ["tr", 0];
+  },
+});
+
+const TableCell = Node.create({
+  name: "tableCell",
+  content: "text*",
+  marks: "",
+  isolating: true,
+  addAttributes() {
+    return { header: headerAttr };
+  },
+  parseHTML() {
+    return [{ tag: "th[data-table-cell]" }, { tag: "td[data-table-cell]" }];
+  },
+  renderHTML({ node }) {
+    return [node.attrs.header ? "th" : "td", { "data-table-cell": "" }, 0];
+  },
+});
+
+const ReadonlyTableCell = Node.create({
+  name: "readonlyTableCell",
+  atom: true,
+  selectable: false,
+  addAttributes() {
+    return {
+      header: headerAttr,
+      text: { default: "", rendered: false, parseHTML: (element) => element.textContent ?? "" },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "th[data-readonly-cell]" }, { tag: "td[data-readonly-cell]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      node.attrs.header ? "th" : "td",
+      { "data-readonly-cell": "", "data-readonly": "true", contenteditable: "false" },
+      String(node.attrs.text ?? ""),
+    ];
   },
 });
 
@@ -396,7 +459,10 @@ export function editorExtensions(
     Admonition,
     figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
-    ReadonlyTable,
+    Table,
+    TableRow,
+    TableCell,
+    ReadonlyTableCell,
     UnsupportedBlock,
   ];
 }
@@ -890,42 +956,6 @@ function EquationFormula({ className, latex, testId }: { className: string; late
   );
 }
 
-function TableView({ node }: ReactNodeViewProps) {
-  const rows = parseRows(node.attrs.rows);
-  const [header, ...body] = rows;
-  return (
-    <NodeViewWrapper
-      className="table-block"
-      data-block="table"
-      data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
-      contentEditable={false}
-    >
-      <p className="block-kind">Table</p>
-      <table className="table">
-        {header ? (
-          <thead>
-            <tr>
-              {header.map((cell, index) => (
-                <th key={index}>{cell.text}</th>
-              ))}
-            </tr>
-          </thead>
-        ) : null}
-        <tbody>
-          {body.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, index) => (
-                <td key={index}>{cell.text}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </NodeViewWrapper>
-  );
-}
-
 function UnsupportedView({ node }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
@@ -941,23 +971,3 @@ function UnsupportedView({ node }: ReactNodeViewProps) {
   );
 }
 
-function parseRows(value: unknown): { text: string; header: boolean }[][] {
-  if (typeof value !== "string" || value.length === 0) return [];
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((row) => {
-      if (!Array.isArray(row)) return [];
-      return row.map((cell) => {
-        if (!cell || typeof cell !== "object") return { text: "", header: false };
-        const record = cell as { text?: unknown; header?: unknown };
-        return {
-          text: typeof record.text === "string" ? record.text : "",
-          header: record.header === true,
-        };
-      });
-    });
-  } catch {
-    return [];
-  }
-}
