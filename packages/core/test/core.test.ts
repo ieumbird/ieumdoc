@@ -5,6 +5,7 @@ import { toText } from "myst-common";
 import {
   insertParagraph,
   insertHeading,
+  insertEquation,
   getEditableDocument,
   moveBlock,
   parse,
@@ -78,6 +79,20 @@ test("Core inserts headings with a canonical semantic round-trip", () => {
   assert.throws(() => insertHeading(parse("Intro"), 1, 0, "Invalid"), /1 to 6/);
   assert.throws(() => insertHeading(parse("Intro"), 1, 7, "Invalid"), /1 to 6/);
   assert.throws(() => insertHeading(parse("Intro"), 1, 1, ""), /empty heading/);
+});
+
+test("Core inserts equations with a canonical semantic round-trip", () => {
+  const changed = insertEquation(parse("Intro"), 1, "x^2 + 1");
+  const editable = getEditableDocument(parse(serialize(changed)));
+  assert.deepEqual(editable.blocks.map((block) => block.block), ["paragraph", "equation"]);
+  assert.deepEqual(editable.blocks[1], {
+    block: "equation",
+    path: [1],
+    latex: "x^2 + 1",
+    label: "",
+  });
+  assert.equal(serialize(parse(serialize(changed))), serialize(changed));
+  assert.throws(() => insertEquation(parse("Intro"), 1, ""), /empty equation LaTeX/);
 });
 
 test("Core can remove a top-level block", () => {

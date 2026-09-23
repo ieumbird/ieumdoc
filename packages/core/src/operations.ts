@@ -121,6 +121,20 @@ export function insertHeading(document: Document, index: number, level: number, 
   return next;
 }
 
+/** Insert a persistent top-level equation while keeping its MyST details inside Core. */
+export function insertEquation(document: Document, index: number, latex: string): Document {
+  if (latex.length === 0) {
+    throw new Error("empty equation LaTeX cannot be saved");
+  }
+  const equation: DocumentNode = {
+    type: "math",
+    value: latex,
+  };
+  const next = insertBlock(document, index, equation);
+  assertEquationRoundTrip(next, [index], undefined, undefined, latex);
+  return next;
+}
+
 export function updateNodeTextAtPath(
   document: Document,
   path: NodePath,

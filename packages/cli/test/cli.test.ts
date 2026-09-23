@@ -93,6 +93,7 @@ test("ieumdoc help exits successfully", () => {
       "replace-text",
       "insert-block",
       "insert-heading",
+      "insert-equation",
       "remove-block",
       "move-block",
       "update-node-text",
@@ -151,6 +152,30 @@ test("CLI insert-heading persists a Core heading", () => {
     });
     assert.equal(saved, serialize(parse(saved)));
     assert.equal(run(["insert-heading", file, "--at", "0", "--level", "7", "--text", "Invalid"]).status, 1);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI insert-equation persists a Core equation", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro\n");
+  try {
+    const result = run(["insert-equation", file, "--at", "1", "--latex", "x^2 + 1"]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "equation"]);
+    assert.deepEqual(blocks[1], {
+      block: "equation",
+      path: [1],
+      latex: "x^2 + 1",
+      label: "",
+    });
+    assert.equal(saved, serialize(parse(saved)));
+    assert.equal(run(["insert-equation", file, "--at", "0", "--latex", ""]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally {
     rmSync(dir, { recursive: true, force: true });

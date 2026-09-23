@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   getEditableDocument,
   insertHeading,
+  insertEquation,
   insertParagraph,
   parse,
   removeBlock,
@@ -42,7 +43,8 @@ export type EquationEdit = {
 
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; text: string };
+  | { block: "heading"; level: number; text: string }
+  | { block: "equation"; latex: string };
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -263,6 +265,12 @@ export function saveEdits(
       }
       continue;
     }
+    if (insert.block === "equation") {
+      if (insert.latex.length === 0) {
+        throw new Error("empty equation LaTeX cannot be saved");
+      }
+      continue;
+    }
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
@@ -312,8 +320,10 @@ export function saveEdits(
     if (item.block === "paragraph") {
       document = insertParagraph(document, index, inlineText(item.content));
       document = updateParagraphInlineContent(document, [index], item.content);
-    } else {
+    } else if (item.block === "heading") {
       document = insertHeading(document, index, item.level, item.text);
+    } else {
+      document = insertEquation(document, index, item.latex);
     }
     locators.push({ insert });
   }

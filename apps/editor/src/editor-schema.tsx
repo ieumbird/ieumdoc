@@ -19,8 +19,8 @@ import { Button, Notice } from "./ui/primitives.tsx";
 export type EquationDraftListener = (key: string, active: boolean) => void;
 
 /** An Equation draft blocks saving only while the editor is open and the draft differs from the applied LaTeX. */
-export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string): boolean {
-  return editing && draft !== latex;
+export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
+  return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
 }
 
 const hiddenAttr = (defaultValue: string | number = ""): Attribute => ({
@@ -588,7 +588,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   return `/document/${encodedPath}${query}`;
 }
 
-function EquationView({ node, selected, updateAttributes, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
+function EquationView({ node, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
   const label = String(node.attrs.label ?? "");
   const latex = String(node.attrs.latex ?? "");
   const [editing, setEditing] = useState(false);
@@ -608,7 +608,7 @@ function EquationView({ node, selected, updateAttributes, onDraftChange }: React
   }, [selected]);
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex);
+  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath);
   useEffect(() => {
     onDraftChange?.(sourcePath, hasUnappliedDraft);
     return () => onDraftChange?.(sourcePath, false);
@@ -620,6 +620,28 @@ function EquationView({ node, selected, updateAttributes, onDraftChange }: React
     setEditing(true);
   };
   const cancel = () => {
+    if (isNewBlockPath(sourcePath)) {
+      if (view.state.doc.childCount === 1) {
+        const position = getPos();
+        if (typeof position === "number") {
+          view.dispatch(view.state.tr
+            .setNodeMarkup(position, view.state.schema.nodes.paragraph, {
+              sourcePath: `${NEW_BLOCK_PREFIX}empty`,
+            })
+            .setMeta(BLOCK_COMMAND_META, true));
+        }
+      } else {
+        const position = getPos();
+        if (typeof position === "number") {
+          view.dispatch(view.state.tr
+            .delete(position, position + node.nodeSize)
+            .setMeta(BLOCK_COMMAND_META, true)
+            .scrollIntoView());
+        } else {
+          deleteNode();
+        }
+      }
+    }
     setDraft(latex);
     setError("");
     setEditing(false);

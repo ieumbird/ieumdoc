@@ -16,6 +16,7 @@ import {
   formattableSelection,
   INSERT_COMMANDS,
   slashQueryAt,
+  insertEquationAfter,
 } from "../src/block-commands.ts";
 import { declaredDeletions, differsFromBaseline, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -73,6 +74,33 @@ test("heading commands insert H1-H3 and place the caret inside the heading", () 
   assert.equal(next.selection.$from.parentOffset, 0);
 });
 
+test("shared insert commands include Equation and select its new atom", () => {
+  const state = EditorState.create({ schema, doc: docOf("AB") });
+  assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
+    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation",
+  ]);
+  assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
+  assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
+  const next = state.apply(insertEquationAfter(state, 0));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
+  assert.ok(isNewBlockPath(String(next.doc.child(1).attrs.sourcePath)));
+  assert.equal(next.doc.child(1).attrs.latex, "");
+  assert.equal(next.selection instanceof NodeSelection, true);
+  assert.equal(next.selection.from, positionOf(next.doc, String(next.doc.child(1).attrs.sourcePath)));
+});
+
+test("Equation slash insertion replaces a transient empty paragraph", () => {
+  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
+  const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/h2"));
+  const slash = slashQueryAt(typed);
+  assert.ok(slash);
+  const next = typed.apply(insertEquationAfter(typed, slash.index, slash));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
+  assert.equal(next.doc.child(1).attrs.sourcePath.startsWith("new:"), true);
+  assert.equal(next.selection instanceof NodeSelection, true);
+});
+
 test("heading slash insertion replaces an otherwise-empty paragraph", () => {
   const initial = EditorState.create({ schema, doc: docOf("AB") });
   const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
@@ -110,6 +138,30 @@ test("heading slash insertion from an empty split sibling passes the structure g
   assert.equal(state.doc.child(0).attrs.sourcePath, "0");
   assert.equal(state.doc.child(1).attrs.sourcePath, "new:split:end");
   assert.equal(state.doc.child(1).attrs.level, 2);
+});
+
+test("Equation slash insertion from an empty split sibling passes the structure guard", () => {
+  const markdown = "Original paragraph";
+  const baseline = toTiptapDocument(loadEditableDocument(markdown));
+  const split = structuredClone(baseline);
+  split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
+  const doc = schema.nodeFromJSON(split);
+  let rejected = 0;
+  let state = EditorState.create({
+    schema,
+    doc,
+    selection: TextSelection.create(doc, doc.child(0).nodeSize + 1),
+    plugins: [structureGuardPlugin(baseline, () => rejected++)],
+  });
+  state = state.apply(state.tr.insertText("/equation"));
+  const slash = slashQueryAt(state);
+  assert.ok(slash);
+  state = state.apply(insertEquationAfter(state, slash.index, slash));
+  assert.equal(rejected, 0);
+  assert.deepEqual(state.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
+  assert.equal(state.doc.child(0).attrs.sourcePath, "0");
+  assert.equal(state.doc.child(1).attrs.sourcePath, "new:split:end");
+  assert.equal(state.doc.child(1).attrs.latex, "");
 });
 
 test("slash command removes its query and shares the insert command list", () => {

@@ -1,9 +1,9 @@
 import { closeHistory } from "@tiptap/pm/history";
-import { Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
+import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete. Each command is one engine transaction;
-// Save maps the result to Core insertParagraph/insertHeading/removeBlock. Only blocks whose
+// Save maps the result to Core insertParagraph/insertHeading/insertEquation/removeBlock. Only blocks whose
 // Core create/edit/save path exists are listed.
 
 export type SlashRange = { from: number; to: number };
@@ -52,6 +52,12 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["heading", "h3"],
     run: (state, index, slash) => insertHeadingAfter(state, index, 3, slash),
   },
+  {
+    id: "equation",
+    label: "Equation",
+    keywords: ["equation", "math", "latex"],
+    run: insertEquationAfter,
+  },
 ];
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
@@ -88,6 +94,36 @@ export function insertParagraphAfter(state: EditorState, index: number, slash?: 
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
+/** Insert an empty Equation after the target, reusing only a transient empty paragraph. */
+export function insertEquationAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  let pos = 0;
+  for (let i = 0; i < index; i++) pos += tr.doc.child(i).nodeSize;
+  const target = tr.doc.child(index);
+  const sourcePath = String(target.attrs.sourcePath ?? "");
+  if (target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(sourcePath)) {
+    tr.setNodeMarkup(pos, state.schema.nodes.equation, {
+      sourcePath,
+      latex: "",
+      label: "",
+    });
+    return tr
+      .setSelection(NodeSelection.create(tr.doc, pos))
+      .setMeta(BLOCK_COMMAND_META, true)
+      .scrollIntoView();
+  }
+  const at = pos + target.nodeSize;
+  const equation = state.schema.nodes.equation.create({
+    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
+    latex: "",
+    label: "",
+  });
+  tr.insert(at, equation);
+  return tr.setSelection(NodeSelection.create(tr.doc, at)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
 /** Insert a heading after the target, reusing a transient empty paragraph as its editable block. */
 export function insertHeadingAfter(
   state: EditorState,
@@ -102,7 +138,7 @@ export function insertHeadingAfter(
   let pos = 0;
   for (let i = 0; i < index; i++) pos += tr.doc.child(i).nodeSize;
   const target = tr.doc.child(index);
-  if (target.type.name === "paragraph" && target.content.size === 0) {
+  if (target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""))) {
     tr.setNodeMarkup(pos, state.schema.nodes.heading, {
       level,
       sourcePath: target.attrs.sourcePath,

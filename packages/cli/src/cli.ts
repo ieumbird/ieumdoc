@@ -4,6 +4,7 @@ import {
   inspectDocument,
   insertParagraph,
   insertHeading,
+  insertEquation,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -119,6 +120,15 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Insert a Heading block at a top-level index.",
       "Heading levels 1 through 6 are supported.",
+    ],
+  },
+  {
+    name: "insert-equation",
+    summary: "Insert an Equation block at a top-level index",
+    usage: "ieumdoc insert-equation <file> --at <index> --latex <latex>",
+    details: [
+      "Insert an Equation block at a top-level index.",
+      "The Equation LaTeX source must be non-empty.",
     ],
   },
   {
@@ -248,6 +258,14 @@ function main(argv: string[]): number {
       ));
       return 0;
     }
+    case "insert-equation": {
+      save(file, insertEquation(
+        parse(readFile(file)),
+        intFlag(flags, "--at"),
+        flag(flags, "--latex"),
+      ));
+      return 0;
+    }
     case "remove-block": {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -329,6 +347,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "replace-text": ["--from", "--to"],
   "insert-block": ["--at", "--text"],
   "insert-heading": ["--at", "--level", "--text"],
+  "insert-equation": ["--at", "--latex"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
