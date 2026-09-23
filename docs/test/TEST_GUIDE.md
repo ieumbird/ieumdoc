@@ -278,7 +278,7 @@ pnpm --filter @ieumdoc/editor dev
 
 브라우저에서 `http://localhost:5173` 을 연다.
 
-성공: 페이지 위에 `IeumDoc` 과 `technical-document.md` 가 보이고 `Save` 버튼이 있다.
+성공: 왼쪽 sidebar에 `IeumDoc`, `Open…`, 현재 문서 `technical-document.md` 가 보인다. 상단 top bar 왼쪽에 현재 파일 경로, 오른쪽에 저장 상태와 `Save` 버튼이 있다.
 
 ### B. 초기 렌더링 확인
 
@@ -306,7 +306,7 @@ pnpm --filter @ieumdoc/editor dev
 - Equation. `Equation · eq-current` 와 LaTeX `i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}`
 - Table. `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-문서 위쪽에 `B` 와 `I` 버튼이 하나 있다.
+고정 서식 toolbar는 없다. paragraph 안에서 텍스트를 선택하면 선택 위에 `B` / `I` selection toolbar가 나타난다.
 
 ### C. Paragraph 편집
 
@@ -328,7 +328,7 @@ pnpm --filter @ieumdoc/editor dev
 
 `DC-link voltage` 는 bold, `phase current` 는 italic으로 남는다.
 
-`converter` 를 선택하고 `B` 를 누른다. `The` 를 선택하고 `I` 를 누른다.
+`converter` 를 선택하고 selection toolbar의 `B` 를 누른다. `The` 를 선택하고 `I` 를 누른다.
 
 `Save` 후 파일에 `**DC-link voltage**`, `*phase current*` 와 추가한 strong / emphasis가 있다.
 
@@ -353,7 +353,7 @@ Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는
 - `fig-control`, `eq-current` 참조
 - 표의 행 수와 `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-Figure, equation, table, admonition, reference paragraph는 클릭해서 고칠 수 없다.
+Figure, table, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다.
 
 ### G. 구조 변경 거부
 
@@ -361,9 +361,9 @@ Figure, equation, table, admonition, reference paragraph는 클릭해서 고칠 
 
 paragraph 맨 앞에서 Backspace를 누른다. 바로 앞 블록이 편집 가능한 paragraph이면 공백 추가 없이 합쳐지고, 그 외 block이면 차단되어야 한다.
 
-Equation 또는 Figure를 선택하고 Delete 또는 Backspace를 누른다. 블록이 사라지지 않아야 한다.
+Equation 또는 Figure를 선택하고 Delete 또는 Backspace를 누른다. 블록이 사라지지 않아야 한다. block 삭제는 handle 메뉴의 `Delete`로만 한다.
 
-화면의 안내 문장이 보일 수 있다. 저장 파일의 블록 구성은 바뀌지 않아야 한다.
+top bar 아래 message area에 안내 문장이 잠시 보였다가 사라질 수 있다. 저장 파일의 블록 구성은 바뀌지 않아야 한다.
 
 paragraph의 글을 모두 지우고 `Save` 를 누르면 `Save failed` 가 되고 파일은 저장되지 않아야 한다.
 
@@ -441,10 +441,10 @@ index는 `check`가 출력하는 top-level 번호다.
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
-- Visual Editor는 지정된 기술문서 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
+- Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
 - link 또는 cross-reference가 있는 paragraph, admonition, figure, equation, table은 보이지만 읽기 전용이다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
-- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. 그 외 block 추가·삭제·이동은 거부된다.
+- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(Paragraph만), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 수식은 읽기 전용이다. LaTeX 원문이 equation 블록으로 보인다.
@@ -533,7 +533,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 양쪽 문단에 텍스트를 추가하고 Undo/Redo한다. 하나의 Editor 안에서 분할과 입력이 복구되어야 한다.
 - Save 후 Reload한다. 두 문단과 서식이 유지되고, 주변 Heading/Equation/Figure/Table/reference 내용이 같아야 한다.
 - 시작/끝에서 Enter를 눌러 빈 문단을 만든 뒤 Save한다. 파일을 쓰지 않고 실패해야 한다. 빈 문단에 텍스트를 입력하면 다시 저장할 수 있다.
-- Heading Enter와 block 삭제는 계속 차단된다. top-level block 재정렬은 왼쪽 handle을 사용하며, Shift+Enter는 같은 문단 안에 hard break를 만든다.
+- Heading Enter와 키보드 block 삭제는 계속 차단된다. top-level block 재정렬은 왼쪽 handle을 사용하며, Shift+Enter는 같은 문단 안에 hard break를 만든다.
 - 저장 응답을 지연시키고 추가 입력/분할한다. `Saved; newer edits pending` 후 입력이 남아야 하며 다음 Save 및 Reload에서도 유지되어야 한다.
 - sourcePath는 현재 저장 snapshot의 locator다. 분할 조각은 저장 전 원본 path를 공유하고, 성공 응답 후 새 path를 사용한다. 영속 ID를 생성하지 않는다.
 
@@ -552,12 +552,34 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - Paragraph를 Heading 또는 read-only block 앞뒤로 이동하고, Undo/Redo한다. block 내용과 formatting은 바뀌지 않아야 한다.
 - 이동된 paragraph에 텍스트, Bold/Italic, Shift+Enter hard break를 추가한 뒤 Save → Reload한다. 순서와 의미가 유지되어야 한다.
 - Save 응답을 지연한 상태에서 다시 drag하거나 입력한 뒤 `Saved; newer edits pending`을 확인한다. 다음 Save → Reload에서도 pending 변경이 남아야 한다.
-- nested block, block 추가/삭제, multi-select, type conversion은 범위가 아니다. canonical serializer가 block 경계를 바꾸는 reorder는 파일을 쓰지 않고 실패한다.
+- nested block, multi-select, type conversion은 범위가 아니다. block 추가/삭제는 아래 Editor UX Shell v1을 본다. canonical serializer가 block 경계를 바꾸는 reorder는 파일을 쓰지 않고 실패한다.
 
 ## Editor Equation Draft Save Guard v1
 
-- Equation에서 `Edit`를 누르고 LaTeX를 바꾼 뒤 `Apply` 없이 상단 `Save`를 누른다. 저장이 차단되어야 하고, `Apply or Cancel the Equation edit before saving.` 안내가 보이며, 편집창과 draft 내용이 그대로 남아야 한다.
+- Equation에서 `Edit`를 누르고 LaTeX를 바꾼다. `Apply` 전에는 해당 Equation block 안에 `Unapplied changes. Apply or Cancel before saving.` 가 보이고, top bar `Save`는 비활성화된다(hover 시 `Apply or Cancel the Equation edit before saving.`). 전역 경고는 없고, 편집창과 draft 내용이 그대로 남아야 한다.
 - 같은 상태에서 `Apply` → `Save` → Reload한다. 바꾼 LaTeX가 유지된다.
-- 다시 LaTeX를 바꾸고 `Apply` 없이 `Save`를 눌러 차단된 뒤 `Cancel` → `Save` → Reload한다. 원래 LaTeX가 유지되고 파일은 바뀌지 않는다.
+- 다시 LaTeX를 바꿔 `Save`가 비활성화된 것을 확인한 뒤 `Cancel` → `Save` → Reload한다. 원래 LaTeX가 유지되고 파일은 바뀌지 않는다.
 - Equation 편집창을 열기만 하고 내용을 바꾸지 않으면 `Save`는 정상 동작한다.
 - 이 차단은 파일 write와 API POST를 발생시키지 않는다. paragraph 편집, block reorder, delayed-save pending 동작은 그대로 유지된다.
+
+## Editor UX Shell v1
+
+- 화면은 sidebar, top bar, document column 세 영역이다. sidebar는 `«` / `»`로 접고 편다. sidebar에는 제품명, `Open…`, 현재 문서만 있다.
+- `Open…`을 누르면 작은 dialog가 열린다. 경로를 입력하고 `Open`을 누른다. 저장하지 않은 변경이 있으면 dialog 안에 `Save or discard the current changes before opening another file.`가 보이고 현재 문서는 그대로다.
+- Error는 top bar 아래 message area에 남고 `×`로 닫는다. Notice는 몇 초 뒤 사라진다. 두 메시지 모두 document column 안에 나타나지 않는다.
+- block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
+- paragraph 시작 또는 공백 뒤에서 `/`를 입력하면 `+`와 같은 insert menu가 열린다. 입력한 글자로 걸러지고, ↑/↓/Enter로 고르며 Esc로 닫는다. 선택하면 `/` 입력은 지워진다.
+- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`만 있다. 빈 paragraph에서 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. 새 paragraph에 글을 쓰고 Save → Reload하면 Core `insertParagraph`로 저장된다. 빈 채로 Save하면 실패한다.
+- block menu에는 Core `removeBlock`으로 저장되는 `Delete`만 있다. 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
+- 키보드 Delete/Backspace나 붙여넣기로는 block이 추가·삭제되지 않는다. Save adapter는 Delete command로 선언되지 않은 block 소실을 거부한다.
+
+선택적 브라우저 회귀 스크립트(POST는 모두 mock):
+
+```powershell
+playwright-cli -s=ieumdoc-shell open http://127.0.0.1:5173
+playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/editor-shell.browser.js
+playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/open-files.browser.js
+playwright-cli -s=ieumdoc-shell close
+```
+
+`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다.

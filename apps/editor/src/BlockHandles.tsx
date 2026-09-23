@@ -4,7 +4,15 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { reorderBlock } from "./block-reorder.ts";
 import { IconButton } from "./ui/primitives.tsx";
 
-export function BlockHandles({ editor }: { editor: Editor }) {
+type BlockHandlesProps = {
+  editor: Editor;
+  /** Block whose menu is open; its controls stay visible. */
+  menuIndex?: number;
+  onInsert(index: number, top: number): void;
+  onOpenMenu(index: number, top: number): void;
+};
+
+export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu }: BlockHandlesProps) {
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
   const [blocks, setBlocks] = useState<{ top: number; name: string }[]>([]);
@@ -77,15 +85,24 @@ export function BlockHandles({ editor }: { editor: Editor }) {
     };
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
-    {blocks.map((block, index) => <IconButton key={index} draggable
-      className={`block-handle${active === index ? " visible" : ""}`}
-      style={{top: block.top}} label={`Move ${block.name} block ${index + 1}`}
-      title="Drag to move block" onMouseDown={event => event.stopPropagation()}
-      onDragStart={event => {
-        drag.current = {index, doc: editor.state.doc};
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", "Move block");
-      }}>⠿</IconButton>)}
+    {blocks.map((block, index) => <div key={index}
+      className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
+      style={{top: block.top}}>
+      <IconButton className="block-insert" label={`Insert block after ${block.name} block ${index + 1}`}
+        title="Insert block below" aria-haspopup="menu"
+        onMouseDown={event => event.stopPropagation()}
+        onClick={() => onInsert(index, block.top)}>+</IconButton>
+      <IconButton draggable className="block-handle"
+        label={`Move ${block.name} block ${index + 1}`} title="Drag to move, click for block actions"
+        aria-haspopup="menu"
+        onMouseDown={event => event.stopPropagation()}
+        onClick={() => onOpenMenu(index, block.top)}
+        onDragStart={event => {
+          drag.current = {index, doc: editor.state.doc};
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", "Move block");
+        }}>⠿</IconButton>
+    </div>)}
     {dropTop !== null && <div className="block-drop-line" style={{top: dropTop}} />}
   </div>;
 }

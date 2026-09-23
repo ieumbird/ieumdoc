@@ -20,7 +20,8 @@ async page => {
   const requests = [];
   let conflictNext = false;
 
-  await page.route('**/api/document', async route => {
+  // Match selected-file GETs (?path=...) as well.
+  await page.route('**/api/document**', async route => {
     const request = route.request();
     if (request.method() === 'GET') {
       const requestedPath = queryPath(request.url()) || pathA;
@@ -59,16 +60,15 @@ async page => {
     }
 
     await editParagraph(page, ' FILE_A_PENDING');
-    await page.getByTestId('file-path').fill(pathB);
-    await page.getByRole('button',{name:'Open',exact:true}).click();
+    await openPath(page, pathB);
     await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
+    await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
     if (!(await page.getByTestId('current-file').innerText()).includes(pathA)) throw new Error('Unsaved File A was discarded');
     if (!(await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('Pending File A edit was lost');
 
     await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('Saved',{exact:true}).waitFor();
-    await page.getByTestId('file-path').fill(pathB);
-    await page.getByRole('button',{name:'Open',exact:true}).click();
+    await openPath(page, pathB);
     await page.getByText('Ready',{exact:true}).waitFor();
     if (!(await page.getByTestId('current-file').innerText()).includes(pathB)) throw new Error('File B was not opened');
     if ((await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('File A state leaked into File B');
@@ -80,8 +80,7 @@ async page => {
       throw new Error('File B save used the wrong path or omitted the edit');
     }
 
-    await page.getByTestId('file-path').fill(pathA);
-    await page.getByRole('button',{name:'Open',exact:true}).click();
+    await openPath(page, pathA);
     await page.getByText('Ready',{exact:true}).waitFor();
     const reloadedA = await page.getByRole('article').innerText();
     if (!reloadedA.includes('FILE_A_PENDING') || reloadedA.includes('FILE_B')) throw new Error('File A/B state was mixed');
@@ -93,7 +92,7 @@ async page => {
     if (!(await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Stale edit was discarded');
     return {fileA:true, fileB:true, unsavedSwitchGuarded:true, conflictRetained:true};
   } finally {
-    await page.unroute('**/api/document');
+    await page.unroute('**/api/document**');
     await page.unrouteAll();
   }
 
@@ -115,6 +114,12 @@ async page => {
     const query = url.split('?')[1] || '';
     const value = query.split('&').find(part => part.startsWith('path='));
     return value ? decodeURIComponent(value.slice('path='.length)) : '';
+  }
+
+  async function openPath(page, path) {
+    await page.getByRole('button',{name:'Open…',exact:true}).click();
+    await page.getByTestId('file-path').fill(path);
+    await page.getByRole('dialog').getByRole('button',{name:'Open',exact:true}).click();
   }
 
   async function editParagraph(page, suffix) {

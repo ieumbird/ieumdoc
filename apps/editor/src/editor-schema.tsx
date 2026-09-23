@@ -1,10 +1,12 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
-import { Plugin } from "@tiptap/pm/state";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useState } from "react";
+import { BLOCK_COMMAND_META } from "./block-commands.ts";
 import { renderEquation } from "./equation-render.ts";
-import { isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
+import { DELETED_PATHS_ATTR, isNewBlockPath, isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 
 export type EquationDraftListener = (key: string, active: boolean) => void;
@@ -382,30 +384,84 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          // Permit paragraph splits/merges only through their keys or engine history.
-          // Comparing with the loaded snapshot also keeps undo inside that set.
-          filterTransaction(transaction, state) {
-            if (!transaction.docChanged) return true;
-            if (transaction.getMeta("savedPaths")) return true;
-            const history = state.plugins.some(plugin => {
-              const key = (plugin as Plugin & { key: string }).key;
-              return key.startsWith("history$") && transaction.getMeta(key);
-            });
-            const paths = (doc: typeof state.doc) => {
-              const result: string[] = [];
-              doc.forEach(node => result.push(String(node.attrs.sourcePath)));
-              return result.join("|");
-            };
-            const structural = paths(transaction.doc) !== paths(state.doc);
-            if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") || transaction.getMeta("blockReorder") || history) &&
-                isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, transaction.doc.toJSON() as TiptapJSON)) return true;
-            onReject();
-            return false;
-          },
-        }),
-      ];
+      return [structureGuardPlugin(baseline, onReject)];
+    },
+  });
+}
+
+const structureGuardKey = new PluginKey<string[]>("structureGuard");
+
+/** Replaces the declared deletions after Save remaps snapshot paths. */
+export const DECLARED_DELETIONS_META = "declaredDeletions";
+
+/**
+ * Snapshot paths removed by explicit Delete commands since the baseline loaded.
+ * The set only grows, so undo and redo stay within it.
+ */
+export function declaredDeletions(state: EditorState): string[] {
+  return structureGuardKey.getState(state) ?? [];
+}
+
+/** The editor document as the Save adapter reads it, including declared deletions. */
+export function editorDocumentJSON(state: EditorState): TiptapJSON {
+  return { ...(state.doc.toJSON() as TiptapJSON), attrs: { [DELETED_PATHS_ATTR]: declaredDeletions(state) } };
+}
+
+/** Structural comparison; projection JSON and engine JSON may order attributes differently. */
+export function differsFromBaseline(state: EditorState, baseline: TiptapJSON): boolean {
+  return !state.doc.eq(state.schema.nodeFromJSON(baseline));
+}
+
+function snapshotPathsOf(doc: ProseMirrorNode): Set<string> {
+  const paths = new Set<string>();
+  doc.forEach(node => String(node.attrs.sourcePath).split(";").forEach(path => {
+    if (!isNewBlockPath(path)) paths.add(path);
+  }));
+  return paths;
+}
+
+function commandDeletions(transaction: Transaction, declared: string[]): string[] {
+  if (!transaction.getMeta(BLOCK_COMMAND_META)) return declared;
+  const remaining = snapshotPathsOf(transaction.doc);
+  const removed = [...snapshotPathsOf(transaction.before)].filter(path => !remaining.has(path));
+  return removed.length ? [...new Set([...declared, ...removed])] : declared;
+}
+
+export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Plugin {
+  return new Plugin<string[]>({
+    key: structureGuardKey,
+    state: {
+      init: () => [],
+      apply(transaction, declared) {
+        const replaced = transaction.getMeta(DECLARED_DELETIONS_META) as string[] | undefined;
+        return replaced ?? commandDeletions(transaction, declared);
+      },
+    },
+    // Permit structural changes only through paragraph split/merge keys, block
+    // commands, reorder, or engine history. Comparing with the loaded snapshot
+    // also keeps undo inside that set.
+    filterTransaction(transaction, state) {
+      if (!transaction.docChanged) return true;
+      if (transaction.getMeta("savedPaths")) return true;
+      const history = state.plugins.some(plugin => {
+        const key = (plugin as Plugin & { key: string }).key;
+        return key.startsWith("history$") && transaction.getMeta(key);
+      });
+      const paths = (doc: typeof state.doc) => {
+        const result: string[] = [];
+        doc.forEach(node => result.push(String(node.attrs.sourcePath)));
+        return result.join("|");
+      };
+      const structural = paths(transaction.doc) !== paths(state.doc);
+      const next = {
+        ...(transaction.doc.toJSON() as TiptapJSON),
+        attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
+      };
+      if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") ||
+          transaction.getMeta("blockReorder") || transaction.getMeta(BLOCK_COMMAND_META) || history) &&
+          isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, next)) return true;
+      onReject();
+      return false;
     },
   });
 }
@@ -458,10 +514,16 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
   );
 }
 
-function FigureView({ node, documentPath }: ReactNodeViewProps & { documentPath?: string }) {
+function FigureView({ node, selected, documentPath }: ReactNodeViewProps & { documentPath?: string }) {
   const imageUrl = String(node.attrs.imageUrl ?? "");
   const src = resolveFigureSource(imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
+  const properties: [string, string][] = [
+    ["Label", label],
+    ["Image", imageUrl],
+    ["Alt text", String(node.attrs.imageAlt ?? "")],
+    ["Caption", String(node.attrs.caption ?? "")],
+  ];
   return (
     <NodeViewWrapper
       as="figure"
@@ -474,6 +536,20 @@ function FigureView({ node, documentPath }: ReactNodeViewProps & { documentPath?
       <p className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
       {src ? <img src={src} alt={String(node.attrs.imageAlt ?? "")} /> : null}
       <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>
+      {selected ? (
+        <div className="block-popover figure-properties" role="dialog" aria-label="Figure properties" data-testid="figure-properties">
+          <dl>
+            {properties.map(([name, value]) => (
+              <div key={name} className="figure-property">
+                <dt>{name}</dt>
+                <dd>{value || "—"}</dd>
+              </div>
+            ))}
+          </dl>
+          {/* No Core operation updates Figure properties yet. */}
+          <p className="block-popover-note">Figure properties are read-only in this version.</p>
+        </div>
+      ) : null}
     </NodeViewWrapper>
   );
 }
@@ -541,6 +617,11 @@ function EquationView({ node, selected, updateAttributes, onDraftChange }: React
       contentEditable={false}
     >
       <p className="block-kind">{label ? `Equation · ${label}` : "Equation"}</p>
+      {hasUnappliedDraft ? (
+        <p className="equation-draft-status" role="status" data-testid="equation-draft-status">
+          Unapplied changes. Apply or Cancel before saving.
+        </p>
+      ) : null}
       {!editing ? (
         <>
           <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />

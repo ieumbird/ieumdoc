@@ -5,7 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   getEditableDocument,
+  insertParagraph,
   parse,
+  removeBlock,
   serialize,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -37,13 +39,17 @@ export type EquationEdit = {
   to: string;
 };
 
+export type OrderItem = { path: NodePath; part: number } | { insert: number };
+
 export type SupportedEdits = {
-  order?: { path: NodePath; part: number }[];
+  order?: OrderItem[];
   headings?: HeadingEdit[];
   paragraphs?: ParagraphEdit[];
   equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
+  inserts?: InlineContent[][];
+  deletes?: NodePath[];
 };
 
 export type SaveRequest = SupportedEdits & {
@@ -122,6 +128,8 @@ export function saveCurrentDocument(
     equations: request.equations ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
+    inserts: request.inserts ?? [],
+    deletes: request.deletes ?? [],
     order: request.order,
   });
   return { ...saved, revision: documentRevision(saved.markdown) };
@@ -201,10 +209,31 @@ export function saveEdits(
       seen.add(path[0]);
     }
   }
+  const inserts = edits.inserts ?? [];
+  const deletes = edits.deletes ?? [];
+  const edited = new Set([
+    ...(edits.headings ?? []).map(edit => edit.path),
+    ...(edits.paragraphs ?? []).map(edit => edit.path),
+    ...(edits.equations ?? []).map(edit => edit.path),
+    ...groups.flatMap(group => group.paths),
+  ].map(path => path.join(",")));
+  const deleted = new Set<string>();
+  for (const path of deletes) {
+    assertPath(path, "delete");
+    if (path.length !== 1 || !blockAt(editable, path) || edited.has(path.join(",")) || deleted.has(path.join(","))) {
+      throw new Error("invalid block deletion");
+    }
+    deleted.add(path.join(","));
+  }
+  if (inserts.some(content => !Array.isArray(content) || inlineText(content).length === 0)) {
+    throw new Error("empty paragraph cannot be saved");
+  }
+  if ((inserts.length > 0 || deletes.length > 0) && edits.order === undefined) {
+    throw new Error("block insertion or deletion requires a block order");
+  }
   // Locators address this save's source snapshot, then each split result.
   // Core alone performs every persistent move, merge, content update and split.
-  const locators = editable.blocks.map(block => ({ path: block.path, part: 0 }));
-  const key = (item: { path: NodePath; part: number }) => `${item.path.join(",")}:${item.part}`;
+  const locators: Locator[] = editable.blocks.map(block => ({ path: block.path, part: 0 }));
   const move = (from: number, to: number) => {
     document = moveBlock(document, from, to);
     locators.splice(to, 0, locators.splice(from, 1)[0]);
@@ -212,12 +241,12 @@ export function saveEdits(
   for (const group of [...groups].sort((a, b) => b.paths[0][0] - a.paths[0][0])) {
     // Reordered neighbors may originate at non-adjacent snapshot paths.
     for (let index = 1; index < group.paths.length; index++) {
-      const from = locators.findIndex(item => key(item) === key({path: group.paths[index], part: 0}));
-      let previous = locators.findIndex(item => key(item) === key({path: group.paths[index - 1], part: 0}));
+      const from = locators.findIndex(item => locatorKey(item) === locatorKey({path: group.paths[index], part: 0}));
+      let previous = locators.findIndex(item => locatorKey(item) === locatorKey({path: group.paths[index - 1], part: 0}));
       if (from < previous) previous--;
       move(from, previous + 1);
     }
-    const start = locators.findIndex(item => key(item) === key({path: group.paths[0], part: 0}));
+    const start = locators.findIndex(item => locatorKey(item) === locatorKey({path: group.paths[0], part: 0}));
     for (let index = group.paths.length - 1; index > 0; index--) {
       document = mergeParagraphWithPrevious(document, [start + index]);
     }
@@ -230,15 +259,31 @@ export function saveEdits(
     }
     locators.splice(start, group.paths.length, ...group.parts.map((_, part) => ({path: group.paths[0], part})));
   }
+  for (const path of deletes) {
+    const index = locators.findIndex(item => locatorKey(item) === locatorKey({path, part: 0}));
+    document = removeBlock(document, index);
+    locators.splice(index, 1);
+  }
+  for (const [insert, content] of inserts.entries()) {
+    // New paragraphs start at the end; the requested order places them.
+    const index = locators.length;
+    document = insertParagraph(document, index, inlineText(content));
+    document = updateParagraphInlineContent(document, [index], content);
+    locators.push({ insert });
+  }
   if (edits.order !== undefined) {
     if (!Array.isArray(edits.order) || edits.order.length !== locators.length) throw new Error("invalid block order");
-    const expected = new Set(locators.map(key));
+    const expected = new Set(locators.map(locatorKey));
     for (const item of edits.order) {
+      if ("insert" in item) {
+        if (!Number.isInteger(item.insert) || !expected.delete(locatorKey(item))) throw new Error("invalid block order");
+        continue;
+      }
       assertPath(item.path, "order");
-      if (item.path.length !== 1 || !Number.isInteger(item.part) || !expected.delete(key(item))) throw new Error("invalid block order");
+      if (item.path.length !== 1 || !Number.isInteger(item.part) || !expected.delete(locatorKey(item))) throw new Error("invalid block order");
     }
     for (const [to, item] of edits.order.entries()) {
-      const from = locators.findIndex(locator => key(locator) === key(item));
+      const from = locators.findIndex(locator => locatorKey(locator) === locatorKey(item));
       if (from !== to) move(from, to);
     }
   }
@@ -278,6 +323,8 @@ export async function handleDocumentRequest(
           equations: Array.isArray(body.equations) ? body.equations : [],
           splits: Array.isArray(body.splits) ? body.splits : [],
           merges: Array.isArray(body.merges) ? body.merges : [],
+          inserts: Array.isArray(body.inserts) ? body.inserts : [],
+          deletes: Array.isArray(body.deletes) ? body.deletes : [],
           order: body.order,
         });
         sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision });
@@ -295,6 +342,12 @@ export async function handleDocumentRequest(
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
+}
+
+type Locator = OrderItem;
+
+function locatorKey(item: Locator): string {
+  return "insert" in item ? `insert:${item.insert}` : `${item.path.join(",")}:${item.part}`;
 }
 
 function blockAt(document: EditableDocument, path: NodePath): EditableBlock | undefined {

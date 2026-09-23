@@ -54,11 +54,15 @@
   --radius-xl: 0.7rem;
   --border-width: 1px;
   --focus-ring: 0 0 0 3px rgb(138 164 212 / 35%);
+  --shadow-overlay: 0 6px 20px rgb(27 31 36 / 14%);
 
   --layout-content-width: 52rem;
   --layout-content-gutter: 1.25rem;
   --layout-document-block-padding: 2rem;
   --layout-document-inline-padding: 2.1rem;
-  --layout-document-gutter: 3rem;
+  --layout-document-gutter: 4.25rem;
+  --layout-sidebar-width: 15rem;
+  --layout-sidebar-rail-width: 3rem;
+  --layout-overlay-width: 14rem;
   --size-drop-indicator: 2px;
 }

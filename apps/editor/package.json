@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "tsx --test test/editor.test.ts",
+    "test": "tsx --test test/editor.test.ts test/block-commands.test.ts test/shell.test.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

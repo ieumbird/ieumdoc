@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
+import { MessageArea } from "./shell/MessageArea.tsx";
+import { OpenDialog } from "./shell/OpenDialog.tsx";
+import { Sidebar } from "./shell/Sidebar.tsx";
+import { TopBar } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts";
-import { Button, Notice } from "./ui/primitives.tsx";
+
+const EQUATION_DRAFT_SAVE_HINT = "Apply or Cancel the Equation edit before saving.";
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
   const [openedPath, setOpenedPath] = useState("");
-  const [filePath, setFilePath] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -22,7 +28,8 @@ export function App() {
 
   const busy = status === "Loading…" || status === "Opening…" || status === "Saving…";
 
-  async function load(requestedPath?: string): Promise<void> {
+  /** Resolves to an error message for a requested path, or "" on success. */
+  async function load(requestedPath?: string): Promise<string> {
     setError("");
     setNotice("");
     setStatus(requestedPath ? "Opening…" : "Loading…");
@@ -31,32 +38,27 @@ export function App() {
       setDocument(next.document);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
-      setFilePath(next.path);
       setEditorGeneration((value) => value + 1);
       setEquationDraftActive(false);
       setStatus("Ready");
+      return "";
     } catch (cause) {
-      setError(messageOf(cause));
+      const message = messageOf(cause);
+      if (!requestedPath) setError(message);
       setStatus(requestedPath ? "Open failed" : "Load failed");
+      return message;
     }
   }
 
-  async function openFile(): Promise<void> {
-    const requestedPath = filePath.trim();
-    if (!requestedPath) {
-      setError("Enter a Markdown file path.");
-      return;
-    }
-    if (!requestedPath.toLowerCase().endsWith(".md")) {
-      setError("Only .md files can be opened.");
-      return;
-    }
-    if (busy) return;
+  async function openFile(path: string): Promise<string> {
+    const requestedPath = path.trim();
+    if (!requestedPath) return "Enter a Markdown file path.";
+    if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
+    if (busy) return "Wait for the current operation to finish.";
     if (editorRef.current?.hasUnsavedChanges()) {
-      setNotice("Save or discard the current changes before opening another file.");
-      return;
+      return "Save or discard the current changes before opening another file.";
     }
-    await load(requestedPath);
+    return load(requestedPath);
   }
 
   async function save(): Promise<void> {
@@ -72,7 +74,6 @@ export function App() {
       setDocument(next.document);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
-      setFilePath(next.path);
       // A successful response must not replace input entered while saving.
       const hasPendingDocumentEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
       const hasPendingEquationDraft = editorRef.current?.hasUnappliedEquationDraft() ?? false;
@@ -88,68 +89,50 @@ export function App() {
   }
 
   return (
-    <div className="app">
-      <header className="toolbar">
-        <div>
-          <h1 className="product">IeumDoc</h1>
-          <p className="filename" data-testid="current-file">{openedPath || "No file opened"}</p>
-        </div>
-        <div className="toolbar-actions">
-          <p className="status" data-testid="status">
-            {status}
-          </p>
-          <Button type="button" onClick={() => void save()} disabled={!document || status === "Saving…"}>
-            Save
-          </Button>
-        </div>
-      </header>
-      <form
-        className="file-picker"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void openFile();
-        }}
-      >
-        <label className="file-picker-label" htmlFor="file-path">Open Markdown file</label>
-        <div className="file-picker-controls">
-          <input
-            id="file-path"
-            className="file-path"
-            data-testid="file-path"
-            aria-label="Markdown file path"
-            value={filePath}
-            onChange={(event) => setFilePath(event.target.value)}
-            placeholder="path/to/document.md"
-            disabled={busy}
+    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}`}>
+      <Sidebar
+        open={sidebarOpen}
+        documentPath={openedPath}
+        onToggle={() => setSidebarOpen((value) => !value)}
+        onOpen={() => setOpenDialog(true)}
+      />
+      <div className="app-main">
+        <div className="app-header">
+          <TopBar
+            documentPath={openedPath}
+            status={status}
+            saveDisabled={!document || status === "Saving…" || equationDraftActive}
+            saveHint={equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : undefined}
+            onSave={() => void save()}
           />
-          <Button type="submit" disabled={busy || !filePath.trim()}>Open</Button>
+          <MessageArea
+            error={error}
+            notice={notice}
+            onDismissError={() => setError("")}
+            onNoticeExpired={() => setNotice("")}
+          />
         </div>
-      </form>
-      {equationDraftActive ? (
-        <Notice data-testid="equation-draft-notice">
-          Apply or Cancel the Equation edit before saving.
-        </Notice>
-      ) : null}
-      {notice ? (
-        <Notice data-testid="notice">
-          {notice}
-        </Notice>
-      ) : null}
-      {error ? (
-        <Notice tone="error" data-testid="error">
-          {error}
-        </Notice>
-      ) : null}
-      {document ? (
-        <DocumentEditor
-          key={editorGeneration}
-          ref={editorRef}
-          document={document}
-          documentPath={openedPath}
-          onEquationDraftChange={setEquationDraftActive}
-          onStructuralReject={() =>
-            setNotice("That change is not editable in this version, so it was discarded.")
-          }
+        <main className="document-column">
+          {document ? (
+            <DocumentEditor
+              key={editorGeneration}
+              ref={editorRef}
+              document={document}
+              documentPath={openedPath}
+              onEquationDraftChange={setEquationDraftActive}
+              onStructuralReject={() =>
+                setNotice("That change is not editable in this version, so it was discarded.")
+              }
+            />
+          ) : null}
+        </main>
+      </div>
+      {openDialog ? (
+        <OpenDialog
+          initialPath={openedPath}
+          busy={busy}
+          onOpen={openFile}
+          onClose={() => setOpenDialog(false)}
         />
       ) : null}
     </div>

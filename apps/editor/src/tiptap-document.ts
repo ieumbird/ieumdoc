@@ -20,14 +20,35 @@ export type EquationEdit = {
   to: string;
 };
 
+/** A new top-level paragraph's position in the next order, or an original snapshot block part. */
+export type OrderItem = { path: NodePath; part: number } | { insert: number };
+
 export type SupportedEdits = {
-  order?: { path: NodePath; part: number }[];
+  order?: OrderItem[];
   headings: HeadingEdit[];
   paragraphs: ParagraphEdit[];
   equations?: EquationEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
+  inserts?: InlineContent[][];
+  deletes?: NodePath[];
 };
+
+// Unsaved top-level paragraphs have no snapshot locator yet. This session-only
+// marker is replaced by the saved snapshot path; it is never persisted.
+export const NEW_BLOCK_PREFIX = "new:";
+
+export function isNewBlockPath(path: string): boolean {
+  return path.startsWith(NEW_BLOCK_PREFIX);
+}
+
+/** Editor document attribute listing snapshot paths removed by an explicit Delete command. */
+export const DELETED_PATHS_ATTR = "deletedPaths";
+
+export function deletedPathsOf(document: TiptapJSON): string[] {
+  const value = document.attrs?.[DELETED_PATHS_ATTR];
+  return Array.isArray(value) ? value.map(String) : [];
+}
 
 const KNOWN_BLOCKS = new Set([
   "heading",
@@ -68,13 +89,26 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const equations: EquationEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
+  const inserts: InlineContent[][] = [];
+  const insertOf = new Map<TiptapJSON, number>();
+  const used = new Set<string>();
   const nodes = next.content ?? [];
   const keys = [...new Set(nodes.map(sourcePathOf))];
   for (const key of keys) {
-    const node = nodes.find(node => sourcePathOf(node) === key)!;
-    const paths = key.split(";");
-    const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
     const group = nodes.filter(node => sourcePathOf(node) === key);
+    const paths = snapshotPaths(key);
+    paths.forEach(path => used.add(path));
+    if (paths.length === 0) {
+      for (const node of group) {
+        const content = paragraphInline(node);
+        if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");
+        insertOf.set(node, inserts.length);
+        inserts.push(content);
+      }
+      continue;
+    }
+    const node = group[0];
+    const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
     if (paths.length > 1) {
       merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
     } else if (block.block === "heading" && block.editable) {
@@ -96,14 +130,19 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
     }
   }
+  const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
   const counts = new Map<string, number>();
-  const order = nodes.map(node => {
-    const key = sourcePathOf(node);
+  const order: OrderItem[] = nodes.map(node => {
+    const insert = insertOf.get(node);
+    if (insert !== undefined) return { insert };
+    const key = snapshotPaths(sourcePathOf(node)).join(";");
     const part = counts.get(key) ?? 0;
     counts.set(key, part + 1);
     return { path: key.split(";")[0].split(",").map(Number), part };
   });
-  const reordered = order.some((item, index) => index > 0 && item.path[0] < order[index - 1].path[0]) ||
+  const positions = order.flatMap(item => "path" in item ? [item.path[0]] : []);
+  const reordered = inserts.length > 0 || deletes.length > 0 ||
+    positions.some((position, index) => index > 0 && position < positions[index - 1]) ||
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
   return {
     ...(reordered ? { order } : {}),
@@ -112,6 +151,8 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(equations.length ? { equations } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
+    ...(inserts.length ? { inserts } : {}),
+    ...(deletes.length ? { deletes } : {}),
   };
 }
 
@@ -124,6 +165,11 @@ export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON
   }
 }
 
+/**
+ * Validates the editor document against the loaded snapshot. New paragraphs are
+ * representable here; a missing snapshot block must be declared as deleted.
+ * The editor's structure guard admits both only from explicit block commands.
+ */
 export function assertSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): void {
   if (baseline.type !== "doc" || next.type !== "doc") {
     throw new Error('Tiptap document must have type "doc"');
@@ -135,20 +181,33 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
   }
   const used = new Set<string>();
   for (const key of new Set(after.map(sourcePathOf))) {
-    const paths = key.split(";");
-    const originals = paths.map(path => before.find(node => sourcePathOf(node) === path));
-    for (const [index, path] of paths.entries()) {
-      if (!originals[index] || used.has(path)) throw new Error("block insertion or identity changed");
+    const all = key.split(";");
+    for (const path of all) {
+      if (used.has(path) || (!isNewBlockPath(path) && !before.some(node => sourcePathOf(node) === path))) {
+        throw new Error("block insertion or identity changed");
+      }
       used.add(path);
     }
-    if (paths.length > 1 && originals.some(block => block!.type !== "paragraph")) {
+    const group = after.filter(node => sourcePathOf(node) === key);
+    const paths = snapshotPaths(key);
+    if (paths.length === 0) {
+      for (const node of group) {
+        if (node.type !== "paragraph") throw new Error("only paragraphs can be inserted");
+        paragraphInline(node);
+      }
+      continue;
+    }
+    const originals = paths.map(path => before.find(node => sourcePathOf(node) === path));
+    if (all.length > 1 && originals.some(block => block!.type !== "paragraph")) {
       throw new Error("only editable paragraphs can merge");
     }
-    const group = after.filter(node => sourcePathOf(node) === key);
     if (group.length > 1 && originals[0]!.type !== "paragraph") throw new Error("block insertion is not allowed");
     for (const node of group) assertBlockChange(originals[0], node);
   }
-  if (used.size !== before.length) throw new Error("block deletion is not allowed");
+  const deleted = new Set(deletedPathsOf(next));
+  if (before.some(node => !used.has(sourcePathOf(node)) && !deleted.has(sourcePathOf(node)))) {
+    throw new Error("block deletion is not allowed");
+  }
 }
 
 function toTiptapBlock(block: EditableBlock): TiptapJSON {
@@ -315,6 +374,10 @@ function equationLatex(node: TiptapJSON): string {
 
 function sourcePathOf(node: TiptapJSON | undefined): string {
   return String(node?.attrs?.sourcePath ?? "");
+}
+
+function snapshotPaths(key: string): string[] {
+  return key.split(";").filter(path => !isNewBlockPath(path));
 }
 
 function sameInline(left: InlineContent[], right: InlineContent[]): boolean {
