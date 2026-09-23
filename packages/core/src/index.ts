@@ -14,6 +14,7 @@ export {
   insertBlock,
   insertParagraph,
   insertHeading,
+  insertEquation,
   removeBlock,
   updateNodeTextAtPath,
   updateEquationLatex,

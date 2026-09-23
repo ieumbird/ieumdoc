@@ -22,7 +22,8 @@ export type EquationEdit = {
 
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; text: string };
+  | { block: "heading"; level: number; text: string }
+  | { block: "equation"; latex: string };
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -117,6 +118,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         }
         if (insert.block === "heading" && insert.text.length === 0) {
           throw new Error("empty heading cannot be saved");
+        }
+        if (insert.block === "equation" && insert.latex.length === 0) {
+          throw new Error("empty equation LaTeX cannot be saved");
         }
         insertOf.set(node, inserts.length);
         inserts.push(insert);
@@ -303,7 +307,10 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "heading") {
     return { block: "heading", level: headingLevel(node), text: headingText(node) };
   }
-  throw new Error("only paragraphs and headings can be inserted");
+  if (node.type === "equation") {
+    return { block: "equation", latex: equationLatex(node) };
+  }
+  throw new Error("only paragraphs, headings, and equations can be inserted");
 }
 
 function headingLevel(node: TiptapJSON): number {

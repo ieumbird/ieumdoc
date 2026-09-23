@@ -158,6 +158,8 @@ test("an open Equation draft blocks saving only when it differs from the applied
   assert.equal(isUnappliedEquationDraft(true, "x", "x"), false);
   assert.equal(isUnappliedEquationDraft(true, "x + 1", "x"), true);
   assert.equal(isUnappliedEquationDraft(true, "", "x"), true);
+  assert.equal(isUnappliedEquationDraft(true, "", "", "new:equation"), true);
+  assert.equal(isUnappliedEquationDraft(false, "", "", "new:equation"), false);
 });
 
 test("top Save is guarded and Equation draft reporting is wired before persistence", () => {
@@ -179,7 +181,7 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
   const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   assert.match(schema, /onDraftChange\?\.\(sourcePath, hasUnappliedDraft\)/);
   assert.match(schema, /return \(\) => onDraftChange\?\.\(sourcePath, false\)/);
-  assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex\)/);
+  assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex, sourcePath\)/);
 });
 
 test("a save response keeps an Equation draft pending and avoids an editor remount", () => {
@@ -567,6 +569,51 @@ test("new heading inserts save and reload through Core semantics", () => {
     }),
     /empty heading cannot be saved/,
   );
+});
+
+test("new Equation inserts save and reload through Core semantics", () => {
+  const editable = loadEditableDocument("Intro\n");
+  const next = toTiptapDocument(editable);
+  next.content!.push({
+    type: "equation",
+    attrs: { sourcePath: "new:equation", latex: "x^2 + 1", label: "" },
+  });
+  const edits = collectSupportedEdits(editable, next);
+  assert.deepEqual(edits.inserts, [{ block: "equation", latex: "x^2 + 1" }]);
+  const saved = saveEdits("Intro\n", edits);
+  assert.equal(saved.markdown, "Intro\n\n```{math}\nx^2 + 1\n```\n");
+  assert.deepEqual(saved.document.blocks.map(block => block.block), ["paragraph", "equation"]);
+  assert.equal(saved.document.blocks[1]?.block, "equation");
+  if (saved.document.blocks[1]?.block === "equation") {
+    assert.equal(saved.document.blocks[1].latex, "x^2 + 1");
+  }
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+
+  const empty = toTiptapDocument(editable);
+  empty.content!.push({ type: "equation", attrs: { sourcePath: "new:empty-equation", latex: "", label: "" } });
+  assert.throws(() => collectSupportedEdits(editable, empty), /empty equation LaTeX/);
+  assert.throws(
+    () => saveEdits("Intro\n", {
+      inserts: [{ block: "equation", latex: "" }],
+      order: [{ path: [0], part: 0 }, { insert: 0 }],
+    }),
+    /empty equation LaTeX/,
+  );
+
+  const conversion = clone(toTiptapDocument(editable));
+  conversion.content![0] = {
+    type: "equation",
+    attrs: { sourcePath: "0", latex: "x" },
+  };
+  assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
+});
+
+test("new Equation cancel removes the transient block while persisted Equation cancel remains local", () => {
+  const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
+  assert.match(schemaSource, /isNewBlockPath\(sourcePath\) && latex\.length === 0/);
+  assert.match(schemaSource, /deleteNode\(\)/);
+  assert.match(schemaSource, /nodes\.paragraph/);
+  assert.match(schemaSource, /updateAttributes\(\{ latex: draft \}\)/);
 });
 
 test("an empty new document can hold a transient heading but cannot save it empty", () => {
