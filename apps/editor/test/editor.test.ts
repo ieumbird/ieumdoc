@@ -1005,6 +1005,8 @@ test("supported edits preserve untouched semantics", () => {
   assert.deepEqual(tableSemantic(after), tableSemantic(canonical));
   assert.deepEqual(admonitionSemantic(after), admonitionSemantic(canonical));
   assert.deepEqual(referenceSemantic(after), referenceSemantic(canonical));
+  // Save → Reload keeps {eq} a crossReference and `[](#...)` a link (issue #12).
+  assert.deepEqual(referenceSemantic(after), referenceSemantic(before));
 });
 
 test("Core source does not import Tiptap or ProseMirror", () => {

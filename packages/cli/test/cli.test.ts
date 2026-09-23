@@ -533,6 +533,29 @@ function run(args: string[]) {
   });
 }
 
+test("CLI format keeps semantic references distinct from fragment links", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-references-"));
+  const file = path.join(dir, "technical-document.md");
+  const unsupported = path.join(dir, "term.md");
+  copyFileSync(technicalFixture, file);
+  writeFileSync(unsupported, "See {term}`glossary`.\n");
+  try {
+    for (let i = 0; i < 2; i++) assert.equal(run(["format", file]).status, 0);
+    const saved = readFileSync(file, "utf8");
+    assert.match(saved, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
+    const paragraph = parse(saved).children[2].children ?? [];
+    assert.deepEqual([paragraph[1].type, paragraph[1].url], ["link", "#fig-control"]);
+    assert.deepEqual([paragraph[3].type, paragraph[3].kind, paragraph[3].identifier], ["crossReference", "eq", "eq-current"]);
+
+    const failed = run(["format", unsupported]);
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /cannot be preserved/);
+    assert.equal(readFileSync(unsupported, "utf8"), "See {term}`glossary`.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Core rejects lossy text updates before CLI overwrites a real file", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
   const file = path.join(dir, "document.md");
