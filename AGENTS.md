@@ -44,6 +44,17 @@
 변경한 동작과 직접 관련된 검증을 수행한다.
 현재 작업과 관계없는 광범위한 테스트, 리팩터링 또는 구조 변경은 수행하지 않는다.
 
+## Process cleanup
+
+작업 완료를 보고하기 전에 이번 작업에서 직접 시작한 임시 프로세스와 세션을 종료한다.
+대상은 dev server(Vite 등), browser automation session(Playwright 등), watcher, 임시 local/test server, 기타 검증용 background process다.
+
+- 이번 작업에서 직접 시작한 프로세스만 종료한다. 사용자가 원래 실행 중이던 프로세스는 종료하지 않는다.
+- 프로세스 이름이나 포트 번호가 같다는 이유만으로 다른 프로세스를 광범위하게 종료하지 않는다.
+- 가능하면 PID, session name 등으로 자신이 시작한 것인지 확인한 뒤 정리한다.
+- 완료 보고 전에 자신이 시작한 background process가 남아 있지 않은지 확인한다.
+- 정리에 실패하면 완료된 것처럼 보고하지 않고, 남아 있는 process/session/port와 그 이유를 명시한다.
+
 ## AI Commit Provenance
 
 Every commit created primarily by an AI coding agent MUST include
