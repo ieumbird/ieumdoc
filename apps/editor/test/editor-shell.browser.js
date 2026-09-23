@@ -40,16 +40,21 @@ async page => {
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
     result.equationDraftInBlock = await page.locator('[data-block="equation"] [data-testid="equation-draft-status"]').isVisible();
-    await page.locator('.top-bar button:disabled', {hasText:'Save'}).waitFor();
+    // Save stays focusable while disabled (aria-disabled, not the native attribute) so its
+    // reason is reachable as a Tooltip; see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section.
+    await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').waitFor();
     result.saveDisabledDuringDraft = true;
+    await page.locator('.top-bar [data-testid="save"]').hover();
+    await page.locator('[data-slot="tooltip-content"]', {hasText:'Apply or Cancel the Equation edit before saving.'}).waitFor();
+    result.saveTooltipShown = true;
     result.noGlobalDraftWarning = await page.getByTestId('message-area').count() === 0;
     await page.getByTestId('equation-cancel').click();
-    await page.locator('.top-bar button:enabled', {hasText:'Save'}).waitFor();
+    await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     result.saveEnabledAfterCancel = await page.getByTestId('equation-draft-status').count() === 0;
 
-    // Figure properties open in a popover attached to the figure.
+    // Figure properties open in a popover anchored to the figure (portaled, so not a DOM descendant).
     await page.locator('[data-block="figure"] img').click();
-    result.figurePopover = await page.locator('[data-block="figure"] [data-testid="figure-properties"]').isVisible();
+    result.figurePopover = await page.getByTestId('figure-properties').isVisible();
 
     // `+` inserts through the shared insert menu.
     await paragraph.hover();

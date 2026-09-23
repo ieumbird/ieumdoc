@@ -573,6 +573,12 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - block menu에는 Core `removeBlock`으로 저장되는 `Delete`만 있다. 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
 - 키보드 Delete/Backspace나 붙여넣기로는 block이 추가·삭제되지 않는다. Save adapter는 Delete command로 선언되지 않은 block 소실을 거부한다.
 
+Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popover, sidebar/top bar의 아이콘 버튼은 shadcn(Base UI, Nova style, Stone base color) 기반이다. 이 전환은 상호작용을 바꾸지 않는다.
+
+- Save가 Equation draft 때문에 비활성일 때도 hover/focus하면 이유가 tooltip으로 뜬다(네이티브 `disabled`가 아니라 `aria-disabled`를 쓰므로 여전히 hover 가능하다).
+- Figure를 선택하면 properties popover가 뜨지만 editor focus는 그대로 유지된다. popover가 열린 상태에서도 Delete 등 키보드 상호작용이 그대로 동작해야 한다.
+- Open dialog는 Escape나 바깥 클릭으로도 닫힌다(이전 임시 구현에는 없던, 표준 dialog의 기본 동작).
+
 선택적 브라우저 회귀 스크립트(POST는 모두 mock):
 
 ```powershell
@@ -582,4 +588,4 @@ playwright-cli -s=ieumdoc-shell run-code --filename=apps/editor/test/open-files.
 playwright-cli -s=ieumdoc-shell close
 ```
 
-`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다.
+`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `saveTooltipShown`은 Equation draft로 Save가 막혔을 때 hover하면 tooltip이 뜨는지 확인한다.

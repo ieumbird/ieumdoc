@@ -3,7 +3,8 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMAND_META } from "./block-commands.ts";
 import { renderEquation } from "./equation-render.ts";
 import { DELETED_PATHS_ATTR, isNewBlockPath, isSupportedDocumentChange, type TiptapJSON } from "./tiptap-document.ts";
@@ -515,6 +516,7 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
 }
 
 function FigureView({ node, selected, documentPath }: ReactNodeViewProps & { documentPath?: string }) {
+  const anchor = useRef<HTMLParagraphElement>(null);
   const imageUrl = String(node.attrs.imageUrl ?? "");
   const src = resolveFigureSource(imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
@@ -533,11 +535,22 @@ function FigureView({ node, selected, documentPath }: ReactNodeViewProps & { doc
       data-readonly="true"
       contentEditable={false}
     >
-      <p className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
+      <p ref={anchor} className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
       {src ? <img src={src} alt={String(node.attrs.imageAlt ?? "")} /> : null}
       <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>
-      {selected ? (
-        <div className="block-popover figure-properties" role="dialog" aria-label="Figure properties" data-testid="figure-properties">
+      <Popover open={selected} onOpenChange={() => {}}>
+        <PopoverContent
+          anchor={anchor}
+          side="bottom"
+          align="start"
+          // The popover only annotates the still-selected block; keep focus (and so
+          // keyboard interaction, e.g. Delete) on the editor instead of the popup.
+          initialFocus={false}
+          finalFocus={false}
+          aria-label="Figure properties"
+          data-testid="figure-properties"
+          className="figure-properties"
+        >
           <dl>
             {properties.map(([name, value]) => (
               <div key={name} className="figure-property">
@@ -548,8 +561,8 @@ function FigureView({ node, selected, documentPath }: ReactNodeViewProps & { doc
           </dl>
           {/* No Core operation updates Figure properties yet. */}
           <p className="block-popover-note">Figure properties are read-only in this version.</p>
-        </div>
-      ) : null}
+        </PopoverContent>
+      </Popover>
     </NodeViewWrapper>
   );
 }

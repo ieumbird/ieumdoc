@@ -60,15 +60,6 @@ button {
   text-transform: uppercase;
 }
 
-.sidebar-toggle {
-  background: transparent;
-  color: var(--color-text-subtle);
-}
-
-.sidebar-open {
-  justify-content: flex-start;
-}
-
 .sidebar-documents {
   margin: 0;
   padding: 0;
@@ -161,61 +152,6 @@ button {
   max-width: var(--layout-content-width);
   margin: 0 auto;
   padding: var(--space-6) var(--layout-content-gutter) var(--space-16);
-}
-
-.open-dialog {
-  width: min(32rem, calc(100vw - 2rem));
-  padding: var(--space-5);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-overlay);
-}
-
-.open-dialog::backdrop {
-  background: rgb(27 31 36 / 20%);
-}
-
-.open-dialog-form {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.open-dialog-title {
-  margin: 0;
-  font-size: var(--font-size-lg);
-}
-
-.open-dialog-error {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-}
-
-.open-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.file-path {
-  min-width: 0;
-  min-height: 2.25rem;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.file-path:focus {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.file-path:disabled {
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
 }
 
 .status {
@@ -624,8 +560,7 @@ h2.heading {
 
 /* Editor overlays: positioned over the document, never part of its content. */
 .command-menu,
-.selection-toolbar,
-.block-popover {
+.selection-toolbar {
   position: absolute;
   z-index: 1;
   border: var(--border-width) solid var(--color-border);
@@ -674,19 +609,6 @@ h2.heading {
   gap: var(--space-1);
   padding: var(--space-1);
   transform: translateY(-100%);
-}
-
-.block-popover {
-  top: calc(100% - var(--space-2));
-  left: var(--space-4);
-  width: var(--layout-overlay-width);
-  padding: var(--space-3);
-  font-size: var(--font-size-sm);
-  text-align: left;
-}
-
-.figure {
-  position: relative;
 }
 
 .figure-properties dl {
