@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
-import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type Document} from '../src/index.ts';
+import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type MystDocument} from './core-internal.ts';
 import {projectInlineContent,inlineContentText,assertInlineContent,inlineContentToNodes} from '../src/inline.ts';
 
-function stable(d: Document) {
+function stable(d: MystDocument) {
   validateStructure(d);
   const markdown=serialize(d), reparsed=parse(markdown);
   validateStructure(reparsed);
   assert.equal(serialize(reparsed),markdown);
   return reparsed;
 }
-function content(d: Document,index=0) { return projectInlineContent(d.children[index])!; }
-function text(d: Document,index=0) { return inlineContentText(content(d,index)); }
+function content(d: MystDocument,index=0) { return projectInlineContent(d.children[index])!; }
+function text(d: MystDocument,index=0) { return inlineContentText(content(d,index)); }
 for(const [source,offset] of [['ABCD',2],['**ABCD**',2],['*ABCD*',2],['**A*BC*D**',2],['A**BC**D',1]] as const) {
   test(`hard break preserves marks: ${source}`,()=>{
     const original=parse(source), before=serialize(original);
@@ -100,7 +100,7 @@ test('unrelated technical semantics survive each operation despite shifted paths
 });
 
 test("empty and whitespace-only persistent split results are rejected", () => {
-  const document: Document = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: " A" }] }] };
+  const document: MystDocument = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: " A" }] }] };
   assert.throws(() => splitParagraph(document, [0], 1), /non-empty/);
 });
 

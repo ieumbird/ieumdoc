@@ -6,7 +6,7 @@ import test from "node:test";
 import { createTokenizer } from "myst-parser";
 import {
   getEditableDocument, getNode, inspectDocument, parse, serialize, validateStructure,
-} from "../src/index.ts";
+} from "./core-internal.ts";
 
 const inlineSource = '# Inline contract\n\nPlain **strong** and *emphasis* with **nested *marks***.  \nHard break, $x + y$, and [a link](https://example.org "title").\n\n"Quoted" and \'single\' quotes; don\'t change smartquotes.\n';
 
@@ -96,7 +96,7 @@ test("Core preserves math source without invoking MyST's legacy KaTeX renderer",
 test("patched smartquotes handles the upstream pathological input in a bounded child process", () => {
   // A child timeout can stop a synchronous parser regression; node:test's timeout cannot.
   // This is a generous hang guard, not a machine-specific performance benchmark.
-  const coreUrl = new URL("../src/index.ts", import.meta.url).href;
+  const coreUrl = new URL("./core-internal.ts", import.meta.url).href;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
     import assert from 'node:assert/strict';
     import { parse, getEditableDocument } from ${JSON.stringify(coreUrl)};

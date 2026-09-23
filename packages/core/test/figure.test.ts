@@ -11,15 +11,15 @@ import {
   updateFigure,
   validateFigure,
   validateStructure,
-  type Document,
+  type MystDocument,
   type FigureContent,
   type NodePath,
-} from "../src/index.ts";
+} from "./core-internal.ts";
 
 const FIGURE_PATH: NodePath = [6];
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 
-function semanticFigure(document: Document, index: number) {
+function semanticFigure(document: MystDocument, index: number) {
   const block = getEditableDocument(document).blocks[index];
   assert.equal(block?.block, "figure");
   if (block?.block !== "figure") throw new Error("not a figure");
@@ -33,7 +33,7 @@ function semanticFigure(document: Document, index: number) {
 }
 
 /** serialize → parse → semantic Figure, plus a deterministic second serialization. */
-function roundTrip(document: Document, index: number) {
+function roundTrip(document: MystDocument, index: number) {
   validateStructure(document);
   const markdown = serialize(document);
   const reparsed = parse(markdown);

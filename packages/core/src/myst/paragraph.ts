@@ -1,12 +1,12 @@
-import type { DocumentNode } from "../document.ts";
 import { projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
+import type { MystNode } from "./tree.ts";
 
 /** Fail closed when Markdown cannot persist the requested inline semantics.
  * In particular, trailing breaks and whitespace-only split results are not
  * persistent paragraphs. Never insert padding or invisible placeholders. */
-export function assertPersistentParagraph(node: DocumentNode): void {
+export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
   if (!content || !semanticUnits(content).some((unit) => unit.kind === "text" && unit.text.trim().length > 0)) {
     throw new Error("persistent paragraph must contain non-empty text");

@@ -1,12 +1,5 @@
 import { assertPersistentParagraph } from "./myst/paragraph.ts";
-import { toText } from "myst-common";
-import {
-  cloneDocument,
-  getNode,
-  type Document,
-  type DocumentNode,
-  type NodePath,
-} from "./document.ts";
+import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
@@ -30,10 +23,11 @@ import {
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
+import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
-export function replaceText(document: Document, from: string, to: string): Document {
+export function replaceText(document: MystDocument, from: string, to: string): MystDocument {
   if (from.length === 0) {
     throw new Error("replaceText requires a non-empty search string");
   }
@@ -49,7 +43,7 @@ export function replaceText(document: Document, from: string, to: string): Docum
   return next;
 }
 
-export function moveBlock(document: Document, fromIndex: number, toIndex: number): Document {
+export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number): MystDocument {
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -69,7 +63,7 @@ export function moveBlock(document: Document, fromIndex: number, toIndex: number
 
 const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
 
-function assertCanonicalBlockBoundaries(document: Document): void {
+function assertCanonicalBlockBoundaries(document: MystDocument): void {
   const expectedBlocks = getEditableDocument(document).blocks;
   const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
   if (
@@ -80,7 +74,7 @@ function assertCanonicalBlockBoundaries(document: Document): void {
   }
 }
 
-export function insertBlock(document: Document, index: number, block: DocumentNode): Document {
+export function insertBlock(document: MystDocument, index: number, block: MystNode): MystDocument {
   if (!block || typeof block.type !== "string" || block.type.length === 0) {
     throw new Error("insertBlock requires a block with a type");
   }
@@ -96,8 +90,8 @@ export function insertBlock(document: Document, index: number, block: DocumentNo
   return next;
 }
 
-export function insertParagraph(document: Document, index: number, text: string): Document {
-  const paragraph: DocumentNode = {
+export function insertParagraph(document: MystDocument, index: number, text: string): MystDocument {
+  const paragraph: MystNode = {
     type: "paragraph",
     children: [{ type: "text", value: text }],
   };
@@ -108,11 +102,11 @@ export function insertParagraph(document: Document, index: number, text: string)
 const HEADING_FAILURE = "heading insertion cannot round-trip losslessly through canonical Markdown";
 
 /** Insert a persistent top-level heading while keeping its MyST details inside Core. */
-export function insertHeading(document: Document, index: number, level: number, text: string): Document {
+export function insertHeading(document: MystDocument, index: number, level: number, text: string): MystDocument {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
     throw new Error(`heading level must be an integer from 1 to 6: ${level}`);
   }
-  const heading: DocumentNode = {
+  const heading: MystNode = {
     type: "heading",
     depth: level,
     children: [{ type: "text", value: text }],
@@ -134,11 +128,11 @@ export function insertHeading(document: Document, index: number, level: number, 
 }
 
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */
-export function insertEquation(document: Document, index: number, latex: string): Document {
+export function insertEquation(document: MystDocument, index: number, latex: string): MystDocument {
   if (latex.length === 0) {
     throw new Error("empty equation LaTeX cannot be saved");
   }
-  const equation: DocumentNode = {
+  const equation: MystNode = {
     type: "math",
     value: latex,
   };
@@ -148,7 +142,7 @@ export function insertEquation(document: Document, index: number, latex: string)
 }
 
 /** Insert a persistent top-level Figure without a label. */
-export function insertFigure(document: Document, index: number, figure: FigureContent): Document {
+export function insertFigure(document: MystDocument, index: number, figure: FigureContent): MystDocument {
   assertFigureContent(figure);
   const next = insertBlock(document, index, createFigureNode(figure));
   assertFigureRoundTrip(next, index, figure, undefined, undefined);
@@ -156,7 +150,7 @@ export function insertFigure(document: Document, index: number, figure: FigureCo
 }
 
 /** Update a Figure's image URL, alt text or plain-text caption; its label is preserved. */
-export function updateFigure(document: Document, path: NodePath, changes: Partial<FigureContent>): Document {
+export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {
   const current = getNode(document, path);
   if (!isFigure(current)) {
     throw new Error(`updateFigure requires a figure at [${path.join(",")}]`);
@@ -199,11 +193,11 @@ function assertFigureContent(figure: FigureContent): void {
 }
 
 export function updateNodeTextAtPath(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   from: string,
   to: string,
-): Document {
+): MystDocument {
   if (from.length === 0) {
     throw new Error("updateNodeTextAtPath requires a non-empty search string");
   }
@@ -228,11 +222,11 @@ export function updateNodeTextAtPath(
 
 /** Update one Equation's LaTeX source while preserving its semantic identity. */
 export function updateEquationLatex(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   from: string,
   to: string,
-): Document {
+): MystDocument {
   const current = getNode(document, path);
   if (current.type !== "math") {
     throw new Error(`updateEquationLatex requires an equation at [${path.join(",")}]`);
@@ -253,7 +247,7 @@ export function updateEquationLatex(
 const EQUATION_FAILURE = "Equation LaTeX change cannot be preserved through canonical round-trip";
 
 function assertEquationRoundTrip(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   label: string | undefined,
   identifier: string | undefined,
@@ -276,10 +270,10 @@ function assertEquationRoundTrip(
 }
 
 export function updateParagraphInlineContent(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   content: InlineContent[],
-): Document {
+): MystDocument {
   assertInlineContent(content);
   const next = cloneDocument(document);
   const node = getNode(next, path);
@@ -294,7 +288,7 @@ export function updateParagraphInlineContent(
   return next;
 }
 
-export function removeBlock(document: Document, index: number): Document {
+export function removeBlock(document: MystDocument, index: number): MystDocument {
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -307,7 +301,7 @@ export function removeBlock(document: Document, index: number): Document {
   return next;
 }
 
-function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {
+function findTextBlock(node: MystNode, from: string): MystNode | undefined {
   if (TEXT_BLOCKS.has(node.type) && toText(node).includes(from)) {
     return node;
   }
@@ -318,7 +312,7 @@ function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefin
   return undefined;
 }
 
-function replaceInTextNodes(node: DocumentNode, from: string, to: string): boolean {
+function replaceInTextNodes(node: MystNode, from: string, to: string): boolean {
   if (node.type === "text" && typeof node.value === "string" && node.value.includes(from)) {
     node.value = node.value.replaceAll(from, to);
     return true;
@@ -331,7 +325,7 @@ function replaceInTextNodes(node: DocumentNode, from: string, to: string): boole
 }
 
 /** Insert an intentional line break at an interior rendered UTF-16 offset. */
-export function insertHardBreak(document: Document, path: NodePath, offset: number): Document {
+export function insertHardBreak(document: MystDocument, path: NodePath, offset: number): MystDocument {
   const content = paragraphContent(document, path);
   assertInteriorOffset(content, offset);
   const next = cloneDocument(document);
@@ -341,7 +335,7 @@ export function insertHardBreak(document: Document, path: NodePath, offset: numb
 }
 
 /** Split a top-level paragraph without creating persistent empty paragraphs. */
-export function splitParagraph(document: Document, path: NodePath, offset: number): Document {
+export function splitParagraph(document: MystDocument, path: NodePath, offset: number): MystDocument {
   assertTopLevelPath(path);
   const content = paragraphContent(document, path);
   assertInteriorOffset(content, offset);
@@ -357,7 +351,7 @@ export function splitParagraph(document: Document, path: NodePath, offset: numbe
 }
 
 /** Concatenate the current and previous top-level paragraphs; add no space. */
-export function mergeParagraphWithPrevious(document: Document, path: NodePath): Document {
+export function mergeParagraphWithPrevious(document: MystDocument, path: NodePath): MystDocument {
   assertTopLevelPath(path);
   if (path[0] <= 0) throw new Error("merge requires a previous paragraph");
   const current = paragraphContent(document, path);
@@ -369,7 +363,7 @@ export function mergeParagraphWithPrevious(document: Document, path: NodePath): 
   return next;
 }
 
-function paragraphContent(document: Document, path: NodePath): InlineContent[] {
+function paragraphContent(document: MystDocument, path: NodePath): InlineContent[] {
   const node = getNode(document, path);
   if (node.type !== "paragraph") throw new Error("operation requires a paragraph");
   const content = projectInlineContent(node);

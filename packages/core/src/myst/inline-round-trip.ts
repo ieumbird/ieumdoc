@@ -1,11 +1,11 @@
-import type { DocumentNode } from "../document.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
+import type { MystNode } from "./tree.ts";
 
 /** Persistent text edits must retain their block type, text and marks.
  * This is a write-time MyST constraint, not an Editor interaction rule. */
-export function assertInlineBlockRoundTrip(node: DocumentNode): void {
+export function assertInlineBlockRoundTrip(node: MystNode): void {
   if (node.type !== "paragraph" && node.type !== "heading") return;
   const content = projectInlineContent(node);
   // This check covers the supported inline contract only. It does not rebuild

@@ -1,7 +1,7 @@
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
-import type { DocumentNode } from "../document.ts";
 import { parse } from "./parse.ts";
+import type { MystNode } from "./tree.ts";
 
 /**
  * MyST reference roles whose `crossReference` Core writes back as the same role:
@@ -17,7 +17,7 @@ const REFERENCE_KEYS = new Set(["type", "kind", "identifier", "label", "children
 const TARGET_KEYS = new Set(["type", "label", "position"]);
 
 /** Rewrite semantic references in a serializer-owned clone, or fail closed. */
-export function prepareReferences(node: DocumentNode): void {
+export function prepareReferences(node: MystNode): void {
   // Never add a `children` key to leaf nodes: mdast handlers treat its presence as meaningful.
   if (!node.children) return;
   node.children = node.children.map((child) => {
@@ -28,7 +28,7 @@ export function prepareReferences(node: DocumentNode): void {
   });
 }
 
-function referenceRole(node: DocumentNode): DocumentNode {
+function referenceRole(node: MystNode): MystNode {
   const { kind, label, children } = node;
   if (typeof kind !== "string" || !REFERENCE_ROLES.has(kind)) {
     throw new Error(`cross-reference kind ${JSON.stringify(kind)} cannot be preserved through canonical Markdown`);
@@ -39,7 +39,7 @@ function referenceRole(node: DocumentNode): DocumentNode {
   if (typeof label !== "string" || text === null || Object.keys(node).some((key) => !REFERENCE_KEYS.has(key))) {
     throw new Error(`{${kind}} cross-reference cannot be preserved through canonical Markdown`);
   }
-  const role: DocumentNode = { type: "mystRole", name: kind, value: text === undefined ? label : `${text} <${label}>` };
+  const role: MystNode = { type: "mystRole", name: kind, value: text === undefined ? label : `${text} <${label}>` };
   const reparsed = parse(write(role)).children;
   const block = reparsed[0]?.children ?? [];
   const reference = block[0];
@@ -53,7 +53,7 @@ function referenceRole(node: DocumentNode): DocumentNode {
 
 /** `(label)=` targets label the following block, e.g. a section heading.
  * myst-to-md has no handler for them and would write nothing. */
-function targetLine(node: DocumentNode): DocumentNode {
+function targetLine(node: MystNode): MystNode {
   const line = `(${String(node.label)})=`;
   const reparsed = parse(`${line}\n`).children;
   if (typeof node.label !== "string" || Object.keys(node).some((key) => !TARGET_KEYS.has(key)) ||
@@ -63,7 +63,7 @@ function targetLine(node: DocumentNode): DocumentNode {
   return { type: "html", value: line };
 }
 
-function write(role: DocumentNode): string {
+function write(role: MystNode): string {
   const file = new VFile();
   writeMd(file, { type: "root", children: [{ type: "paragraph", children: [role] }] } as never);
   return String(file.result ?? "");

@@ -8,7 +8,7 @@ import {
   updateParagraphInlineContent,
   updateNodeTextAtPath,
   type InlineContent,
-} from "../src/index.ts";
+} from "./core-internal.ts";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 

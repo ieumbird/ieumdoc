@@ -1,4 +1,4 @@
-import type { DocumentNode } from "./document.ts";
+import type { MystNode } from "./myst/tree.ts";
 
 export type InlineContent =
   | { kind: "break" }
@@ -15,11 +15,11 @@ export type InlineContent =
       children: InlineContent[];
     };
 
-export function projectInlineContent(node: DocumentNode): InlineContent[] | undefined {
+export function projectInlineContent(node: MystNode): InlineContent[] | undefined {
   return projectNodes(node.children ?? []);
 }
 
-export function inlineContentToNodes(content: InlineContent[]): DocumentNode[] {
+export function inlineContentToNodes(content: InlineContent[]): MystNode[] {
   return content.map(inlineToNode);
 }
 
@@ -29,7 +29,7 @@ export function inlineContentText(content: InlineContent[]): string {
     .join("");
 }
 
-function projectNodes(nodes: DocumentNode[]): InlineContent[] | undefined {
+function projectNodes(nodes: MystNode[]): InlineContent[] | undefined {
   const content: InlineContent[] = [];
   for (const node of nodes) {
     const item = projectNode(node);
@@ -39,7 +39,7 @@ function projectNodes(nodes: DocumentNode[]): InlineContent[] | undefined {
   return content;
 }
 
-function projectNode(node: DocumentNode): InlineContent | undefined {
+function projectNode(node: MystNode): InlineContent | undefined {
   if (node.type === "break") return { kind: "break" };
   if (node.type === "text") {
     return { kind: "text", text: typeof node.value === "string" ? node.value : "" };
@@ -52,7 +52,7 @@ function projectNode(node: DocumentNode): InlineContent | undefined {
   return undefined;
 }
 
-function inlineToNode(item: InlineContent): DocumentNode {
+function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "break") return { type: "break" };
   if (item.kind === "text") {
     return { type: "text", value: item.text };

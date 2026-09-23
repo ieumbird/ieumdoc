@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parse, serialize, type DocumentNode } from "../src/index.ts";
+import { parse, serialize, type MystNode } from "./core-internal.ts";
 
 // Issue #12: semantic references are written as their MyST role, so they parse
 // back as `crossReference`. Ordinary `[text](#target)` links are never promoted.
@@ -92,11 +92,11 @@ test("references that cannot be preserved fail closed instead of becoming links"
   assert.throws(() => serialize(resolved), /cannot be preserved/);
 });
 
-function paragraph(reference: DocumentNode) {
+function paragraph(reference: MystNode) {
   return { type: "root" as const, children: [{ type: "paragraph", children: [reference] }] };
 }
 
-function references(node: DocumentNode, found: Record<string, unknown>[] = []): Record<string, unknown>[] {
+function references(node: MystNode, found: Record<string, unknown>[] = []): Record<string, unknown>[] {
   if (node.type === "crossReference") {
     found.push({
       type: node.type, kind: node.kind, identifier: node.identifier, label: node.label,

@@ -1,6 +1,6 @@
-import type { Document, DocumentNode } from "./document.ts";
+import type { MystDocument, MystNode } from "./myst/tree.ts";
 
-export function validateStructure(document: Document): void {
+export function validateStructure(document: MystDocument): void {
   if (!document || document.type !== "root") {
     throw new Error("document root must have type \"root\"");
   }
@@ -21,9 +21,9 @@ export function validateStructure(document: Document): void {
 }
 
 function walk(
-  node: DocumentNode,
+  node: MystNode,
   path: string,
-  visit: (node: DocumentNode, path: string) => void,
+  visit: (node: MystNode, path: string) => void,
 ): void {
   visit(node, path);
   (node.children ?? []).forEach((child, index) => {

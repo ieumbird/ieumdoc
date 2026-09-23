@@ -1,7 +1,7 @@
-import { toText } from "myst-common";
-import type { Document, DocumentNode, NodePath } from "./document.ts";
+import type { NodePath } from "./document.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
+import { type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
   path: NodePath;
@@ -73,12 +73,12 @@ export type EditableDocument = {
   blocks: EditableBlock[];
 };
 
-export function getEditableDocument(document: Document): EditableDocument {
+export function getEditableDocument(document: MystDocument): EditableDocument {
   const blocks = (document.children ?? []).map((node, index) => toBlock(node, [index]));
   return { blocks };
 }
 
-function toBlock(node: DocumentNode, path: NodePath): EditableBlock {
+function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (node.type === "heading") {
     return {
       block: "heading",
@@ -127,7 +127,7 @@ function toBlock(node: DocumentNode, path: NodePath): EditableBlock {
   };
 }
 
-function figureBlock(node: DocumentNode, path: NodePath): EditableBlock {
+function figureBlock(node: MystNode, path: NodePath): EditableBlock {
   const children = node.children ?? [];
   const imageIndex = children.findIndex((child) => child.type === "image");
   const captionIndex = children.findIndex((child) => child.type === "caption");
@@ -148,7 +148,7 @@ function figureBlock(node: DocumentNode, path: NodePath): EditableBlock {
   };
 }
 
-function tableBlock(node: DocumentNode, path: NodePath): EditableBlock {
+function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   const rows = (node.children ?? []).map((row, rowIndex) => ({
     cells: (row.children ?? []).map((cell, cellIndex) => ({
       path: [...path, rowIndex, cellIndex] as NodePath,
@@ -164,7 +164,7 @@ function tableBlock(node: DocumentNode, path: NodePath): EditableBlock {
   };
 }
 
-function paragraphText(node: DocumentNode): string {
+function paragraphText(node: MystNode): string {
   if (node.type === "text") {
     return typeof node.value === "string" ? node.value : "";
   }
@@ -180,14 +180,14 @@ function paragraphText(node: DocumentNode): string {
   return (node.children ?? []).map(paragraphText).join("");
 }
 
-function isPlainHeading(node: DocumentNode): boolean {
+function isPlainHeading(node: MystNode): boolean {
   const children = node.children ?? [];
   if (children.length === 0) return false;
   if (!children.every((child) => child.type === "text" && typeof child.value === "string")) return false;
   return toText(node).length > 0;
 }
 
-function isTextOnly(node: DocumentNode): boolean {
+function isTextOnly(node: MystNode): boolean {
   if (node.type === "text") {
     return true;
   }
@@ -200,7 +200,7 @@ function isTextOnly(node: DocumentNode): boolean {
   );
 }
 
-function nodeLabel(node: DocumentNode): string {
+function nodeLabel(node: MystNode): string {
   if (typeof node.label === "string" && node.label.length > 0) return node.label;
   if (typeof node.identifier === "string" && node.identifier.length > 0) return node.identifier;
   return "";
