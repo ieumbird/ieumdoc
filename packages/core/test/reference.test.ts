@@ -67,11 +67,14 @@ test("ordinary fragment links and semantic references stay distinct", () => {
 
 test("reference preparation leaves unrelated leaf nodes untouched", () => {
   // {doc} and {download} parse to links without a children key.
-  for (const [source, expected] of [["{doc}`other`\n", "[](other)\n"], ["{download}`./file.zip`\n", "[](./file.zip)\n"]]) {
-    const document = parse(source);
-    assert.equal(document.children[0].children?.[0].children, undefined);
-    assert.equal(serialize(document), expected);
-  }
+  const doc = parse("{doc}`other`\n");
+  assert.equal(doc.children[0].children?.[0].children, undefined);
+  assert.equal(serialize(doc), "[](other)\n");
+  // {download} marks its link `static`; `[](./file.zip)` would reparse as an ordinary
+  // link, so the global serializer guard rejects it instead of dropping the distinction.
+  const download = parse("{download}`./file.zip`\n");
+  assert.equal(download.children[0].children?.[0].children, undefined);
+  assert.throws(() => serialize(download), /cannot be preserved in canonical Markdown: .*link: static true/);
 });
 
 test("references that cannot be preserved fail closed instead of becoming links", () => {

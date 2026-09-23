@@ -29,7 +29,7 @@ import {
 } from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { parse } from "./myst/parse.ts";
-import { serialize } from "./myst/serialize.ts";
+import { serialize, serializeFor } from "./myst/serialize.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -67,14 +67,16 @@ export function moveBlock(document: Document, fromIndex: number, toIndex: number
   return next;
 }
 
+const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
+
 function assertCanonicalBlockBoundaries(document: Document): void {
   const expectedBlocks = getEditableDocument(document).blocks;
-  const reloadedBlocks = getEditableDocument(parse(serialize(document))).blocks;
+  const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
     reloadedBlocks.some((block, index) => block.block !== expectedBlocks[index].block)
   ) {
-    throw new Error("Canonical save changed block boundaries; this order cannot be saved");
+    throw new Error(BOUNDARY_FAILURE);
   }
 }
 
@@ -103,6 +105,8 @@ export function insertParagraph(document: Document, index: number, text: string)
   return insertBlock(document, index, paragraph);
 }
 
+const HEADING_FAILURE = "heading insertion cannot round-trip losslessly through canonical Markdown";
+
 /** Insert a persistent top-level heading while keeping its MyST details inside Core. */
 export function insertHeading(document: Document, index: number, level: number, text: string): Document {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
@@ -115,7 +119,7 @@ export function insertHeading(document: Document, index: number, level: number, 
   };
   assertInlineBlockRoundTrip(heading);
   const next = insertBlock(document, index, heading);
-  const markdown = serialize(next);
+  const markdown = serializeFor(next, HEADING_FAILURE);
   const reparsed = parse(markdown);
   const reparsedHeading = reparsed.children[index];
   if (
@@ -124,7 +128,7 @@ export function insertHeading(document: Document, index: number, level: number, 
     toText(reparsedHeading) !== text ||
     serialize(reparsed) !== markdown
   ) {
-    throw new Error("heading insertion cannot round-trip losslessly through canonical Markdown");
+    throw new Error(HEADING_FAILURE);
   }
   return next;
 }
@@ -246,6 +250,8 @@ export function updateEquationLatex(
   return next;
 }
 
+const EQUATION_FAILURE = "Equation LaTeX change cannot be preserved through canonical round-trip";
+
 function assertEquationRoundTrip(
   document: Document,
   path: NodePath,
@@ -253,7 +259,7 @@ function assertEquationRoundTrip(
   identifier: string | undefined,
   latex: string,
 ): void {
-  const markdown = serialize(document);
+  const markdown = serializeFor(document, EQUATION_FAILURE);
   const reparsed = parse(markdown);
   const equation = getNode(reparsed, path);
   if (
@@ -262,7 +268,7 @@ function assertEquationRoundTrip(
     equation.label !== label ||
     equation.identifier !== identifier
   ) {
-    throw new Error("Equation LaTeX change cannot be preserved through canonical round-trip");
+    throw new Error(EQUATION_FAILURE);
   }
   if (serialize(reparsed) !== markdown) {
     throw new Error("Equation LaTeX change is not canonical after round-trip");

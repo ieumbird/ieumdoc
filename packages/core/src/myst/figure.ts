@@ -1,7 +1,7 @@
 import type { DocumentNode } from "../document.ts";
 import type { FigureContent } from "../figure.ts";
 import { parse } from "./parse.ts";
-import { serialize } from "./serialize.ts";
+import { serialize, serializeFor } from "./serialize.ts";
 
 export function isFigure(node: DocumentNode | undefined): boolean {
   return node?.type === "container" && node.kind === "figure";
@@ -56,7 +56,8 @@ export function assertFigureRoundTrip(
   label: unknown,
   identifier: unknown,
 ): void {
-  const markdown = serialize({ type: "root", children: root.children ?? [] });
+  const failure = "Figure cannot be preserved through canonical round-trip";
+  const markdown = serializeFor({ type: "root", children: root.children ?? [] }, failure);
   const reparsed = parse(markdown);
   const node = reparsed.children[index];
   const content = node && supportedFigureContent(node);
@@ -69,7 +70,7 @@ export function assertFigureRoundTrip(
     node.label !== label ||
     node.identifier !== identifier
   ) {
-    throw new Error("Figure cannot be preserved through canonical round-trip");
+    throw new Error(failure);
   }
   if (serialize(reparsed) !== markdown) {
     throw new Error("Figure is not canonical after round-trip");

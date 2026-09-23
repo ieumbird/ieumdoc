@@ -1,7 +1,7 @@
 import type { DocumentNode } from "../document.ts";
 import { projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
-import { serialize } from "./serialize.ts";
+import { serialize, serializeFor } from "./serialize.ts";
 
 /** Fail closed when Markdown cannot persist the requested inline semantics.
  * In particular, trailing breaks and whitespace-only split results are not
@@ -11,7 +11,8 @@ export function assertPersistentParagraph(node: DocumentNode): void {
   if (!content || !semanticUnits(content).some((unit) => unit.kind === "text" && unit.text.trim().length > 0)) {
     throw new Error("persistent paragraph must contain non-empty text");
   }
-  const markdown = serialize({ type: "root", children: [node] });
+  const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
+  const markdown = serializeFor({ type: "root", children: [node] }, failure);
   // UTF-8 files cannot retain an unpaired surrogate created by a UTF-16 split.
   if (new TextDecoder().decode(new TextEncoder().encode(markdown)) !== markdown) {
     throw new Error("paragraph edit cannot persist an unpaired UTF-16 surrogate");
@@ -21,7 +22,7 @@ export function assertPersistentParagraph(node: DocumentNode): void {
     ? projectInlineContent(reparsed.children[0]) : undefined;
   if (!projected || JSON.stringify(semanticUnits(content)) !== JSON.stringify(semanticUnits(projected)) ||
       serialize(reparsed) !== markdown) {
-    throw new Error("paragraph edit cannot round-trip losslessly through canonical Markdown");
+    throw new Error(failure);
   }
 }
 
