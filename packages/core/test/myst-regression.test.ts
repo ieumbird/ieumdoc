@@ -32,14 +32,16 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
     assert.equal(serialize(reparsed), canonical);
 
     if (name === "technical-document") {
-      // The existing serializer writes the eq role as an equivalent fragment link.
-      // Keep both the original reference target and its canonical write form explicit.
-      assert.equal(getNode(original, [2, 3]).type, "crossReference");
-      assert.equal(getNode(original, [2, 3]).identifier, "eq-current");
-      assert.equal(getNode(reparsed, [2, 3]).type, "link");
-      assert.equal(getNode(reparsed, [2, 3]).url, "#eq-current");
+      // Issue #12: the {eq} role stays a semantic reference (formerly written as
+      // `[](#eq-current)` and reparsed as a link); `[](#...)` stays an ordinary link.
       for (const document of [original, reparsed]) {
+        assert.equal(getNode(document, [2, 3]).type, "crossReference");
+        assert.equal(getNode(document, [2, 3]).kind, "eq");
+        assert.equal(getNode(document, [2, 3]).identifier, "eq-current");
+        assert.equal(getNode(document, [2, 1]).type, "link");
         assert.equal(getNode(document, [2, 1]).url, "#fig-control");
+        assert.equal(getNode(document, [10, 1]).type, "link");
+        assert.equal(getNode(document, [10, 1]).url, "#eq-current");
         assert.equal(getNode(document, [6]).label, "fig-control");
         assert.equal(getNode(document, [6, 0]).url, "./diagram.svg");
         assert.equal(getNode(document, [9]).label, "eq-current");
