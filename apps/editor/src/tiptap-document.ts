@@ -37,6 +37,7 @@ export type SupportedEdits = {
 // Unsaved top-level paragraphs have no snapshot locator yet. This session-only
 // marker is replaced by the saved snapshot path; it is never persisted.
 export const NEW_BLOCK_PREFIX = "new:";
+const EMPTY_DOCUMENT_BLOCK_PATH = `${NEW_BLOCK_PREFIX}empty`;
 
 export function isNewBlockPath(path: string): boolean {
   return path.startsWith(NEW_BLOCK_PREFIX);
@@ -78,7 +79,9 @@ export function pathKey(path: NodePath): string {
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
-    content: document.blocks.map(toTiptapBlock),
+    content: document.blocks.length > 0
+      ? document.blocks.map(toTiptapBlock)
+      : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],
   };
 }
 
@@ -99,6 +102,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     const paths = snapshotPaths(key);
     paths.forEach(path => used.add(path));
     if (paths.length === 0) {
+      if (document.blocks.length === 0 && key === EMPTY_DOCUMENT_BLOCK_PATH && inlineText(paragraphInline(group[0])).length === 0) {
+        continue;
+      }
       for (const node of group) {
         const content = paragraphInline(node);
         if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,6 +63,7 @@ export type DocumentFileResponse = {
 };
 
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
+const EMPTY_DOCUMENT_MARKDOWN = serialize({ type: "root", children: [] });
 
 export class DocumentConflictError extends Error {
   constructor() {
@@ -100,6 +101,31 @@ export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
     document: loadEditableDocument(source),
     revision: documentRevision(source),
   };
+}
+
+export function createDocumentFile(requestedPath?: string): DocumentFileResponse {
+  if (!requestedPath?.trim()) {
+    throw new Error("document path is required");
+  }
+  const filePath = resolveDocumentPath(requestedPath);
+  const parentDirectory = path.dirname(filePath);
+  try {
+    if (!statSync(parentDirectory).isDirectory()) {
+      throw new Error("parent directory does not exist");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "parent directory does not exist") throw error;
+    throw new Error("parent directory does not exist");
+  }
+  try {
+    writeFileSync(filePath, EMPTY_DOCUMENT_MARKDOWN, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error("file already exists");
+    }
+    throw error;
+  }
+  return loadDocumentFile(filePath);
 }
 
 export function saveDocumentFile(
@@ -311,6 +337,12 @@ export async function handleDocumentRequest(
   try {
     if (req.method === "GET") {
       sendJson(res, 200, loadDocumentFile(requestUrl.searchParams.get("path") ?? undefined));
+      return;
+    }
+    if (req.method === "PUT") {
+      const body = JSON.parse(await readBody(req)) as { path?: unknown };
+      const created = createDocumentFile(typeof body.path === "string" ? body.path : undefined);
+      sendJson(res, 201, created);
       return;
     }
     if (req.method === "POST") {

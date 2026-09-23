@@ -39,6 +39,13 @@ type DocumentEditorProps = {
   onEquationDraftChange?: (active: boolean) => void;
 };
 
+export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
+  return ranges.flatMap(range => {
+    const savedBlock = saved.blocks[Number(range.path)];
+    return savedBlock ? [{ ...range, path: savedBlock.path.join(",") }] : [];
+  });
+}
+
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
   { document, documentPath, onStructuralReject, onEquationDraftChange },
   ref,
@@ -99,7 +106,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (!editor || !saved || !submission) return;
         // Map only the in-flight save snapshot to the current editor positions.
         // These paths are refreshed locators, never persistent block identities.
-        const ranges = submission.ranges.map(range => ({...range, path: saved.blocks[Number(range.path)].path.join(",")}));
+        const ranges = remapSavedRanges(submission.ranges, saved);
         const tr = editor.state.tr;
         const groups: { positions: number[]; paths: string[] }[] = [];
         editor.state.doc.forEach((node, pos) => {
