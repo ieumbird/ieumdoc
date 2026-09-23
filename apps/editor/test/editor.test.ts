@@ -464,6 +464,22 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
   }
 });
 
+test("empty documents project to a transient paragraph without persisting empty content", () => {
+  const editable = loadEditableDocument("\n");
+  const projection = toTiptapDocument(editable);
+  assert.deepEqual(projection.content, [{ type: "paragraph", attrs: { sourcePath: "new:empty" } }]);
+  assert.deepEqual(collectSupportedEdits(editable, projection), { headings: [], paragraphs: [] });
+
+  const typed = clone(projection);
+  typed.content![0].content = [{ type: "text", text: "Draft" }];
+  assert.deepEqual(collectSupportedEdits(editable, typed), {
+    headings: [],
+    paragraphs: [],
+    inserts: [[{ kind: "text", text: "Draft" }]],
+    order: [{ insert: 0 }],
+  });
+});
+
 test("new Markdown files use Core's canonical empty document and can be edited and saved", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-files-"));
   const file = path.join(dir, "new-document.md");
