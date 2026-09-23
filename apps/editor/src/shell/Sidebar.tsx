@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FilePlus2, FileText, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
@@ -29,17 +29,22 @@ export function Sidebar({ open, documentPath, onToggle, onOpen, onNew }: Sidebar
       </div>
       {open ? (
         <>
-          <div className="flex gap-2">
+          <div className="sidebar-actions">
             <Button className="min-w-0 flex-1 justify-start" size="sm" variant="secondary" onClick={onOpen}>
+              <FolderOpen aria-hidden="true" />
               Open…
             </Button>
             <Button className="min-w-0 flex-1 justify-start" size="sm" variant="outline" onClick={onNew}>
+              <FilePlus2 aria-hidden="true" />
               New
             </Button>
           </div>
           {documentPath ? (
             <ul className="sidebar-documents" aria-label="Open documents">
-              <li className="sidebar-document" aria-current="page" title={documentPath}>{name}</li>
+              <li className="sidebar-document" aria-current="page" title={documentPath}>
+                <FileText className="sidebar-document-icon" aria-hidden="true" />
+                <span className="sidebar-document-name">{name}</span>
+              </li>
             </ul>
           ) : null}
         </>
