@@ -34,8 +34,11 @@ import {
   commitDocumentSave,
   documentRevision,
   DocumentConflictError,
+  loadDocumentFile,
   loadEditableDocument,
+  resolveDocumentPath,
   saveCurrentDocument,
+  saveDocumentFile,
   saveEdits,
 } from "../server/document-api.ts";
 
@@ -415,6 +418,66 @@ test("save validates supported edits before POST", () => {
   const post = app.indexOf('requestDocument("POST"');
   assert.ok(guard >= 0);
   assert.ok(post > guard);
+});
+
+test("selected Markdown files keep load, save, and revision boundaries", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-open-files-"));
+  const fileA = path.join(dir, "a.md");
+  const fileB = path.join(dir, "b.md");
+  try {
+    writeFileSync(fileA, "Document A\n");
+    writeFileSync(fileB, "Document B\n");
+    const loadedA = loadDocumentFile(fileA);
+    const loadedB = loadDocumentFile(fileB);
+    assert.equal(loadedA.path, path.resolve(fileA));
+    assert.equal(loadedB.path, path.resolve(fileB));
+    assert.equal(loadedA.document.blocks[0]?.block, "paragraph");
+    assert.equal(loadedB.document.blocks[0]?.block, "paragraph");
+    if (loadedA.document.blocks[0]?.block !== "paragraph" || loadedB.document.blocks[0]?.block !== "paragraph") return;
+    assert.equal(loadedA.document.blocks[0].text, "Document A");
+    assert.equal(loadedB.document.blocks[0].text, "Document B");
+
+    const savedA = saveDocumentFile(fileA, {
+      revision: loadedA.revision,
+      paragraphs: [{ path: [0], content: [{ kind: "text", text: "Document A changed" }] }],
+    });
+    assert.equal(readFileSync(fileA, "utf8"), "Document A changed\n");
+    assert.equal(readFileSync(fileB, "utf8"), "Document B\n");
+    assert.equal(savedA.document.blocks[0]?.block, "paragraph");
+    if (savedA.document.blocks[0]?.block !== "paragraph") return;
+    assert.equal(savedA.document.blocks[0].text, "Document A changed");
+
+    writeFileSync(fileA, "Document A external\n");
+    assert.throws(
+      () => saveDocumentFile(fileA, {
+        revision: savedA.revision,
+        paragraphs: [{ path: [0], content: [{ kind: "text", text: "stale" }] }],
+      }),
+      DocumentConflictError,
+    );
+    assert.equal(readFileSync(fileA, "utf8"), "Document A external\n");
+    assert.throws(() => resolveDocumentPath(path.join(dir, "not-markdown.txt")), /\.md file/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("file switching is guarded by Editor unsaved state and uses the selected path", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  assert.match(app, /hasUnsavedChanges\(\)/);
+  assert.match(app, /Save or discard the current changes before opening another file\./);
+  assert.match(app, /requestDocument\("GET", requestedPath\)/);
+  assert.match(app, /requestDocument\("POST", openedPath/);
+  assert.doesNotMatch(app, /technical-document\.md/);
+
+  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
+  assert.match(documentEditor, /hasUnsavedChanges\(\)/);
+  assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
+
+  const api = readFileSync(path.join(editorRoot, "server", "document-api.ts"), "utf8");
+  assert.doesNotMatch(api, /DOCUMENT_FILE/);
+  assert.match(api, /resolveDocumentPath/);
+  assert.match(api, /saveDocumentFile/);
 });
 
 test("document revision changes with the source", () => {

@@ -13,6 +13,7 @@ export type DocumentEditorHandle = {
   beginSave(): TiptapJSON;
   finishSave(saved?: EditableDocument): void;
   hasUnappliedEquationDraft(): boolean;
+  hasUnsavedChanges(): boolean;
 };
 
 type DocumentEditorProps = {
@@ -93,6 +94,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       },
       hasUnappliedEquationDraft() {
         return activeEquationDrafts.current.size > 0;
+      },
+      hasUnsavedChanges() {
+        if (!editor) return false;
+        return activeEquationDrafts.current.size > 0 || JSON.stringify(editor.getJSON()) !== JSON.stringify(baseline.current);
       },
       getDocument() {
         if (!editor) {

@@ -50,6 +50,12 @@ export type SaveRequest = SupportedEdits & {
   revision?: string;
 };
 
+export type DocumentFileResponse = {
+  path: string;
+  document: EditableDocument;
+  revision: string;
+};
+
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
 
 export class DocumentConflictError extends Error {
@@ -61,7 +67,16 @@ export class DocumentConflictError extends Error {
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 export const DOCUMENT_DIR = path.join(editorRoot, "document");
-export const DOCUMENT_FILE = path.join(DOCUMENT_DIR, "technical-document.md");
+const DEFAULT_DOCUMENT_PATH = path.join(DOCUMENT_DIR, "technical-document.md");
+
+export function resolveDocumentPath(requestedPath?: string): string {
+  const candidate = requestedPath?.trim() || DEFAULT_DOCUMENT_PATH;
+  const resolved = path.resolve(candidate);
+  if (path.extname(resolved).toLowerCase() !== ".md") {
+    throw new Error("document path must point to a .md file");
+  }
+  return resolved;
+}
 
 export function loadEditableDocument(source: string): EditableDocument {
   return getEditableDocument(parse(source));
@@ -69,6 +84,29 @@ export function loadEditableDocument(source: string): EditableDocument {
 
 export function documentRevision(source: string): string {
   return createHash("sha256").update(source, "utf8").digest("hex");
+}
+
+export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
+  const filePath = resolveDocumentPath(requestedPath);
+  const source = readFileSync(filePath, "utf8");
+  return {
+    path: filePath,
+    document: loadEditableDocument(source),
+    revision: documentRevision(source),
+  };
+}
+
+export function saveDocumentFile(
+  requestedPath: string | undefined,
+  request: SaveRequest,
+): DocumentFileResponse & { markdown: string } {
+  const filePath = resolveDocumentPath(requestedPath);
+  const saved = commitDocumentSave(
+    () => readFileSync(filePath, "utf8"),
+    (markdown) => writeFileSync(filePath, markdown),
+    request,
+  );
+  return { ...saved, path: filePath };
 }
 
 export function saveCurrentDocument(
@@ -214,7 +252,8 @@ export async function handleDocumentRequest(
   res: ServerResponse,
   next: () => void,
 ): Promise<void> {
-  const url = req.url?.split("?")[0] ?? "";
+  const requestUrl = new URL(req.url ?? "", "http://localhost");
+  const url = requestUrl.pathname;
   if (url.startsWith("/document/")) {
     serveMedia(url, res);
     return;
@@ -226,30 +265,22 @@ export async function handleDocumentRequest(
 
   try {
     if (req.method === "GET") {
-      const source = readFileSync(DOCUMENT_FILE, "utf8");
-      sendJson(res, 200, {
-        document: loadEditableDocument(source),
-        revision: documentRevision(source),
-      });
+      sendJson(res, 200, loadDocumentFile(requestUrl.searchParams.get("path") ?? undefined));
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as SaveRequest;
+      const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
       try {
-        const saved = commitDocumentSave(
-          () => readFileSync(DOCUMENT_FILE, "utf8"),
-          (markdown) => writeFileSync(DOCUMENT_FILE, markdown),
-          {
-            revision: body.revision,
-            headings: Array.isArray(body.headings) ? body.headings : [],
-            paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
-            equations: Array.isArray(body.equations) ? body.equations : [],
-            splits: Array.isArray(body.splits) ? body.splits : [],
-            merges: Array.isArray(body.merges) ? body.merges : [],
-            order: body.order,
-          },
-        );
-        sendJson(res, 200, { document: saved.document, revision: saved.revision });
+        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, {
+          revision: body.revision,
+          headings: Array.isArray(body.headings) ? body.headings : [],
+          paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+          equations: Array.isArray(body.equations) ? body.equations : [],
+          splits: Array.isArray(body.splits) ? body.splits : [],
+          merges: Array.isArray(body.merges) ? body.merges : [],
+          order: body.order,
+        });
+        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision });
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });
