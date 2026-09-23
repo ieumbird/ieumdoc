@@ -556,6 +556,28 @@ test("CLI format keeps semantic references distinct from fragment links", () => 
   }
 });
 
+test("CLI format fails before writing when canonical Markdown would lose semantics", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-format-"));
+  try {
+    for (const [name, source, reason] of [
+      // Layer 1: myst-to-md reports the node it cannot render.
+      ["keyboard.md", "# Keys\n\nBefore {kbd}`Ctrl` after\n", /cannot be preserved in canonical Markdown: .*keyboard/],
+      // Layer 2: the second subfigure is dropped without any diagnostic.
+      ["subfigure.md", ":::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /cannot be preserved in canonical Markdown: .*container/],
+    ] as const) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      const result = run(["format", file]);
+      assert.notEqual(result.status, 0, name);
+      assert.match(result.stderr, reason, name);
+      assert.deepEqual(readFileSync(file), before, name);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Core rejects lossy text updates before CLI overwrites a real file", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
   const file = path.join(dir, "document.md");
