@@ -1,7 +1,7 @@
 import type { DocumentNode } from "../document.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
-import { serialize } from "./serialize.ts";
+import { serialize, serializeFor } from "./serialize.ts";
 
 /** Persistent text edits must retain their block type, text and marks.
  * This is a write-time MyST constraint, not an Editor interaction rule. */
@@ -14,7 +14,8 @@ export function assertInlineBlockRoundTrip(node: DocumentNode): void {
   if (inlineContentText(content).length === 0) {
     throw new Error(`empty ${node.type} cannot be saved`);
   }
-  const markdown = serialize({ type: "root", children: [node] });
+  const failure = `${node.type} edit cannot round-trip losslessly through canonical Markdown`;
+  const markdown = serializeFor({ type: "root", children: [node] }, failure);
   const reparsed = parse(markdown);
   const block = reparsed.children[0];
   const projected = block && projectInlineContent(block);
@@ -22,7 +23,7 @@ export function assertInlineBlockRoundTrip(node: DocumentNode): void {
       (node.type === "heading" && block.depth !== node.depth) || !projected ||
       JSON.stringify(markedText(content)) !== JSON.stringify(markedText(projected)) ||
       serialize(reparsed) !== markdown) {
-    throw new Error(`${node.type} edit cannot round-trip losslessly through canonical Markdown`);
+    throw new Error(failure);
   }
 }
 

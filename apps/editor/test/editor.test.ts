@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -36,6 +38,7 @@ import {
   createDocumentFile,
   documentRevision,
   DocumentConflictError,
+  handleDocumentRequest,
   loadDocumentFile,
   loadEditableDocument,
   resolveMediaPath,
@@ -728,6 +731,46 @@ test("current revision save returns the hash of the saved markdown", () => {
   assert.equal(saved.markdown.includes(PARAGRAPH_TO), true);
   assert.equal(saved.markdown.includes("fig-control"), true);
   assert.equal(saved.markdown.includes("eq-current"), true);
+});
+
+test("Host save fails over HTTP before writing when canonical Markdown would lose semantics", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-save-"));
+  const server = createServer((req, res) => {
+    void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    for (const [name, source, reason] of [
+      // Layer 1: myst-to-md reports the node it cannot render.
+      ["keyboard.md", "Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n", /cannot be preserved in canonical Markdown: .*keyboard/],
+      // Layer 2: the second subfigure is dropped without any diagnostic.
+      ["subfigure.md", "Editable paragraph.\n\n:::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /cannot be preserved in canonical Markdown: .*container/],
+    ] as const) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      const loaded = loadDocumentFile(file);
+      const paragraph = loaded.document.blocks.find((block) => block.block === "paragraph" && block.editable);
+      assert.ok(paragraph, name);
+      const response = await fetch(`http://127.0.0.1:${port}/api/document`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          path: file,
+          revision: loaded.revision,
+          paragraphs: [{ path: paragraph.path, content: [{ kind: "text", text: "Changed paragraph." }] }],
+        }),
+      });
+      assert.equal(response.status, 400, name);
+      assert.match(((await response.json()) as { error: string }).error, reason, name);
+      assert.deepEqual(readFileSync(file), before, name);
+    }
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("stale revision save leaves an externally edited file unchanged", () => {

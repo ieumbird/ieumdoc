@@ -454,6 +454,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
+- Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
