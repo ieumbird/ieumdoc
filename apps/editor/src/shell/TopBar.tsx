@@ -2,9 +2,17 @@ import { Button } from "@/components/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
+export type DocumentView = "visual" | "source";
+
 type TopBarProps = {
   documentPath: string;
   status: string;
+  view: DocumentView;
+  /** Both views unavailable, e.g. no document or an operation in flight. */
+  viewDisabled?: boolean;
+  /** Why Source is unavailable; Source is disabled while set. */
+  sourceHint?: string;
+  onViewChange(view: DocumentView): void;
   saveDisabled: boolean;
   /** Why Save is unavailable, when the reason is not obvious from the status. */
   saveHint?: string;
@@ -12,8 +20,20 @@ type TopBarProps = {
 };
 
 /** Document identity on the left; document state and document-level actions on the right. */
-export function TopBar({ documentPath, status, saveDisabled, saveHint, onSave }: TopBarProps) {
+export function TopBar({
+  documentPath, status, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint, onSave,
+}: TopBarProps) {
   const { directory, name } = splitDocumentPath(documentPath);
+  const sourceProps = {
+    type: "button" as const,
+    variant: "ghost" as const,
+    size: "sm" as const,
+    className: "view-toggle-option",
+    "aria-pressed": view === "source",
+    onClick: () => onViewChange("source"),
+    disabled: viewDisabled || Boolean(sourceHint),
+    "data-testid": "view-source",
+  };
   const saveButton = (
     <Button
       type="button"
@@ -36,6 +56,28 @@ export function TopBar({ documentPath, status, saveDisabled, saveHint, onSave }:
         )}
       </p>
       <div className="top-bar-actions">
+        <div className="view-toggle" role="group" aria-label="Document view">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="view-toggle-option"
+            aria-pressed={view === "visual"}
+            onClick={() => onViewChange("visual")}
+            disabled={viewDisabled}
+            data-testid="view-visual"
+          >
+            Visual
+          </Button>
+          {sourceHint ? (
+            <Tooltip>
+              <TooltipTrigger render={<Button {...sourceProps} focusableWhenDisabled />}>Source</TooltipTrigger>
+              <TooltipContent>{sourceHint}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button {...sourceProps}>Source</Button>
+          )}
+        </div>
         <p className="status" data-testid="status" role="status">
           {status}
         </p>

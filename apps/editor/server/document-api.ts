@@ -176,6 +176,15 @@ export function saveDocumentFile(
   return { ...saved, path: filePath };
 }
 
+/**
+ * The canonical Markdown this save request would write, through the same Core
+ * save path. The file is only read, never written.
+ */
+export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): { markdown: string } {
+  const filePath = resolveDocumentPath(requestedPath);
+  return { markdown: saveCurrentDocument(readFileSync(filePath, "utf8"), request).markdown };
+}
+
 export function saveCurrentDocument(
   source: string,
   request: SaveRequest,
@@ -445,6 +454,22 @@ export async function handleDocumentRequest(
     }
     return;
   }
+  if (url === "/api/document-source") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
+      sendJson(res, 200, previewDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body)));
+    } catch (error) {
+      sendJson(res, error instanceof DocumentConflictError ? 409 : 400, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
   if (url !== "/api/document") {
     next();
     return;
@@ -464,20 +489,7 @@ export async function handleDocumentRequest(
     if (req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
       try {
-        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, {
-          revision: body.revision,
-          headings: Array.isArray(body.headings) ? body.headings : [],
-          paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
-          equations: Array.isArray(body.equations) ? body.equations : [],
-          figures: Array.isArray(body.figures) ? body.figures : [],
-          cells: Array.isArray(body.cells) ? body.cells : [],
-          admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
-          splits: Array.isArray(body.splits) ? body.splits : [],
-          merges: Array.isArray(body.merges) ? body.merges : [],
-          inserts: Array.isArray(body.inserts) ? body.inserts : [],
-          deletes: Array.isArray(body.deletes) ? body.deletes : [],
-          order: body.order,
-        });
+        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
         sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision });
       } catch (error) {
         if (error instanceof DocumentConflictError) {
@@ -493,6 +505,23 @@ export async function handleDocumentRequest(
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
+}
+
+function saveRequestOf(body: SaveRequest): SaveRequest {
+  return {
+    revision: body.revision,
+    headings: Array.isArray(body.headings) ? body.headings : [],
+    paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+    equations: Array.isArray(body.equations) ? body.equations : [],
+    figures: Array.isArray(body.figures) ? body.figures : [],
+    cells: Array.isArray(body.cells) ? body.cells : [],
+    admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
+    splits: Array.isArray(body.splits) ? body.splits : [],
+    merges: Array.isArray(body.merges) ? body.merges : [],
+    inserts: Array.isArray(body.inserts) ? body.inserts : [],
+    deletes: Array.isArray(body.deletes) ? body.deletes : [],
+    order: body.order,
+  };
 }
 
 type Locator = OrderItem;

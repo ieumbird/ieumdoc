@@ -796,3 +796,37 @@ h2.heading {
     justify-content: space-between;
   }
 }
+
+/* Visual | Source: two views of one document, not actions. */
+.view-toggle {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: 1px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-subtle);
+}
+
+.view-toggle .view-toggle-option {
+  height: calc(var(--size-control) - 4px);
+  color: var(--color-text-muted);
+}
+
+.view-toggle .view-toggle-option[aria-pressed="true"] {
+  background: var(--color-surface);
+  box-shadow: 0 0 0 var(--border-width) var(--color-border);
+  color: var(--color-text);
+}
+
+.source-view {
+  padding-left: var(--layout-document-inline-padding);
+}
+
+.source-view-text {
+  margin: 0;
+  font-family: var(--font-family-mono, monospace);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

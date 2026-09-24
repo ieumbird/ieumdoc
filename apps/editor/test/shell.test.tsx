@@ -34,7 +34,7 @@ test("sidebar holds only product, Open and the current document, and collapses",
 test("top bar shows the current path on the left and save state with Save on the right", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} />
+      <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-directory">C:\\docs\\<\/span><span class="document-path-name">guide.md<\/span>/);
@@ -45,11 +45,30 @@ test("top bar shows the current path on the left and save state with Save on the
   // own text only mounts in a browser (see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section).
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="Ready" saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
+      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
   assert.match(blocked, /<button type="button" data-disabled="" tabindex="0" aria-disabled="true"[^>]*data-testid="save"[^>]*>Save<\/button>/);
+});
+
+test("top bar offers Visual and Source views left of status and Save", () => {
+  const html = renderToStaticMarkup(
+    <TooltipProvider>
+      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
+    </TooltipProvider>,
+  );
+  assert.match(html, /role="group" aria-label="Document view"/);
+  assert.match(html, /aria-pressed="false"[^>]*data-testid="view-visual"[^>]*>Visual</);
+  assert.match(html, /aria-pressed="true"[^>]*data-testid="view-source"[^>]*>Source</);
+  assert.ok(html.indexOf("view-source") < html.indexOf('data-testid="status"'));
+  const blocked = renderToStaticMarkup(
+    <TooltipProvider>
+      <TopBar documentPath={PATH} status="Ready" saveDisabled onSave={noop} view="visual" onViewChange={noop}
+        sourceHint="Apply or Cancel the Figure edit before viewing Source." />
+    </TooltipProvider>,
+  );
+  assert.match(blocked, /aria-disabled="true"[^>]*data-testid="view-source"/);
 });
 
 test("message area separates dismissible errors from expiring notices", () => {

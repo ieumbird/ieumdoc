@@ -740,3 +740,31 @@ pnpm exec playwright-cli -s=ieumdoc-math close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+
+## Read-only Source View v1
+
+Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`는 지금 Save하면 쓰일 canonical Markdown을 읽기 전용으로 보여 준다. Apply된 미저장 Visual 변경도 포함되며, 파일은 쓰지 않는다(Host가 Save와 같은 Core 경로를 실행하고 결과만 돌려준다).
+
+- `Source`를 누를 때마다 현재 editor 상태로 다시 만든다. 편집, 선택, syntax highlighting, line number는 없다.
+- `Visual`로 돌아오면 미저장 편집과 Undo/Redo가 그대로 남는다(Editor는 숨겨질 뿐 다시 만들어지지 않는다).
+- Save와 save status는 두 view에서 같다. Source에서 Save하면 보이던 Markdown이 그대로 저장된다. 다른 파일을 Open/New하면 Visual로 돌아간다.
+- Apply되지 않은 Equation/Figure draft가 있으면 `Source`는 비활성이고 tooltip으로 이유를 알려 준다.
+- Save가 거부할 상태(빈 paragraph, canonical Markdown으로 보존할 수 없는 문서, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다.
+- CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다. `expected.md`는 CLI로 만든 canonical 기준값이다):
+
+```bash
+rm -rf tmp/source-view && mkdir -p tmp/source-view
+cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/source-view/
+cp apps/editor/document/technical-document.md tmp/source-view/expected.md
+pnpm ieumdoc format tmp/source-view/expected.md
+printf 'Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n' > tmp/source-view/keyboard.md
+pnpm exec playwright-cli -s=ieumdoc-source open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view.browser.js
+# Source 요청이 끝나기 전에는 Open/New로 문서를 바꿀 수 없다(파일을 쓰지 않는다).
+pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view-pending.browser.js
+pnpm exec playwright-cli -s=ieumdoc-source close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Source 요청의 400은 `onlyRejectedPreviewLogged`로 따로 확인한다). 다시 실행하려면 scratch 사본을 새로 만든다.
