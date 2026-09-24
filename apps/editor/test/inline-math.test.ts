@@ -112,6 +112,27 @@ test("inline math keeps its meaning with bold, italic and links", () => {
   assert.equal(saved, "Plain *[{math}`x^2`](https://a.example)* here.\n");
 });
 
+test("splitting a paragraph at a caret next to inline math saves both parts exactly", () => {
+  // Core counts inline math as one offset position; the Host must use the same offsets.
+  const cases: [string, (doc: ProseMirrorNode) => number, string][] = [
+    ["The current $i_d$, then more.\n", (doc) => mathAt(doc, "i_d") + 1,
+      "The current {math}`i_d`\n\n, then more.\n"],
+    ["Value:$x$ end.\n", (doc) => mathAt(doc, "x"),
+      "Value:\n\n{math}`x` end.\n"],
+    ["**Bold $a$**, and [see $b$-now](u).\n", (doc) => mathAt(doc, "a") + 1,
+      "**Bold {math}`a`**\n\n, and [see {math}`b`-now](u).\n"],
+    ["Go [see $b$-now](u).\n", (doc) => mathAt(doc, "b") + 1,
+      "Go [see {math}`b`](u)\n\n[-now](u).\n"],
+  ];
+  for (const [markdown, caret, expected] of cases) {
+    // Like the Enter handler: split at the caret; both halves keep the paragraph's source path.
+    const saved = edit(markdown, (state) => state.tr.split(caret(state.doc)).setMeta("paragraphSplit", true));
+    assert.equal(saved, expected, markdown);
+    const reloaded = toTiptapDocument(loadEditableDocument(saved));
+    assert.deepEqual(reloaded.content!.map((node) => node.type), ["paragraph", "paragraph"], markdown);
+  }
+});
+
 test("Host rejects inline math Core cannot preserve without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-inline-math-"));
   const file = path.join(dir, "math.md");
