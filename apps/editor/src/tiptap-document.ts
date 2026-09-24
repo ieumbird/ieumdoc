@@ -27,6 +27,11 @@ export type TableCellEdit = {
   to: string;
 };
 
+export type AdmonitionEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
 export type FigureEdit = {
   path: NodePath;
   from: FigureContent;
@@ -49,6 +54,7 @@ export type SupportedEdits = {
   equations?: EquationEdit[];
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
+  admonitions?: AdmonitionEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -87,7 +93,6 @@ const KNOWN_BLOCKS = new Set([
 const READONLY_BLOCKS = new Set([
   "readonlyHeading",
   "readonlyParagraph",
-  "admonition",
   "unsupportedBlock",
 ]);
 
@@ -111,6 +116,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const equations: EquationEdit[] = [];
   const figures: FigureEdit[] = [];
   const cells: TableCellEdit[] = [];
+  const admonitions: AdmonitionEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -171,6 +177,11 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (JSON.stringify(to) === JSON.stringify(from)) continue;
       assertFigureContent(to);
       figures.push({ path: block.path, from, to });
+    } else if (block.block === "admonition" && block.editable) {
+      const content = paragraphInline(node);
+      if (sameInline(content, block.content)) continue;
+      if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+      admonitions.push({ path: block.path, content });
     } else if (block.block === "table") {
       const next = tableCells(node);
       block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
@@ -200,6 +211,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(equations.length ? { equations } : {}),
     ...(figures.length ? { figures } : {}),
     ...(cells.length ? { cells } : {}),
+    ...(admonitions.length ? { admonitions } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -286,9 +298,17 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "admonition") {
+    if (block.editable) {
+      return {
+        type: "admonition",
+        attrs: { sourcePath: pathKey(block.path), variant: block.variant, text: block.text, editable: true },
+        content: paragraphContent(block.content),
+      };
+    }
     return readonlyNode("admonition", block.path, {
       variant: block.variant,
       text: block.text,
+      editable: false,
     });
   }
   if (block.block === "figure") {
@@ -328,7 +348,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
 function readonlyNode(
   type: string,
   path: NodePath,
-  attrs: Record<string, string | number>,
+  attrs: Record<string, string | number | boolean>,
 ): TiptapJSON {
   return {
     type,
@@ -443,6 +463,22 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
         throw new Error("read-only table cells and cell kinds cannot change");
       }
     }));
+    return;
+  }
+  if (beforeType === "admonition") {
+    const beforeAttrs = before.attrs ?? {};
+    const afterAttrs = after.attrs ?? {};
+    for (const key of ["sourcePath", "variant", "text", "editable"]) {
+      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
+        throw new Error(`admonition identity cannot change (${key})`);
+      }
+    }
+    if (beforeAttrs.editable !== true) {
+      assertReadonlyUnchanged(before, after);
+      return;
+    }
+    const content = paragraphInline(after);
+    if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
     return;
   }
   if (READONLY_BLOCKS.has(beforeType)) {

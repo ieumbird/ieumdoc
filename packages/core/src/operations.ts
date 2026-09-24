@@ -7,6 +7,7 @@ import {
   splitInlineContent,
   concatenateInlineContent,
   insertInlineBreak,
+  inlineContentText,
   inlineContentToNodes,
   projectInlineContent,
   type InlineContent,
@@ -21,6 +22,7 @@ import {
   supportedFigureContent,
 } from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
+import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { setTableCellText, tableCellText } from "./myst/table.ts";
@@ -312,6 +314,35 @@ export function updateParagraphInlineContent(
   }
   node.children = inlineContentToNodes(concatenateInlineContent(content));
   assertInlineBlockRoundTrip(node);
+  return next;
+}
+
+/** Update the single supported paragraph body of a simple note or warning admonition. */
+export function updateAdmonitionInlineContent(
+  document: MystDocument,
+  path: NodePath,
+  content: InlineContent[],
+): MystDocument {
+  assertInlineContent(content);
+  if (path.length !== 1) throw new Error("admonition edits require a top-level path");
+  if (inlineContentText(content).trim().length === 0) {
+    throw new Error("admonition body must contain non-empty text");
+  }
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  if (!supportedAdmonitionContent(node)) {
+    throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
+  }
+  const paragraph = node.children![0];
+  paragraph.children = inlineContentToNodes(concatenateInlineContent(content));
+
+  const failure = "admonition body edit cannot round-trip losslessly through canonical Markdown";
+  const markdown = serializeFor({ type: "root", children: [node] }, failure);
+  const reloaded = parse(markdown).children[0];
+  if (!reloaded || reloaded.kind !== node.kind || !supportedAdmonitionContent(reloaded) ||
+      serialize(parse(markdown)) !== markdown) {
+    throw new Error(failure);
+  }
   return next;
 }
 

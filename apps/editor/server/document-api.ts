@@ -18,6 +18,7 @@ import {
   moveBlock,
   updateNodeTextAtPath,
   updateEquationLatex,
+  updateAdmonitionInlineContent,
   updateFigure,
   updateTableCell,
   updateParagraphInlineContent,
@@ -53,6 +54,11 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+export type AdmonitionEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
 export type TableCellEdit = {
   path: NodePath;
   from: string;
@@ -74,6 +80,7 @@ export type SupportedEdits = {
   equations?: EquationEdit[];
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
+  admonitions?: AdmonitionEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -182,6 +189,7 @@ export function saveCurrentDocument(
     equations: request.equations ?? [],
     figures: request.figures ?? [],
     cells: request.cells ?? [],
+    admonitions: request.admonitions ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     inserts: request.inserts ?? [],
@@ -232,6 +240,14 @@ export function saveEdits(
       throw new Error("empty paragraph cannot be saved");
     }
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
+  }
+  for (const admonition of edits.admonitions ?? []) {
+    assertPath(admonition.path, "admonition");
+    const block = blockAt(editable, admonition.path);
+    if (block?.block !== "admonition" || !block.editable) {
+      throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
+    }
+    document = updateAdmonitionInlineContent(document, admonition.path, admonition.content);
   }
   for (const equation of edits.equations ?? []) {
     assertPath(equation.path, "equation");
@@ -297,6 +313,7 @@ export function saveEdits(
     ...(edits.paragraphs ?? []).map(edit => edit.path),
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
+    ...(edits.admonitions ?? []).map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
@@ -454,6 +471,7 @@ export async function handleDocumentRequest(
           equations: Array.isArray(body.equations) ? body.equations : [],
           figures: Array.isArray(body.figures) ? body.figures : [],
           cells: Array.isArray(body.cells) ? body.cells : [],
+          admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
           splits: Array.isArray(body.splits) ? body.splits : [],
           merges: Array.isArray(body.merges) ? body.merges : [],
           inserts: Array.isArray(body.inserts) ? body.inserts : [],

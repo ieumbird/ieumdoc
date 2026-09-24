@@ -1,7 +1,7 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import type { FigureContent } from "@ieumdoc/core";
@@ -158,11 +158,11 @@ const ReadonlyParagraph = Node.create({
 const Admonition = Node.create({
   name: "admonition",
   group: "block",
-  atom: true,
+  content: "inline*",
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ variant: hiddenAttr("note"), text: hiddenAttr("") });
+    return blockAttrs({ variant: hiddenAttr("note"), text: hiddenAttr(""), editable: hiddenAttr(false) });
   },
   parseHTML() {
     return [{ tag: "aside[data-admonition]" }];
@@ -386,8 +386,11 @@ const ParagraphHardBreak = Extension.create({
   addKeyboardShortcuts() {
     const insert = () => {
       const { state } = this.editor;
+      const parent = state.selection.$from.parent;
+      const editableInlineParent = parent.type.name === "paragraph" ||
+        (parent.type.name === "admonition" && parent.attrs.editable === true);
       // A selected inline math node is not replaced by a break.
-      if (state.selection.$from.parent.type.name !== "paragraph" || state.selection instanceof NodeSelection) return true;
+      if (!editableInlineParent || state.selection instanceof NodeSelection) return true;
       const marks = state.storedMarks ?? state.selection.$from.marks();
       return this.editor.chain()
         .insertContent({ type: "hardBreak", marks: marks.map(mark => mark.toJSON()) })
@@ -636,6 +639,7 @@ function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
 
 function AdmonitionView({ node }: ReactNodeViewProps) {
   const variant = String(node.attrs.variant ?? "note");
+  const editable = node.attrs.editable === true;
   return (
     <NodeViewWrapper
       as="aside"
@@ -643,11 +647,13 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
       data-block="admonition"
       data-variant={variant}
       data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
-      contentEditable={false}
+      data-readonly={editable ? "false" : "true"}
+      contentEditable={editable ? undefined : false}
     >
       <p className="block-kind">Admonition: {variant}</p>
-      <p className="admonition-body">{String(node.attrs.text ?? "")}</p>
+      {editable
+        ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
+        : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}
     </NodeViewWrapper>
   );
 }

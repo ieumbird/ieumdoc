@@ -4,7 +4,7 @@ import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
 
-/** Inline marks for a paragraph text selection. Only Core-supported marks are offered. */
+/** Inline marks for supported paragraph and admonition body selections. */
 export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
   editor: Editor;
   style: CSSProperties;
@@ -33,7 +33,7 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
         label="Link"
         aria-pressed={editor.isActive("link")}
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => (editor.isActive("paragraph") ? onEditLink() : onReject())}
+        onClick={() => (editableInlineContext(editor) ? onEditLink() : onReject())}
       >
         <Link2 aria-hidden="true" size={16} />
       </IconButton>
@@ -55,7 +55,7 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
 export function makeInlineMath(editor: Editor): boolean {
   const { state } = editor;
   const { from, to, $from, $to } = state.selection;
-  if (!editor.isActive("paragraph") || from === to || !$from.sameParent($to)) return false;
+  if (!editableInlineContext(editor) || from === to || !$from.sameParent($to)) return false;
   const source = state.doc.textBetween(from, to, "\n", "\n");
   if (source.length === 0 || source.includes("\n")) return false;
   const marks = $from.marksAcross($to) ?? [];
@@ -64,13 +64,19 @@ export function makeInlineMath(editor: Editor): boolean {
 }
 
 function toggleMark(editor: Editor, mark: "bold" | "italic", onReject: () => void): void {
-  if (!editor.isActive("paragraph")) {
+  if (!editableInlineContext(editor)) {
     onReject();
     return;
   }
   const chain = editor.chain().focus();
   const applied = (mark === "bold" ? chain.toggleBold() : chain.toggleItalic()).run();
   if (!applied) onReject();
+}
+
+function editableInlineContext(editor: Editor): boolean {
+  const parent = editor.state.selection.$from.parent;
+  return parent.type.name === "paragraph" ||
+    (parent.type.name === "admonition" && parent.attrs.editable === true);
 }
 
 /** The paragraph text range a link form edits, and the link already there, if any. */

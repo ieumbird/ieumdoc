@@ -2,6 +2,7 @@ import type { NodePath } from "./document.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
 import { tableCellText } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
+import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import { type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
@@ -42,6 +43,8 @@ export type EditableBlock =
       path: NodePath;
       variant: string;
       text: string;
+      content: InlineContent[];
+      editable: boolean;
     }
   | {
       block: "figure";
@@ -100,11 +103,14 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
     };
   }
   if (node.type === "admonition") {
+    const content = supportedAdmonitionContent(node);
     return {
       block: "admonition",
       path,
       variant: typeof node.kind === "string" && node.kind.length > 0 ? node.kind : "note",
       text: toText(node),
+      content: content ?? [],
+      editable: content !== undefined,
     };
   }
   if (node.type === "container" && node.kind === "figure") {
