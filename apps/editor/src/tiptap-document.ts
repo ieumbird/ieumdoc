@@ -608,6 +608,7 @@ function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
     if (item.kind === "text") return item.text.split("").map((char) => `${char} ${marks.join(",")}`);
     if (item.kind === "break") return [`\n ${marks.join(",")}`];
     if (item.kind === "math") return [`math ${item.value} ${marks.join(",")}`];
+    if (item.kind === "reference") return [`reference ${item.role} ${item.label} ${marks.join(",")}`];
     return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
   });
 }
@@ -640,7 +641,8 @@ function editableParagraph(block: EditableBlock): boolean {
 
 function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : inlineText(item.children))).join("");
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : inlineText(item.children))).join("");
 }
 
 function normalizeAttr(value: unknown): string {

@@ -66,8 +66,8 @@ test("inline math projects to atomic inline nodes carrying marks", () => {
     { type: "inlineMath", attrs: { value: "i_d" } },
     { type: "inlineMath", attrs: { value: "v_{dc}" }, marks: [{ type: "bold" }] },
   ]);
-  // The cross-reference paragraph stays read-only; the display equation stays a block.
-  assert.deepEqual(projection.content!.map((node) => node.type), ["paragraph", "readonlyParagraph", "equation"]);
+  // The {eq} reference paragraph is editable (cross-reference authoring); the display equation stays a block.
+  assert.deepEqual(projection.content!.map((node) => node.type), ["paragraph", "paragraph", "equation"]);
   const schema = getSchema(editorExtensions());
   const node = schema.nodeFromJSON(projection);
   assert.deepEqual(schema.nodeFromJSON(node.toJSON()).toJSON(), node.toJSON());

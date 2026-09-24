@@ -34,6 +34,7 @@ function markedText(content: InlineContent[], marks: string[] = []): [string, st
     if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
     if (item.kind === "break") return [["\n", [...marks, "break"].join(",")]];
     if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].join(",")]];
+    if (item.kind === "reference") return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].join(",")]];
     return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
 }

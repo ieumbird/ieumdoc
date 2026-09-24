@@ -1,4 +1,10 @@
+import { labelError } from "./label.ts";
+import { labelIdentifier } from "./myst/label.ts";
 import type { MystNode } from "./myst/tree.ts";
+
+/** Reference roles authored as inline content: {eq} for Equations and {numref} for Figures. */
+export type ReferenceRole = "eq" | "numref";
+const REFERENCE_ROLES = new Set<string>(["eq", "numref"]);
 
 export type InlineContent =
   | { kind: "break" }
@@ -25,6 +31,13 @@ export type InlineContent =
       url: string;
       title?: string;
       children: InlineContent[];
+    }
+  | {
+      /** A local cross-reference to a labeled Equation ({eq}) or Figure ({numref}), written
+       * without custom text. The label is kept as written; it may name no target. */
+      kind: "reference";
+      role: ReferenceRole;
+      label: string;
     };
 
 /** The mark an item applies to its content, for comparing rendered semantics:
@@ -36,6 +49,7 @@ export function inlineMarkKey(item: InlineContent): string | undefined {
 }
 
 const LINK_FIELDS = new Set(["type", "url", "title", "children", "position"]);
+const REFERENCE_FIELDS = new Set(["type", "kind", "identifier", "label", "position"]);
 
 export function projectInlineContent(node: MystNode): InlineContent[] | undefined {
   return projectNodes(node.children ?? []);
@@ -45,11 +59,12 @@ export function inlineContentToNodes(content: InlineContent[]): MystNode[] {
   return content.map(inlineToNode);
 }
 
-/** Readable text: inline math appears as its `$source$`. */
+/** Readable text: inline math appears as its `$source$`, a reference as its role. */
 export function inlineContentText(content: InlineContent[]): string {
   return content
     .map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-      : item.kind === "math" ? `$${item.value}$` : inlineContentText(item.children)))
+      : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+      : inlineContentText(item.children)))
     .join("");
 }
 
@@ -72,6 +87,13 @@ function projectNode(node: MystNode): InlineContent | undefined {
   if (node.type === "text") {
     return { kind: "text", text: typeof node.value === "string" ? node.value : "" };
   }
+  // Only `{eq}`label`` and `{numref}`label``: custom text (`Figure %s <label>`) and
+  // other roles such as {ref} stay unsupported.
+  if (node.type === "crossReference" && typeof node.kind === "string" && REFERENCE_ROLES.has(node.kind) &&
+      typeof node.label === "string" && node.label.length > 0 && node.identifier === labelIdentifier(node.label) &&
+      Object.keys(node).every((key) => REFERENCE_FIELDS.has(key))) {
+    return { kind: "reference", role: node.kind as ReferenceRole, label: node.label };
+  }
   if (node.type === "strong" || node.type === "emphasis") {
     const children = projectNodes(node.children ?? []);
     if (!children) return undefined;
@@ -83,7 +105,8 @@ function projectNode(node: MystNode): InlineContent | undefined {
       (node.title === undefined || typeof node.title === "string") &&
       Object.keys(node).every((key) => LINK_FIELDS.has(key))) {
     const children = projectNodes(node.children ?? []);
-    if (!children || inlineContentText(children).length === 0 || containsLink(children)) return undefined;
+    if (!children || inlineContentText(children).length === 0 || containsLink(children) ||
+        containsReference(children)) return undefined;
     return { kind: "link", url: node.url, ...(node.title !== undefined ? { title: node.title } : {}), children };
   }
   return undefined;
@@ -93,9 +116,16 @@ function containsLink(content: InlineContent[]): boolean {
   return content.some((item) => item.kind === "link" || ("children" in item && containsLink(item.children)));
 }
 
+function containsReference(content: InlineContent[]): boolean {
+  return content.some((item) => item.kind === "reference" || ("children" in item && containsReference(item.children)));
+}
+
 function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "break") return { type: "break" };
   if (item.kind === "math") return { type: "inlineMath", value: item.value };
+  if (item.kind === "reference") {
+    return { type: "crossReference", kind: item.role, identifier: labelIdentifier(item.label), label: item.label };
+  }
   if (item.kind === "text") {
     return { type: "text", value: item.text };
   }
@@ -149,17 +179,28 @@ export function assertInlineContent(content: InlineContent[]): void {
       if (containsLink(item.children)) {
         throw new Error("links cannot contain links");
       }
+      if (containsReference(item.children)) {
+        throw new Error("links cannot contain references");
+      }
+      continue;
+    }
+    if (item.kind === "reference") {
+      if (!REFERENCE_ROLES.has(item.role)) throw new Error("reference role must be eq or numref");
+      const error = typeof item.label === "string" ? labelError(item.label) : "Label must be a string.";
+      if (error) throw new Error(`reference label: ${error}`);
+      if (!labelIdentifier(item.label)) throw new Error("reference label must name a target");
       continue;
     }
     throw new Error("unsupported InlineContent kind");
   }
 }
 
-/** Rendered offsets use JavaScript UTF-16 code units; a break and inline math each have length one.
+/** Rendered offsets use JavaScript UTF-16 code units; a break, inline math and a reference each have length one.
  * Marks contribute only their children. No grapheme segmentation is performed. */
 export function inlineContentLength(content: InlineContent[]): number {
   return content.reduce((length, item) => length + (item.kind === "text" ? item.text.length
-    : item.kind === "break" || item.kind === "math" ? 1 : inlineContentLength(item.children)), 0);
+    : item.kind === "break" || item.kind === "math" || item.kind === "reference" ? 1
+    : inlineContentLength(item.children)), 0);
 }
 
 export function splitInlineContent(content: InlineContent[], offset: number): [InlineContent[], InlineContent[]] {

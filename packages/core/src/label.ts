@@ -12,3 +12,12 @@ export function labelError(label: string): string | undefined {
   if (label.trim() !== label) return "Label cannot have leading or trailing spaces.";
   return undefined;
 }
+
+/**
+ * The key MyST resolves a reference to its target by: myst-common's `normalizeLabel`
+ * identifier, restated without the MyST dependency so the Editor can tell whether a
+ * reference names a target in the current document. Core tests pin it to MyST's.
+ */
+export function labelKey(label: string): string {
+  return label.replace(/[\t\n\r ]+/g, " ").replace(/['‘’"“”]+/g, "").trim().toLowerCase();
+}
