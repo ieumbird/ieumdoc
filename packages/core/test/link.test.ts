@@ -51,9 +51,9 @@ test("paragraphs with ordinary links are editable inline content", () => {
   ]);
 });
 
-test("cross-references and unsupported link forms stay read-only", () => {
+test("unsupported link forms stay read-only", () => {
+  // Supported and unsupported cross-references are covered by cross-reference.test.ts.
   for (const source of [
-    "See {eq}`eq-current` here.",
     "See [](#eq-current) here.",
     "[a `code` link](u)",
     "[![img](i.png)](u)",

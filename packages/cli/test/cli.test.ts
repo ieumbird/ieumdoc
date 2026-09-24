@@ -621,21 +621,24 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
   }
 });
 
-test("CLI paragraph commands keep ordinary links and leave cross-references read-only", () => {
+test("CLI paragraph commands keep ordinary links and {eq} references, and leave other references read-only", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-links-"));
   const file = path.join(dir, "links.md");
-  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a` there.\n");
+  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`sec-a` there.\n");
   try {
     const inspected = run(["inspect", file]);
     assert.equal(inspected.status, 0, inspected.stderr);
     assert.match(inspected.stdout, /^0 paragraph inlineEditable=true text="Go to the site now\."$/m);
-    assert.match(inspected.stdout, /^1 paragraph inlineEditable=false text="See eq-a there\."$/m);
+    assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
+    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\."$/m);
     const split = run(["split-paragraph", file, "--path", "0", "--offset", "8"]);
     assert.equal(split.status, 0, split.stderr);
+    // A reference is one offset unit.
+    assert.equal(run(["split-paragraph", file, "--path", "2", "--offset", "5"]).status, 0);
     assert.equal(readFileSync(file, "utf8"),
-      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a` there.\n");
+      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`sec-a` there.\n");
     const saved = readFileSync(file, "utf8");
-    assert.equal(run(["split-paragraph", file, "--path", "2", "--offset", "3"]).status, 1);
+    assert.equal(run(["split-paragraph", file, "--path", "4", "--offset", "3"]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally {
     rmSync(dir, { recursive: true, force: true });
