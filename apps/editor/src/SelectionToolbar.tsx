@@ -1,9 +1,16 @@
 import type { Editor } from "@tiptap/core";
-import type { CSSProperties } from "react";
-import { IconButton } from "./ui/primitives.tsx";
+import { Link2 } from "lucide-react";
+import { useState, type CSSProperties } from "react";
+import { Input } from "@/components/ui/input.tsx";
+import { Button, IconButton } from "./ui/primitives.tsx";
 
 /** Inline marks for a paragraph text selection. Only Core-supported marks are offered. */
-export function SelectionToolbar({ editor, style, onReject }: { editor: Editor; style: CSSProperties; onReject: () => void }) {
+export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
+  editor: Editor;
+  style: CSSProperties;
+  onReject: () => void;
+  onEditLink: () => void;
+}) {
   return (
     <div className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
       <IconButton
@@ -22,6 +29,14 @@ export function SelectionToolbar({ editor, style, onReject }: { editor: Editor; 
       >
         <em aria-hidden="true">I</em>
       </IconButton>
+      <IconButton
+        label="Link"
+        aria-pressed={editor.isActive("link")}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => (editor.isActive("paragraph") ? onEditLink() : onReject())}
+      >
+        <Link2 aria-hidden="true" size={16} />
+      </IconButton>
     </div>
   );
 }
@@ -34,4 +49,91 @@ function toggleMark(editor: Editor, mark: "bold" | "italic", onReject: () => voi
   const chain = editor.chain().focus();
   const applied = (mark === "bold" ? chain.toggleBold() : chain.toggleItalic()).run();
   if (!applied) onReject();
+}
+
+/** The paragraph text range a link form edits, and the link already there, if any. */
+export type LinkDraft = { from: number; to: number; href: string; title: string | null };
+
+/** Open a link draft for the selection, widened to the whole link when it is inside one. */
+export function linkDraftOf(editor: Editor): LinkDraft {
+  if (editor.isActive("link")) editor.commands.extendMarkRange("link");
+  const { from, to } = editor.state.selection;
+  const attrs = editor.getAttributes("link");
+  return {
+    from,
+    to,
+    href: typeof attrs.href === "string" ? attrs.href : "",
+    title: typeof attrs.title === "string" ? attrs.title : null,
+  };
+}
+
+/**
+ * Add, change or remove an ordinary Markdown link on the selected text. The change is an
+ * ordinary editor transaction; Core validates the link when the document is saved.
+ */
+export function LinkForm({ editor, draft, style, onClose }: {
+  editor: Editor;
+  draft: LinkDraft;
+  style: CSSProperties;
+  onClose: () => void;
+}) {
+  const [href, setHref] = useState(draft.href);
+  const [error, setError] = useState("");
+  const close = () => {
+    onClose();
+    editor.commands.focus();
+  };
+  const apply = () => {
+    const url = href.trim();
+    if (url.length === 0) return setError("Enter a URL.");
+    if (/\s/.test(url)) return setError("A URL cannot contain spaces.");
+    // Keep an existing title; the form edits the URL only.
+    const applied = editor.chain().focus().setTextSelection({ from: draft.from, to: draft.to })
+      .setLink({ href: url, title: draft.title }).run();
+    if (!applied) return setError("This URL cannot be used as a link.");
+    onClose();
+  };
+  const remove = () => {
+    editor.chain().focus().setTextSelection({ from: draft.from, to: draft.to }).unsetLink().run();
+    onClose();
+  };
+  return (
+    <form
+      className="selection-toolbar link-form"
+      role="dialog"
+      aria-label="Link"
+      data-testid="link-form"
+      style={style}
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        close();
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose();
+      }}
+    >
+      <Input
+        autoFocus
+        aria-label="Link URL"
+        data-testid="link-url"
+        placeholder="https://"
+        value={href}
+        aria-invalid={error ? true : undefined}
+        onChange={(event) => {
+          setHref(event.target.value);
+          setError("");
+        }}
+      />
+      <Button size="sm" type="submit" data-testid="link-apply">Apply</Button>
+      {draft.href ? (
+        <Button size="sm" variant="subtle" data-testid="link-remove" onClick={remove}>Remove</Button>
+      ) : null}
+      {error ? <p className="link-form-error" role="alert">{error}</p> : null}
+    </form>
+  );
 }

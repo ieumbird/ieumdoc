@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "tsx --test test/editor.test.ts test/block-commands.test.ts test/figure-authoring.test.ts test/shell.test.tsx test/table-editing.test.ts",
+    "test": "tsx --test test/editor.test.ts test/block-commands.test.ts test/figure-authoring.test.ts test/shell.test.tsx test/table-editing.test.ts test/link-authoring.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
