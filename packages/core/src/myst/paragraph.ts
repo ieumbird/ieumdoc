@@ -8,7 +8,8 @@ import type { MystNode } from "./tree.ts";
  * persistent paragraphs. Never insert padding or invisible placeholders. */
 export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
-  if (!content || !semanticUnits(content).some((unit) => unit.kind === "text" && unit.text.trim().length > 0)) {
+  if (!content || !semanticUnits(content).some((unit) =>
+    unit.kind === "math" || (unit.kind === "text" && unit.text.trim().length > 0))) {
     throw new Error("persistent paragraph must contain non-empty text");
   }
   const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
@@ -32,6 +33,8 @@ function semanticUnits(content: InlineContent[], marks: string[] = []): { kind: 
     if (mark !== undefined && "children" in item) {
       return semanticUnits(item.children, [...new Set([...marks, mark])].sort());
     }
+    // Inline math is one unit carrying its source.
+    if (item.kind === "math") return [{ kind: "math", text: item.value, marks }];
     // split("") deliberately counts UTF-16 units, not Unicode code points.
     return (item.kind === "text" ? item.text.split("") : ["\n"])
       .map((text) => ({ kind: item.kind, text, marks }));
