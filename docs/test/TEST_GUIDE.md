@@ -646,10 +646,11 @@ cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg t
 sed 's/<svg /<svg data-variant="v2" /' apps/editor/document/diagram.svg > tmp/figure-authoring/diagram-v2.svg
 pnpm exec playwright-cli -s=ieumdoc-figure open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-authoring.browser.js
+pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-draft-race.browser.js
 pnpm exec playwright-cli -s=ieumdoc-figure close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. Focused regression은 editor selection이 Figure 밖으로 이동해도 Apply 또는 Cancel 전까지 form과 draft가 유지되고, Apply → Save → Reload 후 caption이 보존되는지 확인한다. 다시 실행하려면 scratch 사본을 새로 만든다.
 
 ## Table cell editing v1
 

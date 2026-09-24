@@ -695,12 +695,11 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
     }
   }, [editing, applied.imageUrl, applied.imageAlt, applied.caption, label]);
 
-  // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form,
-  // and leaving a Figure closes its form unless a draft is pending.
+  // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form.
+  // Once editing starts, selection changes must not end the draft; Apply and Cancel own that boundary.
   useEffect(() => {
     if (!editableFigure) return;
     if (selected && neverApplied && !editing) beginEdit();
-    if (!selected && editing && !hasUnappliedDraft) setEditing(false);
   }, [selected]);
 
   useEffect(() => {
