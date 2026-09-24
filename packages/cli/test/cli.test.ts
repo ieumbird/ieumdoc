@@ -101,6 +101,7 @@ test("ieumdoc help exits successfully", () => {
       "update-equation-latex",
       "update-figure",
       "update-table-cell",
+      "update-label",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -214,6 +215,36 @@ test("CLI insert-figure persists a Core Figure", () => {
       assert.equal(run(args).status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), minimal, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI update-label sets, changes and removes labels through Core and rejects duplicates without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-label-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const blocks = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks;
+    const equation = blocks.find((block) => block.block === "equation")!.path.join(",");
+    const figure = blocks.find((block) => block.block === "figure")!.path.join(",");
+    const labels = () => getEditableDocument(parse(readFileSync(file, "utf8"))).blocks
+      .flatMap((block) => block.block === "equation" || block.block === "figure" ? [block.label] : []);
+    assert.equal(run(["update-label", file, "--path", equation, "--label", "eq-reference"]).status, 0);
+    assert.equal(run(["update-label", file, "--path", figure, "--label", ""]).status, 0);
+    assert.deepEqual(labels(), ["", "eq-reference"]);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(serialize(parse(saved)), saved);
+    assert.match(saved, /```\{math\}\n:label: eq-reference\n\ni\^/);
+    // References are not renamed.
+    assert.match(saved, /\{eq\}`eq-current`/);
+
+    const before = readFileSync(file);
+    const duplicate = run(["update-label", file, "--path", figure, "--label", "EQ-Reference"]);
+    assert.notEqual(duplicate.status, 0);
+    assert.match(duplicate.stderr, /already names another target/);
+    assert.notEqual(run(["update-label", file, "--path", "0", "--label", "h"]).status, 0);
+    assert.deepEqual(readFileSync(file), before);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

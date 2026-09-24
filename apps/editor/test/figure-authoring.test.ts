@@ -58,14 +58,14 @@ function figureOf(document: EditableDocument, index: number) {
   return { label: block.label, imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: block.caption.text };
 }
 
-test("Figure projection carries editable properties and a display-only label", () => {
+test("Figure projection carries editable properties and its label", () => {
   const figure = blockAt(toTiptapDocument(loadEditableDocument(source)), FIGURE);
   assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", ...ORIGINAL, editable: true });
   const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n**bold caption**\n:::\n"));
   assert.equal(readonly.content?.[0]?.attrs?.editable, false);
 });
 
-test("image, alt text and caption are the only editable Figure attributes", () => {
+test("image, alt text, caption and label are the editable Figure attributes", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const changed = clone(baseline);
   Object.assign(blockAt(changed, FIGURE).attrs!, CHANGED);
@@ -74,10 +74,16 @@ test("image, alt text and caption are the only editable Figure attributes", () =
     { path: [6], from: ORIGINAL, to: CHANGED },
   ]);
 
-  for (const [key, value] of [["label", "fig-other"], ["editable", false], ["sourcePath", "new:x"]] as const) {
+  const relabeled = clone(baseline);
+  blockAt(relabeled, FIGURE).attrs!.label = "fig-other";
+  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, relabeled));
+  assert.deepEqual(collectSupportedEdits(loadEditableDocument(source), relabeled).labels, [
+    { path: [6], from: "fig-control", to: "fig-other" },
+  ]);
+  for (const [key, value] of [["editable", false], ["sourcePath", "new:x"]] as const) {
     const identity = clone(baseline);
     blockAt(identity, FIGURE).attrs![key] = value;
-    assert.throws(() => assertSupportedDocumentChange(baseline, identity), /figure identity|must be editable and unlabeled/);
+    assert.throws(() => assertSupportedDocumentChange(baseline, identity), /figure identity|block deletion is not allowed/);
   }
 
   const readonlySource = ":::{figure} ./a.png\n**bold caption**\n:::\n";
@@ -166,10 +172,12 @@ test("new Figure inserts save and reload through Core semantics", () => {
     order: [{ path: [0], part: 0 }, { insert: 0 }],
   }), /image URL is required/);
 
-  // New Figures cannot carry a label, and persistent blocks cannot become Figures.
+  // A new Figure can carry a label; persistent blocks cannot become Figures.
   const labeled = toTiptapDocument(editable);
   labeled.content!.push({ type: "figure", attrs: { sourcePath: "new:labeled", label: "fig-x", editable: true, ...figure } });
-  assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), labeled), /unlabeled/);
+  const labeledEdits = collectSupportedEdits(editable, labeled);
+  assert.deepEqual(labeledEdits.inserts, [{ block: "figure", ...figure, label: "fig-x" }]);
+  assert.match(saveEdits("Intro\n", labeledEdits).markdown, /:::\{figure\} \.\/plot\.svg\n:name: fig-x\n/);
   const conversion = toTiptapDocument(editable);
   conversion.content![0] = { type: "figure", attrs: { sourcePath: "0", label: "", editable: true, ...figure } };
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
@@ -216,7 +224,7 @@ test("an open Figure draft blocks saving until applied or canceled", () => {
   assert.match(schemaSource, /const neverApplied = isNewBlockPath\(sourcePath\) && applied\.imageUrl\.length === 0;/);
   assert.match(schemaSource, /if \(neverApplied\) removeUnappliedBlock\(view, getPos, node, deleteNode\);/);
   // Apply commits only after Core's persistent validation through the Host accepts the value.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}\s*updateAttributes\(candidate\);/);
+  assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}\s*updateAttributes\(\{ \.\.\.candidate, label: nextLabel \}\);/);
   assert.match(app, /fetch\("\/api\/figure-validation"/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });
@@ -246,8 +254,8 @@ test("Figure Apply participates in the structure guard and undo/redo", () => {
   const figure = state.doc.nodeAt(position)!;
   state = state.apply(state.tr.setNodeMarkup(position, undefined, { ...figure.attrs, ...CHANGED }));
   assert.equal(state.doc.nodeAt(position)?.attrs.caption, CHANGED.caption);
-  const labelTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, label: "fig-x" });
-  assert.equal(state.apply(labelTr).doc, state.doc);
+  const identityTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, editable: false });
+  assert.equal(state.apply(identityTr).doc, state.doc);
   assert.equal(rejected, 1);
   assert.equal(undo(state, (transaction) => { state = state.apply(transaction); }), true);
   assert.equal(state.doc.nodeAt(position)?.attrs.imageUrl, ORIGINAL.imageUrl);

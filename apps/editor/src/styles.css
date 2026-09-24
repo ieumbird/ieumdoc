@@ -772,6 +772,10 @@ h2.heading {
   color: var(--color-text-muted);
 }
 
+.equation-editor .figure-field > span {
+  font-size: var(--font-size-sm);
+}
+
 .block-popover-note {
   margin: var(--space-2) 0 0;
   color: var(--color-text-subtle);

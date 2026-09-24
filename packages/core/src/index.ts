@@ -20,6 +20,7 @@ export type { InlineContent } from "./inline.ts";
 export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export { figureContentError } from "./figure.ts";
+export { labelError } from "./label.ts";
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R
@@ -53,4 +54,5 @@ export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);
 export const updateParagraphInlineContent = fence(operations.updateParagraphInlineContent);
 export const updateAdmonitionInlineContent = fence(operations.updateAdmonitionInlineContent);
+export const updateLabel = fence(operations.updateLabel);
 export const validateFigure = operations.validateFigure;

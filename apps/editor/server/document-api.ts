@@ -20,6 +20,7 @@ import {
   updateEquationLatex,
   updateAdmonitionInlineContent,
   updateFigure,
+  updateLabel,
   updateTableCell,
   updateParagraphInlineContent,
   validateFigure,
@@ -65,11 +66,18 @@ export type TableCellEdit = {
   to: string;
 };
 
+/** An Equation or Figure label; an empty `to` removes it. */
+export type LabelEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string }
-  | ({ block: "figure" } & FigureContent);
+  | { block: "equation"; latex: string; label?: string }
+  | ({ block: "figure"; label?: string } & FigureContent);
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -81,6 +89,7 @@ export type SupportedEdits = {
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
   admonitions?: AdmonitionEdit[];
+  labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -199,6 +208,7 @@ export function saveCurrentDocument(
     figures: request.figures ?? [],
     cells: request.cells ?? [],
     admonitions: request.admonitions ?? [],
+    labels: request.labels ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     inserts: request.inserts ?? [],
@@ -291,6 +301,20 @@ export function saveEdits(
     }
     document = updateTableCell(document, edit.path, edit.to);
   }
+  const labels = edits.labels ?? [];
+  for (const edit of labels) {
+    assertPath(edit.path, "label");
+    const block = blockAt(editable, edit.path);
+    if (edit.path.length !== 1 || !(block?.block === "equation" || (block?.block === "figure" && block.editable))) {
+      throw new Error(`label edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== block.label || typeof edit.to !== "string") {
+      throw new Error(`label does not match at [${edit.path.join(",")}]`);
+    }
+  }
+  // Clear the changed labels first, so labels can move between blocks in one save.
+  for (const edit of labels) document = updateLabel(document, edit.path, "");
+  for (const edit of labels) if (edit.to.length > 0) document = updateLabel(document, edit.path, edit.to);
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
   if (splits.some(split => !Array.isArray(split.parts) || split.parts.length < 2) ||
@@ -323,6 +347,7 @@ export function saveEdits(
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
+    ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
@@ -334,6 +359,10 @@ export function saveEdits(
     deleted.add(path.join(","));
   }
   for (const insert of inserts) {
+    if ((insert.block === "equation" || insert.block === "figure") &&
+        insert.label !== undefined && typeof insert.label !== "string") {
+      throw new Error("inserted label must be a string");
+    }
     if (insert.block === "paragraph") {
       if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
         throw new Error("empty paragraph cannot be saved");
@@ -406,6 +435,9 @@ export function saveEdits(
       document = insertEquation(document, index, item.latex);
     } else {
       document = insertFigure(document, index, figureContent(item));
+    }
+    if ((item.block === "equation" || item.block === "figure") && item.label) {
+      document = updateLabel(document, [index], item.label);
     }
     locators.push({ insert });
   }
@@ -516,6 +548,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     figures: Array.isArray(body.figures) ? body.figures : [],
     cells: Array.isArray(body.cells) ? body.cells : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
+    labels: Array.isArray(body.labels) ? body.labels : [],
     splits: Array.isArray(body.splits) ? body.splits : [],
     merges: Array.isArray(body.merges) ? body.merges : [],
     inserts: Array.isArray(body.inserts) ? body.inserts : [],

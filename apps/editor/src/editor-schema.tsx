@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import type { FigureContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
+import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMAND_META } from "./block-commands.ts";
@@ -678,14 +679,19 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   const neverApplied = isNewBlockPath(sourcePath) && applied.imageUrl.length === 0;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
+  const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
   const [validating, setValidating] = useState(false);
   const validation = useRef(0);
-  const hasUnappliedDraft = isUnappliedFigureDraft(editing, draft, applied, sourcePath);
+  const hasUnappliedDraft = isUnappliedFigureDraft(editing, draft, applied, sourcePath) ||
+    (editing && labelDraft !== label);
 
   useEffect(() => {
-    if (!editing) setDraft(applied);
-  }, [editing, applied.imageUrl, applied.imageAlt, applied.caption]);
+    if (!editing) {
+      setDraft(applied);
+      setLabelDraft(label);
+    }
+  }, [editing, applied.imageUrl, applied.imageAlt, applied.caption, label]);
 
   // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form,
   // and leaving a Figure closes its form unless a draft is pending.
@@ -702,6 +708,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
 
   function beginEdit() {
     setDraft(applied);
+    setLabelDraft(label);
     setError("");
     setEditing(true);
     // After the form renders and after an insert command refocuses the editor.
@@ -712,13 +719,17 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
     setValidating(false);
     if (neverApplied) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(applied);
+    setLabelDraft(label);
     setError("");
     setEditing(false);
   };
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
+  // Whether the label is referenceable and unique in the document is checked by Core on Save.
   const apply = async () => {
     const candidate = draft;
-    const local = figureContentError(candidate) ?? (validateFigure ? undefined : "Figure validation is unavailable.");
+    const nextLabel = labelDraft;
+    const local = labelError(nextLabel) ?? figureContentError(candidate) ??
+      (validateFigure ? undefined : "Figure validation is unavailable.");
     if (local) {
       setError(local);
       return;
@@ -739,7 +750,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       setError(message);
       return;
     }
-    updateAttributes(candidate);
+    updateAttributes({ ...candidate, label: nextLabel });
     setEditing(false);
   };
   const field = (key: keyof FigureContent, name: string, testId: string) => (
@@ -814,15 +825,22 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
                 }
               }}
             >
-              <dl>
-                <div className="figure-property">
-                  <dt>Label</dt>
-                  <dd data-testid="figure-label">{label || "—"}</dd>
-                </div>
-              </dl>
               {field("imageUrl", "Image", "figure-image-url")}
               {field("imageAlt", "Alt text", "figure-alt")}
               {field("caption", "Caption", "figure-caption")}
+              <label className="figure-field">
+                <span>Label</span>
+                <Input
+                  data-testid="figure-label"
+                  disabled={validating}
+                  value={labelDraft}
+                  placeholder="None"
+                  onChange={(event) => {
+                    setLabelDraft(event.target.value);
+                    setError("");
+                  }}
+                />
+              </label>
               {error ? <Notice tone="error">{error}</Notice> : null}
               <div className="equation-actions">
                 <Button type="submit" size="sm" disabled={validating} data-testid="figure-apply">Apply</Button>
@@ -890,22 +908,28 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
   const latex = String(node.attrs.latex ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
+  const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!editing) setDraft(latex);
-  }, [editing, latex]);
+    if (!editing) {
+      setDraft(latex);
+      setLabelDraft(label);
+    }
+  }, [editing, latex, label]);
 
   useEffect(() => {
     if (selected && !editing) {
       setDraft(latex);
+      setLabelDraft(label);
       setError("");
       setEditing(true);
     }
   }, [selected]);
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath);
+  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath) ||
+    (editing && labelDraft !== label);
   useEffect(() => {
     onDraftChange?.(sourcePath, hasUnappliedDraft);
     return () => onDraftChange?.(sourcePath, false);
@@ -913,6 +937,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
 
   const beginEdit = () => {
     setDraft(latex);
+    setLabelDraft(label);
     setError("");
     setEditing(true);
   };
@@ -920,15 +945,22 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
     if (isUnappliedNewEquation) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(latex);
+    setLabelDraft(label);
     setError("");
     setEditing(false);
   };
+  // Whether the label is referenceable and unique in the document is checked by Core on Save.
   const apply = () => {
     if (draft.length === 0) {
       setError("Equation LaTeX cannot be empty.");
       return;
     }
-    updateAttributes({ latex: draft });
+    const invalidLabel = labelError(labelDraft);
+    if (invalidLabel) {
+      setError(invalidLabel);
+      return;
+    }
+    updateAttributes({ latex: draft, label: labelDraft });
     setError("");
     setEditing(false);
   };
@@ -972,6 +1004,27 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
               }
             }}
           />
+          <label className="figure-field">
+            <span>Label</span>
+            <Input
+              data-testid="equation-label"
+              value={labelDraft}
+              placeholder="None"
+              onChange={(event) => {
+                setLabelDraft(event.target.value);
+                setError("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancel();
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  apply();
+                }
+              }}
+            />
+          </label>
           <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
           {error ? <Notice tone="error">{error}</Notice> : null}
           <div className="equation-actions">
