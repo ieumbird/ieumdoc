@@ -189,6 +189,18 @@ test("top Save is guarded and Equation draft reporting is wired before persisten
   assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex, sourcePath\)/);
 });
 
+test("a pending Source preview blocks Open and New, so it cannot land on another document", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const busy = app.slice(app.indexOf("const busy ="), app.indexOf(";", app.indexOf("const busy =")));
+  assert.match(busy, /sourcePending/);
+  for (const name of ["openFile", "createFile"]) {
+    const start = app.indexOf(`async function ${name}(`);
+    assert.match(app.slice(start, app.indexOf("\n  }\n", start)), /if \(busy\) return "Wait for the current operation to finish\."/);
+  }
+  assert.match(app, /<OpenDialog[\s\S]*?busy=\{busy\}/);
+  assert.match(app, /<NewDialog[\s\S]*?busy=\{busy\}/);
+});
+
 test("a save response keeps an Equation draft pending and avoids an editor remount", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   const saveStart = app.indexOf("async function save()");

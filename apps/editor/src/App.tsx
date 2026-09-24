@@ -37,7 +37,9 @@ export function App() {
     void load();
   }, []);
 
-  const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…";
+  // A pending Source preview belongs to the open document, so it blocks document switches too.
+  const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…" ||
+    sourcePending;
 
   /** Resolves to an error message for a requested path, or "" on success. */
   async function load(requestedPath?: string): Promise<string> {
@@ -108,7 +110,7 @@ export function App() {
    * the Save request through Core without writing; any failure keeps the Visual view.
    */
   async function showSource(): Promise<void> {
-    if (!document || !editorRef.current || !openedPath || busy || sourcePending) return;
+    if (!document || !editorRef.current || !openedPath || busy) return;
     if (equationDraftActive || figureDraftActive) return;
     setError("");
     setSourcePending(true);
@@ -168,7 +170,7 @@ export function App() {
             documentPath={openedPath}
             status={status}
             view={view}
-            viewDisabled={!document || busy || sourcePending}
+            viewDisabled={!document || busy}
             sourceHint={sourceHint}
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
             saveDisabled={!document || status === "Saving…" || sourcePending || equationDraftActive || figureDraftActive}

@@ -762,6 +762,8 @@ pnpm ieumdoc format tmp/source-view/expected.md
 printf 'Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n' > tmp/source-view/keyboard.md
 pnpm exec playwright-cli -s=ieumdoc-source open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view.browser.js
+# Source 요청이 끝나기 전에는 Open/New로 문서를 바꿀 수 없다(파일을 쓰지 않는다).
+pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view-pending.browser.js
 pnpm exec playwright-cli -s=ieumdoc-source close
 ```
 
