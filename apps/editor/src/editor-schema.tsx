@@ -440,7 +440,14 @@ export function editorExtensions(
       hardBreak: { keepMarks: true },
       heading: false,
       horizontalRule: false,
-      link: false,
+      // Ordinary Markdown links (href and optional title only). Links are created or
+      // changed explicitly from the selection toolbar, never implicitly while typing.
+      link: {
+        openOnClick: false,
+        autolink: false,
+        linkOnPaste: false,
+        HTMLAttributes: { target: null, rel: null, class: null },
+      },
       listItem: false,
       listKeymap: false,
       orderedList: false,

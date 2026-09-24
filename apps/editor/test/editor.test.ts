@@ -214,7 +214,30 @@ test("Core InlineContent converts to and from Tiptap content", () => {
   const tiptap = toTiptapContent(original);
   assert.equal(tiptap.type, "doc");
   assert.equal(tiptap.content?.[0]?.type, "paragraph");
-  assert.deepEqual(fromTiptapContent(tiptap), original);
+  // Flat marks are regrouped with the longest-covering mark outermost; the rendered
+  // text and mark coverage are the same, and the Tiptap form is stable.
+  assert.deepEqual(fromTiptapContent(tiptap), [
+    { kind: "text", text: "The converter regulates the " },
+    { kind: "strong", children: [{ kind: "text", text: "DC-link voltage" }] },
+    { kind: "text", text: " and " },
+    {
+      kind: "emphasis",
+      children: [
+        { kind: "text", text: "phase current" },
+        { kind: "strong", children: [{ kind: "text", text: "with both marks" }] },
+      ],
+    },
+    { kind: "text", text: "." },
+  ]);
+  assert.deepEqual(toTiptapContent(fromTiptapContent(tiptap)), tiptap);
+
+  const linked: InlineContent[] = [
+    { kind: "text", text: "See " },
+    { kind: "link", url: "https://openai.com", title: "Home", children: [{ kind: "text", text: "OpenAI" }] },
+    { kind: "strong", children: [{ kind: "text", text: " a " }, { kind: "link", url: "u", children: [{ kind: "text", text: "b" }] }] },
+    { kind: "link", url: "v", children: [{ kind: "strong", children: [{ kind: "text", text: "c" }] }, { kind: "text", text: " d" }] },
+  ];
+  assert.deepEqual(fromTiptapContent(toTiptapContent(linked)), linked);
 });
 
 test("Tiptap adapter accepts plain, bold, italic, and combined marks", () => {
@@ -237,13 +260,13 @@ test("Tiptap adapter accepts plain, bold, italic, and combined marks", () => {
     ],
   });
 
+  // Italic covers "italic" and "both", so it is the outer mark of that run.
   assert.deepEqual(content, [
     { kind: "text", text: "plain" },
     { kind: "strong", children: [{ kind: "text", text: "bold" }] },
-    { kind: "emphasis", children: [{ kind: "text", text: "italic" }] },
     {
-      kind: "strong",
-      children: [{ kind: "emphasis", children: [{ kind: "text", text: "both" }] }],
+      kind: "emphasis",
+      children: [{ kind: "text", text: "italic" }, { kind: "strong", children: [{ kind: "text", text: "both" }] }],
     },
   ]);
   assert.deepEqual(fromTiptapContent({ type: "doc", content: [{ type: "paragraph" }] }), []);
@@ -276,7 +299,12 @@ test("Tiptap adapter rejects multiple paragraphs and unsupported nodes", () => {
 });
 
 test("Tiptap adapter rejects unsupported marks", () => {
-  for (const mark of ["link", "underline", "strike", "code", "unknown"]) {
+  // `link` is supported but must carry a URL.
+  assert.throws(() => fromTiptapContent({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [{ type: "link" }] }] }],
+  }), /link at paragraph child 0 requires a URL/);
+  for (const mark of ["underline", "strike", "code", "unknown"]) {
     assert.throws(
       () =>
         fromTiptapContent({
@@ -304,8 +332,8 @@ test("document adapter rejects unknown blocks, inlines, and marks", () => {
   assert.throws(() => assertSupportedDocumentChange(baseline, unknownInline), /unsupported Tiptap node "image"/);
 
   const unknownMark = clone(baseline);
-  blockAt(unknownMark, "8").content = [{ type: "text", text: "unsupported", marks: [{ type: "link" }] }];
-  assert.throws(() => assertSupportedDocumentChange(baseline, unknownMark), /unsupported Tiptap mark "link"/);
+  blockAt(unknownMark, "8").content = [{ type: "text", text: "unsupported", marks: [{ type: "underline" }] }];
+  assert.throws(() => assertSupportedDocumentChange(baseline, unknownMark), /unsupported Tiptap mark "underline"/);
 });
 
 test("document adapter accepts reorder but rejects readonly mutation, insertion, and deletion", () => {
@@ -1394,7 +1422,7 @@ test("merge and split groups save together without path shifts or implicit space
 
 test("invalid and stale merges do not write", () => {
   const parts: InlineContent[][] = [[{kind:"text",text:"merged"}]];
-  for (const source of ["# Heading\n\nAB", "$$\nx=1\n$$\n\nAB", "[link](url)\n\nAB", "AB\n\n# Heading"]) {
+  for (const source of ["# Heading\n\nAB", "$$\nx=1\n$$\n\nAB", "[](#target)\n\nAB", "AB\n\n# Heading"]) {
     let written = false;
     assert.throws(() => commitDocumentSave(() => source, () => {written = true;}, {
       revision: documentRevision(source), merges: [{paths:[[0],[1]],parts}],

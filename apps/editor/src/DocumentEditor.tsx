@@ -10,7 +10,7 @@ import {
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu } from "./CommandMenu.tsx";
-import { SelectionToolbar } from "./SelectionToolbar.tsx";
+import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
@@ -68,6 +68,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [slashActive, setSlashActive] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
+  const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const reportEquationDraft = (key: string, active: boolean) => {
     if (active) activeEquationDrafts.current.add(key);
@@ -240,6 +241,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   };
   const formatting = focused ? formattableSelection(editor.state) : null;
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
+  const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
   const blockMenuStyle: CSSProperties | undefined = blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
@@ -252,7 +254,16 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
       />
-      {toolbarStyle ? <SelectionToolbar editor={editor} style={toolbarStyle} onReject={onStructuralReject} /> : null}
+      {linkDraft && linkStyle ? (
+        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} />
+      ) : toolbarStyle ? (
+        <SelectionToolbar
+          editor={editor}
+          style={toolbarStyle}
+          onReject={onStructuralReject}
+          onEditLink={() => setLinkDraft(linkDraftOf(editor))}
+        />
+      ) : null}
       {slashStyle && slash ? (
         <CommandMenu
           key={`slash-${slash.from}`}

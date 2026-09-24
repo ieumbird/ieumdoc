@@ -666,6 +666,29 @@ h2.heading {
   transform: translateY(-100%);
 }
 
+.link-form {
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 24rem;
+}
+
+.link-form input {
+  flex: 1 1 12rem;
+}
+
+.link-form-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.document-editor a {
+  color: var(--color-info);
+  text-decoration: underline;
+  cursor: text;
+}
+
 .selection-toolbar .ui-icon-button,
 .message-dismiss {
   width: var(--size-control-compact);

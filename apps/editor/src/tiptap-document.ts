@@ -153,7 +153,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (text === block.text) continue;
       if (text.length === 0) throw new Error("empty heading text cannot be saved");
       headings.push({ path: block.path, from: block.text, to: text });
-    } else if (block.block === "paragraph" && block.editable) {
+    } else if (block.block === "paragraph" && editableParagraph(block)) {
       if (group.length > 1) {
         splits.push({ path: block.path, parts: group.map(paragraphInline) });
         continue;
@@ -276,7 +276,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "paragraph") {
-    if (!block.editable) {
+    if (!editableParagraph(block)) {
       return readonlyNode("readonlyParagraph", block.path, { text: block.text });
     }
     return {
@@ -538,8 +538,44 @@ function snapshotPaths(key: string): string[] {
   return key.split(";").filter(path => !isNewBlockPath(path));
 }
 
+/** Same rendered text and mark coverage (a link's target is part of its mark). Nesting order
+ * and text fragmentation differ between Core content and the editor's flat marks. */
 function sameInline(left: InlineContent[], right: InlineContent[]): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return JSON.stringify(inlineUnits(left)) === JSON.stringify(inlineUnits(right));
+}
+
+function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
+  return content.flatMap((item) => {
+    if (item.kind === "text") return item.text.split("").map((char) => `${char} ${marks.join(",")}`);
+    if (item.kind === "break") return [`\n ${marks.join(",")}`];
+    return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
+  });
+}
+
+function markKey(item: InlineContent): string {
+  return item.kind === "link" ? `link ${JSON.stringify([item.url, item.title ?? null])}` : item.kind;
+}
+
+/**
+ * Adjacent links with the same target (`[a](x)[b](x)`) become one link in the editor's
+ * flat marks, so such a paragraph stays read-only rather than silently merging them.
+ */
+function editableParagraph(block: EditableBlock): boolean {
+  if (block.block !== "paragraph" || !block.editable) return false;
+  // The link (if any) that owns each text/break leaf, in reading order.
+  const owners: (InlineContent | undefined)[] = [];
+  const walk = (items: InlineContent[], owner?: InlineContent): void => {
+    for (const item of items) {
+      if (item.kind === "link") walk(item.children, item);
+      else if ("children" in item) walk(item.children, owner);
+      else owners.push(owner);
+    }
+  };
+  walk(block.content);
+  return !owners.some((owner, index) => {
+    const previous = owners[index - 1];
+    return owner !== undefined && previous !== undefined && owner !== previous && markKey(owner) === markKey(previous);
+  });
 }
 
 function inlineText(content: InlineContent[]): string {
