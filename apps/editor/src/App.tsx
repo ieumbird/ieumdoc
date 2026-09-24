@@ -5,11 +5,13 @@ import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
-import { TopBar } from "./shell/TopBar.tsx";
+import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts";
 
 const EQUATION_DRAFT_SAVE_HINT = "Apply or Cancel the Equation edit before saving.";
 const FIGURE_DRAFT_SAVE_HINT = "Apply or Cancel the Figure edit before saving.";
+const EQUATION_DRAFT_SOURCE_HINT = "Apply or Cancel the Equation edit before viewing Source.";
+const FIGURE_DRAFT_SOURCE_HINT = "Apply or Cancel the Figure edit before viewing Source.";
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
@@ -26,6 +28,10 @@ export function App() {
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const saveHint = equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
+  const sourceHint = equationDraftActive ? EQUATION_DRAFT_SOURCE_HINT : figureDraftActive ? FIGURE_DRAFT_SOURCE_HINT : undefined;
+  const [view, setView] = useState<DocumentView>("visual");
+  const [sourceMarkdown, setSourceMarkdown] = useState("");
+  const [sourcePending, setSourcePending] = useState(false);
 
   useEffect(() => {
     void load();
@@ -46,6 +52,7 @@ export function App() {
       setEditorGeneration((value) => value + 1);
       setEquationDraftActive(false);
       setFigureDraftActive(false);
+      setView("visual");
       setStatus("Ready");
       return "";
     } catch (cause) {
@@ -96,6 +103,26 @@ export function App() {
     }
   }
 
+  /**
+   * Shows the canonical Markdown the current editor state would save as. The Host runs
+   * the Save request through Core without writing; any failure keeps the Visual view.
+   */
+  async function showSource(): Promise<void> {
+    if (!document || !editorRef.current || !openedPath || busy || sourcePending) return;
+    if (equationDraftActive || figureDraftActive) return;
+    setError("");
+    setSourcePending(true);
+    try {
+      const payload = collectSupportedEdits(document, editorRef.current.getDocument());
+      setSourceMarkdown(await requestSource(openedPath, { revision: sourceRevision, ...payload }));
+      setView("source");
+    } catch (cause) {
+      setError(`Source view unavailable: ${messageOf(cause)}`);
+    } finally {
+      setSourcePending(false);
+    }
+  }
+
   async function createFile(path: string): Promise<string> {
     const requestedPath = path.trim();
     if (!requestedPath) return "Enter a Markdown file path.";
@@ -115,6 +142,7 @@ export function App() {
       setEditorGeneration((value) => value + 1);
       setEquationDraftActive(false);
       setFigureDraftActive(false);
+      setView("visual");
       setStatus("Ready");
       return "";
     } catch (cause) {
@@ -139,7 +167,11 @@ export function App() {
           <TopBar
             documentPath={openedPath}
             status={status}
-            saveDisabled={!document || status === "Saving…" || equationDraftActive || figureDraftActive}
+            view={view}
+            viewDisabled={!document || busy || sourcePending}
+            sourceHint={sourceHint}
+            onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
+            saveDisabled={!document || status === "Saving…" || sourcePending || equationDraftActive || figureDraftActive}
             saveHint={saveHint}
             onSave={() => void save()}
           />
@@ -151,19 +183,27 @@ export function App() {
           />
         </div>
         <main className="document-column">
+          {view === "source" ? (
+            <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
+              <pre className="source-view-text">{sourceMarkdown}</pre>
+            </article>
+          ) : null}
+          {/* Hidden, not unmounted, in Source: the one editor state and its history stay intact. */}
           {document ? (
-            <DocumentEditor
-              key={editorGeneration}
-              ref={editorRef}
-              document={document}
-              documentPath={openedPath}
-              onEquationDraftChange={setEquationDraftActive}
-              onFigureDraftChange={setFigureDraftActive}
-              validateFigure={validateFigure}
-              onStructuralReject={() =>
-                setNotice("That change is not editable in this version, so it was discarded.")
-              }
-            />
+            <div hidden={view === "source"}>
+              <DocumentEditor
+                key={editorGeneration}
+                ref={editorRef}
+                document={document}
+                documentPath={openedPath}
+                onEquationDraftChange={setEquationDraftActive}
+                onFigureDraftChange={setFigureDraftActive}
+                validateFigure={validateFigure}
+                onStructuralReject={() =>
+                  setNotice("That change is not editable in this version, so it was discarded.")
+                }
+              />
+            </div>
           ) : null}
         </main>
       </div>
@@ -221,6 +261,20 @@ async function requestDocument(
     throw new Error(payload.error ?? `request failed (${response.status})`);
   }
   return { path: payload.path, document: payload.document, revision: payload.revision };
+}
+
+/** Asks the Host for the canonical Markdown a Save request would write. */
+async function requestSource(filePath: string, body: SupportedEdits & { revision: string }): Promise<string> {
+  const response = await fetch("/api/document-source", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: filePath, ...body }),
+  });
+  const payload = (await response.json()) as { markdown?: string; error?: string };
+  if (!response.ok || typeof payload.markdown !== "string") {
+    throw new Error(payload.error ?? `request failed (${response.status})`);
+  }
+  return payload.markdown;
 }
 
 /** Asks the Host to run Core's persistent Figure validation. */
