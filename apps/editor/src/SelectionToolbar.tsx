@@ -1,15 +1,16 @@
 import type { Editor } from "@tiptap/core";
-import { Link2, Sigma } from "lucide-react";
+import { Hash, Link2, Sigma } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
 
 /** Inline marks for supported paragraph and admonition body selections. */
-export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
+export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditReference }: {
   editor: Editor;
   style: CSSProperties;
   onReject: () => void;
   onEditLink: () => void;
+  onEditReference: () => void;
 }) {
   return (
     <div className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
@@ -43,6 +44,13 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
         onClick={() => (makeInlineMath(editor) ? undefined : onReject())}
       >
         <Sigma aria-hidden="true" size={16} />
+      </IconButton>
+      <IconButton
+        label="Cross-reference"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => (editableInlineContext(editor) ? onEditReference() : onReject())}
+      >
+        <Hash aria-hidden="true" size={16} />
       </IconButton>
     </div>
   );

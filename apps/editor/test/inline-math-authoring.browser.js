@@ -75,7 +75,8 @@ async page => {
   await open();
   result.mathParagraphEditable = await editor.locator('p.paragraph', {hasText: 'The current is'}).count() === 1;
   result.renderedWithKatex = await editor.getByTestId('inline-math').locator('.katex').count() === 3;
-  result.crossReferenceReadOnly = await editor.locator('[data-block="readonly-paragraph"]', {hasText: 'eq-a'}).count() === 1;
+  // {eq} reference paragraphs are editable since cross-reference authoring.
+  result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"]', {hasText: 'eq-a'}).count() === 1;
 
   // Change a source: the form opens prefilled.
   result.formPrefilled = await editSource('i_d', 'i_q');

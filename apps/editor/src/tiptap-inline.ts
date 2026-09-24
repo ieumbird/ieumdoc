@@ -60,10 +60,11 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "text" || item.kind === "break" || item.kind === "math") {
+    if (item.kind === "text" || item.kind === "break" || item.kind === "math" || item.kind === "reference") {
       if (item.kind === "text" && item.text.length === 0) continue;
       const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" }
         : item.kind === "math" ? { type: "inlineMath", attrs: { value: item.value } }
+        : item.kind === "reference" ? { type: "crossReference", attrs: { role: item.role, label: item.label } }
         : { type: "text", text: item.text };
       const applied: TiptapMark[] = [];
       if (marks.bold) applied.push({ type: "bold" });
@@ -90,8 +91,13 @@ const BOLD: Mark = { key: "bold", wrap: (children) => ({ kind: "strong", childre
 const ITALIC: Mark = { key: "italic", wrap: (children) => ({ kind: "emphasis", children }) };
 
 function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
-  if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath")) {
+  if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath" &&
+      node.type !== "crossReference")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
+  }
+  if (node.type === "crossReference" && ((node.attrs?.role !== "eq" && node.attrs?.role !== "numref") ||
+      typeof node.attrs?.label !== "string" || node.attrs.label.length === 0 || node.content !== undefined)) {
+    throw new Error(`cross-reference at paragraph child ${index} requires an eq or numref role and a label`);
   }
   if (node.type === "inlineMath" && (typeof node.attrs?.value !== "string" || node.attrs.value.length === 0 ||
       node.content !== undefined)) {
@@ -119,6 +125,9 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
       throw new Error(`duplicate Tiptap mark "${mark.type}" at paragraph child ${index}`);
     }
     seen.add(mark.type);
+    if (node.type === "crossReference" && mark.type === "link") {
+      throw new Error(`a cross-reference cannot be inside a link at paragraph child ${index}`);
+    }
     marks.push(mark.type === "bold" ? BOLD : mark.type === "italic" ? ITALIC : linkMark(mark, index));
   }
 
@@ -127,6 +136,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   }
   const item: InlineContent = node.type === "hardBreak" ? { kind: "break" }
     : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
+    : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as "eq" | "numref", label: String(node.attrs!.label) }
     : { kind: "text", text: node.text! };
   const order = [BOLD.key, ITALIC.key];
   return { item, marks: marks.sort((a, b) => rank(a, order) - rank(b, order)) };

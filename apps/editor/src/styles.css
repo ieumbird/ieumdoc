@@ -719,6 +719,73 @@ h2.heading {
   flex: 1 1 10rem;
 }
 
+/* A local {eq}/{numref} reference: a quiet chip; an unresolved one is muted and dashed. */
+.cross-reference {
+  position: relative;
+}
+
+.cross-reference-chip {
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-info);
+  color: var(--color-info);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cross-reference[data-resolved="false"] .cross-reference-chip {
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-subtle);
+}
+
+.cross-reference-chip:hover,
+.cross-reference[data-selected="true"] .cross-reference-chip {
+  box-shadow: var(--focus-ring);
+}
+
+.reference-form {
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 24rem;
+  font-family: var(--font-family-sans);
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* The target form sits under an existing reference instead of above a text selection. */
+.selection-toolbar.cross-reference-form {
+  top: calc(100% + var(--space-1));
+  left: 0;
+  width: 22rem;
+  transform: none;
+}
+
+.reference-target {
+  flex: 1 1 12rem;
+  height: var(--size-control-compact);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.reference-target:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.reference-empty {
+  flex: 1 1 12rem;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+}
+
 .document-editor a {
   color: var(--color-info);
   text-decoration: underline;

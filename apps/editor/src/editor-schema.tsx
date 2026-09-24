@@ -10,6 +10,7 @@ import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMAND_META } from "./block-commands.ts";
+import { CrossReference } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   DELETED_PATHS_ATTR,
@@ -508,6 +509,7 @@ export function editorExtensions(
     ReadonlyTableCell,
     UnsupportedBlock,
     InlineMath,
+    CrossReference,
   ];
 }
 

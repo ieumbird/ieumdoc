@@ -10,6 +10,7 @@ import {
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu } from "./CommandMenu.tsx";
+import { insertReference, referenceCommandItems, referenceOfCommand, referenceTargets, ReferenceForm } from "./cross-reference.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
@@ -69,6 +70,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
+  // The selected paragraph text a new cross-reference will replace.
+  const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const reportEquationDraft = (key: string, active: boolean) => {
     if (active) activeEquationDrafts.current.add(key);
@@ -187,6 +190,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const runInsert = (id: string, index: number, slash?: SlashRange) => {
+    const reference = referenceOfCommand(id);
+    if (reference && slash) {
+      setBlockMenu(null);
+      insertReference(editor, slash, reference);
+      return;
+    }
     const command = INSERT_COMMANDS.find(command => command.id === id);
     if (!command) return;
     setBlockMenu(null);
@@ -204,7 +213,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // `/` and `+` open the same insert menu over the same command list.
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
-  const slashItems = slash ? filterInsertCommands(slash.query) : [];
+  const slashItems = slash
+    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(referenceTargets(editor.state.doc), slash.query)]
+    : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {
     if (event.key === "/") {
@@ -242,6 +253,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const formatting = focused ? formattableSelection(editor.state) : null;
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
+  const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
   const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
   const blockMenuStyle: CSSProperties | undefined = blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
@@ -254,7 +266,21 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
       />
-      {linkDraft && linkStyle ? (
+      {referenceDraft && referenceStyle ? (
+        <ReferenceForm
+          editor={editor}
+          style={referenceStyle}
+          preferredLabel={referenceDraft.text.trim()}
+          onApply={(target) => {
+            insertReference(editor, referenceDraft, target);
+            setReferenceDraft(null);
+          }}
+          onClose={() => {
+            setReferenceDraft(null);
+            editor.commands.focus();
+          }}
+        />
+      ) : linkDraft && linkStyle ? (
         <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} />
       ) : toolbarStyle ? (
         <SelectionToolbar
@@ -262,6 +288,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           style={toolbarStyle}
           onReject={onStructuralReject}
           onEditLink={() => setLinkDraft(linkDraftOf(editor))}
+          onEditReference={() => {
+            const { from, to } = editor.state.selection;
+            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n") });
+          }}
         />
       ) : null}
       {slashStyle && slash ? (

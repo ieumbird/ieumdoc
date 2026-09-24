@@ -460,7 +460,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
-- cross-reference, 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다. 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell만 수정할 수 있고 행/열 구조와 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell만 수정할 수 있고 행/열 구조와 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -691,7 +691,7 @@ pnpm exec playwright-cli -s=ieumdoc-table close
 
 ## Inline link authoring v1
 
-일반 Markdown link(`[텍스트](URL "선택적 title")`, `<https://...>`)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `link`로 저장되고 split / merge / hard break도 link를 유지한다. `{eq}` / `{ref}` / `{numref}` 같은 cross-reference는 link가 아니며 이번 편집 대상이 아니다(그 paragraph는 읽기 전용).
+일반 Markdown link(`[텍스트](URL "선택적 title")`, `<https://...>`)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `link`로 저장되고 split / merge / hard break도 link를 유지한다. `{eq}` / `{ref}` / `{numref}` 같은 cross-reference는 link가 아니다(`{eq}`/`{numref}` 편집은 "Local cross-reference authoring v1").
 
 읽기 전용으로 남는 link: 표시 텍스트가 빈 link(`[](#x)`), code나 image를 감싼 link, `{download}` link, 같은 대상으로 가는 link 두 개가 붙어 있는 paragraph(`[a](x)[b](x)`; 편집기에서 하나로 합쳐지기 때문).
 
@@ -791,3 +791,26 @@ pnpm exec playwright-cli -s=ieumdoc-label close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Save/Source 요청의 400은 `duplicateRequestsLogged`로 따로 확인한다). 다시 실행하려면 scratch 사본을 새로 만든다.
+
+## Local cross-reference authoring v1
+
+현재 문서의 label이 있는 Equation(`{eq}`)과 Figure(`{numref}`)를 paragraph 안에서 참조한다. reference는 Core `InlineContent`의 `reference`(role + label)로 저장되고 canonical 형태는 `{eq}`label`` / `{numref}`label``다. `[text](#label)` 같은 일반 fragment link와는 서로 바뀌지 않는다.
+
+- 편집 대상은 표시 텍스트가 없는 `{eq}`label``, `{numref}`label``뿐이다. `{numref}`Figure %s <label>`` 같은 표시 텍스트, `{ref}`, link 안의 reference가 있는 paragraph는 계속 읽기 전용이다.
+- 삽입: 텍스트를 선택하고 selection toolbar의 `Cross-reference`(#)를 누르면 target을 고르는 작은 form이 열린다(선택한 텍스트와 같은 label이 있으면 미리 선택된다). caret 위치에서는 `/`를 입력하고 `Equation reference: …` / `Figure reference: …`를 고른다.
+- reference를 클릭하면 target을 바꾸거나 `Remove`로 label 텍스트로 되돌릴 수 있다. 굵게/기울임은 reference에도 적용되고, link는 적용되지 않는다. split / merge / hard break에서 reference는 한 글자로 센다.
+- 문서 안에 같은 종류의 target이 있으면(MyST처럼 대소문자 무시) 보통 표시, 없으면 흐린 점선으로 표시되고 tooltip에 `Unresolved`가 나온다. label을 바꾸면 바로 반영된다. 끊어진 reference도 그대로 저장된다.
+- target 목록은 현재 문서의 Equation/Figure label(Apply한 미저장 label 포함)이다. `{numref}`가 Equation이나 table을 가리키면 v1에서는 unresolved로 보인다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+
+```bash
+rm -rf tmp/cross-reference && mkdir -p tmp/cross-reference
+cp apps/editor/document/diagram.svg tmp/cross-reference/
+printf '# References\n\nThe current is set by the control law and shown in the diagram.\n\nSee {eq}`eq-a` and [details](#eq-a) with **bold** and $x$.\n\nSee {numref}`missing-fig` for later and {eq}`eq-a`.\n\n```{math}\n:label: eq-a\na = b\n```\n\n```{math}\n:label: eq-b\nc = d\n```\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n' > tmp/cross-reference/refs.md
+pnpm exec playwright-cli -s=ieumdoc-xref open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-xref run-code --filename=apps/editor/test/cross-reference.browser.js
+pnpm exec playwright-cli -s=ieumdoc-xref close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
