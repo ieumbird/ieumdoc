@@ -51,7 +51,7 @@ const PARAGRAPH_PATH_NOTE = [
 ];
 const OFFSET_NOTE = [
   "Offset is measured in UTF-16 code units over rendered paragraph content.",
-  "A hard break counts as one character position.",
+  "A hard break and an inline math expression each count as one character position.",
   "Offset must be strictly inside the paragraph (0 < offset < length).",
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
 ];

@@ -692,7 +692,7 @@ test("paragraph CLI help discovers the offset and path contracts", () => {
     assert.match(help.stdout, /ieumdoc inspect <file>/);
     assert.match(help.stdout, /run inspect again/);
     assert.equal(run([command, "--help"]).stdout, help.stdout);
-    if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break counts as one/);
+    if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break and an inline math expression each count as one character position/);
     else assert.match(help.stdout, /No automatic space/);
   }
 });
