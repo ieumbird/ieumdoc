@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   getEditableDocument,
+  inlineContentLength,
   insertHeading,
   insertEquation,
   insertFigure,
@@ -353,7 +354,8 @@ export function saveEdits(
       document = mergeParagraphWithPrevious(document, [start + index]);
     }
     document = updateParagraphInlineContent(document, [start], group.parts.flat());
-    const lengths = group.parts.map(part => inlineText(part).length);
+    // Split offsets use Core's paragraph offset definition (inline math counts as one).
+    const lengths = group.parts.map(part => inlineContentLength(part));
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
@@ -508,7 +510,8 @@ function figureContent(value: FigureContent | undefined): FigureContent {
 
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+    : item.kind === "math" ? `$${item.value}$` : inlineText(item.children))).join("");
 }
 
 export function resolveMediaPath(assetPath: string, documentPath?: string): string {

@@ -91,8 +91,9 @@ async page => {
   await page.getByTestId('link-apply').click();
   await page.getByTestId('link-form').waitFor({state:'detached'});
 
-  // Plain text edit in a link paragraph.
-  await editor.locator('p.paragraph', {hasText: 'for details'}).click();
+  // Plain text edit in a link paragraph. Click near its start: the floating selection
+  // toolbar of the previous selection may cover the paragraph's center.
+  await editor.locator('p.paragraph', {hasText: 'for details'}).click({position: {x: 4, y: 4}});
   await page.keyboard.press('End');
   await page.keyboard.type(' Updated.');
 

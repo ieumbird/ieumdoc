@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { Link2 } from "lucide-react";
+import { Link2, Sigma } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
@@ -37,8 +37,30 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink }: {
       >
         <Link2 aria-hidden="true" size={16} />
       </IconButton>
+      <IconButton
+        label="Inline math"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => (makeInlineMath(editor) ? undefined : onReject())}
+      >
+        <Sigma aria-hidden="true" size={16} />
+      </IconButton>
     </div>
   );
+}
+
+/**
+ * Turn the selected plain text into inline math whose LaTeX source is that text, keeping the
+ * marks that cover the whole selection. Selections containing breaks or math are refused.
+ */
+export function makeInlineMath(editor: Editor): boolean {
+  const { state } = editor;
+  const { from, to, $from, $to } = state.selection;
+  if (!editor.isActive("paragraph") || from === to || !$from.sameParent($to)) return false;
+  const source = state.doc.textBetween(from, to, "\n", "\n");
+  if (source.length === 0 || source.includes("\n")) return false;
+  const marks = $from.marksAcross($to) ?? [];
+  return editor.chain().focus().insertContentAt({ from, to },
+    { type: "inlineMath", attrs: { value: source }, marks: marks.map((mark) => mark.toJSON()) }).run();
 }
 
 function toggleMark(editor: Editor, mark: "bold" | "italic", onReject: () => void): void {

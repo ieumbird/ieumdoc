@@ -7,6 +7,11 @@ export type InlineContent =
       text: string;
     }
   | {
+      /** Inline math: its LaTeX source. Display equations are blocks, not inline content. */
+      kind: "math";
+      value: string;
+    }
+  | {
       kind: "strong";
       children: InlineContent[];
     }
@@ -40,9 +45,11 @@ export function inlineContentToNodes(content: InlineContent[]): MystNode[] {
   return content.map(inlineToNode);
 }
 
+/** Readable text: inline math appears as its `$source$`. */
 export function inlineContentText(content: InlineContent[]): string {
   return content
-    .map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineContentText(item.children)))
+    .map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+      : item.kind === "math" ? `$${item.value}$` : inlineContentText(item.children)))
     .join("");
 }
 
@@ -58,6 +65,10 @@ function projectNodes(nodes: MystNode[]): InlineContent[] | undefined {
 
 function projectNode(node: MystNode): InlineContent | undefined {
   if (node.type === "break") return { kind: "break" };
+  if (node.type === "inlineMath" && typeof node.value === "string" && node.value.length > 0 &&
+      Object.keys(node).every((key) => key === "type" || key === "value" || key === "position")) {
+    return { kind: "math", value: node.value };
+  }
   if (node.type === "text") {
     return { kind: "text", text: typeof node.value === "string" ? node.value : "" };
   }
@@ -84,6 +95,7 @@ function containsLink(content: InlineContent[]): boolean {
 
 function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "break") return { type: "break" };
+  if (item.kind === "math") return { type: "inlineMath", value: item.value };
   if (item.kind === "text") {
     return { type: "text", value: item.text };
   }
@@ -107,6 +119,12 @@ export function assertInlineContent(content: InlineContent[]): void {
       throw new Error("InlineContent item must be an object");
     }
     if (item.kind === "break") continue;
+    if (item.kind === "math") {
+      if (typeof item.value !== "string" || item.value.length === 0 || /[\r\n]/.test(item.value)) {
+        throw new Error("inline math must be non-empty single-line LaTeX");
+      }
+      continue;
+    }
     if (item.kind === "text") {
       if (typeof item.text !== "string") {
         throw new Error("text InlineContent requires a string");
@@ -137,10 +155,11 @@ export function assertInlineContent(content: InlineContent[]): void {
   }
 }
 
-/** Rendered offsets use JavaScript UTF-16 code units; a break has length one.
+/** Rendered offsets use JavaScript UTF-16 code units; a break and inline math each have length one.
  * Marks contribute only their children. No grapheme segmentation is performed. */
 export function inlineContentLength(content: InlineContent[]): number {
-  return inlineContentText(content).length;
+  return content.reduce((length, item) => length + (item.kind === "text" ? item.text.length
+    : item.kind === "break" || item.kind === "math" ? 1 : inlineContentLength(item.children)), 0);
 }
 
 export function splitInlineContent(content: InlineContent[], offset: number): [InlineContent[], InlineContent[]] {
@@ -154,7 +173,7 @@ export function splitInlineContent(content: InlineContent[], offset: number): [I
     else if (item.kind === "text") {
       left.push({ kind: "text", text: item.text.slice(0, remaining) });
       right.push({ kind: "text", text: item.text.slice(remaining) });
-    } else if (item.kind !== "break") {
+    } else if ("children" in item) {
       const [a, b] = splitInlineContent(item.children, remaining);
       if (a.length) left.push({ ...item, children: a });
       if (b.length) right.push({ ...item, children: b });

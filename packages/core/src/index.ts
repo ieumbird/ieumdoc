@@ -16,6 +16,8 @@ import { validateStructure as validateTree } from "./validation.ts";
 export type { Document, NodePath, BlockSummary } from "./document.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export type { InlineContent } from "./inline.ts";
+/** Paragraph offset length of inline content, as used by split and hard break offsets. */
+export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export { figureContentError } from "./figure.ts";
 

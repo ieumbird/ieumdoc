@@ -459,7 +459,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis / 일반 link만 있는 paragraph다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
 - cross-reference, 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다. 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell만 수정할 수 있고 행/열 구조와 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX를 수정할 수 있다. Figure는 image/alt/caption만 Figure editor에서 수정하고 label은 표시만 한다. legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
@@ -714,6 +714,29 @@ printf '# Links\n\nSee [OpenAI](https://openai.com) for **bold [docs](https://a.
 pnpm exec playwright-cli -s=ieumdoc-links open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-links run-code --filename=apps/editor/test/link-authoring.browser.js
 pnpm exec playwright-cli -s=ieumdoc-links close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+
+## Inline math authoring v1
+
+paragraph 안의 inline math(`$x$`, `{math}`x``)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `math`(LaTeX source)로 저장되고 canonical 형태는 `{math}`x``다(`$x$`도 저장하면 이 형태가 된다). display Equation block(`{math}` directive, `$$`)과 cross-reference는 바뀌지 않는다.
+
+- inline math는 KaTeX로 보인다. 클릭하면 아래에 source 입력이 뜬다. `Apply`(또는 Enter)로 source를 바꾸고, `Remove`로 math를 source 텍스트로 되돌린다(굵게/기울임/link는 남는다). Esc는 취소다.
+- 텍스트를 선택하고 selection toolbar의 `Inline math`(Σ)를 누르면 선택한 텍스트가 source인 inline math가 된다. 줄바꿈이나 다른 inline math가 섞인 선택은 거부된다.
+- inline math가 선택된 상태의 Enter / Shift+Enter는 문단을 나누거나 math를 지우지 않는다. 글자를 입력하면 선택한 math를 대체한다(일반 선택 동작, Undo 가능).
+- 굵게/기울임/link 안의 inline math는 Save → Reload 후 같은 의미로 남는다.
+- source는 한 줄이어야 하고 비어 있으면 안 된다. 맨 앞/맨 끝이 backtick인 source처럼 canonical role로 그대로 쓸 수 없는 값은 `Save failed`로 거부되고 파일은 바뀌지 않는다.
+- CLI의 paragraph offset에서 inline math는 hard break처럼 한 글자로 센다(`pnpm ieumdoc help split-paragraph`).
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+
+```bash
+rm -rf tmp/inline-math && mkdir -p tmp/inline-math
+printf '# Math\n\nThe current is $i_d$ and the voltage is **$v_{dc}$**.\n\nConvert v_q into math and see [the $x$ page](https://a.example).\n\nSee {eq}`eq-a` here.\n\n```{math}\n:label: eq-a\nx\n```\n' > tmp/inline-math/math.md
+pnpm exec playwright-cli -s=ieumdoc-math open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-math run-code --filename=apps/editor/test/inline-math-authoring.browser.js
+pnpm exec playwright-cli -s=ieumdoc-math close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
