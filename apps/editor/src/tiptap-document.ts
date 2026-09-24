@@ -38,11 +38,18 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+/** An Equation or Figure label; an empty `to` removes it. */
+export type LabelEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string }
-  | ({ block: "figure" } & FigureContent);
+  | { block: "equation"; latex: string; label?: string }
+  | ({ block: "figure"; label?: string } & FigureContent);
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -55,6 +62,7 @@ export type SupportedEdits = {
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
   admonitions?: AdmonitionEdit[];
+  labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -117,6 +125,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const figures: FigureEdit[] = [];
   const cells: TableCellEdit[] = [];
   const admonitions: AdmonitionEdit[] = [];
+  const labels: LabelEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -171,7 +180,11 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "equation") {
       const latex = equationLatex(node);
       if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
+      const label = blockLabel(node);
+      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
     } else if (block.block === "figure" && block.editable) {
+      const label = blockLabel(node);
+      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
       const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: block.caption.text };
       const to = figureContent(node);
       if (JSON.stringify(to) === JSON.stringify(from)) continue;
@@ -212,6 +225,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(figures.length ? { figures } : {}),
     ...(cells.length ? { cells } : {}),
     ...(admonitions.length ? { admonitions } : {}),
+    ...(labels.length ? { labels } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -369,13 +383,15 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     return { block: "heading", level: headingLevel(node), text: headingText(node) };
   }
   if (node.type === "equation") {
-    return { block: "equation", latex: equationLatex(node) };
+    const label = blockLabel(node);
+    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
   }
   if (node.type === "figure") {
-    if (node.attrs?.editable !== true || normalizeAttr(node.attrs?.label) !== "") {
-      throw new Error("a new figure must be editable and unlabeled");
+    if (node.attrs?.editable !== true) {
+      throw new Error("a new figure must be editable");
     }
-    return { block: "figure", ...figureContent(node) };
+    const label = blockLabel(node);
+    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}) };
   }
   throw new Error("only paragraphs, headings, equations, and figures can be inserted");
 }
@@ -416,11 +432,11 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType === "equation") {
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
-    for (const key of ["sourcePath", "label"]) {
-      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
-        throw new Error(`equation identity cannot change (${key})`);
-      }
+    // The label is an authored reference target name, not the block's identity.
+    if (normalizeAttr(beforeAttrs.sourcePath) !== normalizeAttr(afterAttrs.sourcePath)) {
+      throw new Error("equation identity cannot change (sourcePath)");
     }
+    blockLabel(after);
     if (typeof afterAttrs.latex !== "string") {
       throw new Error("equation LaTeX must be a string");
     }
@@ -432,8 +448,8 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType === "figure") {
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
-    // The label is displayed only; unsupported Figure structures stay read-only.
-    for (const key of ["sourcePath", "label", "editable"]) {
+    // Unsupported Figure structures stay read-only, label included.
+    for (const key of ["sourcePath", "editable"]) {
       if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
         throw new Error(`figure identity cannot change (${key})`);
       }
@@ -442,6 +458,7 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
       assertReadonlyUnchanged(before, after);
       return;
     }
+    blockLabel(after);
     figureContent(after);
     if ((after.content ?? []).length > 0) {
       throw new Error("figure content cannot change");
@@ -564,6 +581,12 @@ function paragraphInline(node: TiptapJSON): InlineContent[] {
 function equationLatex(node: TiptapJSON): string {
   if (typeof node.attrs?.latex !== "string") throw new Error("equation LaTeX must be a string");
   return node.attrs.latex;
+}
+
+function blockLabel(node: TiptapJSON): string {
+  const label = node.attrs?.label ?? "";
+  if (typeof label !== "string") throw new Error("label must be a string");
+  return label;
 }
 
 function sourcePathOf(node: TiptapJSON | undefined): string {

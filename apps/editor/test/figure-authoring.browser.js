@@ -80,8 +80,8 @@ async page => {
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     result.editFocusesImage = await imageFocused();
-    result.existingLabelReadOnly = await page.getByTestId('figure-label').innerText() === 'fig-control' &&
-      await editor.locator('input').count() === 3;
+    result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
+      await editor.locator('input').count() === 4;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
     await page.getByTestId('figure-alt').fill('Updated block diagram');
     await page.getByTestId('figure-caption').fill('Updated converter control diagram.');
@@ -138,7 +138,7 @@ async page => {
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();
     await editor.waitFor();
     result.slashReplacesTransientParagraph = await page.locator('[data-block="paragraph"]').count() === baselineParagraphs;
-    result.newLabelEmpty = await page.getByTestId('figure-label').innerText() === '—';
+    result.newLabelEmpty = await page.getByTestId('figure-label').inputValue() === '';
     await page.getByTestId('figure-image-url').fill('');
     await page.getByTestId('figure-apply').click();
     result.emptyImageRejected = await editor.getByText('Figure image URL is required.').isVisible();

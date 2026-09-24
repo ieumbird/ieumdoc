@@ -131,7 +131,7 @@ test("projected technical document round-trips through the Tiptap schema without
   assert.deepEqual(collectSupportedEdits(editable, normalized), { headings: [], paragraphs: [] });
 });
 
-test("Equation LaTeX is the only editable Equation attribute", () => {
+test("Equation LaTeX and label are the editable Equation attributes", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const changed = clone(baseline);
   const equation = blockAt(changed, "9");
@@ -140,9 +140,19 @@ test("Equation LaTeX is the only editable Equation attribute", () => {
   const edits = collectSupportedEdits(loadEditableDocument(source), changed);
   assert.deepEqual(edits.equations, [{ path: [9], from: String(baseline.content?.find(block => block.attrs?.sourcePath === "9")?.attrs?.latex), to: `${String(equation.attrs!.latex)}` }]);
 
+  // The label is an authored target name, collected separately from the LaTeX.
   const labelChanged = clone(baseline);
   blockAt(labelChanged, "9").attrs!.label = "other";
-  assert.throws(() => assertSupportedDocumentChange(baseline, labelChanged), /equation identity/);
+  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, labelChanged));
+  const labelEdits = collectSupportedEdits(loadEditableDocument(source), labelChanged);
+  assert.deepEqual(labelEdits.labels, [{ path: [9], from: "eq-current", to: "other" }]);
+  assert.equal(labelEdits.equations, undefined);
+  const identity = clone(baseline);
+  blockAt(identity, "9").attrs!.sourcePath = "new:x";
+  assert.throws(() => assertSupportedDocumentChange(baseline, identity));
+  const nonString = clone(baseline);
+  blockAt(nonString, "9").attrs!.label = 1;
+  assert.throws(() => assertSupportedDocumentChange(baseline, nonString), /label must be a string/);
 });
 
 test("Equation renderer displays valid LaTeX and fails closed on invalid input", () => {
@@ -658,7 +668,7 @@ test("new Equation cancel removes the transient block while persisted Equation c
   assert.match(schemaSource, /isNewBlockPath\(sourcePath\) && latex\.length === 0/);
   assert.match(schemaSource, /deleteNode\(\)/);
   assert.match(schemaSource, /nodes\.paragraph/);
-  assert.match(schemaSource, /updateAttributes\(\{ latex: draft \}\)/);
+  assert.match(schemaSource, /updateAttributes\(\{ latex: draft, label: labelDraft \}\)/);
 });
 
 test("an empty new document can hold a transient heading but cannot save it empty", () => {
