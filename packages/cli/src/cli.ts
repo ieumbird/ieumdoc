@@ -17,6 +17,7 @@ import {
   updateNodeTextAtPath,
   updateEquationLatex,
   updateFigure,
+  updateLabel,
   updateTableCell,
   validateStructure,
   type Document,
@@ -145,7 +146,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
-      "The new Figure has no label.",
+      "The new Figure has no label; set one with update-label.",
     ],
   },
   {
@@ -155,7 +156,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Update one top-level Figure through Core. Omitted properties are unchanged.",
       ...FIGURE_NOTE,
-      "The Figure label is preserved and cannot be changed.",
+      "The Figure label is preserved; change it with update-label.",
       ...PATH_NOTE,
     ],
   },
@@ -203,6 +204,17 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Update one Equation's LaTeX source through Core.",
       "The label and document structure must remain unchanged.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "update-label",
+    summary: "Set, change, or remove an Equation or Figure label through Core",
+    usage: "ieumdoc update-label <file> --path <index> --label <label>",
+    details: [
+      "Set the label (reference target name) of one top-level Equation or Figure. Use an empty --label to remove it.",
+      "The label must be one line without leading or trailing spaces, be referenceable, and not name another target in the document.",
+      "References to the old label are not renamed.",
       ...PATH_NOTE,
     ],
   },
@@ -360,6 +372,10 @@ function main(argv: string[]): number {
       );
       return 0;
     }
+    case "update-label": {
+      save(file, updateLabel(parse(readFile(file)), pathFlag(flags), flag(flags, "--label")));
+      return 0;
+    }
     default:
       process.stderr.write(topLevelHelp());
       return 2;
@@ -417,6 +433,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
+  "update-label": ["--path", "--label"],
 };
 
 function parseCommandArgs(command: string, args: string[]): ParsedArgs {

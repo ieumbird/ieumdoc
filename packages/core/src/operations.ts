@@ -22,6 +22,9 @@ import {
   supportedFigureContent,
 } from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
+import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
+import { assertReferenceableLabel } from "./myst/reference.ts";
+import { labelError } from "./label.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
@@ -200,6 +203,52 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
   const next = cloneDocument(document);
   setFigureContent(getNode(next, path), figure);
   assertFigureRoundTrip(next, path[0], figure, current.label, current.identifier);
+  return next;
+}
+
+/**
+ * Set, change or remove ("") the label of a top-level Equation or Figure: the name
+ * references use to target it. Content is kept, and references are never renamed.
+ * The label must name a target MyST can resolve, be addressable by the reference role
+ * Core writes for that block, and not name another target in the document.
+ */
+export function updateLabel(document: MystDocument, path: NodePath, label: string): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) {
+    throw new Error("updateLabel requires a top-level Equation or Figure path [index]");
+  }
+  const current = getNode(document, path);
+  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : undefined;
+  if (!kind) throw new Error(`updateLabel requires a top-level Equation or Figure at [${path.join(",")}]`);
+  const error = labelError(label);
+  if (error) throw new Error(error);
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
+  delete node.html_id;
+  if (label.length === 0) {
+    delete node.label;
+    delete node.identifier;
+  } else {
+    const identifier = labelIdentifier(label);
+    if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
+    try {
+      assertReferenceableLabel(kind === "Equation" ? "eq" : "numref", label, identifier);
+    } catch {
+      throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
+    }
+    if (targetIdentifiers(document, current).has(identifier)) {
+      throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
+    }
+    node.label = label;
+    node.identifier = identifier;
+  }
+  const failure = `${kind} label cannot be preserved through canonical round-trip`;
+  const markdown = serializeFor(next, failure);
+  const reparsed = parse(markdown);
+  const reloaded = reparsed.children[path[0]];
+  if (reloaded?.type !== node.type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
+    throw new Error(failure);
+  }
   return next;
 }
 

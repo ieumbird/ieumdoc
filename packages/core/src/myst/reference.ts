@@ -51,6 +51,11 @@ function referenceRole(node: MystNode): MystNode {
   return role;
 }
 
+/** Throws unless a `{kind}` reference role can address `label` through canonical Markdown. */
+export function assertReferenceableLabel(kind: "eq" | "numref", label: string, identifier: string): void {
+  referenceRole({ type: "crossReference", kind, label, identifier });
+}
+
 /** `(label)=` targets label the following block, e.g. a section heading.
  * myst-to-md has no handler for them and would write nothing. */
 function targetLine(node: MystNode): MystNode {
