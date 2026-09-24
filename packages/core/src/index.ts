@@ -52,4 +52,5 @@ export const updateEquationLatex = fence(operations.updateEquationLatex);
 export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);
 export const updateParagraphInlineContent = fence(operations.updateParagraphInlineContent);
+export const updateAdmonitionInlineContent = fence(operations.updateAdmonitionInlineContent);
 export const validateFigure = operations.validateFigure;

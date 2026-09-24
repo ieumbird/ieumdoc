@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { getEditableDocument, parse } from "./core-internal.ts";
+import {
+  getEditableDocument,
+  parse,
+  serialize,
+  updateAdmonitionInlineContent,
+  type InlineContent,
+} from "./core-internal.ts";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 
@@ -68,6 +74,68 @@ test("technical document exposes an editor read model", () => {
   if (equation?.block !== "equation") return;
   assert.equal(equation.label, "eq-current");
   assert.equal(equation.latex.includes("P^{"), true);
+});
+
+test("a plain note or warning admonition projects its supported inline body as editable", () => {
+  for (const [variant, markdown] of [
+    ["note", ":::{note}\nA **bold** *italic* [link](https://a.example) and $x$\\\nnext line.\n:::\n"],
+    ["warning", ":::{warning}\nCalibrate before operation.\n:::\n"],
+  ] as const) {
+    const block = getEditableDocument(parse(markdown)).blocks[0];
+    assert.equal(block?.block, "admonition");
+    if (block?.block !== "admonition") continue;
+    assert.equal(block.variant, variant);
+    assert.equal("editable" in block && block.editable, true);
+    assert.equal("content" in block && Array.isArray(block.content), true);
+    if ("content" in block) {
+      assert.equal(block.content.some((item) => item.kind === "strong"), variant === "note");
+      assert.equal(block.content.some((item) => item.kind === "emphasis"), variant === "note");
+      assert.equal(block.content.some((item) => item.kind === "link"), variant === "note");
+      assert.equal(block.content.some((item) => item.kind === "math"), variant === "note");
+      assert.equal(block.content.some((item) => item.kind === "break"), variant === "note");
+    }
+  }
+});
+
+test("only one-paragraph note and warning admonitions are editable", () => {
+  for (const markdown of [
+    ":::{admonition} Title\nBody\n:::\n",
+    ":::{note}\n:class: custom\nBody\n:::\n",
+    ":::{note}\nOne\n\nTwo\n:::\n",
+    ":::{tip}\nBody\n:::\n",
+  ]) {
+    const block = getEditableDocument(parse(markdown)).blocks[0];
+    assert.equal(block?.block, "admonition");
+    if (block?.block !== "admonition") continue;
+    assert.equal(block.editable, false, markdown);
+    assert.equal(block.content.length, 0, markdown);
+    assert.ok(block.text.length > 0, markdown);
+  }
+});
+
+test("admonition inline update preserves variant and inline semantics through canonical round-trip", () => {
+  const original = parse(":::{warning}\nBefore **bold** and *italic*, [manual](https://a.example), $x$\\\nnext.\n:::\n");
+  const content: InlineContent[] = [
+    { kind: "text", text: "After " },
+    { kind: "strong", children: [{ kind: "text", text: "bold" }] },
+    { kind: "text", text: " and " },
+    { kind: "emphasis", children: [{ kind: "text", text: "italic" }] },
+    { kind: "text", text: ", " },
+    { kind: "link", url: "https://a.example", children: [{ kind: "text", text: "manual" }] },
+    { kind: "text", text: ", " },
+    { kind: "math", value: "x" },
+    { kind: "break" },
+    { kind: "text", text: "next." },
+  ];
+  const updated = updateAdmonitionInlineContent(original, [0], content);
+  const markdown = serialize(updated);
+  assert.equal(markdown, ":::{warning}\nAfter **bold** and *italic*, [manual](https://a.example), {math}`x`\\\nnext.\n:::\n");
+  const reloaded = getEditableDocument(parse(markdown)).blocks[0];
+  assert.equal(reloaded?.block, "admonition");
+  if (reloaded?.block !== "admonition") return;
+  assert.equal(reloaded.variant, "warning");
+  assert.equal(reloaded.editable, true);
+  assert.deepEqual(reloaded.content, content);
 });
 
 test("heading with inline marks stays read-only", () => {

@@ -212,6 +212,9 @@ export function formattableSelection(state: EditorState): { from: number; to: nu
   const { selection } = state;
   if (selection.empty || !(selection instanceof TextSelection)) return null;
   const { $from, $to } = selection;
-  if (!$from.sameParent($to) || $from.parent.type.name !== "paragraph") return null;
+  const parent = $from.parent;
+  const editableInlineParent = parent.type.name === "paragraph" ||
+    (parent.type.name === "admonition" && parent.attrs.editable === true);
+  if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }
