@@ -17,7 +17,7 @@ export default defineConfig({
       configureServer(server: ViteDevServer) {
         server.middlewares.use((req, res, next) => {
           const url = req.url?.split("?")[0] ?? "";
-          if (url !== "/api/document" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/document" && url !== "/api/document-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }

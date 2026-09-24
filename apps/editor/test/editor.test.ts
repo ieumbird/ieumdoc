@@ -41,6 +41,7 @@ import {
   handleDocumentRequest,
   loadDocumentFile,
   loadEditableDocument,
+  previewDocumentFile,
   resolveMediaPath,
   resolveDocumentPath,
   saveCurrentDocument,
@@ -795,6 +796,66 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
       assert.match(((await response.json()) as { error: string }).error, reason, name);
       assert.deepEqual(readFileSync(file), before, name);
     }
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("Source preview is the canonical Markdown Save would write, without writing the file", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-source-preview-"));
+  const file = path.join(dir, "technical-document.md");
+  const server = createServer((req, res) => {
+    void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    writeFileSync(file, source);
+    const loaded = loadDocumentFile(file);
+    const request = {
+      revision: loaded.revision,
+      paragraphs: [{ path: [8], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }],
+    };
+    const preview = previewDocumentFile(file, request);
+    assert.equal(readFileSync(file, "utf8"), source);
+    assert.equal(preview.markdown.includes(PARAGRAPH_TO), true);
+
+    const { port } = server.address() as AddressInfo;
+    const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document-source`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const response = await post({ path: file, ...request });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { markdown: preview.markdown });
+    assert.equal(readFileSync(file, "utf8"), source);
+
+    // An unchanged document previews as its canonical form.
+    const unchanged = await post({ path: file, revision: loaded.revision });
+    assert.equal(((await unchanged.json()) as { markdown: string }).markdown, previewDocumentFile(file, { revision: loaded.revision }).markdown);
+
+    const stale = await post({ path: file, ...request, revision: "stale" });
+    assert.equal(stale.status, 409);
+    const invalid = await post({ path: file, revision: loaded.revision, paragraphs: [{ path: [8], content: [] }] });
+    assert.equal(invalid.status, 400);
+    assert.equal(readFileSync(file, "utf8"), source);
+
+    const saved = saveDocumentFile(file, request);
+    assert.equal(readFileSync(file, "utf8"), preview.markdown);
+    assert.equal(saved.markdown, preview.markdown);
+    // After Save and reload, Source equals the saved canonical Markdown.
+    const reloaded = loadDocumentFile(file);
+    assert.equal(previewDocumentFile(file, { revision: reloaded.revision }).markdown, readFileSync(file, "utf8"));
+
+    const lossy = path.join(dir, "keyboard.md");
+    writeFileSync(lossy, "Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n");
+    const before = readFileSync(lossy);
+    const lossyResponse = await post({ path: lossy, revision: loadDocumentFile(lossy).revision });
+    assert.equal(lossyResponse.status, 400);
+    assert.match(((await lossyResponse.json()) as { error: string }).error, /cannot be preserved in canonical Markdown/);
+    assert.deepEqual(readFileSync(lossy), before);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
