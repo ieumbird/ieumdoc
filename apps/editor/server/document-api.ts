@@ -508,7 +508,8 @@ function figureContent(value: FigureContent | undefined): FigureContent {
 
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+    : item.kind === "math" ? `$${item.value}$` : inlineText(item.children))).join("");
 }
 
 export function resolveMediaPath(assetPath: string, documentPath?: string): string {

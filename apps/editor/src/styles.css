@@ -683,6 +683,42 @@ h2.heading {
   font-size: var(--font-size-sm);
 }
 
+.inline-math {
+  position: relative;
+}
+
+.inline-math-rendered {
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.inline-math-rendered:hover,
+.inline-math[data-selected="true"] .inline-math-rendered {
+  background: var(--color-surface-muted);
+  box-shadow: var(--focus-ring);
+}
+
+.inline-math-error {
+  color: var(--color-danger);
+  font-family: var(--font-family-mono, monospace);
+}
+
+/* The source form sits under the math instead of above a text selection. */
+.selection-toolbar.inline-math-form {
+  top: calc(100% + var(--space-1));
+  left: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 22rem;
+  transform: none;
+  font-family: var(--font-family-sans);
+}
+
+.inline-math-form input {
+  flex: 1 1 10rem;
+}
+
 .document-editor a {
   color: var(--color-info);
   text-decoration: underline;

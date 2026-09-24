@@ -1,6 +1,6 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
@@ -349,6 +349,35 @@ const UnsupportedBlock = Node.create({
   },
 });
 
+// Inline math is an atomic inline node holding its LaTeX source; bold, italic and
+// link marks apply to it like to text. Clicking it opens a small source form.
+const InlineMath = Node.create({
+  name: "inlineMath",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: true,
+  draggable: false,
+  addAttributes() {
+    return {
+      value: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-value") ?? "",
+        renderHTML: (attributes) => ({ "data-value": String(attributes.value ?? "") }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-inline-math]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["span", { ...HTMLAttributes, "data-inline-math": "" }];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(InlineMathView, { as: "span" });
+  },
+});
+
 // Tiptap's default hard-break command keeps marks for following text only.
 // Preserve their coverage on the break itself as required by Core InlineContent.
 const ParagraphHardBreak = Extension.create({
@@ -357,7 +386,8 @@ const ParagraphHardBreak = Extension.create({
   addKeyboardShortcuts() {
     const insert = () => {
       const { state } = this.editor;
-      if (state.selection.$from.parent.type.name !== "paragraph") return true;
+      // A selected inline math node is not replaced by a break.
+      if (state.selection.$from.parent.type.name !== "paragraph" || state.selection instanceof NodeSelection) return true;
       const marks = state.storedMarks ?? state.selection.$from.marks();
       return this.editor.chain()
         .insertContent({ type: "hardBreak", marks: marks.map(mark => mark.toJSON()) })
@@ -376,6 +406,8 @@ const ParagraphSplit = Extension.create({
       Enter: () => {
         const { selection } = this.editor.state;
         if (selection.$from.parent.type.name !== "paragraph" || !selection.$from.sameParent(selection.$to)) return true;
+        // Enter on a selected inline math node does not delete it.
+        if (selection instanceof NodeSelection) return true;
         const sourcePath = selection.$from.parent.attrs.sourcePath;
         const start = selection.$from.before();
         return this.editor.chain().splitBlock().command(({ tr }) => {
@@ -471,6 +503,7 @@ export function editorExtensions(
     TableCell,
     ReadonlyTableCell,
     UnsupportedBlock,
+    InlineMath,
   ];
 }
 
@@ -960,6 +993,83 @@ function EquationFormula({ className, latex, testId }: { className: string; late
       data-testid={testId}
       dangerouslySetInnerHTML={{ __html: result.html ?? "" }}
     />
+  );
+}
+
+function InlineMathView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  const value = String(node.attrs.value ?? "");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [error, setError] = useState("");
+  const rendered = renderEquation(value, false);
+  const open = () => {
+    setDraft(value);
+    setError("");
+    setEditing(true);
+  };
+  const close = () => {
+    setEditing(false);
+    editor.commands.focus();
+  };
+  const apply = () => {
+    // Core validates the source on Save; only an empty or multi-line source is refused here.
+    if (draft.length === 0) return setError("Enter LaTeX, or use Remove.");
+    updateAttributes({ value: draft });
+    close();
+  };
+  // Replace the math with its source as ordinary text, keeping bold/italic/link marks.
+  const remove = () => {
+    const position = getPos();
+    if (typeof position !== "number") return;
+    setEditing(false);
+    editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
+      { type: "text", text: value, marks: node.marks.map((mark) => mark.toJSON()) }).run();
+  };
+  return (
+    <NodeViewWrapper as="span" className="inline-math" data-selected={selected ? "true" : "false"} data-testid="inline-math">
+      <span
+        className={rendered.html ? "inline-math-rendered" : "inline-math-rendered inline-math-error"}
+        title={rendered.error ?? value}
+        onClick={open}
+        {...(rendered.html ? { dangerouslySetInnerHTML: { __html: rendered.html } } : { children: `$${value}$` })}
+      />
+      {editing ? (
+        <form
+          className="inline-math-form selection-toolbar"
+          contentEditable={false}
+          role="dialog"
+          aria-label="Inline math"
+          data-testid="inline-math-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            close();
+          }}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) setEditing(false);
+          }}
+        >
+          <Input
+            autoFocus
+            aria-label="LaTeX"
+            data-testid="inline-math-source"
+            value={draft}
+            aria-invalid={error ? true : undefined}
+            onChange={(event) => {
+              setDraft(event.target.value.replace(/[\r\n]+/g, " "));
+              setError("");
+            }}
+          />
+          <Button size="sm" type="submit" data-testid="inline-math-apply">Apply</Button>
+          <Button size="sm" variant="subtle" data-testid="inline-math-remove" onClick={remove}>Remove</Button>
+          {error ? <span className="link-form-error" role="alert">{error}</span> : null}
+        </form>
+      ) : null}
+    </NodeViewWrapper>
   );
 }
 

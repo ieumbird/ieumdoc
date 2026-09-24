@@ -60,9 +60,11 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "text" || item.kind === "break") {
+    if (item.kind === "text" || item.kind === "break" || item.kind === "math") {
       if (item.kind === "text" && item.text.length === 0) continue;
-      const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" } : { type: "text", text: item.text };
+      const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" }
+        : item.kind === "math" ? { type: "inlineMath", attrs: { value: item.value } }
+        : { type: "text", text: item.text };
       const applied: TiptapMark[] = [];
       if (marks.bold) applied.push({ type: "bold" });
       if (marks.italic) applied.push({ type: "italic" });
@@ -88,8 +90,12 @@ const BOLD: Mark = { key: "bold", wrap: (children) => ({ kind: "strong", childre
 const ITALIC: Mark = { key: "italic", wrap: (children) => ({ kind: "emphasis", children }) };
 
 function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
-  if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak")) {
+  if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
+  }
+  if (node.type === "inlineMath" && (typeof node.attrs?.value !== "string" || node.attrs.value.length === 0 ||
+      node.content !== undefined)) {
+    throw new Error(`inline math at paragraph child ${index} requires LaTeX source`);
   }
 
   if (node.type === "text" && (typeof node.text !== "string" || node.text.length === 0)) {
@@ -119,7 +125,9 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   if (node.type === "hardBreak" && (node.text !== undefined || node.content !== undefined)) {
     throw new Error("hardBreak cannot contain text or children");
   }
-  const item: InlineContent = node.type === "hardBreak" ? { kind: "break" } : { kind: "text", text: node.text! };
+  const item: InlineContent = node.type === "hardBreak" ? { kind: "break" }
+    : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
+    : { kind: "text", text: node.text! };
   const order = [BOLD.key, ITALIC.key];
   return { item, marks: marks.sort((a, b) => rank(a, order) - rank(b, order)) };
 }
