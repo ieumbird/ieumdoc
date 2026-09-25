@@ -2,8 +2,8 @@
 // Splits paragraphs with Enter at a caret right after inline math (plain, inside bold and inside a
 // link), saves and reloads a real file, and checks both paragraphs and their inline math exactly.
 // Inline math is one offset position in Core; the Host must split at the same position.
-// The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
-// (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
+// The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first with
+// `pnpm browser:prepare` (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
 async page => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });

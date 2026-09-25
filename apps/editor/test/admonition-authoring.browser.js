@@ -1,7 +1,8 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/admonition-authoring.browser.js.
 // Edits simple admonition bodies through the real Editor, saves and reloads a scratch file, and
 // checks that variants, inline semantics, unsupported admonitions and surrounding blocks survive.
-// The file lives under ignored tmp/; prepare it as described in this script's test fixture.
+// The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first with
+// `pnpm browser:prepare` (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
 async page => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
