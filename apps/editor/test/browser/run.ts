@@ -15,21 +15,14 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 const URL = "http://127.0.0.1:5173";
 const SESSION = "ieumdoc-browser-regression";
 
-/**
- * Scenarios in apps/editor/test/*.browser.js that pass reliably. Not listed, and runnable by name:
- * - equation-insertion: its `menuitem` locator for "Equation" also matches the slash menu's
- *   "Equation reference: …" items added by cross-reference authoring (strict mode violation).
- * - label-authoring: it types into the Figure form before the form's deferred autofocus moves
- *   to the Image field, so the label text lands in the image URL.
- * - cross-reference: its text selection helper changes the DOM range without waiting for the
- *   editor selection, so the selection toolbar sometimes never appears.
- */
+/** Scenarios in apps/editor/test/*.browser.js that pass reliably: currently all of them. */
 export const STABLE_SCENARIOS = [
   "editor-shell",
   "layout-rules",
   "new-document",
   "open-files",
   "save-during-edit",
+  "equation-insertion",
   "equation-save-during-edit",
   "reference-save-reload",
   "figure-authoring",
@@ -41,6 +34,8 @@ export const STABLE_SCENARIOS = [
   "admonition-authoring",
   "source-view",
   "source-view-pending",
+  "label-authoring",
+  "cross-reference",
 ];
 
 const require = createRequire(import.meta.url);

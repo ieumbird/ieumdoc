@@ -36,9 +36,9 @@ async page => {
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
     await insertButton.hover();
     await insertButton.click();
-    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Paragraph'}).click();
+    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Paragraph', exact:true}).click();
     await page.keyboard.type('/equation');
-    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation'}).click();
+    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-editor').waitFor();
     const afterCancel = await page.locator('[data-block="equation"]').count();
     const noEmptyParagraphAfterSlash = await page.locator('[data-block="paragraph"]').count() === baselineParagraphCount;
@@ -47,7 +47,7 @@ async page => {
 
     await insertButton.hover();
     await insertButton.click();
-    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation'}).click();
+    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x');
     const saveBlockedBeforeApply = await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').count() === 1;
     await page.getByTestId('equation-apply').click();

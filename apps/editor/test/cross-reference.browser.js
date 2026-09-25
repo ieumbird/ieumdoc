@@ -38,22 +38,21 @@ async page => {
   };
   const paragraph = index => page.locator('.document-editor > p').nth(index);
   const chip = (scope, text) => scope.locator('[data-testid="cross-reference"]', {hasText: text});
-  const selectText = async (scope, text) => {
-    await scope.click();
-    await scope.evaluate((element, wanted) => {
-      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        const at = node.textContent.indexOf(wanted);
-        if (at < 0) continue;
-        const range = document.createRange();
-        range.setStart(node, at);
-        range.setEnd(node, at + wanted.length);
-        getSelection().removeAllRanges();
-        getSelection().addRange(range);
-        return;
-      }
-      throw new Error(`text not found: ${wanted}`);
-    }, text);
+  // Select through the editor's own TextSelection, then wait for the toolbar that selection shows.
+  const selectText = async needle => {
+    await page.evaluate(needle => {
+      const instance = document.querySelector('.ProseMirror').editor;
+      let range;
+      instance.state.doc.descendants((node, position) => {
+        if (range || !node.isText) return;
+        const index = node.text.indexOf(needle);
+        if (index >= 0) range = { from: position + index, to: position + index + needle.length };
+      });
+      if (!range) throw new Error(`text not found: ${needle}`);
+      instance.commands.setTextSelection(range);
+      instance.view.focus();
+    }, needle);
+    await page.getByTestId('selection-toolbar').waitFor();
   };
 
   const fresh = await markdown();
@@ -73,7 +72,7 @@ async page => {
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
 
   // B. Selected text becomes an Equation reference through the selection toolbar.
-  await selectText(paragraph(0), 'control law');
+  await selectText('control law');
   await page.getByRole('button', {name:'Cross-reference'}).click();
   await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();

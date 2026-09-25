@@ -50,9 +50,16 @@ async page => {
     await page.getByTestId('equation-apply').click();
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
   };
+  // The Figure form moves focus to its Image field on the next animation frame after it opens.
+  // Wait for that intended autofocus before typing, as a user would, so no input lands elsewhere.
+  const figureFormReady = async () => {
+    await page.getByTestId('figure-editor').waitFor();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
+  };
   const setFigureLabel = async (block, label) => {
     await block.locator('img').click();
     await block.getByRole('button', {name:'Edit figure'}).click();
+    await figureFormReady();
     await page.getByTestId('figure-label').fill(label);
     await page.getByTestId('figure-apply').click();
     await page.getByTestId('figure-editor').waitFor({state:'detached'});
@@ -132,6 +139,7 @@ async page => {
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await insertAfterParagraph('Figure');
+  await figureFormReady();
   await page.getByTestId('figure-image-url').fill('./diagram.svg');
   await page.getByTestId('figure-label').fill('fig-new');
   await page.getByTestId('figure-apply').click();
