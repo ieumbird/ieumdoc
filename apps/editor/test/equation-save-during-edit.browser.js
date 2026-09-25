@@ -39,6 +39,7 @@ async page => {
 
   const changedLatex = `${originalLatex} + 1`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();
@@ -57,6 +58,7 @@ async page => {
   if (requests[1].equations?.[0]?.to !== changedLatex) throw new Error('Applied Equation was omitted from the next save');
   await page.reload();
   await page.getByText('Ready',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   if (await page.getByTestId('equation-latex').inputValue() !== changedLatex) {
     throw new Error('Applied Equation was not reflected after reload');
@@ -67,6 +69,7 @@ async page => {
   await page.getByText('Ready',{exact:true}).waitFor();
   const canceledLatex = `${originalLatex} + 2`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(canceledLatex);
   release();
@@ -81,6 +84,7 @@ async page => {
   if (requests[1].equations?.length) throw new Error('Canceled Equation was included in the next save');
   await page.reload();
   await page.getByText('Ready',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   const reloadedCanceled = await page.getByTestId('equation-latex').inputValue();
   if (reloadedCanceled !== originalLatex) throw new Error('Cancel did not preserve the original Equation');

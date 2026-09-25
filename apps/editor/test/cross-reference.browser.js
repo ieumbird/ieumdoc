@@ -80,8 +80,17 @@ async page => {
     !(await paragraph(0).innerText()).includes('control law');
 
   // C. A Figure reference at the caret from the slash menu.
-  await paragraph(0).click();
-  await page.keyboard.press('End');
+  // End after a pointer click means the end of a *visual line*, which changes with
+  // typography and viewport. Put the real editor caret at this paragraph's end.
+  await page.evaluate(() => {
+    const editor = document.querySelector('.document-editor').editor;
+    let end;
+    editor.state.doc.forEach((node, position) => {
+      if (end === undefined && node.type.name === 'paragraph') end = position + node.nodeSize - 1;
+    });
+    if (end === undefined) throw Error('Reference paragraph missing');
+    editor.chain().focus().setTextSelection(end).run();
+  });
   await page.keyboard.type(' /fig');
   await page.getByRole('menuitem', {name:'Figure reference: fig-a'}).click();
   result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/fig');
@@ -102,6 +111,7 @@ async page => {
 
   // G. Renaming a label leaves references as written and shows them unresolved at once.
   const equationB = page.locator('[data-block="equation"]').nth(1);
+  await equationB.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equationB.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-label').fill('eq-c');
   await page.getByTestId('equation-apply').click();

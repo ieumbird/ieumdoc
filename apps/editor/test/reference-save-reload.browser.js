@@ -29,7 +29,7 @@ async page => {
   await page.getByTestId('file-path').fill(filePath);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.getByText('Ready', {exact:true}).waitFor();
-  if (!(await page.getByTestId('current-file').innerText()).includes('reference-save-reload')) {
+  if (!(await page.getByTestId('current-file').textContent()).includes('reference-save-reload')) {
     throw new Error('Scratch file was not opened');
   }
   await page.getByText('The current reference is calculated from the active power command.', {exact:true}).click();

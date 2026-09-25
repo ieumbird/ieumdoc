@@ -22,6 +22,7 @@ async page => {
   await openScratch();
   const figure = page.locator('[data-block="figure"]').first();
   await figure.locator('img').click();
+  await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-editor').waitFor();
   await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');

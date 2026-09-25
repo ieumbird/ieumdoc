@@ -105,6 +105,7 @@ async page => {
 
   // F. Unapplied Equation and Figure drafts block Source, with the reason in a tooltip.
   const equation = page.locator('[data-block="equation"]').first();
+  await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
   await source.hover();
@@ -115,6 +116,7 @@ async page => {
   await page.getByTestId('equation-cancel').click();
   const figure = page.locator('[data-block="figure"]').first();
   await figure.locator('img').click();
+  await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-caption').fill('Draft caption.');
   await source.hover();

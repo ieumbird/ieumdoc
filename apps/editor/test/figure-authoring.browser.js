@@ -51,7 +51,7 @@ async page => {
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').innerText()).includes('figure-authoring')) throw new Error('Scratch file was not opened');
+    if (!(await page.getByTestId('current-file').textContent()).includes('figure-authoring')) throw new Error('Scratch file was not opened');
   };
   const save = async () => {
     await saveEnabled.waitFor();
@@ -77,6 +77,7 @@ async page => {
     await page.getByTestId('figure-properties').waitFor();
     result.selectShowsSummaryOnly = await editor.count() === 0 &&
       await page.evaluate(() => document.activeElement?.closest('.document-editor') !== null);
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     result.editFocusesImage = await imageFocused();
@@ -101,6 +102,7 @@ async page => {
 
     // A2. Apply asks Core: a caption MyST would reinterpret keeps the form open and never becomes applied state.
     const appliedCaption = 'Updated converter control diagram.';
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('cost $5 and $x$');
@@ -151,6 +153,7 @@ async page => {
     result.newPreviewAfterApply = String(await imageLoaded(created)).startsWith('/document/diagram.svg?path=');
 
     // C2. Apply, Edit, change, Cancel keeps the block and restores the applied value.
+    await created.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await created.getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('Discarded caption.');
@@ -169,6 +172,7 @@ async page => {
     result.newReloadedPreview = String(await imageLoaded(figures.nth(1))).startsWith('/document/diagram.svg?path=');
 
     // Escape cancels an existing Figure draft without removing it.
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-alt').fill('Escaped');
@@ -188,6 +192,7 @@ async page => {
       return route.continue();
     });
     await page.getByRole('button', {name:'Save', exact:true}).click();
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('Caption typed during save.');

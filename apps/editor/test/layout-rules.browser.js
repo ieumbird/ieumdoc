@@ -1,90 +1,66 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/layout-rules.browser.js.
-// Measures the layout contract at the required viewport widths without changing document content.
+// Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
 async page => {
   await page.unrouteAll();
-  const origin = page.url().split('/').slice(0, 3).join('/');
+  const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
-  const sample = clone(loaded);
-  const longPath = 'C:\\Users\\example\\Documents\\very-long-technical-document-name-한글-english-guide.md';
-  const paragraph = sample.document.blocks.find(block => block.path[0] === 8);
-  paragraph.text = '한글 본문 English body for layout verification.';
-  paragraph.content = [{kind:'text', text:paragraph.text}];
-  sample.path = longPath;
-  await page.route('**/api/document**', async route => {
-    if (route.request().method() === 'GET') return route.fulfill({json:sample});
-    return route.continue();
-  });
-  const results = [];
-  try {
-    for (const width of [1440, 1024, 768]) {
-      await page.setViewportSize({width, height:900});
-      await page.reload();
-      await page.getByText('Ready', {exact:true}).waitFor();
-      await page.getByRole('article').getByText('한글 본문 English body for layout verification.', {exact:true}).waitFor();
-      await page.locator('[data-block="figure"] img').click();
-      await page.keyboard.press('Delete');
-      await page.getByTestId('message-area').waitFor();
-
-      results.push({width, state:'expanded', ...(await measure(page))});
-      await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
-      results.push({width, state:'collapsed', ...(await measure(page))});
+  const sep = loaded.path.includes('\\') ? '\\' : '/';
+  const root = loaded.path.split(sep).slice(0,-4).join(sep);
+  const file = [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
+  await page.reload();
+  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.getByRole('button',{name:'Open…'}).click();
+  await page.getByTestId('file-path').fill(file);
+  await page.getByRole('dialog').getByRole('button',{name:'Open',exact:true}).click();
+  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
+  const results=[];
+  for(const width of [1440,1025,1024,768,705,704]) {
+    await page.setViewportSize({width,height:1000});
+    for(const collapsed of [false,true]) {
+      if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await page.mouse.move(width-2,2);
+      await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
+      const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
+      if(!rest.length || rest.some(n=>n.opacity!=='0'||n.pointer!=='none')) throw Error('Rest gutter must be invisible and inert');
+      const paragraph=page.locator('.document-editor > .paragraph').first();
+      const before=(await paragraph.boundingBox()).x;
+      await paragraph.hover();
+      const controls=page.locator('.block-controls.visible').first();
+      await controls.getByRole('button').first().hover();
+      if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
+      const after=(await paragraph.boundingBox()).x;
+      const result=await page.evaluate(({collapsed,width})=>{
+        const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
+        const rect=s=>required(s).getBoundingClientRect();
+        const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
+        const selectors=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'];
+        const starts=selectors.map(s=>rect('.document-editor '+s).left);
+        const controls=rect('.block-controls.visible');
+        const standard=rect('[data-testid="save"]').height;
+        const compact=[...document.querySelectorAll('.sidebar-header button,.sidebar-actions button,.figure-edit,.equation-edit')].map(n=>n.getBoundingClientRect().height);
+        if(compact.length<3)throw Error('Missing compact controls');
+        for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
+          if(!getComputedStyle(button).fontFamily.includes('Segoe UI'))throw Error('Document font leaked into UI control');
+        }
+        const icons=collapsed?null:[...document.querySelectorAll('.sidebar-actions svg,.sidebar-document-icon')].map(n=>n.getBoundingClientRect());
+        if(icons&&icons.length!==3)throw Error('Missing expanded sidebar icons');
+        const labels=collapsed?null:[...document.querySelectorAll('.sidebar-actions button,.sidebar-document-name')].map(n=>{
+          const text=[...n.childNodes].find(c=>c.nodeType===Node.TEXT_NODE&&c.textContent.trim());
+          if(!text)throw Error('Missing sidebar label');
+          const r=document.createRange();r.selectNode(text);return r.getBoundingClientRect().left;
+        });
+        const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
+        const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
+        const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
+        const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
+        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,labels,body,headings,caption,table,shellOverflow};
+      },{collapsed,width});
+      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
+      // Below 704px the TopBar intentionally wraps; the sidebar header remains 48px.
+      if(fail||result.sidebarHeader!==48||(width>704&&result.header!==48)||(width<=704&&result.header<=48))throw Error(JSON.stringify(result));
+      results.push({...result,hoverShift:after-before});
+      if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
-    return results;
-  } finally {
-    await page.unroute('**/api/document**');
   }
-
-  async function measure(page) {
-    const paragraph = page.locator('.document-editor > .paragraph').first();
-    const before = await paragraph.evaluate(node => node.getBoundingClientRect().left);
-    await paragraph.hover();
-    const after = await paragraph.evaluate(node => node.getBoundingClientRect().left);
-    const result = await page.evaluate(() => {
-      const rect = selector => document.querySelector(selector)?.getBoundingClientRect();
-      const sidebarHeader = rect('.sidebar-header');
-      const topBar = rect('.top-bar');
-      const appMain = rect('.app-main');
-      const column = rect('.document-column');
-      const message = rect('.message-area');
-      const blocks = [...document.querySelectorAll('.document-editor > .heading, .document-editor > .paragraph, .document-editor > .table-block, .document-editor > .figure, .document-editor > .equation, .document-editor > .admonition, .document-editor > .unsupported')].map(node => node.getBoundingClientRect());
-      const sidebarIcons = [...document.querySelectorAll('.sidebar-actions svg, .sidebar-document-icon')].map(node => node.getBoundingClientRect().left);
-      const sidebarLabels = [...document.querySelectorAll('.sidebar-actions button, .sidebar-document-name')].map(node => {
-        const range = document.createRange();
-        const textNode = [...node.childNodes].find(child => child.nodeType === Node.TEXT_NODE && child.textContent?.trim());
-        if (textNode) range.selectNode(textNode);
-        else range.selectNodeContents(node);
-        return range.getBoundingClientRect().left;
-      });
-      const standardControl = rect('.top-bar [data-testid="save"]');
-      const compactControls = [...document.querySelectorAll('.sidebar-actions button, .equation button')].map(node => node.getBoundingClientRect().height);
-      const overflow = [...document.querySelectorAll('.app-shell, .sidebar, .app-main, .top-bar, .message-area, .document-column, .document, .document-editor, .document-editor > *')]
-        .some(node => node.getBoundingClientRect().right > window.innerWidth + 1 || node.getBoundingClientRect().left < -1);
-      const blockLefts = blocks.map(block => block.left);
-      return {
-        headerHeightDelta: Math.abs((sidebarHeader?.height ?? 0) - (topBar?.height ?? 0)),
-        insetDelta: message ? Math.abs(parseFloat(getComputedStyle(document.querySelector('.top-bar')).paddingLeft) - parseFloat(getComputedStyle(document.querySelector('.message-area')).paddingLeft)) : 0,
-        documentCenterDelta: appMain && column ? Math.abs((appMain.left + appMain.width / 2) - (column.left + column.width / 2)) : 0,
-        blockStartDelta: blockLefts.length ? Math.max(...blockLefts) - Math.min(...blockLefts) : 0,
-        sidebarIconDelta: sidebarIcons.length >= 3 ? Math.abs(sidebarIcons[0] - sidebarIcons[2]) : 0,
-        sidebarLabelDelta: sidebarLabels.length >= 3 ? Math.abs(sidebarLabels[0] - sidebarLabels[2]) : 0,
-        standardControlHeight: standardControl?.height ?? 0,
-        longPathTitle: document.querySelector('[data-testid="current-file"]')?.getAttribute('title') ?? '',
-        mixedLanguageBody: document.querySelector('.document-editor')?.textContent?.includes('한글 본문 English body for layout verification.') ?? false,
-        compactControlHeights: compactControls,
-        horizontalOverflow: overflow,
-      };
-    });
-    if (result.headerHeightDelta > 1 || result.insetDelta > 1 || result.documentCenterDelta > 1 ||
-        result.blockStartDelta > 1 || result.sidebarIconDelta > 1 || result.sidebarLabelDelta > 1 ||
-        Math.abs(result.standardControlHeight - 32) > 1 || result.compactControlHeights.some(height => Math.abs(height - 28) > 1) ||
-        !result.longPathTitle.includes('very-long-technical-document-name') || !result.mixedLanguageBody ||
-        Math.abs(before - after) > 1 || result.horizontalOverflow) {
-      throw new Error(`Layout rule failed: ${JSON.stringify(result)}`);
-    }
-    return result;
-  }
-
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
+  return results;
 }

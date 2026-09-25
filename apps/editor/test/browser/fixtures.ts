@@ -24,6 +24,11 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "quiet-document": {
+    files: [fixture("quiet-document.md"), fixture("quiet-document-long.md"), document("diagram.svg"),
+      { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
+    scenarios: ["layout-rules", "quiet-document"],
+  },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
   "figure-authoring": {
     files: [

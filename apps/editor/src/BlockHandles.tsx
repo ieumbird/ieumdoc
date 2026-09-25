@@ -87,6 +87,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu }: BlockH
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => <div key={index}
       className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
+      data-menu-open={menuIndex === index}
       style={{top: block.top}}>
       <IconButton className="block-insert" label={`Insert block after ${block.name} block ${index + 1}`}
         title="Insert block below" aria-haspopup="menu"

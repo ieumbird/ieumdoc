@@ -264,9 +264,24 @@ pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-cod
 ```
 
 - `pnpm browser:prepare`는 `tmp/` 아래의 browser scratch 디렉터리만 지우고 원본에서 다시 만든다. 몇 번 실행해도 같은 초기 상태가 된다. 어떤 디렉터리에 어떤 파일을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
-- `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
+- `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. page mock cleanup 이후에도 유지되는 context route가 scratch 밖의 실제 쓰기를 차단한다(시작 시 403 probe). 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
 - stable 목록은 `apps/editor/test/browser/run.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다.
 - 아래 각 기능 절의 수동 명령도 `pnpm browser:prepare` 뒤에 그대로 쓸 수 있다.
+
+## Quiet Document visual review
+
+```bash
+pnpm browser:test layout-rules quiet-document
+pnpm browser:test figure-authoring figure-draft-race label-authoring source-view
+```
+
+- 실제 fixture: `apps/editor/test/browser/fixtures/quiet-document.md`, `quiet-document-long.md`; `browser:prepare`가 `tmp/quiet-document/`에 복사한다. 로컬 Figure는 기존 `diagram.svg`를 재사용한다. 한글/영문 H1–H6, inline formatting/math/reference, Note/Warning, equation, Figure, table을 포함한다.
+- `layout-rules`는 1440/1025/1024/768/705/704px, sidebar 펼침/접힘에서 정렬축·gutter·control·computed typography를 검사한다. 필수 DOM 누락은 실패다. 접힌 sidebar의 icon/label 측정만 명시적으로 제외한다.
+- `quiet-document`는 실제 API 문서를 열고 rest, Figure selected/editing, Equation editing, 좁은 inline form, 긴 파일명/수식/표, Open/New를 캡처한다. 폰트/이미지와 overlay transition이 끝난 후 측정한다. 캡처는 `tmp/visual-refinement/after-*.png`; 대표 Before/After와 목업은 [review](../design/editor-visual-refinement-v1-review.md)에 보관한다.
+- 키보드 Tab 접근, 메뉴 Escape 복귀, Figure selection 밖의 draft, slash focus, overlay 내부 control 경계, contrast, Chromium composition + undo/redo, 실제 block drag + undo도 확인한다. 데스크톱 OS IME 후보창은 별도 수동 검증 대상이다.
+- 툴 노출을 검사할 때 먼저 블록을 hover한다. 보이지 않는 버튼에 force click하지 않는다. Form의 유효성/Apply/Cancel/Save/Reload 검사는 그대로 유지한다.
+- `title`로 전체 경로를 확인한다. 파일명/디렉터리 flex item의 `innerText`에는 시각 줄바꿈이 들어갈 수 있으므로 주소 일치 검사는 `textContent` 또는 `title`을 사용한다.
+- Windows에서 전역 pnpm shim이 실패하면 동일 버전의 `corepack pnpm`으로 실행할 수 있다. 작업이 시작한 서버/브라우저만 종료한다.
 
 ## Visual Editor
 

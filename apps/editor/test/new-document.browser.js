@@ -59,7 +59,7 @@ async page => {
     await page.getByTestId('new-file-path').fill(newPath);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').innerText()).includes(newPath)) {
+    if (!(await page.getByTestId('current-file').textContent()).includes(newPath)) {
       throw new Error('Created document was not opened');
     }
 

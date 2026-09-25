@@ -3,6 +3,7 @@ import { Hash, Link2, Sigma } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
+import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** Inline marks for supported paragraph and admonition body selections. */
 export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditReference }: {
@@ -12,8 +13,9 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditRe
   onEditLink: () => void;
   onEditReference: () => void;
 }) {
+  const bounds = useOverlayBounds<HTMLDivElement>();
   return (
-    <div className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
+    <div ref={bounds} className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
       <IconButton
         label="Bold"
         aria-pressed={editor.isActive("bold")}
@@ -114,6 +116,7 @@ export function LinkForm({ editor, draft, style, onClose }: {
   onClose: () => void;
 }) {
   const [href, setHref] = useState(draft.href);
+  const bounds = useOverlayBounds<HTMLFormElement>();
   const [error, setError] = useState("");
   const close = () => {
     onClose();
@@ -135,6 +138,7 @@ export function LinkForm({ editor, draft, style, onClose }: {
   };
   return (
     <form
+      ref={bounds}
       className="selection-toolbar link-form"
       role="dialog"
       aria-label="Link"
@@ -153,7 +157,9 @@ export function LinkForm({ editor, draft, style, onClose }: {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose();
       }}
     >
+      <label className="form-label" htmlFor="link-url">Link URL</label>
       <Input
+        id="link-url"
         autoFocus
         aria-label="Link URL"
         data-testid="link-url"

@@ -34,6 +34,7 @@ async page => {
     await page.getByText('Ready', {exact:true}).waitFor();
     // Create an empty transient paragraph with `+`, then use `/equation`.
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
+    await page.locator('.document-editor > .heading').first().hover();
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Paragraph', exact:true}).click();
@@ -45,6 +46,7 @@ async page => {
     await page.getByTestId('equation-cancel').click();
     const cancelRemoved = await page.locator('[data-block="equation"]').count() === baselineEquationCount;
 
+    await page.locator('.document-editor > .heading').first().hover();
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
@@ -52,6 +54,7 @@ async page => {
     const saveBlockedBeforeApply = await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').count() === 1;
     await page.getByTestId('equation-apply').click();
     const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
+    await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
     await page.getByTestId('equation-cancel').click();
@@ -65,6 +68,7 @@ async page => {
     await page.getByText('Ready', {exact:true}).waitFor();
     const reloaded = await page.locator('[data-block="equation"]').count();
     const reloadedEquation = page.locator('[data-block="equation"]').last();
+    await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).click();
     const reloadedLatex = await page.getByTestId('equation-latex').inputValue();
     await page.getByTestId('equation-cancel').click();
