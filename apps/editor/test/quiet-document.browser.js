@@ -11,11 +11,11 @@ async page => {
   const results = [];
   const open = async name => {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(scratch(name));
     await page.getByRole('dialog').getByRole('button', {name:'Open',exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     check(await page.getByTestId('current-file').getAttribute('title') === scratch(name), 'Wrong file');
     await page.evaluate(async () => {
       await document.fonts.ready;
@@ -48,6 +48,20 @@ async page => {
   };
   await open('quiet-document.md');
   const initial=await json();
+  await rest();
+  const metadata=page.locator('.block-metadata');
+  const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
+  check(metadataState.length===2&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
+  check(await page.getByTestId('current-file').textContent()==='quiet-document.md','Filename must be the visible identity');
+  check(await page.getByTestId('status').textContent()==='','Loaded document should have quiet idle status');
+  for(const kind of ['figure','equation']) {
+    const block=page.locator(`.${kind}`),meta=block.locator('.block-metadata');
+    const before=await block.boundingBox();
+    await block.hover();
+    check(await meta.evaluate(n=>getComputedStyle(n).visibility==='visible'),`${kind}: hover metadata missing`);
+    await rest();
+    check((await block.boundingBox()).y===before.y,`${kind}: metadata shifted content`);
+  }
   for(const width of [1440,1024,768,705,704]) {
     await page.setViewportSize({width,height:1000});
     await rest();
@@ -62,15 +76,24 @@ async page => {
     await rest();
     await page.getByTestId('figure-image').click();
     await page.getByTestId('figure-properties').waitFor();
+    check(await page.locator('.figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Selected metadata missing');
     await rest();
     await shot(`${width}-figure-selected`);
     await page.getByRole('button',{name:'Edit figure'}).click();
     await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-image-url');
     await bounds(page.getByTestId('figure-properties'), `Figure ${width}`);
+    const colors=await page.evaluate(()=>{
+      const root=getComputedStyle(document.documentElement),input=document.querySelector('[data-testid="figure-image-url"]');
+      const interaction=root.getPropertyValue('--id-color-interaction').trim();
+      const probe=document.createElement('span');probe.style.color=interaction;document.body.append(probe);const color=getComputedStyle(probe).color;probe.remove();
+      return {color,outline:getComputedStyle(document.querySelector('.figure')).outlineColor,border:getComputedStyle(input).borderColor,ring:getComputedStyle(input).boxShadow};
+    });
+    check(colors.outline===colors.color&&colors.border===colors.color&&colors.ring.includes(colors.color),`Interaction role not applied: ${JSON.stringify(colors)}`);
     await page.mouse.move(0,0);
     await shot(`${width}-figure-editing`);
     // The selected outline is an interaction state, not draft ownership.
     await page.getByTestId('figure-caption').fill('수정 중인 caption');
+    check(await page.getByTestId('status').textContent()==='Unsaved changes','Dirty Figure draft has misleading status');
     await page.locator('.document-editor').press('ArrowDown');
     check(await page.getByTestId('figure-caption').inputValue()==='수정 중인 caption','Selection movement lost the Figure draft');
     check(await page.locator('.figure[data-selected="false"][data-editing="true"]').count()===1,'Independent selected/editing axes missing');
@@ -85,13 +108,14 @@ async page => {
     await page.getByTestId('equation-cancel').click();
   }
   check(await json()===initial,'Visual interactions or canceled drafts changed document JSON');
+  check(await page.getByTestId('status').textContent()==='','Canceled drafts left a false dirty status');
 
   const contrast=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
     const context=canvas.getContext('2d');
     const rgba=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);return [...context.getImageData(0,0,1,1).data];};
     const luminance=rgb=>rgb.slice(0,3).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[0.2126,0.7152,0.0722][i],0);
-    return ['.status','.document-path-directory','.product','.caption','.admonition-label','.admonition-body','.cross-reference-chip','.block-kind','[data-testid="save"]'].map(selector=>{
+    return ['.document-path-name','.product','.caption','.admonition-label','.admonition-body','.cross-reference-chip','.block-kind','[data-testid="save"]'].map(selector=>{
       const n=document.querySelector(selector);if(!n)throw Error(`Missing contrast target ${selector}`);
       let bg=[255,255,255,255];
       for(let p=n;p;p=p.parentElement){const c=rgba(getComputedStyle(p).backgroundColor);if(c[3]===255){bg=c;break;}}
@@ -114,6 +138,7 @@ async page => {
     }
   }
   check(keyboardFigure,'Figure Edit unreachable or invisible with Tab');
+  check(await page.locator('.figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Keyboard focus metadata missing');
   await page.keyboard.press('Enter');
   await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-image-url');
   await page.getByTestId('figure-cancel').click();
@@ -137,11 +162,24 @@ async page => {
   await cdp.send('Input.insertText',{text:'한글입력'});
   await cdp.detach();
   check((await paragraph.textContent()).includes('한글입력'),'Korean composition failed');
+  check(await page.getByTestId('status').textContent()==='Unsaved changes','Typing did not expose unsaved state');
   await page.keyboard.press('Control+z');
   check(await paragraph.textContent()===originalText,'Composition undo failed');
+  check(await page.getByTestId('status').textContent()==='','Undo to baseline left a false dirty status');
   await page.keyboard.press('Control+Shift+z');
   check((await paragraph.textContent()).includes('한글입력'),'Composition redo failed');
+  await page.getByTestId('save').click();
+  await page.getByText('Saved',{exact:true}).waitFor();
+  await paragraph.click();
+  await page.keyboard.press('End');
+  await page.keyboard.insertText(' AFTER_SAVE');
+  check(await page.getByTestId('status').textContent()==='Unsaved changes','Confirmed Saved remained visible after an edit');
+  await page.keyboard.press('Control+z');
+  check(await page.getByTestId('status').textContent()==='Saved','Undo to the saved baseline did not clear dirty status');
+  await page.keyboard.press('Control+Shift+z');
+  check(await page.getByTestId('status').textContent()==='Unsaved changes','Redo did not restore dirty status');
   await open('quiet-document.md');
+  check((await page.locator('.paragraph').first().textContent()).includes('한글입력')&&!(await page.locator('.paragraph').first().textContent()).includes('AFTER_SAVE'),'Save / Reload did not preserve only the saved composition');
 
   // Reorder through the real drag handle, then restore through history.
   await page.locator('.heading').first().hover();
@@ -206,5 +244,5 @@ async page => {
     await shot(`768-${label.toLowerCase()}-dialog`);
     await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
   }
-  return {keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,blockDragUndo:true,results};
+  return {keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,statusSaveReload:true,blockDragUndo:true,results};
 }

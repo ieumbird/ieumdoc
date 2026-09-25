@@ -31,7 +31,7 @@ async page => {
 
   try {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     // Create an empty transient paragraph with `+`, then use `/equation`.
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
     await page.locator('.document-editor > .heading').first().hover();
@@ -65,7 +65,7 @@ async page => {
     await page.getByText('Saved', {exact:true}).waitFor();
     const insert = requests.at(-1)?.inserts?.find(item => item.block === 'equation');
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     const reloaded = await page.locator('[data-block="equation"]').count();
     const reloadedEquation = page.locator('[data-block="equation"]').last();
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});

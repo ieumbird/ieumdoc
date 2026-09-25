@@ -27,6 +27,7 @@ export function App() {
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
+  const [documentDirty, setDocumentDirty] = useState(false);
   const saveHint = equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
   const sourceHint = equationDraftActive ? EQUATION_DRAFT_SOURCE_HINT : figureDraftActive ? FIGURE_DRAFT_SOURCE_HINT : undefined;
   const [view, setView] = useState<DocumentView>("visual");
@@ -169,6 +170,7 @@ export function App() {
           <TopBar
             documentPath={openedPath}
             status={status}
+            unsaved={documentDirty || equationDraftActive || figureDraftActive}
             view={view}
             viewDisabled={!document || busy}
             sourceHint={sourceHint}
@@ -200,6 +202,7 @@ export function App() {
                 documentPath={openedPath}
                 onEquationDraftChange={setEquationDraftActive}
                 onFigureDraftChange={setFigureDraftActive}
+                onDirtyChange={setDocumentDirty}
                 validateFigure={validateFigure}
                 onStructuralReject={() =>
                   setNotice("That change is not editable in this version, so it was discarded.")

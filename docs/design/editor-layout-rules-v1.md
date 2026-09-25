@@ -24,7 +24,7 @@
 
 ## Exceptions and checks
 
-- Long file paths ellipsize directory before filename; the full address remains in `title`. Very long filenames also ellipsize.
+- TopBar shows the filename, ellipsizing long names; the full unchanged address remains in `title`.
 - Tables and formulas scroll inside their block; overlay contents may scroll if viewport height demands it. Never hide overflow on the whole document or restyle KaTeX internals to make measurements pass.
 - Overlay positioning respects the viewport and sticky header. Required controls must exist and stay reachable.
 - `layout-rules.browser.js` measures real scratch documents at 1440, 1025, 1024, 768, 705 and 704px with sidebar open/collapsed. No-element results fail. Collapsed sidebar icon/label alignment is explicitly not applicable.

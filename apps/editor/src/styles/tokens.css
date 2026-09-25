@@ -17,17 +17,19 @@
   /* Preserve the existing heritage red. */
   --id-color-accent: oklch(0.459 0.183 15.405);
   --id-color-accent-hover: oklch(0.399 0.16 15.405);
+  --id-color-interaction: #426782;
+  --id-color-interaction-soft: #e9f0f5;
   --id-color-border: #dedbdd;
   --id-color-border-subtle: #ece9eb;
   --id-color-border-strong: #c7c2c6;
-  --id-color-border-focus: var(--id-color-accent);
+  --id-color-border-focus: var(--id-color-interaction);
   --id-color-danger: #a12b32;
   --id-color-info: #365f85;
   --id-color-warning: #875717;
   --id-color-admonition: #647b8f;
 
-  --font-family-sans: "Segoe UI", "Malgun Gothic", "Noto Sans", sans-serif;
-  --font-family-document: Georgia, "Malgun Gothic", "Noto Serif KR", serif;
+  --font-family-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  --font-family-document: var(--font-family-sans);
   --font-family-math: "Cambria Math", "Times New Roman", serif;
   --font-family-mono: Consolas, "Courier New", monospace;
   --font-size-xs: 0.75rem;
@@ -61,7 +63,7 @@
   --id-radius-lg: 0.5rem;
   --id-radius-xl: 0.75rem;
   --border-width: 1px;
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--id-color-accent) 24%, transparent);
+  --focus-ring: 0 0 0 2px var(--id-color-interaction);
   --shadow-overlay: 0 8px 28px rgb(35 27 31 / 12%), 0 2px 6px rgb(35 27 31 / 5%);
 
   --layout-content-width: 58rem;

@@ -7,11 +7,11 @@ async page => {
   const root = loaded.path.split(sep).slice(0,-4).join(sep);
   const file = [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.getByRole('button',{name:'Open…'}).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button',{name:'Open',exact:true}).click();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
   const results=[];
   for(const width of [1440,1025,1024,768,705,704]) {
@@ -40,7 +40,7 @@ async page => {
         const compact=[...document.querySelectorAll('.sidebar-header button,.sidebar-actions button,.figure-edit,.equation-edit')].map(n=>n.getBoundingClientRect().height);
         if(compact.length<3)throw Error('Missing compact controls');
         for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
-          if(!getComputedStyle(button).fontFamily.includes('Segoe UI'))throw Error('Document font leaked into UI control');
+          if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
         }
         const icons=collapsed?null:[...document.querySelectorAll('.sidebar-actions svg,.sidebar-document-icon')].map(n=>n.getBoundingClientRect());
         if(icons&&icons.length!==3)throw Error('Missing expanded sidebar icons');
@@ -52,6 +52,9 @@ async page => {
         const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
         const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
         const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
+        const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
+        const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
+        if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
         const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
         return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,labels,body,headings,caption,table,shellOverflow};
       },{collapsed,width});

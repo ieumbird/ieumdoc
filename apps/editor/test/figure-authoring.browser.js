@@ -12,7 +12,7 @@ async page => {
   page.on('pageerror', onPageError);
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -46,12 +46,12 @@ async page => {
   });
   const openScratch = async () => {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').textContent()).includes('figure-authoring')) throw new Error('Scratch file was not opened');
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes('figure-authoring')) throw new Error('Scratch file was not opened');
   };
   const save = async () => {
     await saveEnabled.waitFor();
@@ -197,7 +197,7 @@ async page => {
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('Caption typed during save.');
     release();
-    await page.getByText('Saved; newer edits pending', {exact:true}).waitFor();
+    await page.getByText('Unsaved changes', {exact:true}).waitFor();
     result.delayedSaveKeepsDraft = await page.getByTestId('figure-caption').inputValue() === 'Caption typed during save.' &&
       !posted[0].figures?.length;
     await page.getByTestId('figure-apply').click();
@@ -211,7 +211,7 @@ async page => {
     await page.getByRole('button', {name:'New', exact:true}).click();
     await page.getByTestId('new-file-path').fill(emptyPath);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.locator('[data-testid="document-editor"] [contenteditable="true"]').click();
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();

@@ -7,6 +7,7 @@ export type DocumentView = "visual" | "source";
 type TopBarProps = {
   documentPath: string;
   status: string;
+  unsaved?: boolean;
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
@@ -21,9 +22,11 @@ type TopBarProps = {
 
 /** Document identity on the left; document state and document-level actions on the right. */
 export function TopBar({
-  documentPath, status, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint, onSave,
+  documentPath, status, unsaved = false, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint, onSave,
 }: TopBarProps) {
-  const { directory, name } = splitDocumentPath(documentPath);
+  const { name } = splitDocumentPath(documentPath);
+  const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
+  const displayStatus = idle ? (unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved") : status;
   const sourceProps = {
     type: "button" as const,
     variant: "ghost" as const,
@@ -47,10 +50,7 @@ export function TopBar({
     <header className="top-bar">
       <p className="document-path" data-testid="current-file" title={documentPath || undefined}>
         {documentPath ? (
-          <>
-            <span className="document-path-directory">{directory}</span>
-            <span className="document-path-name">{name}</span>
-          </>
+          <span className="document-path-name">{name}</span>
         ) : (
           "No file opened"
         )}
@@ -78,8 +78,8 @@ export function TopBar({
             <Button {...sourceProps}>Source</Button>
           )}
         </div>
-        <p className="status" data-testid="status" role="status">
-          {status}
+        <p className="status" data-testid="status" data-operation={status} role="status">
+          {displayStatus}
         </p>
         {saveHint ? (
           <Tooltip>

@@ -41,6 +41,8 @@ type DocumentEditorProps = {
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
   onFigureDraftChange?: (active: boolean) => void;
+  /** Presentation only; reuse the existing document dirty comparison. */
+  onDirtyChange?: (dirty: boolean) => void;
   validateFigure?: FigureValidator;
 };
 
@@ -52,7 +54,7 @@ export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument):
 }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, validateFigure },
+  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -64,6 +66,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const onFigureDraftChangeRef = useRef(onFigureDraftChange);
   onFigureDraftChangeRef.current = onFigureDraftChange;
   const activeFigureDrafts = useRef(new Set<string>());
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
   const [slashActive, setSlashActive] = useState(0);
@@ -172,6 +176,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     }),
     [editor],
   );
+
+  useEffect(() => {
+    if (!editor) return;
+    // Read the same baseline as Open/Save guards; do not create a second dirty model.
+    const reportDirty = () => onDirtyChangeRef.current?.(differsFromBaseline(editor.state, baseline.current));
+    reportDirty();
+    editor.on("update", reportDirty);
+    return () => { editor.off("update", reportDirty); };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;

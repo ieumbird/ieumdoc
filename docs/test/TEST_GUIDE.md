@@ -280,7 +280,7 @@ pnpm browser:test figure-authoring figure-draft-race label-authoring source-view
 - `quiet-document`는 실제 API 문서를 열고 rest, Figure selected/editing, Equation editing, 좁은 inline form, 긴 파일명/수식/표, Open/New를 캡처한다. 폰트/이미지와 overlay transition이 끝난 후 측정한다. 캡처는 `tmp/visual-refinement/after-*.png`; 대표 Before/After와 목업은 [review](../design/editor-visual-refinement-v1-review.md)에 보관한다.
 - 키보드 Tab 접근, 메뉴 Escape 복귀, Figure selection 밖의 draft, slash focus, overlay 내부 control 경계, contrast, Chromium composition + undo/redo, 실제 block drag + undo도 확인한다. 데스크톱 OS IME 후보창은 별도 수동 검증 대상이다.
 - 툴 노출을 검사할 때 먼저 블록을 hover한다. 보이지 않는 버튼에 force click하지 않는다. Form의 유효성/Apply/Cancel/Save/Reload 검사는 그대로 유지한다.
-- `title`로 전체 경로를 확인한다. 파일명/디렉터리 flex item의 `innerText`에는 시각 줄바꿈이 들어갈 수 있으므로 주소 일치 검사는 `textContent` 또는 `title`을 사용한다.
+- `title`로 전체 경로를 확인한다. 화면에는 filename만 표시하므로 주소 일치 검사는 `title`을 사용한다. 정상 로드 완료는 표시 문구 대신 status의 `data-operation="Ready"`로 기다린다. Dirty/Saved/Saving/error 문구는 실제 상태 전환과 함께 검사한다.
 - Windows에서 전역 pnpm shim이 실패하면 동일 버전의 `corepack pnpm`으로 실행할 수 있다. 작업이 시작한 서버/브라우저만 종료한다.
 
 ## Visual Editor

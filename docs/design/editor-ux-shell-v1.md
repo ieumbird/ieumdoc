@@ -10,11 +10,11 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | IeumDoc, Open, New and current document. User-controlled collapse/expand; no workspace tree or placeholder navigation. |
-| TopBar | Filename and ellipsized directory (full path in title), Visual/Source, actual status and Save. Sticky while document scrolls. |
+| TopBar | Filename (full path in title), Visual/Source, actual status and Save. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
-Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work and unapplied drafts retain their existing switching/Save guards. `Ready`, `Saved`, pending changes and errors are not relabeled as automatic saving.
+Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work and unapplied drafts retain their existing switching/Save guards. Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 ## Writing interactions
 
@@ -24,7 +24,7 @@ Open uses the existing local path dialog. New creates through the existing API i
 - Paragraph/admonition text selection offers Bold, Italic, Link, Inline Math and Cross-reference where currently supported.
 - Figure selection shows an anchored property summary. Edit opens Image/Alt text/Caption/Label fields. Summary may dismiss outside; editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; new never-applied Figure Cancel removes the transient block.
 - Equation editing stays inline with source, label, preview, Apply/Cancel and the existing Escape behavior. Unapplied changes retain the block-local notice and Save-disabled reason.
-- Read-only restrictions, real labels, caption text and errors stay visible. There is no automatic Figure/equation/section numbering.
+- Read-only restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. There is no automatic Figure/equation/section numbering.
 
 ## Boundaries
 

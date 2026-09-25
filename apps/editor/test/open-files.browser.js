@@ -4,7 +4,7 @@ async page => {
   await page.unroute('**/api/document');
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const pathA = 'C:\\tmp\\ieumdoc-a.md';
@@ -49,8 +49,8 @@ async page => {
 
   try {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').textContent()).includes(pathA)) throw new Error('File A was not opened');
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('File A was not opened');
 
     await editParagraph(page, ' FILE_A');
     await page.getByRole('button',{name:'Save',exact:true}).click();
@@ -63,14 +63,14 @@ async page => {
     await openPath(page, pathB);
     await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
     await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
-    if (!(await page.getByTestId('current-file').textContent()).includes(pathA)) throw new Error('Unsaved File A was discarded');
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('Unsaved File A was discarded');
     if (!(await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('Pending File A edit was lost');
 
     await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('Saved',{exact:true}).waitFor();
     await openPath(page, pathB);
-    await page.getByText('Ready',{exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').textContent()).includes(pathB)) throw new Error('File B was not opened');
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('File B was not opened');
     if ((await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('File A state leaked into File B');
 
     await editParagraph(page, ' FILE_B');
@@ -81,7 +81,7 @@ async page => {
     }
 
     await openPath(page, pathA);
-    await page.getByText('Ready',{exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     const reloadedA = await page.getByRole('article').innerText();
     if (!reloadedA.includes('FILE_A_PENDING') || reloadedA.includes('FILE_B')) throw new Error('File A/B state was mixed');
 

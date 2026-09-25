@@ -46,4 +46,24 @@ The existing diagram and technical prose are illustrative fixture content, not t
 
 Visual approval is the user's decision. Native Windows IME candidate UI, other browsers and OS-specific font fallbacks were not manually exercised; Chromium composition and installed Windows fonts were verified. No additional themes or future product features are proposed here.
 
-Only the reference and six representative captures are committed. The full local capture/log set is in repository-relative `tmp/visual-refinement/` (ignored), with `quiet-measurements.json` for detailed geometry/contrast. Reproduce final captures via `pnpm browser:test layout-rules quiet-document`; see [TEST_GUIDE](../test/TEST_GUIDE.md#quiet-document-visual-review).
+The original v1 evidence retains the reference and six representative captures. The full local capture/log set is in repository-relative `tmp/visual-refinement/` (ignored), with `quiet-measurements.json` for the original geometry/contrast. Reproduce current captures via `pnpm browser:test layout-rules quiet-document`; see [TEST_GUIDE](../test/TEST_GUIDE.md#quiet-document-visual-review).
+
+## Final polish — PR #29
+
+Baseline: `b01ee41`; same fixture, viewport, zoom and scroll as above. Four presentation changes: one sans stack for both scripts/UI, authoring metadata hidden at rest, separate interaction color, and filename-first identity with truthful status. Core/CLI/API, Figure lifecycle, reference data, sidebar policy and document geometry are unchanged.
+
+| State | PR #29 baseline | Final |
+| --- | --- | --- |
+| 1440px rest | [Baseline](assets/quiet-document-after-1440-rest.png) | ![Final desktop](assets/quiet-document-final-1440-rest.png) |
+| 768px rest | [Baseline](assets/quiet-document-after-768-rest.png) | ![Final narrow](assets/quiet-document-final-768-rest.png) |
+| 1440px Figure editing | [Baseline](assets/quiet-document-after-1440-figure-editing.png) | ![Final Figure](assets/quiet-document-final-1440-figure-editing.png) |
+
+- **Typography:** `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`. Browser platform-font inspection confirmed installed Noto Sans KR for the mixed H1, paragraph and caption; previously these split between Georgia/Malgun Gothic/Segoe UI. No font download, binary or package added. Pretendard packaging is deferred. Existing type sizes/weights/line heights remain; H1 negative tracking is removed. Opened 2× mixed-text detail and the complete H1–H6/caption/table document.
+- **Metadata:** shared `.block-metadata` is hidden and pointer-inert at rest, visible on hover/focus/selected/editing; its reserved space prevents movement. Real labels remain in node attrs, references and forms. There are no replacement numbers.
+- **Colors and correction:** initial screenshots removed the competing type textures and red selected outline, but the translucent focus halo was still faint. Corrected controls to a 2px solid blue-gray ring, then recaptured and opened desktop/narrow forms. Brand remains heritage red; interaction is `#426782` (6.01:1 against white), soft interaction `#e9f0f5`; error remains `#a12b32` with explanatory text. Outlines, focus rings and visible controls provide shape cues.
+- **Shell:** only filename is visible; the complete address remains in `title`. Clean load is silent, changes/drafts show `Unsaved changes`, and `Saved` requires an actual completed save and no remaining edits. A small display callback reads the existing dirty comparison; saving/error/conflict behavior is unchanged. Verified typing after Save, undo/redo across the saved baseline, and real Save → Reload. No fake autosave wording.
+- **Validation:** typecheck, 144/144 Editor tests, build and 20/20 stable browser scenarios passed. Layout checks retain all breakpoint/sidebar/geometry assertions and now check the shared font contract without requiring any installed font file. Metadata visibility and focus color checks supplement existing functional assertions. Actual external scratch-file conflict retained local input and its error UI without overflow. The existing bundle-size warning remains.
+
+All six requested states were recaptured: 1440 rest/Figure selected/Figure editing/Equation editing and 768 rest/Figure editing. The screenshots show a shared type texture, quiet document metadata and shell, and distinct selection/focus versus errors. Only three final representative images are added. Full local baseline/detail/conflict logs are under `tmp/visual-polish/`; the runner's latest captures remain under `tmp/visual-refinement/`.
+
+Unverified platform-specific items: Pretendard rendering where installed, macOS/system fallback variants, other browsers, native Windows IME candidate UI and screen-reader announcements. Chromium Korean composition/undo/redo and keyboard focus return passed. Final visual approval remains with the user.

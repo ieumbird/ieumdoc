@@ -6,7 +6,7 @@
 async page => {
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -28,8 +28,8 @@ async page => {
   await page.getByRole('button', {name:'Open…'}).click();
   await page.getByTestId('file-path').fill(filePath);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-  await page.getByText('Ready', {exact:true}).waitFor();
-  if (!(await page.getByTestId('current-file').textContent()).includes('reference-save-reload')) {
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  if (!(await page.getByTestId('current-file').getAttribute('title')).includes('reference-save-reload')) {
     throw new Error('Scratch file was not opened');
   }
   await page.getByText('The current reference is calculated from the active power command.', {exact:true}).click();
@@ -39,11 +39,11 @@ async page => {
   await page.getByText('Saved', {exact:true}).waitFor();
 
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.getByRole('button', {name:'Open…'}).click();
   await page.getByTestId('file-path').fill(filePath);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const article = await page.getByRole('article').innerText();
   const saved = await markdown();
   const result = {

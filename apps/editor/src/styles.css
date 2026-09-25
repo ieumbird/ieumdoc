@@ -137,12 +137,6 @@ button {
   line-height: var(--line-height-label);
 }
 
-.document-path-directory {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--id-color-text-subtle);
-}
-
 .document-path-name {
   min-width: 0;
   flex-shrink: 0;
@@ -200,6 +194,9 @@ button {
   font-size: var(--font-size-xs);
   line-height: var(--line-height-meta);
 }
+
+.status:empty { display: none; }
+.status[data-operation="Saved"] { color: var(--id-color-text-subtle); }
 
 .ui-button,
 .ui-icon-button {
@@ -265,9 +262,9 @@ button {
 }
 
 .ui-icon-button[aria-pressed="true"] {
-  border-color: var(--id-color-accent);
-  background: var(--id-color-accent);
-  color: var(--id-color-text-on-accent);
+  border-color: var(--id-color-interaction);
+  background: var(--id-color-interaction-soft);
+  color: var(--id-color-interaction);
 }
 
 .ui-button:focus-visible,
@@ -312,16 +309,16 @@ button {
   font-size: var(--font-size-document);
   line-height: var(--line-height-document);
   overflow-wrap: anywhere;
-  caret-color: var(--id-color-accent);
+  caret-color: var(--id-color-interaction);
 }
 
 .document-editor:focus-visible {
-  outline: 1px solid var(--id-color-border-subtle);
+  outline: 1px solid var(--id-color-interaction);
   outline-offset: var(--space-2);
 }
 
 .document-editor ::selection {
-  background: color-mix(in srgb, var(--id-color-accent) 18%, transparent);
+  background: var(--id-color-interaction-soft);
 }
 
 .heading {
@@ -334,7 +331,6 @@ button {
 
 h1.heading {
   font-size: var(--font-size-h1);
-  letter-spacing: -0.025em;
 }
 
 h2.heading {
@@ -524,13 +520,18 @@ h6.heading { font-size: var(--font-size-sm); }
   min-width: 100%;
 }
 
-.figure > .block-kind,
-.equation > .block-kind {
+.block-metadata {
+  visibility: hidden;
+  pointer-events: none;
   margin: 0 0 var(--space-2);
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
   text-align: right;
+}
+
+:is(.figure, .equation):is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata {
+  visibility: visible;
 }
 
 .equation-editor {
@@ -649,7 +650,7 @@ h6.heading { font-size: var(--font-size-sm); }
   left: var(--layout-document-gutter);
   right: var(--layout-document-inline-padding);
   height: var(--size-drop-indicator);
-  background: var(--id-color-accent);
+  background: var(--id-color-interaction);
 }
 
 /* Editor overlays: positioned over the document, never part of its content. */
@@ -841,7 +842,7 @@ h6.heading { font-size: var(--font-size-sm); }
 }
 
 .document-editor a {
-  color: var(--id-color-accent);
+  color: var(--id-color-interaction);
   text-decoration: underline;
   cursor: text;
 }
@@ -891,7 +892,7 @@ h6.heading { font-size: var(--font-size-sm); }
 }
 
 :is(.figure, .equation):is([data-selected="true"], [data-editing="true"]) {
-  outline: var(--border-width) solid var(--id-color-accent);
+  outline: var(--border-width) solid var(--id-color-interaction);
   outline-offset: var(--space-1);
   border-radius: var(--id-radius-sm);
 }

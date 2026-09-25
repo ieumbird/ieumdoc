@@ -3,7 +3,7 @@
 async page => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const loaded = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/document')).json();
   let release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -32,7 +32,7 @@ async page => {
     await page.keyboard.type(' PENDING_INPUT');
     const before = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     release();
-    await page.getByText('Saved; newer edits pending',{exact:true}).waitFor();
+    await page.getByText('Unsaved changes',{exact:true}).waitFor();
     const after = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     if (!before || !after) throw new Error('Pending input was lost');
     await page.getByRole('button',{name:'Save',exact:true}).click();

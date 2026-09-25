@@ -790,7 +790,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       contentEditable={false}
       onMouseDown={() => { if (!editing) setSummaryDismissed(false); }}
     >
-      <p ref={anchor} className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
+      <p ref={anchor} className="block-kind block-metadata">{label ? `Figure · ${label}` : "Figure"}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status">
           Unapplied changes. Apply or Cancel before saving.
@@ -985,7 +985,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
-      <p className="block-kind">{label ? `Equation · ${label}` : "Equation"}</p>
+      <p className="block-kind block-metadata">{label ? `Equation · ${label}` : "Equation"}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">
           Unapplied changes. Apply or Cancel before saving.
