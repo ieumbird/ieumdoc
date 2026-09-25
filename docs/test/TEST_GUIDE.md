@@ -252,6 +252,22 @@ pnpm ieumdoc check tmp/technical-document.md
 
 `format`을 한 번 더 실행해도 파일 내용이 같아야 한다.
 
+## Editor browser regression 실행
+
+`apps/editor/test/*.browser.js`는 실제 브라우저에서 Editor 흐름을 검증한다. 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행하고, 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)은 읽기만 한다.
+
+```bash
+pnpm editor            # 다른 터미널에서 dev server(http://127.0.0.1:5173)를 띄운다
+pnpm browser:test      # stable 시나리오 전체: 시나리오마다 scratch를 새로 만들고 실행한다
+pnpm browser:test admonition-authoring inline-math-split   # 이름을 준 시나리오만(stable 목록 밖의 것도 가능)
+pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-code를 실행할 때)
+```
+
+- `pnpm browser:prepare`는 `tmp/` 아래의 browser scratch 디렉터리만 지우고 원본에서 다시 만든다. 몇 번 실행해도 같은 초기 상태가 된다. 어떤 디렉터리에 어떤 파일을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
+- `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
+- stable 목록은 `apps/editor/test/browser/run.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다.
+- 아래 각 기능 절의 수동 명령도 `pnpm browser:prepare` 뒤에 그대로 쓸 수 있다.
+
 ## Visual Editor
 
 브라우저에서 Core-backed Visual Editor를 확인한다.
@@ -357,17 +373,16 @@ Figure, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figur
 
 Save 후 파일의 `See [](#fig-control) and {eq}`eq-current`.` 줄은 그대로여야 한다. `{eq}` reference가 `[](#eq-current)` link로 바뀌면 실패다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/reference-save-reload && mkdir -p tmp/reference-save-reload
-cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/reference-save-reload/
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-reference open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-reference run-code --filename=apps/editor/test/reference-save-reload.browser.js
 pnpm exec playwright-cli -s=ieumdoc-reference close
 ```
 
-결과의 값은 모두 `true`여야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 값은 모두 `true`여야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ### G. 구조 변경 거부
 
@@ -638,19 +653,17 @@ Editor:
 - `+` 또는 `/figure`로 새 Figure를 넣으면 form이 바로 열리고 Image 입력에 focus가 간다. 빈 새 paragraph에서 `/figure`를 쓰면 그 paragraph가 Figure로 바뀌어 빈 paragraph가 남지 않는다. 한 번도 Apply하지 않고 `Cancel`하면 block이 사라진다(문서의 유일한 block이면 빈 paragraph로 돌아간다). Apply한 뒤 다시 `Edit` → 변경 → `Cancel`하면 block은 남고 Apply한 값으로 돌아간다.
 - Save → Reload 후 image/alt/caption이 유지되고 기존 label은 그대로다. Delete, reorder, Undo/Redo, Save 지연 중 입력한 Figure draft도 기존 block과 같이 동작한다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/figure-authoring && mkdir -p tmp/figure-authoring
-cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/figure-authoring/
-sed 's/<svg /<svg data-variant="v2" /' apps/editor/document/diagram.svg > tmp/figure-authoring/diagram-v2.svg
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-figure open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-authoring.browser.js
 pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-draft-race.browser.js
 pnpm exec playwright-cli -s=ieumdoc-figure close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. Focused regression은 editor selection이 Figure 밖으로 이동해도 Apply 또는 Cancel 전까지 form과 draft가 유지되고, Apply → Save → Reload 후 caption이 보존되는지 확인한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. Focused regression은 editor selection이 Figure 밖으로 이동해도 Apply 또는 Cancel 전까지 form과 draft가 유지되고, Apply → Save → Reload 후 caption이 보존되는지 확인한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Table cell editing v1
 
@@ -677,18 +690,16 @@ Editor:
 - Enter, Shift+Enter, cell 시작의 Backspace는 표 구조를 바꾸지 않는다. cell 안에서는 굵게/기울임이 적용되지 않는다. Undo/Redo는 다른 편집과 같다.
 - Save → Reload 후 수정한 header/body cell이 canonical Markdown에 남고, 다른 block은 그대로다. 유효하지 않은 cell 텍스트는 `Save failed`로 거부되고 파일은 바뀌지 않는다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/table-cell-editing && mkdir -p tmp/table-cell-editing
-cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/table-cell-editing/
-printf '| Name | Note |\n| --- | --- |\n| U | **bold** |\n' > tmp/table-cell-editing/mixed-table.md
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-table open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-table run-code --filename=apps/editor/test/table-cell-editing.browser.js
 pnpm exec playwright-cli -s=ieumdoc-table close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Inline link authoring v1
 
@@ -707,17 +718,16 @@ Editor:
 
 CLI: 전용 명령은 없다. 기존 `split-paragraph`, `merge-paragraph`, `insert-hard-break`, `replace-text`가 link paragraph에서도 link를 유지한다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/link-authoring && mkdir -p tmp/link-authoring
-printf '# Links\n\nSee [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text** for details.\n\nA plain paragraph to linked text.\n\nSee {eq}`eq-a` and [details](#eq-a).\n\n```{math}\n:label: eq-a\nx\n```\n' > tmp/link-authoring/links.md
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-links open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-links run-code --filename=apps/editor/test/link-authoring.browser.js
 pnpm exec playwright-cli -s=ieumdoc-links close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Inline math authoring v1
 
@@ -730,17 +740,18 @@ paragraph 안의 inline math(`$x$`, `{math}`x``)가 있는 paragraph는 일반 p
 - source는 한 줄이어야 하고 비어 있으면 안 된다. 맨 앞/맨 끝이 backtick인 source처럼 canonical role로 그대로 쓸 수 없는 값은 `Save failed`로 거부되고 파일은 바뀌지 않는다.
 - CLI의 paragraph offset에서 inline math는 hard break처럼 한 글자로 센다(`pnpm ieumdoc help split-paragraph`).
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/inline-math && mkdir -p tmp/inline-math
-printf '# Math\n\nThe current is $i_d$ and the voltage is **$v_{dc}$**.\n\nConvert v_q into math and see [the $x$ page](https://a.example).\n\nSee {eq}`eq-a` here.\n\n```{math}\n:label: eq-a\nx\n```\n' > tmp/inline-math/math.md
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-math open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-math run-code --filename=apps/editor/test/inline-math-authoring.browser.js
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-math run-code --filename=apps/editor/test/inline-math-split.browser.js
 pnpm exec playwright-cli -s=ieumdoc-math close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Read-only Source View v1
 
@@ -753,14 +764,10 @@ Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`
 - Save가 거부할 상태(빈 paragraph, canonical Markdown으로 보존할 수 없는 문서, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다.
 - CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다. `expected.md`는 CLI로 만든 canonical 기준값이다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본과 canonical 기준값 `expected.md`는 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/source-view && mkdir -p tmp/source-view
-cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/source-view/
-cp apps/editor/document/technical-document.md tmp/source-view/expected.md
-pnpm ieumdoc format tmp/source-view/expected.md
-printf 'Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n' > tmp/source-view/keyboard.md
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-source open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view.browser.js
 # Source 요청이 끝나기 전에는 Open/New로 문서를 바꿀 수 없다(파일을 쓰지 않는다).
@@ -768,7 +775,7 @@ pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/
 pnpm exec playwright-cli -s=ieumdoc-source close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Source 요청의 400은 `onlyRejectedPreviewLogged`로 따로 확인한다). 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Source 요청의 400은 `onlyRejectedPreviewLogged`로 따로 확인한다). 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Equation / Figure label authoring v1
 
@@ -781,17 +788,16 @@ Equation과 Figure의 label(reference target 이름)을 Visual Editor에서 추�
 - 기존 reference(`{eq}`, `{numref}`, `[](#...)`)는 자동으로 바뀌지 않는다. label을 바꾸거나 지우면 reference가 끊어질 수 있다.
 - 구조가 read-only인 Figure의 label은 바꿀 수 없다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/label-authoring && mkdir -p tmp/label-authoring
-cp apps/editor/document/technical-document.md apps/editor/document/diagram.svg tmp/label-authoring/
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-label open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-label run-code --filename=apps/editor/test/label-authoring.browser.js
 pnpm exec playwright-cli -s=ieumdoc-label close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Save/Source 요청의 400은 `duplicateRequestsLogged`로 따로 확인한다). 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Save/Source 요청의 400은 `duplicateRequestsLogged`로 따로 확인한다). 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ## Local cross-reference authoring v1
 
@@ -803,15 +809,13 @@ pnpm exec playwright-cli -s=ieumdoc-label close
 - 문서 안에 같은 종류의 target이 있으면(MyST처럼 대소문자 무시) 보통 표시, 없으면 흐린 점선으로 표시되고 tooltip에 `Unresolved`가 나온다. label을 바꾸면 바로 반영된다. 끊어진 reference도 그대로 저장된다.
 - target 목록은 현재 문서의 Equation/Figure label(Apply한 미저장 label 포함)이다. `{numref}`가 Equation이나 table을 가리키면 v1에서는 unresolved로 보인다.
 
-브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`에 scratch 사본을 먼저 만든다):
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
 
 ```bash
-rm -rf tmp/cross-reference && mkdir -p tmp/cross-reference
-cp apps/editor/document/diagram.svg tmp/cross-reference/
-printf '# References\n\nThe current is set by the control law and shown in the diagram.\n\nSee {eq}`eq-a` and [details](#eq-a) with **bold** and $x$.\n\nSee {numref}`missing-fig` for later and {eq}`eq-a`.\n\n```{math}\n:label: eq-a\na = b\n```\n\n```{math}\n:label: eq-b\nc = d\n```\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n' > tmp/cross-reference/refs.md
+pnpm browser:prepare
 pnpm exec playwright-cli -s=ieumdoc-xref open http://127.0.0.1:5173
 pnpm exec playwright-cli -s=ieumdoc-xref run-code --filename=apps/editor/test/cross-reference.browser.js
 pnpm exec playwright-cli -s=ieumdoc-xref close
 ```
 
-결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 scratch 사본을 새로 만든다.
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.

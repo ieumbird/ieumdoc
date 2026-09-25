@@ -1,4 +1,4 @@
-// Focused Issue #21 regression. Prepare tmp/figure-authoring from TEST_GUIDE.md first.
+// Focused Issue #21 regression. Prepare tmp/figure-authoring first with `pnpm browser:prepare`.
 async page => {
   await page.reload();
   await page.getByText('Ready', {exact:true}).waitFor();
