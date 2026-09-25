@@ -195,6 +195,7 @@ async page => {
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
     await page.getByTestId('figure-caption').fill('Caption typed during save.');
     release();
     await page.getByText('Unsaved changes', {exact:true}).waitFor();

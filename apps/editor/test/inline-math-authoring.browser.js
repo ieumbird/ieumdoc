@@ -87,6 +87,24 @@ async page => {
   await page.getByTestId('inline-math-form').waitFor();
   await page.keyboard.press('Escape');
   await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+  // The inline math click opens the form without selecting its ProseMirror atom.
+  // Restore the exact node selection under test before sending Enter.
+  await page.evaluate(value => {
+    const editor = document.querySelector('.ProseMirror').editor;
+    let position;
+    editor.state.doc.descendants((node, offset) => {
+      if (node.type.name === 'inlineMath' && node.attrs.value === value) position = offset;
+    });
+    if (position === undefined) throw new Error(`inline math not found: ${value}`);
+    editor.commands.setNodeSelection(position);
+    editor.view.focus();
+  }, 'i_q');
+  await page.waitForFunction(() => {
+    const editor = document.querySelector('.ProseMirror').editor;
+    const selection = editor.state.selection;
+    return editor.view.hasFocus() && selection.constructor.name === 'NodeSelection' &&
+      selection.node.type.name === 'inlineMath' && selection.node.attrs.value === 'i_q';
+  });
   await page.keyboard.press('Enter');
   result.enterKeepsMath = await editor.locator('p.paragraph').count() === paragraphs &&
     (await sources()).includes('i_q');
