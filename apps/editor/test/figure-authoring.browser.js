@@ -12,7 +12,7 @@ async page => {
   page.on('pageerror', onPageError);
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -46,12 +46,12 @@ async page => {
   });
   const openScratch = async () => {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').innerText()).includes('figure-authoring')) throw new Error('Scratch file was not opened');
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes('figure-authoring')) throw new Error('Scratch file was not opened');
   };
   const save = async () => {
     await saveEnabled.waitFor();
@@ -77,6 +77,7 @@ async page => {
     await page.getByTestId('figure-properties').waitFor();
     result.selectShowsSummaryOnly = await editor.count() === 0 &&
       await page.evaluate(() => document.activeElement?.closest('.document-editor') !== null);
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     result.editFocusesImage = await imageFocused();
@@ -101,6 +102,7 @@ async page => {
 
     // A2. Apply asks Core: a caption MyST would reinterpret keeps the form open and never becomes applied state.
     const appliedCaption = 'Updated converter control diagram.';
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('cost $5 and $x$');
@@ -151,6 +153,7 @@ async page => {
     result.newPreviewAfterApply = String(await imageLoaded(created)).startsWith('/document/diagram.svg?path=');
 
     // C2. Apply, Edit, change, Cancel keeps the block and restores the applied value.
+    await created.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await created.getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('Discarded caption.');
@@ -169,6 +172,7 @@ async page => {
     result.newReloadedPreview = String(await imageLoaded(figures.nth(1))).startsWith('/document/diagram.svg?path=');
 
     // Escape cancels an existing Figure draft without removing it.
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-alt').fill('Escaped');
@@ -188,11 +192,12 @@ async page => {
       return route.continue();
     });
     await page.getByRole('button', {name:'Save', exact:true}).click();
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-caption').fill('Caption typed during save.');
     release();
-    await page.getByText('Saved; newer edits pending', {exact:true}).waitFor();
+    await page.getByText('Unsaved changes', {exact:true}).waitFor();
     result.delayedSaveKeepsDraft = await page.getByTestId('figure-caption').inputValue() === 'Caption typed during save.' &&
       !posted[0].figures?.length;
     await page.getByTestId('figure-apply').click();
@@ -206,7 +211,7 @@ async page => {
     await page.getByRole('button', {name:'New', exact:true}).click();
     await page.getByTestId('new-file-path').fill(emptyPath);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.locator('[data-testid="document-editor"] [contenteditable="true"]').click();
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();

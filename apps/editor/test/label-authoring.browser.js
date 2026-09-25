@@ -8,7 +8,7 @@ async page => {
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -22,11 +22,11 @@ async page => {
   };
   const open = async () => {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const equation = page.locator('[data-block="equation"]').first();
   const figure = page.locator('[data-block="figure"]').first();
@@ -45,6 +45,7 @@ async page => {
     return text;
   };
   const setEquationLabel = async (block, label) => {
+    await block.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await block.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-label').fill(label);
     await page.getByTestId('equation-apply').click();
@@ -58,6 +59,7 @@ async page => {
   };
   const setFigureLabel = async (block, label) => {
     await block.locator('img').click();
+    await block.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await block.getByRole('button', {name:'Edit figure'}).click();
     await figureFormReady();
     await page.getByTestId('figure-label').fill(label);
@@ -80,6 +82,7 @@ async page => {
   await open();
 
   // A. Change both labels in the editor forms; Source shows them before Save; the file is untouched.
+  await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   result.equationFormShowsLabel = await page.getByTestId('equation-label').inputValue() === 'eq-current';
   await page.getByTestId('equation-label').fill('eq-reference');
@@ -117,6 +120,7 @@ async page => {
   result.duplicateRequestsLogged = problems.splice(errorsBefore).every(text => text.includes('400 (Bad Request)'));
 
   // D. A label with surrounding spaces is refused at Apply and keeps the form open.
+  await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-label').fill(' eq-x');
   await page.getByTestId('equation-apply').click();

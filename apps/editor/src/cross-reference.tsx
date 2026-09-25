@@ -5,6 +5,7 @@ import { useState, type CSSProperties } from "react";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
 import { Button } from "./ui/primitives.tsx";
+import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** A labeled Equation or Figure in the current editor document that a reference can name. */
 export type ReferenceTarget = { role: ReferenceRole; label: string };
@@ -180,12 +181,14 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   const preferred = targets.find((target) => preferredLabel !== undefined && labelKey(target.label) === labelKey(preferredLabel));
   const initial = current ?? preferred ?? options[0];
   const [value, setValue] = useState(initial ? referenceCommandId(initial) : "");
+  const bounds = useOverlayBounds<HTMLFormElement>();
   const apply = () => {
     const target = referenceOfCommand(value);
     if (target) onApply(target);
   };
   return (
     <form
+      ref={bounds}
       className={`selection-toolbar reference-form ${className ?? ""}`}
       contentEditable={false}
       role="dialog"
@@ -205,9 +208,11 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
         if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) (onDismiss ?? onClose)();
       }}
     >
+      <label className="form-label" htmlFor="reference-target">Reference target</label>
       {options.length > 0 ? (
         <>
           <select
+            id="reference-target"
             autoFocus
             className="reference-target"
             aria-label="Reference target"

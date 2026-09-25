@@ -9,7 +9,7 @@ async page => {
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -25,11 +25,11 @@ async page => {
   };
   const open = async file => {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(file);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const visual = page.getByTestId('view-visual');
   const source = page.getByTestId('view-source');
@@ -52,8 +52,7 @@ async page => {
 
   // Order in the top bar: path … [Visual | Source] status Save.
   const x = async locator => (await locator.boundingBox()).x;
-  result.toggleLeftOfStatusAndSave = await x(source) < await x(page.getByTestId('status')) &&
-    await x(page.getByTestId('status')) < await x(page.getByTestId('save'));
+  result.toggleLeftOfStatusAndSave = await x(source) < await x(page.getByTestId('save')) && await page.getByTestId('status').textContent() === ''; // Clean idle status is intentionally absent.
   result.visualInitiallyPressed = await visual.getAttribute('aria-pressed') === 'true';
 
   // A. Unchanged document: Source equals the CLI's canonical format of the same file.
@@ -75,7 +74,7 @@ async page => {
   const unsaved = await sourceText();
   result.unsavedEditsInSource = unsaved.includes(`${paragraph} SourceMarker`) && unsaved.includes('| Port name | Type |');
   result.fileNotWrittenByPreview = await markdown(technical, 'technical-document.md') === fresh;
-  result.statusUnchangedByPreview = await page.getByTestId('status').innerText() === 'Ready';
+  result.statusUnchangedByPreview = await page.getByTestId('status').innerText() === 'Unsaved changes';
 
   // C. Visual keeps the unsaved editor state, including undo history.
   await showVisual();
@@ -105,6 +104,7 @@ async page => {
 
   // F. Unapplied Equation and Figure drafts block Source, with the reason in a tooltip.
   const equation = page.locator('[data-block="equation"]').first();
+  await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
   await source.hover();
@@ -115,6 +115,7 @@ async page => {
   await page.getByTestId('equation-cancel').click();
   const figure = page.locator('[data-block="figure"]').first();
   await figure.locator('img').click();
+  await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-caption').fill('Draft caption.');
   await source.hover();

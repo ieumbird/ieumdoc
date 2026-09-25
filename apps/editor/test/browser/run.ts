@@ -19,6 +19,7 @@ const SESSION = "ieumdoc-browser-regression";
 export const STABLE_SCENARIOS = [
   "editor-shell",
   "layout-rules",
+  "quiet-document",
   "new-document",
   "open-files",
   "save-during-edit",
@@ -81,6 +82,29 @@ async function main(requested: string[]): Promise<number> {
   playwright(["open", URL], false);
   const failures: string[] = [];
   try {
+    // Page routes are removed in scenario cleanup. A failed delayed-save scenario must
+    // never fall through to writing the default source fixture after its mock is removed.
+    const guard = playwright(["run-code", `async page => {
+      await page.context().route('**/api/document**', async route => {
+        if (route.request().method() === 'GET') return route.continue();
+        const file = String(route.request().postDataJSON()?.path ?? '').replaceAll('\\\\', '/');
+        const scratch = ${JSON.stringify(path.join(REPOSITORY_ROOT, "tmp").replaceAll("\\", "/") + "/")};
+        if (!file.startsWith(scratch) || file.split('/').includes('..')) {
+          return route.fulfill({status: 403, json: {error: 'Browser tests may write scratch files only.'}});
+        }
+        return route.continue();
+      });
+      const rejected = await page.evaluate(async file => {
+        const response = await fetch('/api/document', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({path: file, revision: 'invalid-guard-probe'})});
+        return response.status;
+      }, ${JSON.stringify(path.join(REPOSITORY_ROOT, "apps/editor/document/technical-document.md"))});
+      if (rejected !== 403) throw Error('Source write guard probe failed: ' + rejected);
+      return {sourceWriteGuard: true};
+    }`], true);
+    if (guard.status !== 0 || !guard.stdout?.includes("### Result")) {
+      console.error("Could not protect source fixtures from browser writes.");
+      return 1;
+    }
     for (const name of scenarios) {
       prepareBrowserFixtures();
       const started = Date.now();

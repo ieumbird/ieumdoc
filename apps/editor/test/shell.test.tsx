@@ -31,13 +31,13 @@ test("sidebar holds only product, Open and the current document, and collapses",
   assert.doesNotMatch(collapsed, /Open…|guide\.md|IeumDoc/);
 });
 
-test("top bar shows the current path on the left and save state with Save on the right", () => {
+test("top bar shows filename while keeping the complete path in its title", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
       <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
     </TooltipProvider>,
   );
-  assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-directory">C:\\docs\\<\/span><span class="document-path-name">guide.md<\/span>/);
+  assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-name">guide.md<\/span>/);
   assert.ok(html.indexOf("current-file") < html.indexOf('data-testid="status"'));
   assert.ok(html.indexOf('data-testid="status"') < html.indexOf('data-testid="save"'));
   assert.doesNotMatch(html, /aria-disabled="true"/);
@@ -50,6 +50,21 @@ test("top bar shows the current path on the left and save state with Save on the
   );
   assert.match(blocked, /No file opened/);
   assert.match(blocked, /<button type="button" data-disabled="" tabindex="0" aria-disabled="true"[^>]*data-testid="save"[^>]*>Save<\/button>/);
+});
+
+test("status presentation distinguishes loaded, dirty, confirmed save and in-flight/error states", () => {
+  for (const [status, unsaved, expected] of [
+    ["Ready", false, ""], ["Ready", true, "Unsaved changes"],
+    ["Saved", false, "Saved"], ["Saved", true, "Unsaved changes"],
+    ["Saved; newer edits pending", true, "Unsaved changes"],
+    ["Saved; newer edits pending", false, "Saved"], // Newer edits undone back to the saved baseline.
+    ["Saving…", true, "Saving…"], ["Save conflict", true, "Save conflict"],
+    ["Save failed", true, "Save failed"], ["Load failed", false, "Load failed"],
+  ] as const) {
+    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
+      view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} /></TooltipProvider>);
+    assert.ok(html.includes(`data-operation="${status}" role="status">${expected}</p>`), `${status}, dirty=${unsaved}`);
+  }
 });
 
 test("top bar offers Visual and Source views left of status and Save", () => {

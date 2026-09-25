@@ -1,7 +1,7 @@
 // Focused Issue #21 regression. Prepare tmp/figure-authoring first with `pnpm browser:prepare`.
 async page => {
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const separator = defaultPath.includes('\\') ? '\\' : '/';
@@ -11,7 +11,7 @@ async page => {
     await page.getByRole('button', {name:'Open…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const semantic = async () => {
     const response = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(filePath)}`)).json();
@@ -22,6 +22,7 @@ async page => {
   await openScratch();
   const figure = page.locator('[data-block="figure"]').first();
   await figure.locator('img').click();
+  await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-editor').waitFor();
   await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
@@ -54,7 +55,7 @@ async page => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await openScratch();
   const reloaded = await semantic();
   const saveReloadPreserved = reloaded.length === 1 && reloaded[0].label === 'fig-control' &&

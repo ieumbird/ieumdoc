@@ -20,6 +20,7 @@ import {
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
+import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
 export type DraftListener = (key: string, active: boolean) => void;
@@ -276,7 +277,6 @@ const Table = Node.create({
         "data-table-block": "",
         "data-source-path": String(node.attrs.sourcePath ?? ""),
       },
-      ["p", { class: "block-kind", contenteditable: "false" }, "Table"],
       ["table", { class: "table" }, ["tbody", 0]],
     ];
   },
@@ -653,7 +653,7 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
       data-readonly={editable ? "false" : "true"}
       contentEditable={editable ? undefined : false}
     >
-      <p className="block-kind">Admonition: {variant}</p>
+      <p className="admonition-label" contentEditable={false}>{variant}{editable ? "" : " · Read-only"}</p>
       {editable
         ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
         : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}
@@ -680,6 +680,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   // A new Figure has no persistent state until a valid value is applied.
   const neverApplied = isNewBlockPath(sourcePath) && applied.imageUrl.length === 0;
   const [editing, setEditing] = useState(false);
+  const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
@@ -698,6 +699,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form.
   // Once editing starts, selection changes must not end the draft; Apply and Cancel own that boundary.
   useEffect(() => {
+    setSummaryDismissed(false);
     if (!editableFigure) return;
     if (selected && neverApplied && !editing) beginEdit();
   }, [selected]);
@@ -755,7 +757,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
     setEditing(false);
   };
   const field = (key: keyof FigureContent, name: string, testId: string) => (
-    <label className="figure-field">
+    <label className="form-field">
       <span>{name}</span>
       <Input
         ref={key === "imageUrl" ? imageInput : undefined}
@@ -781,13 +783,16 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       as="figure"
       className="figure"
       data-block="figure"
+      data-editing={editing}
+      data-selected={selected}
       data-source-path={sourcePath}
       data-readonly={editableFigure ? "false" : "true"}
       contentEditable={false}
+      onMouseDown={() => { if (!editing) setSummaryDismissed(false); }}
     >
-      <p ref={anchor} className="block-kind">{label ? `Figure · ${label}` : "Figure"}</p>
+      <p ref={anchor} className="block-kind block-metadata">{label ? `Figure · ${label}` : "Figure"}</p>
       {hasUnappliedDraft ? (
-        <p className="equation-draft-status" role="status" data-testid="figure-draft-status">
+        <p className="draft-status" role="status" data-testid="figure-draft-status">
           Unapplied changes. Apply or Cancel before saving.
         </p>
       ) : null}
@@ -798,11 +803,15 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
           Edit
         </Button>
       ) : null}
-      <Popover open={selected || editing} onOpenChange={() => {}}>
+      <Popover
+        open={editing || (selected && !summaryDismissed)}
+        onOpenChange={(open) => { if (!open && !editing) setSummaryDismissed(true); }}
+      >
         <PopoverContent
           anchor={anchor}
           side="bottom"
-          align="start"
+          align="end"
+          sideOffset={12}
           // Selection only annotates the block; keep focus (and so keyboard
           // interaction, e.g. Delete) on the editor. Edit focuses the form itself.
           initialFocus={false}
@@ -811,6 +820,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
           data-testid="figure-properties"
           className="figure-properties"
         >
+          <p className="overlay-title">Figure{editableFigure ? "" : " · Read-only"}</p>
           {editing ? (
             <form
               className="figure-editor"
@@ -829,7 +839,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
               {field("imageUrl", "Image", "figure-image-url")}
               {field("imageAlt", "Alt text", "figure-alt")}
               {field("caption", "Caption", "figure-caption")}
-              <label className="figure-field">
+              <label className="form-field">
                 <span>Label</span>
                 <Input
                   data-testid="figure-label"
@@ -843,7 +853,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
                 />
               </label>
               {error ? <Notice tone="error">{error}</Notice> : null}
-              <div className="equation-actions">
+              <div className="form-actions">
                 <Button type="submit" size="sm" disabled={validating} data-testid="figure-apply">Apply</Button>
                 <Button type="button" size="sm" variant="subtle" onClick={cancel} data-testid="figure-cancel">Cancel</Button>
               </div>
@@ -970,12 +980,14 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
     <NodeViewWrapper
       className="equation"
       data-block="equation"
+      data-editing={editing}
+      data-selected={selected}
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
-      <p className="block-kind">{label ? `Equation · ${label}` : "Equation"}</p>
+      <p className="block-kind block-metadata">{label ? `Equation · ${label}` : "Equation"}</p>
       {hasUnappliedDraft ? (
-        <p className="equation-draft-status" role="status" data-testid="equation-draft-status">
+        <p className="draft-status" role="status" data-testid="equation-draft-status">
           Unapplied changes. Apply or Cancel before saving.
         </p>
       ) : null}
@@ -1005,7 +1017,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
               }
             }}
           />
-          <label className="figure-field">
+          <label className="form-field">
             <span>Label</span>
             <Input
               data-testid="equation-label"
@@ -1028,7 +1040,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
           </label>
           <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
           {error ? <Notice tone="error">{error}</Notice> : null}
-          <div className="equation-actions">
+          <div className="form-actions">
             <Button size="sm" onClick={apply} data-testid="equation-apply">Apply</Button>
             <Button size="sm" variant="subtle" onClick={cancel} data-testid="equation-cancel">Cancel</Button>
           </div>
@@ -1051,14 +1063,16 @@ function EquationFormula({ className, latex, testId }: { className: string; late
     <div
       className={className}
       data-testid={testId}
-      dangerouslySetInnerHTML={{ __html: result.html ?? "" }}
-    />
+    >
+      <div className="equation-content" dangerouslySetInnerHTML={{ __html: result.html ?? "" }} />
+    </div>
   );
 }
 
 function InlineMathView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
+  const bounds = useOverlayBounds<HTMLFormElement>(editing);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState("");
   const rendered = renderEquation(value, false);
@@ -1095,6 +1109,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
       />
       {editing ? (
         <form
+          ref={bounds}
           className="inline-math-form selection-toolbar"
           contentEditable={false}
           role="dialog"
@@ -1113,7 +1128,9 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
             if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) setEditing(false);
           }}
         >
+          <label className="form-label" htmlFor="inline-math-source">LaTeX</label>
           <Input
+            id="inline-math-source"
             autoFocus
             aria-label="LaTeX"
             data-testid="inline-math-source"
