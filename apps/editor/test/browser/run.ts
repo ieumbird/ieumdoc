@@ -14,6 +14,54 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 
 const URL = "http://127.0.0.1:5173";
 const SESSION = "ieumdoc-browser-regression";
+const CONSOLE_MONITOR_START = `async page => {
+  // The same CLI page is reused, so restore its default viewport after visual scenarios resize it.
+  await page.setViewportSize({width: 1280, height: 720});
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement?.blur(); });
+  const key = "__ieumdocBrowserConsoleMonitor";
+  if (page[key]) throw new Error("Browser console monitor is already active.");
+  const errors = [];
+  const listener = message => {
+    if (message.type() === "error") {
+      const location = message.location();
+      errors.push(message.text() + (location.url ? " @ " + location.url : ""));
+    }
+  };
+  const pageErrorListener = error => errors.push("Uncaught page error: " + error.message);
+  page.on("console", listener);
+  page.on("pageerror", pageErrorListener);
+  page[key] = {errors, listener, pageErrorListener};
+  return {consoleMonitor: true};
+}`;
+const CONSOLE_MONITOR_END = `async page => {
+  const key = "__ieumdocBrowserConsoleMonitor";
+  const monitor = page[key];
+  if (!monitor) throw new Error("Browser console monitor was lost during the scenario.");
+  page.off("console", monitor.listener);
+  page.off("pageerror", monitor.pageErrorListener);
+  delete page[key];
+  return monitor.errors;
+}`;
+const BROWSER_STATE_DIAGNOSTIC = `async page => page.evaluate(() => {
+  const visible = element => !!element && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
+  const editor = document.querySelector(".document-editor");
+  const instance = editor?.editor;
+  const selection = instance?.state.selection;
+  const active = document.activeElement;
+  return {
+    url: location.href,
+    viewport: [innerWidth, innerHeight],
+    activeElement: active ? {tag: active.tagName, testId: active.getAttribute("data-testid"), role: active.getAttribute("role"), label: active.getAttribute("aria-label"), className: typeof active.className === "string" ? active.className : ""} : null,
+    editorFocused: instance?.view.hasFocus() ?? false,
+    selection: selection ? {type: selection.constructor.name, empty: selection.empty, from: selection.from, to: selection.to, parent: selection.$from.parent.type.name, text: instance.state.doc.textBetween(selection.from, selection.to, " ")} : null,
+    visibleMenus: [...document.querySelectorAll('[role="menu"]')].filter(visible).map(element => ({label: element.getAttribute("aria-label"), text: element.innerText})),
+    visibleMenuItems: [...document.querySelectorAll('[role="menuitem"]')].filter(visible).map(element => element.innerText),
+    visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map(element => ({label: element.getAttribute("aria-label"), testId: element.getAttribute("data-testid")})),
+    status: document.querySelector('[data-testid="status"]')?.innerText ?? null,
+    editorTextLength: editor?.innerText.length ?? 0,
+  };
+})`;
 
 /** Scenarios in apps/editor/test/*.browser.js that pass reliably: currently all of them. */
 export const STABLE_SCENARIOS = [
@@ -51,6 +99,107 @@ function playwright(args: string[], capture: boolean) {
     stdio: capture ? ["ignore", "pipe", "pipe"] : "ignore",
     timeout: 10 * 60_000,
   });
+}
+
+function resultText(output: string): string | undefined {
+  const marker = "### Result";
+  const start = output.indexOf(marker);
+  if (start < 0) return undefined;
+  return output.slice(start + marker.length).replace(/^\r?\n/, "").split(/\r?\n### /, 1)[0].trim();
+}
+
+type ExpectedConsoleErrorRule = {
+  status: number;
+  pathname: string;
+  minimum: number;
+  queryPath?: RegExp;
+  description: string;
+};
+
+const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "editor-shell": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "mocked save rejection"},
+    {status: 409, pathname: "/api/document", minimum: 1, description: "mocked save conflict"},
+  ],
+  "open-files": [
+    {
+      status: 404,
+      pathname: "/document/diagram.svg",
+      queryPath: /^C:\\tmp\\ieumdoc-a\.md$/,
+      minimum: 1,
+      description: "missing diagram for mocked file A",
+    },
+    {
+      status: 404,
+      pathname: "/document/diagram.svg",
+      queryPath: /^C:\\tmp\\ieumdoc-b\.md$/,
+      minimum: 1,
+      description: "missing diagram for mocked file B",
+    },
+    {status: 409, pathname: "/api/document", minimum: 1, description: "mocked save conflict"},
+  ],
+  "save-during-edit": [
+    {status: 409, pathname: "/api/document", minimum: 1, description: "mocked save conflict"},
+  ],
+  "link-authoring": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable link save"},
+  ],
+  "inline-math-authoring": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable inline math save"},
+  ],
+  "admonition-authoring": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
+  ],
+  "source-view": [
+    {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected unpreservable Source preview"},
+  ],
+  "label-authoring": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},
+    {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected duplicate-label Source preview"},
+  ],
+};
+
+function classifyConsoleErrors(scenario: string, messages: string[]) {
+  const rules = EXPECTED_CONSOLE_ERRORS[scenario] ?? [];
+  const matched = rules.map(() => 0);
+  const unexpected: string[] = [];
+
+  for (const message of messages) {
+    const status = Number(message.match(/status of (\d{3}) \(/)?.[1]);
+    const location = message.match(/ @ (https?:\/\/\S+)$/)?.[1];
+    let url: URL | undefined;
+    try {
+      if (location) url = new globalThis.URL(location);
+    } catch {
+      // A malformed or non-HTTP console location cannot match an expected response.
+    }
+    const ruleIndex = rules.findIndex((rule) => status === rule.status && url?.pathname === rule.pathname &&
+      (!rule.queryPath || rule.queryPath.test(url.searchParams.get("path") ?? "")));
+    if (ruleIndex < 0) {
+      unexpected.push(message);
+    } else {
+      matched[ruleIndex] += 1;
+    }
+  }
+
+  const missing = rules.flatMap((rule, index) =>
+    matched[index] < rule.minimum ? [`${rule.minimum - matched[index]} × ${rule.description} (${rule.status} ${rule.pathname})`] : []);
+  const expected = rules.flatMap((rule, index) =>
+    matched[index] > 0 ? [`${rule.status} ${rule.pathname} × ${matched[index]} (${rule.description})`] : []);
+  return {expected, unexpected, missing};
+}
+
+function diagnosticOutput(output: string): string {
+  const sourceStart = output.indexOf("### Ran Playwright code");
+  if (sourceStart < 0) return output;
+  const nextSection = ["### Page", "### Events", "### Error"]
+    .map((section) => output.indexOf(`\n${section}`, sourceStart))
+    .filter((index) => index >= 0)
+    .sort((left, right) => left - right)[0];
+  const omitted = "### Ran Playwright code\n[scenario source omitted]\n";
+  return nextSection === undefined
+    ? `${output.slice(0, sourceStart)}${omitted}`
+    : `${output.slice(0, sourceStart)}${omitted}${output.slice(nextSection)}`;
 }
 
 /** A digest of every committed source file the scratch fixtures are made from. */
@@ -108,13 +257,58 @@ async function main(requested: string[]): Promise<number> {
     for (const name of scenarios) {
       prepareBrowserFixtures();
       const started = Date.now();
+      const monitorStart = playwright(["run-code", CONSOLE_MONITOR_START], true);
+      const monitorStartOutput = `${monitorStart.stdout ?? ""}${monitorStart.stderr ?? ""}`;
+      const monitorStarted = monitorStart.status === 0 && resultText(monitorStartOutput) !== undefined;
       const run = playwright(["run-code", `--filename=apps/editor/test/${name}.browser.js`], true);
       const output = `${run.stdout ?? ""}${run.stderr ?? ""}`;
-      const passed = run.status === 0 && output.includes("### Result");
+      const scenarioFailed = run.status !== 0 || !output.includes("### Result");
+      const browserDiagnostic = scenarioFailed
+        ? playwright(["run-code", BROWSER_STATE_DIAGNOSTIC], true)
+        : undefined;
+      const monitorEnd = playwright(["run-code", CONSOLE_MONITOR_END], true);
+      const monitorEndOutput = `${monitorEnd.stdout ?? ""}${monitorEnd.stderr ?? ""}`;
+      let consoleErrors: string[] | undefined;
+      try {
+        const value = resultText(monitorEndOutput);
+        if (monitorEnd.status === 0 && value !== undefined) {
+          const parsed: unknown = JSON.parse(value);
+          if (Array.isArray(parsed) && parsed.every((message) => typeof message === "string")) {
+            consoleErrors = parsed;
+          }
+        }
+      } catch {
+        // Treat malformed monitor output as a test harness failure below.
+      }
+      const consoleClassification = classifyConsoleErrors(name, consoleErrors ?? []);
+      const passed = run.status === 0 && output.includes("### Result") && monitorStarted &&
+        consoleErrors !== undefined && consoleClassification.unexpected.length === 0 &&
+        consoleClassification.missing.length === 0;
       console.log(`${passed ? "PASS" : "FAIL"} ${name} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+      if (!monitorStarted) {
+        failures.push(`${name} (console monitor setup)`);
+        console.log(`${monitorStartOutput}${monitorStart.error ? `\n${monitorStart.error.message}` : ""}`);
+      }
+      if (consoleErrors === undefined) {
+        failures.push(`${name} (console monitor result)`);
+        console.log(`${monitorEndOutput}${monitorEnd.error ? `\n${monitorEnd.error.message}` : ""}`);
+      } else {
+        for (const message of consoleClassification.expected) console.log(`  expected console error: ${message}`);
+        for (const message of consoleClassification.unexpected) console.log(`  unexpected console error: ${message}`);
+        for (const message of consoleClassification.missing) console.log(`  missing expected console error: ${message}`);
+        if (consoleClassification.unexpected.length > 0 || consoleClassification.missing.length > 0) {
+          failures.push(`${name} (console errors)`);
+        }
+      }
       if (!passed) {
-        failures.push(name);
-        console.log(output.split("\n").slice(0, 20).map((line) => `  ${line}`).join("\n"));
+        if (run.status !== 0 || !output.includes("### Result")) failures.push(name);
+        if (run.error) console.error(`  playwright-cli error: ${run.error.message}`);
+        console.log(diagnosticOutput(output).split("\n").map((line) => `  ${line}`).join("\n"));
+        if (browserDiagnostic) {
+          const diagnostic = `${browserDiagnostic.stdout ?? ""}${browserDiagnostic.stderr ?? ""}`;
+          const summary = resultText(diagnostic) ?? diagnosticOutput(diagnostic);
+          console.log(`  Browser state after failure:\n${summary.split("\n").map((line) => `    ${line}`).join("\n")}`);
+        }
       }
     }
   } finally {

@@ -203,7 +203,20 @@ async page => {
   await bounds(page.getByTestId('reference-form'),'Reference 704');
   await shot('704-reference');
   await page.getByTestId('reference-target').press('Escape');
-  await page.locator('.paragraph').first().dblclick();
+  // This check is about toolbar placement at a narrow viewport. Create a real text
+  // selection directly so a double-click landing on an inline atom does not make it flaky.
+  await page.evaluate(text => {
+    const editor = document.querySelector('.document-editor').editor;
+    let range;
+    editor.state.doc.descendants((node, position) => {
+      if (range || !node.isText) return;
+      const index = node.text.indexOf(text);
+      if (index >= 0) range = {from: position + index, to: position + index + text.length};
+    });
+    if (!range) throw new Error(`text not found: ${text}`);
+    editor.commands.setTextSelection(range);
+    editor.view.focus();
+  }, 'This document describes');
   await bounds(page.getByTestId('selection-toolbar'),'Selection toolbar 704');
   await page.getByRole('button',{name:'Link',exact:true}).click();
   await bounds(page.getByTestId('link-form'),'Link 704');

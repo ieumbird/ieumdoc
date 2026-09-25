@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-browser:
+    name: Core, CLI, Editor, and browser regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run Core, CLI, and Editor tests
+        run: pnpm test
+
+      - name: Build Editor for production
+        run: pnpm --filter @ieumdoc/editor build
+
+      - name: Install pinned Chromium and Linux dependencies
+        run: pnpm exec playwright-cli install-browser chromium --with-deps
+
+      - name: Run Editor browser regressions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          server_log="$RUNNER_TEMP/editor-vite.log"
+          session="ieumdoc-browser-regression"
+          setsid pnpm editor >"$server_log" 2>&1 &
+          server_pid=$!
+
+          cleanup() {
+            status=$?
+            trap - EXIT INT TERM
+
+            timeout --signal=TERM --kill-after=5s 15s \
+              pnpm exec playwright-cli -s="$session" close >/dev/null 2>&1 || true
+
+            if kill -0 -- "-$server_pid" 2>/dev/null; then
+              kill -TERM -- "-$server_pid" 2>/dev/null || true
+              for _ in {1..10}; do
+                kill -0 -- "-$server_pid" 2>/dev/null || break
+                sleep 1
+              done
+              kill -KILL -- "-$server_pid" 2>/dev/null || true
+            fi
+            wait "$server_pid" 2>/dev/null || true
+
+            if [ "$status" -ne 0 ]; then
+              echo "Editor dev server log (failure):"
+              cat "$server_log" || true
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+
+          ready=false
+          for _ in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5173/api/document >/dev/null; then
+              ready=true
+              break
+            fi
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              echo "Editor dev server exited before readiness."
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != true ]; then
+            echo "Editor dev server did not become ready at http://127.0.0.1:5173/api/document within 60 seconds."
+            exit 1
+          fi
+
+          pnpm browser:test
+
+      - name: Upload Editor dev server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: editor-browser-ci-logs
+          path: ${{ runner.temp }}/editor-vite.log
+          if-no-files-found: ignore
+          retention-days: 7
