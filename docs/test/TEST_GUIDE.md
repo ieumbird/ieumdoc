@@ -270,7 +270,7 @@ pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-cod
 
 ### CI 및 로컬 재현
 
-`.github/workflows/ci.yml`은 모든 pull request에서 Node.js `24.21.0` / pnpm `12.5.1`로 typecheck, Core / CLI / Editor 테스트, Editor production build와 `pnpm browser:test`를 실행한다. Chromium은 저장소가 고정한 `@playwright/cli`에서 설치하고 Linux 의존성은 매 실행에 확인한다. Browser 바이너리 cache key는 `pnpm-lock.yaml`을 사용한다. CI server는 `127.0.0.1:5173`에서 `/api/document`가 응답할 때까지 기다린 뒤 테스트하며, 종료 시 browser session과 Vite process group을 정리한다. 실패한 scenario의 전체 Playwright CLI 출력을 step log에 남기고 Vite log를 artifact로 올린다.
+`.github/workflows/ci.yml`은 모든 pull request에서 Node.js `24.21.0` / pnpm `12.5.1`로 typecheck, Core / CLI / Editor 테스트, Editor production build와 `pnpm browser:test`를 실행한다. Chromium은 저장소가 고정한 `@playwright/cli`에서 설치하고 Linux 의존성은 매 실행에 확인한다. Browser 바이너리 cache key는 `pnpm-lock.yaml`을 사용한다. CI server는 `127.0.0.1:5173`에서 `/api/document`가 응답할 때까지 기다린 뒤 테스트하며, 종료 시 browser session과 Vite process group을 정리한다. 실패 scenario의 Error/Result/Page/Events 출력과 실패 직후 browser state를 step log에 남기고 Vite log를 artifact로 올린다.
 
 로컬에서는 필요하면 `pnpm exec playwright-cli install-browser chromium`을 한 번 실행한 뒤, 기존과 같이 별도 터미널에서 `pnpm editor`, 다른 터미널에서 `pnpm browser:test`를 실행한다. 로컬과 CI는 같은 stable scenario runner와 명령을 사용한다. CI에서만 Chromium의 Linux system dependencies를 설치하며, Vite의 고정 port `5173`은 로컬에서도 비어 있어야 한다.
 
