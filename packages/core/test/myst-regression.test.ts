@@ -12,6 +12,8 @@ const inlineSource = '# Inline contract\n\nPlain **strong** and *emphasis* with 
 
 // Captured from master b290d29 before changing MyST or applying the security patch.
 // These outputs are the existing write contract, not snapshots of the new versions.
+// One intentional change since: Canonical Input Safety v1 keeps straight quotes as
+// written, so the inline-contract quote line is no longer typographic.
 for (const name of ["document", "technical-document", "inline-contract"]) {
   test(`MyST preserves the baseline canonical and semantic contract: ${name}`, () => {
     const source = name === "inline-contract" ? inlineSource
@@ -50,9 +52,8 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
   });
 }
 
-test("MyST security boundary keeps smartquotes on and linkification off", (t) => {
+test("MyST parse boundary keeps typographic quote substitution and linkification off", (t) => {
   const tokenizer = createTokenizer();
-  assert.equal(tokenizer.options.typographer, true);
   assert.equal(tokenizer.options.linkify, false);
 
   // Resolve the actual parser dependency, not a separately installed test copy.
@@ -66,7 +67,7 @@ test("MyST security boundary keeps smartquotes on and linkification off", (t) =>
     });
   }
   const document = parse('"Quoted" https://example.org mailto:test@example.org ' + "*".repeat(1000) + "!");
-  assert.equal(document.children[0].children?.[0].value?.toString().startsWith("“Quoted”"), true);
+  assert.equal(document.children[0].children?.[0].value?.toString().startsWith('"Quoted"'), true);
 });
 
 test("CSV-table parsing treats prototype-like headers as ordinary cells", () => {
@@ -96,13 +97,19 @@ test("Core preserves math source without invoking MyST's legacy KaTeX renderer",
 test("patched smartquotes handles the upstream pathological input in a bounded child process", () => {
   // A child timeout can stop a synchronous parser regression; node:test's timeout cannot.
   // This is a generous hang guard, not a machine-specific performance benchmark.
+  // Core parse no longer runs smartquotes, but the patched dependency is still installed:
+  // exercise it through MyST's default tokenizer, and Core parse on the same input.
   const coreUrl = new URL("./core-internal.ts", import.meta.url).href;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
     import assert from 'node:assert/strict';
+    import { createTokenizer } from 'myst-parser';
     import { parse, getEditableDocument } from ${JSON.stringify(coreUrl)};
-    const block = getEditableDocument(parse('"'.repeat(160000))).blocks[0];
+    const input = '"'.repeat(160000);
+    const inline = createTokenizer().parse(input, {}).find((token) => token.type === 'inline');
+    assert.equal(inline.children.map((token) => token.content).join(''), '“”'.repeat(80000));
+    const block = getEditableDocument(parse(input)).blocks[0];
     assert.equal(block.block, 'paragraph');
-    assert.equal(block.text, '“”'.repeat(80000));
+    assert.equal(block.text, input);
   `], { cwd: new URL("../", import.meta.url), encoding: "utf8", timeout: 10000 });
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 0, result.stderr);

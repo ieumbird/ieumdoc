@@ -667,6 +667,53 @@ test("CLI format fails before writing when canonical Markdown would lose semanti
   }
 });
 
+test("CLI writes typed straight quotes as written and formats byte-order-marked files", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-input-safety-"));
+  try {
+    const file = path.join(dir, "quotes.md");
+    writeFileSync(file, "# Title\n\nHello.\n");
+    for (const args of [
+      ["replace-text", file, "--from", "Hello.", "--to", "Don't panic."],
+      ["insert-block", file, "--at", "2", "--text", 'The state is "READY".'],
+      ["insert-heading", file, "--at", "1", "--level", "2", "--text", "What's new"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\n## What's new\n\nDon't panic.\n\nThe state is \"READY\".\n");
+
+    const marked = path.join(dir, "bom.md");
+    writeFileSync(marked, "\uFEFF# Heading\n\nBody.\n");
+    const formatted = run(["format", marked]);
+    assert.equal(formatted.status, 0, formatted.stderr);
+    assert.equal(readFileSync(marked, "utf8"), "# Heading\n\nBody.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI format fails on front matter without rewriting the file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
+  try {
+    for (const [name, source] of [
+      ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n"],
+      ["bom-front-matter.md", "\uFEFF---\ntitle: Example\n---\n\n# Heading\n"],
+    ]) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      for (const args of [["format", file], ["replace-text", file, "--from", "Heading", "--to", "Changed"]]) {
+        const result = run(args);
+        assert.equal(result.status, 1, `${name} ${args[0]}`);
+        assert.match(result.stderr, /cannot be preserved in canonical Markdown: .*front matter/, `${name} ${args[0]}`);
+        assert.deepEqual(readFileSync(file), before, `${name} ${args[0]}`);
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Core rejects lossy text updates before CLI overwrites a real file", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
   const file = path.join(dir, "document.md");

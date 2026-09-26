@@ -30,6 +30,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["layout-rules", "quiet-document"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
+  "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "figure-authoring": {
     files: [
       ...technical,
