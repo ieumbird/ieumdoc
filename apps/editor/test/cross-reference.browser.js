@@ -82,6 +82,8 @@ async page => {
   // C. A Figure reference at the caret from the slash menu.
   // End after a pointer click means the end of a *visual line*, which changes with
   // typography and viewport. Put the real editor caret at this paragraph's end.
+  // Focus synchronously: Tiptap's focus command focuses on a later animation frame,
+  // so typing right after it could reach the page body instead of the editor.
   await page.evaluate(() => {
     const editor = document.querySelector('.document-editor').editor;
     let end;
@@ -89,7 +91,9 @@ async page => {
       if (end === undefined && node.type.name === 'paragraph') end = position + node.nodeSize - 1;
     });
     if (end === undefined) throw Error('Reference paragraph missing');
-    editor.chain().focus().setTextSelection(end).run();
+    editor.commands.setTextSelection(end);
+    editor.view.focus();
+    if (!editor.view.hasFocus()) throw Error('Editor did not take focus');
   });
   await page.keyboard.type(' /fig');
   await page.getByRole('menuitem', {name:'Figure reference: fig-a'}).click();
