@@ -75,6 +75,7 @@ export const STABLE_SCENARIOS = [
   "equation-save-during-edit",
   "reference-save-reload",
   "quote-save-reload",
+  "writeability-preflight",
   "figure-authoring",
   "figure-draft-race",
   "table-cell-editing",
@@ -150,9 +151,6 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   ],
   "admonition-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
-  ],
-  "source-view": [
-    {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected unpreservable Source preview"},
   ],
   "label-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},

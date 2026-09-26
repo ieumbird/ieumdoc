@@ -39,7 +39,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
 });
 
 type NoticeProps = HTMLAttributes<HTMLDivElement> & {
-  tone?: "info" | "error";
+  tone?: "info" | "warning" | "error";
 };
 
 export function Notice({ className, role, tone = "info", ...props }: NoticeProps) {

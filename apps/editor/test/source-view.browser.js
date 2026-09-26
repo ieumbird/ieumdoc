@@ -1,7 +1,7 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view.browser.js.
 // Switches between Visual and the read-only Source view, checks that Source is the canonical
 // Markdown Save would write (including unsaved Visual edits), that the file is only written by
-// Save, that Equation/Figure drafts block Source, and that unpreservable documents fail closed.
+// Save, that Equation/Figure drafts block Source, and that unwritable documents keep Source blocked.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
 async page => {
@@ -127,21 +127,23 @@ async page => {
   result.sourceAvailableAfterCancel = await sourceView.isVisible();
   await showVisual();
 
-  // G. A document Core cannot preserve canonically fails closed: stays Visual, file unchanged.
+  // G. A document Core cannot write canonically has no Source: the open-time writeability warning
+  // already names the reason, Source stays disabled with a hint, nothing is requested, and the
+  // file is unchanged.
   await open(lossy);
-  const errorsBeforeRejectedPreview = problems.length;
+  await page.getByTestId('writeability-warning').waitFor();
   await page.getByText('Editable paragraph.', {exact:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' Changed');
-  await source.click();
-  await page.getByTestId('error').waitFor();
-  result.unpreservableFailsClosed = await sourceView.count() === 0 && await editor.isVisible() &&
-    /Source view unavailable: .*cannot be preserved in canonical Markdown/.test(await page.getByTestId('error').innerText());
+  await source.hover();
+  result.unpreservableSourceBlocked = await source.getAttribute('aria-disabled') === 'true' &&
+    await page.getByText('IeumDoc cannot write this document as canonical Markdown, so there is no Source to show.').isVisible() &&
+    /cannot be preserved in canonical Markdown: .*keyboard/.test(await page.getByTestId('writeability-warning').innerText());
+  await source.dispatchEvent('click');
+  result.unpreservableStaysVisual = await sourceView.count() === 0 && await editor.isVisible() &&
+    await page.getByTestId('error').count() === 0;
   result.unpreservableFileUnchanged = await markdown(lossy, 'keyboard.md') === lossyBefore;
   result.unpreservableEditKept = await page.getByText('Editable paragraph. Changed', {exact:true}).count() === 1;
-  // The rejected preview's HTTP 400 is the one expected console error.
-  const rejected = problems.splice(errorsBeforeRejectedPreview);
-  result.onlyRejectedPreviewLogged = rejected.length === 1 && rejected[0].includes('400 (Bad Request)');
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

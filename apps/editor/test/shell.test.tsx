@@ -67,6 +67,18 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
   }
 });
 
+test("an unwritable document shows Cannot save in place of the idle states", () => {
+  for (const [status, unsaved, expected] of [
+    ["Ready", false, "Cannot save"], ["Ready", true, "Cannot save"],
+    ["Opening…", false, "Opening…"], ["Open failed", false, "Open failed"],
+  ] as const) {
+    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
+      writable={false} view="visual" onViewChange={noop} saveDisabled saveHint="blocked" onSave={noop} /></TooltipProvider>);
+    assert.ok(html.includes(`data-operation="${status}" role="status">${expected}</p>`), `${status}, dirty=${unsaved}`);
+    assert.match(html, /aria-disabled="true"[^>]*data-testid="save"/);
+  }
+});
+
 test("top bar offers Visual and Source views left of status and Save", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
@@ -94,6 +106,14 @@ test("message area separates dismissible errors from expiring notices", () => {
   assert.match(html, /data-testid="message-area"/);
   assert.match(html, /data-testid="error" role="alert"[^>]*><span class="message-text">Save failed<\/span><button[^>]*aria-label="Dismiss error"/);
   assert.match(html, /data-testid="notice" role="status"[^>]*><span class="message-text">Discarded<\/span><\/div>/);
+});
+
+test("message area keeps the writeability warning without a dismiss control", () => {
+  const html = renderToStaticMarkup(
+    <MessageArea error="" notice="" warning="Cannot save: reason" onDismissError={noop} onNoticeExpired={noop} />,
+  );
+  assert.match(html, /data-testid="writeability-warning" role="status" class="ui-notice ui-notice--warning message"><span class="message-text">Cannot save: reason<\/span><\/div>/);
+  assert.doesNotMatch(html, /Dismiss/);
 });
 
 test("Open dialog renders nothing while closed", () => {

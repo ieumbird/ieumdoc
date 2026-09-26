@@ -289,6 +289,12 @@ button {
   color: var(--id-color-text-readonly);
 }
 
+.ui-notice--warning {
+  border-color: var(--id-color-warning);
+  background: var(--id-color-surface-warning);
+  color: var(--id-color-warning);
+}
+
 .ui-notice--error {
   border-color: var(--id-color-danger);
   background: var(--id-color-surface-danger);

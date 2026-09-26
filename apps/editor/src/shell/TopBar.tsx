@@ -8,6 +8,8 @@ type TopBarProps = {
   documentPath: string;
   status: string;
   unsaved?: boolean;
+  /** False when IeumDoc cannot write the open document as canonical Markdown. */
+  writable?: boolean;
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
@@ -22,11 +24,14 @@ type TopBarProps = {
 
 /** Document identity on the left; document state and document-level actions on the right. */
 export function TopBar({
-  documentPath, status, unsaved = false, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint, onSave,
+  documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
+  onSave,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
-  const displayStatus = idle ? (unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved") : status;
+  const displayStatus = idle
+    ? (!writable ? "Cannot save" : unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved")
+    : status;
   const sourceProps = {
     type: "button" as const,
     variant: "ghost" as const,

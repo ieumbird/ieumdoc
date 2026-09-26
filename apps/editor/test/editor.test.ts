@@ -13,6 +13,7 @@ import { deleteSelection, joinBackward, splitBlock } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import {
+  canonicalWriteError,
   getEditableDocument,
   inspectDocument,
   insertParagraph,
@@ -823,6 +824,76 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("Host reports canonical writeability with every document it opens, creates or saves", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-writeability-"));
+  const server = createServer((req, res) => {
+    void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const writable = path.join(dir, "writable.md");
+    writeFileSync(writable, "# Title\n\nBody.\n");
+    const blocked = path.join(dir, "front-matter.md");
+    const source = "---\ntitle: Example\n---\n\n# Heading\n\nBody.\n";
+    writeFileSync(blocked, source);
+    const before = readFileSync(blocked);
+
+    assert.equal(loadDocumentFile(writable).writeError, null);
+    // A document IeumDoc cannot write still opens, with its whole read model.
+    const opened = loadDocumentFile(blocked);
+    assert.deepEqual(opened.document.blocks.map((block) => block.block), ["unsupported", "heading", "paragraph"]);
+    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*front matter/);
+    assert.equal(opened.writeError, canonicalWriteError(parse(source)));
+    const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
+    assert.equal(response.status, 200);
+    assert.equal(((await response.json()) as { writeError: string | null }).writeError, opened.writeError);
+
+    // Preflight and Save judge the same snapshot the same way; the writer never runs.
+    let written = false;
+    assert.throws(() => commitDocumentSave(() => source, () => { written = true; }, {
+      revision: opened.revision,
+      paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }],
+    }), (error: unknown) => error instanceof Error && error.message === opened.writeError);
+    assert.equal(written, false);
+    assert.deepEqual(readFileSync(blocked), before);
+
+    assert.equal(createDocumentFile(path.join(dir, "new.md")).writeError, null);
+    const saved = await fetch(`http://127.0.0.1:${port}/api/document`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        path: writable,
+        revision: loadDocumentFile(writable).revision,
+        paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }],
+      }),
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(((await saved.json()) as { writeError: string | null }).writeError, null);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an unwritable document keeps Save and Source blocked for its session, and does not trap Open/New", () => {
+  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const body = (name: string) => {
+    const start = app.indexOf(`async function ${name}(`);
+    return app.slice(start, app.indexOf("\n  }\n", start));
+  };
+  // Every document response sets the writeability state; there is no other source for it.
+  for (const name of ["load", "save", "createFile"]) assert.match(body(name), /setWriteError\(next\.writeError\)/, name);
+  assert.match(body("save"), /if \(writeError\) return;/);
+  assert.match(body("showSource"), /if \(writeError\) return;/);
+  // Edits of a document that cannot be saved must not block leaving it.
+  for (const name of ["openFile", "createFile"]) {
+    assert.match(body(name), /if \(!writeError && editorRef\.current\?\.hasUnsavedChanges\(\)\)/, name);
+  }
+  assert.match(app, /saveDisabled=\{[^}]*Boolean\(writeError\)/);
 });
 
 test("Source preview is the canonical Markdown Save would write, without writing the file", async () => {
