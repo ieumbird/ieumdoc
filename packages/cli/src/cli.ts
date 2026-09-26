@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
+  canonicalWriteError,
   getEditableDocument,
   inspectDocument,
   insertParagraph,
@@ -84,7 +85,12 @@ const COMMANDS: CommandSpec[] = [
     name: "check",
     summary: "Validate a document",
     usage: "ieumdoc check <file> [--format <text|json>]",
-    details: ["Validate a document.", "Output format is text by default; JSON is available with --format json."],
+    details: [
+      "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
+      "Markdown without losing semantics (the same check format and Editor Save use).",
+      "Exits 1 when it cannot. Asset files and reference targets are not checked.",
+      "Output format is text by default; JSON is available with --format json.",
+    ],
   },
   {
     name: "inspect",
@@ -272,16 +278,20 @@ function main(argv: string[]): number {
     case "check": {
       const document = parse(readFile(file));
       validateStructure(document);
+      const writeError = canonicalWriteError(document);
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({
-          ok: true,
+          ok: writeError === undefined,
           command: "check",
           validation: { valid: true },
+          writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
         })}\n`);
       } else {
         process.stdout.write(`${summarize(document)}\n`);
+        if (writeError === undefined) process.stdout.write("writeability ok\n");
+        else process.stderr.write(`writeability failed: ${writeError}\n`);
       }
-      return 0;
+      return writeError === undefined ? 0 : 1;
     }
     case "inspect": {
       process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));

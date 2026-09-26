@@ -444,6 +444,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       ok: true,
       command: "check",
       validation: { valid: true },
+      writeability: { writable: true },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);
@@ -687,6 +688,80 @@ test("CLI writes typed straight quotes as written and formats byte-order-marked 
     const formatted = run(["format", marked]);
     assert.equal(formatted.status, 0, formatted.stderr);
     assert.equal(readFileSync(marked, "utf8"), "# Heading\n\nBody.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const CHECK_WRITABLE: [string, string][] = [
+  ["paragraph.md", "# Title\n\nA plain paragraph.\n"],
+  ["quotes.md", "Don't panic.\n\nThe state is \"READY\".\n"],
+  ["bom.md", "\uFEFF# Heading\n\nBody.\n"],
+];
+const CHECK_NOT_WRITABLE: [string, string, RegExp][] = [
+  ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n", /front matter/],
+  ["aligned-table.md", "| a | b |\n|:--|--:|\n| 1 | 2 |\n", /align "left" became \(absent\)/],
+  ["keyboard.md", "Press {kbd}`Ctrl` now.\n", /keyboard/],
+  ["image.md", "![alt](./x.png)\n", /image: align/],
+];
+
+test("CLI check reports canonical writeability after structural validity", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-writeability-"));
+  try {
+    for (const [name, source] of CHECK_WRITABLE) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const text = run(["check", file]);
+      assert.equal(text.status, 0, `${name}: ${text.stderr}`);
+      assert.match(text.stdout, /^structure valid\n0 /, name);
+      assert.match(text.stdout, /\nwriteability ok\n$/, name);
+      const json = run(["check", file, "--format", "json"]);
+      assert.equal(json.status, 0, name);
+      assert.deepEqual(JSON.parse(json.stdout).writeability, { writable: true }, name);
+    }
+    for (const [name, source, reason] of CHECK_NOT_WRITABLE) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      const text = run(["check", file]);
+      assert.equal(text.status, 1, name);
+      // Structural validity still holds and is still reported; writeability fails separately.
+      assert.match(text.stdout, /^structure valid\n0 /, name);
+      assert.doesNotMatch(text.stdout, /writeability ok/, name);
+      assert.match(text.stderr, /^writeability failed: Document contains semantic content that cannot be preserved in canonical Markdown: /, name);
+      assert.match(text.stderr, reason, name);
+      assert.doesNotMatch(text.stderr, /\n\s+at /, `${name}: no stack trace`);
+      const json = run(["check", file, "--format", "json"]);
+      assert.equal(json.status, 1, name);
+      const result = JSON.parse(json.stdout);
+      assert.equal(result.ok, false, name);
+      assert.deepEqual(result.validation, { valid: true }, name);
+      assert.equal(result.writeability.writable, false, name);
+      assert.match(result.writeability.error, reason, name);
+      assert.deepEqual(readFileSync(file), before, `${name}: check never writes`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("check says writable exactly when format can write the same snapshot", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-format-"));
+  try {
+    const sources: [string, string][] = [
+      ["technical.md", readFileSync(technicalFixture, "utf8")],
+      ["document.md", readFileSync(fixture, "utf8")],
+      ...CHECK_WRITABLE,
+      ...CHECK_NOT_WRITABLE.map(([name, source]): [string, string] => [name, source]),
+    ];
+    for (const [name, source] of sources) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const checked = run(["check", file]).status === 0;
+      const formatted = run(["format", file]);
+      assert.equal(formatted.status === 0, checked, `${name}: ${formatted.stderr}`);
+      if (!checked) assert.equal(readFileSync(file, "utf8"), source, name);
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
