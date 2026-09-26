@@ -492,6 +492,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
+- front matter가 있는 문서는 열고 읽을 수 있지만 `format`/Save는 파일을 쓰기 전에 실패한다(아래 "Canonical Input Safety v1"). front matter 편집·보존은 범위가 아니다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
@@ -840,3 +841,20 @@ pnpm exec playwright-cli -s=ieumdoc-xref close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Canonical Input Safety v1
+
+Core parse 경계(`packages/core/src/myst/parse.ts`)의 계약이다. canonical write guard는 parse 결과와 그 canonical Markdown을 다시 parse한 결과를 비교하므로, parse 자체가 바꾸는 것은 보지 못한다. 그래서 parse 경계에서 다음을 지킨다.
+
+- 입력한 텍스트는 그대로다. MyST 기본값인 typographic quote 치환(markdown-it `typographer` + `smartquotes`)을 끈다. `Don't panic.`, `The state is "READY".`는 Editor Save / CLI 쓰기 / Reload 뒤에도 곧은 따옴표로 남는다. 문서에 이미 있는 `“ ” ‘ ’`도 쓴 그대로 남는다.
+- 파일 맨 앞의 UTF-8 BOM은 인코딩 표시일 뿐 내용이 아니다. parse 전에 한 번 제거하므로 `<BOM># Heading`은 heading이다. Save / `format` 결과에는 BOM을 쓰지 않는다. 문서 중간의 U+FEFF는 내용으로 남는다.
+- front matter(`---`로 시작하는 문서 첫 block)는 읽을 수 있지만(Editor에서는 Unsupported block) canonical Markdown으로 보존할 수 없으므로 `format` / Editor Save / Source view / 다른 쓰기 명령이 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: … (front matter) …`로 실패한다. 판별은 MyST parser가 만든 첫 code block과 그 source 첫 글자로 한다. 문서 중간의 `---`(thematic break), setext heading, 문서 맨 앞의 ```` ```yaml ```` block은 front matter가 아니다. MyST는 닫는 `---`가 없어도 문서 끝까지를 front matter로 읽으므로 그런 문서도 쓰기가 거부된다.
+
+수동 확인:
+
+```bash
+printf '\xef\xbb\xbf# Heading\n\nBody.\n' > /tmp/bom.md && pnpm ieumdoc format /tmp/bom.md && head -c 12 /tmp/bom.md | od -c   # BOM 없이 "# Heading"
+printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc format /tmp/fm.md; cat /tmp/fm.md   # 실패, 파일 그대로
+```
+
+브라우저 회귀: `pnpm browser:test quote-save-reload`는 scratch 파일 `tmp/quote-save-reload/quotes.md`의 문단에 `Don't panic.`과 `The state is "READY".`를 입력하고 Save → Reload → 다시 열기 뒤 파일과 Editor가 입력 그대로인지 확인한다.
