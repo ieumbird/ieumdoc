@@ -12,6 +12,13 @@ const EQUATION_DRAFT_SAVE_HINT = "Apply or Cancel the Equation edit before savin
 const FIGURE_DRAFT_SAVE_HINT = "Apply or Cancel the Figure edit before saving.";
 const EQUATION_DRAFT_SOURCE_HINT = "Apply or Cancel the Equation edit before viewing Source.";
 const FIGURE_DRAFT_SOURCE_HINT = "Apply or Cancel the Figure edit before viewing Source.";
+const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
+const WRITE_BLOCKED_SOURCE_HINT = "IeumDoc cannot write this document as canonical Markdown, so there is no Source to show.";
+
+/** Shown for the whole session of a document Core cannot write as canonical Markdown. */
+function writeBlockedMessage(reason: string): string {
+  return `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. ${reason}`;
+}
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
@@ -28,8 +35,13 @@ export function App() {
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
-  const saveHint = equationDraftActive ? EQUATION_DRAFT_SAVE_HINT : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
-  const sourceHint = equationDraftActive ? EQUATION_DRAFT_SOURCE_HINT : figureDraftActive ? FIGURE_DRAFT_SOURCE_HINT : undefined;
+  // Core's canonical writeability of the loaded snapshot ("" when Save can write it). Set from
+  // every document response (Open, Reload, New, Save), never recomputed from editor state.
+  const [writeError, setWriteError] = useState("");
+  const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : equationDraftActive ? EQUATION_DRAFT_SAVE_HINT
+    : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
+  const sourceHint = writeError ? WRITE_BLOCKED_SOURCE_HINT : equationDraftActive ? EQUATION_DRAFT_SOURCE_HINT
+    : figureDraftActive ? FIGURE_DRAFT_SOURCE_HINT : undefined;
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
   const [sourcePending, setSourcePending] = useState(false);
@@ -50,6 +62,7 @@ export function App() {
     try {
       const next = await requestDocument("GET", requestedPath);
       setDocument(next.document);
+      setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
@@ -71,7 +84,8 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
     if (busy) return "Wait for the current operation to finish.";
-    if (editorRef.current?.hasUnsavedChanges()) {
+    // Changes to a document that cannot be saved must not trap the user in it.
+    if (!writeError && editorRef.current?.hasUnsavedChanges()) {
       return "Save or discard the current changes before opening another file.";
     }
     return load(requestedPath);
@@ -79,6 +93,7 @@ export function App() {
 
   async function save(): Promise<void> {
     if (!document || !editorRef.current || !openedPath) return;
+    if (writeError) return;
     if (equationDraftActive) return;
     if (figureDraftActive) return;
     setError("");
@@ -89,6 +104,7 @@ export function App() {
       const payload = collectSupportedEdits(document, submitted);
       const next = await requestDocument("POST", openedPath, { revision: sourceRevision, ...payload });
       setDocument(next.document);
+      setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       // A successful response must not replace input entered while saving.
@@ -112,6 +128,7 @@ export function App() {
    */
   async function showSource(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || busy) return;
+    if (writeError) return;
     if (equationDraftActive || figureDraftActive) return;
     setError("");
     setSourcePending(true);
@@ -131,7 +148,7 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be created.";
     if (busy) return "Wait for the current operation to finish.";
-    if (editorRef.current?.hasUnsavedChanges()) {
+    if (!writeError && editorRef.current?.hasUnsavedChanges()) {
       return "Save or discard the current changes before creating another file.";
     }
     setError("");
@@ -140,6 +157,7 @@ export function App() {
     try {
       const next = await requestDocument("PUT", requestedPath, { path: requestedPath });
       setDocument(next.document);
+      setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
@@ -171,17 +189,20 @@ export function App() {
             documentPath={openedPath}
             status={status}
             unsaved={documentDirty || equationDraftActive || figureDraftActive}
+            writable={!writeError}
             view={view}
             viewDisabled={!document || busy}
             sourceHint={sourceHint}
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-            saveDisabled={!document || status === "Saving…" || sourcePending || equationDraftActive || figureDraftActive}
+            saveDisabled={!document || status === "Saving…" || sourcePending || equationDraftActive || figureDraftActive ||
+              Boolean(writeError)}
             saveHint={saveHint}
             onSave={() => void save()}
           />
           <MessageArea
             error={error}
             notice={notice}
+            warning={writeError ? writeBlockedMessage(writeError) : ""}
             onDismissError={() => setError("")}
             onNoticeExpired={() => setNotice("")}
           />
@@ -233,6 +254,8 @@ type DocumentResponse = {
   path: string;
   document: EditableDocument;
   revision: string;
+  /** Why Core cannot write the snapshot as canonical Markdown; "" when it can. */
+  writeError: string;
 };
 
 class SaveConflictError extends Error {
@@ -257,6 +280,7 @@ async function requestDocument(
     path?: string;
     document?: EditableDocument;
     revision?: string;
+    writeError?: string | null;
     error?: string;
   };
   if (response.status === 409) {
@@ -265,7 +289,12 @@ async function requestDocument(
   if (!response.ok || !payload.document || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     throw new Error(payload.error ?? `request failed (${response.status})`);
   }
-  return { path: payload.path, document: payload.document, revision: payload.revision };
+  return {
+    path: payload.path,
+    document: payload.document,
+    revision: payload.revision,
+    writeError: typeof payload.writeError === "string" ? payload.writeError : "",
+  };
 }
 
 /** Asks the Host for the canonical Markdown a Save request would write. */

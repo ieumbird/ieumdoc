@@ -48,6 +48,21 @@ export function serialize(document: MystDocument): string {
 }
 
 /**
+ * Canonical writeability preflight: why the canonical write path would refuse this
+ * document, or undefined when it can write it. It runs `serialize` itself, so its verdict
+ * and reason are those of Save and `format` for the same snapshot. Nothing is written and
+ * the document is not changed (serialize works on a clone).
+ */
+export function canonicalWriteError(document: MystDocument): string | undefined {
+  try {
+    serialize(document);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/**
  * myst-to-md reports nodes it cannot render (rule `md-renders`) on the VFile,
  * writes an empty string for them and continues. In myst-to-md 1.0.17 every
  * message it emits means lost output, and supported documents emit none, so any

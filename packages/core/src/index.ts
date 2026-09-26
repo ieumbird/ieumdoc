@@ -8,7 +8,7 @@ import type { Document } from "./document.ts";
 import { inspectDocument as inspectTree } from "./document.ts";
 import { getEditableDocument as editableTree } from "./editable.ts";
 import { parse as parseTree } from "./myst/parse.ts";
-import { serialize as serializeTree } from "./myst/serialize.ts";
+import { canonicalWriteError as canonicalWriteErrorTree, serialize as serializeTree } from "./myst/serialize.ts";
 import type { MystDocument } from "./myst/tree.ts";
 import * as operations from "./operations.ts";
 import { validateStructure as validateTree } from "./validation.ts";
@@ -34,6 +34,8 @@ function fence<F>(implementation: F): Fenced<F> {
 
 export const parse = fence(parseTree);
 export const serialize = fence(serializeTree);
+/** Why canonical write (serialize) would refuse the document, or undefined when it is writable. */
+export const canonicalWriteError = fence(canonicalWriteErrorTree);
 export const getEditableDocument = fence(editableTree);
 export const inspectDocument = fence(inspectTree);
 export const validateStructure = fence(validateTree);

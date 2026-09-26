@@ -136,9 +136,10 @@ structure valid
 7 heading
 8 paragraph
 9 math
+writeability ok
 ```
 
-`structure valid`가 아니면 실패다.
+`structure valid`와 마지막 줄 `writeability ok`가 아니면 실패다. `check`의 의미는 아래 "Writeability Preflight v1"에 있다.
 
 ### 2-2. replace-text
 
@@ -492,7 +493,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
-- front matter가 있는 문서는 열고 읽을 수 있지만 `format`/Save는 파일을 쓰기 전에 실패한다(아래 "Canonical Input Safety v1"). front matter 편집·보존은 범위가 아니다.
+- front matter가 있는 문서는 열고 읽을 수 있지만 `format`/Save는 파일을 쓰기 전에 실패한다(아래 "Canonical Input Safety v1"). `check`는 이를 미리 알리고, Editor는 문서를 연 즉시 저장할 수 없다고 표시한다(아래 "Writeability Preflight v1"). front matter 편집·보존은 범위가 아니다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
@@ -783,7 +784,7 @@ Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`
 - `Visual`로 돌아오면 미저장 편집과 Undo/Redo가 그대로 남는다(Editor는 숨겨질 뿐 다시 만들어지지 않는다).
 - Save와 save status는 두 view에서 같다. Source에서 Save하면 보이던 Markdown이 그대로 저장된다. 다른 파일을 Open/New하면 Visual로 돌아간다.
 - Apply되지 않은 Equation/Figure draft가 있으면 `Source`는 비활성이고 tooltip으로 이유를 알려 준다.
-- Save가 거부할 상태(빈 paragraph, canonical Markdown으로 보존할 수 없는 문서, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다.
+- Save가 거부할 상태(빈 paragraph, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다. 열 때부터 canonical Markdown으로 쓸 수 없는 문서는 Source 자체가 비활성화되고 이유는 writeability 경고에 있다(아래 "Writeability Preflight v1").
 - CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본과 canonical 기준값 `expected.md`는 `pnpm browser:prepare`가 만든다):
@@ -858,3 +859,31 @@ printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc
 ```
 
 브라우저 회귀: `pnpm browser:test quote-save-reload`는 scratch 파일 `tmp/quote-save-reload/quotes.md`의 문단에 `Don't panic.`과 `The state is "READY".`를 입력하고 Save → Reload → 다시 열기 뒤 파일과 Editor가 입력 그대로인지 확인한다.
+
+## Writeability Preflight v1
+
+문서를 고치기 전에, IeumDoc이 그 문서를 canonical Markdown으로 의미를 잃지 않고 다시 쓸 수 있는지(canonical writeability) 알려 준다. 판단은 Core `canonicalWriteError(document)` 하나다. 이 함수는 `serialize`를 그대로 실행하므로 `format`과 Editor Save가 같은 snapshot에 내리는 판단·이유와 같다. 파일을 쓰지 않고 문서를 바꾸지 않는다.
+
+`pnpm ieumdoc check <file>`이 보장하는 것:
+
+- 파일을 읽어 parse할 수 있고 구조 검사(`structure valid`)를 통과한다.
+- 지금 이 파일에 `format`(또는 Editor Save)을 실행하면 의미를 보존한 canonical Markdown을 쓸 수 있다(`writeability ok`). 쓸 수 없으면 block 목록 뒤에 stderr로 `writeability failed: <이유>`를 출력하고 exit code 1로 끝난다. `--format json`은 `"writeability": {"writable": false, "error": "…"}`와 `"ok": false`를 준다.
+- `check`는 파일을 절대 쓰지 않는다.
+
+보장하지 않는 것: 이미지 등 asset 파일의 존재, reference target의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
+
+저장할 수 없는 예(모두 현재 canonical writer가 의미를 보존하지 못해 거부하는 것): front matter, 정렬이 있는 Markdown 표(`|:--|`), 단독 Markdown image, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
+
+```bash
+printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md
+pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid / 0 code / 1 heading, stderr: writeability failed: …(front matter)…, exit=1
+```
+
+Editor:
+
+- 저장할 수 없는 문서도 정상으로 열리고 내용이 그대로 보인다(`Open failed`가 아니다). 연 즉시 top bar 아래에 닫을 수 없는 경고 `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. <이유>`가 보이고, status는 `Cannot save`다.
+- 편집은 막지 않지만 그 문서가 열려 있는 동안 Save와 Source는 비활성화된다(tooltip이 이유를 알려 준다). 저장할 수 없으므로 편집이 남아 있어도 Open/New로 다른 문서로 옮길 수 있다.
+- writeability는 문서 응답(Open, Reload, New, Save)마다 Host가 Core로 계산한다. 편집 중 매 입력마다 다시 계산하지 않는다. 저장할 수 없는 block을 지워도 그 세션의 Save는 계속 비활성화된다. 파일을 고친 뒤 다시 연다.
+- 저장 가능한 문서의 Ready/Save/Source 동작은 그대로다.
+
+브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch의 front matter 문서를 열어 내용·경고·`Cannot save`를 확인하고, 편집 뒤에도 Save/Source가 요청을 보내지 않으며 파일이 byte 단위로 그대로인지 확인한다. 이어서 저장 가능한 문서를 열어 정상 Save를 확인하고, front matter 문서를 다시 열어 경고가 돌아오는지 확인한다.

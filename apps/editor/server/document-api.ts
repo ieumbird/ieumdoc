@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  canonicalWriteError,
   getEditableDocument,
   inlineContentLength,
   insertHeading,
@@ -104,7 +105,15 @@ export type DocumentFileResponse = {
   path: string;
   document: EditableDocument;
   revision: string;
+  /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
+  writeError: string | null;
 };
+
+/** The read model and canonical writeability of one parsed snapshot. */
+function readModel(source: string): { document: EditableDocument; writeError: string | null } {
+  const document = parse(source);
+  return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null };
+}
 
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
 const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
@@ -140,11 +149,7 @@ export function documentRevision(source: string): string {
 export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath);
   const source = readFileSync(filePath, "utf8");
-  return {
-    path: filePath,
-    document: loadEditableDocument(source),
-    revision: documentRevision(source),
-  };
+  return { path: filePath, ...readModel(source), revision: documentRevision(source) };
 }
 
 export function createDocumentFile(requestedPath?: string): DocumentFileResponse {
@@ -197,7 +202,7 @@ export function previewDocumentFile(requestedPath: string | undefined, request: 
 export function saveCurrentDocument(
   source: string,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; revision: string } {
+): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
   if (request.revision !== documentRevision(source)) {
     throw new DocumentConflictError();
   }
@@ -222,7 +227,7 @@ export function commitDocumentSave(
   readSource: () => string,
   writeSource: (markdown: string) => void,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; revision: string } {
+): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
   const source = readSource();
   const saved = saveCurrentDocument(source, request);
   writeSource(saved.markdown);
@@ -232,7 +237,7 @@ export function commitDocumentSave(
 export function saveEdits(
   source: string,
   edits: SupportedEdits,
-): { markdown: string; document: EditableDocument } {
+): { markdown: string; document: EditableDocument; writeError: string | null } {
   const editable = loadEditableDocument(source);
   let document = parse(source);
   for (const edit of edits.headings ?? []) {
@@ -459,7 +464,7 @@ export function saveEdits(
   }
   validateStructure(document);
   const markdown = serialize(document);
-  return { markdown, document: getEditableDocument(parse(markdown)) };
+  return { markdown, ...readModel(markdown) };
 }
 
 export async function handleDocumentRequest(
@@ -522,7 +527,7 @@ export async function handleDocumentRequest(
       const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
       try {
         const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
-        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision });
+        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError });
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });

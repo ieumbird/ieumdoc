@@ -31,6 +31,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
+  "writeability-preflight": {
+    files: [fixture("front-matter.md"), fixture("writable.md")],
+    scenarios: ["writeability-preflight"],
+  },
   "figure-authoring": {
     files: [
       ...technical,
