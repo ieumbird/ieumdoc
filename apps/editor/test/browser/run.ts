@@ -74,6 +74,7 @@ export const STABLE_SCENARIOS = [
   "equation-insertion",
   "equation-save-during-edit",
   "reference-save-reload",
+  "quote-save-reload",
   "figure-authoring",
   "figure-draft-race",
   "table-cell-editing",

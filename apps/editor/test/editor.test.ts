@@ -1369,6 +1369,62 @@ test("lossy supported edits are rejected before the file write callback", () => 
   }
 });
 
+test("typed straight quotes save through the Editor adapter and Host and reload as typed", () => {
+  const input = "# Title\n\nHello.\n\n| Key | Value |\n| --- | --- |\n| state | idle |\n";
+  const editable = loadEditableDocument(input);
+  const projected = normalizedDocument(toTiptapDocument(editable));
+  const [heading, paragraph, table] = projected.content!;
+  heading.content = [{ type: "text", text: "User's guide" }];
+  paragraph.content = [
+    { type: "text", text: "Don't panic. The state is " },
+    { type: "text", text: '"READY"', marks: [{ type: "bold" }] },
+    { type: "text", text: "." },
+  ];
+  table.content![1].content![1].content = [{ type: "text", text: "it's \"on\"" }];
+  let written = "";
+  const saved = commitDocumentSave(() => input, (markdown) => { written = markdown; },
+    { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) });
+  assert.equal(written, saved.markdown);
+  assert.equal(written, "# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n");
+  const reloaded = loadEditableDocument(written);
+  assert.deepEqual(reloaded, saved.document);
+  assert.deepEqual(normalizedDocument(toTiptapDocument(reloaded)), projected);
+});
+
+test("a byte-order-marked file opens with its heading and saves without the mark", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-bom-"));
+  try {
+    const file = path.join(dir, "bom.md");
+    const bytes = "\uFEFF# Heading\n\nBody.\n";
+    writeFileSync(file, bytes);
+    const loaded = loadDocumentFile(file);
+    assert.deepEqual(loaded.document, loadEditableDocument("# Heading\n\nBody.\n"));
+    assert.equal(loaded.revision, documentRevision(bytes));
+    const saved = saveDocumentFile(file, {
+      revision: loaded.revision,
+      paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }],
+    });
+    assert.equal(readFileSync(file, "utf8"), "# Heading\n\nChanged.\n");
+    assert.equal(saved.revision, documentRevision("# Heading\n\nChanged.\n"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an Editor save or Source preview never rewrites front matter", () => {
+  const input = "---\ntitle: Example\n---\n\n# Heading\n\nBody.\n";
+  const editable = loadEditableDocument(input);
+  assert.equal(editable.blocks[0].block, "unsupported");
+  const projected = normalizedDocument(toTiptapDocument(editable));
+  projected.content![2].content = [{ type: "text", text: "Changed." }];
+  const request = { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) };
+  let written = false;
+  assert.throws(() => commitDocumentSave(() => input, () => { written = true; }, request),
+    /cannot be preserved in canonical Markdown: .*front matter/);
+  assert.equal(written, false);
+  assert.throws(() => saveCurrentDocument(input, request), /front matter/);
+});
+
 test("hard breaks and marks survive editable projection, save and reload", () => {
   for (const source of ["AB", "**AB**", "*AB*", "***AB***"]) {
     const editable = loadEditableDocument(source);

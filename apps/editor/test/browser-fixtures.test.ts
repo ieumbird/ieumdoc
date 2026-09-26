@@ -55,6 +55,7 @@ test("prepared scratch files start as copies of their sources, with the derived 
     ["cross-reference", "refs.md"],
     ["table-cell-editing", "mixed-table.md"],
     ["source-view", "keyboard.md"],
+    ["quote-save-reload", "quotes.md"],
   ]) {
     assert.deepEqual(readFileSync(path.join(tmp, dir, name)), readFileSync(path.join(fixtureDir, name)), `${dir}/${name}`);
   }
