@@ -97,4 +97,9 @@ Open `http://localhost:5173`. The working file is `apps/editor/document/technica
 
 사람이 따라 하는 절차는 [docs/test/TEST_GUIDE.md](docs/test/TEST_GUIDE.md)에 있다.
 
+## Issues
+
+[표준 템플릿으로 이슈 작성](https://github.com/ieumbird/ieumdoc/issues/new/choose).
+작성 원칙과 CLI/API 등록 방법은 [이슈 작성 안내](docs/contributing/issues.md)를 참고한다.
+
 
