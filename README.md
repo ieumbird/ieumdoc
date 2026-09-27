@@ -100,6 +100,6 @@ Open `http://localhost:5173`. The working file is `apps/editor/document/technica
 ## Issues
 
 [표준 템플릿으로 이슈 작성](https://github.com/ieumbird/ieumdoc/issues/new/choose).
-ChatGPT·API를 통한 등록과 연결 확인은 [이슈 작성 안내](docs/contributing/issues.md)를 참고한다.
+작성 원칙과 CLI/API 등록 방법은 [이슈 작성 안내](docs/contributing/issues.md)를 참고한다.
 
 

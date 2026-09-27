@@ -9,10 +9,10 @@ import {
   updateEquationLatex,
   updateNodeTextAtPath,
   validateStructure,
-  type Document,
-  type DocumentNode,
+  type MystDocument,
+  type MystNode,
   type NodePath,
-} from "../src/index.ts";
+} from "./core-internal.ts";
 
 const ADMONITION_FROM = "The current controller parameters must be calibrated before operation.";
 const ADMONITION_TO = "The current controller parameters must be calibrated.";
@@ -171,13 +171,13 @@ test("second serialization is stable", () => {
   assert.equal(output1, output2);
 });
 
-function modify(document: Document): Document {
+function modify(document: MystDocument): MystDocument {
   const withAdmonition = updateNodeTextAtPath(document, ADMONITION_PATH, ADMONITION_FROM, ADMONITION_TO);
   const withCaption = updateNodeTextAtPath(withAdmonition, CAPTION_PATH, CAPTION_FROM, CAPTION_TO);
   return updateNodeTextAtPath(withCaption, CELL_PATH, CELL_FROM, CELL_TO);
 }
 
-function hasReference(node: DocumentNode, target: string): boolean {
+function hasReference(node: MystNode, target: string): boolean {
   if (node.type === "link" && String(node.url ?? "") === `#${target}`) return true;
   if (
     node.type === "crossReference" &&
@@ -189,10 +189,10 @@ function hasReference(node: DocumentNode, target: string): boolean {
 }
 
 function findNode(
-  node: DocumentNode,
+  node: MystNode,
   type: string,
-  predicate?: (node: DocumentNode) => boolean,
-): DocumentNode | undefined {
+  predicate?: (node: MystNode) => boolean,
+): MystNode | undefined {
   if (node.type === type && (!predicate || predicate(node))) return node;
   for (const child of node.children ?? []) {
     const found = findNode(child, type, predicate);
@@ -201,7 +201,7 @@ function findNode(
   return undefined;
 }
 
-function collectTypes(node: DocumentNode, types = new Set<string>()): Set<string> {
+function collectTypes(node: MystNode, types = new Set<string>()): Set<string> {
   types.add(node.type);
   for (const child of node.children ?? []) collectTypes(child, types);
   return types;

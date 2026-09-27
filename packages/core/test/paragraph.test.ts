@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
-import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type Document} from '../src/index.ts';
+import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type MystDocument} from './core-internal.ts';
 import {projectInlineContent,inlineContentText,assertInlineContent,inlineContentToNodes} from '../src/inline.ts';
 
-function stable(d: Document) {
+function stable(d: MystDocument) {
   validateStructure(d);
   const markdown=serialize(d), reparsed=parse(markdown);
   validateStructure(reparsed);
   assert.equal(serialize(reparsed),markdown);
   return reparsed;
 }
-function content(d: Document,index=0) { return projectInlineContent(d.children[index])!; }
-function text(d: Document,index=0) { return inlineContentText(content(d,index)); }
+function content(d: MystDocument,index=0) { return projectInlineContent(d.children[index])!; }
+function text(d: MystDocument,index=0) { return inlineContentText(content(d,index)); }
 for(const [source,offset] of [['ABCD',2],['**ABCD**',2],['*ABCD*',2],['**A*BC*D**',2],['A**BC**D',1]] as const) {
   test(`hard break preserves marks: ${source}`,()=>{
     const original=parse(source), before=serialize(original);
@@ -64,12 +64,13 @@ for(const offset of [0,4,5,-1,1.5,NaN,Infinity]) {
 }
 test('paragraph operations fail closed for paths, types and unsupported inline',()=>{
   for(const operation of [insertHardBreak,splitParagraph]) {
-    for(const source of ['# Heading','[link](https://example.com)','See {ref}`target`.']) assert.throws(()=>operation(parse(source),[0],2));
+    // Plain links are supported inline content (see link.test.ts); these forms are not.
+    for(const source of ['# Heading','See {ref}`target`.','[](#target) and text','[a `code` link](u)','{download}`./file.zip` text']) assert.throws(()=>operation(parse(source),[0],2));
     for(const path of [[],[99],[-1],[0.5]]) assert.throws(()=>operation(parse('ABCD'),path,2));
   }
   assert.throws(()=>splitParagraph(parse('> ABCD'),[0,0],2),/top-level/);
   assert.throws(()=>mergeParagraphWithPrevious(parse('> ABCD'),[0,0]),/top-level/);
-  for(const source of ['ABCD','# Heading\n\nABCD','$$\nx=1\n$$\n\nABCD','[link](url)\n\nABCD','ABCD\n\n[link](url)','ABCD\n\n# Heading']) {
+  for(const source of ['ABCD','# Heading\n\nABCD','$$\nx=1\n$$\n\nABCD','[](#target)\n\nABCD','ABCD\n\n[a `code` link](u)','ABCD\n\n# Heading']) {
     assert.throws(()=>mergeParagraphWithPrevious(parse(source),[source==='ABCD'?0:1]));
   }
 });
@@ -100,7 +101,7 @@ test('unrelated technical semantics survive each operation despite shifted paths
 });
 
 test("empty and whitespace-only persistent split results are rejected", () => {
-  const document: Document = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: " A" }] }] };
+  const document: MystDocument = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: " A" }] }] };
   assert.throws(() => splitParagraph(document, [0], 1), /non-empty/);
 });
 

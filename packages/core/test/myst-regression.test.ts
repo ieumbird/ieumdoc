@@ -6,12 +6,14 @@ import test from "node:test";
 import { createTokenizer } from "myst-parser";
 import {
   getEditableDocument, getNode, inspectDocument, parse, serialize, validateStructure,
-} from "../src/index.ts";
+} from "./core-internal.ts";
 
 const inlineSource = '# Inline contract\n\nPlain **strong** and *emphasis* with **nested *marks***.  \nHard break, $x + y$, and [a link](https://example.org "title").\n\n"Quoted" and \'single\' quotes; don\'t change smartquotes.\n';
 
 // Captured from master b290d29 before changing MyST or applying the security patch.
 // These outputs are the existing write contract, not snapshots of the new versions.
+// One intentional change since: Canonical Input Safety v1 keeps straight quotes as
+// written, so the inline-contract quote line is no longer typographic.
 for (const name of ["document", "technical-document", "inline-contract"]) {
   test(`MyST preserves the baseline canonical and semantic contract: ${name}`, () => {
     const source = name === "inline-contract" ? inlineSource
@@ -32,14 +34,16 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
     assert.equal(serialize(reparsed), canonical);
 
     if (name === "technical-document") {
-      // The existing serializer writes the eq role as an equivalent fragment link.
-      // Keep both the original reference target and its canonical write form explicit.
-      assert.equal(getNode(original, [2, 3]).type, "crossReference");
-      assert.equal(getNode(original, [2, 3]).identifier, "eq-current");
-      assert.equal(getNode(reparsed, [2, 3]).type, "link");
-      assert.equal(getNode(reparsed, [2, 3]).url, "#eq-current");
+      // Issue #12: the {eq} role stays a semantic reference (formerly written as
+      // `[](#eq-current)` and reparsed as a link); `[](#...)` stays an ordinary link.
       for (const document of [original, reparsed]) {
+        assert.equal(getNode(document, [2, 3]).type, "crossReference");
+        assert.equal(getNode(document, [2, 3]).kind, "eq");
+        assert.equal(getNode(document, [2, 3]).identifier, "eq-current");
+        assert.equal(getNode(document, [2, 1]).type, "link");
         assert.equal(getNode(document, [2, 1]).url, "#fig-control");
+        assert.equal(getNode(document, [10, 1]).type, "link");
+        assert.equal(getNode(document, [10, 1]).url, "#eq-current");
         assert.equal(getNode(document, [6]).label, "fig-control");
         assert.equal(getNode(document, [6, 0]).url, "./diagram.svg");
         assert.equal(getNode(document, [9]).label, "eq-current");
@@ -48,9 +52,8 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
   });
 }
 
-test("MyST security boundary keeps smartquotes on and linkification off", (t) => {
+test("MyST parse boundary keeps typographic quote substitution and linkification off", (t) => {
   const tokenizer = createTokenizer();
-  assert.equal(tokenizer.options.typographer, true);
   assert.equal(tokenizer.options.linkify, false);
 
   // Resolve the actual parser dependency, not a separately installed test copy.
@@ -64,7 +67,7 @@ test("MyST security boundary keeps smartquotes on and linkification off", (t) =>
     });
   }
   const document = parse('"Quoted" https://example.org mailto:test@example.org ' + "*".repeat(1000) + "!");
-  assert.equal(document.children[0].children?.[0].value?.toString().startsWith("“Quoted”"), true);
+  assert.equal(document.children[0].children?.[0].value?.toString().startsWith('"Quoted"'), true);
 });
 
 test("CSV-table parsing treats prototype-like headers as ordinary cells", () => {
@@ -94,13 +97,19 @@ test("Core preserves math source without invoking MyST's legacy KaTeX renderer",
 test("patched smartquotes handles the upstream pathological input in a bounded child process", () => {
   // A child timeout can stop a synchronous parser regression; node:test's timeout cannot.
   // This is a generous hang guard, not a machine-specific performance benchmark.
-  const coreUrl = new URL("../src/index.ts", import.meta.url).href;
+  // Core parse no longer runs smartquotes, but the patched dependency is still installed:
+  // exercise it through MyST's default tokenizer, and Core parse on the same input.
+  const coreUrl = new URL("./core-internal.ts", import.meta.url).href;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
     import assert from 'node:assert/strict';
+    import { createTokenizer } from 'myst-parser';
     import { parse, getEditableDocument } from ${JSON.stringify(coreUrl)};
-    const block = getEditableDocument(parse('"'.repeat(160000))).blocks[0];
+    const input = '"'.repeat(160000);
+    const inline = createTokenizer().parse(input, {}).find((token) => token.type === 'inline');
+    assert.equal(inline.children.map((token) => token.content).join(''), '“”'.repeat(80000));
+    const block = getEditableDocument(parse(input)).blocks[0];
     assert.equal(block.block, 'paragraph');
-    assert.equal(block.text, '“”'.repeat(80000));
+    assert.equal(block.text, input);
   `], { cwd: new URL("../", import.meta.url), encoding: "utf8", timeout: 10000 });
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 0, result.stderr);

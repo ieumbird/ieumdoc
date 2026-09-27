@@ -1,10 +1,17 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import {
+  canonicalWriteError,
   getEditableDocument,
+  isAdmonitionVariant,
   inspectDocument,
   insertParagraph,
   insertHeading,
+  insertAdmonition,
   insertEquation,
+  insertFigure,
+  insertTable,
+  insertTableRow,
+  insertTableColumn,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -14,9 +21,14 @@ import {
   replaceText,
   serialize,
   updateNodeTextAtPath,
+  updateHeadingLevel,
   updateEquationLatex,
+  updateFigure,
+  updateLabel,
+  updateTableCell,
   validateStructure,
   type Document,
+  type AdmonitionVariant,
   type EditableBlock,
   type EditableDocument,
   type NodePath,
@@ -48,9 +60,13 @@ const PARAGRAPH_PATH_NOTE = [
 ];
 const OFFSET_NOTE = [
   "Offset is measured in UTF-16 code units over rendered paragraph content.",
-  "A hard break counts as one character position.",
+  "A hard break and an inline math expression each count as one character position.",
   "Offset must be strictly inside the paragraph (0 < offset < length).",
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
+];
+const FIGURE_NOTE = [
+  "The image URL is required. An empty --alt or --caption removes that property.",
+  "The caption is plain text. Values that cannot round-trip through canonical Markdown are rejected.",
 ];
 const COMMANDS: CommandSpec[] = [
   {
@@ -76,7 +92,12 @@ const COMMANDS: CommandSpec[] = [
     name: "check",
     summary: "Validate a document",
     usage: "ieumdoc check <file> [--format <text|json>]",
-    details: ["Validate a document.", "Output format is text by default; JSON is available with --format json."],
+    details: [
+      "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
+      "Markdown without losing semantics (the same check format and Editor Save use).",
+      "Exits 1 when it cannot. Asset files and reference targets are not checked.",
+      "Output format is text by default; JSON is available with --format json.",
+    ],
   },
   {
     name: "inspect",
@@ -123,12 +144,52 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "insert-admonition",
+    summary: "Insert a simple Note or Warning admonition",
+    usage: "ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>",
+    details: [
+      "Insert a top-level Note or Warning admonition through Core.",
+      "The body must contain non-empty text.",
+    ],
+  },
+  {
+    name: "update-heading-level",
+    summary: "Change an editable Heading's level through Core",
+    usage: "ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>",
+    details: [
+      "Change one editable top-level Heading from its current level to another level.",
+      "The current level must match --from.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
     name: "insert-equation",
     summary: "Insert an Equation block at a top-level index",
     usage: "ieumdoc insert-equation <file> --at <index> --latex <latex>",
     details: [
       "Insert an Equation block at a top-level index.",
       "The Equation LaTeX source must be non-empty.",
+    ],
+  },
+  {
+    name: "insert-figure",
+    summary: "Insert a Figure block at a top-level index",
+    usage: "ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]",
+    details: [
+      "Insert a Figure block at a top-level index.",
+      ...FIGURE_NOTE,
+      "The new Figure has no label; set one with update-label.",
+    ],
+  },
+  {
+    name: "update-figure",
+    summary: "Update a Figure's image, alt text, or caption through Core",
+    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]",
+    details: [
+      "Update one top-level Figure through Core. Omitted properties are unchanged.",
+      ...FIGURE_NOTE,
+      "The Figure label is preserved; change it with update-label.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -142,6 +203,48 @@ const COMMANDS: CommandSpec[] = [
     summary: "Move a top-level block",
     usage: "ieumdoc move-block <file> --from <index> --to <index>",
     details: ["Move a top-level block."],
+  },
+  {
+    name: "insert-table",
+    summary: "Insert a Markdown table at a top-level index",
+    usage: "ieumdoc insert-table <file> --at <index> --cells <json>",
+    details: [
+      "Insert a Markdown table at a top-level index.",
+      "--cells is a JSON array of rows, each an array of cell texts; the first row is the header row.",
+      "Every row needs the same number of cells. Cells may be empty.",
+      "Cell text must be one line without leading or trailing whitespace.",
+      "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
+    ],
+  },
+  {
+    name: "insert-table-row",
+    summary: "Insert an empty row into a Markdown table",
+    usage: "ieumdoc insert-table-row <file> --path <table> --at <row>",
+    details: [
+      "Insert an empty body row into a top-level Markdown table.",
+      "Row 0 is the header row, so --at is from 1 to the row count (the end).",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-table-column",
+    summary: "Insert an empty column into a Markdown table",
+    usage: "ieumdoc insert-table-column <file> --path <table> --at <column>",
+    details: [
+      "Insert an empty column, header cell included, into a top-level Markdown table.",
+      "--at is from 0 to the column count (the end).",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "update-table-cell",
+    summary: "Replace the text of a Markdown table cell through Core",
+    usage: "ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>",
+    details: [
+      "Replace the whole text of one cell in a top-level Markdown table. Use an empty --text to clear it.",
+      "Only empty or plain-text cells are editable; the text must be one line without leading or trailing whitespace.",
+      ...PATH_NOTE,
+    ],
   },
   {
     name: "update-node-text",
@@ -165,6 +268,17 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Update one Equation's LaTeX source through Core.",
       "The label and document structure must remain unchanged.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "update-label",
+    summary: "Set, change, or remove an Equation or Figure label through Core",
+    usage: "ieumdoc update-label <file> --path <index> --label <label>",
+    details: [
+      "Set the label (reference target name) of one top-level Equation or Figure. Use an empty --label to remove it.",
+      "The label must be one line without leading or trailing spaces, be referenceable, and not name another target in the document.",
+      "References to the old label are not renamed.",
       ...PATH_NOTE,
     ],
   },
@@ -222,16 +336,20 @@ function main(argv: string[]): number {
     case "check": {
       const document = parse(readFile(file));
       validateStructure(document);
+      const writeError = canonicalWriteError(document);
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({
-          ok: true,
+          ok: writeError === undefined,
           command: "check",
           validation: { valid: true },
+          writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
         })}\n`);
       } else {
         process.stdout.write(`${summarize(document)}\n`);
+        if (writeError === undefined) process.stdout.write("writeability ok\n");
+        else process.stderr.write(`writeability failed: ${writeError}\n`);
       }
-      return 0;
+      return writeError === undefined ? 0 : 1;
     }
     case "inspect": {
       process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
@@ -258,12 +376,68 @@ function main(argv: string[]): number {
       ));
       return 0;
     }
+    case "insert-admonition": {
+      const value = flag(flags, "--variant");
+      if (!isAdmonitionVariant(value)) {
+        throw new Error("--variant must be note or warning");
+      }
+      const variant: AdmonitionVariant = value;
+      save(file, insertAdmonition(parse(readFile(file)), intFlag(flags, "--at"), variant, [
+        { kind: "text", text: flag(flags, "--text") },
+      ]));
+      return 0;
+    }
+    case "update-heading-level": {
+      save(file, updateHeadingLevel(
+        parse(readFile(file)),
+        pathFlag(flags),
+        intFlag(flags, "--from"),
+        intFlag(flags, "--to"),
+      ));
+      return 0;
+    }
     case "insert-equation": {
       save(file, insertEquation(
         parse(readFile(file)),
         intFlag(flags, "--at"),
         flag(flags, "--latex"),
       ));
+      return 0;
+    }
+    case "insert-figure": {
+      save(file, insertFigure(parse(readFile(file)), intFlag(flags, "--at"), {
+        imageUrl: flag(flags, "--image"),
+        imageAlt: optionalFlag(flags, "--alt") ?? "",
+        caption: optionalFlag(flags, "--caption") ?? "",
+      }));
+      return 0;
+    }
+    case "update-figure": {
+      const changes = {
+        imageUrl: optionalFlag(flags, "--image"),
+        imageAlt: optionalFlag(flags, "--alt"),
+        caption: optionalFlag(flags, "--caption"),
+      };
+      if (Object.values(changes).every((value) => value === undefined)) {
+        throw new Error("update-figure requires --image, --alt, or --caption");
+      }
+      save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
+      return 0;
+    }
+    case "insert-table": {
+      save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells")));
+      return 0;
+    }
+    case "insert-table-row": {
+      save(file, insertTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "insert-table-column": {
+      save(file, insertTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "update-table-cell": {
+      save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), flag(flags, "--text")));
       return 0;
     }
     case "remove-block": {
@@ -296,6 +470,10 @@ function main(argv: string[]): number {
           flag(flags, "--to"),
         ),
       );
+      return 0;
+    }
+    case "update-label": {
+      save(file, updateLabel(parse(readFile(file)), pathFlag(flags), flag(flags, "--label")));
       return 0;
     }
     default:
@@ -347,11 +525,20 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "replace-text": ["--from", "--to"],
   "insert-block": ["--at", "--text"],
   "insert-heading": ["--at", "--level", "--text"],
+  "insert-admonition": ["--at", "--variant", "--text"],
+  "update-heading-level": ["--path", "--from", "--to"],
   "insert-equation": ["--at", "--latex"],
+  "insert-figure": ["--at", "--image", "--alt", "--caption"],
+  "update-figure": ["--path", "--image", "--alt", "--caption"],
+  "insert-table": ["--at", "--cells"],
+  "insert-table-row": ["--path", "--at"],
+  "insert-table-column": ["--path", "--at"],
+  "update-table-cell": ["--path", "--text"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
+  "update-label": ["--path", "--label"],
 };
 
 function parseCommandArgs(command: string, args: string[]): ParsedArgs {
@@ -438,6 +625,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
     return [
       {
         ...base,
+        editable: block.editable,
         label: block.label,
         imageUrl: block.imageUrl,
         imageAlt: block.imageAlt,
@@ -488,7 +676,7 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "figure") {
     const captionPath = formatPath(block.caption.path);
     return [
-      `${path} figure label=${quote(block.label)}`,
+      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)}`,
       `  ${captionPath} caption textEditable=${block.caption.editable} text=${quote(block.caption.text)}`,
     ];
   }
@@ -542,6 +730,10 @@ function flag(args: string[], name: string): string {
   return value;
 }
 
+function optionalFlag(args: string[], name: string): string | undefined {
+  return args.includes(name) ? flag(args, name) : undefined;
+}
+
 function intFlag(args: string[], name: string): number {
   const raw = flag(args, name);
   const value = Number(raw);
@@ -549,6 +741,15 @@ function intFlag(args: string[], name: string): number {
     throw new Error(`${name} must be an integer`);
   }
   return value;
+}
+
+function jsonFlag<T>(args: string[], name: string): T {
+  try {
+    return JSON.parse(flag(args, name)) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error(`${name} must be JSON`);
+    throw error;
+  }
 }
 
 function pathFlag(args: string[]): NodePath {

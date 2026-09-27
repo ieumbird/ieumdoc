@@ -31,13 +31,13 @@ test("sidebar holds only product, Open and the current document, and collapses",
   assert.doesNotMatch(collapsed, /Open…|guide\.md|IeumDoc/);
 });
 
-test("top bar shows the current path on the left and save state with Save on the right", () => {
+test("top bar shows filename while keeping the complete path in its title", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} />
+      <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
     </TooltipProvider>,
   );
-  assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-directory">C:\\docs\\<\/span><span class="document-path-name">guide.md<\/span>/);
+  assert.match(html, /data-testid="current-file" title="C:\\docs\\guide.md"><span class="document-path-name">guide.md<\/span>/);
   assert.ok(html.indexOf("current-file") < html.indexOf('data-testid="status"'));
   assert.ok(html.indexOf('data-testid="status"') < html.indexOf('data-testid="save"'));
   assert.doesNotMatch(html, /aria-disabled="true"/);
@@ -45,11 +45,57 @@ test("top bar shows the current path on the left and save state with Save on the
   // own text only mounts in a browser (see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section).
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="Ready" saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
+      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
   assert.match(blocked, /<button type="button" data-disabled="" tabindex="0" aria-disabled="true"[^>]*data-testid="save"[^>]*>Save<\/button>/);
+});
+
+test("status presentation distinguishes loaded, dirty, confirmed save and in-flight/error states", () => {
+  for (const [status, unsaved, expected] of [
+    ["Ready", false, ""], ["Ready", true, "Unsaved changes"],
+    ["Saved", false, "Saved"], ["Saved", true, "Unsaved changes"],
+    ["Saved; newer edits pending", true, "Unsaved changes"],
+    ["Saved; newer edits pending", false, "Saved"], // Newer edits undone back to the saved baseline.
+    ["Saving…", true, "Saving…"], ["Save conflict", true, "Save conflict"],
+    ["Save failed", true, "Save failed"], ["Load failed", false, "Load failed"],
+  ] as const) {
+    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
+      view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} /></TooltipProvider>);
+    assert.ok(html.includes(`data-operation="${status}" role="status">${expected}</p>`), `${status}, dirty=${unsaved}`);
+  }
+});
+
+test("an unwritable document shows Cannot save in place of the idle states", () => {
+  for (const [status, unsaved, expected] of [
+    ["Ready", false, "Cannot save"], ["Ready", true, "Cannot save"],
+    ["Opening…", false, "Opening…"], ["Open failed", false, "Open failed"],
+  ] as const) {
+    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
+      writable={false} view="visual" onViewChange={noop} saveDisabled saveHint="blocked" onSave={noop} /></TooltipProvider>);
+    assert.ok(html.includes(`data-operation="${status}" role="status">${expected}</p>`), `${status}, dirty=${unsaved}`);
+    assert.match(html, /aria-disabled="true"[^>]*data-testid="save"/);
+  }
+});
+
+test("top bar offers Visual and Source views left of status and Save", () => {
+  const html = renderToStaticMarkup(
+    <TooltipProvider>
+      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
+    </TooltipProvider>,
+  );
+  assert.match(html, /role="group" aria-label="Document view"/);
+  assert.match(html, /aria-pressed="false"[^>]*data-testid="view-visual"[^>]*>Visual</);
+  assert.match(html, /aria-pressed="true"[^>]*data-testid="view-source"[^>]*>Source</);
+  assert.ok(html.indexOf("view-source") < html.indexOf('data-testid="status"'));
+  const blocked = renderToStaticMarkup(
+    <TooltipProvider>
+      <TopBar documentPath={PATH} status="Ready" saveDisabled onSave={noop} view="visual" onViewChange={noop}
+        sourceHint="Apply or Cancel the Figure edit before viewing Source." />
+    </TooltipProvider>,
+  );
+  assert.match(blocked, /aria-disabled="true"[^>]*data-testid="view-source"/);
 });
 
 test("message area separates dismissible errors from expiring notices", () => {
@@ -60,6 +106,14 @@ test("message area separates dismissible errors from expiring notices", () => {
   assert.match(html, /data-testid="message-area"/);
   assert.match(html, /data-testid="error" role="alert"[^>]*><span class="message-text">Save failed<\/span><button[^>]*aria-label="Dismiss error"/);
   assert.match(html, /data-testid="notice" role="status"[^>]*><span class="message-text">Discarded<\/span><\/div>/);
+});
+
+test("message area keeps the writeability warning without a dismiss control", () => {
+  const html = renderToStaticMarkup(
+    <MessageArea error="" notice="" warning="Cannot save: reason" onDismissError={noop} onNoticeExpired={noop} />,
+  );
+  assert.match(html, /data-testid="writeability-warning" role="status" class="ui-notice ui-notice--warning message"><span class="message-text">Cannot save: reason<\/span><\/div>/);
+  assert.doesNotMatch(html, /Dismiss/);
 });
 
 test("Open dialog renders nothing while closed", () => {

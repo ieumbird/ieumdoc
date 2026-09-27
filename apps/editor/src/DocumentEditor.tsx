@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
 import { mapSavedRanges, type SavedRange } from "./block-reorder.ts";
 import {
   BLOCK_COMMANDS,
@@ -10,25 +10,32 @@ import {
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu } from "./CommandMenu.tsx";
-import { SelectionToolbar } from "./SelectionToolbar.tsx";
+import { insertReference, referenceCommandItems, referenceOfCommand, referenceTargets, ReferenceForm } from "./cross-reference.tsx";
+import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
+  type FigureValidator,
   DECLARED_DELETIONS_META,
   declaredDeletions,
   differsFromBaseline,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
-import { toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TABLE_CELL_ADDED_ATTR, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
+
+const EQUATION_DRAFT_MOVE_HINT = "Apply or Cancel the Equation edit before moving it.";
+const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it.";
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
   beginSave(): TiptapJSON;
   finishSave(saved?: EditableDocument): void;
   hasUnappliedEquationDraft(): boolean;
+  hasUnappliedFigureDraft(): boolean;
   hasUnsavedChanges(): boolean;
 };
 
@@ -37,7 +44,20 @@ type DocumentEditorProps = {
   documentPath: string;
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
+  onFigureDraftChange?: (active: boolean) => void;
+  /** Presentation only; reuse the existing document dirty comparison. */
+  onDirtyChange?: (dirty: boolean) => void;
+  validateFigure?: FigureValidator;
 };
+
+function addedTableCells(doc: ProseMirrorNode): Set<string> {
+  const added = new Set<string>();
+  doc.descendants(node => {
+    const id = node.attrs[TABLE_CELL_ADDED_ATTR];
+    if (typeof id === "string" && id.length > 0) added.add(id);
+  });
+  return added;
+}
 
 export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
   return ranges.flatMap(range => {
@@ -47,30 +67,53 @@ export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument):
 }
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onEquationDraftChange },
+  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
   const baseline = useRef(projection);
-  const pending = useRef<{ ranges: SavedRange[]; keys: string[] } | null>(null);
+  const pending = useRef<{ ranges: SavedRange[]; keys: string[]; addedCells: Set<string> } | null>(null);
   const onEquationDraftChangeRef = useRef(onEquationDraftChange);
   onEquationDraftChangeRef.current = onEquationDraftChange;
   const activeEquationDrafts = useRef(new Set<string>());
+  const onFigureDraftChangeRef = useRef(onFigureDraftChange);
+  onFigureDraftChangeRef.current = onFigureDraftChange;
+  const activeFigureDrafts = useRef(new Set<string>());
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
   const [slashActive, setSlashActive] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
+  const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
+  // The selected paragraph text a new cross-reference will replace.
+  const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
+  // Draft changes are not transactions; re-render so the block handles reflect them.
+  const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
   const reportEquationDraft = (key: string, active: boolean) => {
     if (active) activeEquationDrafts.current.add(key);
     else activeEquationDrafts.current.delete(key);
     onEquationDraftChangeRef.current?.(activeEquationDrafts.current.size > 0);
+    draftsChanged();
+  };
+  const reportFigureDraft = (key: string, active: boolean) => {
+    if (active) activeFigureDrafts.current.add(key);
+    else activeFigureDrafts.current.delete(key);
+    onFigureDraftChangeRef.current?.(activeFigureDrafts.current.size > 0);
+    draftsChanged();
+  };
+  const moveBlockedHint = (index: number) => {
+    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
+    if (activeEquationDrafts.current.has(path)) return EQUATION_DRAFT_MOVE_HINT;
+    if (activeFigureDrafts.current.has(path)) return FIGURE_DRAFT_MOVE_HINT;
+    return undefined;
   };
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
     content: projection,
     onTransaction({ transaction }) {
       if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);
@@ -97,7 +140,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           ranges.push({start: pos, end: pos + node.nodeSize, path: String(index)});
           keys.push(String(node.attrs.sourcePath));
         });
-        pending.current = { ranges, keys };
+        pending.current = { ranges, keys, addedCells: addedTableCells(editor.state.doc) };
         return editorDocumentJSON(editor.state);
       },
       finishSave(saved) {
@@ -126,6 +169,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         for (const group of groups) for (const pos of group.positions) {
           tr.setNodeMarkup(pos, undefined, { ...tr.doc.nodeAt(pos)!.attrs, sourcePath: group.paths.join(";") });
         }
+        // Table cells added before this save are now saved cells; ones added while it ran stay added.
+        tr.doc.descendants((node, pos) => {
+          if (submission.addedCells.has(String(node.attrs[TABLE_CELL_ADDED_ATTR] ?? ""))) {
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, [TABLE_CELL_ADDED_ATTR]: "" });
+          }
+        });
         // Deletes made while saving now address saved blocks that no node claims.
         const deleted = new Set(declaredDeletions(editor.state));
         const claimed = new Set(groups.flatMap(group => group.paths));
@@ -139,9 +188,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       hasUnappliedEquationDraft() {
         return activeEquationDrafts.current.size > 0;
       },
+      hasUnappliedFigureDraft() {
+        return activeFigureDrafts.current.size > 0;
+      },
       hasUnsavedChanges() {
         if (!editor) return false;
-        return activeEquationDrafts.current.size > 0 || differsFromBaseline(editor.state, baseline.current);
+        return activeEquationDrafts.current.size > 0 || activeFigureDrafts.current.size > 0 ||
+          differsFromBaseline(editor.state, baseline.current);
       },
       getDocument() {
         if (!editor) {
@@ -152,6 +205,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     }),
     [editor],
   );
+
+  useEffect(() => {
+    if (!editor) return;
+    // Read the same baseline as Open/Save guards; do not create a second dirty model.
+    const reportDirty = () => onDirtyChangeRef.current?.(differsFromBaseline(editor.state, baseline.current));
+    reportDirty();
+    editor.on("update", reportDirty);
+    return () => { editor.off("update", reportDirty); };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -170,6 +232,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const runInsert = (id: string, index: number, slash?: SlashRange) => {
+    const reference = referenceOfCommand(id);
+    if (reference && slash) {
+      setBlockMenu(null);
+      insertReference(editor, slash, reference);
+      return;
+    }
     const command = INSERT_COMMANDS.find(command => command.id === id);
     if (!command) return;
     setBlockMenu(null);
@@ -187,7 +255,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // `/` and `+` open the same insert menu over the same command list.
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
-  const slashItems = slash ? filterInsertCommands(slash.query) : [];
+  const slashItems = slash
+    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(referenceTargets(editor.state.doc), slash.query)]
+    : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {
     if (event.key === "/") {
@@ -224,6 +294,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   };
   const formatting = focused ? formattableSelection(editor.state) : null;
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
+  const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
+  const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
   const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
   const blockMenuStyle: CSSProperties | undefined = blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
@@ -235,8 +307,36 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         menuIndex={blockMenu?.index}
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
+        moveBlockedHint={moveBlockedHint}
       />
-      {toolbarStyle ? <SelectionToolbar editor={editor} style={toolbarStyle} onReject={onStructuralReject} /> : null}
+      {referenceDraft && referenceStyle ? (
+        <ReferenceForm
+          editor={editor}
+          style={referenceStyle}
+          preferredLabel={referenceDraft.text.trim()}
+          onApply={(target) => {
+            insertReference(editor, referenceDraft, target);
+            setReferenceDraft(null);
+          }}
+          onClose={() => {
+            setReferenceDraft(null);
+            editor.commands.focus();
+          }}
+        />
+      ) : linkDraft && linkStyle ? (
+        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} />
+      ) : toolbarStyle ? (
+        <SelectionToolbar
+          editor={editor}
+          style={toolbarStyle}
+          onReject={onStructuralReject}
+          onEditLink={() => setLinkDraft(linkDraftOf(editor))}
+          onEditReference={() => {
+            const { from, to } = editor.state.selection;
+            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n") });
+          }}
+        />
+      ) : null}
       {slashStyle && slash ? (
         <CommandMenu
           key={`slash-${slash.from}`}
@@ -263,7 +363,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CommandMenu
           key={`block-${blockMenu.index}`}
           label="Block actions"
-          items={BLOCK_COMMANDS.map(command => ({
+          items={BLOCK_COMMANDS.filter(command => command.applies?.(editor.state, blockMenu.index) ?? true).map(command => ({
             id: command.id,
             label: command.label,
             disabled: !command.enabled(editor.state, blockMenu.index),

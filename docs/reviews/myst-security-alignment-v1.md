@@ -148,6 +148,17 @@ Validation environment: Windows, Node 24.21.0, pnpm 12.5.1, Chrome. Other operat
 systems/browsers were not run. Finite regression coverage is not a proof for every
 possible Markdown input; no intentional semantic or canonical-output change was made.
 
+## Addendum: Canonical Input Safety v1
+
+Core parse now calls `mystParse` with `extensions.smartquotes: false` so typed straight
+quotes are kept as written (see `docs/test/TEST_GUIDE.md`, "Canonical Input Safety v1").
+Typographic substitution had made every edit containing `'` or `"` fail the canonical
+round-trip check. The reachability evidence above ("Smartquotes therefore runs for CLI
+and local Host parsing") no longer holds: Core does not reach the smartquotes rule. This
+is a text-preservation decision, not the DoS mitigation the evidence rejected. The patch
+and its removal condition are unchanged; the dependency is still installed, and the
+160,000-quote regression now drives MyST's default tokenizer directly, plus Core parse.
+
 ## Follow-up
 
 - Track upstream MyST support for fixed markdown-it, KaTeX, and csv-parse families;

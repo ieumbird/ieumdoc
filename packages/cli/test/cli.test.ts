@@ -94,10 +94,17 @@ test("ieumdoc help exits successfully", () => {
       "insert-block",
       "insert-heading",
       "insert-equation",
+      "insert-figure",
       "remove-block",
       "move-block",
       "update-node-text",
       "update-equation-latex",
+      "update-figure",
+      "insert-table",
+      "insert-table-row",
+      "insert-table-column",
+      "update-table-cell",
+      "update-label",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -158,6 +165,101 @@ test("CLI insert-heading persists a Core heading", () => {
   }
 });
 
+test("CLI inserts Note and Warning into a real file and rejects unsafe requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-admonition-authoring-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  try {
+    const warning = run([
+      "insert-admonition", file, "--at", "1", "--variant", "warning", "--text", "Check current limit.",
+    ]);
+    assert.equal(warning.status, 0, warning.stderr);
+    const note = run([
+      "insert-admonition", file, "--at", "2", "--variant", "note", "--text", "Confirm the result.",
+    ]);
+    assert.equal(note.status, 0, note.stderr);
+
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, [
+      "Intro paragraph.",
+      "",
+      ":::{warning}",
+      "Check current limit.",
+      ":::",
+      "",
+      ":::{note}",
+      "Confirm the result.",
+      ":::",
+      "",
+      "## Stable heading",
+      "",
+      "Keep this paragraph.",
+      "",
+    ].join("\n"));
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.filter((block) => block.block === "admonition").map((block) =>
+      block.block === "admonition" ? [block.variant, block.content] : []), [
+      ["warning", [{ kind: "text", text: "Check current limit." }]],
+      ["note", [{ kind: "text", text: "Confirm the result." }]],
+    ]);
+    assert.equal(serialize(parse(saved)), saved);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /^structure valid\n/);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["insert-admonition", file, "--at", "1", "--variant", "tip", "--text", "Invalid variant."],
+      ["insert-admonition", file, "--at", "99", "--variant", "note", "--text", "Invalid index."],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI updates a real H2 file to H5 and rejects unsafe heading requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-level-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  try {
+    const result = run(["update-heading-level", file, "--path", "1", "--from", "2", "--to", "5"]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "Intro paragraph.\n\n##### Stable heading\n\nKeep this paragraph.\n");
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
+    assert.deepEqual(blocks[1], {
+      block: "heading", path: [1], level: 5, text: "Stable heading", editable: true,
+    });
+    assert.deepEqual(blocks[2], {
+      block: "paragraph", path: [2], text: "Keep this paragraph.",
+      content: [{ kind: "text", text: "Keep this paragraph." }], editable: true,
+    });
+    assert.equal(serialize(parse(saved)), saved);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /^structure valid\n/);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "0"],
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "7"],
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "4"],
+      ["update-heading-level", file, "--path", "0", "--from", "1", "--to", "4"],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI insert-equation persists a Core equation", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
   const file = path.join(dir, "document.md");
@@ -177,6 +279,115 @@ test("CLI insert-equation persists a Core equation", () => {
     assert.equal(saved, serialize(parse(saved)));
     assert.equal(run(["insert-equation", file, "--at", "0", "--latex", ""]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI insert-figure persists a Core Figure", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-figure-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro\n");
+  try {
+    const result = run(["insert-figure", file, "--at", "1", "--image", "./plot.svg", "--alt", "Plot", "--caption", "Measured plot."]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
+    const figure = getEditableDocument(parse(saved)).blocks[1];
+    assert.equal(figure?.block, "figure");
+    if (figure?.block !== "figure") return;
+    assert.deepEqual(
+      [figure.editable, figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
+      [true, "", "./plot.svg", "Plot", "Measured plot."],
+    );
+    assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
+    const minimal = readFileSync(file, "utf8");
+    assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
+    for (const args of [
+      ["insert-figure", file, "--at", "0", "--image", ""],
+      ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
+      ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "cost $5 and $x$"],
+      ["insert-figure", file, "--at", "9", "--image", "./a.svg"],
+      ["insert-figure", file, "--at", "0", "--alt", "missing image"],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), minimal, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI update-label sets, changes and removes labels through Core and rejects duplicates without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-label-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const blocks = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks;
+    const equation = blocks.find((block) => block.block === "equation")!.path.join(",");
+    const figure = blocks.find((block) => block.block === "figure")!.path.join(",");
+    const labels = () => getEditableDocument(parse(readFileSync(file, "utf8"))).blocks
+      .flatMap((block) => block.block === "equation" || block.block === "figure" ? [block.label] : []);
+    assert.equal(run(["update-label", file, "--path", equation, "--label", "eq-reference"]).status, 0);
+    assert.equal(run(["update-label", file, "--path", figure, "--label", ""]).status, 0);
+    assert.deepEqual(labels(), ["", "eq-reference"]);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(serialize(parse(saved)), saved);
+    assert.match(saved, /```\{math\}\n:label: eq-reference\n\ni\^/);
+    // References are not renamed.
+    assert.match(saved, /\{eq\}`eq-current`/);
+
+    const before = readFileSync(file);
+    const duplicate = run(["update-label", file, "--path", figure, "--label", "EQ-Reference"]);
+    assert.notEqual(duplicate.status, 0);
+    assert.match(duplicate.stderr, /already names another target/);
+    assert.notEqual(run(["update-label", file, "--path", "0", "--label", "h"]).status, 0);
+    assert.deepEqual(readFileSync(file), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI update-figure changes Figure properties through Core and preserves the label", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-figure-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    const figurePath = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks
+      .find((block) => block.block === "figure")!.path.join(",");
+    const result = run(["update-figure", file, "--path", figurePath, "--image", "./diagram-v2.svg", "--alt", "New alt", "--caption", "New caption."]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(serialize(parse(saved)), saved);
+    const figure = getEditableDocument(parse(saved)).blocks.find((block) => block.block === "figure");
+    assert.equal(figure?.block, "figure");
+    if (figure?.block !== "figure") return;
+    assert.deepEqual(
+      [figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
+      ["fig-control", "./diagram-v2.svg", "New alt", "New caption."],
+    );
+    assert.equal(saved.includes("See [](#fig-control)"), true);
+
+    assert.equal(run(["update-figure", file, "--path", figurePath, "--caption", "Only caption."]).status, 0);
+    const partial = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks.find((block) => block.block === "figure");
+    assert.equal(partial?.block === "figure" && partial.imageUrl, "./diagram-v2.svg");
+    assert.equal(partial?.block === "figure" && partial.caption.text, "Only caption.");
+
+    const before = readFileSync(file);
+    for (const args of [
+      ["update-figure", file, "--path", "0", "--caption", "not a figure"],
+      ["update-figure", file, "--path", "99", "--caption", "out of range"],
+      ["update-figure", file, "--path", figurePath],
+      ["update-figure", file, "--path", figurePath, "--image", ""],
+      ["update-figure", file, "--path", figurePath, "--alt", "line\nbreak"],
+      ["update-figure", file, "--path", figurePath, "--caption", "% comment"],
+      ["update-figure", file, "--path", figurePath, "--label", "fig-other"],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.deepEqual(readFileSync(file), before, args.join(" "));
+    }
+    assert.match(run(["help", "update-figure"]).stdout, /label is preserved/);
+    assert.match(run(["inspect", file]).stdout, / figure figureEditable=true label="fig-control" image="\.\/diagram-v2\.svg" alt="New alt"/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -331,6 +542,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       ok: true,
       command: "check",
       validation: { valid: true },
+      writeability: { writable: true },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);
@@ -452,6 +664,265 @@ function run(args: string[]) {
   });
 }
 
+test("CLI format keeps semantic references distinct from fragment links", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-references-"));
+  const file = path.join(dir, "technical-document.md");
+  const unsupported = path.join(dir, "term.md");
+  copyFileSync(technicalFixture, file);
+  writeFileSync(unsupported, "See {term}`glossary`.\n");
+  try {
+    for (let i = 0; i < 2; i++) assert.equal(run(["format", file]).status, 0);
+    const saved = readFileSync(file, "utf8");
+    // CLI writes exactly Core's canonical form: the {eq} role stays a role and the
+    // `[](#...)` fragment links stay links (Core's regression pins their semantics).
+    assert.equal(saved, serialize(parse(readFileSync(technicalFixture, "utf8"))));
+    assert.match(saved, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
+    assert.match(saved, /^The rated current follows from \[\]\(#eq-current\)\.$/m);
+
+    const failed = run(["format", unsupported]);
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /cannot be preserved/);
+    assert.equal(readFileSync(unsupported, "utf8"), "See {term}`glossary`.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI updates Markdown table cells through Core and rejects unsupported text", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-"));
+  const file = path.join(dir, "technical-document.md");
+  copyFileSync(technicalFixture, file);
+  try {
+    for (const [cell, text] of [["12,0,0", "Port name"], ["12,1,1", "AC-side"], ["12,2,1", ""]]) {
+      const result = run(["update-table-cell", file, "--path", cell, "--text", text]);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    const saved = readFileSync(file, "utf8");
+    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| P +\| +\|\n$/);
+    assert.equal(serialize(parse(saved)), saved);
+    const table = getEditableDocument(parse(saved)).blocks[12];
+    assert.equal(table?.block, "table");
+    if (table?.block === "table") {
+      assert.deepEqual(table.rows.map((row) => row.cells.map((item) => item.text)), [["Port name", "Type"], ["U", "AC-side"], ["P", ""]]);
+    }
+    for (const args of [
+      ["--path", "12,1,1", "--text", " padded"],
+      ["--path", "12,1,1", "--text", "cost $x$"],
+      ["--path", "2,0,0", "--text", "x"],
+      ["--path", "12,1", "--text", "x"],
+    ]) {
+      const result = run(["update-table-cell", file, ...args]);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI creates a table and adds rows and columns through Core, rejecting invalid shapes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
+  const file = path.join(dir, "doc.md");
+  writeFileSync(file, "# Ratings\n");
+  try {
+    const steps = [
+      ["insert-table", file, "--at", "1", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]])],
+      ["insert-table-row", file, "--path", "1", "--at", "2"],
+      ["insert-table-column", file, "--path", "1", "--at", "1"],
+      ["update-table-cell", file, "--path", "1,2,0", "--text", "P"],
+    ];
+    for (const args of steps) {
+      const result = run(args);
+      assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
+    }
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| ---- | - | ---- |\n| U    |   | AC   |\n| P    |   |      |\n");
+    assert.equal(serialize(parse(saved)), saved);
+    for (const args of [
+      ["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"],
+      ["insert-table", file, "--at", "0", "--cells", "not json"],
+      ["insert-table", file, "--at", "0", "--cells", "[]"],
+      ["insert-table-row", file, "--path", "1", "--at", "0"],
+      ["insert-table-column", file, "--path", "0", "--at", "0"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
+    }
+    assert.match(run(["insert-table", file, "--at", "0", "--cells", "not json"]).stderr, /--cells must be JSON/);
+    assert.match(run(["insert-table-row", file, "--path", "1", "--at", "0"]).stderr, /from 1 to 3/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI paragraph commands keep ordinary links and {eq} references, and leave other references read-only", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-links-"));
+  const file = path.join(dir, "links.md");
+  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`sec-a` there.\n");
+  try {
+    const inspected = run(["inspect", file]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    assert.match(inspected.stdout, /^0 paragraph inlineEditable=true text="Go to the site now\."$/m);
+    assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
+    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\."$/m);
+    const split = run(["split-paragraph", file, "--path", "0", "--offset", "8"]);
+    assert.equal(split.status, 0, split.stderr);
+    // A reference is one offset unit.
+    assert.equal(run(["split-paragraph", file, "--path", "2", "--offset", "5"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"),
+      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`sec-a` there.\n");
+    const saved = readFileSync(file, "utf8");
+    assert.equal(run(["split-paragraph", file, "--path", "4", "--offset", "3"]).status, 1);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI format fails before writing when canonical Markdown would lose semantics", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-format-"));
+  try {
+    for (const [name, source, reason] of [
+      // Layer 1: myst-to-md reports the node it cannot render.
+      ["keyboard.md", "# Keys\n\nBefore {kbd}`Ctrl` after\n", /cannot be preserved in canonical Markdown: .*keyboard/],
+      // Layer 2: the second subfigure is dropped without any diagnostic.
+      ["subfigure.md", ":::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /cannot be preserved in canonical Markdown: .*container/],
+    ] as const) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      const result = run(["format", file]);
+      assert.notEqual(result.status, 0, name);
+      assert.match(result.stderr, reason, name);
+      assert.deepEqual(readFileSync(file), before, name);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI writes typed straight quotes as written and formats byte-order-marked files", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-input-safety-"));
+  try {
+    const file = path.join(dir, "quotes.md");
+    writeFileSync(file, "# Title\n\nHello.\n");
+    for (const args of [
+      ["replace-text", file, "--from", "Hello.", "--to", "Don't panic."],
+      ["insert-block", file, "--at", "2", "--text", 'The state is "READY".'],
+      ["insert-heading", file, "--at", "1", "--level", "2", "--text", "What's new"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\n## What's new\n\nDon't panic.\n\nThe state is \"READY\".\n");
+
+    const marked = path.join(dir, "bom.md");
+    writeFileSync(marked, "\uFEFF# Heading\n\nBody.\n");
+    const formatted = run(["format", marked]);
+    assert.equal(formatted.status, 0, formatted.stderr);
+    assert.equal(readFileSync(marked, "utf8"), "# Heading\n\nBody.\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const CHECK_WRITABLE: [string, string][] = [
+  ["paragraph.md", "# Title\n\nA plain paragraph.\n"],
+  ["quotes.md", "Don't panic.\n\nThe state is \"READY\".\n"],
+  ["bom.md", "\uFEFF# Heading\n\nBody.\n"],
+];
+const CHECK_NOT_WRITABLE: [string, string, RegExp][] = [
+  ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n", /front matter/],
+  ["aligned-table.md", "| a | b |\n|:--|--:|\n| 1 | 2 |\n", /align "left" became \(absent\)/],
+  ["keyboard.md", "Press {kbd}`Ctrl` now.\n", /keyboard/],
+  ["image.md", "![alt](./x.png)\n", /image: align/],
+];
+
+test("CLI check reports canonical writeability after structural validity", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-writeability-"));
+  try {
+    for (const [name, source] of CHECK_WRITABLE) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const text = run(["check", file]);
+      assert.equal(text.status, 0, `${name}: ${text.stderr}`);
+      assert.match(text.stdout, /^structure valid\n0 /, name);
+      assert.match(text.stdout, /\nwriteability ok\n$/, name);
+      const json = run(["check", file, "--format", "json"]);
+      assert.equal(json.status, 0, name);
+      assert.deepEqual(JSON.parse(json.stdout).writeability, { writable: true }, name);
+    }
+    for (const [name, source, reason] of CHECK_NOT_WRITABLE) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      const text = run(["check", file]);
+      assert.equal(text.status, 1, name);
+      // Structural validity still holds and is still reported; writeability fails separately.
+      assert.match(text.stdout, /^structure valid\n0 /, name);
+      assert.doesNotMatch(text.stdout, /writeability ok/, name);
+      assert.match(text.stderr, /^writeability failed: Document contains semantic content that cannot be preserved in canonical Markdown: /, name);
+      assert.match(text.stderr, reason, name);
+      assert.doesNotMatch(text.stderr, /\n\s+at /, `${name}: no stack trace`);
+      const json = run(["check", file, "--format", "json"]);
+      assert.equal(json.status, 1, name);
+      const result = JSON.parse(json.stdout);
+      assert.equal(result.ok, false, name);
+      assert.deepEqual(result.validation, { valid: true }, name);
+      assert.equal(result.writeability.writable, false, name);
+      assert.match(result.writeability.error, reason, name);
+      assert.deepEqual(readFileSync(file), before, `${name}: check never writes`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("check says writable exactly when format can write the same snapshot", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-format-"));
+  try {
+    const sources: [string, string][] = [
+      ["technical.md", readFileSync(technicalFixture, "utf8")],
+      ["document.md", readFileSync(fixture, "utf8")],
+      ...CHECK_WRITABLE,
+      ...CHECK_NOT_WRITABLE.map(([name, source]): [string, string] => [name, source]),
+    ];
+    for (const [name, source] of sources) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const checked = run(["check", file]).status === 0;
+      const formatted = run(["format", file]);
+      assert.equal(formatted.status === 0, checked, `${name}: ${formatted.stderr}`);
+      if (!checked) assert.equal(readFileSync(file, "utf8"), source, name);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI format fails on front matter without rewriting the file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
+  try {
+    for (const [name, source] of [
+      ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n"],
+      ["bom-front-matter.md", "\uFEFF---\ntitle: Example\n---\n\n# Heading\n"],
+    ]) {
+      const file = path.join(dir, name);
+      writeFileSync(file, source);
+      const before = readFileSync(file);
+      for (const args of [["format", file], ["replace-text", file, "--from", "Heading", "--to", "Changed"]]) {
+        const result = run(args);
+        assert.equal(result.status, 1, `${name} ${args[0]}`);
+        assert.match(result.stderr, /cannot be preserved in canonical Markdown: .*front matter/, `${name} ${args[0]}`);
+        assert.deepEqual(readFileSync(file), before, `${name} ${args[0]}`);
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Core rejects lossy text updates before CLI overwrites a real file", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
   const file = path.join(dir, "document.md");
@@ -511,7 +982,7 @@ test("paragraph CLI help discovers the offset and path contracts", () => {
     assert.match(help.stdout, /ieumdoc inspect <file>/);
     assert.match(help.stdout, /run inspect again/);
     assert.equal(run([command, "--help"]).stdout, help.stdout);
-    if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break counts as one/);
+    if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break and an inline math expression each count as one character position/);
     else assert.match(help.stdout, /No automatic space/);
   }
 });

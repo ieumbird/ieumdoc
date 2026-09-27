@@ -17,6 +17,7 @@ import {
   INSERT_COMMANDS,
   slashQueryAt,
   insertEquationAfter,
+  insertFigureAfter,
 } from "../src/block-commands.ts";
 import { declaredDeletions, differsFromBaseline, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -30,6 +31,7 @@ import { commitDocumentSave, documentRevision, loadEditableDocument, saveEdits }
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const schema = getSchema(editorExtensions());
+const DELETE_COMMAND = BLOCK_COMMANDS.find(command => command.id === "delete")!;
 const noop = () => {};
 const text = (value: string): TiptapJSON[] => [{ type: "text", text: value }];
 
@@ -74,10 +76,10 @@ test("heading commands insert H1-H3 and place the caret inside the heading", () 
   assert.equal(next.selection.$from.parentOffset, 0);
 });
 
-test("shared insert commands include Equation and select its new atom", () => {
+test("shared insert commands include structural blocks and select their new atoms", () => {
   const state = EditorState.create({ schema, doc: docOf("AB") });
   assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
-    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation",
+    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Note", "Warning", "Equation", "Figure", "Table",
   ]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
@@ -99,6 +101,40 @@ test("Equation slash insertion replaces a transient empty paragraph", () => {
   assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
   assert.equal(next.doc.child(1).attrs.sourcePath.startsWith("new:"), true);
   assert.equal(next.selection instanceof NodeSelection, true);
+});
+
+test("Figure insertion selects a new unlabeled editable atom", () => {
+  const state = EditorState.create({ schema, doc: docOf("AB") });
+  assert.deepEqual(filterInsertCommands("fig").map(command => command.id), ["figure"]);
+  assert.deepEqual(filterInsertCommands("image").map(command => command.id), ["figure"]);
+  const next = state.apply(insertFigureAfter(state, 0));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  const figure = next.doc.child(1);
+  assert.ok(isNewBlockPath(String(figure.attrs.sourcePath)));
+  assert.deepEqual(
+    [figure.attrs.label, figure.attrs.imageUrl, figure.attrs.imageAlt, figure.attrs.caption, figure.attrs.editable],
+    ["", "", "", "", true],
+  );
+  assert.equal(next.selection instanceof NodeSelection, true);
+  assert.equal(next.selection.from, positionOf(next.doc, String(figure.attrs.sourcePath)));
+});
+
+test("Figure slash insertion replaces a transient empty paragraph but not a persistent one", () => {
+  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
+  const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/figure"));
+  const slash = slashQueryAt(typed);
+  assert.ok(slash);
+  const next = typed.apply(insertFigureAfter(typed, slash.index, slash));
+  assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  assert.equal(next.doc.child(0).textContent, "AB");
+  assert.equal(String(next.doc.child(1).attrs.sourcePath).startsWith("new:"), true);
+
+  // An emptied persistent paragraph is never converted into a Figure.
+  const persistent = initial.apply(initial.tr.delete(1, 3));
+  const inserted = persistent.apply(insertFigureAfter(persistent, 0));
+  assert.deepEqual(inserted.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
+  assert.equal(inserted.doc.child(0).attrs.sourcePath, "0");
 });
 
 test("heading slash insertion replaces an otherwise-empty paragraph", () => {
@@ -206,8 +242,8 @@ test("delete command declares the removed snapshot blocks and keeps one block", 
   const markdown = "AB\n\n# Heading\n\n$$\nx\n$$";
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   const state = EditorState.create({ schema, doc: docOf(markdown), plugins: [history(), structureGuardPlugin(baseline, noop)] });
-  assert.equal(BLOCK_COMMANDS[0].enabled(state, 2), true);
-  let next = state.apply(BLOCK_COMMANDS[0].run(state, 2));
+  assert.equal(DELETE_COMMAND.enabled(state, 2), true);
+  let next = state.apply(DELETE_COMMAND.run(state, 2));
   assert.deepEqual(declaredDeletions(next), ["2"]);
   // Deleting never rebuilds the top node, so NodeView state survives.
   assert.deepEqual(next.doc.attrs, state.doc.attrs);
@@ -226,8 +262,8 @@ test("delete command declares the removed snapshot blocks and keeps one block", 
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(loadEditableDocument(markdown)), lost), /block deletion is not allowed/);
 
   const single = EditorState.create({ schema, doc: docOf("A") });
-  assert.equal(BLOCK_COMMANDS[0].enabled(single, 0), false);
-  assert.throws(() => BLOCK_COMMANDS[0].run(single, 0), /invalid block deletion/);
+  assert.equal(DELETE_COMMAND.enabled(single, 0), false);
+  assert.throws(() => DELETE_COMMAND.run(single, 0), /invalid block deletion/);
 });
 
 test("structure guard admits insert and delete only from block commands", () => {
@@ -238,7 +274,7 @@ test("structure guard admits insert and delete only from block commands", () => 
   const guard = structureGuardPlugin(baseline, () => rejected++);
   const state = EditorState.create({ schema, doc, plugins: [history(), guard] });
   const accepted = (tr: Transaction) => state.applyTransaction(tr).state !== state;
-  assert.equal(accepted(BLOCK_COMMANDS[0].run(state, 2)), true);
+  assert.equal(accepted(DELETE_COMMAND.run(state, 2)), true);
   assert.equal(accepted(INSERT_COMMANDS[0].run(state, 0)), true);
   assert.equal(rejected, 0);
 

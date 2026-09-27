@@ -1,4 +1,5 @@
-import type { EditableBlock, EditableDocument, InlineContent, NodePath } from "@ieumdoc/core";
+import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type NodePath } from "@ieumdoc/core";
+import { figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
 export type { TiptapJSON };
@@ -7,6 +8,12 @@ export type HeadingEdit = {
   path: NodePath;
   from: string;
   to: string;
+};
+
+export type HeadingLevelEdit = {
+  path: NodePath;
+  from: number;
+  to: number;
 };
 
 export type ParagraphEdit = {
@@ -20,10 +27,49 @@ export type EquationEdit = {
   to: string;
 };
 
+export type TableCellEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
+/**
+ * Rows and columns added to a snapshot table. Each entry of `rows`/`columns` is the snapshot
+ * index of that row/column in the new grid, or null when it was added.
+ */
+export type TableShapeEdit = {
+  path: NodePath;
+  rows: (number | null)[];
+  columns: (number | null)[];
+  /** Text typed into added cells, by position in the new grid. */
+  cells: { row: number; column: number; text: string }[];
+};
+
+export type AdmonitionEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
+export type FigureEdit = {
+  path: NodePath;
+  from: FigureContent;
+  to: FigureContent;
+};
+
+/** An Equation or Figure label; an empty `to` removes it. */
+export type LabelEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string };
+  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
+  | { block: "equation"; latex: string; label?: string }
+  | ({ block: "figure"; label?: string } & FigureContent)
+  | { block: "table"; rows: string[][] };
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -31,8 +77,14 @@ export type OrderItem = { path: NodePath; part: number } | { insert: number };
 export type SupportedEdits = {
   order?: OrderItem[];
   headings: HeadingEdit[];
+  headingLevels?: HeadingLevelEdit[];
   paragraphs: ParagraphEdit[];
   equations?: EquationEdit[];
+  figures?: FigureEdit[];
+  cells?: TableCellEdit[];
+  tables?: TableShapeEdit[];
+  admonitions?: AdmonitionEdit[];
+  labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -64,16 +116,13 @@ const KNOWN_BLOCKS = new Set([
   "admonition",
   "figure",
   "equation",
-  "readonlyTable",
+  "table",
   "unsupportedBlock",
 ]);
 
 const READONLY_BLOCKS = new Set([
   "readonlyHeading",
   "readonlyParagraph",
-  "admonition",
-  "figure",
-  "readonlyTable",
   "unsupportedBlock",
 ]);
 
@@ -93,8 +142,14 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
 export function collectSupportedEdits(document: EditableDocument, next: TiptapJSON): SupportedEdits {
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
+  const headingLevels: HeadingLevelEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
   const equations: EquationEdit[] = [];
+  const figures: FigureEdit[] = [];
+  const cells: TableCellEdit[] = [];
+  const tables: TableShapeEdit[] = [];
+  const admonitions: AdmonitionEdit[] = [];
+  const labels: LabelEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -119,8 +174,15 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         if (insert.block === "heading" && insert.text.length === 0) {
           throw new Error("empty heading cannot be saved");
         }
+        if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
+          throw new Error("admonition body cannot be empty");
+        }
         if (insert.block === "equation" && insert.latex.length === 0) {
           throw new Error("empty equation LaTeX cannot be saved");
+        }
+        if (insert.block === "figure") assertFigureContent(insert);
+        if (insert.block === "table" && insert.rows.flat().every(text => text.length === 0)) {
+          throw new Error("empty table cannot be saved");
         }
         insertOf.set(node, inserts.length);
         inserts.push(insert);
@@ -132,11 +194,14 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     if (paths.length > 1) {
       merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
     } else if (block.block === "heading" && block.editable) {
+      const level = headingLevel(node);
+      if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
       const text = headingText(node);
-      if (text === block.text) continue;
-      if (text.length === 0) throw new Error("empty heading text cannot be saved");
-      headings.push({ path: block.path, from: block.text, to: text });
-    } else if (block.block === "paragraph" && block.editable) {
+      if (text !== block.text) {
+        if (text.length === 0) throw new Error("empty heading text cannot be saved");
+        headings.push({ path: block.path, from: block.text, to: text });
+      }
+    } else if (block.block === "paragraph" && editableParagraph(block)) {
       if (group.length > 1) {
         splits.push({ path: block.path, parts: group.map(paragraphInline) });
         continue;
@@ -148,6 +213,32 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "equation") {
       const latex = equationLatex(node);
       if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
+      const label = blockLabel(node);
+      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
+    } else if (block.block === "figure" && block.editable) {
+      const label = blockLabel(node);
+      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
+      const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: block.caption.text };
+      const to = figureContent(node);
+      if (JSON.stringify(to) === JSON.stringify(from)) continue;
+      assertFigureContent(to);
+      figures.push({ path: block.path, from, to });
+    } else if (block.block === "admonition" && block.editable) {
+      const content = paragraphInline(node);
+      if (sameInline(content, block.content)) continue;
+      if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+      admonitions.push({ path: block.path, content });
+    } else if (block.block === "table") {
+      const next = tableCells(node);
+      const shape = tableShape(tableCells(toTiptapBlock(block)), next);
+      block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
+        const text = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.text;
+        if (cell.editable && text !== undefined && text !== cell.text) cells.push({ path: cell.path, from: cell.text, to: text });
+      }));
+      if (shape.rows.includes(null) || shape.columns.includes(null)) {
+        tables.push({ path: block.path, ...shape, cells: next.flatMap((row, rowIndex) => row.flatMap((cell, column) =>
+          (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.text ? [{ row: rowIndex, column, text: cell.text }] : [])) });
+      }
     }
   }
   const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
@@ -167,8 +258,14 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   return {
     ...(reordered ? { order } : {}),
     headings,
+    ...(headingLevels.length ? { headingLevels } : {}),
     paragraphs,
     ...(equations.length ? { equations } : {}),
+    ...(figures.length ? { figures } : {}),
+    ...(cells.length ? { cells } : {}),
+    ...(tables.length ? { tables } : {}),
+    ...(admonitions.length ? { admonitions } : {}),
+    ...(labels.length ? { labels } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -245,7 +342,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "paragraph") {
-    if (!block.editable) {
+    if (!editableParagraph(block)) {
       return readonlyNode("readonlyParagraph", block.path, { text: block.text });
     }
     return {
@@ -255,18 +352,31 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   if (block.block === "admonition") {
+    if (block.editable) {
+      return {
+        type: "admonition",
+        attrs: { sourcePath: pathKey(block.path), variant: block.variant, text: block.text, editable: true },
+        content: paragraphContent(block.content),
+      };
+    }
     return readonlyNode("admonition", block.path, {
       variant: block.variant,
       text: block.text,
+      editable: false,
     });
   }
   if (block.block === "figure") {
-    return readonlyNode("figure", block.path, {
-      label: block.label,
-      imageUrl: block.imageUrl,
-      imageAlt: block.imageAlt,
-      caption: block.caption.text,
-    });
+    return {
+      type: "figure",
+      attrs: {
+        sourcePath: pathKey(block.path),
+        label: block.label,
+        imageUrl: block.imageUrl,
+        imageAlt: block.imageAlt,
+        caption: block.caption.text,
+        editable: block.editable,
+      },
+    };
   }
   if (block.block === "equation") {
     return readonlyNode("equation", block.path, {
@@ -275,11 +385,16 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     });
   }
   if (block.block === "table") {
-    return readonlyNode("readonlyTable", block.path, {
-      rows: JSON.stringify(
-        block.rows.map((row) => row.cells.map((cell) => ({ text: cell.text, header: cell.header }))),
-      ),
-    });
+    return {
+      type: "table",
+      attrs: { sourcePath: pathKey(block.path) },
+      content: block.rows.map((row) => ({
+        type: "tableRow",
+        content: row.cells.map((cell): TiptapJSON => cell.editable
+          ? { type: "tableCell", attrs: { header: cell.header }, content: cell.text ? [{ type: "text", text: cell.text }] : [] }
+          : { type: "readonlyTableCell", attrs: { header: cell.header, text: cell.text } }),
+      })),
+    };
   }
   return readonlyNode("unsupportedBlock", block.path, { text: block.text });
 }
@@ -287,7 +402,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
 function readonlyNode(
   type: string,
   path: NodePath,
-  attrs: Record<string, string | number>,
+  attrs: Record<string, string | number | boolean>,
 ): TiptapJSON {
   return {
     type,
@@ -307,10 +422,45 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "heading") {
     return { block: "heading", level: headingLevel(node), text: headingText(node) };
   }
-  if (node.type === "equation") {
-    return { block: "equation", latex: equationLatex(node) };
+  if (node.type === "admonition") {
+    const variant = String(node.attrs?.variant ?? "");
+    if (node.attrs?.editable !== true || !isAdmonitionVariant(variant)) {
+      throw new Error("a new admonition must be an editable Note or Warning");
+    }
+    return { block: "admonition", variant, content: paragraphInline(node) };
   }
-  throw new Error("only paragraphs, headings, and equations can be inserted");
+  if (node.type === "equation") {
+    const label = blockLabel(node);
+    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
+  }
+  if (node.type === "figure") {
+    if (node.attrs?.editable !== true) {
+      throw new Error("a new figure must be editable");
+    }
+    const label = blockLabel(node);
+    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}) };
+  }
+  if (node.type === "table") {
+    const grid = tableCells(node);
+    if (grid.some((row, index) => row.some(cell => !cell.editable || cell.header !== (index === 0)))) {
+      throw new Error("a new table holds editable cells, with header cells only in its first row");
+    }
+    return { block: "table", rows: grid.map(row => row.map(cell => cell.text)) };
+  }
+  throw new Error("only paragraphs, headings, equations, figures, and tables can be inserted");
+}
+
+function figureContent(node: TiptapJSON): FigureContent {
+  const { imageUrl, imageAlt, caption } = node.attrs ?? {};
+  if (typeof imageUrl !== "string" || typeof imageAlt !== "string" || typeof caption !== "string") {
+    throw new Error("figure image URL, alt text, and caption must be strings");
+  }
+  return { imageUrl, imageAlt, caption };
+}
+
+function assertFigureContent(figure: FigureContent): void {
+  const error = figureContentError(figure);
+  if (error) throw new Error(error);
 }
 
 function headingLevel(node: TiptapJSON): number {
@@ -336,11 +486,11 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType === "equation") {
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
-    for (const key of ["sourcePath", "label"]) {
-      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
-        throw new Error(`equation identity cannot change (${key})`);
-      }
+    // The label is an authored reference target name, not the block's identity.
+    if (normalizeAttr(beforeAttrs.sourcePath) !== normalizeAttr(afterAttrs.sourcePath)) {
+      throw new Error("equation identity cannot change (sourcePath)");
     }
+    blockLabel(after);
     if (typeof afterAttrs.latex !== "string") {
       throw new Error("equation LaTeX must be a string");
     }
@@ -349,14 +499,55 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     }
     return;
   }
+  if (beforeType === "figure") {
+    const beforeAttrs = before.attrs ?? {};
+    const afterAttrs = after.attrs ?? {};
+    // Unsupported Figure structures stay read-only, label included.
+    for (const key of ["sourcePath", "editable"]) {
+      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
+        throw new Error(`figure identity cannot change (${key})`);
+      }
+    }
+    if (beforeAttrs.editable !== true) {
+      assertReadonlyUnchanged(before, after);
+      return;
+    }
+    blockLabel(after);
+    figureContent(after);
+    if ((after.content ?? []).length > 0) {
+      throw new Error("figure content cannot change");
+    }
+    return;
+  }
+  if (beforeType === "table") {
+    if (normalizeAttr(before.attrs?.sourcePath) !== normalizeAttr(after.attrs?.sourcePath)) {
+      throw new Error("table identity cannot change");
+    }
+    tableShape(tableCells(before), tableCells(after));
+    return;
+  }
+  if (beforeType === "admonition") {
+    const beforeAttrs = before.attrs ?? {};
+    const afterAttrs = after.attrs ?? {};
+    for (const key of ["sourcePath", "variant", "text", "editable"]) {
+      if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
+        throw new Error(`admonition identity cannot change (${key})`);
+      }
+    }
+    if (beforeAttrs.editable !== true) {
+      assertReadonlyUnchanged(before, after);
+      return;
+    }
+    const content = paragraphInline(after);
+    if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+    return;
+  }
   if (READONLY_BLOCKS.has(beforeType)) {
     assertReadonlyUnchanged(before, after);
     return;
   }
   if (beforeType === "heading") {
-    if (Number(before.attrs?.level ?? 1) !== Number(after.attrs?.level ?? 1)) {
-      throw new Error("heading level cannot change");
-    }
+    headingLevel(after);
     headingText(after);
     return;
   }
@@ -377,6 +568,67 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
   if ((after.content ?? []).length > 0) {
     throw new Error(`read-only block changed (${before.type ?? "block"} content)`);
   }
+}
+
+/** `added` marks a cell added in this session and not saved yet (see TABLE_CELL_ADDED_ATTR). */
+type TableCellShape = { editable: boolean; header: boolean; text: string; added: boolean };
+
+/** Session-only tableCell attribute: an id for a cell added since the last save, else empty. */
+export const TABLE_CELL_ADDED_ATTR = "added";
+
+/** The cell grid of a table node; editable cells must hold unmarked text only. */
+function tableCells(node: TiptapJSON): TableCellShape[][] {
+  return (node.content ?? []).map((row) => {
+    if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
+    return (row.content ?? []).map((cell) => {
+      const header = cell.attrs?.header === true;
+      if (cell.type === "readonlyTableCell") return { editable: false, header, text: String(cell.attrs?.text ?? ""), added: false };
+      if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
+      let text = "";
+      for (const child of cell.content ?? []) {
+        if (child.type !== "text" || typeof child.text !== "string" || (child.marks?.length ?? 0) > 0) {
+          throw new Error("table cells hold plain text only");
+        }
+        text += child.text;
+      }
+      return { editable: true, header, text, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
+    });
+  });
+}
+
+/**
+ * How an edited table grid maps to its snapshot grid. Only whole rows (below the header row) and
+ * whole columns can be added; snapshot cells keep their order, kind and read-only text.
+ */
+function tableShape(was: TableCellShape[][], is: TableCellShape[][]): { rows: (number | null)[]; columns: (number | null)[] } {
+  const width = is[0]?.length ?? 0;
+  if (is.some(row => row.length !== width)) throw new Error("table rows must have the same number of cells");
+  const kept = (row: TableCellShape[]) => row.flatMap((cell, index) => cell.added ? [] : [index]);
+  const keptRows = is.flatMap((row, index) => row.some(cell => !cell.added) ? [index] : []);
+  if (keptRows.length !== was.length || keptRows[0] !== 0) {
+    throw new Error("table rows can only be added below the header row, never removed");
+  }
+  const keptColumns = kept(is[0]);
+  if (keptColumns.length !== was[0].length || keptRows.some(index => kept(is[index]).join() !== keptColumns.join())) {
+    throw new Error("table cells can only be added as whole rows or columns, never removed");
+  }
+  let row = 0;
+  let column = 0;
+  const rows = is.map((_, index) => keptRows.includes(index) ? row++ : null);
+  const columns = is[0].map((_, index) => keptColumns.includes(index) ? column++ : null);
+  is.forEach((cells, rowIndex) => cells.forEach((cell, index) => {
+    const from = rows[rowIndex];
+    const to = columns[index];
+    if (from !== null && to !== null) {
+      const old = was[from][to];
+      if (cell.editable !== old.editable || cell.header !== old.header || (!old.editable && cell.text !== old.text)) {
+        throw new Error("read-only table cells and cell kinds cannot change");
+      }
+    } else if (!cell.editable || cell.header !== (rowIndex === 0)) {
+      throw new Error("added table cells are editable, with header cells only in the header row");
+    }
+  }));
+  return { rows, columns };
 }
 
 function headingText(node: TiptapJSON): string {
@@ -412,6 +664,12 @@ function equationLatex(node: TiptapJSON): string {
   return node.attrs.latex;
 }
 
+function blockLabel(node: TiptapJSON): string {
+  const label = node.attrs?.label ?? "";
+  if (typeof label !== "string") throw new Error("label must be a string");
+  return label;
+}
+
 function sourcePathOf(node: TiptapJSON | undefined): string {
   return String(node?.attrs?.sourcePath ?? "");
 }
@@ -420,12 +678,52 @@ function snapshotPaths(key: string): string[] {
   return key.split(";").filter(path => !isNewBlockPath(path));
 }
 
+/** Same rendered text and mark coverage (a link's target is part of its mark). Nesting order
+ * and text fragmentation differ between Core content and the editor's flat marks. */
 function sameInline(left: InlineContent[], right: InlineContent[]): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return JSON.stringify(inlineUnits(left)) === JSON.stringify(inlineUnits(right));
+}
+
+function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
+  return content.flatMap((item) => {
+    if (item.kind === "text") return item.text.split("").map((char) => `${char} ${marks.join(",")}`);
+    if (item.kind === "break") return [`\n ${marks.join(",")}`];
+    if (item.kind === "math") return [`math ${item.value} ${marks.join(",")}`];
+    if (item.kind === "reference") return [`reference ${item.role} ${item.label} ${marks.join(",")}`];
+    return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
+  });
+}
+
+function markKey(item: InlineContent): string {
+  return item.kind === "link" ? `link ${JSON.stringify([item.url, item.title ?? null])}` : item.kind;
+}
+
+/**
+ * Adjacent links with the same target (`[a](x)[b](x)`) become one link in the editor's
+ * flat marks, so such a paragraph stays read-only rather than silently merging them.
+ */
+function editableParagraph(block: EditableBlock): boolean {
+  if (block.block !== "paragraph" || !block.editable) return false;
+  // The link (if any) that owns each text/break leaf, in reading order.
+  const owners: (InlineContent | undefined)[] = [];
+  const walk = (items: InlineContent[], owner?: InlineContent): void => {
+    for (const item of items) {
+      if (item.kind === "link") walk(item.children, item);
+      else if ("children" in item) walk(item.children, owner);
+      else owners.push(owner);
+    }
+  };
+  walk(block.content);
+  return !owners.some((owner, index) => {
+    const previous = owners[index - 1];
+    return owner !== undefined && previous !== undefined && owner !== previous && markKey(owner) === markKey(previous);
+  });
 }
 
 function inlineText(content: InlineContent[]): string {
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : inlineText(item.children))).join("");
 }
 
 function normalizeAttr(value: unknown): string {

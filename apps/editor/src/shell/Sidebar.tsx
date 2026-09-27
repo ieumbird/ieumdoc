@@ -30,11 +30,11 @@ export function Sidebar({ open, documentPath, onToggle, onOpen, onNew }: Sidebar
       {open ? (
         <>
           <div className="sidebar-actions">
-            <Button className="min-w-0 flex-1 justify-start" size="sm" variant="secondary" onClick={onOpen}>
+            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onOpen}>
               <FolderOpen aria-hidden="true" />
               Open…
             </Button>
-            <Button className="min-w-0 flex-1 justify-start" size="sm" variant="outline" onClick={onNew}>
+            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onNew}>
               <FilePlus2 aria-hidden="true" />
               New
             </Button>

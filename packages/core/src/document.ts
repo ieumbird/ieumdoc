@@ -1,9 +1,13 @@
-import type { GenericNode, GenericParent } from "myst-common";
+import type { MystDocument } from "./myst/tree.ts";
 
-/** MyST AST root used as IeumDoc's document representation. */
-export type Document = GenericParent;
+declare const opaqueDocument: unique symbol;
 
-export type DocumentNode = GenericNode;
+/**
+ * A parsed IeumDoc document. Opaque to consumers: read it through Core
+ * projections (`getEditableDocument`, `inspectDocument`) and change it through
+ * Core operations. Its internal representation is not part of the public contract.
+ */
+export type Document = { readonly [opaqueDocument]: true };
 
 /** Positional locator valid only for the current parsed document snapshot. */
 export type NodePath = readonly number[];
@@ -14,11 +18,7 @@ export type BlockSummary = {
   kind?: string;
 };
 
-export function cloneDocument(document: Document): Document {
-  return structuredClone(document);
-}
-
-export function inspectDocument(document: Document): BlockSummary[] {
+export function inspectDocument(document: MystDocument): BlockSummary[] {
   return document.children.map((node, index) => {
     const summary: BlockSummary = { index, type: node.type };
     if (typeof node.kind === "string" && node.kind.length > 0) {
@@ -26,16 +26,4 @@ export function inspectDocument(document: Document): BlockSummary[] {
     }
     return summary;
   });
-}
-
-export function getNode(document: Document, path: NodePath): DocumentNode {
-  let current: DocumentNode = document;
-  for (const index of path) {
-    const children = current.children;
-    if (!Array.isArray(children) || !Number.isInteger(index) || index < 0 || index >= children.length) {
-      throw new Error(`NodePath out of range: [${path.join(",")}]`);
-    }
-    current = children[index];
-  }
-  return current;
 }

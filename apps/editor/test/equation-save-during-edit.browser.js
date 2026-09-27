@@ -3,7 +3,7 @@
 async page => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const originalLatex = loaded.document.blocks.find(block => block.block === 'equation').latex;
@@ -39,11 +39,12 @@ async page => {
 
   const changedLatex = `${originalLatex} + 1`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();
   release();
-  await page.getByText('Saved; newer edits pending',{exact:true}).waitFor();
+  await page.getByText('Unsaved changes',{exact:true}).waitFor();
   const afterResponse = await page.getByTestId('equation-latex').inputValue();
   const editorDuringDraft = await page.getByTestId('equation-editor').count();
   if (beforeResponse !== changedLatex || afterResponse !== changedLatex || editorDuringDraft !== 1) {
@@ -56,7 +57,8 @@ async page => {
   await page.getByText('Saved',{exact:true}).waitFor();
   if (requests[1].equations?.[0]?.to !== changedLatex) throw new Error('Applied Equation was omitted from the next save');
   await page.reload();
-  await page.getByText('Ready',{exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   if (await page.getByTestId('equation-latex').inputValue() !== changedLatex) {
     throw new Error('Applied Equation was not reflected after reload');
@@ -64,13 +66,14 @@ async page => {
 
   resetCycle();
   await page.reload();
-  await page.getByText('Ready',{exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const canceledLatex = `${originalLatex} + 2`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(canceledLatex);
   release();
-  await page.getByText('Saved; newer edits pending',{exact:true}).waitFor();
+  await page.getByText('Unsaved changes',{exact:true}).waitFor();
   if (await page.getByTestId('equation-latex').inputValue() !== canceledLatex) {
     throw new Error('Canceled draft was lost before Cancel');
   }
@@ -80,7 +83,8 @@ async page => {
   await page.getByText('Saved',{exact:true}).waitFor();
   if (requests[1].equations?.length) throw new Error('Canceled Equation was included in the next save');
   await page.reload();
-  await page.getByText('Ready',{exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   const reloadedCanceled = await page.getByTestId('equation-latex').inputValue();
   if (reloadedCanceled !== originalLatex) throw new Error('Cancel did not preserve the original Equation');

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from "react";
+import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 export type CommandMenuItem = {
   id: string;
@@ -21,8 +22,11 @@ type CommandMenuProps = {
 
 /** Presentational menu shared by the insert menu (`+` and `/`) and the block menu. */
 export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emptyText, onSelect, onClose }: CommandMenuProps) {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useOverlayBounds<HTMLDivElement>();
+  const returnFocus = useRef<Element | null>(null);
   useEffect(() => {
+    // StrictMode repeats effects; never replace the opener with our own first item.
+    if (!root.current?.contains(document.activeElement)) returnFocus.current = document.activeElement;
     if (focusOnOpen) root.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
     const outside = (event: MouseEvent) => {
       if (!root.current?.contains(event.target as Node)) onClose();
@@ -42,6 +46,7 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
         if (event.key === "Escape") {
           event.preventDefault();
           onClose();
+          if (focusOnOpen && returnFocus.current instanceof HTMLElement && returnFocus.current.isConnected) returnFocus.current.focus();
           return;
         }
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;

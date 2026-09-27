@@ -136,9 +136,10 @@ structure valid
 7 heading
 8 paragraph
 9 math
+writeability ok
 ```
 
-`structure valid`가 아니면 실패다.
+`structure valid`와 마지막 줄 `writeability ok`가 아니면 실패다. `check`의 의미는 아래 "Writeability Preflight v1"에 있다.
 
 ### 2-2. replace-text
 
@@ -247,10 +248,47 @@ pnpm ieumdoc check tmp/technical-document.md
 - figure caption이 `grid-tied converter` 로 바뀌었다.
 - `:name: fig-control` 또는 `fig-control` 과 `./diagram.svg` 가 남아 있다.
 - `{math}` 의 `:label: eq-current` 가 남아 있다.
-- `#fig-control` 과 `#eq-current` 참조가 남아 있다.
+- `[](#fig-control)` link와 `{eq}`eq-current`` reference가 그대로 남아 있다.
 - 표의 `AC` 가 `AC-side` 로 바뀌었고 `| Port |` 행은 그대로다.
 
 `format`을 한 번 더 실행해도 파일 내용이 같아야 한다.
+
+## Editor browser regression 실행
+
+`apps/editor/test/*.browser.js`는 실제 브라우저에서 Editor 흐름을 검증한다. 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행하고, 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)은 읽기만 한다.
+
+```bash
+pnpm editor            # 다른 터미널에서 dev server(http://127.0.0.1:5173)를 띄운다
+pnpm browser:test      # stable 시나리오 전체: 시나리오마다 scratch를 새로 만들고 실행한다
+pnpm browser:test admonition-authoring inline-math-split   # 이름을 준 시나리오만(stable 목록 밖의 것도 가능)
+pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-code를 실행할 때)
+```
+
+- `pnpm browser:prepare`는 `tmp/` 아래의 browser scratch 디렉터리만 지우고 원본에서 다시 만든다. 몇 번 실행해도 같은 초기 상태가 된다. 어떤 디렉터리에 어떤 파일을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
+- `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. 재사용 page가 browser state를 다음 시나리오에 넘기지 않도록 매번 viewport(1280×720), pointer, scroll, focus를 초기화한다. page mock cleanup 이후에도 유지되는 context route가 scratch 밖의 실제 쓰기를 차단한다(시작 시 403 probe). 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
+- stable 목록은 `apps/editor/test/browser/run.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다.
+- 아래 각 기능 절의 수동 명령도 `pnpm browser:prepare` 뒤에 그대로 쓸 수 있다.
+
+### CI 및 로컬 재현
+
+`.github/workflows/ci.yml`은 모든 pull request에서 Node.js `24.21.0` / pnpm `12.5.1`로 typecheck, Core / CLI / Editor 테스트, Editor production build와 `pnpm browser:test`를 실행한다. Chromium은 저장소가 고정한 `@playwright/cli`에서 설치하고 Linux 의존성은 매 실행에 확인한다. Browser 바이너리 cache key는 `pnpm-lock.yaml`을 사용한다. CI server는 `127.0.0.1:5173`에서 `/api/document`가 응답할 때까지 기다린 뒤 테스트하며, 종료 시 browser session과 Vite process group을 정리한다. 실패 scenario의 Error/Result/Page/Events 출력과 실패 직후 browser state를 step log에 남기고 Vite log를 artifact로 올린다.
+
+로컬에서는 필요하면 `pnpm exec playwright-cli install-browser chromium`을 한 번 실행한 뒤, 기존과 같이 별도 터미널에서 `pnpm editor`, 다른 터미널에서 `pnpm browser:test`를 실행한다. 로컬과 CI는 같은 stable scenario runner와 명령을 사용한다. CI에서만 Chromium의 Linux system dependencies를 설치하며, Vite의 고정 port `5173`은 로컬에서도 비어 있어야 한다.
+
+## Quiet Document visual review
+
+```bash
+pnpm browser:test layout-rules quiet-document
+pnpm browser:test figure-authoring figure-draft-race label-authoring source-view
+```
+
+- 실제 fixture: `apps/editor/test/browser/fixtures/quiet-document.md`, `quiet-document-long.md`; `browser:prepare`가 `tmp/quiet-document/`에 복사한다. 로컬 Figure는 기존 `diagram.svg`를 재사용한다. 한글/영문 H1–H6, inline formatting/math/reference, Note/Warning, equation, Figure, table을 포함한다.
+- `layout-rules`는 1440/1025/1024/768/705/704px, sidebar 펼침/접힘에서 정렬축·gutter·control·computed typography를 검사한다. 필수 DOM 누락은 실패다. 접힌 sidebar의 icon/label 측정만 명시적으로 제외한다.
+- `quiet-document`는 실제 API 문서를 열고 rest, Figure selected/editing, Equation editing, 좁은 inline form, 긴 파일명/수식/표, Open/New를 캡처한다. 폰트/이미지와 overlay transition이 끝난 후 측정한다. 캡처는 `tmp/visual-refinement/after-*.png`; 대표 Before/After와 목업은 [review](../design/editor-visual-refinement-v1-review.md)에 보관한다.
+- 키보드 Tab 접근, 메뉴 Escape 복귀, Figure selection 밖의 draft, slash focus, overlay 내부 control 경계, contrast, Chromium composition + undo/redo, 실제 block drag + undo도 확인한다. 데스크톱 OS IME 후보창은 별도 수동 검증 대상이다.
+- 툴 노출을 검사할 때 먼저 블록을 hover한다. 보이지 않는 버튼에 force click하지 않는다. Form의 유효성/Apply/Cancel/Save/Reload 검사는 그대로 유지한다.
+- `title`로 전체 경로를 확인한다. 화면에는 filename만 표시하므로 주소 일치 검사는 `title`을 사용한다. 정상 로드 완료는 표시 문구 대신 status의 `data-operation="Ready"`로 기다린다. Dirty/Saved/Saving/error 문구는 실제 상태 전환과 함께 검사한다.
+- Windows에서 전역 pnpm shim이 실패하면 동일 버전의 `corepack pnpm`으로 실행할 수 있다. 작업이 시작한 서버/브라우저만 종료한다.
 
 ## Visual Editor
 
@@ -353,7 +391,20 @@ Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는
 - `fig-control`, `eq-current` 참조
 - 표의 행 수와 `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-Figure, table, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다.
+Figure, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다. Table은 plain-text cell만 수정할 수 있다(아래 "Table cell editing v1").
+
+Save 후 파일의 `See [](#fig-control) and {eq}`eq-current`.` 줄은 그대로여야 한다. `{eq}` reference가 `[](#eq-current)` link로 바뀌면 실패다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-reference open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-reference run-code --filename=apps/editor/test/reference-save-reload.browser.js
+pnpm exec playwright-cli -s=ieumdoc-reference close
+```
+
+결과의 값은 모두 `true`여야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
 ### G. 구조 변경 거부
 
@@ -422,9 +473,17 @@ pnpm ieumdoc check <file>
 pnpm ieumdoc format <file>
 pnpm ieumdoc replace-text <file> --from <text> --to <text>
 pnpm ieumdoc insert-block <file> --at <index> --text <text>
+pnpm ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>
+pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc remove-block <file> --at <index>
 pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
+pnpm ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]
+pnpm ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]
+pnpm ieumdoc insert-table <file> --at <index> --cells <json>
+pnpm ieumdoc insert-table-row <file> --path <table> --at <row>
+pnpm ieumdoc insert-table-column <file> --path <table> --at <column>
+pnpm ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>
 ```
 
 `pnpm ieumdoc help`와 `pnpm ieumdoc <command> --help`는 사용 가능한 명령을 보여 준다.
@@ -435,16 +494,18 @@ index는 `check`가 출력하는 top-level 번호다.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 
-- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption/table cell은 `update-node-text --path`를 쓴다.
+- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption은 `update-node-text --path`, table cell은 `update-table-cell --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
-- `{eq}`eq-current`` 는 serialize 후 `[](#eq-current)` 가 된다. 대상 label은 남는다.
+- `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
+- Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
+- front matter가 있는 문서는 열고 읽을 수 있지만 `format`/Save는 파일을 쓰기 전에 실패한다(아래 "Canonical Input Safety v1"). `check`는 이를 미리 알리고, Editor는 문서를 연 즉시 저장할 수 없다고 표시한다(아래 "Writeability Preflight v1"). front matter 편집·보존은 범위가 아니다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis만 있는 paragraph다.
-- link 또는 cross-reference가 있는 paragraph, admonition, figure, table은 보이지만 읽기 전용이다. Equation은 Equation editor에서 LaTeX를 수정할 수 있다. Figure caption과 table cell도 이번 화면에서는 수정하지 않는다. CLI `update-node-text` 는 그대로다.
-- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Note`, `Warning`, `Equation`, `Figure`, `Table`), Heading level 변경과 삭제는 block menu, 이동은 handle drag로 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 기존 수식은 Equation editor에서 LaTeX를 수정할 수 있고, 새 수식은 insert menu에서 추가할 수 있다.
@@ -456,7 +517,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
-- Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, figure, equation, table, reference paragraph는 저장 대상이 아니다.
+- Save 후 파일에 반영되지 않으면 heading level/text, Note/Warning 본문 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. 지원되지 않는 admonition 구조, reference paragraph, 서식 있는 table cell은 저장 대상이 아니다.
 - Heading Enter 또는 paragraph가 아닌 이전 block과의 Backspace 병합은 차단되어야 한다.
 
 ## Single Editor 저장 경계 회귀 확인
@@ -553,6 +614,12 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 이동된 paragraph에 텍스트, Bold/Italic, Shift+Enter hard break를 추가한 뒤 Save → Reload한다. 순서와 의미가 유지되어야 한다.
 - Save 응답을 지연한 상태에서 다시 drag하거나 입력한 뒤 `Saved; newer edits pending`을 확인한다. 다음 Save → Reload에서도 pending 변경이 남아야 한다.
 - nested block, multi-select, type conversion은 범위가 아니다. block 추가/삭제는 아래 Editor UX Shell v1을 본다. canonical serializer가 block 경계를 바꾸는 reorder는 파일을 쓰지 않고 실패한다.
+- 드래그하는 동안 옮기는 block은 옅은 파란색으로 칠해지고, 놓을 위치는 두 block 사이 간격 가운데의 선(왼쪽 끝에 작은 원)으로 표시된다. 제자리(바로 위·아래 간격)에서는 선이 보이지 않으며, 거기서 놓으면 아무 변화가 없다.
+- 이동한 Equation은 편집창이 열리지 않고, 이동한 Figure는 선택되지 않아 properties가 뜨지 않는다. 옮기기 전에 그 block을 선택하고 있었다면 선택은 그대로 따라간다. paragraph/heading은 이전처럼 caret이 이동한 block으로 간다. Undo/Redo도 편집창을 열지 않는다.
+- 한 block을 놓은 직후 곧바로 다른 block을 드래그할 수 있다(이전에는 놓은 직후의 드래그가 시작되지 않을 수 있었다). 놓은 뒤 editor focus가 유지되어 Ctrl+Z가 바로 동작한다.
+- Apply하지 않은 Equation/Figure draft가 있는 block은 옮길 수 없다. handle에 hover하면 `Apply or Cancel the Equation edit before moving it.`(Figure는 `… Figure edit …`)이 보이고, 드래그가 시작되지 않으며 draft는 그대로다. Apply 또는 Cancel 뒤에는 다시 옮길 수 있다. 다른 block을 옮기는 것은 draft와 관계없이 가능하다.
+
+브라우저 회귀: `pnpm browser:test block-move`는 scratch `tmp/block-move/technical-document.md`에서 실제 handle을 드래그해 위 표시·제자리·선택·연속 드래그·Undo/Redo·draft 차단을 확인한다. 저장하지 않으며 파일이 그대로인지도 확인한다.
 
 ## Editor Equation Draft Save Guard v1
 
@@ -569,8 +636,8 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - Error는 top bar 아래 message area에 남고 `×`로 닫는다. Notice는 몇 초 뒤 사라진다. 두 메시지 모두 document column 안에 나타나지 않는다.
 - block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
 - paragraph 시작 또는 공백 뒤에서 `/`를 입력하면 `+`와 같은 insert menu가 열린다. 입력한 글자로 걸러지고, ↑/↓/Enter로 고르며 Esc로 닫는다. 선택하면 `/` 입력은 지워진다.
-- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`이 있다. 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 빈 paragraph, 빈 heading, Apply하지 않은 빈 Equation을 Save하면 실패한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
-- block menu에는 Core `removeBlock`으로 저장되는 `Delete`만 있다. 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
+- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`이 있다(`Figure`는 아래 Figure Authoring v1, `Table`은 아래 Table authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 빈 paragraph, 빈 heading, Apply하지 않은 빈 Equation을 Save하면 실패한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
+- block menu에는 Core `removeBlock`으로 저장되는 `Delete`가 있다(Table에는 그 위에 `Add row below`, `Add column right`가 더 있다. 아래 Table authoring v1). 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
 - 키보드 Delete/Backspace나 붙여넣기로는 block이 추가·삭제되지 않는다. Save adapter는 Delete command로 선언되지 않은 block 소실을 거부한다.
 
 Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popover, sidebar/top bar의 아이콘 버튼은 shadcn(Base UI, Nova style, Stone base color) 기반이다. 이 전환은 상호작용을 바꾸지 않는다.
@@ -591,4 +658,273 @@ pnpm exec playwright-cli -s=ieumdoc-shell close
 pnpm exec playwright-cli -s=ieumdoc-equation close
 ```
 
-`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `saveTooltipShown`은 Equation draft로 Save가 막혔을 때 hover하면 tooltip이 뜨는지 확인한다.
+`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `saveTooltipShown`은 Equation draft로 Save가 막혔을 때 hover하면 tooltip이 뜨는지 확인한다.
+
+## Figure Authoring v1
+
+Core `updateFigure` / `insertFigure`가 Figure의 image URL, alt text, caption을 다룬다. label(`:name:`)은 이 연산들이 보존하고, 편집은 Core `updateLabel`이 맡는다("Equation / Figure label authoring v1"). reference rename, 이미지 업로드·복사·file picker는 범위가 아니다.
+
+유효 조건(Core와 Editor Apply가 같은 규칙을 쓴다. 실제 MyST round-trip에서 확인한 조건이다):
+
+- image URL은 필수다. 앞뒤 공백과 줄바꿈은 안 된다(빈 URL은 Figure가 사라지고, 공백은 저장 후 바뀐다).
+- alt text는 비워도 된다(비우면 `:alt:`가 없어진다). 줄바꿈과 앞 공백은 안 된다.
+- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않으며 Save도 계속 비활성이다.
+- legend, 서식 있는 caption 등 v1이 지원하지 않는 구조의 Figure는 읽기 전용이다(`inspect`의 `figureEditable=false`).
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-figure <file> --at 1 --image ./plot.svg --alt "Plot" --caption "Measured plot."
+pnpm ieumdoc update-figure <file> --path 6 --caption "New caption."
+```
+
+`update-figure`에서 생략한 속성은 바뀌지 않는다. `--path`가 Figure가 아니거나 값이 유효하지 않으면 exit 1이고 파일은 그대로다.
+
+Editor:
+
+- 기존 Figure를 클릭하면 properties popover(Label, Image, Alt text, Caption)가 보이고 editor focus는 유지된다. block의 `Edit`를 누르면 Image / Alt text / Caption / Label 입력이 있는 form이 열린다.
+- 값을 바꾸면 block 안에 `Unapplied changes. Apply or Cancel before saving.`이 보이고 Save가 비활성이다(tooltip `Apply or Cancel the Figure edit before saving.`). `Apply`(또는 Enter) 후에만 block의 이미지·caption이 바뀌고 Save할 수 있다. `Cancel`(또는 Esc)은 마지막으로 Apply한 값으로 돌아가고 block은 남는다.
+- 상대 경로 이미지(`./`, `../`)는 열린 문서의 폴더 기준으로 보인다. 이미지 preview는 Apply 후 갱신된다.
+- `+` 또는 `/figure`로 새 Figure를 넣으면 form이 바로 열리고 Image 입력에 focus가 간다. 빈 새 paragraph에서 `/figure`를 쓰면 그 paragraph가 Figure로 바뀌어 빈 paragraph가 남지 않는다. 한 번도 Apply하지 않고 `Cancel`하면 block이 사라진다(문서의 유일한 block이면 빈 paragraph로 돌아간다). Apply한 뒤 다시 `Edit` → 변경 → `Cancel`하면 block은 남고 Apply한 값으로 돌아간다.
+- Save → Reload 후 image/alt/caption이 유지되고 기존 label은 그대로다. Delete, reorder, Undo/Redo, Save 지연 중 입력한 Figure draft도 기존 block과 같이 동작한다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-figure open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-authoring.browser.js
+pnpm exec playwright-cli -s=ieumdoc-figure run-code --filename=apps/editor/test/figure-draft-race.browser.js
+pnpm exec playwright-cli -s=ieumdoc-figure close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. Focused regression은 editor selection이 Figure 밖으로 이동해도 Apply 또는 Cancel 전까지 form과 draft가 유지되고, Apply → Save → Reload 후 caption이 보존되는지 확인한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Table cell editing v1
+
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬, merged cell은 범위가 아니다.
+
+유효 조건(Core round-trip에서 확인한 조건이다):
+
+- 한 줄 텍스트만 된다. 앞뒤 공백은 안 된다. 비우면 빈 cell이 된다.
+- `|`, `*`, `_`, `` ` `` 같은 Markdown 문자는 escape되어 글자 그대로 남는다.
+- MyST가 다른 의미로 읽는 텍스트(예: `cost $x$`)는 거부된다.
+
+CLI:
+
+```bash
+pnpm ieumdoc update-table-cell <file> --path 12,1,1 --text "AC-side"
+pnpm ieumdoc update-table-cell <file> --path 12,2,1 --text ""
+```
+
+`--path`는 `table,row,cell`이다(header 행은 row 0). 거부되면 exit 1이고 파일은 그대로다.
+
+Editor:
+
+- Table은 문서 안의 일반 표로 보인다. 수정 가능한 cell을 클릭하고 바로 입력한다. 읽기 전용 cell은 흐린 글자이고 입력해도 바뀌지 않는다.
+- Enter, Shift+Enter, cell 시작의 Backspace는 표 구조를 바꾸지 않는다. cell 안에서는 굵게/기울임이 적용되지 않는다. Undo/Redo는 다른 편집과 같다.
+- Save → Reload 후 수정한 header/body cell이 canonical Markdown에 남고, 다른 block은 그대로다. 유효하지 않은 cell 텍스트는 `Save failed`로 거부되고 파일은 바뀌지 않는다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-table open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-table run-code --filename=apps/editor/test/table-cell-editing.browser.js
+pnpm exec playwright-cli -s=ieumdoc-table close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Table authoring v1
+
+Core가 새 table, 기존 table의 행과 열을 만든다. 모두 canonical Markdown으로 다시 읽어 같은 표가 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+
+- `insertTable`: top-level 위치에 plain-text cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
+- `insertTableRow`: 빈 body 행을 넣는다. header 행 위(row 0)에는 넣을 수 없다.
+- `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 서식 있는(읽기 전용) cell이 있는 표에도 넣을 수 있다.
+- 열 정렬(`:--`)이 있는 표는 canonical Markdown이 정렬을 보존하지 못해 원래 저장할 수 없고, 행/열 추가도 실패한다. 행/열 삭제·이동은 범위가 아니다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-table <file> --at 1 --cells '[["Port","Type"],["U","AC"]]'
+pnpm ieumdoc insert-table-row <file> --path 1 --at 2      # 1..행 수(끝)
+pnpm ieumdoc insert-table-column <file> --path 1 --at 1   # 0..열 수(끝)
+pnpm ieumdoc update-table-cell <file> --path 1,2,0 --text "P"
+```
+
+`--cells`는 행 배열의 JSON이다(첫 행이 header). 거부되면 exit 1이고 파일은 그대로다.
+
+Editor:
+
+- `+` 또는 `/` insert menu의 `Table`은 header 행과 body 2행, 3열의 빈 표를 만들고 caret을 첫 header cell에 둔다. 빈 transient paragraph에서 고르면 그 자리를 대신한다. 모든 cell이 빈 새 표는 저장되지 않는다(`empty table cannot be saved`).
+- 표의 `⠿`를 click하면 block menu에 `Add row below`, `Add column right`, `Delete`가 있다. caret이 그 표의 cell에 있으면 그 행 아래 / 그 열 오른쪽에, 아니면 마지막 행 아래 / 마지막 열 오른쪽에 빈 행/열이 생기고 caret이 새 cell로 간다. 다른 block의 menu에는 두 항목이 없다.
+- 새 cell은 편집 가능한 빈 cell이다(새 열의 header 행 cell은 header). 행/열 추가는 각각 Undo 한 번으로 되돌아가고, 되돌린 뒤에는 저장할 변경이 없다.
+- Save → Reload 후 새 표와 새 행/열, 입력한 텍스트가 canonical Markdown에 남는다. 저장한 뒤에 추가한 행/열도 다음 Save에서 저장된다. 기존 cell의 수정은 같은 Save에서 함께 저장된다.
+
+브라우저 회귀: `pnpm browser:test table-authoring`은 scratch `tmp/table-authoring/tables.md`에서 insert menu로 표를 만들고, 기존 표의 block menu로 행과 열을 추가해 입력한 뒤 Save하고, 저장 후 행을 하나 더 추가해 다시 Save한다. 두 번의 파일 내용과 다시 연 화면을 확인한다.
+
+## Inline link authoring v1
+
+일반 Markdown link(`[텍스트](URL "선택적 title")`, `<https://...>`)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `link`로 저장되고 split / merge / hard break도 link를 유지한다. `{eq}` / `{ref}` / `{numref}` 같은 cross-reference는 link가 아니다(`{eq}`/`{numref}` 편집은 "Local cross-reference authoring v1").
+
+읽기 전용으로 남는 link: 표시 텍스트가 빈 link(`[](#x)`), code나 image를 감싼 link, `{download}` link, 같은 대상으로 가는 link 두 개가 붙어 있는 paragraph(`[a](x)[b](x)`; 편집기에서 하나로 합쳐지기 때문).
+
+Editor:
+
+- link 텍스트를 선택하면 selection toolbar에 `Link` 버튼이 있다. 누르면 URL 입력이 뜬다. 기존 link면 현재 URL이 채워져 있다.
+- `Apply`(또는 Enter)로 link를 추가하거나 URL을 바꾼다. 기존 title은 유지된다. `Remove`는 link만 없애고 텍스트와 굵게/기울임은 남긴다. Esc는 취소한다.
+- 표시 텍스트는 일반 텍스트처럼 고친다. link 안쪽에서 입력하면 link가 유지된다. link 맨 앞/맨 끝에서 입력하거나 link 텍스트 전체를 덮어 쓰면 새 텍스트는 link 밖이다(일반적인 편집기 동작).
+- 굵게/기울임과 link를 함께 써도 Save → Reload 후 같은 의미로 남는다.
+- 공백이 있는 URL은 form에서 거부된다. 한글처럼 parser가 인코딩하는 URL은 `Save failed`로 거부되고 파일은 바뀌지 않는다. 인코딩된 URL(`%ED%95%9C…`)을 쓰면 된다.
+- 수정하지 않은 link paragraph는 Save해도 다시 쓰이지 않는다.
+
+CLI: 전용 명령은 없다. 기존 `split-paragraph`, `merge-paragraph`, `insert-hard-break`, `replace-text`가 link paragraph에서도 link를 유지한다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-links open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-links run-code --filename=apps/editor/test/link-authoring.browser.js
+pnpm exec playwright-cli -s=ieumdoc-links close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Inline math authoring v1
+
+paragraph 안의 inline math(`$x$`, `{math}`x``)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `math`(LaTeX source)로 저장되고 canonical 형태는 `{math}`x``다(`$x$`도 저장하면 이 형태가 된다). display Equation block(`{math}` directive, `$$`)과 cross-reference는 바뀌지 않는다.
+
+- inline math는 KaTeX로 보인다. 클릭하면 아래에 source 입력이 뜬다. `Apply`(또는 Enter)로 source를 바꾸고, `Remove`로 math를 source 텍스트로 되돌린다(굵게/기울임/link는 남는다). Esc는 취소다.
+- 텍스트를 선택하고 selection toolbar의 `Inline math`(Σ)를 누르면 선택한 텍스트가 source인 inline math가 된다. 줄바꿈이나 다른 inline math가 섞인 선택은 거부된다.
+- inline math가 선택된 상태의 Enter / Shift+Enter는 문단을 나누거나 math를 지우지 않는다. 글자를 입력하면 선택한 math를 대체한다(일반 선택 동작, Undo 가능).
+- 굵게/기울임/link 안의 inline math는 Save → Reload 후 같은 의미로 남는다.
+- source는 한 줄이어야 하고 비어 있으면 안 된다. 맨 앞/맨 끝이 backtick인 source처럼 canonical role로 그대로 쓸 수 없는 값은 `Save failed`로 거부되고 파일은 바뀌지 않는다.
+- CLI의 paragraph offset에서 inline math는 hard break처럼 한 글자로 센다(`pnpm ieumdoc help split-paragraph`).
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-math open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-math run-code --filename=apps/editor/test/inline-math-authoring.browser.js
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-math run-code --filename=apps/editor/test/inline-math-split.browser.js
+pnpm exec playwright-cli -s=ieumdoc-math close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Read-only Source View v1
+
+Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`는 지금 Save하면 쓰일 canonical Markdown을 읽기 전용으로 보여 준다. Apply된 미저장 Visual 변경도 포함되며, 파일은 쓰지 않는다(Host가 Save와 같은 Core 경로를 실행하고 결과만 돌려준다).
+
+- `Source`를 누를 때마다 현재 editor 상태로 다시 만든다. 편집, 선택, syntax highlighting, line number는 없다.
+- `Visual`로 돌아오면 미저장 편집과 Undo/Redo가 그대로 남는다(Editor는 숨겨질 뿐 다시 만들어지지 않는다).
+- Save와 save status는 두 view에서 같다. Source에서 Save하면 보이던 Markdown이 그대로 저장된다. 다른 파일을 Open/New하면 Visual로 돌아간다.
+- Apply되지 않은 Equation/Figure draft가 있으면 `Source`는 비활성이고 tooltip으로 이유를 알려 준다.
+- Save가 거부할 상태(빈 paragraph, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다. 열 때부터 canonical Markdown으로 쓸 수 없는 문서는 Source 자체가 비활성화되고 이유는 writeability 경고에 있다(아래 "Writeability Preflight v1").
+- CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본과 canonical 기준값 `expected.md`는 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-source open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view.browser.js
+# Source 요청이 끝나기 전에는 Open/New로 문서를 바꿀 수 없다(파일을 쓰지 않는다).
+pnpm exec playwright-cli -s=ieumdoc-source run-code --filename=apps/editor/test/source-view-pending.browser.js
+pnpm exec playwright-cli -s=ieumdoc-source close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Source 요청의 400은 `onlyRejectedPreviewLogged`로 따로 확인한다). 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Equation / Figure label authoring v1
+
+Equation과 Figure의 label(reference target 이름)을 Visual Editor에서 추가 / 수정 / 제거한다. label은 NodePath나 block identity가 아니다. 저장은 Core `updateLabel`을 거친다(CLI: `pnpm ieumdoc update-label <file> --path <index> --label <label>`, 빈 `--label ""`은 제거).
+
+- Equation: `Edit` 폼의 `Label` 입력. Figure: `Edit figure` 폼의 `Label` 입력. 둘 다 `Apply`해야 반영되고, Apply 전에는 draft로 Save/Source가 막힌다. 새 Equation/Figure에도 label을 지정할 수 있다.
+- canonical 표현: Equation은 `:label:`, Figure는 `:name:`(`:label:`로 쓴 Figure도 저장하면 `:name:`이 된다). Source View에 미저장 label 변경도 보인다.
+- label은 한 줄이고 앞뒤 공백이 없어야 한다(Apply에서 거부). MyST target이 되지 않는 값(예: `""`), `{eq}`/`{numref}`로 참조할 수 없는 값(예: `eq<a>`)은 Save/Source에서 거부된다.
+- 같은 문서의 다른 target(Equation, Figure, `(label)=` target 등)과 MyST identifier가 같으면(대소문자 무시) 중복으로 거부된다. 파일은 바뀌지 않는다. 한 번의 Save 안에서 두 block의 label을 서로 바꾸는 것은 된다.
+- 기존 reference(`{eq}`, `{numref}`, `[](#...)`)는 자동으로 바뀌지 않는다. label을 바꾸거나 지우면 reference가 끊어질 수 있다.
+- 구조가 read-only인 Figure의 label은 바꿀 수 없다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-label open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-label run-code --filename=apps/editor/test/label-authoring.browser.js
+pnpm exec playwright-cli -s=ieumdoc-label close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다(거부된 Save/Source 요청의 400은 `duplicateRequestsLogged`로 따로 확인한다). 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Local cross-reference authoring v1
+
+현재 문서의 label이 있는 Equation(`{eq}`)과 Figure(`{numref}`)를 paragraph 안에서 참조한다. reference는 Core `InlineContent`의 `reference`(role + label)로 저장되고 canonical 형태는 `{eq}`label`` / `{numref}`label``다. `[text](#label)` 같은 일반 fragment link와는 서로 바뀌지 않는다.
+
+- 편집 대상은 표시 텍스트가 없는 `{eq}`label``, `{numref}`label``뿐이다. `{numref}`Figure %s <label>`` 같은 표시 텍스트, `{ref}`, link 안의 reference가 있는 paragraph는 계속 읽기 전용이다.
+- 삽입: 텍스트를 선택하고 selection toolbar의 `Cross-reference`(#)를 누르면 target을 고르는 작은 form이 열린다(선택한 텍스트와 같은 label이 있으면 미리 선택된다). caret 위치에서는 `/`를 입력하고 `Equation reference: …` / `Figure reference: …`를 고른다.
+- reference를 클릭하면 target을 바꾸거나 `Remove`로 label 텍스트로 되돌릴 수 있다. 굵게/기울임은 reference에도 적용되고, link는 적용되지 않는다. split / merge / hard break에서 reference는 한 글자로 센다.
+- 문서 안에 같은 종류의 target이 있으면(MyST처럼 대소문자 무시) 보통 표시, 없으면 흐린 점선으로 표시되고 tooltip에 `Unresolved`가 나온다. label을 바꾸면 바로 반영된다. 끊어진 reference도 그대로 저장된다.
+- target 목록은 현재 문서의 Equation/Figure label(Apply한 미저장 label 포함)이다. `{numref}`가 Equation이나 table을 가리키면 v1에서는 unresolved로 보인다.
+
+브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
+
+```bash
+pnpm browser:prepare
+pnpm exec playwright-cli -s=ieumdoc-xref open http://127.0.0.1:5173
+pnpm exec playwright-cli -s=ieumdoc-xref run-code --filename=apps/editor/test/cross-reference.browser.js
+pnpm exec playwright-cli -s=ieumdoc-xref close
+```
+
+결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Canonical Input Safety v1
+
+Core parse 경계(`packages/core/src/myst/parse.ts`)의 계약이다. canonical write guard는 parse 결과와 그 canonical Markdown을 다시 parse한 결과를 비교하므로, parse 자체가 바꾸는 것은 보지 못한다. 그래서 parse 경계에서 다음을 지킨다.
+
+- 입력한 텍스트는 그대로다. MyST 기본값인 typographic quote 치환(markdown-it `typographer` + `smartquotes`)을 끈다. `Don't panic.`, `The state is "READY".`는 Editor Save / CLI 쓰기 / Reload 뒤에도 곧은 따옴표로 남는다. 문서에 이미 있는 `“ ” ‘ ’`도 쓴 그대로 남는다.
+- 파일 맨 앞의 UTF-8 BOM은 인코딩 표시일 뿐 내용이 아니다. parse 전에 한 번 제거하므로 `<BOM># Heading`은 heading이다. Save / `format` 결과에는 BOM을 쓰지 않는다. 문서 중간의 U+FEFF는 내용으로 남는다.
+- front matter(`---`로 시작하는 문서 첫 block)는 읽을 수 있지만(Editor에서는 Unsupported block) canonical Markdown으로 보존할 수 없으므로 `format` / Editor Save / Source view / 다른 쓰기 명령이 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: … (front matter) …`로 실패한다. 판별은 MyST parser가 만든 첫 code block과 그 source 첫 글자로 한다. 문서 중간의 `---`(thematic break), setext heading, 문서 맨 앞의 ```` ```yaml ```` block은 front matter가 아니다. MyST는 닫는 `---`가 없어도 문서 끝까지를 front matter로 읽으므로 그런 문서도 쓰기가 거부된다.
+
+수동 확인:
+
+```bash
+printf '\xef\xbb\xbf# Heading\n\nBody.\n' > /tmp/bom.md && pnpm ieumdoc format /tmp/bom.md && head -c 12 /tmp/bom.md | od -c   # BOM 없이 "# Heading"
+printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc format /tmp/fm.md; cat /tmp/fm.md   # 실패, 파일 그대로
+```
+
+브라우저 회귀: `pnpm browser:test quote-save-reload`는 scratch 파일 `tmp/quote-save-reload/quotes.md`의 문단에 `Don't panic.`과 `The state is "READY".`를 입력하고 Save → Reload → 다시 열기 뒤 파일과 Editor가 입력 그대로인지 확인한다.
+
+## Writeability Preflight v1
+
+문서를 고치기 전에, IeumDoc이 그 문서를 canonical Markdown으로 의미를 잃지 않고 다시 쓸 수 있는지(canonical writeability) 알려 준다. 판단은 Core `canonicalWriteError(document)` 하나다. 이 함수는 `serialize`를 그대로 실행하므로 `format`과 Editor Save가 같은 snapshot에 내리는 판단·이유와 같다. 파일을 쓰지 않고 문서를 바꾸지 않는다.
+
+`pnpm ieumdoc check <file>`이 보장하는 것:
+
+- 파일을 읽어 parse할 수 있고 구조 검사(`structure valid`)를 통과한다.
+- 지금 이 파일에 `format`(또는 Editor Save)을 실행하면 의미를 보존한 canonical Markdown을 쓸 수 있다(`writeability ok`). 쓸 수 없으면 block 목록 뒤에 stderr로 `writeability failed: <이유>`를 출력하고 exit code 1로 끝난다. `--format json`은 `"writeability": {"writable": false, "error": "…"}`와 `"ok": false`를 준다.
+- `check`는 파일을 절대 쓰지 않는다.
+
+보장하지 않는 것: 이미지 등 asset 파일의 존재, reference target의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
+
+저장할 수 없는 예(모두 현재 canonical writer가 의미를 보존하지 못해 거부하는 것): front matter, 정렬이 있는 Markdown 표(`|:--|`), 단독 Markdown image, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
+
+```bash
+printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md
+pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid / 0 code / 1 heading, stderr: writeability failed: …(front matter)…, exit=1
+```
+
+Editor:
+
+- 저장할 수 없는 문서도 정상으로 열리고 내용이 그대로 보인다(`Open failed`가 아니다). 연 즉시 top bar 아래에 닫을 수 없는 경고 `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. <이유>`가 보이고, status는 `Cannot save`다.
+- 편집은 막지 않지만 그 문서가 열려 있는 동안 Save와 Source는 비활성화된다(tooltip이 이유를 알려 준다). 저장할 수 없으므로 편집이 남아 있어도 Open/New로 다른 문서로 옮길 수 있다.
+- writeability는 문서 응답(Open, Reload, New, Save)마다 Host가 Core로 계산한다. 편집 중 매 입력마다 다시 계산하지 않는다. 저장할 수 없는 block을 지워도 그 세션의 Save는 계속 비활성화된다. 파일을 고친 뒤 다시 연다.
+- 저장 가능한 문서의 Ready/Save/Source 동작은 그대로다.
+
+브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch의 front matter 문서를 열어 내용·경고·`Cannot save`를 확인하고, 편집 뒤에도 Save/Source가 요청을 보내지 않으며 파일이 byte 단위로 그대로인지 확인한다. 이어서 저장 가능한 문서를 열어 정상 Save를 확인하고, front matter 문서를 다시 열어 경고가 돌아오는지 확인한다.

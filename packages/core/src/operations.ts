@@ -1,31 +1,40 @@
 import { assertPersistentParagraph } from "./myst/paragraph.ts";
-import { toText } from "myst-common";
-import {
-  cloneDocument,
-  getNode,
-  type Document,
-  type DocumentNode,
-  type NodePath,
-} from "./document.ts";
+import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
   inlineContentLength,
+  inlineMarkKey,
   splitInlineContent,
   concatenateInlineContent,
   insertInlineBreak,
+  inlineContentText,
   inlineContentToNodes,
   projectInlineContent,
   type InlineContent,
 } from "./inline.ts";
 
+import { figureContentError, type FigureContent } from "./figure.ts";
+import {
+  assertFigureRoundTrip,
+  createFigureNode,
+  isFigure,
+  setFigureContent,
+  supportedFigureContent,
+} from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
+import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
+import { assertReferenceableLabel } from "./myst/reference.ts";
+import { labelError } from "./label.ts";
+import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
 import { parse } from "./myst/parse.ts";
-import { serialize } from "./myst/serialize.ts";
+import { serialize, serializeFor } from "./myst/serialize.ts";
+import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
+import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
-export function replaceText(document: Document, from: string, to: string): Document {
+export function replaceText(document: MystDocument, from: string, to: string): MystDocument {
   if (from.length === 0) {
     throw new Error("replaceText requires a non-empty search string");
   }
@@ -41,7 +50,7 @@ export function replaceText(document: Document, from: string, to: string): Docum
   return next;
 }
 
-export function moveBlock(document: Document, fromIndex: number, toIndex: number): Document {
+export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number): MystDocument {
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -59,18 +68,20 @@ export function moveBlock(document: Document, fromIndex: number, toIndex: number
   return next;
 }
 
-function assertCanonicalBlockBoundaries(document: Document): void {
+const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
+
+function assertCanonicalBlockBoundaries(document: MystDocument): void {
   const expectedBlocks = getEditableDocument(document).blocks;
-  const reloadedBlocks = getEditableDocument(parse(serialize(document))).blocks;
+  const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
     reloadedBlocks.some((block, index) => block.block !== expectedBlocks[index].block)
   ) {
-    throw new Error("Canonical save changed block boundaries; this order cannot be saved");
+    throw new Error(BOUNDARY_FAILURE);
   }
 }
 
-export function insertBlock(document: Document, index: number, block: DocumentNode): Document {
+export function insertBlock(document: MystDocument, index: number, block: MystNode): MystDocument {
   if (!block || typeof block.type !== "string" || block.type.length === 0) {
     throw new Error("insertBlock requires a block with a type");
   }
@@ -86,8 +97,8 @@ export function insertBlock(document: Document, index: number, block: DocumentNo
   return next;
 }
 
-export function insertParagraph(document: Document, index: number, text: string): Document {
-  const paragraph: DocumentNode = {
+export function insertParagraph(document: MystDocument, index: number, text: string): MystDocument {
+  const paragraph: MystNode = {
     type: "paragraph",
     children: [{ type: "text", value: text }],
   };
@@ -95,19 +106,21 @@ export function insertParagraph(document: Document, index: number, text: string)
   return insertBlock(document, index, paragraph);
 }
 
+const HEADING_FAILURE = "heading insertion cannot round-trip losslessly through canonical Markdown";
+
 /** Insert a persistent top-level heading while keeping its MyST details inside Core. */
-export function insertHeading(document: Document, index: number, level: number, text: string): Document {
+export function insertHeading(document: MystDocument, index: number, level: number, text: string): MystDocument {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
     throw new Error(`heading level must be an integer from 1 to 6: ${level}`);
   }
-  const heading: DocumentNode = {
+  const heading: MystNode = {
     type: "heading",
     depth: level,
     children: [{ type: "text", value: text }],
   };
   assertInlineBlockRoundTrip(heading);
   const next = insertBlock(document, index, heading);
-  const markdown = serialize(next);
+  const markdown = serializeFor(next, HEADING_FAILURE);
   const reparsed = parse(markdown);
   const reparsedHeading = reparsed.children[index];
   if (
@@ -116,17 +129,67 @@ export function insertHeading(document: Document, index: number, level: number, 
     toText(reparsedHeading) !== text ||
     serialize(reparsed) !== markdown
   ) {
-    throw new Error("heading insertion cannot round-trip losslessly through canonical Markdown");
+    throw new Error(HEADING_FAILURE);
   }
   return next;
 }
 
+const ADMONITION_INSERTION_FAILURE = "admonition insertion cannot round-trip losslessly through canonical Markdown";
+
+/** Insert a top-level simple note or warning with supported inline content. */
+export function insertAdmonition(
+  document: MystDocument,
+  index: number,
+  variant: AdmonitionVariant,
+  content: InlineContent[],
+): MystDocument {
+  if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
+  assertInlineContent(content);
+  if (inlineContentText(content).trim().length === 0) {
+    throw new Error("admonition body must contain non-empty text");
+  }
+  const normalizedContent = concatenateInlineContent(content);
+  const admonition: MystNode = {
+    type: "admonition",
+    kind: variant,
+    children: [{ type: "paragraph", children: inlineContentToNodes(normalizedContent) }],
+  };
+  const next = insertBlock(document, index, admonition);
+  const markdown = serializeFor(next, ADMONITION_INSERTION_FAILURE);
+  const reparsed = parse(markdown);
+  const inserted = reparsed.children[index];
+  const insertedContent = inserted && supportedAdmonitionContent(inserted);
+  if (
+    inserted?.type !== "admonition" ||
+    inserted.kind !== variant ||
+    !insertedContent ||
+    !sameInlineContent(normalizedContent, insertedContent) ||
+    serialize(reparsed) !== markdown
+  ) {
+    throw new Error(ADMONITION_INSERTION_FAILURE);
+  }
+  return next;
+}
+
+function sameInlineContent(left: InlineContent[], right: InlineContent[]): boolean {
+  const markedText = (content: InlineContent[], marks: string[] = []): [string, string][] => content.flatMap((item) => {
+    if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
+    if (item.kind === "break") return [["\n", [...marks, "break"].sort().join(",")]];
+    if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].sort().join(",")]];
+    if (item.kind === "reference") {
+      return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
+    }
+    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
+  });
+  return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));
+}
+
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */
-export function insertEquation(document: Document, index: number, latex: string): Document {
+export function insertEquation(document: MystDocument, index: number, latex: string): MystDocument {
   if (latex.length === 0) {
     throw new Error("empty equation LaTeX cannot be saved");
   }
-  const equation: DocumentNode = {
+  const equation: MystNode = {
     type: "math",
     value: latex,
   };
@@ -135,12 +198,197 @@ export function insertEquation(document: Document, index: number, latex: string)
   return next;
 }
 
+/** Insert a persistent top-level Figure without a label. */
+export function insertFigure(document: MystDocument, index: number, figure: FigureContent): MystDocument {
+  assertFigureContent(figure);
+  const next = insertBlock(document, index, createFigureNode(figure));
+  assertFigureRoundTrip(next, index, figure, undefined, undefined);
+  return next;
+}
+
+/** Update a Figure's image URL, alt text or plain-text caption; its label is preserved. */
+const TABLE_CELL_FAILURE = "table cell text cannot be preserved through canonical round-trip";
+
+/** Replace the whole plain text of an editable cell in a top-level table ([table, row, cell]). */
+export function updateTableCell(document: MystDocument, path: NodePath, text: string): MystDocument {
+  if (path.length !== 3) {
+    throw new Error("updateTableCell requires a top-level table cell path [table,row,cell]");
+  }
+  if (getNode(document, [path[0]]).type !== "table" || tableCellText(getNode(document, path)) === undefined) {
+    throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
+  }
+  assertTableCellText(text);
+  const next = cloneDocument(document);
+  setTableCellText(getNode(next, path), text);
+  assertStableTable(next, TABLE_CELL_FAILURE);
+  return next;
+}
+
+function assertTableCellText(text: string): void {
+  if (typeof text !== "string") {
+    throw new Error("table cell text must be a string");
+  }
+  if (/[\r\n]/.test(text)) {
+    throw new Error("table cell text cannot contain line breaks");
+  }
+  if (text !== text.trim()) {
+    throw new Error("table cell text cannot start or end with whitespace");
+  }
+}
+
+// serialize() rejects any semantic change; also require a stable canonical form.
+function assertStableTable(document: MystDocument, failure: string): void {
+  const markdown = serializeFor(document, failure);
+  if (serialize(parse(markdown)) !== markdown) {
+    throw new Error(failure);
+  }
+}
+
+const TABLE_FAILURE = "table cannot be preserved through canonical round-trip";
+
+/** Insert a top-level Markdown table of plain-text cells; the first row is its header row. */
+export function insertTable(document: MystDocument, index: number, rows: string[][]): MystDocument {
+  if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length === 0) {
+    throw new Error("a table needs a header row with at least one cell");
+  }
+  if (rows.some((row) => !Array.isArray(row) || row.length !== rows[0].length)) {
+    throw new Error("every table row needs the same number of cells");
+  }
+  rows.flat().forEach(assertTableCellText);
+  const next = insertBlock(document, index, createTableNode(rows));
+  assertStableTable(next, TABLE_FAILURE);
+  return next;
+}
+
+/** Insert an empty body row into a top-level table; row 0 is the header row, so `row` starts at 1. */
+export function insertTableRow(document: MystDocument, path: NodePath, row: number): MystDocument {
+  const rows = tableAt(document, path, "insertTableRow").children?.length ?? 0;
+  if (!Number.isInteger(row) || row < 1 || row > rows) {
+    throw new Error(`table row index must be an integer from 1 to ${rows}: ${row}`);
+  }
+  const next = cloneDocument(document);
+  insertTableRowNode(getNode(next, path), row);
+  assertStableTable(next, TABLE_FAILURE);
+  return next;
+}
+
+/** Insert an empty column into a top-level table at `column` (0 to the column count). */
+export function insertTableColumn(document: MystDocument, path: NodePath, column: number): MystDocument {
+  const columns = tableAt(document, path, "insertTableColumn").children?.[0]?.children?.length ?? 0;
+  if (!Number.isInteger(column) || column < 0 || column > columns) {
+    throw new Error(`table column index must be an integer from 0 to ${columns}: ${column}`);
+  }
+  const next = cloneDocument(document);
+  insertTableColumnNode(getNode(next, path), column);
+  assertStableTable(next, TABLE_FAILURE);
+  return next;
+}
+
+function tableAt(document: MystDocument, path: NodePath, operation: string): MystNode {
+  if (path.length !== 1) {
+    throw new Error(`${operation} requires a top-level table path [index]`);
+  }
+  const table = getNode(document, path);
+  if (table.type !== "table") {
+    throw new Error(`${operation} requires a table at [${path.join(",")}]`);
+  }
+  return table;
+}
+
+export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {
+  const current = getNode(document, path);
+  if (!isFigure(current)) {
+    throw new Error(`updateFigure requires a figure at [${path.join(",")}]`);
+  }
+  if (path.length !== 1) {
+    throw new Error("updateFigure requires a top-level figure path [index]");
+  }
+  const content = supportedFigureContent(current);
+  if (!content) {
+    throw new Error(`figure structure at [${path.join(",")}] is not editable in this version`);
+  }
+  const figure: FigureContent = {
+    imageUrl: changes.imageUrl ?? content.imageUrl,
+    imageAlt: changes.imageAlt ?? content.imageAlt,
+    caption: changes.caption ?? content.caption,
+  };
+  assertFigureContent(figure);
+  const next = cloneDocument(document);
+  setFigureContent(getNode(next, path), figure);
+  assertFigureRoundTrip(next, path[0], figure, current.label, current.identifier);
+  return next;
+}
+
+/**
+ * Set, change or remove ("") the label of a top-level Equation or Figure: the name
+ * references use to target it. Content is kept, and references are never renamed.
+ * The label must name a target MyST can resolve, be addressable by the reference role
+ * Core writes for that block, and not name another target in the document.
+ */
+export function updateLabel(document: MystDocument, path: NodePath, label: string): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) {
+    throw new Error("updateLabel requires a top-level Equation or Figure path [index]");
+  }
+  const current = getNode(document, path);
+  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : undefined;
+  if (!kind) throw new Error(`updateLabel requires a top-level Equation or Figure at [${path.join(",")}]`);
+  const error = labelError(label);
+  if (error) throw new Error(error);
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
+  delete node.html_id;
+  if (label.length === 0) {
+    delete node.label;
+    delete node.identifier;
+  } else {
+    const identifier = labelIdentifier(label);
+    if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
+    try {
+      assertReferenceableLabel(kind === "Equation" ? "eq" : "numref", label, identifier);
+    } catch {
+      throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
+    }
+    if (targetIdentifiers(document, current).has(identifier)) {
+      throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
+    }
+    node.label = label;
+    node.identifier = identifier;
+  }
+  const failure = `${kind} label cannot be preserved through canonical round-trip`;
+  const markdown = serializeFor(next, failure);
+  const reparsed = parse(markdown);
+  const reloaded = reparsed.children[path[0]];
+  if (reloaded?.type !== node.type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
+    throw new Error(failure);
+  }
+  return next;
+}
+
+/**
+ * Authoritative persistent validity of Figure v1 properties: the same field rules and
+ * canonical round-trip that insertFigure and updateFigure enforce. Returns the error message.
+ */
+export function validateFigure(figure: FigureContent): string | undefined {
+  try {
+    insertFigure({ type: "root", children: [] }, 0, figure);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+function assertFigureContent(figure: FigureContent): void {
+  const error = figureContentError(figure);
+  if (error) throw new Error(error);
+}
+
 export function updateNodeTextAtPath(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   from: string,
   to: string,
-): Document {
+): MystDocument {
   if (from.length === 0) {
     throw new Error("updateNodeTextAtPath requires a non-empty search string");
   }
@@ -163,13 +411,51 @@ export function updateNodeTextAtPath(
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
 }
 
+const HEADING_LEVEL_FAILURE = "heading level change cannot round-trip losslessly through canonical Markdown";
+
+/** Change the level of one editable top-level Heading while preserving its text and meaning. */
+export function updateHeadingLevel(
+  document: MystDocument,
+  path: NodePath,
+  from: number,
+  to: number,
+): MystDocument {
+  if (path.length !== 1) throw new Error("updateHeadingLevel requires a top-level heading path");
+  if (!Number.isInteger(from) || from < 1 || from > 6 || !Number.isInteger(to) || to < 1 || to > 6) {
+    throw new Error("heading level must be an integer from 1 to 6");
+  }
+  const current = getNode(document, path);
+  const block = getEditableDocument(document).blocks[path[0]];
+  if (current.type !== "heading" || block?.block !== "heading" || !block.editable) {
+    throw new Error(`heading level change is not supported at [${path.join(",")}]`);
+  }
+  if (Number(current.depth) !== from) {
+    throw new Error(`heading level does not match at [${path.join(",")}]`);
+  }
+
+  const next = cloneDocument(document);
+  getNode(next, path).depth = to;
+  const markdown = serializeFor(next, HEADING_LEVEL_FAILURE);
+  const reparsed = parse(markdown);
+  const updated = getNode(reparsed, path);
+  if (
+    updated.type !== "heading" ||
+    Number(updated.depth) !== to ||
+    toText(updated) !== toText(current) ||
+    serialize(reparsed) !== markdown
+  ) {
+    throw new Error(HEADING_LEVEL_FAILURE);
+  }
+  return next;
+}
+
 /** Update one Equation's LaTeX source while preserving its semantic identity. */
 export function updateEquationLatex(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   from: string,
   to: string,
-): Document {
+): MystDocument {
   const current = getNode(document, path);
   if (current.type !== "math") {
     throw new Error(`updateEquationLatex requires an equation at [${path.join(",")}]`);
@@ -187,14 +473,16 @@ export function updateEquationLatex(
   return next;
 }
 
+const EQUATION_FAILURE = "Equation LaTeX change cannot be preserved through canonical round-trip";
+
 function assertEquationRoundTrip(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   label: string | undefined,
   identifier: string | undefined,
   latex: string,
 ): void {
-  const markdown = serialize(document);
+  const markdown = serializeFor(document, EQUATION_FAILURE);
   const reparsed = parse(markdown);
   const equation = getNode(reparsed, path);
   if (
@@ -203,7 +491,7 @@ function assertEquationRoundTrip(
     equation.label !== label ||
     equation.identifier !== identifier
   ) {
-    throw new Error("Equation LaTeX change cannot be preserved through canonical round-trip");
+    throw new Error(EQUATION_FAILURE);
   }
   if (serialize(reparsed) !== markdown) {
     throw new Error("Equation LaTeX change is not canonical after round-trip");
@@ -211,10 +499,10 @@ function assertEquationRoundTrip(
 }
 
 export function updateParagraphInlineContent(
-  document: Document,
+  document: MystDocument,
   path: NodePath,
   content: InlineContent[],
-): Document {
+): MystDocument {
   assertInlineContent(content);
   const next = cloneDocument(document);
   const node = getNode(next, path);
@@ -229,7 +517,36 @@ export function updateParagraphInlineContent(
   return next;
 }
 
-export function removeBlock(document: Document, index: number): Document {
+/** Update the single supported paragraph body of a simple note or warning admonition. */
+export function updateAdmonitionInlineContent(
+  document: MystDocument,
+  path: NodePath,
+  content: InlineContent[],
+): MystDocument {
+  assertInlineContent(content);
+  if (path.length !== 1) throw new Error("admonition edits require a top-level path");
+  if (inlineContentText(content).trim().length === 0) {
+    throw new Error("admonition body must contain non-empty text");
+  }
+  const next = cloneDocument(document);
+  const node = getNode(next, path);
+  if (!supportedAdmonitionContent(node)) {
+    throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
+  }
+  const paragraph = node.children![0];
+  paragraph.children = inlineContentToNodes(concatenateInlineContent(content));
+
+  const failure = "admonition body edit cannot round-trip losslessly through canonical Markdown";
+  const markdown = serializeFor({ type: "root", children: [node] }, failure);
+  const reloaded = parse(markdown).children[0];
+  if (!reloaded || reloaded.kind !== node.kind || !supportedAdmonitionContent(reloaded) ||
+      serialize(parse(markdown)) !== markdown) {
+    throw new Error(failure);
+  }
+  return next;
+}
+
+export function removeBlock(document: MystDocument, index: number): MystDocument {
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -242,7 +559,7 @@ export function removeBlock(document: Document, index: number): Document {
   return next;
 }
 
-function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefined {
+function findTextBlock(node: MystNode, from: string): MystNode | undefined {
   if (TEXT_BLOCKS.has(node.type) && toText(node).includes(from)) {
     return node;
   }
@@ -253,7 +570,7 @@ function findTextBlock(node: DocumentNode, from: string): DocumentNode | undefin
   return undefined;
 }
 
-function replaceInTextNodes(node: DocumentNode, from: string, to: string): boolean {
+function replaceInTextNodes(node: MystNode, from: string, to: string): boolean {
   if (node.type === "text" && typeof node.value === "string" && node.value.includes(from)) {
     node.value = node.value.replaceAll(from, to);
     return true;
@@ -266,7 +583,7 @@ function replaceInTextNodes(node: DocumentNode, from: string, to: string): boole
 }
 
 /** Insert an intentional line break at an interior rendered UTF-16 offset. */
-export function insertHardBreak(document: Document, path: NodePath, offset: number): Document {
+export function insertHardBreak(document: MystDocument, path: NodePath, offset: number): MystDocument {
   const content = paragraphContent(document, path);
   assertInteriorOffset(content, offset);
   const next = cloneDocument(document);
@@ -276,7 +593,7 @@ export function insertHardBreak(document: Document, path: NodePath, offset: numb
 }
 
 /** Split a top-level paragraph without creating persistent empty paragraphs. */
-export function splitParagraph(document: Document, path: NodePath, offset: number): Document {
+export function splitParagraph(document: MystDocument, path: NodePath, offset: number): MystDocument {
   assertTopLevelPath(path);
   const content = paragraphContent(document, path);
   assertInteriorOffset(content, offset);
@@ -292,7 +609,7 @@ export function splitParagraph(document: Document, path: NodePath, offset: numbe
 }
 
 /** Concatenate the current and previous top-level paragraphs; add no space. */
-export function mergeParagraphWithPrevious(document: Document, path: NodePath): Document {
+export function mergeParagraphWithPrevious(document: MystDocument, path: NodePath): MystDocument {
   assertTopLevelPath(path);
   if (path[0] <= 0) throw new Error("merge requires a previous paragraph");
   const current = paragraphContent(document, path);
@@ -304,7 +621,7 @@ export function mergeParagraphWithPrevious(document: Document, path: NodePath): 
   return next;
 }
 
-function paragraphContent(document: Document, path: NodePath): InlineContent[] {
+function paragraphContent(document: MystDocument, path: NodePath): InlineContent[] {
   const node = getNode(document, path);
   if (node.type !== "paragraph") throw new Error("operation requires a paragraph");
   const content = projectInlineContent(node);

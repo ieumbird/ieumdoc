@@ -3,7 +3,7 @@
 async page => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const requests = [];
   let conflictNext = false;
   await page.route('**/api/document', async route => {
@@ -24,7 +24,7 @@ async page => {
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     result.sidebarCollapses = await page.getByRole('button',{name:'Open…'}).count() === 0;
     await page.getByRole('button',{name:'Expand sidebar'}).click();
-    result.currentPath = (await page.getByTestId('current-file').innerText()).endsWith('technical-document.md');
+    result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
@@ -37,6 +37,7 @@ async page => {
     await page.keyboard.press('Control+z');
 
     // Equation draft is shown inside the block and disables Save without a global warning.
+    await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
     result.equationDraftInBlock = await page.locator('[data-block="equation"] [data-testid="equation-draft-status"]').isVisible();
@@ -79,6 +80,7 @@ async page => {
 
     // Handle click opens the block menu; Delete removes the table block
     // without resetting another block's in-progress Equation draft.
+    await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 2');
     await page.locator('[data-block="table"]').hover();

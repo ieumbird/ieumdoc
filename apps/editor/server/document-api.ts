@@ -4,9 +4,17 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  canonicalWriteError,
   getEditableDocument,
+  isAdmonitionVariant,
+  inlineContentLength,
+  insertAdmonition,
   insertHeading,
   insertEquation,
+  insertFigure,
+  insertTable,
+  insertTableColumn,
+  insertTableRow,
   insertParagraph,
   parse,
   removeBlock,
@@ -15,11 +23,19 @@ import {
   mergeParagraphWithPrevious,
   moveBlock,
   updateNodeTextAtPath,
+  updateHeadingLevel,
   updateEquationLatex,
+  updateAdmonitionInlineContent,
+  updateFigure,
+  updateLabel,
+  updateTableCell,
   updateParagraphInlineContent,
+  validateFigure,
   validateStructure,
   type EditableBlock,
   type EditableDocument,
+  type AdmonitionVariant,
+  type FigureContent,
   type InlineContent,
   type NodePath,
 } from "@ieumdoc/core";
@@ -28,6 +44,12 @@ export type HeadingEdit = {
   path: NodePath;
   from: string;
   to: string;
+};
+
+export type HeadingLevelEdit = {
+  path: NodePath;
+  from: number;
+  to: number;
 };
 
 export type ParagraphEdit = {
@@ -41,18 +63,60 @@ export type EquationEdit = {
   to: string;
 };
 
+export type FigureEdit = {
+  path: NodePath;
+  from: FigureContent;
+  to: FigureContent;
+};
+
+export type AdmonitionEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
+export type TableCellEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
+/** Rows and columns added to a table: each entry is the snapshot index, or null when added. */
+export type TableShapeEdit = {
+  path: NodePath;
+  rows: (number | null)[];
+  columns: (number | null)[];
+  /** Text typed into added cells, by position in the new grid. */
+  cells: { row: number; column: number; text: string }[];
+};
+
+/** An Equation or Figure label; an empty `to` removes it. */
+export type LabelEdit = {
+  path: NodePath;
+  from: string;
+  to: string;
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
-  | { block: "equation"; latex: string };
+  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
+  | { block: "equation"; latex: string; label?: string }
+  | ({ block: "figure"; label?: string } & FigureContent)
+  | { block: "table"; rows: string[][] };
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
   order?: OrderItem[];
   headings?: HeadingEdit[];
+  headingLevels?: HeadingLevelEdit[];
   paragraphs?: ParagraphEdit[];
   equations?: EquationEdit[];
+  figures?: FigureEdit[];
+  cells?: TableCellEdit[];
+  tables?: TableShapeEdit[];
+  admonitions?: AdmonitionEdit[];
+  labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];
@@ -67,10 +131,18 @@ export type DocumentFileResponse = {
   path: string;
   document: EditableDocument;
   revision: string;
+  /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
+  writeError: string | null;
 };
 
+/** The read model and canonical writeability of one parsed snapshot. */
+function readModel(source: string): { document: EditableDocument; writeError: string | null } {
+  const document = parse(source);
+  return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null };
+}
+
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
-const EMPTY_DOCUMENT_MARKDOWN = serialize({ type: "root", children: [] });
+const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
 
 export class DocumentConflictError extends Error {
   constructor() {
@@ -103,11 +175,7 @@ export function documentRevision(source: string): string {
 export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath);
   const source = readFileSync(filePath, "utf8");
-  return {
-    path: filePath,
-    document: loadEditableDocument(source),
-    revision: documentRevision(source),
-  };
+  return { path: filePath, ...readModel(source), revision: documentRevision(source) };
 }
 
 export function createDocumentFile(requestedPath?: string): DocumentFileResponse {
@@ -148,17 +216,32 @@ export function saveDocumentFile(
   return { ...saved, path: filePath };
 }
 
+/**
+ * The canonical Markdown this save request would write, through the same Core
+ * save path. The file is only read, never written.
+ */
+export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): { markdown: string } {
+  const filePath = resolveDocumentPath(requestedPath);
+  return { markdown: saveCurrentDocument(readFileSync(filePath, "utf8"), request).markdown };
+}
+
 export function saveCurrentDocument(
   source: string,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; revision: string } {
+): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
   if (request.revision !== documentRevision(source)) {
     throw new DocumentConflictError();
   }
   const saved = saveEdits(source, {
     headings: request.headings ?? [],
+    headingLevels: request.headingLevels ?? [],
     paragraphs: request.paragraphs ?? [],
     equations: request.equations ?? [],
+    figures: request.figures ?? [],
+    cells: request.cells ?? [],
+    tables: request.tables ?? [],
+    admonitions: request.admonitions ?? [],
+    labels: request.labels ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
     inserts: request.inserts ?? [],
@@ -172,7 +255,7 @@ export function commitDocumentSave(
   readSource: () => string,
   writeSource: (markdown: string) => void,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; revision: string } {
+): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
   const source = readSource();
   const saved = saveCurrentDocument(source, request);
   writeSource(saved.markdown);
@@ -182,7 +265,7 @@ export function commitDocumentSave(
 export function saveEdits(
   source: string,
   edits: SupportedEdits,
-): { markdown: string; document: EditableDocument } {
+): { markdown: string; document: EditableDocument; writeError: string | null } {
   const editable = loadEditableDocument(source);
   let document = parse(source);
   for (const edit of edits.headings ?? []) {
@@ -199,6 +282,17 @@ export function saveEdits(
     }
     document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
   }
+  for (const edit of edits.headingLevels ?? []) {
+    assertPath(edit.path, "heading");
+    const block = blockAt(editable, edit.path);
+    if (block?.block !== "heading" || !block.editable) {
+      throw new Error(`heading level change is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== block.level) {
+      throw new Error(`heading level does not match at [${edit.path.join(",")}]`);
+    }
+    document = updateHeadingLevel(document, edit.path, edit.from, edit.to);
+  }
   for (const paragraph of edits.paragraphs ?? []) {
     assertPath(paragraph.path, "paragraph");
     const block = blockAt(editable, paragraph.path);
@@ -210,6 +304,14 @@ export function saveEdits(
     }
     document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
   }
+  for (const admonition of edits.admonitions ?? []) {
+    assertPath(admonition.path, "admonition");
+    const block = blockAt(editable, admonition.path);
+    if (block?.block !== "admonition" || !block.editable) {
+      throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
+    }
+    document = updateAdmonitionInlineContent(document, admonition.path, admonition.content);
+  }
   for (const equation of edits.equations ?? []) {
     assertPath(equation.path, "equation");
     const block = blockAt(editable, equation.path);
@@ -218,6 +320,64 @@ export function saveEdits(
     }
     document = updateEquationLatex(document, equation.path, equation.from, equation.to);
   }
+  for (const figure of edits.figures ?? []) {
+    assertPath(figure.path, "figure");
+    const block = blockAt(editable, figure.path);
+    if (block?.block !== "figure" || !block.editable) {
+      throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
+    }
+    if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
+        figure.from.caption !== block.caption.text) {
+      throw new Error(`figure does not match at [${figure.path.join(",")}]`);
+    }
+    document = updateFigure(document, figure.path, figureContent(figure.to));
+  }
+  for (const edit of edits.cells ?? []) {
+    assertPath(edit.path, "table cell");
+    const [table, row, index] = edit.path;
+    const block = blockAt(editable, [table]);
+    const cell = edit.path.length === 3 && block?.block === "table" ? block.rows[row]?.cells[index] : undefined;
+    if (!cell?.editable) {
+      throw new Error(`table cell edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== cell.text || typeof edit.to !== "string") {
+      throw new Error(`table cell text does not match at [${edit.path.join(",")}]`);
+    }
+    document = updateTableCell(document, edit.path, edit.to);
+  }
+  // Snapshot cells are edited above at their snapshot paths; Core then adds rows and columns
+  // in new-grid order and fills the added cells.
+  for (const edit of edits.tables ?? []) {
+    assertPath(edit.path, "table");
+    const block = blockAt(editable, edit.path);
+    if (edit.path.length !== 1 || block?.block !== "table" ||
+        !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, block.rows[0]?.cells.length ?? 0) ||
+        !Array.isArray(edit.cells)) {
+      throw new Error(`table edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    for (const [row, from] of edit.rows.entries()) if (from === null) document = insertTableRow(document, edit.path, row);
+    for (const [column, from] of edit.columns.entries()) if (from === null) document = insertTableColumn(document, edit.path, column);
+    for (const cell of edit.cells) {
+      if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
+        throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
+      }
+      document = updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.text);
+    }
+  }
+  const labels = edits.labels ?? [];
+  for (const edit of labels) {
+    assertPath(edit.path, "label");
+    const block = blockAt(editable, edit.path);
+    if (edit.path.length !== 1 || !(block?.block === "equation" || (block?.block === "figure" && block.editable))) {
+      throw new Error(`label edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== block.label || typeof edit.to !== "string") {
+      throw new Error(`label does not match at [${edit.path.join(",")}]`);
+    }
+  }
+  // Clear the changed labels first, so labels can move between blocks in one save.
+  for (const edit of labels) document = updateLabel(document, edit.path, "");
+  for (const edit of labels) if (edit.to.length > 0) document = updateLabel(document, edit.path, edit.to);
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
   if (splits.some(split => !Array.isArray(split.parts) || split.parts.length < 2) ||
@@ -246,8 +406,13 @@ export function saveEdits(
   const deletes = edits.deletes ?? [];
   const edited = new Set([
     ...(edits.headings ?? []).map(edit => edit.path),
+    ...(edits.headingLevels ?? []).map(edit => edit.path),
     ...(edits.paragraphs ?? []).map(edit => edit.path),
     ...(edits.equations ?? []).map(edit => edit.path),
+    ...(edits.figures ?? []).map(edit => edit.path),
+    ...(edits.admonitions ?? []).map(edit => edit.path),
+    ...(edits.tables ?? []).map(edit => edit.path),
+    ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
@@ -259,15 +424,36 @@ export function saveEdits(
     deleted.add(path.join(","));
   }
   for (const insert of inserts) {
+    if ((insert.block === "equation" || insert.block === "figure") &&
+        insert.label !== undefined && typeof insert.label !== "string") {
+      throw new Error("inserted label must be a string");
+    }
     if (insert.block === "paragraph") {
       if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
         throw new Error("empty paragraph cannot be saved");
       }
       continue;
     }
+    if (insert.block === "admonition") {
+      if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be a Note or Warning");
+      if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
+        throw new Error("admonition body cannot be empty");
+      }
+      continue;
+    }
     if (insert.block === "equation") {
       if (insert.latex.length === 0) {
         throw new Error("empty equation LaTeX cannot be saved");
+      }
+      continue;
+    }
+    if (insert.block === "figure") {
+      figureContent(insert);
+      continue;
+    }
+    if (insert.block === "table") {
+      if (!Array.isArray(insert.rows) || insert.rows.flat().every(text => text === "")) {
+        throw new Error("empty table cannot be saved");
       }
       continue;
     }
@@ -301,7 +487,8 @@ export function saveEdits(
       document = mergeParagraphWithPrevious(document, [start + index]);
     }
     document = updateParagraphInlineContent(document, [start], group.parts.flat());
-    const lengths = group.parts.map(part => inlineText(part).length);
+    // Split offsets use Core's paragraph offset definition (inline math counts as one).
+    const lengths = group.parts.map(part => inlineContentLength(part));
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
@@ -322,8 +509,17 @@ export function saveEdits(
       document = updateParagraphInlineContent(document, [index], item.content);
     } else if (item.block === "heading") {
       document = insertHeading(document, index, item.level, item.text);
-    } else {
+    } else if (item.block === "admonition") {
+      document = insertAdmonition(document, index, item.variant, item.content);
+    } else if (item.block === "equation") {
       document = insertEquation(document, index, item.latex);
+    } else if (item.block === "table") {
+      document = insertTable(document, index, item.rows);
+    } else {
+      document = insertFigure(document, index, figureContent(item));
+    }
+    if ((item.block === "equation" || item.block === "figure") && item.label) {
+      document = updateLabel(document, [index], item.label);
     }
     locators.push({ insert });
   }
@@ -345,7 +541,7 @@ export function saveEdits(
   }
   validateStructure(document);
   const markdown = serialize(document);
-  return { markdown, document: getEditableDocument(parse(markdown)) };
+  return { markdown, ...readModel(markdown) };
 }
 
 export async function handleDocumentRequest(
@@ -357,6 +553,35 @@ export async function handleDocumentRequest(
   const url = requestUrl.pathname;
   if (url.startsWith("/document/")) {
     serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined);
+    return;
+  }
+  if (url === "/api/figure-validation") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
+    } catch (error) {
+      sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+    return;
+  }
+  if (url === "/api/document-source") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
+      sendJson(res, 200, previewDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body)));
+    } catch (error) {
+      sendJson(res, error instanceof DocumentConflictError ? 409 : 400, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return;
   }
   if (url !== "/api/document") {
@@ -378,18 +603,8 @@ export async function handleDocumentRequest(
     if (req.method === "POST") {
       const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
       try {
-        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, {
-          revision: body.revision,
-          headings: Array.isArray(body.headings) ? body.headings : [],
-          paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
-          equations: Array.isArray(body.equations) ? body.equations : [],
-          splits: Array.isArray(body.splits) ? body.splits : [],
-          merges: Array.isArray(body.merges) ? body.merges : [],
-          inserts: Array.isArray(body.inserts) ? body.inserts : [],
-          deletes: Array.isArray(body.deletes) ? body.deletes : [],
-          order: body.order,
-        });
-        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision });
+        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
+        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError });
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });
@@ -406,7 +621,34 @@ export async function handleDocumentRequest(
   }
 }
 
+function saveRequestOf(body: SaveRequest): SaveRequest {
+  return {
+    revision: body.revision,
+    headings: Array.isArray(body.headings) ? body.headings : [],
+    headingLevels: Array.isArray(body.headingLevels) ? body.headingLevels : [],
+    paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
+    equations: Array.isArray(body.equations) ? body.equations : [],
+    figures: Array.isArray(body.figures) ? body.figures : [],
+    cells: Array.isArray(body.cells) ? body.cells : [],
+    tables: Array.isArray(body.tables) ? body.tables : [],
+    admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
+    labels: Array.isArray(body.labels) ? body.labels : [],
+    splits: Array.isArray(body.splits) ? body.splits : [],
+    merges: Array.isArray(body.merges) ? body.merges : [],
+    inserts: Array.isArray(body.inserts) ? body.inserts : [],
+    deletes: Array.isArray(body.deletes) ? body.deletes : [],
+    order: body.order,
+  };
+}
+
 type Locator = OrderItem;
+
+/** Every snapshot index 0..count-1 once and in order, with null entries for added rows/columns. */
+function isTableAxis(axis: unknown, count: number): axis is (number | null)[] {
+  if (!Array.isArray(axis)) return false;
+  const kept = axis.filter(item => item !== null);
+  return kept.length === count && kept.every((item, index) => item === index);
+}
 
 function locatorKey(item: Locator): string {
   return "insert" in item ? `insert:${item.insert}` : `${item.path.join(",")}:${item.part}`;
@@ -424,9 +666,24 @@ function assertPath(path: NodePath, label: string): void {
   }
 }
 
+/** Core's persistent Figure validation for Editor Apply; returns the error message, if any. */
+export function validateFigureRequest(value: FigureContent | undefined): string | undefined {
+  return validateFigure(figureContent(value));
+}
+
+/** A complete typed Figure value; omitted properties are not treated as unchanged. */
+function figureContent(value: FigureContent | undefined): FigureContent {
+  if (typeof value?.imageUrl !== "string" || typeof value.imageAlt !== "string" || typeof value.caption !== "string") {
+    throw new Error("figure image URL, alt text, and caption must be strings");
+  }
+  return { imageUrl: value.imageUrl, imageAlt: value.imageAlt, caption: value.caption };
+}
+
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n" : inlineText(item.children))).join("");
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : inlineText(item.children))).join("");
 }
 
 export function resolveMediaPath(assetPath: string, documentPath?: string): string {

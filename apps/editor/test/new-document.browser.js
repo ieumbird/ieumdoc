@@ -4,7 +4,7 @@
 async page => {
   await page.unrouteAll();
   await page.reload();
-  await page.getByText('Ready', {exact:true}).waitFor();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
@@ -54,12 +54,12 @@ async page => {
 
   try {
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.getByRole('button', {name:'New', exact:true}).click();
     await page.getByTestId('new-file-path').fill(newPath);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.getByText('Ready', {exact:true}).waitFor();
-    if (!(await page.getByTestId('current-file').innerText()).includes(newPath)) {
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(newPath)) {
       throw new Error('Created document was not opened');
     }
 
@@ -83,7 +83,7 @@ async page => {
     if (!saveRequest?.body.inserts?.length) throw new Error('Save did not use Core insert edits');
 
     await page.reload();
-    await page.getByText('Ready', {exact:true}).waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
       throw new Error('Saved paragraph was not present after reload');
     }

@@ -4,11 +4,11 @@ export type EquationRenderResult =
   | { html: string; error?: undefined }
   | { html?: undefined; error: string };
 
-export function renderEquation(latex: string): EquationRenderResult {
+export function renderEquation(latex: string, displayMode = true): EquationRenderResult {
   try {
     return {
       html: katex.renderToString(latex, {
-        displayMode: true,
+        displayMode,
         throwOnError: true,
         trust: false,
       }),

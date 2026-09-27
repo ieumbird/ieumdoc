@@ -9,7 +9,9 @@
     "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test",
     "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck",
     "ieumdoc": "tsx packages/cli/src/cli.ts",
-    "editor": "pnpm --filter @ieumdoc/editor dev"
+    "editor": "pnpm --filter @ieumdoc/editor dev",
+    "browser:prepare": "tsx apps/editor/test/browser/prepare.ts",
+    "browser:test": "tsx apps/editor/test/browser/run.ts"
   },
   "devDependencies": {
     "@playwright/cli": "0.1.21",

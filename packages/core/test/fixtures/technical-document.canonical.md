@@ -2,7 +2,7 @@
 
 The converter regulates the **DC-link voltage** and *phase current*.
 
-See [](#fig-control) and [](#eq-current).
+See [](#fig-control) and {eq}`eq-current`.
 
 ## Control Structure
 
