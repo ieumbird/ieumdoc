@@ -45,6 +45,10 @@ async page => {
     // reason is reachable as a Tooltip; see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section.
     await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').waitFor();
     result.saveDisabledDuringDraft = true;
+    await page.getByTestId('save').focus();
+    result.disabledSaveFocusable = await page.getByTestId('save').evaluate(node => node === document.activeElement);
+    await page.keyboard.press('Enter');
+    result.draftBlocksSaveRequest = requests.length === 0;
     await page.locator('.top-bar [data-testid="save"]').hover();
     await page.locator('[data-slot="tooltip-content"]', {hasText:'Apply or Cancel the Equation edit before saving.'}).waitFor();
     result.saveTooltipShown = true;
@@ -121,6 +125,10 @@ async page => {
     await page.getByText('Save conflict',{exact:true}).waitFor();
     result.conflictKeepsEdits = (await article.innerText()).includes('SLASH_INSERTED');
     result.editorCount = await page.locator('[data-testid="document-editor"] [contenteditable="true"]').count();
+    for (const [name, passed] of Object.entries(result)) {
+      if (passed === false) throw new Error(`Shell regression: ${name}`);
+    }
+    if (result.editorCount !== 1) throw new Error('Shell must retain one document editor');
     return result;
   } finally {
     await page.unroute('**/api/document');

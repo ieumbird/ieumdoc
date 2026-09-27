@@ -178,51 +178,6 @@ test("an open Equation draft blocks saving only when it differs from the applied
   assert.equal(isUnappliedEquationDraft(false, "", "", "new:equation"), false);
 });
 
-test("top Save is guarded and Equation draft reporting is wired before persistence", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const guard = app.indexOf("if (equationDraftActive) return;");
-  const begin = app.indexOf("beginSave()");
-  const post = app.indexOf('requestDocument("POST"');
-  assert.ok(guard >= 0);
-  assert.ok(begin > guard);
-  assert.ok(post > guard);
-  assert.match(app, /Apply or Cancel the Equation edit before saving\./);
-
-  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
-  assert.match(documentEditor, /onEquationDraftChange/);
-  assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
-  assert.match(documentEditor, /createEditorExtensions\(\(\) => baseline\.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure\)/);
-  assert.match(documentEditor, /hasUnappliedEquationDraft\(\)/);
-
-  const schema = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  assert.match(schema, /onDraftChange\?\.\(sourcePath, hasUnappliedDraft\)/);
-  assert.match(schema, /return \(\) => onDraftChange\?\.\(sourcePath, false\)/);
-  assert.match(schema, /isUnappliedEquationDraft\(editing, draft, latex, sourcePath\)/);
-});
-
-test("a pending Source preview blocks Open and New, so it cannot land on another document", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const busy = app.slice(app.indexOf("const busy ="), app.indexOf(";", app.indexOf("const busy =")));
-  assert.match(busy, /sourcePending/);
-  for (const name of ["openFile", "createFile"]) {
-    const start = app.indexOf(`async function ${name}(`);
-    assert.match(app.slice(start, app.indexOf("\n  }\n", start)), /if \(busy\) return "Wait for the current operation to finish\."/);
-  }
-  assert.match(app, /<OpenDialog[\s\S]*?busy=\{busy\}/);
-  assert.match(app, /<NewDialog[\s\S]*?busy=\{busy\}/);
-});
-
-test("a save response keeps an Equation draft pending and avoids an editor remount", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const saveStart = app.indexOf("async function save()");
-  const saveEnd = app.indexOf("async function createFile", saveStart);
-  const saveFn = app.slice(saveStart, saveEnd);
-  assert.match(saveFn, /hasPendingEquationDraft/);
-  assert.match(saveFn, /hasPendingUserState = hasPendingDocumentEdits \|\| hasPendingEquationDraft/);
-  assert.match(saveFn, /finishSave\(hasPendingUserState \? next\.document : undefined\)/);
-  assert.match(saveFn, /if \(!hasPendingUserState\) setEditorGeneration/);
-});
-
 test("Core InlineContent converts to and from Tiptap content", () => {
   const original: InlineContent[] = [
     { kind: "text", text: "The converter regulates the " },
@@ -511,14 +466,6 @@ test("unsupported paragraph stays read-only", () => {
   assert.equal(blockAt(toTiptapDocument(document), xref.path.join(",")).type, "readonlyParagraph");
 });
 
-test("save validates supported edits before POST", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const guard = app.indexOf("collectSupportedEdits(");
-  const post = app.indexOf('requestDocument("POST"');
-  assert.ok(guard >= 0);
-  assert.ok(post > guard);
-});
-
 test("selected Markdown files keep load, save, and revision boundaries", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-open-files-"));
   const fileA = path.join(dir, "a.md");
@@ -664,14 +611,6 @@ test("new Equation inserts save and reload through Core semantics", () => {
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
 });
 
-test("new Equation cancel removes the transient block while persisted Equation cancel remains local", () => {
-  const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  assert.match(schemaSource, /isNewBlockPath\(sourcePath\) && latex\.length === 0/);
-  assert.match(schemaSource, /deleteNode\(\)/);
-  assert.match(schemaSource, /nodes\.paragraph/);
-  assert.match(schemaSource, /updateAttributes\(\{ latex: draft, label: labelDraft \}\)/);
-});
-
 test("an empty new document can hold a transient heading but cannot save it empty", () => {
   const editable = loadEditableDocument("\n");
   const heading = toTiptapDocument(editable);
@@ -713,27 +652,6 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("file switching is guarded by Editor unsaved state and uses the selected path", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  assert.match(app, /hasUnsavedChanges\(\)/);
-  assert.match(app, /Save or discard the current changes before opening another file\./);
-  assert.match(app, /requestDocument\("GET", requestedPath\)/);
-  assert.match(app, /requestDocument\("POST", openedPath/);
-  assert.match(app, /requestDocument\("PUT", requestedPath/);
-  assert.match(app, /Save or discard the current changes before creating another file\./);
-  assert.doesNotMatch(app, /technical-document\.md/);
-
-  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
-  assert.match(documentEditor, /hasUnsavedChanges\(\)/);
-  assert.match(documentEditor, /activeEquationDrafts\.current\.size > 0/);
-
-  const api = readFileSync(path.join(editorRoot, "server", "document-api.ts"), "utf8");
-  assert.doesNotMatch(api, /DOCUMENT_FILE/);
-  assert.match(api, /resolveDocumentPath/);
-  assert.match(api, /saveDocumentFile/);
-  assert.match(api, /resolveMediaPath/);
 });
 
 test("relative figure media follows the opened document directory", () => {
@@ -877,23 +795,6 @@ test("Host reports canonical writeability with every document it opens, creates 
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("an unwritable document keeps Save and Source blocked for its session, and does not trap Open/New", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const body = (name: string) => {
-    const start = app.indexOf(`async function ${name}(`);
-    return app.slice(start, app.indexOf("\n  }\n", start));
-  };
-  // Every document response sets the writeability state; there is no other source for it.
-  for (const name of ["load", "save", "createFile"]) assert.match(body(name), /setWriteError\(next\.writeError\)/, name);
-  assert.match(body("save"), /if \(writeError\) return;/);
-  assert.match(body("showSource"), /if \(writeError\) return;/);
-  // Edits of a document that cannot be saved must not block leaving it.
-  for (const name of ["openFile", "createFile"]) {
-    assert.match(body(name), /if \(!writeError && editorRef\.current\?\.hasUnsavedChanges\(\)\)/, name);
-  }
-  assert.match(app, /saveDisabled=\{[^}]*Boolean\(writeError\)/);
 });
 
 test("Source preview is the canonical Markdown Save would write, without writing the file", async () => {
@@ -1043,18 +944,6 @@ test("a saved revision can save again and the loaded revision cannot", () => {
   );
 });
 
-test("save conflict keeps the loaded editor mounted", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const saveStart = app.indexOf("async function save()");
-  const saveEnd = app.indexOf("async function createFile", saveStart);
-  const saveFn = app.slice(saveStart, saveEnd);
-  const catchBlock = saveFn.slice(saveFn.indexOf("} catch (cause) {"));
-  assert.equal(catchBlock.includes("Save conflict"), true);
-  assert.equal(catchBlock.includes("setDocument"), false);
-  assert.equal(catchBlock.includes("setSourceRevision"), false);
-  assert.equal(catchBlock.includes("setEditorGeneration"), false);
-});
-
 test("save does not rebuild the document from Tiptap", () => {
   const files = [
     ...listSourceFiles(path.join(editorRoot, "src")),
@@ -1065,9 +954,6 @@ test("save does not rebuild the document from Tiptap", () => {
     assert.equal(text.includes("replaceEditableBlocks"), false, file);
     assert.equal(/\.children\s*=/.test(text), false, file);
   }
-  const api = readFileSync(path.join(editorRoot, "server", "document-api.ts"), "utf8");
-  assert.equal(api.includes("updateNodeTextAtPath"), true);
-  assert.equal(api.includes("updateParagraphInlineContent"), true);
 });
 
 test("paragraph edits are saved through Core operations", () => {

@@ -1,6 +1,6 @@
-// Visual review on real scratch files. Screenshots are evidence, never a replacement document.
-// pnpm browser:test quiet-document (prepare is automatic); captures live under tmp/visual-refinement/.
-async page => {
+// Regression checks on real scratch files; optional captures are for manual visual review.
+// pnpm browser:test quiet-document --screenshots writes tmp/visual-refinement/after-*.png.
+async (page, { screenshots = false } = {}) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -27,7 +27,12 @@ async page => {
     await page.mouse.move(0,0);
     await page.waitForTimeout(150);
   };
-  const shot = name => page.screenshot({path:`tmp/visual-refinement/after-${name}.png`});
+  let screenshotCount = 0;
+  const shot = async name => {
+    if (!screenshots) return;
+    await page.screenshot({path:`tmp/visual-refinement/after-${name}.png`});
+    screenshotCount++;
+  };
   const json = () => page.locator('.document-editor').evaluate(n => JSON.stringify(n.editor.getJSON()));
   const bounds = async (locator, label) => {
     await locator.waitFor();
@@ -62,14 +67,17 @@ async page => {
     await rest();
     check((await block.boundingBox()).y===before.y,`${kind}: metadata shifted content`);
   }
-  for(const width of [1440,1024,768,705,704]) {
-    await page.setViewportSize({width,height:1000});
-    await rest();
-    await shot(`${width}-rest`);
-    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-    await rest();
-    await shot(`${width}-collapsed`);
-    await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+  // These states only produce review images; layout-rules asserts responsive boundaries.
+  if (screenshots) {
+    for(const width of [1440,1024,768,705,704]) {
+      await page.setViewportSize({width,height:1000});
+      await rest();
+      await shot(`${width}-rest`);
+      await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await rest();
+      await shot(`${width}-collapsed`);
+      await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    }
   }
   for(const width of [1440,1024,768]) {
     await page.setViewportSize({width,height:1000});
@@ -77,8 +85,10 @@ async page => {
     await page.getByTestId('figure-image').click();
     await page.getByTestId('figure-properties').waitFor();
     check(await page.locator('.figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Selected metadata missing');
-    await rest();
-    await shot(`${width}-figure-selected`);
+    if (screenshots) {
+      await rest();
+      await shot(`${width}-figure-selected`);
+    }
     await page.getByRole('button',{name:'Edit figure'}).click();
     await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-image-url');
     await bounds(page.getByTestId('figure-properties'), `Figure ${width}`);
@@ -99,13 +109,16 @@ async page => {
     check(await page.locator('.figure[data-selected="false"][data-editing="true"]').count()===1,'Independent selected/editing axes missing');
     await page.getByTestId('figure-cancel').click();
     await page.locator('.paragraph').first().click();
-    await page.locator('.equation').hover();
-    await page.locator('.equation').getByRole('button',{name:'Edit',exact:true}).click();
-    await page.getByTestId('equation-editor').waitFor();
-    await page.evaluate(()=>window.scrollTo(0,0));
-    await page.mouse.move(0,0);
-    await shot(`${width}-equation-editing`);
-    await page.getByTestId('equation-cancel').click();
+    // Equation Apply/Cancel is exercised by the dedicated Equation regressions.
+    if (screenshots) {
+      await page.locator('.equation').hover();
+      await page.locator('.equation').getByRole('button',{name:'Edit',exact:true}).click();
+      await page.getByTestId('equation-editor').waitFor();
+      await page.evaluate(()=>window.scrollTo(0,0));
+      await page.mouse.move(0,0);
+      await shot(`${width}-equation-editing`);
+      await page.getByTestId('equation-cancel').click();
+    }
   }
   check(await json()===initial,'Visual interactions or canceled drafts changed document JSON');
   check(await page.getByTestId('status').textContent()==='','Canceled drafts left a false dirty status');
@@ -257,5 +270,5 @@ async page => {
     await shot(`768-${label.toLowerCase()}-dialog`);
     await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
   }
-  return {keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,statusSaveReload:true,blockDragUndo:true,results};
+  return {screenshotCount,keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,statusSaveReload:true,blockDragUndo:true,results};
 }

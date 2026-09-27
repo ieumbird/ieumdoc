@@ -77,6 +77,17 @@ async page => {
       throw new Error('Empty document was not editable');
     }
 
+    const beforeNew = requests.length;
+    await page.getByRole('button', {name:'New', exact:true}).click();
+    await page.getByTestId('new-file-path').fill('C:\\tmp\\ieumdoc-other.md');
+    await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
+    await page.getByText('Save or discard the current changes before creating another file.', {exact:true}).waitFor();
+    await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
+    if (requests.length !== beforeNew || await page.getByTestId('current-file').getAttribute('title') !== newPath ||
+        !(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
+      throw new Error('New discarded unsaved work or created another file');
+    }
+
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
     const saveRequest = requests.find(request => request.method === 'POST' && request.body.inserts?.length);
@@ -87,7 +98,7 @@ async page => {
     if (!(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
       throw new Error('Saved paragraph was not present after reload');
     }
-    return {created:true, typed:true, saved:true, reloaded:true};
+    return {created:true, typed:true, newPreservesUnsavedWork:true, saved:true, reloaded:true};
   } finally {
     await page.unroute('**/api/document**');
   }
