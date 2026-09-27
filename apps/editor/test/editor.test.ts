@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { history, undo, redo } from "@tiptap/pm/history";
-import { mapSavedRanges, reorderBlock, type SavedRange } from "../src/block-reorder.ts";
+import { blockDropTarget, mapSavedRanges, reorderBlock, type SavedRange } from "../src/block-reorder.ts";
 import { getSchema } from "@tiptap/core";
 import { deleteSelection, joinBackward, splitBlock } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -1738,6 +1738,50 @@ test("engine reorder history and pending-save ranges follow moves, edits, undo a
   dispatch(reorderBlock(state, 0, 2));
   assert.equal(state.doc.lastChild!.textContent,"CXD");
   assert.equal(ranges.find(range => range.path === "2")!.end, state.doc.content.size);
+});
+
+test("a moved block does not take the selection unless it held it or is a text block", () => {
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("AB\n\n```{math}\nx\n```\n\nCD")));
+  assert.deepEqual(doc.content.content.map(node => node.type.name), ["paragraph", "equation", "paragraph"]);
+  const equationAt = (state: EditorState) => { let found = -1; state.doc.forEach((node, pos) => { if (node.type.name === "equation") found = pos; }); return found; };
+
+  // Moving an Equation keeps the caret where it was instead of selecting (and so opening) the Equation.
+  let state = EditorState.create({schema, doc, selection: TextSelection.create(doc, 2)});
+  state = state.apply(reorderBlock(state, 1, 0));
+  assert.equal(state.doc.firstChild!.type.name, "equation");
+  assert.ok(state.selection instanceof TextSelection && !(state.selection instanceof NodeSelection));
+  assert.equal(state.selection.$from.parent.textContent, "AB");
+  assert.equal(state.selection.$from.parentOffset, 1);
+
+  // A selected Equation stays selected where it lands.
+  state = EditorState.create({schema, doc, selection: NodeSelection.create(doc, doc.child(0).nodeSize)});
+  state = state.apply(reorderBlock(state, 1, 2));
+  assert.ok(state.selection instanceof NodeSelection);
+  assert.equal(state.selection.from, equationAt(state));
+  assert.equal(state.doc.lastChild!.type.name, "equation");
+
+  // A moved paragraph keeps a caret it held and otherwise takes the caret at its start.
+  state = EditorState.create({schema, doc, selection: TextSelection.create(doc, 2)});
+  state = state.apply(reorderBlock(state, 0, 2));
+  assert.equal(state.selection.$from.parent.textContent, "AB");
+  assert.equal(state.selection.$from.parentOffset, 1);
+  state = EditorState.create({schema, doc, selection: TextSelection.create(doc, 2)});
+  state = state.apply(reorderBlock(state, 2, 0));
+  assert.equal(state.selection.$from.parent.textContent, "CD");
+  assert.equal(state.selection.$from.parentOffset, 0);
+});
+
+test("a dragged block lands in the gap nearest the pointer, and nowhere when it would not move", () => {
+  const blocks = [{top: 0, bottom: 10}, {top: 20, bottom: 30}, {top: 40, bottom: 50}];
+  assert.deepEqual(blockDropTarget(blocks, 2, 1), {to: 0, line: 0});
+  assert.equal(blockDropTarget(blocks, 18, 1), null); // Above its own middle: the gap it already sits in.
+  assert.equal(blockDropTarget(blocks, 35, 1), null); // Below its own middle, above the next one's.
+  assert.deepEqual(blockDropTarget(blocks, 48, 1), {to: 2, line: 50});
+  // Between two other blocks, the line is centred in the gap.
+  assert.deepEqual(blockDropTarget(blocks, 28, 0), {to: 1, line: 35});
+  assert.deepEqual(blockDropTarget(blocks, 12, 2), {to: 1, line: 15});
+  assert.equal(blockDropTarget([], 0, 0), null);
 });
 
 test("Equation edits participate in editor undo and redo", () => {

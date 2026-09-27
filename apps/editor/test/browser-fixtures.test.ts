@@ -43,7 +43,7 @@ test("every scratch directory a browser scenario opens is prepared", () => {
 test("prepared scratch files start as copies of their sources, with the derived assets", () => withTmp((tmp) => {
   prepareBrowserFixtures(tmp);
   const technical = readFileSync(path.join(documentDir, "technical-document.md"));
-  for (const dir of ["reference-save-reload", "figure-authoring", "table-cell-editing", "source-view", "label-authoring"]) {
+  for (const dir of ["reference-save-reload", "block-move", "figure-authoring", "table-cell-editing", "source-view", "label-authoring"]) {
     assert.deepEqual(readFileSync(path.join(tmp, dir, "technical-document.md")), technical, dir);
     assert.ok(existsSync(path.join(tmp, dir, "diagram.svg")), dir);
   }

@@ -76,6 +76,7 @@ export const STABLE_SCENARIOS = [
   "reference-save-reload",
   "quote-save-reload",
   "writeability-preflight",
+  "block-move",
   "figure-authoring",
   "figure-draft-race",
   "table-cell-editing",
