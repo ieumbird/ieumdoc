@@ -1,5 +1,6 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import type { AdmonitionVariant } from "@ieumdoc/core";
 import { isNewBlockPath, NEW_BLOCK_PREFIX, TABLE_CELL_ADDED_ATTR } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
@@ -56,6 +57,18 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     run: (state, index, slash) => insertHeadingAfter(state, index, 3, slash),
   },
   {
+    id: "note",
+    label: "Note",
+    keywords: ["note", "admonition"],
+    run: (state, index, slash) => insertAdmonitionAfter(state, index, "note", slash),
+  },
+  {
+    id: "warning",
+    label: "Warning",
+    keywords: ["warning", "admonition"],
+    run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
+  },
+  {
     id: "equation",
     label: "Equation",
     keywords: ["equation", "math", "latex"],
@@ -76,8 +89,20 @@ export const INSERT_COMMANDS: InsertCommand[] = [
 ];
 
 const isTable = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "table";
+const isHeading = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "heading";
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
+  ...Array.from({ length: 6 }, (_, index) => {
+    const level = index + 1;
+    return {
+      id: `heading-level-${level}`,
+      label: `Change to Heading ${level}`,
+      applies: isHeading,
+      enabled: (state: EditorState, block: number) =>
+        isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level,
+      run: (state: EditorState, block: number) => changeHeadingLevel(state, block, level),
+    };
+  }),
   {
     id: "table-row",
     label: "Add row below",
@@ -199,6 +224,57 @@ export function insertHeadingAfter(
   });
   tr.insert(at, heading);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** Insert an editable Note or Warning after the target, reusing a transient empty paragraph. */
+export function insertAdmonitionAfter(
+  state: EditorState,
+  index: number,
+  variant: AdmonitionVariant,
+  slash?: SlashRange,
+): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  const pos = blockPos(state, index);
+  const target = tr.doc.child(index);
+  const sourcePath = String(target.attrs.sourcePath ?? "");
+  if (target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(sourcePath)) {
+    tr.setNodeMarkup(pos, state.schema.nodes.admonition, {
+      sourcePath,
+      variant,
+      text: "",
+      editable: true,
+    });
+    return tr
+      .setSelection(TextSelection.create(tr.doc, pos + 1))
+      .setMeta(BLOCK_COMMAND_META, true)
+      .scrollIntoView();
+  }
+  const at = pos + target.nodeSize;
+  tr.insert(at, state.schema.nodes.admonition.create({
+    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
+    variant,
+    text: "",
+    editable: true,
+  }));
+  return tr
+    .setSelection(TextSelection.create(tr.doc, at + 1))
+    .setMeta(BLOCK_COMMAND_META, true)
+    .scrollIntoView();
+}
+
+/** Change the level of an existing editable Heading. */
+export function changeHeadingLevel(state: EditorState, index: number, level: number): Transaction {
+  if (!isHeading(state, index)) throw new Error("heading level changes require a Heading block");
+  if (!Number.isInteger(level) || level < 1 || level > 6) throw new Error("invalid heading level");
+  const pos = blockPos(state, index);
+  const heading = state.doc.child(index);
+  if (Number(heading.attrs.level) === level) return state.tr;
+  return closeHistory(state.tr)
+    .setNodeMarkup(pos, undefined, { ...heading.attrs, level })
+    .setMeta(BLOCK_COMMAND_META, true)
+    .scrollIntoView();
 }
 
 const NEW_TABLE_COLUMNS = 3;

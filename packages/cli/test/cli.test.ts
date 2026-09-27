@@ -165,6 +165,101 @@ test("CLI insert-heading persists a Core heading", () => {
   }
 });
 
+test("CLI inserts Note and Warning into a real file and rejects unsafe requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-admonition-authoring-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  try {
+    const warning = run([
+      "insert-admonition", file, "--at", "1", "--variant", "warning", "--text", "Check current limit.",
+    ]);
+    assert.equal(warning.status, 0, warning.stderr);
+    const note = run([
+      "insert-admonition", file, "--at", "2", "--variant", "note", "--text", "Confirm the result.",
+    ]);
+    assert.equal(note.status, 0, note.stderr);
+
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, [
+      "Intro paragraph.",
+      "",
+      ":::{warning}",
+      "Check current limit.",
+      ":::",
+      "",
+      ":::{note}",
+      "Confirm the result.",
+      ":::",
+      "",
+      "## Stable heading",
+      "",
+      "Keep this paragraph.",
+      "",
+    ].join("\n"));
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.filter((block) => block.block === "admonition").map((block) =>
+      block.block === "admonition" ? [block.variant, block.content] : []), [
+      ["warning", [{ kind: "text", text: "Check current limit." }]],
+      ["note", [{ kind: "text", text: "Confirm the result." }]],
+    ]);
+    assert.equal(serialize(parse(saved)), saved);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /^structure valid\n/);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["insert-admonition", file, "--at", "1", "--variant", "tip", "--text", "Invalid variant."],
+      ["insert-admonition", file, "--at", "99", "--variant", "note", "--text", "Invalid index."],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI updates a real H2 file to H5 and rejects unsafe heading requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-level-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  try {
+    const result = run(["update-heading-level", file, "--path", "1", "--from", "2", "--to", "5"]);
+    assert.equal(result.status, 0, result.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "Intro paragraph.\n\n##### Stable heading\n\nKeep this paragraph.\n");
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
+    assert.deepEqual(blocks[1], {
+      block: "heading", path: [1], level: 5, text: "Stable heading", editable: true,
+    });
+    assert.deepEqual(blocks[2], {
+      block: "paragraph", path: [2], text: "Keep this paragraph.",
+      content: [{ kind: "text", text: "Keep this paragraph." }], editable: true,
+    });
+    assert.equal(serialize(parse(saved)), saved);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stdout, /^structure valid\n/);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "0"],
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "7"],
+      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "4"],
+      ["update-heading-level", file, "--path", "0", "--from", "1", "--to", "4"],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI insert-equation persists a Core equation", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
   const file = path.join(dir, "document.md");

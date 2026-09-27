@@ -19,7 +19,8 @@ Open uses the existing local path dialog. New creates through the existing API i
 ## Writing interactions
 
 - Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible.
-- `+` and `/` share supported insert commands (Paragraph, supported heading levels, Equation, Figure, Table); slash also offers actual Equation/Figure reference targets. Slash keeps editor focus. Gutter-opened menus focus their first item.
+- `+` and `/` share supported insert commands (Paragraph, supported heading levels, Note, Warning, Equation, Figure, Table); slash also offers actual Equation/Figure reference targets. Slash keeps editor focus. Gutter-opened menus focus their first item.
+- A Heading block menu can change an editable Heading to levels 1 through 6.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; handle drag reorders through the existing editor operation. Unsupported structures remain protected.
 - Paragraph/admonition text selection offers Bold, Italic, Link, Inline Math and Cross-reference where currently supported.
 - Figure selection shows an anchored property summary. Edit opens Image/Alt text/Caption/Label fields. Summary may dismiss outside; editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; new never-applied Figure Cancel removes the transient block.
