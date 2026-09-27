@@ -478,6 +478,10 @@ pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
 pnpm ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]
 pnpm ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]
+pnpm ieumdoc insert-table <file> --at <index> --cells <json>
+pnpm ieumdoc insert-table-row <file> --path <table> --at <row>
+pnpm ieumdoc insert-table-column <file> --path <table> --at <column>
+pnpm ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>
 ```
 
 `pnpm ieumdoc help`와 `pnpm ieumdoc <command> --help`는 사용 가능한 명령을 보여 준다.
@@ -498,8 +502,8 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell만 수정할 수 있고 행/열 구조와 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
-- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 기존 수식은 Equation editor에서 LaTeX를 수정할 수 있고, 새 수식은 insert menu에서 추가할 수 있다.
@@ -630,8 +634,8 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - Error는 top bar 아래 message area에 남고 `×`로 닫는다. Notice는 몇 초 뒤 사라진다. 두 메시지 모두 document column 안에 나타나지 않는다.
 - block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
 - paragraph 시작 또는 공백 뒤에서 `/`를 입력하면 `+`와 같은 insert menu가 열린다. 입력한 글자로 걸러지고, ↑/↓/Enter로 고르며 Esc로 닫는다. 선택하면 `/` 입력은 지워진다.
-- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`가 있다(`Figure`는 아래 Figure Authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 빈 paragraph, 빈 heading, Apply하지 않은 빈 Equation을 Save하면 실패한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
-- block menu에는 Core `removeBlock`으로 저장되는 `Delete`만 있다. 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
+- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`이 있다(`Figure`는 아래 Figure Authoring v1, `Table`은 아래 Table authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 빈 paragraph, 빈 heading, Apply하지 않은 빈 Equation을 Save하면 실패한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
+- block menu에는 Core `removeBlock`으로 저장되는 `Delete`가 있다(Table에는 그 위에 `Add row below`, `Add column right`가 더 있다. 아래 Table authoring v1). 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
 - 키보드 Delete/Backspace나 붙여넣기로는 block이 추가·삭제되지 않는다. Save adapter는 Delete command로 선언되지 않은 block 소실을 거부한다.
 
 Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popover, sidebar/top bar의 아이콘 버튼은 shadcn(Base UI, Nova style, Stone base color) 기반이다. 이 전환은 상호작용을 바꾸지 않는다.
@@ -696,7 +700,7 @@ pnpm exec playwright-cli -s=ieumdoc-figure close
 
 ## Table cell editing v1
 
-Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가·삭제·이동, 정렬, merged cell은 범위가 아니다.
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬, merged cell은 범위가 아니다.
 
 유효 조건(Core round-trip에서 확인한 조건이다):
 
@@ -729,6 +733,35 @@ pnpm exec playwright-cli -s=ieumdoc-table close
 ```
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
+
+## Table authoring v1
+
+Core가 새 table, 기존 table의 행과 열을 만든다. 모두 canonical Markdown으로 다시 읽어 같은 표가 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+
+- `insertTable`: top-level 위치에 plain-text cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
+- `insertTableRow`: 빈 body 행을 넣는다. header 행 위(row 0)에는 넣을 수 없다.
+- `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 서식 있는(읽기 전용) cell이 있는 표에도 넣을 수 있다.
+- 열 정렬(`:--`)이 있는 표는 canonical Markdown이 정렬을 보존하지 못해 원래 저장할 수 없고, 행/열 추가도 실패한다. 행/열 삭제·이동은 범위가 아니다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-table <file> --at 1 --cells '[["Port","Type"],["U","AC"]]'
+pnpm ieumdoc insert-table-row <file> --path 1 --at 2      # 1..행 수(끝)
+pnpm ieumdoc insert-table-column <file> --path 1 --at 1   # 0..열 수(끝)
+pnpm ieumdoc update-table-cell <file> --path 1,2,0 --text "P"
+```
+
+`--cells`는 행 배열의 JSON이다(첫 행이 header). 거부되면 exit 1이고 파일은 그대로다.
+
+Editor:
+
+- `+` 또는 `/` insert menu의 `Table`은 header 행과 body 2행, 3열의 빈 표를 만들고 caret을 첫 header cell에 둔다. 빈 transient paragraph에서 고르면 그 자리를 대신한다. 모든 cell이 빈 새 표는 저장되지 않는다(`empty table cannot be saved`).
+- 표의 `⠿`를 click하면 block menu에 `Add row below`, `Add column right`, `Delete`가 있다. caret이 그 표의 cell에 있으면 그 행 아래 / 그 열 오른쪽에, 아니면 마지막 행 아래 / 마지막 열 오른쪽에 빈 행/열이 생기고 caret이 새 cell로 간다. 다른 block의 menu에는 두 항목이 없다.
+- 새 cell은 편집 가능한 빈 cell이다(새 열의 header 행 cell은 header). 행/열 추가는 각각 Undo 한 번으로 되돌아가고, 되돌린 뒤에는 저장할 변경이 없다.
+- Save → Reload 후 새 표와 새 행/열, 입력한 텍스트가 canonical Markdown에 남는다. 저장한 뒤에 추가한 행/열도 다음 Save에서 저장된다. 기존 cell의 수정은 같은 Save에서 함께 저장된다.
+
+브라우저 회귀: `pnpm browser:test table-authoring`은 scratch `tmp/table-authoring/tables.md`에서 insert menu로 표를 만들고, 기존 표의 block menu로 행과 열을 추가해 입력한 뒤 Save하고, 저장 후 행을 하나 더 추가해 다시 Save한다. 두 번의 파일 내용과 다시 연 화면을 확인한다.
 
 ## Inline link authoring v1
 
