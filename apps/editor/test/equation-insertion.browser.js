@@ -72,7 +72,7 @@ async page => {
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).click();
     const reloadedLatex = await page.getByTestId('equation-latex').inputValue();
     await page.getByTestId('equation-cancel').click();
-    return {
+    const result = {
       menuHasEquation: true,
       enteredEditor: afterCancel === baselineEquationCount + 1,
       noEmptyParagraphAfterSlash,
@@ -83,6 +83,10 @@ async page => {
       appliedAndSaved: insert?.latex === 'x',
       reloadKeptEquation: reloaded === baselineEquationCount + 1 && reloadedLatex === 'x',
     };
+    for (const [name, passed] of Object.entries(result)) {
+      if (!passed) throw new Error(`Equation insertion regression: ${name}`);
+    }
+    return result;
   } finally {
     await page.unroute('**/api/document**');
   }
