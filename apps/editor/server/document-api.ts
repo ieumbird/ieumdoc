@@ -234,6 +234,7 @@ export function saveCurrentDocument(
   }
   const saved = saveEdits(source, {
     headings: request.headings ?? [],
+    headingLevels: request.headingLevels ?? [],
     paragraphs: request.paragraphs ?? [],
     equations: request.equations ?? [],
     figures: request.figures ?? [],

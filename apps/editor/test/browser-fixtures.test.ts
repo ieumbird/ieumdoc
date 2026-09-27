@@ -49,6 +49,7 @@ test("prepared scratch files start as copies of their sources, with the derived 
   }
   for (const [dir, name] of [
     ["admonition-authoring", "authoring.md"],
+    ["structural-block-authoring", "structural-block-authoring.md"],
     ["inline-math", "math.md"],
     ["inline-math", "split.md"],
     ["link-authoring", "links.md"],
@@ -70,6 +71,7 @@ test("prepared scratch files start as copies of their sources, with the derived 
     serialize(parse(technical.toString("utf8"))));
   // The fixtures are what the scenarios' freshness checks expect.
   assert.ok(readFileSync(path.join(tmp, "admonition-authoring", "authoring.md"), "utf8").startsWith("# Admonition authoring"));
+  assert.ok(readFileSync(path.join(tmp, "structural-block-authoring", "structural-block-authoring.md"), "utf8").startsWith("# Structural authoring"));
   assert.ok(readFileSync(path.join(tmp, "inline-math", "split.md"), "utf8").startsWith("The current $i_d$, then more."));
 }));
 
