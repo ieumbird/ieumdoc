@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { getEditableDocument, parse, removeBlock, serialize, updateTableCell, type MystDocument } from "./core-internal.ts";
+import {
+  getEditableDocument,
+  insertTable,
+  insertTableColumn,
+  insertTableRow,
+  parse,
+  removeBlock,
+  serialize,
+  updateTableCell,
+  type MystDocument,
+} from "./core-internal.ts";
 
 const technical = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 const TABLE = 12;
@@ -71,4 +81,75 @@ test("updateTableCell fails closed without mutating the document", () => {
   const directive = parse(":::{list-table}\n* - a\n:::\n");
   assert.equal(getEditableDocument(directive).blocks[0]?.block, "unsupported");
   assert.throws(() => updateTableCell(directive, [0, 0, 0], "b"), /not editable/);
+});
+
+const texts = (document: MystDocument, index: number) => cells(document, index).map((row) => row.map((cell) => cell.text));
+
+test("insertTable writes a header row and body rows of plain text through canonical Markdown", () => {
+  const document = parse("# Title\n\nText.\n");
+  const next = insertTable(document, 1, [["Port", "Type"], ["U", "AC"], ["", "a | b"]]);
+  const markdown = serialize(next);
+  assert.equal(markdown, String.raw`# Title
+
+| Port | Type   |
+| ---- | ------ |
+| U    | AC     |
+|      | a \| b |
+
+Text.
+`);
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.deepEqual(texts(parse(markdown), 1), [["Port", "Type"], ["U", "AC"], ["", "a | b"]]);
+  assert.deepEqual(cells(parse(markdown), 1).map((row) => row.map((cell) => cell.header)), [[true, true], [false, false], [false, false]]);
+  // A header-only table and an empty table are Markdown tables too.
+  assert.deepEqual(texts(parse(serialize(insertTable(document, 0, [["A"]]))), 0), [["A"]]);
+  assert.deepEqual(texts(parse(serialize(insertTable(document, 2, [["", ""], ["", ""]]))), 2), [["", ""], ["", ""]]);
+});
+
+test("insertTableRow adds an empty body row below the header or any body row", () => {
+  const document = parse("| A | B |\n| --- | --- |\n| x | y |\n");
+  const markdown = serialize(insertTableRow(insertTableRow(document, [0], 1), [0], 3));
+  assert.equal(markdown, "| A | B |\n| - | - |\n|   |   |\n| x | y |\n|   |   |\n");
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.deepEqual(texts(parse(markdown), 0), [["A", "B"], ["", ""], ["x", "y"], ["", ""]]);
+  // A new row's cells are editable, so they can be filled right away.
+  assert.deepEqual(texts(updateTableCell(parse(markdown), [0, 1, 1], "z"), 0)[1], ["", "z"]);
+});
+
+test("insertTableColumn adds an empty column, header cell included, at any position", () => {
+  const document = parse("| A | B |\n| --- | --- |\n| x | **y** |\n");
+  const first = insertTableColumn(document, [0], 0);
+  const last = insertTableColumn(first, [0], 3);
+  const markdown = serialize(last);
+  assert.equal(markdown, "|   | A | B     |   |\n| - | - | ----- | - |\n|   | x | **y** |   |\n");
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.deepEqual(cells(parse(markdown), 0), [
+    [{ text: "", header: true, editable: true }, { text: "A", header: true, editable: true }, { text: "B", header: true, editable: true }, { text: "", header: true, editable: true }],
+    [{ text: "", header: false, editable: true }, { text: "x", header: false, editable: true }, { text: "y", header: false, editable: false }, { text: "", header: false, editable: true }],
+  ]);
+});
+
+test("table insertion fails closed without mutating the document", () => {
+  const document = parse(technical);
+  const before = structuredClone(document);
+  const rejected: [() => unknown, RegExp][] = [
+    [() => insertTable(document, 0, []), /header row with at least one cell/],
+    [() => insertTable(document, 0, [[]]), /header row with at least one cell/],
+    [() => insertTable(document, 0, [["A", "B"], ["x"]]), /same number of cells/],
+    [() => insertTable(document, 0, [["A"], ["x\ny"]]), /line breaks/],
+    [() => insertTable(document, 0, [[" A"]]), /whitespace/],
+    [() => insertTable(document, 0, [["cost $x$"]]), /table cannot be preserved through canonical round-trip/],
+    [() => insertTable(document, 99, [["A"]]), /index out of range/],
+    [() => insertTableRow(document, [TABLE], 0), /from 1 to 3/],
+    [() => insertTableRow(document, [TABLE], 4), /from 1 to 3/],
+    [() => insertTableRow(document, [TABLE], 1.5), /from 1 to 3/],
+    [() => insertTableColumn(document, [TABLE], -1), /from 0 to 2/],
+    [() => insertTableColumn(document, [TABLE], 3), /from 0 to 2/],
+    [() => insertTableRow(document, [0], 1), /requires a table at \[0\]/],
+    [() => insertTableColumn(document, [TABLE, 0], 0), /top-level table path/],
+    // Column alignment cannot be written, so an aligned table stays unwritable.
+    [() => insertTableRow(parse("| A |\n| :-- |\n"), [0], 1), /table cannot be preserved/],
+  ];
+  for (const [run, reason] of rejected) assert.throws(run, reason);
+  assert.deepEqual(document, before);
 });

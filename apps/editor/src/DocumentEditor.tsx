@@ -22,7 +22,8 @@ import {
   differsFromBaseline,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
-import { toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TABLE_CELL_ADDED_ATTR, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 
@@ -49,6 +50,15 @@ type DocumentEditorProps = {
   validateFigure?: FigureValidator;
 };
 
+function addedTableCells(doc: ProseMirrorNode): Set<string> {
+  const added = new Set<string>();
+  doc.descendants(node => {
+    const id = node.attrs[TABLE_CELL_ADDED_ATTR];
+    if (typeof id === "string" && id.length > 0) added.add(id);
+  });
+  return added;
+}
+
 export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
   return ranges.flatMap(range => {
     const savedBlock = saved.blocks[Number(range.path)];
@@ -62,7 +72,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 ) {
   const projection = toTiptapDocument(document);
   const baseline = useRef(projection);
-  const pending = useRef<{ ranges: SavedRange[]; keys: string[] } | null>(null);
+  const pending = useRef<{ ranges: SavedRange[]; keys: string[]; addedCells: Set<string> } | null>(null);
   const onEquationDraftChangeRef = useRef(onEquationDraftChange);
   onEquationDraftChangeRef.current = onEquationDraftChange;
   const activeEquationDrafts = useRef(new Set<string>());
@@ -130,7 +140,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           ranges.push({start: pos, end: pos + node.nodeSize, path: String(index)});
           keys.push(String(node.attrs.sourcePath));
         });
-        pending.current = { ranges, keys };
+        pending.current = { ranges, keys, addedCells: addedTableCells(editor.state.doc) };
         return editorDocumentJSON(editor.state);
       },
       finishSave(saved) {
@@ -159,6 +169,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         for (const group of groups) for (const pos of group.positions) {
           tr.setNodeMarkup(pos, undefined, { ...tr.doc.nodeAt(pos)!.attrs, sourcePath: group.paths.join(";") });
         }
+        // Table cells added before this save are now saved cells; ones added while it ran stay added.
+        tr.doc.descendants((node, pos) => {
+          if (submission.addedCells.has(String(node.attrs[TABLE_CELL_ADDED_ATTR] ?? ""))) {
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, [TABLE_CELL_ADDED_ATTR]: "" });
+          }
+        });
         // Deletes made while saving now address saved blocks that no node claims.
         const deleted = new Set(declaredDeletions(editor.state));
         const claimed = new Set(groups.flatMap(group => group.paths));
@@ -347,7 +363,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CommandMenu
           key={`block-${blockMenu.index}`}
           label="Block actions"
-          items={BLOCK_COMMANDS.map(command => ({
+          items={BLOCK_COMMANDS.filter(command => command.applies?.(editor.state, blockMenu.index) ?? true).map(command => ({
             id: command.id,
             label: command.label,
             disabled: !command.enabled(editor.state, blockMenu.index),

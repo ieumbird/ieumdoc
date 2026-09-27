@@ -100,6 +100,9 @@ test("ieumdoc help exits successfully", () => {
       "update-node-text",
       "update-equation-latex",
       "update-figure",
+      "insert-table",
+      "insert-table-row",
+      "insert-table-column",
       "update-table-cell",
       "update-label",
     ]) {
@@ -617,6 +620,42 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI creates a table and adds rows and columns through Core, rejecting invalid shapes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
+  const file = path.join(dir, "doc.md");
+  writeFileSync(file, "# Ratings\n");
+  try {
+    const steps = [
+      ["insert-table", file, "--at", "1", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]])],
+      ["insert-table-row", file, "--path", "1", "--at", "2"],
+      ["insert-table-column", file, "--path", "1", "--at", "1"],
+      ["update-table-cell", file, "--path", "1,2,0", "--text", "P"],
+    ];
+    for (const args of steps) {
+      const result = run(args);
+      assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
+    }
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| ---- | - | ---- |\n| U    |   | AC   |\n| P    |   |      |\n");
+    assert.equal(serialize(parse(saved)), saved);
+    for (const args of [
+      ["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"],
+      ["insert-table", file, "--at", "0", "--cells", "not json"],
+      ["insert-table", file, "--at", "0", "--cells", "[]"],
+      ["insert-table-row", file, "--path", "1", "--at", "0"],
+      ["insert-table-column", file, "--path", "0", "--at", "0"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
+    }
+    assert.match(run(["insert-table", file, "--at", "0", "--cells", "not json"]).stderr, /--cells must be JSON/);
+    assert.match(run(["insert-table-row", file, "--path", "1", "--at", "0"]).stderr, /from 1 to 3/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -28,7 +28,7 @@ import { labelError } from "./label.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
-import { setTableCellText, tableCellText } from "./myst/table.ts";
+import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
@@ -166,20 +166,82 @@ export function updateTableCell(document: MystDocument, path: NodePath, text: st
   if (getNode(document, [path[0]]).type !== "table" || tableCellText(getNode(document, path)) === undefined) {
     throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
   }
+  assertTableCellText(text);
+  const next = cloneDocument(document);
+  setTableCellText(getNode(next, path), text);
+  assertStableTable(next, TABLE_CELL_FAILURE);
+  return next;
+}
+
+function assertTableCellText(text: string): void {
+  if (typeof text !== "string") {
+    throw new Error("table cell text must be a string");
+  }
   if (/[\r\n]/.test(text)) {
     throw new Error("table cell text cannot contain line breaks");
   }
   if (text !== text.trim()) {
     throw new Error("table cell text cannot start or end with whitespace");
   }
-  const next = cloneDocument(document);
-  setTableCellText(getNode(next, path), text);
-  // serialize() rejects any semantic change; also require a stable canonical form.
-  const markdown = serializeFor(next, TABLE_CELL_FAILURE);
+}
+
+// serialize() rejects any semantic change; also require a stable canonical form.
+function assertStableTable(document: MystDocument, failure: string): void {
+  const markdown = serializeFor(document, failure);
   if (serialize(parse(markdown)) !== markdown) {
-    throw new Error(TABLE_CELL_FAILURE);
+    throw new Error(failure);
   }
+}
+
+const TABLE_FAILURE = "table cannot be preserved through canonical round-trip";
+
+/** Insert a top-level Markdown table of plain-text cells; the first row is its header row. */
+export function insertTable(document: MystDocument, index: number, rows: string[][]): MystDocument {
+  if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length === 0) {
+    throw new Error("a table needs a header row with at least one cell");
+  }
+  if (rows.some((row) => !Array.isArray(row) || row.length !== rows[0].length)) {
+    throw new Error("every table row needs the same number of cells");
+  }
+  rows.flat().forEach(assertTableCellText);
+  const next = insertBlock(document, index, createTableNode(rows));
+  assertStableTable(next, TABLE_FAILURE);
   return next;
+}
+
+/** Insert an empty body row into a top-level table; row 0 is the header row, so `row` starts at 1. */
+export function insertTableRow(document: MystDocument, path: NodePath, row: number): MystDocument {
+  const rows = tableAt(document, path, "insertTableRow").children?.length ?? 0;
+  if (!Number.isInteger(row) || row < 1 || row > rows) {
+    throw new Error(`table row index must be an integer from 1 to ${rows}: ${row}`);
+  }
+  const next = cloneDocument(document);
+  insertTableRowNode(getNode(next, path), row);
+  assertStableTable(next, TABLE_FAILURE);
+  return next;
+}
+
+/** Insert an empty column into a top-level table at `column` (0 to the column count). */
+export function insertTableColumn(document: MystDocument, path: NodePath, column: number): MystDocument {
+  const columns = tableAt(document, path, "insertTableColumn").children?.[0]?.children?.length ?? 0;
+  if (!Number.isInteger(column) || column < 0 || column > columns) {
+    throw new Error(`table column index must be an integer from 0 to ${columns}: ${column}`);
+  }
+  const next = cloneDocument(document);
+  insertTableColumnNode(getNode(next, path), column);
+  assertStableTable(next, TABLE_FAILURE);
+  return next;
+}
+
+function tableAt(document: MystDocument, path: NodePath, operation: string): MystNode {
+  if (path.length !== 1) {
+    throw new Error(`${operation} requires a top-level table path [index]`);
+  }
+  const table = getNode(document, path);
+  if (table.type !== "table") {
+    throw new Error(`${operation} requires a table at [${path.join(",")}]`);
+  }
+  return table;
 }
 
 export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {

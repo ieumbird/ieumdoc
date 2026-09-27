@@ -17,3 +17,32 @@ export function tableCellText(cell: MystNode | undefined): string | undefined {
 export function setTableCellText(cell: MystNode, text: string): void {
   cell.children = text.length > 0 ? [{ type: "text", value: text }] : [];
 }
+
+// New cells carry no alignment: canonical Markdown cannot keep column alignment, so a table
+// that has any is not writable in the first place.
+function cell(text: string, header: boolean): MystNode {
+  return {
+    type: "tableCell",
+    ...(header ? { header: true } : {}),
+    children: text.length > 0 ? [{ type: "text", value: text }] : [],
+  };
+}
+
+/** A GFM table of plain-text cells; the first row is the header row. */
+export function createTableNode(rows: string[][]): MystNode {
+  return {
+    type: "table",
+    children: rows.map((row, index) => ({ type: "tableRow", children: row.map((text) => cell(text, index === 0)) })),
+  };
+}
+
+/** Insert a body row of empty cells, one per header cell. */
+export function insertTableRowNode(table: MystNode, index: number): void {
+  const columns = table.children?.[0]?.children?.length ?? 0;
+  table.children!.splice(index, 0, { type: "tableRow", children: Array.from({ length: columns }, () => cell("", false)) });
+}
+
+/** Insert an empty column; its header cell is empty too. */
+export function insertTableColumnNode(table: MystNode, index: number): void {
+  table.children!.forEach((row, rowIndex) => row.children!.splice(index, 0, cell("", rowIndex === 0)));
+}

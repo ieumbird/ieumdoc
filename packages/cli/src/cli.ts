@@ -7,6 +7,9 @@ import {
   insertHeading,
   insertEquation,
   insertFigure,
+  insertTable,
+  insertTableRow,
+  insertTableColumn,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -179,6 +182,38 @@ const COMMANDS: CommandSpec[] = [
     details: ["Move a top-level block."],
   },
   {
+    name: "insert-table",
+    summary: "Insert a Markdown table at a top-level index",
+    usage: "ieumdoc insert-table <file> --at <index> --cells <json>",
+    details: [
+      "Insert a Markdown table at a top-level index.",
+      "--cells is a JSON array of rows, each an array of cell texts; the first row is the header row.",
+      "Every row needs the same number of cells. Cells may be empty.",
+      "Cell text must be one line without leading or trailing whitespace.",
+      "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
+    ],
+  },
+  {
+    name: "insert-table-row",
+    summary: "Insert an empty row into a Markdown table",
+    usage: "ieumdoc insert-table-row <file> --path <table> --at <row>",
+    details: [
+      "Insert an empty body row into a top-level Markdown table.",
+      "Row 0 is the header row, so --at is from 1 to the row count (the end).",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-table-column",
+    summary: "Insert an empty column into a Markdown table",
+    usage: "ieumdoc insert-table-column <file> --path <table> --at <column>",
+    details: [
+      "Insert an empty column, header cell included, into a top-level Markdown table.",
+      "--at is from 0 to the column count (the end).",
+      ...PATH_NOTE,
+    ],
+  },
+  {
     name: "update-table-cell",
     summary: "Replace the text of a Markdown table cell through Core",
     usage: "ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>",
@@ -346,6 +381,18 @@ function main(argv: string[]): number {
       save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
       return 0;
     }
+    case "insert-table": {
+      save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells")));
+      return 0;
+    }
+    case "insert-table-row": {
+      save(file, insertTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "insert-table-column": {
+      save(file, insertTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
     case "update-table-cell": {
       save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), flag(flags, "--text")));
       return 0;
@@ -438,6 +485,9 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-equation": ["--at", "--latex"],
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],
+  "insert-table": ["--at", "--cells"],
+  "insert-table-row": ["--path", "--at"],
+  "insert-table-column": ["--path", "--at"],
   "update-table-cell": ["--path", "--text"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
@@ -646,6 +696,15 @@ function intFlag(args: string[], name: string): number {
     throw new Error(`${name} must be an integer`);
   }
   return value;
+}
+
+function jsonFlag<T>(args: string[], name: string): T {
+  try {
+    return JSON.parse(flag(args, name)) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error(`${name} must be JSON`);
+    throw error;
+  }
 }
 
 function pathFlag(args: string[]): NodePath {

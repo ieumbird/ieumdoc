@@ -31,6 +31,7 @@ import { commitDocumentSave, documentRevision, loadEditableDocument, saveEdits }
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const schema = getSchema(editorExtensions());
+const DELETE_COMMAND = BLOCK_COMMANDS.find(command => command.id === "delete")!;
 const noop = () => {};
 const text = (value: string): TiptapJSON[] => [{ type: "text", text: value }];
 
@@ -78,7 +79,7 @@ test("heading commands insert H1-H3 and place the caret inside the heading", () 
 test("shared insert commands include Equation and select its new atom", () => {
   const state = EditorState.create({ schema, doc: docOf("AB") });
   assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
-    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure",
+    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure", "Table",
   ]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
@@ -241,8 +242,8 @@ test("delete command declares the removed snapshot blocks and keeps one block", 
   const markdown = "AB\n\n# Heading\n\n$$\nx\n$$";
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   const state = EditorState.create({ schema, doc: docOf(markdown), plugins: [history(), structureGuardPlugin(baseline, noop)] });
-  assert.equal(BLOCK_COMMANDS[0].enabled(state, 2), true);
-  let next = state.apply(BLOCK_COMMANDS[0].run(state, 2));
+  assert.equal(DELETE_COMMAND.enabled(state, 2), true);
+  let next = state.apply(DELETE_COMMAND.run(state, 2));
   assert.deepEqual(declaredDeletions(next), ["2"]);
   // Deleting never rebuilds the top node, so NodeView state survives.
   assert.deepEqual(next.doc.attrs, state.doc.attrs);
@@ -261,8 +262,8 @@ test("delete command declares the removed snapshot blocks and keeps one block", 
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(loadEditableDocument(markdown)), lost), /block deletion is not allowed/);
 
   const single = EditorState.create({ schema, doc: docOf("A") });
-  assert.equal(BLOCK_COMMANDS[0].enabled(single, 0), false);
-  assert.throws(() => BLOCK_COMMANDS[0].run(single, 0), /invalid block deletion/);
+  assert.equal(DELETE_COMMAND.enabled(single, 0), false);
+  assert.throws(() => DELETE_COMMAND.run(single, 0), /invalid block deletion/);
 });
 
 test("structure guard admits insert and delete only from block commands", () => {
@@ -273,7 +274,7 @@ test("structure guard admits insert and delete only from block commands", () => 
   const guard = structureGuardPlugin(baseline, () => rejected++);
   const state = EditorState.create({ schema, doc, plugins: [history(), guard] });
   const accepted = (tr: Transaction) => state.applyTransaction(tr).state !== state;
-  assert.equal(accepted(BLOCK_COMMANDS[0].run(state, 2)), true);
+  assert.equal(accepted(DELETE_COMMAND.run(state, 2)), true);
   assert.equal(accepted(INSERT_COMMANDS[0].run(state, 0)), true);
   assert.equal(rejected, 0);
 

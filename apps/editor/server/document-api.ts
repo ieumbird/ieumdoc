@@ -10,6 +10,9 @@ import {
   insertHeading,
   insertEquation,
   insertFigure,
+  insertTable,
+  insertTableColumn,
+  insertTableRow,
   insertParagraph,
   parse,
   removeBlock,
@@ -67,6 +70,15 @@ export type TableCellEdit = {
   to: string;
 };
 
+/** Rows and columns added to a table: each entry is the snapshot index, or null when added. */
+export type TableShapeEdit = {
+  path: NodePath;
+  rows: (number | null)[];
+  columns: (number | null)[];
+  /** Text typed into added cells, by position in the new grid. */
+  cells: { row: number; column: number; text: string }[];
+};
+
 /** An Equation or Figure label; an empty `to` removes it. */
 export type LabelEdit = {
   path: NodePath;
@@ -78,7 +90,8 @@ export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
   | { block: "equation"; latex: string; label?: string }
-  | ({ block: "figure"; label?: string } & FigureContent);
+  | ({ block: "figure"; label?: string } & FigureContent)
+  | { block: "table"; rows: string[][] };
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -89,6 +102,7 @@ export type SupportedEdits = {
   equations?: EquationEdit[];
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
+  tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
   labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
@@ -212,6 +226,7 @@ export function saveCurrentDocument(
     equations: request.equations ?? [],
     figures: request.figures ?? [],
     cells: request.cells ?? [],
+    tables: request.tables ?? [],
     admonitions: request.admonitions ?? [],
     labels: request.labels ?? [],
     splits: request.splits ?? [],
@@ -306,6 +321,25 @@ export function saveEdits(
     }
     document = updateTableCell(document, edit.path, edit.to);
   }
+  // Snapshot cells are edited above at their snapshot paths; Core then adds rows and columns
+  // in new-grid order and fills the added cells.
+  for (const edit of edits.tables ?? []) {
+    assertPath(edit.path, "table");
+    const block = blockAt(editable, edit.path);
+    if (edit.path.length !== 1 || block?.block !== "table" ||
+        !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, block.rows[0]?.cells.length ?? 0) ||
+        !Array.isArray(edit.cells)) {
+      throw new Error(`table edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    for (const [row, from] of edit.rows.entries()) if (from === null) document = insertTableRow(document, edit.path, row);
+    for (const [column, from] of edit.columns.entries()) if (from === null) document = insertTableColumn(document, edit.path, column);
+    for (const cell of edit.cells) {
+      if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
+        throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
+      }
+      document = updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.text);
+    }
+  }
   const labels = edits.labels ?? [];
   for (const edit of labels) {
     assertPath(edit.path, "label");
@@ -352,6 +386,7 @@ export function saveEdits(
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
+    ...(edits.tables ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
@@ -382,6 +417,12 @@ export function saveEdits(
     }
     if (insert.block === "figure") {
       figureContent(insert);
+      continue;
+    }
+    if (insert.block === "table") {
+      if (!Array.isArray(insert.rows) || insert.rows.flat().every(text => text === "")) {
+        throw new Error("empty table cannot be saved");
+      }
       continue;
     }
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
@@ -438,6 +479,8 @@ export function saveEdits(
       document = insertHeading(document, index, item.level, item.text);
     } else if (item.block === "equation") {
       document = insertEquation(document, index, item.latex);
+    } else if (item.block === "table") {
+      document = insertTable(document, index, item.rows);
     } else {
       document = insertFigure(document, index, figureContent(item));
     }
@@ -552,6 +595,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     equations: Array.isArray(body.equations) ? body.equations : [],
     figures: Array.isArray(body.figures) ? body.figures : [],
     cells: Array.isArray(body.cells) ? body.cells : [],
+    tables: Array.isArray(body.tables) ? body.tables : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
     labels: Array.isArray(body.labels) ? body.labels : [],
     splits: Array.isArray(body.splits) ? body.splits : [],
@@ -563,6 +607,13 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
 }
 
 type Locator = OrderItem;
+
+/** Every snapshot index 0..count-1 once and in order, with null entries for added rows/columns. */
+function isTableAxis(axis: unknown, count: number): axis is (number | null)[] {
+  if (!Array.isArray(axis)) return false;
+  const kept = axis.filter(item => item !== null);
+  return kept.length === count && kept.every((item, index) => item === index);
+}
 
 function locatorKey(item: Locator): string {
   return "insert" in item ? `insert:${item.insert}` : `${item.path.join(",")}:${item.part}`;
