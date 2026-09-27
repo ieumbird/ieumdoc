@@ -34,7 +34,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | --- | --- |
 | Rest | No paragraph input box, persistent gutter or Edit button. No invisible pointer targets. Figure/Equation authoring metadata is hidden, inert text with its space reserved to avoid layout movement; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
 | Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. |
-| Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. |
+| Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Selected | Figure outline and a dismissible properties summary; summary does not steal editor focus. |
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Existing draft notice and Save guard; validation preserves entered values. These do not replace hover/focus/selection. |

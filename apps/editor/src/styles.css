@@ -318,11 +318,6 @@ button {
   caret-color: var(--id-color-interaction);
 }
 
-.document-editor:focus-visible {
-  outline: 1px solid var(--id-color-interaction);
-  outline-offset: var(--space-2);
-}
-
 .document-editor ::selection {
   background: var(--id-color-interaction-soft);
 }
