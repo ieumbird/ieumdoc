@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
 import { mapSavedRanges, type SavedRange } from "./block-reorder.ts";
 import {
   BLOCK_COMMANDS,
@@ -25,6 +25,9 @@ import {
 import { toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
+
+const EQUATION_DRAFT_MOVE_HINT = "Apply or Cancel the Equation edit before moving it.";
+const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it.";
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
@@ -77,15 +80,25 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // The selected paragraph text a new cross-reference will replace.
   const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
+  // Draft changes are not transactions; re-render so the block handles reflect them.
+  const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
   const reportEquationDraft = (key: string, active: boolean) => {
     if (active) activeEquationDrafts.current.add(key);
     else activeEquationDrafts.current.delete(key);
     onEquationDraftChangeRef.current?.(activeEquationDrafts.current.size > 0);
+    draftsChanged();
   };
   const reportFigureDraft = (key: string, active: boolean) => {
     if (active) activeFigureDrafts.current.add(key);
     else activeFigureDrafts.current.delete(key);
     onFigureDraftChangeRef.current?.(activeFigureDrafts.current.size > 0);
+    draftsChanged();
+  };
+  const moveBlockedHint = (index: number) => {
+    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
+    if (activeEquationDrafts.current.has(path)) return EQUATION_DRAFT_MOVE_HINT;
+    if (activeFigureDrafts.current.has(path)) return FIGURE_DRAFT_MOVE_HINT;
+    return undefined;
   };
   const editor = useEditor({
     immediatelyRender: true,
@@ -278,6 +291,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         menuIndex={blockMenu?.index}
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
+        moveBlockedHint={moveBlockedHint}
       />
       {referenceDraft && referenceStyle ? (
         <ReferenceForm

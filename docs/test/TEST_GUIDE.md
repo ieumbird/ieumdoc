@@ -608,6 +608,12 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 이동된 paragraph에 텍스트, Bold/Italic, Shift+Enter hard break를 추가한 뒤 Save → Reload한다. 순서와 의미가 유지되어야 한다.
 - Save 응답을 지연한 상태에서 다시 drag하거나 입력한 뒤 `Saved; newer edits pending`을 확인한다. 다음 Save → Reload에서도 pending 변경이 남아야 한다.
 - nested block, multi-select, type conversion은 범위가 아니다. block 추가/삭제는 아래 Editor UX Shell v1을 본다. canonical serializer가 block 경계를 바꾸는 reorder는 파일을 쓰지 않고 실패한다.
+- 드래그하는 동안 옮기는 block은 옅은 파란색으로 칠해지고, 놓을 위치는 두 block 사이 간격 가운데의 선(왼쪽 끝에 작은 원)으로 표시된다. 제자리(바로 위·아래 간격)에서는 선이 보이지 않으며, 거기서 놓으면 아무 변화가 없다.
+- 이동한 Equation은 편집창이 열리지 않고, 이동한 Figure는 선택되지 않아 properties가 뜨지 않는다. 옮기기 전에 그 block을 선택하고 있었다면 선택은 그대로 따라간다. paragraph/heading은 이전처럼 caret이 이동한 block으로 간다. Undo/Redo도 편집창을 열지 않는다.
+- 한 block을 놓은 직후 곧바로 다른 block을 드래그할 수 있다(이전에는 놓은 직후의 드래그가 시작되지 않을 수 있었다). 놓은 뒤 editor focus가 유지되어 Ctrl+Z가 바로 동작한다.
+- Apply하지 않은 Equation/Figure draft가 있는 block은 옮길 수 없다. handle에 hover하면 `Apply or Cancel the Equation edit before moving it.`(Figure는 `… Figure edit …`)이 보이고, 드래그가 시작되지 않으며 draft는 그대로다. Apply 또는 Cancel 뒤에는 다시 옮길 수 있다. 다른 block을 옮기는 것은 draft와 관계없이 가능하다.
+
+브라우저 회귀: `pnpm browser:test block-move`는 scratch `tmp/block-move/technical-document.md`에서 실제 handle을 드래그해 위 표시·제자리·선택·연속 드래그·Undo/Redo·draft 차단을 확인한다. 저장하지 않으며 파일이 그대로인지도 확인한다.
 
 ## Editor Equation Draft Save Guard v1
 

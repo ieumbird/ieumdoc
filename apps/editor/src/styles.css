@@ -651,12 +651,42 @@ h6.heading { font-size: var(--font-size-sm); }
   cursor: grabbing;
 }
 
+.block-handle[draggable="false"] {
+  cursor: not-allowed;
+}
+
+/* While dragging: the block being moved is tinted, and the line sits in the gap it will land in. */
+.block-drag-source {
+  position: absolute;
+  left: var(--layout-document-gutter);
+  right: var(--layout-document-inline-padding);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-interaction-soft);
+  mix-blend-mode: multiply;
+}
+
 .block-drop-line {
   position: absolute;
   left: var(--layout-document-gutter);
   right: var(--layout-document-inline-padding);
   height: var(--size-drop-indicator);
+  translate: 0 -50%;
+  border-radius: var(--size-drop-indicator);
   background: var(--id-color-interaction);
+}
+
+/* The end marker keeps the line from reading as a horizontal rule. */
+.block-drop-line::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-2));
+  top: 50%;
+  width: var(--space-2);
+  height: var(--space-2);
+  translate: 0 -50%;
+  border: var(--size-drop-indicator) solid var(--id-color-interaction);
+  border-radius: 50%;
+  background: var(--id-color-surface);
 }
 
 /* Editor overlays: positioned over the document, never part of its content. */
