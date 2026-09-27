@@ -65,5 +65,22 @@ async page => {
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
+  // Editing shows the interaction-colored caret, not a frame around the whole document, whether
+  // focus comes from a click or the keyboard.
+  const editing=async()=>page.locator('.document-editor').evaluate(n=>{
+    const cs=getComputedStyle(n);
+    return {focused:document.activeElement===n,outline:cs.outlineStyle,boxShadow:cs.boxShadow,border:['Top','Right','Bottom','Left'].map(side=>parseFloat(cs['border'+side+'Width'])).reduce((a,b)=>a+b,0),caret:cs.caretColor,interaction:getComputedStyle(document.documentElement).getPropertyValue('--id-color-interaction').trim()};
+  });
+  const noFrame=state=>state.focused&&state.outline==='none'&&state.boxShadow==='none'&&state.border===0;
+  await page.locator('.document-editor > .paragraph').first().click();
+  const clicked=await editing();
+  await page.locator('[data-table-cell]').first().click();
+  const cell=await editing();
+  await page.evaluate(()=>document.activeElement?.blur());
+  await page.locator('.document-editor').focus();
+  await page.keyboard.press('ArrowDown');
+  const keyboard=await editing();
+  const caretColor=await page.evaluate(color=>{const probe=document.createElement('span');probe.style.color=color;document.body.append(probe);const value=getComputedStyle(probe).color;probe.remove();return value;},clicked.interaction);
+  if(![clicked,cell,keyboard].every(noFrame)||clicked.caret!==caretColor)throw Error(`Editing frames the document: ${JSON.stringify({clicked,cell,keyboard,caretColor})}`);
   return results;
 }
