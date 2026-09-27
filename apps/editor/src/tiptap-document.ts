@@ -1,4 +1,4 @@
-import type { EditableBlock, EditableDocument, FigureContent, InlineContent, NodePath } from "@ieumdoc/core";
+import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type NodePath } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
@@ -8,6 +8,12 @@ export type HeadingEdit = {
   path: NodePath;
   from: string;
   to: string;
+};
+
+export type HeadingLevelEdit = {
+  path: NodePath;
+  from: number;
+  to: number;
 };
 
 export type ParagraphEdit = {
@@ -60,6 +66,7 @@ export type LabelEdit = {
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
+  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][] };
@@ -70,6 +77,7 @@ export type OrderItem = { path: NodePath; part: number } | { insert: number };
 export type SupportedEdits = {
   order?: OrderItem[];
   headings: HeadingEdit[];
+  headingLevels?: HeadingLevelEdit[];
   paragraphs: ParagraphEdit[];
   equations?: EquationEdit[];
   figures?: FigureEdit[];
@@ -134,6 +142,7 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
 export function collectSupportedEdits(document: EditableDocument, next: TiptapJSON): SupportedEdits {
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
+  const headingLevels: HeadingLevelEdit[] = [];
   const paragraphs: ParagraphEdit[] = [];
   const equations: EquationEdit[] = [];
   const figures: FigureEdit[] = [];
@@ -165,6 +174,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         if (insert.block === "heading" && insert.text.length === 0) {
           throw new Error("empty heading cannot be saved");
         }
+        if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
+          throw new Error("admonition body cannot be empty");
+        }
         if (insert.block === "equation" && insert.latex.length === 0) {
           throw new Error("empty equation LaTeX cannot be saved");
         }
@@ -182,10 +194,13 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     if (paths.length > 1) {
       merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
     } else if (block.block === "heading" && block.editable) {
+      const level = headingLevel(node);
+      if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
       const text = headingText(node);
-      if (text === block.text) continue;
-      if (text.length === 0) throw new Error("empty heading text cannot be saved");
-      headings.push({ path: block.path, from: block.text, to: text });
+      if (text !== block.text) {
+        if (text.length === 0) throw new Error("empty heading text cannot be saved");
+        headings.push({ path: block.path, from: block.text, to: text });
+      }
     } else if (block.block === "paragraph" && editableParagraph(block)) {
       if (group.length > 1) {
         splits.push({ path: block.path, parts: group.map(paragraphInline) });
@@ -243,6 +258,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   return {
     ...(reordered ? { order } : {}),
     headings,
+    ...(headingLevels.length ? { headingLevels } : {}),
     paragraphs,
     ...(equations.length ? { equations } : {}),
     ...(figures.length ? { figures } : {}),
@@ -406,6 +422,13 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "heading") {
     return { block: "heading", level: headingLevel(node), text: headingText(node) };
   }
+  if (node.type === "admonition") {
+    const variant = String(node.attrs?.variant ?? "");
+    if (node.attrs?.editable !== true || !isAdmonitionVariant(variant)) {
+      throw new Error("a new admonition must be an editable Note or Warning");
+    }
+    return { block: "admonition", variant, content: paragraphInline(node) };
+  }
   if (node.type === "equation") {
     const label = blockLabel(node);
     return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
@@ -524,9 +547,7 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     return;
   }
   if (beforeType === "heading") {
-    if (Number(before.attrs?.level ?? 1) !== Number(after.attrs?.level ?? 1)) {
-      throw new Error("heading level cannot change");
-    }
+    headingLevel(after);
     headingText(after);
     return;
   }

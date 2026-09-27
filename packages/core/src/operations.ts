@@ -4,6 +4,7 @@ import { getEditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
   inlineContentLength,
+  inlineMarkKey,
   splitInlineContent,
   concatenateInlineContent,
   insertInlineBreak,
@@ -25,7 +26,7 @@ import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
 import { assertReferenceableLabel } from "./myst/reference.ts";
 import { labelError } from "./label.ts";
-import { supportedAdmonitionContent } from "./myst/admonition.ts";
+import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
@@ -131,6 +132,56 @@ export function insertHeading(document: MystDocument, index: number, level: numb
     throw new Error(HEADING_FAILURE);
   }
   return next;
+}
+
+const ADMONITION_INSERTION_FAILURE = "admonition insertion cannot round-trip losslessly through canonical Markdown";
+
+/** Insert a top-level simple note or warning with supported inline content. */
+export function insertAdmonition(
+  document: MystDocument,
+  index: number,
+  variant: AdmonitionVariant,
+  content: InlineContent[],
+): MystDocument {
+  if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
+  assertInlineContent(content);
+  if (inlineContentText(content).trim().length === 0) {
+    throw new Error("admonition body must contain non-empty text");
+  }
+  const normalizedContent = concatenateInlineContent(content);
+  const admonition: MystNode = {
+    type: "admonition",
+    kind: variant,
+    children: [{ type: "paragraph", children: inlineContentToNodes(normalizedContent) }],
+  };
+  const next = insertBlock(document, index, admonition);
+  const markdown = serializeFor(next, ADMONITION_INSERTION_FAILURE);
+  const reparsed = parse(markdown);
+  const inserted = reparsed.children[index];
+  const insertedContent = inserted && supportedAdmonitionContent(inserted);
+  if (
+    inserted?.type !== "admonition" ||
+    inserted.kind !== variant ||
+    !insertedContent ||
+    !sameInlineContent(normalizedContent, insertedContent) ||
+    serialize(reparsed) !== markdown
+  ) {
+    throw new Error(ADMONITION_INSERTION_FAILURE);
+  }
+  return next;
+}
+
+function sameInlineContent(left: InlineContent[], right: InlineContent[]): boolean {
+  const markedText = (content: InlineContent[], marks: string[] = []): [string, string][] => content.flatMap((item) => {
+    if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
+    if (item.kind === "break") return [["\n", [...marks, "break"].sort().join(",")]];
+    if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].sort().join(",")]];
+    if (item.kind === "reference") {
+      return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
+    }
+    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
+  });
+  return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));
 }
 
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */
@@ -358,6 +409,44 @@ export function updateNodeTextAtPath(
     return next;
   }
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
+}
+
+const HEADING_LEVEL_FAILURE = "heading level change cannot round-trip losslessly through canonical Markdown";
+
+/** Change the level of one editable top-level Heading while preserving its text and meaning. */
+export function updateHeadingLevel(
+  document: MystDocument,
+  path: NodePath,
+  from: number,
+  to: number,
+): MystDocument {
+  if (path.length !== 1) throw new Error("updateHeadingLevel requires a top-level heading path");
+  if (!Number.isInteger(from) || from < 1 || from > 6 || !Number.isInteger(to) || to < 1 || to > 6) {
+    throw new Error("heading level must be an integer from 1 to 6");
+  }
+  const current = getNode(document, path);
+  const block = getEditableDocument(document).blocks[path[0]];
+  if (current.type !== "heading" || block?.block !== "heading" || !block.editable) {
+    throw new Error(`heading level change is not supported at [${path.join(",")}]`);
+  }
+  if (Number(current.depth) !== from) {
+    throw new Error(`heading level does not match at [${path.join(",")}]`);
+  }
+
+  const next = cloneDocument(document);
+  getNode(next, path).depth = to;
+  const markdown = serializeFor(next, HEADING_LEVEL_FAILURE);
+  const reparsed = parse(markdown);
+  const updated = getNode(reparsed, path);
+  if (
+    updated.type !== "heading" ||
+    Number(updated.depth) !== to ||
+    toText(updated) !== toText(current) ||
+    serialize(reparsed) !== markdown
+  ) {
+    throw new Error(HEADING_LEVEL_FAILURE);
+  }
+  return next;
 }
 
 /** Update one Equation's LaTeX source while preserving its semantic identity. */

@@ -2,9 +2,11 @@ import { readFileSync, writeFileSync } from "node:fs";
 import {
   canonicalWriteError,
   getEditableDocument,
+  isAdmonitionVariant,
   inspectDocument,
   insertParagraph,
   insertHeading,
+  insertAdmonition,
   insertEquation,
   insertFigure,
   insertTable,
@@ -19,12 +21,14 @@ import {
   replaceText,
   serialize,
   updateNodeTextAtPath,
+  updateHeadingLevel,
   updateEquationLatex,
   updateFigure,
   updateLabel,
   updateTableCell,
   validateStructure,
   type Document,
+  type AdmonitionVariant,
   type EditableBlock,
   type EditableDocument,
   type NodePath,
@@ -137,6 +141,25 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Insert a Heading block at a top-level index.",
       "Heading levels 1 through 6 are supported.",
+    ],
+  },
+  {
+    name: "insert-admonition",
+    summary: "Insert a simple Note or Warning admonition",
+    usage: "ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>",
+    details: [
+      "Insert a top-level Note or Warning admonition through Core.",
+      "The body must contain non-empty text.",
+    ],
+  },
+  {
+    name: "update-heading-level",
+    summary: "Change an editable Heading's level through Core",
+    usage: "ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>",
+    details: [
+      "Change one editable top-level Heading from its current level to another level.",
+      "The current level must match --from.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -353,6 +376,26 @@ function main(argv: string[]): number {
       ));
       return 0;
     }
+    case "insert-admonition": {
+      const value = flag(flags, "--variant");
+      if (!isAdmonitionVariant(value)) {
+        throw new Error("--variant must be note or warning");
+      }
+      const variant: AdmonitionVariant = value;
+      save(file, insertAdmonition(parse(readFile(file)), intFlag(flags, "--at"), variant, [
+        { kind: "text", text: flag(flags, "--text") },
+      ]));
+      return 0;
+    }
+    case "update-heading-level": {
+      save(file, updateHeadingLevel(
+        parse(readFile(file)),
+        pathFlag(flags),
+        intFlag(flags, "--from"),
+        intFlag(flags, "--to"),
+      ));
+      return 0;
+    }
     case "insert-equation": {
       save(file, insertEquation(
         parse(readFile(file)),
@@ -482,6 +525,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "replace-text": ["--from", "--to"],
   "insert-block": ["--at", "--text"],
   "insert-heading": ["--at", "--level", "--text"],
+  "insert-admonition": ["--at", "--variant", "--text"],
+  "update-heading-level": ["--path", "--from", "--to"],
   "insert-equation": ["--at", "--latex"],
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],

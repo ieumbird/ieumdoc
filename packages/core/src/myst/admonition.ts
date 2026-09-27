@@ -1,9 +1,16 @@
 import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
 
-const SIMPLE_VARIANTS = new Set(["note", "warning"]);
+export const ADMONITION_VARIANTS = ["note", "warning"] as const;
+export type AdmonitionVariant = typeof ADMONITION_VARIANTS[number];
+
+const SIMPLE_VARIANTS = new Set<string>(ADMONITION_VARIANTS);
 const ADMONITION_FIELDS = new Set(["type", "kind", "children", "position"]);
 const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
+
+export function isAdmonitionVariant(variant: string): variant is AdmonitionVariant {
+  return SIMPLE_VARIANTS.has(variant);
+}
 
 /** The deliberately narrow MyST shape that can be edited without flattening admonition semantics. */
 export function supportedAdmonitionContent(node: MystNode): InlineContent[] | undefined {

@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import {
   canonicalWriteError,
   getEditableDocument,
+  isAdmonitionVariant,
   inlineContentLength,
+  insertAdmonition,
   insertHeading,
   insertEquation,
   insertFigure,
@@ -21,6 +23,7 @@ import {
   mergeParagraphWithPrevious,
   moveBlock,
   updateNodeTextAtPath,
+  updateHeadingLevel,
   updateEquationLatex,
   updateAdmonitionInlineContent,
   updateFigure,
@@ -31,6 +34,7 @@ import {
   validateStructure,
   type EditableBlock,
   type EditableDocument,
+  type AdmonitionVariant,
   type FigureContent,
   type InlineContent,
   type NodePath,
@@ -40,6 +44,12 @@ export type HeadingEdit = {
   path: NodePath;
   from: string;
   to: string;
+};
+
+export type HeadingLevelEdit = {
+  path: NodePath;
+  from: number;
+  to: number;
 };
 
 export type ParagraphEdit = {
@@ -89,6 +99,7 @@ export type LabelEdit = {
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
+  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][] };
@@ -98,6 +109,7 @@ export type OrderItem = { path: NodePath; part: number } | { insert: number };
 export type SupportedEdits = {
   order?: OrderItem[];
   headings?: HeadingEdit[];
+  headingLevels?: HeadingLevelEdit[];
   paragraphs?: ParagraphEdit[];
   equations?: EquationEdit[];
   figures?: FigureEdit[];
@@ -269,6 +281,17 @@ export function saveEdits(
     }
     document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
   }
+  for (const edit of edits.headingLevels ?? []) {
+    assertPath(edit.path, "heading");
+    const block = blockAt(editable, edit.path);
+    if (block?.block !== "heading" || !block.editable) {
+      throw new Error(`heading level change is not allowed at [${edit.path.join(",")}]`);
+    }
+    if (edit.from !== block.level) {
+      throw new Error(`heading level does not match at [${edit.path.join(",")}]`);
+    }
+    document = updateHeadingLevel(document, edit.path, edit.from, edit.to);
+  }
   for (const paragraph of edits.paragraphs ?? []) {
     assertPath(paragraph.path, "paragraph");
     const block = blockAt(editable, paragraph.path);
@@ -382,6 +405,7 @@ export function saveEdits(
   const deletes = edits.deletes ?? [];
   const edited = new Set([
     ...(edits.headings ?? []).map(edit => edit.path),
+    ...(edits.headingLevels ?? []).map(edit => edit.path),
     ...(edits.paragraphs ?? []).map(edit => edit.path),
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
@@ -406,6 +430,13 @@ export function saveEdits(
     if (insert.block === "paragraph") {
       if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
         throw new Error("empty paragraph cannot be saved");
+      }
+      continue;
+    }
+    if (insert.block === "admonition") {
+      if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be a Note or Warning");
+      if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
+        throw new Error("admonition body cannot be empty");
       }
       continue;
     }
@@ -477,6 +508,8 @@ export function saveEdits(
       document = updateParagraphInlineContent(document, [index], item.content);
     } else if (item.block === "heading") {
       document = insertHeading(document, index, item.level, item.text);
+    } else if (item.block === "admonition") {
+      document = insertAdmonition(document, index, item.variant, item.content);
     } else if (item.block === "equation") {
       document = insertEquation(document, index, item.latex);
     } else if (item.block === "table") {
@@ -591,6 +624,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
   return {
     revision: body.revision,
     headings: Array.isArray(body.headings) ? body.headings : [],
+    headingLevels: Array.isArray(body.headingLevels) ? body.headingLevels : [],
     paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
     equations: Array.isArray(body.equations) ? body.equations : [],
     figures: Array.isArray(body.figures) ? body.figures : [],

@@ -473,6 +473,8 @@ pnpm ieumdoc check <file>
 pnpm ieumdoc format <file>
 pnpm ieumdoc replace-text <file> --from <text> --to <text>
 pnpm ieumdoc insert-block <file> --at <index> --text <text>
+pnpm ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>
+pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc remove-block <file> --at <index>
 pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
@@ -501,9 +503,9 @@ index는 `check`가 출력하는 top-level 번호다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
 - `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
-- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`), 삭제는 block menu `Delete`, 이동은 handle drag로만 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
+- Enter는 지원 paragraph를 나눈다. 문단 시작 Backspace는 인접한 편집 가능 paragraph만 합친다. block 추가는 `+` / `/` insert menu(`Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Note`, `Warning`, `Equation`, `Figure`, `Table`), Heading level 변경과 삭제는 block menu, 이동은 handle drag로 한다. 키보드 삭제나 붙여넣기로 생기는 block 추가·삭제는 거부된다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 기존 수식은 Equation editor에서 LaTeX를 수정할 수 있고, 새 수식은 insert menu에서 추가할 수 있다.
@@ -515,7 +517,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
-- Save 후 파일에 반영되지 않으면 heading 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. warning, reference paragraph, 서식 있는 table cell은 저장 대상이 아니다.
+- Save 후 파일에 반영되지 않으면 heading level/text, Note/Warning 본문 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. 지원되지 않는 admonition 구조, reference paragraph, 서식 있는 table cell은 저장 대상이 아니다.
 - Heading Enter 또는 paragraph가 아닌 이전 block과의 Backspace 병합은 차단되어야 한다.
 
 ## Single Editor 저장 경계 회귀 확인
