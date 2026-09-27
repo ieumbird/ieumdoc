@@ -58,6 +58,7 @@ test("prepared scratch files start as copies of their sources, with the derived 
     ["quote-save-reload", "quotes.md"],
     ["writeability-preflight", "front-matter.md"],
     ["writeability-preflight", "writable.md"],
+    ["table-authoring", "tables.md"],
   ]) {
     assert.deepEqual(readFileSync(path.join(tmp, dir, name)), readFileSync(path.join(fixtureDir, name)), `${dir}/${name}`);
   }

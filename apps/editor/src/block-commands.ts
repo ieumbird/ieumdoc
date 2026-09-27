@@ -1,10 +1,11 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
+import { isNewBlockPath, NEW_BLOCK_PREFIX, TABLE_CELL_ADDED_ATTR } from "./tiptap-document.ts";
 
-// Editor commands for block insert/delete. Each command is one engine transaction;
-// Save maps the result to Core insertParagraph/insertHeading/insertEquation/insertFigure/removeBlock. Only blocks whose
-// Core create/edit/save path exists are listed.
+// Editor commands for block insert/delete and table rows/columns. Each command is one engine
+// transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
+// insertFigure/insertTable/insertTableRow/insertTableColumn/removeBlock. Only blocks whose Core
+// create/edit/save path exists are listed.
 
 export type SlashRange = { from: number; to: number };
 
@@ -18,6 +19,8 @@ export type InsertCommand = {
 export type BlockCommand = {
   id: string;
   label: string;
+  /** Whether the block menu lists this command for the block at all; default: every block. */
+  applies?(state: EditorState, index: number): boolean;
   enabled(state: EditorState, index: number): boolean;
   run(state: EditorState, index: number): Transaction;
 };
@@ -64,9 +67,31 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["figure", "image", "picture"],
     run: insertFigureAfter,
   },
+  {
+    id: "table",
+    label: "Table",
+    keywords: ["table", "grid"],
+    run: insertTableAfter,
+  },
 ];
 
+const isTable = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "table";
+
 export const BLOCK_COMMANDS: BlockCommand[] = [
+  {
+    id: "table-row",
+    label: "Add row below",
+    applies: isTable,
+    enabled: isTable,
+    run: addTableRowBelow,
+  },
+  {
+    id: "table-column",
+    label: "Add column right",
+    applies: isTable,
+    enabled: isTable,
+    run: addTableColumnRight,
+  },
   {
     id: "delete",
     label: "Delete",
@@ -174,6 +199,84 @@ export function insertHeadingAfter(
   });
   tr.insert(at, heading);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+const NEW_TABLE_COLUMNS = 3;
+const NEW_TABLE_ROWS = 3; // The header row and two body rows.
+
+/** Insert an empty table after the target, reusing only a transient empty paragraph; the caret goes to its first cell. */
+export function insertTableAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  let pos = 0;
+  for (let i = 0; i < index; i++) pos += tr.doc.child(i).nodeSize;
+  const target = tr.doc.child(index);
+  const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
+  const { table, tableRow, tableCell } = state.schema.nodes;
+  // Cells of a new table are part of the new block, so they are not marked as added.
+  const node = table.create(
+    { sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` },
+    Array.from({ length: NEW_TABLE_ROWS }, (_, row) =>
+      tableRow.create(null, Array.from({ length: NEW_TABLE_COLUMNS }, () => tableCell.create({ header: row === 0 })))),
+  );
+  const at = reuse ? pos : pos + target.nodeSize;
+  if (reuse) tr.replaceWith(pos, pos + target.nodeSize, node);
+  else tr.insert(at, node);
+  // Inside the table, its first row and its first cell.
+  return tr.setSelection(TextSelection.create(tr.doc, at + 3)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** The caret's cell when it is inside the table at `index`. */
+function tableCellAt(state: EditorState, index: number): { row: number; column: number } | undefined {
+  const { $from } = state.selection;
+  if ($from.depth < 3 || $from.index(0) !== index) return undefined;
+  return { row: $from.index(1), column: $from.index(2) };
+}
+
+function blockPos(state: EditorState, index: number): number {
+  let pos = 0;
+  for (let i = 0; i < index; i++) pos += state.doc.child(i).nodeSize;
+  return pos;
+}
+
+function addedCell(state: EditorState, header: boolean) {
+  return state.schema.nodes.tableCell.create({ header, [TABLE_CELL_ADDED_ATTR]: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+}
+
+/** Add an empty row below the caret's row, or below the last row; the caret moves into it. */
+export function addTableRowBelow(state: EditorState, index: number): Transaction {
+  if (!isTable(state, index)) throw new Error("invalid table index");
+  const table = state.doc.child(index);
+  const current = tableCellAt(state, index);
+  const row = (current?.row ?? table.childCount - 1) + 1;
+  const cells = Array.from({ length: table.child(0).childCount }, () => addedCell(state, false));
+  let at = blockPos(state, index) + 1;
+  for (let i = 0; i < row; i++) at += table.child(i).nodeSize;
+  const tr = closeHistory(state.tr).insert(at, state.schema.nodes.tableRow.create(null, cells));
+  // Empty cells are two positions wide: into the new row, past the cells before the caret's column.
+  const caret = at + 2 + 2 * (current?.column ?? 0);
+  return tr.setSelection(TextSelection.create(tr.doc, caret)).scrollIntoView();
+}
+
+/** Add an empty column right of the caret's column, or right of the last column; the caret moves into it. */
+export function addTableColumnRight(state: EditorState, index: number): Transaction {
+  if (!isTable(state, index)) throw new Error("invalid table index");
+  const table = state.doc.child(index);
+  const current = tableCellAt(state, index);
+  const column = (current?.column ?? table.child(0).childCount - 1) + 1;
+  const tr = closeHistory(state.tr);
+  let rowPos = blockPos(state, index) + 1;
+  let caret = 0;
+  table.forEach((row, _offset, rowIndex) => {
+    let at = rowPos + 1;
+    for (let i = 0; i < column; i++) at += row.child(i).nodeSize;
+    const mapped = tr.mapping.map(at);
+    tr.insert(mapped, addedCell(state, rowIndex === 0));
+    if (rowIndex === (current?.row ?? 0)) caret = mapped + 1;
+    rowPos += row.nodeSize;
+  });
+  return tr.setSelection(TextSelection.create(tr.doc, caret)).scrollIntoView();
 }
 
 export function deleteBlock(state: EditorState, index: number): Transaction {

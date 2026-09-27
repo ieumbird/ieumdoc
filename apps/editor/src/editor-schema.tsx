@@ -17,6 +17,7 @@ import {
   isNewBlockPath,
   isSupportedDocumentChange,
   NEW_BLOCK_PREFIX,
+  TABLE_CELL_ADDED_ATTR,
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
@@ -250,8 +251,9 @@ function createEquationNodeView(onDraftChange?: EquationDraftListener) {
 }
 
 // A Markdown table lives in the single document state: editable cells hold plain
-// text (no marks), other cells are read-only leaves. Rows and cells cannot be added,
-// removed or moved; the structure guard rejects any such change.
+// text (no marks), other cells are read-only leaves. Whole rows and columns of
+// editable cells can be added by commands; the structure guard rejects any other
+// change to the grid, such as removing or moving cells.
 const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (element) => element.tagName === "TH" };
 
 const Table = Node.create({
@@ -299,7 +301,7 @@ const TableCell = Node.create({
   marks: "",
   isolating: true,
   addAttributes() {
-    return { header: headerAttr };
+    return { header: headerAttr, [TABLE_CELL_ADDED_ATTR]: { default: "", rendered: false } };
   },
   parseHTML() {
     return [{ tag: "th[data-table-cell]" }, { tag: "td[data-table-cell]" }];

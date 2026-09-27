@@ -80,6 +80,7 @@ export const STABLE_SCENARIOS = [
   "figure-authoring",
   "figure-draft-race",
   "table-cell-editing",
+  "table-authoring",
   "link-authoring",
   "inline-math-authoring",
   "inline-math-split",
