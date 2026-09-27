@@ -738,19 +738,19 @@ test("CLI creates a table and adds rows and columns through Core, rejecting inva
     const saved = readFileSync(file, "utf8");
     assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| ---- | - | ---- |\n| U    |   | AC   |\n| P    |   |      |\n");
     assert.equal(serialize(parse(saved)), saved);
-    for (const args of [
-      ["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"],
-      ["insert-table", file, "--at", "0", "--cells", "not json"],
-      ["insert-table", file, "--at", "0", "--cells", "[]"],
-      ["insert-table-row", file, "--path", "1", "--at", "0"],
-      ["insert-table-column", file, "--path", "0", "--at", "0"],
-    ]) {
+    const invalid: [string[], RegExp?][] = [
+      [["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"]],
+      [["insert-table", file, "--at", "0", "--cells", "not json"], /--cells must be JSON/],
+      [["insert-table", file, "--at", "0", "--cells", "[]"]],
+      [["insert-table-row", file, "--path", "1", "--at", "0"], /from 1 to 3/],
+      [["insert-table-column", file, "--path", "0", "--at", "0"]],
+    ];
+    for (const [args, reason] of invalid) {
       const result = run(args);
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
+      if (reason) assert.match(result.stderr, reason);
     }
-    assert.match(run(["insert-table", file, "--at", "0", "--cells", "not json"]).stderr, /--cells must be JSON/);
-    assert.match(run(["insert-table-row", file, "--path", "1", "--at", "0"]).stderr, /from 1 to 3/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -839,7 +839,7 @@ const CHECK_NOT_WRITABLE: [string, string, RegExp][] = [
   ["image.md", "![alt](./x.png)\n", /image: align/],
 ];
 
-test("CLI check reports canonical writeability after structural validity", () => {
+test("CLI check reports canonical writeability in text and JSON and agrees with format", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-writeability-"));
   try {
     for (const [name, source] of CHECK_WRITABLE) {
@@ -852,6 +852,9 @@ test("CLI check reports canonical writeability after structural validity", () =>
       const json = run(["check", file, "--format", "json"]);
       assert.equal(json.status, 0, name);
       assert.deepEqual(JSON.parse(json.stdout).writeability, { writable: true }, name);
+      assert.equal(readFileSync(file, "utf8"), source, `${name}: check never writes`);
+      const formatted = run(["format", file]);
+      assert.equal(formatted.status, text.status, `${name}: ${formatted.stderr}`);
     }
     for (const [name, source, reason] of CHECK_NOT_WRITABLE) {
       const file = path.join(dir, name);
@@ -873,20 +876,21 @@ test("CLI check reports canonical writeability after structural validity", () =>
       assert.equal(result.writeability.writable, false, name);
       assert.match(result.writeability.error, reason, name);
       assert.deepEqual(readFileSync(file), before, `${name}: check never writes`);
+      const formatted = run(["format", file]);
+      assert.equal(formatted.status, text.status, `${name}: ${formatted.stderr}`);
+      assert.deepEqual(readFileSync(file), before, `${name}: failed format never writes`);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("check says writable exactly when format can write the same snapshot", () => {
+test("check and format agree on complete document fixtures", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-format-"));
   try {
     const sources: [string, string][] = [
       ["technical.md", readFileSync(technicalFixture, "utf8")],
       ["document.md", readFileSync(fixture, "utf8")],
-      ...CHECK_WRITABLE,
-      ...CHECK_NOT_WRITABLE.map(([name, source]): [string, string] => [name, source]),
     ];
     for (const [name, source] of sources) {
       const file = path.join(dir, name);
