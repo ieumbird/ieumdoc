@@ -279,12 +279,14 @@ pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-cod
 
 ```bash
 pnpm browser:test layout-rules quiet-document
+pnpm browser:test quiet-document --screenshots   # 수동 시각검토용 촬영
 pnpm browser:test figure-authoring figure-draft-race label-authoring source-view
 ```
 
 - 실제 fixture: `apps/editor/test/browser/fixtures/quiet-document.md`, `quiet-document-long.md`; `browser:prepare`가 `tmp/quiet-document/`에 복사한다. 로컬 Figure는 기존 `diagram.svg`를 재사용한다. 한글/영문 H1–H6, inline formatting/math/reference, Note/Warning, equation, Figure, table을 포함한다.
 - `layout-rules`는 1440/1025/1024/768/705/704px, sidebar 펼침/접힘에서 정렬축·gutter·control·computed typography를 검사한다. 필수 DOM 누락은 실패다. 접힌 sidebar의 icon/label 측정만 명시적으로 제외한다.
-- `quiet-document`는 실제 API 문서를 열고 rest, Figure selected/editing, Equation editing, 좁은 inline form, 긴 파일명/수식/표, Open/New를 캡처한다. 폰트/이미지와 overlay transition이 끝난 후 측정한다. 캡처는 `tmp/visual-refinement/after-*.png`; 대표 Before/After와 목업은 [review](../design/editor-visual-refinement-v1-review.md)에 보관한다.
+- 기본 `quiet-document`는 촬영 없이 초안 보존, 한국어 조합 입력과 Undo/Redo, 저장·재열기, 키보드 접근성, 대비, overlay 잘림과 긴 콘텐츠의 스크롤을 검증한다. 반응형 경계·정렬·넘침은 `layout-rules`가 계속 검증한다.
+- 수동 시각검토는 `pnpm browser:test quiet-document --screenshots`로 실행한다. 같은 시나리오에 촬영 전용 화면 순회를 추가하여 rest, Figure selected/editing, Equation editing, 좁은 inline form, 긴 파일명/수식/표, Open/New를 27장 캡처한다. 폰트/이미지와 overlay transition이 끝난 후 측정하며, 결과는 `tmp/visual-refinement/after-*.png`에 저장한다. 대표 Before/After와 목업은 [review](../design/editor-visual-refinement-v1-review.md)에 보관한다. CI의 기본 실행에는 촬영이 포함되지 않는다.
 - 키보드 Tab 접근, 메뉴 Escape 복귀, Figure selection 밖의 draft, slash focus, overlay 내부 control 경계, contrast, Chromium composition + undo/redo, 실제 block drag + undo도 확인한다. 데스크톱 OS IME 후보창은 별도 수동 검증 대상이다.
 - 툴 노출을 검사할 때 먼저 블록을 hover한다. 보이지 않는 버튼에 force click하지 않는다. Form의 유효성/Apply/Cancel/Save/Reload 검사는 그대로 유지한다.
 - `title`로 전체 경로를 확인한다. 화면에는 filename만 표시하므로 주소 일치 검사는 `title`을 사용한다. 정상 로드 완료는 표시 문구 대신 status의 `data-operation="Ready"`로 기다린다. Dirty/Saved/Saving/error 문구는 실제 상태 전환과 함께 검사한다.

@@ -4,6 +4,7 @@
  *
  *   pnpm browser:test                      all stable scenarios
  *   pnpm browser:test source-view ...      only the named scenarios (any *.browser.js)
+ *   pnpm browser:test quiet-document --screenshots   manual visual review captures
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -217,6 +218,12 @@ function sourceDigest(): string {
 }
 
 async function main(requested: string[]): Promise<number> {
+  const screenshots = requested.includes("--screenshots");
+  requested = requested.filter((name) => name !== "--screenshots");
+  if (screenshots && (requested.length !== 1 || requested[0] !== "quiet-document")) {
+    console.error("Use: pnpm browser:test quiet-document --screenshots");
+    return 2;
+  }
   const unknown = requested.filter((name) => !existsSync(path.join(REPOSITORY_ROOT, "apps", "editor", "test", `${name}.browser.js`)));
   if (unknown.length > 0) {
     console.error(`Unknown scenario: ${unknown.join(", ")}\nStable: ${STABLE_SCENARIOS.join(", ")}`);
@@ -262,7 +269,10 @@ async function main(requested: string[]): Promise<number> {
       const monitorStart = playwright(["run-code", CONSOLE_MONITOR_START], true);
       const monitorStartOutput = `${monitorStart.stdout ?? ""}${monitorStart.stderr ?? ""}`;
       const monitorStarted = monitorStart.status === 0 && resultText(monitorStartOutput) !== undefined;
-      const run = playwright(["run-code", `--filename=apps/editor/test/${name}.browser.js`], true);
+      const scenarioFile = `apps/editor/test/${name}.browser.js`;
+      const run = playwright(["run-code", screenshots
+        ? `async page => (${readFileSync(path.join(REPOSITORY_ROOT, scenarioFile), "utf8")})(page, {screenshots: true})`
+        : `--filename=${scenarioFile}`], true);
       const output = `${run.stdout ?? ""}${run.stderr ?? ""}`;
       const scenarioFailed = run.status !== 0 || !output.includes("### Result");
       const browserDiagnostic = scenarioFailed
