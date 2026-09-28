@@ -11,11 +11,10 @@ import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
 const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
-const WRITE_BLOCKED_SOURCE_HINT = "IeumDoc cannot write this document as canonical Markdown, so there is no Source to show.";
 
 /** Shown for the whole session of a document Core cannot write as canonical Markdown. */
 function writeBlockedMessage(reason: string): string {
-  return `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. ${reason}`;
+  return `Read-only: IeumDoc cannot save this document safely. ${reason} Open Source to inspect or copy the original Markdown. Repair the file in an external editor or with the CLI, then Reload to check it again.`;
 }
 
 export function App() {
@@ -35,11 +34,10 @@ export function App() {
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
-  // Core's canonical writeability of the loaded snapshot ("" when Save can write it). Set from
-  // every document response (Open, Reload, New, Save), never recomputed from editor state.
+  // Unwritable snapshots are read-only. Reload checks the repaired file through Core;
+  // writable sessions are validated again on every Save/Source request.
   const [writeError, setWriteError] = useState("");
   const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
-  const sourceHint = writeError ? WRITE_BLOCKED_SOURCE_HINT : undefined;
   const draftNotice = equationDraftActive || figureDraftActive
     ? "Save and Source include applied content only. Equation and Figure drafts remain unsaved until Apply."
     : "";
@@ -124,7 +122,11 @@ export function App() {
    */
   async function showSource(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || busy) return;
-    if (writeError) return;
+    if (writeError) {
+      setSourceMarkdown(sessionBase.current?.source ?? "");
+      setView("source");
+      return;
+    }
     setError("");
     setSourcePending(true);
     try {
@@ -215,7 +217,6 @@ export function App() {
             writable={!writeError}
             view={view}
             viewDisabled={!document || busy}
-            sourceHint={sourceHint}
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
             saveDisabled={!document || busy ||
               Boolean(writeError)}
@@ -236,6 +237,7 @@ export function App() {
         <main className="document-column">
           {view === "source" ? (
             <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
+              {writeError ? <p className="block-kind">Original Markdown · read-only</p> : null}
               <pre className="source-view-text">{sourceMarkdown}</pre>
             </article>
           ) : null}
@@ -246,6 +248,7 @@ export function App() {
                 key={editorGeneration}
                 ref={editorRef}
                 document={document}
+                readOnly={Boolean(writeError)}
                 documentPath={openedPath}
                 onEquationDraftChange={setEquationDraftActive}
                 onFigureDraftChange={setFigureDraftActive}

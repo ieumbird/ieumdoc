@@ -1,9 +1,9 @@
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
-import { parse } from "./parse.ts";
+import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
-import { cloneDocument, type MystDocument } from "./tree.ts";
+import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 const LOSS = "Document contains semantic content that cannot be preserved in canonical Markdown";
 
@@ -33,6 +33,7 @@ export function serialize(document: MystDocument): string {
   const expected = semanticFingerprint(document);
   const tree = cloneDocument(document);
   prepareReferences(tree);
+  const frontMatter = prepareWriter(tree);
   const file = new VFile();
   try {
     writeMd(file, tree as never);
@@ -41,10 +42,44 @@ export function serialize(document: MystDocument): string {
     throw new SemanticLossError("serializer failed", { cause: error });
   }
   assertNoSerializationDiagnostics(file);
-  const markdown = `${String(file.result ?? "").trimEnd()}\n`;
+  const markdown = `${frontMatter}${String(file.result ?? "").trimEnd()}\n`;
   const difference = semanticDifference(expected, semanticFingerprint(parse(markdown)));
   if (difference) throw new SemanticLossError(difference);
   return markdown;
+}
+
+/** Adapt the MyST representation to the existing mdast writer, on the write-only clone.
+ * The original fingerprint and the whole reparsed output still have to match. */
+function prepareWriter(tree: MystDocument): string {
+  let prefix = "";
+  function visit(node: MystNode, index: number, parent?: MystNode): void {
+    // Lifted roles can lack positions; diagnostics still identify their containing block.
+    node.position ??= parent?.position;
+    if (node[FRONT_MATTER_FIELD] !== undefined) {
+      if (parent !== tree || index !== 0 || node[FRONT_MATTER_FIELD] !== true) {
+        throw new SemanticLossError(`Block ${index + 1}: front matter must be closed and remain at the start of the document`);
+      }
+      prefix = `---\n${String(node.value ?? "")}\n---\n\n`;
+    }
+    // myst-to-md chooses its image directive by key presence, even for undefined
+    // attributes emitted by myst-parser. Absent values must stay absent.
+    for (const key of Object.keys(node)) if (node[key] === undefined) delete node[key];
+    // MyST puts alignment on each cell; mdast-util-gfm-table expects columns on the table.
+    // Nonuniform or unrepresentable alignment still fails the full fingerprint check.
+    if (node.type === "table" && node.children?.[0]?.children?.some(cell => cell.align !== undefined)) {
+      node.align = node.children[0].children.map(cell => cell.align ?? null);
+    }
+    node.children?.forEach((child, childIndex) => visit(child, childIndex, node));
+    // MyST lifts standalone images out of paragraphs. Restore the writer's flow
+    // wrapper so adjacent text/images get a blank separator, not merged inline.
+    if (["root", "blockquote", "listItem", "admonition"].includes(node.type)) {
+      node.children = node.children?.map(child => child.type === "image"
+        ? { type: "paragraph", children: [child] } : child);
+    }
+  }
+  visit(tree, 0);
+  if (prefix) tree.children.shift();
+  return prefix;
 }
 
 /**
@@ -70,6 +105,7 @@ export function canonicalWriteError(document: MystDocument): string | undefined 
  */
 function assertNoSerializationDiagnostics(file: VFile): void {
   if (file.messages.length === 0) return;
-  const reasons = [...new Set(file.messages.map((message) => message.reason))];
+  const reasons = [...new Set(file.messages.map((message) =>
+    `${message.line ? `Line ${message.line}: ` : ""}${message.reason}`))];
   throw new SemanticLossError(reasons.join("; "));
 }

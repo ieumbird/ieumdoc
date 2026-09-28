@@ -1030,3 +1030,24 @@ h6.heading { font-size: var(--font-size-sm); }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Read-only source is inspectable without turning it into an authoring surface. */
+.original-content {
+  margin-top: var(--space-2);
+  font-family: var(--font-family-sans);
+  font-size: 12px;
+  line-height: 20px;
+}
+.original-content summary {
+  cursor: pointer;
+  text-align: start;
+  color: var(--id-color-text-muted);
+}
+.original-content summary:focus-visible { box-shadow: var(--focus-ring); }
+.original-content pre {
+  margin-top: var(--space-2);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}

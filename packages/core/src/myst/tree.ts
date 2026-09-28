@@ -11,8 +11,26 @@ export type MystDocument = GenericParent;
 
 export type MystNode = GenericNode;
 
+// Opening-source provenance for read-only projections, never a serialization input.
+// Keep it outside the semantic tree, and carry it through Core's immutable operations.
+const sources = new WeakMap<MystDocument, string>();
+export function rememberSource(document: MystDocument, source: string): void {
+  sources.set(document, source);
+}
+
+export function sourceExcerpt(document: MystDocument, node: MystNode): { text: string; line: number } | undefined {
+  const source = sources.get(document);
+  const line = node.position?.start.line;
+  const end = node.position?.end.line;
+  if (source === undefined || line === undefined || end === undefined) return undefined;
+  return { text: source.split(/\r?\n/).slice(line - 1, end).join("\n"), line };
+}
+
 export function cloneDocument(document: MystDocument): MystDocument {
-  return structuredClone(document);
+  const clone = structuredClone(document);
+  const source = sources.get(document);
+  if (source !== undefined) rememberSource(clone, source);
+  return clone;
 }
 
 export function getNode(document: MystDocument, path: NodePath): MystNode {

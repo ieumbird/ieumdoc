@@ -90,7 +90,7 @@ export function semanticDifference(before: Fingerprint, after: Fingerprint, path
     if (!was) return `${path}: unexpected ${is.type} added`;
     if (!is) return `${path}: ${was.type} was dropped`;
     const difference = semanticDifference(was, is, `${path} > ${was.type}`);
-    if (difference) return difference;
+    if (difference) return before.type === "root" ? `Block ${index + 1}: ${difference}` : difference;
   }
   return undefined;
 }

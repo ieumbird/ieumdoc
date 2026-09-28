@@ -18,8 +18,7 @@ export function setTableCellText(cell: MystNode, text: string): void {
   cell.children = text.length > 0 ? [{ type: "text", value: text }] : [];
 }
 
-// New cells carry no alignment: canonical Markdown cannot keep column alignment, so a table
-// that has any is not writable in the first place.
+// New columns are unaligned; new rows inherit each existing column's alignment.
 function cell(text: string, header: boolean): MystNode {
   return {
     type: "tableCell",
@@ -38,8 +37,10 @@ export function createTableNode(rows: string[][]): MystNode {
 
 /** Insert a body row of empty cells, one per header cell. */
 export function insertTableRowNode(table: MystNode, index: number): void {
-  const columns = table.children?.[0]?.children?.length ?? 0;
-  table.children!.splice(index, 0, { type: "tableRow", children: Array.from({ length: columns }, () => cell("", false)) });
+  const columns = table.children?.[0]?.children ?? [];
+  table.children!.splice(index, 0, { type: "tableRow", children: columns.map(header => ({
+    ...cell("", false), ...(header.align === undefined ? {} : { align: header.align }),
+  })) });
 }
 
 /** Insert an empty column; its header cell is empty too. */

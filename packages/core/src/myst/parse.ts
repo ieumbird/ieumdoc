@@ -4,7 +4,7 @@ import {
   liftMystDirectivesAndRolesTransform,
 } from "myst-transforms";
 import { VFile } from "vfile";
-import type { MystDocument } from "./tree.ts";
+import { rememberSource, type MystDocument } from "./tree.ts";
 
 /**
  * Parse boundary. The canonical-write guard compares this parse with the parse of
@@ -13,16 +13,16 @@ import type { MystDocument } from "./tree.ts";
  *   (markdown-it `typographer` + `smartquotes`) would turn `Don't` into `Don’t`,
  *   so it is off, and a typed straight quote reloads exactly as written;
  * - a leading UTF-8 byte order mark is an encoding signature, not content;
- * - front matter is marked so canonical write fails instead of rewriting it.
+ * - front matter is marked so canonical write preserves its metadata role.
  */
 const OPTIONS = { extensions: { smartquotes: false } };
 
 /**
  * Marks the code block MyST makes from front matter. The fingerprint treats every
- * node field as semantic, so a canonical write that cannot reproduce front matter
- * fails with this field in its reason. The parenthesized name is not a MyST field.
+ * node field as semantic, so metadata cannot silently become a YAML code fence.
+ * Unterminated or unrecognized delimiters remain unwritable. The parenthesized name is not a MyST field.
  */
-const FRONT_MATTER_FIELD = "(front matter)";
+export const FRONT_MATTER_FIELD = "(front matter)";
 
 export function parse(source: string): MystDocument {
   const text = source.startsWith("\uFEFF") ? source.slice(1) : source;
@@ -30,6 +30,7 @@ export function parse(source: string): MystDocument {
   markFrontMatter(document, text);
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
+  rememberSource(document, text);
   return document;
 }
 
@@ -42,6 +43,18 @@ export function parse(source: string): MystDocument {
 function markFrontMatter(document: MystDocument, source: string): void {
   const first = document.children[0];
   if (first?.type === "code" && first.position?.start.line === 1 && source.startsWith("-")) {
-    first[FRONT_MATTER_FIELD] = true;
+    const lines = source.split(/\r?\n/);
+    const opener = /^(-{3,})[\t ]*$/.exec(lines[0]);
+    // An indented marker can belong to a YAML block scalar. The upstream rule
+    // also accepts it as a closer; do not reinterpret that ambiguous input.
+    const closer = /^(-{3,})[\t ]*$/.exec(lines[(first.position.end.line ?? 1) - 1]);
+    first[FRONT_MATTER_FIELD] = opener && closer && first.position.end.line > 1 &&
+      closer[1].length >= opener[1].length ? true : "unclosed or unsupported delimiter";
+    if (first[FRONT_MATTER_FIELD] === true) {
+      // MyST's code conversion trims a trailing blank line. In YAML a block scalar
+      // (notably |+) can give that newline meaning. Keep the complete metadata value;
+      // the marker above keeps its role and required document-start context semantic.
+      first.value = lines.slice(1, first.position.end.line - 1).join("\n");
+    }
   }
 }

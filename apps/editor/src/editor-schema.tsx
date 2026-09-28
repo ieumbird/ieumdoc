@@ -1,10 +1,10 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
-import type { FigureContent } from "@ieumdoc/core";
+import type { EditableBlock, FigureContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
@@ -66,7 +66,7 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 }
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
-  return { sourcePath: hiddenAttr(""), ...attrs };
+  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, ...attrs };
 }
 
 const SourcedHeading = Node.create({
@@ -280,9 +280,28 @@ const Table = Node.create({
         "data-source-path": String(node.attrs.sourcePath ?? ""),
       },
       ["table", { class: "table" }, ["tbody", 0]],
+      ...(node.attrs.original ? [originalDOM(node.attrs.original)] : []),
     ];
   },
 });
+
+function cellAlignmentStyle(node: ProseMirrorNode): string {
+  return ["left", "center", "right"].includes(node.attrs.align) ? `text-align: ${node.attrs.align}` : "";
+}
+
+function originalDOM(original: NonNullable<EditableBlock["original"]>): DOMOutputSpec {
+  return ["details", { class: "original-content", contenteditable: "false" },
+    ["summary", {}, `${original.kind} · Read-only content · Original line ${original.line}`],
+    ["pre", {}, original.text]];
+}
+
+function OriginalContent({ node }: { node: ProseMirrorNode }) {
+  const original = node.attrs.original as EditableBlock["original"];
+  return original ? <details className="original-content" contentEditable={false}>
+    <summary>{original.kind} · Read-only content · Original line {original.line}</summary>
+    <pre>{original.text}</pre>
+  </details> : null;
+}
 
 const TableRow = Node.create({
   name: "tableRow",
@@ -301,13 +320,13 @@ const TableCell = Node.create({
   marks: "",
   isolating: true,
   addAttributes() {
-    return { header: headerAttr, [TABLE_CELL_ADDED_ATTR]: { default: "", rendered: false } };
+    return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_ADDED_ATTR]: { default: "", rendered: false } };
   },
   parseHTML() {
     return [{ tag: "th[data-table-cell]" }, { tag: "td[data-table-cell]" }];
   },
   renderHTML({ node }) {
-    return [node.attrs.header ? "th" : "td", { "data-table-cell": "" }, 0];
+    return [node.attrs.header ? "th" : "td", { "data-table-cell": "", style: cellAlignmentStyle(node) }, 0];
   },
 });
 
@@ -318,6 +337,7 @@ const ReadonlyTableCell = Node.create({
   addAttributes() {
     return {
       header: headerAttr,
+      align: hiddenAttr(""),
       text: { default: "", rendered: false, parseHTML: (element) => element.textContent ?? "" },
     };
   },
@@ -327,7 +347,7 @@ const ReadonlyTableCell = Node.create({
   renderHTML({ node }) {
     return [
       node.attrs.header ? "th" : "td",
-      { "data-readonly-cell": "", "data-readonly": "true", contenteditable: "false" },
+      { "data-readonly-cell": "", "data-readonly": "true", contenteditable: "false", style: cellAlignmentStyle(node) },
       String(node.attrs.text ?? ""),
     ];
   },
@@ -605,16 +625,18 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
 }
 
 function ReadonlyHeadingView({ node }: ReactNodeViewProps) {
+  const Heading = headingTag(node.attrs.level);
   return (
     <NodeViewWrapper
-      as={headingTag(node.attrs.level)}
-      className="heading heading-readonly"
+      as="div"
+      className="heading-readonly"
       data-block="readonly-heading"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       data-readonly="true"
       contentEditable={false}
     >
-      {String(node.attrs.text ?? "")}
+      <Heading className="heading">{String(node.attrs.text ?? "")}</Heading>
+      <OriginalContent node={node} />
     </NodeViewWrapper>
   );
 }
@@ -622,7 +644,7 @@ function ReadonlyHeadingView({ node }: ReactNodeViewProps) {
 function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
-      as="p"
+      as="div"
       className="paragraph paragraph-readonly"
       data-block="readonly-paragraph"
       data-source-path={String(node.attrs.sourcePath ?? "")}
@@ -630,6 +652,7 @@ function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
       contentEditable={false}
     >
       <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
+      <OriginalContent node={node} />
     </NodeViewWrapper>
   );
 }
@@ -651,6 +674,7 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
       {editable
         ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
         : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}
+      <OriginalContent node={node} />
     </NodeViewWrapper>
   );
 }
@@ -670,7 +694,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   const src = resolveFigureSource(applied.imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const editableFigure = node.attrs.editable === true;
+  const editableFigure = node.attrs.editable === true && view.editable;
   // A new Figure has no persistent state until a valid value is applied.
   const neverApplied = isNewBlockPath(sourcePath) && applied.imageUrl.length === 0;
   const [editing, setEditing] = useState(false);
@@ -792,6 +816,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       ) : null}
       {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" /> : null}
       <figcaption className="caption">{applied.caption}</figcaption>
+      <OriginalContent node={node} />
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" onClick={beginEdit}>
           Edit
@@ -924,7 +949,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
   }, [editing, latex, label]);
 
   useEffect(() => {
-    if (selected && !editing) {
+    if (view.editable && selected && !editing) {
       setDraft(latex);
       setLabelDraft(label);
       setError("");
@@ -941,6 +966,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   const beginEdit = () => {
+    if (!view.editable) return;
     setDraft(latex);
     setLabelDraft(label);
     setError("");
@@ -988,7 +1014,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
       {!editing ? (
         <>
           <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
-          <Button className="equation-edit" size="sm" variant="subtle" onClick={beginEdit}>
+          <Button className="equation-edit" size="sm" variant="subtle" disabled={!view.editable} onClick={beginEdit}>
             Edit
           </Button>
         </>
@@ -1071,6 +1097,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   const [error, setError] = useState("");
   const rendered = renderEquation(value, false);
   const open = () => {
+    if (!editor.isEditable) return;
     setDraft(value);
     setError("");
     setEditing(true);
@@ -1147,14 +1174,15 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
 function UnsupportedView({ node }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
-      as="p"
+      as="div"
       className="unsupported"
       data-block="unsupported"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       data-readonly="true"
       contentEditable={false}
     >
-      <span className="block-kind">Unsupported</span> {String(node.attrs.text ?? "")}
+      <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
+      <OriginalContent node={node} />
     </NodeViewWrapper>
   );
 }

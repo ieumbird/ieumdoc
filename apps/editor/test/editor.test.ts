@@ -818,8 +818,8 @@ test("Host reports canonical writeability with every document it opens, creates 
     const { port } = server.address() as AddressInfo;
     const writable = path.join(dir, "writable.md");
     writeFileSync(writable, "# Title\n\nBody.\n");
-    const blocked = path.join(dir, "front-matter.md");
-    const source = "---\ntitle: Example\n---\n\n# Heading\n\nBody.\n";
+    const blocked = path.join(dir, "task-list.md");
+    const source = "- [ ] todo\n\n# Heading\n\nBody.\n";
     writeFileSync(blocked, source);
     const before = readFileSync(blocked);
 
@@ -827,7 +827,7 @@ test("Host reports canonical writeability with every document it opens, creates 
     // A document IeumDoc cannot write still opens, with its whole read model.
     const opened = loadDocumentFile(blocked);
     assert.deepEqual(opened.document.blocks.map((block) => block.block), ["unsupported", "heading", "paragraph"]);
-    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*front matter/);
+    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*checked/);
     assert.equal(opened.writeError, canonicalWriteError(parse(source)));
     const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
     assert.equal(response.status, 200);
@@ -1432,18 +1432,18 @@ test("a byte-order-marked file opens with its heading and saves without the mark
   }
 });
 
-test("an Editor save or Source preview never rewrites front matter", () => {
+test("an Editor save or Source preview preserves front matter while editing the body", () => {
   const input = "---\ntitle: Example\n---\n\n# Heading\n\nBody.\n";
   const editable = loadEditableDocument(input);
   assert.equal(editable.blocks[0].block, "unsupported");
   const projected = normalizedDocument(toTiptapDocument(editable));
   projected.content![2].content = [{ type: "text", text: "Changed." }];
   const request = { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) };
-  let written = false;
-  assert.throws(() => commitDocumentSave(() => input, () => { written = true; }, request),
-    /cannot be preserved in canonical Markdown: .*front matter/);
-  assert.equal(written, false);
-  assert.throws(() => saveCurrentDocument(input, request), /front matter/);
+  const expected = input.replace("Body.", "Changed.");
+  let written = "";
+  commitDocumentSave(() => input, markdown => { written = markdown; }, request);
+  assert.equal(written, expected);
+  assert.equal(saveCurrentDocument(input, request).markdown, expected);
 });
 
 test("hard breaks and marks survive editable projection, save and reload", () => {
@@ -1617,8 +1617,8 @@ test("all top-level blocks reorder through Core without changing semantic conten
     const saved = saveEdits(source, collectSupportedEdits(editable, next));
     assert.equal(saved.markdown, serialize(moveBlock(parse(source), from, 0)));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
-    assert.deepEqual(toTiptapDocument(saved.document).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: ""}})),
-      next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: ""}})));
+    assert.deepEqual(toTiptapDocument(saved.document).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})),
+      next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})));
   }
 });
 

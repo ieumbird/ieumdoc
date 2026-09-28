@@ -51,10 +51,10 @@ test("Layer 2: losses without any diagnostic are rejected by the semantic finger
   }
 });
 
-test("Layer 2 rejects semantic attributes that canonical Markdown would add", () => {
+test("ordinary images keep their absent alignment instead of gaining directive defaults", () => {
   // The `{image}` directive defaults `align` to center; a Markdown image has no alignment.
   assert.match(rawMyst("![alt](./x.png)\n").markdown, /^```\{image\}/);
-  assert.throws(() => serialize(parse("![alt](./x.png)\n")), /image: align \(absent\) became "center"/);
+  assert.equal(serialize(parse("![alt](./x.png)\n")), "![alt](./x.png)\n");
 });
 
 test("supported documents serialize unchanged, deterministically and idempotently", () => {
@@ -135,3 +135,18 @@ test("the semantic fingerprint detects mutations that keep the node type", () =>
 function node(document: MystDocument, path: number[]): MystNode {
   return path.reduce<MystNode>((current, index) => current.children![index], document);
 }
+
+test("preserved Markdown still rejects changed metadata context and unrepresentable cell alignment", () => {
+  const metadata = parse("---\ntitle: Example\n---\n\nBody.\n");
+  metadata.children.reverse();
+  assert.throws(() => serialize(metadata), /front matter.*start/);
+  const table = parse("| L | R |\n|:--|--:|\n| a | b |\n");
+  node(table, [0, 1, 0]).align = "right";
+  assert.throws(() => serialize(table), /align/);
+  const source = "---\ntitle: Example\n---\n\n![a](./a.png \"Title\")\n\nInline ![b](./b.png) image.\n\n| L | R |\n|:--|--:|\n| a | b |\n";
+  const original = parse(source);
+  const saved = serialize(original);
+  assert.equal(semanticDifference(semanticFingerprint(original), semanticFingerprint(parse(saved))), undefined);
+  assert.equal(serialize(parse(saved)), saved);
+  assert.throws(() => serialize(parse(source + "\nPress {kbd}`Ctrl`.\n")), /Line .*keyboard/);
+});

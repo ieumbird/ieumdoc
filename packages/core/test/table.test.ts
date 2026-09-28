@@ -147,9 +147,21 @@ test("table insertion fails closed without mutating the document", () => {
     [() => insertTableColumn(document, [TABLE], 3), /from 0 to 2/],
     [() => insertTableRow(document, [0], 1), /requires a table at \[0\]/],
     [() => insertTableColumn(document, [TABLE, 0], 0), /top-level table path/],
-    // Column alignment cannot be written, so an aligned table stays unwritable.
-    [() => insertTableRow(parse("| A |\n| :-- |\n"), [0], 1), /table cannot be preserved/],
   ];
   for (const [run, reason] of rejected) assert.throws(run, reason);
   assert.deepEqual(document, before);
+});
+
+test("aligned tables retain column semantics across cell edits and row/column insertion", () => {
+  let document = parse("| L | C | R | None |\n|:--|:-:|--:|--|\n| a | b | c | d |\n");
+  document = updateTableCell(document, [0, 1, 1], "changed");
+  document = insertTableRow(document, [0], 1);
+  document = insertTableColumn(document, [0], 2);
+  const markdown = serialize(document);
+  const block = getEditableDocument(parse(markdown)).blocks[0];
+  assert.equal(block.block, "table");
+  if (block.block !== "table") return;
+  for (const row of block.rows) assert.deepEqual(row.cells.map(cell => cell.align), ["left", "center", undefined, "right", undefined]);
+  assert.equal(block.rows[2].cells[1].text, "changed");
+  assert.equal(serialize(parse(markdown)), markdown);
 });

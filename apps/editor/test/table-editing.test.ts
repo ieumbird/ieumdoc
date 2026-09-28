@@ -67,6 +67,7 @@ test("table structure, read-only cells and marks cannot change", () => {
     ["read-only text", (table) => { table.content![1].content![1].attrs!.text = "other"; }],
     ["cell kind", (table) => { table.content![1].content![1] = { type: "tableCell", attrs: { header: false }, content: [] }; }],
     ["header flag", (table) => { table.content![2].content![0].attrs!.header = true; }],
+    ["column alignment", (table) => { table.content![2].content![0].attrs!.align = "right"; }],
     ["mark", (table) => { table.content![1].content![0].content = [{ type: "text", text: "U", marks: [{ type: "bold" }] }]; }],
   ];
   for (const [name, change] of changes) {

@@ -134,7 +134,11 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
     content: document.blocks.length > 0
-      ? document.blocks.map(toTiptapBlock)
+      ? document.blocks.map(block => {
+        const node = toTiptapBlock(block);
+        if (block.original) node.attrs = { ...node.attrs, original: block.original };
+        return node;
+      })
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],
   };
 }
@@ -404,8 +408,8 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       content: block.rows.map((row) => ({
         type: "tableRow",
         content: row.cells.map((cell): TiptapJSON => cell.editable
-          ? { type: "tableCell", attrs: { header: cell.header }, content: cell.text ? [{ type: "text", text: cell.text }] : [] }
-          : { type: "readonlyTableCell", attrs: { header: cell.header, text: cell.text } }),
+          ? { type: "tableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}) }, content: cell.text ? [{ type: "text", text: cell.text }] : [] }
+          : { type: "readonlyTableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}), text: cell.text } }),
       })),
     };
   }
@@ -457,6 +461,9 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     const grid = tableCells(node);
     if (grid.some((row, index) => row.some(cell => !cell.editable || cell.header !== (index === 0)))) {
       throw new Error("a new table holds editable cells, with header cells only in its first row");
+    }
+    if (grid.some(row => row.some(cell => cell.align !== ""))) {
+      throw new Error("new table column alignment cannot be authored in this version");
     }
     return { block: "table", rows: grid.map(row => row.map(cell => cell.text)) };
   }
@@ -584,7 +591,7 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
 }
 
 /** `added` marks a cell absent from the opening snapshot (see TABLE_CELL_ADDED_ATTR). */
-type TableCellShape = { editable: boolean; header: boolean; text: string; added: boolean };
+type TableCellShape = { editable: boolean; header: boolean; text: string; align: string; added: boolean };
 
 /** Session-only tableCell attribute: an id for a cell added since Open/New, else empty. */
 export const TABLE_CELL_ADDED_ATTR = "added";
@@ -595,7 +602,8 @@ function tableCells(node: TiptapJSON): TableCellShape[][] {
     if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
     return (row.content ?? []).map((cell) => {
       const header = cell.attrs?.header === true;
-      if (cell.type === "readonlyTableCell") return { editable: false, header, text: String(cell.attrs?.text ?? ""), added: false };
+      const align = String(cell.attrs?.align ?? "");
+      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), added: false };
       if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
       let text = "";
       for (const child of cell.content ?? []) {
@@ -604,7 +612,7 @@ function tableCells(node: TiptapJSON): TableCellShape[][] {
         }
         text += child.text;
       }
-      return { editable: true, header, text, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
+      return { editable: true, header, align, text, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
     });
   });
 }
@@ -634,11 +642,13 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): { rows: (n
     const to = columns[index];
     if (from !== null && to !== null) {
       const old = was[from][to];
-      if (cell.editable !== old.editable || cell.header !== old.header || (!old.editable && cell.text !== old.text)) {
+      if (cell.editable !== old.editable || cell.header !== old.header || cell.align !== old.align || (!old.editable && cell.text !== old.text)) {
         throw new Error("read-only table cells and cell kinds cannot change");
       }
     } else if (!cell.editable || cell.header !== (rowIndex === 0)) {
       throw new Error("added table cells are editable, with header cells only in the header row");
+    } else if (cell.align !== (to === null ? "" : was[0][to].align)) {
+      throw new Error("added cells must preserve existing column alignment; new columns are unaligned");
     }
   }));
   return { rows, columns };

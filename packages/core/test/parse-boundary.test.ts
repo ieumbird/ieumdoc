@@ -22,7 +22,7 @@ import {
 // Parse boundary safety contract. The canonical-write guard compares a parsed Document
 // with its reparsed canonical Markdown, so it cannot see what parsing itself changes.
 // These tests pin what the parse boundary must keep (the user's text), drop (a byte
-// order mark) and refuse to write (front matter it cannot round-trip).
+// order mark) and preserve (closed front matter in its metadata role).
 
 const APOSTROPHE = "Don't panic.";
 const QUOTED = 'The state is "READY".';
@@ -112,22 +112,24 @@ test("a leading UTF-8 byte order mark is not document content", () => {
   assert.equal(texts(parse("a\uFEFFb\n"))[0], "a\uFEFFb");
 });
 
-test("front matter fails canonical write instead of being rewritten as a code block", () => {
-  for (const source of [
-    "---\ntitle: Example\n---\n\n# Heading\n",
-    "\uFEFF---\ntitle: Example\n---\n\n# Heading\n",
-    // MyST's front matter rule closes an unterminated block at the end of the document.
-    "---\n\n# Heading\n\nBody.\n",
-  ]) {
-    const document = parse(source);
-    // Reading still works; only writing is refused.
-    assert.equal(getEditableDocument(document).blocks[0].block, "unsupported", source);
-    assert.throws(() => serialize(document), (error: unknown) =>
-      error instanceof SemanticLossError && /front matter/.test(error.message), source);
+test("closed front matter remains metadata when the body changes", () => {
+  for (const metadata of [
+    "---\ntitle: Example\n# Keep comments and YAML spelling\nauthors:\n  - name: 'Kim'\nabstract: |\n  First line.\n  Second line.\n---\n",
+    // YAML chomping indicators can make trailing blank lines meaningful.
+    "---\nabstract: |+\n  Keep trailing lines.\n\n\n---\n",
+    "---\nabstract: |-\n  Strip trailing lines.\n\n---\n",
+  ]) for (const bom of ["", "\uFEFF"]) {
+    const document = parse(`${bom}${metadata}\n# Heading\n`);
+    const edited = updateNodeTextAtPath(document, [1], "Heading", "Changed");
+    assert.equal(persisted(edited).markdown, `${metadata}\n# Changed\n`);
+    assert.equal(getEditableDocument(document).blocks[0].original?.kind, "Front matter");
   }
-  // Edits elsewhere cannot write it either.
-  const edited = updateNodeTextAtPath(parse("---\ntitle: Example\n---\n\n# Heading\n"), [1], "Heading", "Changed");
-  assert.throws(() => serialize(edited), /front matter/);
+  for (const source of [
+    "---\ntitle: Unclosed\n", "---\n\n# Heading\n\nBody.\n",
+    "---\nabstract: |\n  ---\n  text\n---\n\nBody.\n",
+  ]) {
+    assert.throws(() => serialize(parse(source)), /front matter must be closed/);
+  }
 });
 
 test("front matter detection follows the parser, not a leading-dash heuristic", () => {
@@ -141,7 +143,8 @@ test("front matter detection follows the parser, not a leading-dash heuristic", 
   ]) {
     const document = parse(source);
     const { reparsed } = persisted(document);
-    assert.deepEqual(getEditableDocument(reparsed), getEditableDocument(document), source);
+    assert.deepEqual(getEditableDocument(reparsed).blocks.map(({ original, ...block }) => block),
+      getEditableDocument(document).blocks.map(({ original, ...block }) => block), source);
   }
   // A leading thematic break is not front matter. Canonical Markdown writes it as `---`,
   // which reloads as front matter, so the write fails for that reason, not this one.

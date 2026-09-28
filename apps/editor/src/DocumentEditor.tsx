@@ -36,6 +36,7 @@ export type DocumentEditorHandle = {
 type DocumentEditorProps = {
   document: EditableDocument;
   documentPath: string;
+  readOnly?: boolean;
   onStructuralReject: () => void;
   onEquationDraftChange?: (active: boolean) => void;
   onFigureDraftChange?: (active: boolean) => void;
@@ -45,7 +46,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
+  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -90,6 +91,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     return undefined;
   };
   const editor = useEditor({
+    editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
     extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
@@ -142,6 +144,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     }),
     [editor],
   );
+
+  useEffect(() => {
+    editor?.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   useEffect(() => {
     if (!editor) return;
@@ -229,7 +235,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       ? { top: coords.bottom - hostRect.top + 4, left: coords.left - hostRect.left }
       : { top: coords.top - hostRect.top - 4, left: coords.left - hostRect.left };
   };
-  const formatting = focused ? formattableSelection(editor.state) : null;
+  const formatting = focused && !readOnly ? formattableSelection(editor.state) : null;
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
@@ -239,13 +245,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   return (
     <article className="document" data-testid="document-editor" ref={host}>
       <EditorContent editor={editor} />
-      <BlockHandles
+      {!readOnly ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
         moveBlockedHint={moveBlockedHint}
-      />
+      /> : null}
       {referenceDraft && referenceStyle ? (
         <ReferenceForm
           editor={editor}
