@@ -1,4 +1,4 @@
-import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type NodePath } from "@ieumdoc/core";
+import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type CodeBlockContent, type NodePath } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
@@ -56,6 +56,12 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+/** The new language and code of an editable code block. */
+export type CodeEdit = {
+  path: NodePath;
+  code: CodeBlockContent;
+};
+
 /** The whole new content of an editable list. */
 export type ListEdit = {
   path: NodePath;
@@ -76,7 +82,8 @@ export type InsertEdit =
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
-  | { block: "list"; list: ListContent };
+  | { block: "list"; list: ListContent }
+  | ({ block: "code" } & CodeBlockContent);
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -92,6 +99,7 @@ export type SupportedEdits = {
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
   lists?: ListEdit[];
+  codes?: CodeEdit[];
   labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
@@ -127,10 +135,13 @@ const KNOWN_BLOCKS = new Set([
   "table",
   "bulletList",
   "orderedList",
+  "codeBlock",
   "unsupportedBlock",
 ]);
 
 const LIST_BLOCKS = new Set(["bulletList", "orderedList"]);
+/** Text blocks that convert into each other as a new block with a fresh locator. */
+const TEXT_BLOCKS = new Set(["paragraph", "heading", "codeBlock"]);
 
 const READONLY_BLOCKS = new Set([
   "readonlyHeading",
@@ -166,6 +177,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const tables: TableShapeEdit[] = [];
   const admonitions: AdmonitionEdit[] = [];
   const lists: ListEdit[] = [];
+  const codes: CodeEdit[] = [];
   const labels: LabelEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
@@ -245,6 +257,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (sameInline(content, block.content)) continue;
       if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
       admonitions.push({ path: block.path, content });
+    } else if (block.block === "code") {
+      const code = codeContent(node);
+      if (code.language !== block.language || code.code !== block.code) codes.push({ path: block.path, code });
     } else if (block.block === "list") {
       const list = listContent(node);
       if (sameList(list, block)) continue;
@@ -288,6 +303,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(tables.length ? { tables } : {}),
     ...(admonitions.length ? { admonitions } : {}),
     ...(lists.length ? { lists } : {}),
+    ...(codes.length ? { codes } : {}),
     ...(labels.length ? { labels } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
@@ -303,6 +319,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
   if (node.type === "paragraph") return (node.content ?? []).length === 0;
   if (node.type === "equation") return node.attrs?.latex === "";
   if (node.type === "figure") return node.attrs?.imageUrl === "";
+  if (node.type === "codeBlock") return (node.content ?? []).length === 0 && !node.attrs?.language;
   // A new list whose only item was never written.
   if (LIST_BLOCKS.has(node.type ?? "")) {
     const items = node.content ?? [];
@@ -336,8 +353,7 @@ export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, 
   const content = (next.content ?? []).map(node => {
     const key = sourcePathOf(node);
     const original = baseline.content?.find(block => sourcePathOf(block) === key);
-    const prose = node.type === "paragraph" || node.type === "heading";
-    const conversion = prose && (original?.type === "paragraph" || original?.type === "heading") && node.type !== original.type;
+    const conversion = TEXT_BLOCKS.has(node.type ?? "") && TEXT_BLOCKS.has(original?.type ?? "") && node.type !== original?.type;
     const emptyParagraph = node.type === "paragraph" && !(node.content?.length);
     const duplicate = seen.has(key) && node.type !== "paragraph";
     seen.add(key);
@@ -455,6 +471,13 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       label: block.label,
     });
   }
+  if (block.block === "code") {
+    return {
+      type: "codeBlock",
+      attrs: { sourcePath: pathKey(block.path), language: block.language },
+      content: block.code ? [{ type: "text", text: block.code }] : [],
+    };
+  }
   if (block.block === "list") {
     const node = listNode(block);
     return { ...node, attrs: { ...node.attrs, sourcePath: pathKey(block.path) } };
@@ -506,6 +529,20 @@ function listContent(node: TiptapJSON): ListContent {
   const start = Number(node.attrs?.start ?? 1);
   if (!Number.isInteger(start) || start < 0) throw new Error("numbered list start must be a non-negative integer");
   return { ordered: true, start, items };
+}
+
+/** Code block v1 content of an editor code block: unmarked text and a language. */
+function codeContent(node: TiptapJSON): CodeBlockContent {
+  let code = "";
+  for (const child of node.content ?? []) {
+    if (child.type !== "text" || typeof child.text !== "string" || (child.marks?.length ?? 0) > 0) {
+      throw new Error("code blocks hold plain text only");
+    }
+    code += child.text;
+  }
+  const language = node.attrs?.language ?? "";
+  if (typeof language !== "string") throw new Error("code block language must be a string");
+  return { language, code };
 }
 
 const EMPTY_LIST_ITEM = "empty list item cannot be saved. Enter text or remove the item.";
@@ -578,7 +615,10 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (LIST_BLOCKS.has(node.type ?? "")) {
     return { block: "list", list: listContent(node) };
   }
-  throw new Error("only paragraphs, headings, equations, figures, tables, and lists can be inserted");
+  if (node.type === "codeBlock") {
+    return { block: "code", ...codeContent(node) };
+  }
+  throw new Error("only paragraphs, headings, equations, figures, tables, lists, and code blocks can be inserted");
 }
 
 function figureContent(node: TiptapJSON): FigureContent {
@@ -617,6 +657,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   }
   if (LIST_BLOCKS.has(beforeType)) {
     listContent(after);
+    return;
+  }
+  if (beforeType === "codeBlock") {
+    codeContent(after);
     return;
   }
   if (beforeType === "equation") {
@@ -828,6 +872,7 @@ function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
     if (item.kind === "text") return item.text.split("").map((char) => `${char} ${marks.join(",")}`);
     if (item.kind === "break") return [`\n ${marks.join(",")}`];
     if (item.kind === "math") return [`math ${item.value} ${marks.join(",")}`];
+    if (item.kind === "code") return item.value.split("").map((char) => `${char} ${[...marks, "code"].sort().join(",")}`);
     if (item.kind === "reference") return [`reference ${item.role} ${item.label} ${marks.join(",")}`];
     return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
   });
@@ -861,7 +906,7 @@ function editableParagraph(block: EditableBlock): boolean {
 
 function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
     : inlineText(item.children))).join("");
 }
 

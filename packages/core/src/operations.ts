@@ -28,6 +28,8 @@ import { assertReferenceableLabel } from "./myst/reference.ts";
 import { labelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
+import type { CodeBlockContent } from "./code.ts";
+import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
@@ -180,6 +182,7 @@ function sameInlineContent(left: InlineContent[], right: InlineContent[]): boole
     if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
     if (item.kind === "break") return [["\n", [...marks, "break"].sort().join(",")]];
     if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].sort().join(",")]];
+    if (item.kind === "code") return item.value.split("").map((text) => [text, [...marks, "code"].sort().join(",")]);
     if (item.kind === "reference") {
       return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
     }
@@ -256,6 +259,56 @@ function sameList(left: ListContent, right: ListContent): boolean {
       return sameInlineContent(item.content, other.content) && (item.list === undefined
         ? other.list === undefined : other.list !== undefined && sameList(item.list, other.list));
     });
+}
+
+const CODE_FAILURE = "code block cannot round-trip losslessly through canonical Markdown";
+
+/** Insert a top-level fenced code block. */
+export function insertCodeBlock(document: MystDocument, index: number, content: CodeBlockContent): MystDocument {
+  assertCodeBlockContent(content);
+  const next = insertBlock(document, index, createCodeNode(content));
+  assertCodeBlockRoundTrip(next, index, content);
+  return next;
+}
+
+/** Replace the language and/or code of an editable top-level code block; omitted properties are unchanged. */
+export function updateCodeBlock(document: MystDocument, path: NodePath, changes: Partial<CodeBlockContent>): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) {
+    throw new Error("updateCodeBlock requires a top-level code block path [index]");
+  }
+  const current = supportedCodeBlock(getNode(document, path));
+  if (!current) {
+    throw new Error(`code block at [${path.join(",")}] is not editable in this version`);
+  }
+  const content = { language: changes?.language ?? current.language, code: changes?.code ?? current.code };
+  assertCodeBlockContent(content);
+  const next = cloneDocument(document);
+  next.children[path[0]] = createCodeNode(content);
+  assertCodeBlockRoundTrip(next, path[0], content);
+  return next;
+}
+
+function assertCodeBlockContent(content: CodeBlockContent): void {
+  if (!content || typeof content.language !== "string" || typeof content.code !== "string") {
+    throw new Error("code block language and code must be strings");
+  }
+  if (/[\s`]/.test(content.language) || content.language.startsWith("{")) {
+    throw new Error("code block language must be one word without spaces, backticks or a leading {");
+  }
+  if (content.code.includes("\r")) {
+    throw new Error("code block line breaks must be \\n");
+  }
+}
+
+function assertCodeBlockRoundTrip(document: MystDocument, index: number, content: CodeBlockContent): void {
+  const markdown = serializeFor(document, CODE_FAILURE);
+  const reparsed = parse(markdown);
+  const reloaded = reparsed.children[index];
+  const block = reloaded && supportedCodeBlock(reloaded);
+  if (reparsed.children.length !== document.children.length || !block || block.language !== content.language ||
+      block.code !== content.code || serialize(reparsed) !== markdown) {
+    throw new Error(CODE_FAILURE);
+  }
 }
 
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */

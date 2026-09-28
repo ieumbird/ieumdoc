@@ -81,6 +81,12 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     run: (state, index, slash) => insertListAfter(state, index, true, slash),
   },
   {
+    id: "code-block",
+    label: "Code block",
+    keywords: ["code", "pre", "snippet"],
+    run: insertCodeBlockAfter,
+  },
+  {
     id: "equation",
     label: "Equation",
     keywords: ["equation", "math", "latex"],
@@ -256,6 +262,21 @@ export function insertListAfter(state: EditorState, index: number, ordered: bool
   else tr.insert(at, list);
   // Inside the list, its item and the item's paragraph.
   return tr.setSelection(TextSelection.create(tr.doc, at + 3)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** Insert an empty code block after the target, reusing a transient empty paragraph; the caret goes into it. */
+export function insertCodeBlockAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  const pos = blockPos(state, index);
+  const target = tr.doc.child(index);
+  const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
+  const code = state.schema.nodes.codeBlock.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  const at = reuse ? pos : pos + target.nodeSize;
+  if (reuse) tr.replaceWith(pos, pos + target.nodeSize, code);
+  else tr.insert(at, code);
+  return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
 /** Insert an editable Note or Warning after the target, reusing a transient empty paragraph. */

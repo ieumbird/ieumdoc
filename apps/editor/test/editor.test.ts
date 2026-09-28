@@ -250,6 +250,32 @@ test("Tiptap adapter accepts plain, bold, italic, and combined marks", () => {
   assert.deepEqual(fromTiptapContent({ type: "doc", content: [{ type: "paragraph" }] }), []);
 });
 
+test("Tiptap adapter accepts inline code, alone and inside other marks", () => {
+  const content = fromTiptapContent({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Run " },
+          { type: "text", text: "npm i", marks: [{ type: "code" }] },
+          { type: "text", text: " now " },
+          { type: "text", text: "bold code", marks: [{ type: "code" }, { type: "bold" }] },
+        ],
+      },
+    ],
+  });
+
+  assert.deepEqual(content, [
+    { kind: "text", text: "Run " },
+    { kind: "code", value: "npm i" },
+    { kind: "text", text: " now " },
+    { kind: "strong", children: [{ kind: "code", value: "bold code" }] },
+  ]);
+  // The Tiptap form is stable across a round trip.
+  assert.deepEqual(fromTiptapContent(toTiptapContent(content)), content);
+});
+
 test("Tiptap adapter rejects multiple paragraphs and unsupported nodes", () => {
   assert.throws(
     () =>
@@ -282,7 +308,7 @@ test("Tiptap adapter rejects unsupported marks", () => {
     type: "doc",
     content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [{ type: "link" }] }] }],
   }), /link at paragraph child 0 requires a URL/);
-  for (const mark of ["underline", "strike", "code", "unknown"]) {
+  for (const mark of ["underline", "strike", "unknown"]) {
     assert.throws(
       () =>
         fromTiptapContent({

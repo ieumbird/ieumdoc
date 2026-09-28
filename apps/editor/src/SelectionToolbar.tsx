@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { Hash, Link2, Sigma } from "lucide-react";
+import { Code, Hash, Link2, Sigma } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
@@ -31,6 +31,14 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditRe
         onClick={() => toggleMark(editor, "italic", onReject)}
       >
         <em aria-hidden="true">I</em>
+      </IconButton>
+      <IconButton
+        label="Inline code"
+        aria-pressed={editor.isActive("code")}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => toggleMark(editor, "code", onReject)}
+      >
+        <Code aria-hidden="true" size={16} />
       </IconButton>
       <IconButton
         label="Link"
@@ -73,13 +81,13 @@ export function makeInlineMath(editor: Editor): boolean {
     { type: "inlineMath", attrs: { value: source }, marks: marks.map((mark) => mark.toJSON()) }).run();
 }
 
-function toggleMark(editor: Editor, mark: "bold" | "italic", onReject: () => void): void {
+function toggleMark(editor: Editor, mark: "bold" | "italic" | "code", onReject: () => void): void {
   if (!editableInlineContext(editor)) {
     onReject();
     return;
   }
   const chain = editor.chain().focus();
-  const applied = (mark === "bold" ? chain.toggleBold() : chain.toggleItalic()).run();
+  const applied = (mark === "bold" ? chain.toggleBold() : mark === "italic" ? chain.toggleItalic() : chain.toggleCode()).run();
   if (!applied) onReject();
 }
 

@@ -426,6 +426,70 @@ ol.list { list-style: decimal; }
   margin: 0;
 }
 
+.document-editor > .code-block {
+  margin: var(--space-4) 0;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  overflow-x: auto;
+  background: var(--id-color-surface-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  white-space: pre;
+  tab-size: 4;
+}
+
+.code-language {
+  display: block;
+  margin: 0 0 var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--id-color-text-muted);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+  outline: none;
+}
+
+/* Display-only syntax highlighting (lowlight decorations); the saved Markdown is unchanged. */
+.code-block .hljs-comment,
+.code-block .hljs-quote {
+  color: var(--id-color-text-subtle);
+  font-style: italic;
+}
+
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag,
+.code-block .hljs-built_in {
+  color: var(--id-color-interaction);
+}
+
+.code-block .hljs-string,
+.code-block .hljs-regexp,
+.code-block .hljs-template-string {
+  color: var(--id-color-warning);
+}
+
+.code-block .hljs-number,
+.code-block .hljs-literal,
+.code-block .hljs-type {
+  color: var(--id-color-info);
+}
+
+.document-editor :not(pre) > code {
+  padding: 0 var(--space-1);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-surface-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+}
+
 .admonition {
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--id-color-border);

@@ -5,7 +5,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { freshBlockPath } from "./tiptap-document.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "text", "hardBreak", "inlineMath", "crossReference"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
@@ -191,12 +191,12 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         transformPastedHTML: html => {
           pasteError = undefined;
           const document = new DOMParser().parseFromString(html, "text/html");
-          const allowed = new Set(["P", "DIV", "SPAN", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
+          const allowed = new Set(["P", "DIV", "SPAN", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
           for (const element of document.body.querySelectorAll("*")) {
             const typed = element.getAttribute("data-ieumdoc-type");
             if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
                 (["H1", "H2", "H3", "H4", "H5", "H6"].includes(element.tagName) &&
-                  (element.querySelector("strong,b,em,i,a,br,[data-ieumdoc-type]") || element.closest("strong,b,em,i,a"))) ||
+                  (element.querySelector("strong,b,em,i,a,br,code,[data-ieumdoc-type]") || element.closest("strong,b,em,i,a,code"))) ||
                 (typed && !TYPES.has(typed)) ||
                 (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
               pasteError = "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content.";

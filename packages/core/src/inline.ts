@@ -18,6 +18,11 @@ export type InlineContent =
       value: string;
     }
   | {
+      /** Inline code: its literal text. */
+      kind: "code";
+      value: string;
+    }
+  | {
       kind: "strong";
       children: InlineContent[];
     }
@@ -63,7 +68,8 @@ export function inlineContentToNodes(content: InlineContent[]): MystNode[] {
 export function inlineContentText(content: InlineContent[]): string {
   return content
     .map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-      : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+      : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\``
+      : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
       : inlineContentText(item.children)))
     .join("");
 }
@@ -87,6 +93,10 @@ function projectNode(node: MystNode): InlineContent | undefined {
   if (node.type === "text") {
     return { kind: "text", text: typeof node.value === "string" ? node.value : "" };
   }
+  if (node.type === "inlineCode" && typeof node.value === "string" && node.value.length > 0 &&
+      Object.keys(node).every((key) => key === "type" || key === "value" || key === "position")) {
+    return { kind: "code", value: node.value };
+  }
   // Only `{eq}`label`` and `{numref}`label``: custom text (`Figure %s <label>`) and
   // other roles such as {ref} stay unsupported.
   if (node.type === "crossReference" && typeof node.kind === "string" && REFERENCE_ROLES.has(node.kind) &&
@@ -100,7 +110,7 @@ function projectNode(node: MystNode): InlineContent | undefined {
     return { kind: node.type, children };
   }
   // Only plain links with visible text: `[](#x)`, `{download}` (static) and links
-  // around code, images or other nodes stay unsupported.
+  // around images or other nodes stay unsupported.
   if (node.type === "link" && typeof node.url === "string" && node.url.length > 0 &&
       (node.title === undefined || typeof node.title === "string") &&
       Object.keys(node).every((key) => LINK_FIELDS.has(key))) {
@@ -123,6 +133,7 @@ function containsReference(content: InlineContent[]): boolean {
 function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "break") return { type: "break" };
   if (item.kind === "math") return { type: "inlineMath", value: item.value };
+  if (item.kind === "code") return { type: "inlineCode", value: item.value };
   if (item.kind === "reference") {
     return { type: "crossReference", kind: item.role, identifier: labelIdentifier(item.label), label: item.label };
   }
@@ -152,6 +163,12 @@ export function assertInlineContent(content: InlineContent[]): void {
     if (item.kind === "math") {
       if (typeof item.value !== "string" || item.value.length === 0 || /[\r\n]/.test(item.value)) {
         throw new Error("inline math must be non-empty single-line LaTeX");
+      }
+      continue;
+    }
+    if (item.kind === "code") {
+      if (typeof item.value !== "string" || item.value.length === 0 || /[\r\n]/.test(item.value)) {
+        throw new Error("inline code must be non-empty single-line text");
       }
       continue;
     }
@@ -195,10 +212,12 @@ export function assertInlineContent(content: InlineContent[]): void {
   }
 }
 
-/** Rendered offsets use JavaScript UTF-16 code units; a break, inline math and a reference each have length one.
+/** Rendered offsets use JavaScript UTF-16 code units; a break, inline math and a reference each have length one,
+ * inline code counts its characters.
  * Marks contribute only their children. No grapheme segmentation is performed. */
 export function inlineContentLength(content: InlineContent[]): number {
   return content.reduce((length, item) => length + (item.kind === "text" ? item.text.length
+    : item.kind === "code" ? item.value.length
     : item.kind === "break" || item.kind === "math" || item.kind === "reference" ? 1
     : inlineContentLength(item.children)), 0);
 }
@@ -214,6 +233,9 @@ export function splitInlineContent(content: InlineContent[], offset: number): [I
     else if (item.kind === "text") {
       left.push({ kind: "text", text: item.text.slice(0, remaining) });
       right.push({ kind: "text", text: item.text.slice(remaining) });
+    } else if (item.kind === "code") {
+      left.push({ kind: "code", value: item.value.slice(0, remaining) });
+      right.push({ kind: "code", value: item.value.slice(remaining) });
     } else if ("children" in item) {
       const [a, b] = splitInlineContent(item.children, remaining);
       if (a.length) left.push({ ...item, children: a });
@@ -224,7 +246,7 @@ export function splitInlineContent(content: InlineContent[], offset: number): [I
   return [left, right];
 }
 
-/** Coalesce adjacent equal marks so Markdown delimiters cannot collide.
+/** Coalesce adjacent equal marks, and adjacent inline code, so Markdown delimiters cannot collide.
  * Adjacent links stay separate: `[a](x)[b](x)` is two links. */
 export function concatenateInlineContent(...parts: InlineContent[][]): InlineContent[] {
   const result: InlineContent[] = [];
@@ -233,6 +255,7 @@ export function concatenateInlineContent(...parts: InlineContent[][]): InlineCon
       ? { ...item, children: concatenateInlineContent(item.children) } : { ...item };
     const previous = result.at(-1);
     if (previous?.kind === "text" && current.kind === "text") previous.text += current.text;
+    else if (previous?.kind === "code" && current.kind === "code") previous.value += current.value;
     else if ((previous?.kind === "strong" || previous?.kind === "emphasis") &&
       (current.kind === "strong" || current.kind === "emphasis") && previous.kind === current.kind) {
       previous.children = concatenateInlineContent(previous.children, current.children);

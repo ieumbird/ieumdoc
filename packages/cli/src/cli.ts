@@ -13,6 +13,7 @@ import {
   insertTableRow,
   insertTableColumn,
   insertList,
+  insertCodeBlock,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -28,6 +29,7 @@ import {
   updateLabel,
   updateTableCell,
   updateList,
+  updateCodeBlock,
   validateStructure,
   type Document,
   type AdmonitionVariant,
@@ -77,6 +79,10 @@ const LIST_NOTE = [
   "Each item is {\"content\": InlineContent[], \"list\"?: ListContent}; the optional list nests below the item.",
   "Numbered lists start at \"start\" (default 1); bullet lists have no start. Every item needs non-empty text.",
   "Example: --list '{\"ordered\":false,\"items\":[{\"content\":[{\"kind\":\"text\",\"text\":\"First\"}]}]}'",
+];
+const CODE_NOTE = [
+  "The language is one word such as python; omit it or pass an empty --language for none.",
+  "Code line breaks must be \\n.",
 ];
 const COMMANDS: CommandSpec[] = [
   {
@@ -246,6 +252,26 @@ const COMMANDS: CommandSpec[] = [
       ...LIST_NOTE,
       "inspect --format json shows an editable list's current content in the same shape.",
       "Task lists and items with several paragraphs or other blocks are read-only.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-code-block",
+    summary: "Insert a fenced code block at a top-level index",
+    usage: "ieumdoc insert-code-block <file> --at <index> --code <text> [--language <name>]",
+    details: [
+      "Insert a fenced code block at a top-level index. The code is kept exactly, including blank lines and indentation.",
+      ...CODE_NOTE,
+    ],
+  },
+  {
+    name: "update-code-block",
+    summary: "Replace the language or code of a code block through Core",
+    usage: "ieumdoc update-code-block <file> --path <index> [--language <name>] [--code <text>]",
+    details: [
+      "Update one editable top-level code block. Omitted properties are unchanged.",
+      ...CODE_NOTE,
+      "Code blocks with captions, labels or other directive options are read-only.",
       ...PATH_NOTE,
     ],
   },
@@ -472,6 +498,21 @@ function main(argv: string[]): number {
       save(file, updateList(parse(readFile(file)), pathFlag(flags), jsonFlag<ListContent>(flags, "--list")));
       return 0;
     }
+    case "insert-code-block": {
+      save(file, insertCodeBlock(parse(readFile(file)), intFlag(flags, "--at"), {
+        language: optionalFlag(flags, "--language") ?? "",
+        code: flag(flags, "--code"),
+      }));
+      return 0;
+    }
+    case "update-code-block": {
+      const changes = { language: optionalFlag(flags, "--language"), code: optionalFlag(flags, "--code") };
+      if (changes.language === undefined && changes.code === undefined) {
+        throw new Error("update-code-block requires --language or --code");
+      }
+      save(file, updateCodeBlock(parse(readFile(file)), pathFlag(flags), changes));
+      return 0;
+    }
     case "insert-table-row": {
       save(file, insertTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
       return 0;
@@ -577,6 +618,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-table": ["--at", "--cells", "--align"],
   "insert-list": ["--at", "--list"],
   "update-list": ["--path", "--list"],
+  "insert-code-block": ["--at", "--language", "--code"],
+  "update-code-block": ["--path", "--language", "--code"],
   "insert-table-row": ["--path", "--at"],
   "insert-table-column": ["--path", "--at"],
   "update-table-cell": ["--path", "--text"],
@@ -701,6 +744,9 @@ function machineBlock(block: EditableBlock): MachineNode[] {
       ),
     ];
   }
+  if (block.block === "code") {
+    return [{ ...base, language: block.language, code: block.code }];
+  }
   if (block.block === "list") {
     return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
   }
@@ -744,6 +790,9 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "list") {
     return [`${path} list`, ...formatListItems(block, 1)];
   }
+  if (block.block === "code") {
+    return [`${path} code language=${quote(block.language)} code=${quote(block.code)}`];
+  }
   return [`${path} unsupported text=${quote(block.text)}`];
 }
 
@@ -757,7 +806,7 @@ function formatListItems(list: ListContent, depth: number): string[] {
 
 function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
     : inlineText(item.children))).join("");
 }
 

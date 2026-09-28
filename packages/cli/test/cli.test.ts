@@ -786,6 +786,43 @@ test("CLI inserts and updates lists through Core and rejects read-only or invali
   }
 });
 
+test("CLI inserts and updates code blocks through Core and rejects read-only or invalid code without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-code-"));
+  const file = path.join(dir, "doc.md");
+  const captioned = path.join(dir, "captioned.md");
+  writeFileSync(file, "# Setup\n");
+  writeFileSync(captioned, "```{code-block} sh\n:caption: Install\nnpm i\n```\n");
+  try {
+    const insert = run(["insert-code-block", file, "--at", "1", "--language", "python", "--code", "def f():\n\treturn 1\n"]);
+    assert.equal(insert.status, 0, insert.stderr);
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    assert.deepEqual((JSON.parse(inspected.stdout) as { nodes: unknown[] }).nodes[1],
+      { path: [1], type: "code", language: "python", code: "def f():\n\treturn 1\n" });
+
+    const update = run(["update-code-block", file, "--path", "1", "--language", "py"]);
+    assert.equal(update.status, 0, update.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Setup\n\n```py\ndef f():\n\treturn 1\n\n```\n");
+    assert.equal(serialize(parse(saved)), saved);
+    assert.match(run(["inspect", file]).stdout, /^1 code language="py" code="def f\(\):\\n\\treturn 1\\n"$/m);
+
+    for (const [args, target] of [
+      [["update-code-block", file, "--path", "0", "--code", "x"], file],
+      [["update-code-block", file, "--path", "1"], file],
+      [["update-code-block", captioned, "--path", "0", "--code", "x"], captioned],
+      [["insert-code-block", file, "--at", "1", "--language", "two words", "--code", "x"], file],
+    ] as const) {
+      const before = readFileSync(target, "utf8");
+      const result = run([...args]);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(target, "utf8"), before, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI creates a table and adds rows and columns through Core, rejecting invalid shapes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
   const file = path.join(dir, "doc.md");

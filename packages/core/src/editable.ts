@@ -4,6 +4,8 @@ import { tableCellText } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
+import type { CodeBlockContent } from "./code.ts";
+import { supportedCodeBlock } from "./myst/code.ts";
 import { supportedListContent } from "./myst/list.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
@@ -70,6 +72,11 @@ export type EditableBlock = (
       block: "list";
       path: NodePath;
     } & ListContent)
+  | ({
+      /** A Code block v1 structure; other code-like nodes are "unsupported" (read-only). */
+      block: "code";
+      path: NodePath;
+    } & CodeBlockContent)
   | {
       block: "equation";
       path: NodePath;
@@ -161,6 +168,10 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   const list = supportedListContent(node);
   if (list) {
     return { block: "list", path, ...list };
+  }
+  const code = supportedCodeBlock(node);
+  if (code) {
+    return { block: "code", path, ...code };
   }
   return {
     block: "unsupported",
