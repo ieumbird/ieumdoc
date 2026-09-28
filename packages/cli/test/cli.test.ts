@@ -32,6 +32,24 @@ const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
 
+test("insert-block accepts Core inline JSON and rejects ambiguous input without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-inline-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "# Title\n");
+  try {
+    const content = JSON.stringify([{ kind: "strong", children: [{ kind: "text", text: "Value" }] },
+      { kind: "text", text: " " }, { kind: "math", value: "x" }]);
+    const args = ["insert-block", file, "--at", "1", "--content", content];
+    const ambiguous = run([...args, "--text", "conflict"]);
+    assert.notEqual(ambiguous.status, 0);
+    assert.match(ambiguous.stderr, /exactly one/);
+    assert.equal(readFileSync(file, "utf8"), "# Title\n");
+    const result = run(args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\n**Value** {math}`x`\n");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI can check and modify a real file through Core", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-"));
   const file = path.join(dir, "document.md");
@@ -726,7 +744,7 @@ test("CLI creates a table and adds rows and columns through Core, rejecting inva
   writeFileSync(file, "# Ratings\n");
   try {
     const steps = [
-      ["insert-table", file, "--at", "1", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]])],
+      ["insert-table", file, "--at", "1", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]]), "--align", JSON.stringify(["left", "right"])],
       ["insert-table-row", file, "--path", "1", "--at", "2"],
       ["insert-table-column", file, "--path", "1", "--at", "1"],
       ["update-table-cell", file, "--path", "1,2,0", "--text", "P"],
@@ -736,7 +754,7 @@ test("CLI creates a table and adds rows and columns through Core, rejecting inva
       assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
     }
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| ---- | - | ---- |\n| U    |   | AC   |\n| P    |   |      |\n");
+    assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| :--- | - | ---: |\n| U    |   |   AC |\n| P    |   |      |\n");
     assert.equal(serialize(parse(saved)), saved);
     const invalid: [string[], RegExp?][] = [
       [["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"]],

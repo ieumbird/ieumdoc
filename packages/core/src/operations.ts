@@ -97,10 +97,12 @@ export function insertBlock(document: MystDocument, index: number, block: MystNo
   return next;
 }
 
-export function insertParagraph(document: MystDocument, index: number, text: string): MystDocument {
+export function insertParagraph(document: MystDocument, index: number, text: string | InlineContent[]): MystDocument {
+  const content: InlineContent[] = typeof text === "string" ? [{ kind: "text", text }] : text;
+  assertInlineContent(content);
   const paragraph: MystNode = {
     type: "paragraph",
-    children: [{ type: "text", value: text }],
+    children: inlineContentToNodes(concatenateInlineContent(content)),
   };
   assertInlineBlockRoundTrip(paragraph);
   return insertBlock(document, index, paragraph);
@@ -247,15 +249,19 @@ function assertStableTable(document: MystDocument, failure: string): void {
 const TABLE_FAILURE = "table cannot be preserved through canonical round-trip";
 
 /** Insert a top-level Markdown table of plain-text cells; the first row is its header row. */
-export function insertTable(document: MystDocument, index: number, rows: string[][]): MystDocument {
+export function insertTable(document: MystDocument, index: number, rows: string[][], align?: ("left" | "center" | "right" | null)[]): MystDocument {
   if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length === 0) {
     throw new Error("a table needs a header row with at least one cell");
   }
   if (rows.some((row) => !Array.isArray(row) || row.length !== rows[0].length)) {
     throw new Error("every table row needs the same number of cells");
   }
+  if (align !== undefined && (!Array.isArray(align) || align.length !== rows[0].length ||
+      align.some(value => value !== null && !["left", "center", "right"].includes(value)))) {
+    throw new Error("table alignment must contain left, center, right or null for each column");
+  }
   rows.flat().forEach(assertTableCellText);
-  const next = insertBlock(document, index, createTableNode(rows));
+  const next = insertBlock(document, index, createTableNode(rows, align));
   assertStableTable(next, TABLE_FAILURE);
   return next;
 }

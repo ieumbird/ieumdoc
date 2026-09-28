@@ -28,10 +28,10 @@ function cell(text: string, header: boolean): MystNode {
 }
 
 /** A GFM table of plain-text cells; the first row is the header row. */
-export function createTableNode(rows: string[][]): MystNode {
+export function createTableNode(rows: string[][], align?: ("left" | "center" | "right" | null)[]): MystNode {
   return {
     type: "table",
-    children: rows.map((row, index) => ({ type: "tableRow", children: row.map((text) => cell(text, index === 0)) })),
+    children: rows.map((row, index) => ({ type: "tableRow", children: row.map((text, column) => ({ ...cell(text, index === 0), ...(align?.[column] ? { align: align[column] } : {}) })) })),
   };
 }
 

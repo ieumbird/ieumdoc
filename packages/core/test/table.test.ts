@@ -133,6 +133,8 @@ test("table insertion fails closed without mutating the document", () => {
   const document = parse(technical);
   const before = structuredClone(document);
   const rejected: [() => unknown, RegExp][] = [
+    [() => insertTable(document, 0, [["A"]], []), /alignment/],
+    [() => insertTable(document, 0, [["A"]], ["invalid" as "left"]), /alignment/],
     [() => insertTable(document, 0, []), /header row with at least one cell/],
     [() => insertTable(document, 0, [[]]), /header row with at least one cell/],
     [() => insertTable(document, 0, [["A", "B"], ["x"]]), /same number of cells/],
@@ -153,7 +155,7 @@ test("table insertion fails closed without mutating the document", () => {
 });
 
 test("aligned tables retain column semantics across cell edits and row/column insertion", () => {
-  let document = parse("| L | C | R | None |\n|:--|:-:|--:|--|\n| a | b | c | d |\n");
+  let document = insertTable(parse(""), 0, [["L", "C", "R", "None"], ["a", "b", "c", "d"]], ["left", "center", "right", null]);
   document = updateTableCell(document, [0, 1, 1], "changed");
   document = insertTableRow(document, [0], 1);
   document = insertTableColumn(document, [0], 2);

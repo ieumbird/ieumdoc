@@ -2,6 +2,7 @@ import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
+import { documentInteraction } from "./document-interaction.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, FigureContent } from "@ieumdoc/core";
@@ -17,6 +18,7 @@ import {
   isNewBlockPath,
   isSupportedDocumentChange,
   NEW_BLOCK_PREFIX,
+  normalizeEngineDocument,
   TABLE_CELL_ADDED_ATTR,
   type TiptapJSON,
 } from "./tiptap-document.ts";
@@ -162,6 +164,8 @@ const ReadonlyParagraph = Node.create({
 const Admonition = Node.create({
   name: "admonition",
   group: "block",
+  isolating: true,
+  defining: true,
   content: "inline*",
   selectable: true,
   draggable: false,
@@ -172,7 +176,7 @@ const Admonition = Node.create({
     return [{ tag: "aside[data-admonition]" }];
   },
   renderHTML({ HTMLAttributes }) {
-    return ["aside", { ...HTMLAttributes, "data-admonition": "" }];
+    return ["aside", { ...HTMLAttributes, "data-admonition": "" }, 0];
   },
   addNodeView() {
     return ReactNodeViewRenderer(AdmonitionView);
@@ -258,6 +262,7 @@ const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (ele
 
 const Table = Node.create({
   name: "table",
+  allowGapCursor: false,
   group: "block",
   content: "tableRow+",
   isolating: true,
@@ -305,6 +310,7 @@ function OriginalContent({ node }: { node: ProseMirrorNode }) {
 
 const TableRow = Node.create({
   name: "tableRow",
+  allowGapCursor: false,
   content: "(tableCell | readonlyTableCell)+",
   parseHTML() {
     return [{ tag: "tr" }];
@@ -432,7 +438,7 @@ const ParagraphSplit = Extension.create({
     return {
       Enter: () => {
         const { selection } = this.editor.state;
-        if (selection.$from.parent.type.name !== "paragraph" || !selection.$from.sameParent(selection.$to)) return true;
+        if (selection.$from.parent.type.name !== "paragraph" || !selection.$from.sameParent(selection.$to)) return false;
         // Enter on a selected inline math node does not delete it.
         if (selection instanceof NodeSelection) return true;
         const sourcePath = selection.$from.parent.attrs.sourcePath;
@@ -464,10 +470,10 @@ const ParagraphMerge = Extension.create({
         const { state } = this.editor;
         const { selection } = state;
         if (!selection.empty || selection.$from.parentOffset !== 0) return false;
-        if (selection.$from.depth !== 1 || selection.$from.parent.type.name !== "paragraph") return true;
+        if (selection.$from.depth !== 1 || selection.$from.parent.type.name !== "paragraph") return false;
         const pos = selection.$from.before();
         const previous = state.doc.resolve(pos).nodeBefore;
-        if (previous?.type.name !== "paragraph") return true;
+        if (previous?.type.name !== "paragraph") return false;
         // Snapshot provenance only: merge adjacent source groups, including any
         // unsaved split siblings. Nothing is persisted as an identity.
         const paths = [...new Set(`${previous.attrs.sourcePath};${selection.$from.parent.attrs.sourcePath}`.split(";"))];
@@ -497,7 +503,7 @@ export function editorExtensions(
       code: false,
       codeBlock: false,
       dropcursor: false,
-      gapcursor: false,
+      // The engine supplies cursor positions around atomic blocks.
       hardBreak: { keepMarks: true },
       heading: false,
       horizontalRule: false,
@@ -520,8 +526,8 @@ export function editorExtensions(
     ParagraphHardBreak,
     ParagraphSplit,
     ParagraphMerge,
-    SourcedHeading,
     SourcedParagraph,
+    SourcedHeading,
     ReadonlyHeading,
     ReadonlyParagraph,
     Admonition,
@@ -539,16 +545,16 @@ export function editorExtensions(
 
 export function createEditorExtensions(
   baseline: TiptapJSON | (() => TiptapJSON),
-  onReject: () => void,
+  onReject: (reason?: string) => void,
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
   onFigureDraftChange?: DraftListener,
   validateFigure?: FigureValidator,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure), structureGuard(baseline, onReject)];
+  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure), documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
 
-function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Extension {
+function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Extension {
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
@@ -560,7 +566,7 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
 const structureGuardKey = new PluginKey<string[]>("structureGuard");
 
 /**
- * Snapshot paths removed by explicit Delete commands since the baseline loaded.
+ * Snapshot paths removed by accepted engine transactions since the baseline loaded.
  * The set only grows, so undo and redo stay within it.
  */
 export function declaredDeletions(state: EditorState): string[] {
@@ -581,13 +587,13 @@ function snapshotPathsOf(doc: ProseMirrorNode): Set<string> {
 }
 
 function commandDeletions(transaction: Transaction, declared: string[]): string[] {
-  if (!transaction.getMeta(BLOCK_COMMAND_META)) return declared;
+  if (!transaction.docChanged) return declared;
   const remaining = snapshotPathsOf(transaction.doc);
   const removed = [...snapshotPathsOf(transaction.before)].filter(path => !remaining.has(path));
   return removed.length ? [...new Set([...declared, ...removed])] : declared;
 }
 
-export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: () => void): Plugin {
+export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Plugin {
   return new Plugin<string[]>({
     key: structureGuardKey,
     state: {
@@ -596,30 +602,28 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
         return commandDeletions(transaction, declared);
       },
     },
-    // Permit structural changes only through paragraph split/merge keys, block
-    // commands, reorder, or engine history. Comparing with the loaded snapshot
-    // also keeps undo inside that set.
+    // Engine edits are accepted only if the normalized result has a semantic
+    // save representation. This retains read-only and table/inline validation.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
-      const history = state.plugins.some(plugin => {
-        const key = (plugin as Plugin & { key: string }).key;
-        return key.startsWith("history$") && transaction.getMeta(key);
-      });
-      const paths = (doc: typeof state.doc) => {
-        const result: string[] = [];
-        doc.forEach(node => result.push(String(node.attrs.sourcePath)));
-        return result.join("|");
-      };
-      const structural = paths(transaction.doc) !== paths(state.doc);
-      const next = {
-        ...(transaction.doc.toJSON() as TiptapJSON),
-        attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
-      };
-      if ((!structural || transaction.getMeta("paragraphSplit") || transaction.getMeta("paragraphMerge") ||
-          transaction.getMeta("blockReorder") || transaction.getMeta(BLOCK_COMMAND_META) || history) &&
-          isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, next)) return true;
+      try {
+        const next = normalizeEngineDocument(typeof baseline === "function" ? baseline() : baseline, {
+          ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
+        }, transaction.before.childCount !== transaction.doc.childCount);
+        if (isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, next)) return true;
+      } catch { /* Unrepresentable input keeps the previous document. */ }
       onReject();
       return false;
+    },
+    appendTransaction(transactions, old, state) {
+      if (!transactions.some(tr => tr.docChanged)) return null;
+      const normalized = normalizeEngineDocument(typeof baseline === "function" ? baseline() : baseline, state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
+      const tr = state.tr;
+      state.doc.forEach((node, pos, index) => {
+        const attrs = normalized.content![index].attrs!;
+        if (node.attrs.sourcePath !== attrs.sourcePath) tr.setNodeMarkup(pos, undefined, attrs);
+      });
+      return tr.docChanged ? tr : null;
     },
   });
 }
@@ -949,7 +953,9 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
   }, [editing, latex, label]);
 
   useEffect(() => {
-    if (view.editable && selected && !editing) {
+    // Selecting an existing atom is navigation/clipboard intent. Only a new
+    // empty Equation enters its form automatically; Edit opens existing content.
+    if (view.editable && selected && !editing && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0) {
       setDraft(latex);
       setLabelDraft(label);
       setError("");
@@ -1186,4 +1192,3 @@ function UnsupportedView({ node }: ReactNodeViewProps) {
     </NodeViewWrapper>
   );
 }
-

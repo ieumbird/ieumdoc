@@ -86,9 +86,13 @@ async page => {
     result.draftSurvivesDelete = await page.getByTestId('equation-latex').inputValue() === 'x + 2';
     await page.getByTestId('equation-cancel').click();
 
-    // A keyboard deletion stays blocked and produces an expiring notice.
+    // Keyboard deletion uses engine history. Unsupported copying still produces an expiring notice.
     await page.locator('[data-block="figure"] img').click();
     await page.keyboard.press('Delete');
+    result.figureDeletedByKeyboard = await page.locator('[data-block="figure"]').count() === 0;
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Control+c');
     await page.getByTestId('notice').waitFor();
     result.noticeInMessageArea = await page.locator('[data-testid="message-area"] [data-testid="notice"]').count() === 1;
     result.figureKept = await page.locator('[data-block="figure"]').count() === 1;

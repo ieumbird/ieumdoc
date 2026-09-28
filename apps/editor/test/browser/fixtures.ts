@@ -24,6 +24,9 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
+    { name: "edge-equation.md", create: () => "$$\nx\n$$\n" },
+    fixture("preserved-markdown.md")], scenarios: ["continuous-editing"] },
   "save-session": {
     files: [...technical, { name: "session.md", create: () => "# Session\n\nAlpha.\n\nBeta.\n" }],
     scenarios: ["save-session"],

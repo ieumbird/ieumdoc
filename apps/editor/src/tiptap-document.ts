@@ -69,7 +69,7 @@ export type InsertEdit =
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][] };
+  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] };
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -299,10 +299,37 @@ export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON
   }
 }
 
+let nextEngineLocator = 0;
+export function freshBlockPath(): string { return `${NEW_BLOCK_PREFIX}engine:${++nextEngineLocator}`; }
+
+/** Adapt engine-created blocks to opening-snapshot locators, without changing content.
+ * Kept separate from validation: unknown/read-only semantics still fail closed. */
+export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, emptySpace = false): TiptapJSON {
+  const seen = new Set<string>();
+  const content = (next.content ?? []).map(node => {
+    const key = sourcePathOf(node);
+    const original = baseline.content?.find(block => sourcePathOf(block) === key);
+    const prose = node.type === "paragraph" || node.type === "heading";
+    const conversion = prose && (original?.type === "paragraph" || original?.type === "heading") && node.type !== original.type;
+    const emptyParagraph = node.type === "paragraph" && !(node.content?.length);
+    const duplicate = seen.has(key) && node.type !== "paragraph";
+    seen.add(key);
+    if (!key || conversion || duplicate || (emptySpace && emptyParagraph && !isNewBlockPath(key))) {
+      // Validate representability before granting a fresh identity.
+      insertEdit(node);
+      return { ...node, attrs: { ...node.attrs, sourcePath: freshBlockPath(), original: undefined } };
+    }
+    return node;
+  });
+  const present = new Set(content.flatMap(node => snapshotPaths(sourcePathOf(node))));
+  return { ...next, content, attrs: { ...next.attrs, [DELETED_PATHS_ATTR]:
+    [...new Set([...deletedPathsOf(next), ...(baseline.content ?? []).map(sourcePathOf).filter(key => !isNewBlockPath(key) && !present.has(key))])] } };
+}
+
 /**
  * Validates the editor document against the loaded snapshot. New paragraphs and headings are
  * representable here; a missing snapshot block must be declared as deleted.
- * The editor's structure guard admits both only from explicit block commands.
+ * The structure guard declares deletions from accepted engine transactions.
  */
 export function assertSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): void {
   if (baseline.type !== "doc" || next.type !== "doc") {
@@ -462,10 +489,11 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     if (grid.some((row, index) => row.some(cell => !cell.editable || cell.header !== (index === 0)))) {
       throw new Error("a new table holds editable cells, with header cells only in its first row");
     }
-    if (grid.some(row => row.some(cell => cell.align !== ""))) {
-      throw new Error("new table column alignment cannot be authored in this version");
+    const align = grid[0].map(cell => cell.align || null) as ("left" | "center" | "right" | null)[];
+    if (grid.some(row => row.some((cell, column) => (cell.align || null) !== align[column]))) {
+      throw new Error("table alignment must be uniform within each column");
     }
-    return { block: "table", rows: grid.map(row => row.map(cell => cell.text)) };
+    return { block: "table", rows: grid.map(row => row.map(cell => cell.text)), ...(align.some(Boolean) ? { align } : {}) };
   }
   throw new Error("only paragraphs, headings, equations, figures, and tables can be inserted");
 }
