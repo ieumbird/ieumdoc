@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
-import { mapSavedRanges, type SavedRange } from "./block-reorder.ts";
+import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
   filterInsertCommands,
@@ -17,13 +17,9 @@ import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
   type FigureValidator,
-  DECLARED_DELETIONS_META,
-  declaredDeletions,
-  differsFromBaseline,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { TABLE_CELL_ADDED_ATTR, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 
@@ -33,9 +29,7 @@ const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
   beginSave(): TiptapJSON;
-  finishSave(saved?: EditableDocument): void;
-  hasUnappliedEquationDraft(): boolean;
-  hasUnappliedFigureDraft(): boolean;
+  finishSave(succeeded?: boolean): void;
   hasUnsavedChanges(): boolean;
 };
 
@@ -50,29 +44,14 @@ type DocumentEditorProps = {
   validateFigure?: FigureValidator;
 };
 
-function addedTableCells(doc: ProseMirrorNode): Set<string> {
-  const added = new Set<string>();
-  doc.descendants(node => {
-    const id = node.attrs[TABLE_CELL_ADDED_ATTR];
-    if (typeof id === "string" && id.length > 0) added.add(id);
-  });
-  return added;
-}
-
-export function remapSavedRanges(ranges: SavedRange[], saved: EditableDocument): SavedRange[] {
-  return ranges.flatMap(range => {
-    const savedBlock = saved.blocks[Number(range.path)];
-    return savedBlock ? [{ ...range, path: savedBlock.path.join(",") }] : [];
-  });
-}
-
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
   { document, documentPath, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
   ref,
 ) {
   const projection = toTiptapDocument(document);
   const baseline = useRef(projection);
-  const pending = useRef<{ ranges: SavedRange[]; keys: string[]; addedCells: Set<string> } | null>(null);
+  const pending = useRef<TiptapJSON | null>(null);
+  const saved = useRef<TiptapJSON | null>(null);
   const onEquationDraftChangeRef = useRef(onEquationDraftChange);
   onEquationDraftChangeRef.current = onEquationDraftChange;
   const activeEquationDrafts = useRef(new Set<string>());
@@ -116,7 +95,6 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
     content: projection,
     onTransaction({ transaction }) {
-      if (pending.current) pending.current.ranges = mapSavedRanges(pending.current.ranges, transaction);
       // Block indexes are snapshot positions; a document change invalidates an open menu.
       if (transaction.docChanged) setBlockMenu(null);
     },
@@ -129,72 +107,31 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     },
   });
 
+  // Keep the opening snapshot and its locators for the lifetime of the editor. Save
+  // acknowledges a submitted snapshot; it never rewrites nodes, selection or engine history.
+  if (editor && saved.current === null) saved.current = editorDocumentJSON(editor.state);
+  const hasDocumentChanges = () => Boolean(editor && JSON.stringify(appliedDocument(editorDocumentJSON(editor.state))) !==
+    JSON.stringify(appliedDocument(saved.current!)));
+
   useImperativeHandle(
     ref,
     () => ({
       beginSave() {
         if (!editor) throw new Error("Editor is not ready");
-        const ranges: SavedRange[] = [];
-        const keys: string[] = [];
-        editor.state.doc.forEach((node, pos, index) => {
-          ranges.push({start: pos, end: pos + node.nodeSize, path: String(index)});
-          keys.push(String(node.attrs.sourcePath));
-        });
-        pending.current = { ranges, keys, addedCells: addedTableCells(editor.state.doc) };
-        return editorDocumentJSON(editor.state);
+        // Separate subsequent typing from this save's undo event without changing the document.
+        editor.view.dispatch(closeHistory(editor.state.tr));
+        pending.current = editorDocumentJSON(editor.state);
+        return pending.current;
       },
-      finishSave(saved) {
-        const submission = pending.current;
+      finishSave(succeeded = false) {
+        if (succeeded && pending.current) saved.current = pending.current;
         pending.current = null;
-        if (!editor || !saved || !submission) return;
-        // Map only the in-flight save snapshot to the current editor positions.
-        // These paths are refreshed locators, never persistent block identities.
-        const ranges = remapSavedRanges(submission.ranges, saved);
-        const tr = editor.state.tr;
-        const groups: { positions: number[]; paths: string[] }[] = [];
-        editor.state.doc.forEach((node, pos) => {
-          const paths = [...new Set(ranges.filter(range => pos < range.end && pos + node.nodeSize > range.start).map(range => range.path))];
-          if (!paths.length) return;
-          const group = { positions: [pos], paths };
-          // A pending merge can overlap two saved paragraphs and their pending
-          // split siblings. Keep that connected paragraph group together.
-          let overlap: number;
-          while ((overlap = groups.findIndex(previous => previous.paths.some(path => group.paths.includes(path)))) >= 0) {
-            const previous = groups.splice(overlap, 1)[0];
-            group.positions.unshift(...previous.positions);
-            group.paths = [...new Set([...previous.paths, ...group.paths])];
-          }
-          groups.push(group);
-        });
-        for (const group of groups) for (const pos of group.positions) {
-          tr.setNodeMarkup(pos, undefined, { ...tr.doc.nodeAt(pos)!.attrs, sourcePath: group.paths.join(";") });
-        }
-        // Table cells added before this save are now saved cells; ones added while it ran stay added.
-        tr.doc.descendants((node, pos) => {
-          if (submission.addedCells.has(String(node.attrs[TABLE_CELL_ADDED_ATTR] ?? ""))) {
-            tr.setNodeMarkup(pos, undefined, { ...node.attrs, [TABLE_CELL_ADDED_ATTR]: "" });
-          }
-        });
-        // Deletes made while saving now address saved blocks that no node claims.
-        const deleted = new Set(declaredDeletions(editor.state));
-        const claimed = new Set(groups.flatMap(group => group.paths));
-        tr.setMeta(DECLARED_DELETIONS_META, saved.blocks
-          .filter((block, index) => !claimed.has(block.path.join(",")) &&
-            submission.keys[index].split(";").some(path => deleted.has(path)))
-          .map(block => block.path.join(",")));
-        baseline.current = toTiptapDocument(saved);
-        editor.view.dispatch(tr.setMeta("savedPaths", true).setMeta("addToHistory", false));
-      },
-      hasUnappliedEquationDraft() {
-        return activeEquationDrafts.current.size > 0;
-      },
-      hasUnappliedFigureDraft() {
-        return activeFigureDrafts.current.size > 0;
+        onDirtyChangeRef.current?.(hasDocumentChanges());
       },
       hasUnsavedChanges() {
         if (!editor) return false;
         return activeEquationDrafts.current.size > 0 || activeFigureDrafts.current.size > 0 ||
-          differsFromBaseline(editor.state, baseline.current);
+          hasDocumentChanges();
       },
       getDocument() {
         if (!editor) {
@@ -209,7 +146,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useEffect(() => {
     if (!editor) return;
     // Read the same baseline as Open/Save guards; do not create a second dirty model.
-    const reportDirty = () => onDirtyChangeRef.current?.(differsFromBaseline(editor.state, baseline.current));
+    const reportDirty = () => onDirtyChangeRef.current?.(hasDocumentChanges());
     reportDirty();
     editor.on("update", reportDirty);
     return () => { editor.off("update", reportDirty); };

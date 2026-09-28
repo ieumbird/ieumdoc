@@ -92,7 +92,7 @@ export type SupportedEdits = {
 };
 
 // Unsaved top-level paragraphs have no snapshot locator yet. This session-only
-// marker is replaced by the saved snapshot path; it is never persisted.
+// marker stays in the session across saves; a newly opened document gets fresh snapshot paths. It is never persisted.
 export const NEW_BLOCK_PREFIX = "new:";
 const EMPTY_DOCUMENT_BLOCK_PATH = `${NEW_BLOCK_PREFIX}empty`;
 
@@ -155,34 +155,31 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const inserts: InsertEdit[] = [];
   const insertOf = new Map<TiptapJSON, number>();
   const used = new Set<string>();
-  const nodes = next.content ?? [];
+  const nodes = (next.content ?? []).filter(node => !isSessionPlaceholder(node));
+  const saveError = (node: TiptapJSON, message: string) => new Error(`Block ${(next.content ?? []).indexOf(node) + 1} (${node.type}): ${message}`);
   const keys = [...new Set(nodes.map(sourcePathOf))];
   for (const key of keys) {
     const group = nodes.filter(node => sourcePathOf(node) === key);
     const paths = snapshotPaths(key);
     paths.forEach(path => used.add(path));
     if (paths.length === 0) {
-      if (document.blocks.length === 0 && key === EMPTY_DOCUMENT_BLOCK_PATH && group[0]?.type === "paragraph" &&
-          inlineText(paragraphInline(group[0])).length === 0) {
-        continue;
-      }
       for (const node of group) {
         const insert = insertEdit(node);
         if (insert.block === "paragraph" && inlineText(insert.content).length === 0) {
-          throw new Error("empty paragraph cannot be saved");
+          throw saveError(node, "empty paragraph cannot be saved");
         }
         if (insert.block === "heading" && insert.text.length === 0) {
-          throw new Error("empty heading cannot be saved");
+          throw saveError(node, "empty heading cannot be saved. Enter text or delete this block.");
         }
         if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
-          throw new Error("admonition body cannot be empty");
+          throw saveError(node, "admonition body cannot be empty");
         }
         if (insert.block === "equation" && insert.latex.length === 0) {
-          throw new Error("empty equation LaTeX cannot be saved");
+          throw saveError(node, "empty equation LaTeX cannot be saved");
         }
         if (insert.block === "figure") assertFigureContent(insert);
         if (insert.block === "table" && insert.rows.flat().every(text => text.length === 0)) {
-          throw new Error("empty table cannot be saved");
+          throw saveError(node, "empty table cannot be saved");
         }
         insertOf.set(node, inserts.length);
         inserts.push(insert);
@@ -198,7 +195,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
       const text = headingText(node);
       if (text !== block.text) {
-        if (text.length === 0) throw new Error("empty heading text cannot be saved");
+        if (text.length === 0) throw saveError(node, "empty heading text cannot be saved");
         headings.push({ path: block.path, from: block.text, to: text });
       }
     } else if (block.block === "paragraph" && editableParagraph(block)) {
@@ -208,7 +205,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       }
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) continue;
-      if (inlineText(content).length === 0) throw new Error("empty paragraph cannot be saved");
+      if (inlineText(content).length === 0) throw saveError(node, "empty paragraph cannot be saved. Enter text or delete this block.");
       paragraphs.push({ path: block.path, content });
     } else if (block.block === "equation") {
       const latex = equationLatex(node);
@@ -226,7 +223,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "admonition" && block.editable) {
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) continue;
-      if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+      if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
       admonitions.push({ path: block.path, content });
     } else if (block.block === "table") {
       const next = tableCells(node);
@@ -271,6 +268,22 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(inserts.length ? { inserts } : {}),
     ...(deletes.length ? { deletes } : {}),
   };
+}
+
+/** Editor-only space and never-applied atoms have no persistent document meaning.
+ * Existing content emptied by the user is deliberately not a placeholder. */
+export function isSessionPlaceholder(node: TiptapJSON): boolean {
+  if (!isNewBlockPath(sourcePathOf(node))) return false;
+  if (node.type === "paragraph") return (node.content ?? []).length === 0;
+  if (node.type === "equation") return node.attrs?.latex === "";
+  if (node.type === "figure") return node.attrs?.imageUrl === "";
+  return false;
+}
+
+/** Compare the applied state that Save acknowledges, excluding editor-only placeholders.
+ * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
+export function appliedDocument(document: TiptapJSON): TiptapJSON {
+  return { type: "doc", content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {
@@ -570,10 +583,10 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
   }
 }
 
-/** `added` marks a cell added in this session and not saved yet (see TABLE_CELL_ADDED_ATTR). */
+/** `added` marks a cell absent from the opening snapshot (see TABLE_CELL_ADDED_ATTR). */
 type TableCellShape = { editable: boolean; header: boolean; text: string; added: boolean };
 
-/** Session-only tableCell attribute: an id for a cell added since the last save, else empty. */
+/** Session-only tableCell attribute: an id for a cell added since Open/New, else empty. */
 export const TABLE_CELL_ADDED_ATTR = "added";
 
 /** The cell grid of a table node; editable cells must hold unmarked text only. */

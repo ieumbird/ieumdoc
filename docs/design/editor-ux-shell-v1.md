@@ -1,6 +1,6 @@
 # Editor UX Shell v1
 
-- Status: Implemented, updated 2026-09-25.
+- Status: Implemented, updated 2026-09-28.
 - Scope: existing Editor interactions. [Visual Language v1](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
@@ -10,11 +10,11 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | IeumDoc, Open, New and current document. User-controlled collapse/expand; no workspace tree or placeholder navigation. |
-| TopBar | Filename (full path in title), Visual/Source, actual status and Save. Sticky while document scrolls. |
+| TopBar | Filename (full path in title), Visual/Source, actual status, Reload and Save. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
-Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work and unapplied drafts retain their existing switching/Save guards. Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 ## Writing interactions
 
@@ -24,7 +24,7 @@ Open uses the existing local path dialog. New creates through the existing API i
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; handle drag reorders through the existing editor operation. Unsupported structures remain protected.
 - Paragraph/admonition text selection offers Bold, Italic, Link, Inline Math and Cross-reference where currently supported.
 - Figure selection shows an anchored property summary. Edit opens Image/Alt text/Caption/Label fields. Summary may dismiss outside; editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; new never-applied Figure Cancel removes the transient block.
-- Equation editing stays inline with source, label, preview, Apply/Cancel and the existing Escape behavior. Unapplied changes retain the block-local notice and Save-disabled reason.
+- Equation editing stays inline with source, label, preview, Apply/Cancel and the existing Escape behavior. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
 - Read-only restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. There is no automatic Figure/equation/section numbering.
 
 ## Boundaries

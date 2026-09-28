@@ -86,8 +86,8 @@ async page => {
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
     await page.getByTestId('figure-alt').fill('Updated block diagram');
     await page.getByTestId('figure-caption').fill('Updated converter control diagram.');
-    await saveDisabled.waitFor();
-    result.existingDraftBlocksSave = await figures.first().getByTestId('figure-draft-status').isVisible();
+    await page.getByTestId("figure-draft-status").waitFor();
+    result.existingDraftMarkedUnsaved = await figures.first().getByTestId('figure-draft-status').isVisible();
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
     result.existingPreviewAfterApply = String(await imageLoaded(figures.first())).startsWith('/document/diagram-v2.svg?path=');
@@ -113,7 +113,7 @@ async page => {
       await page.getByTestId('figure-caption').inputValue() === 'cost $5 and $x$';
     result.invalidApplyShowsCoreError = await coreError.isVisible();
     result.invalidApplyKeepsAppliedValue = await figures.first().locator('figcaption').innerText() === appliedCaption;
-    result.invalidApplyKeepsSaveBlocked = await saveDisabled.count() === 1;
+    result.invalidApplyAllowsAppliedSave = await saveEnabled.count() === 1;
     await page.getByTestId('figure-caption').fill('Cost is 5 units.');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
@@ -128,8 +128,14 @@ async page => {
     await insertAfterParagraph('Figure');
     await editor.waitFor();
     result.newFigureFocusesImage = await imageFocused();
-    await saveDisabled.waitFor();
-    result.newFigureBlocksSave = true;
+    await page.getByTestId("figure-draft-status").waitFor();
+    result.newFigureAllowsAppliedSave = await saveEnabled.count() === 1;
+    await page.getByTestId('figure-caption').fill('Unapplied new figure');
+    await page.getByTestId('save').click();
+    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    result.placeholderSaveKeepsDraft = (await semantic()).length === 1 &&
+      await page.getByTestId('figure-caption').inputValue() === 'Unapplied new figure' &&
+      await page.getByTestId('status').innerText() === 'Unsaved changes';
     await page.getByTestId('figure-cancel').click();
     await editor.waitFor({state:'detached'});
     result.unappliedCancelRemoves = await figures.count() === 1 && await saveDisabled.count() === 0;

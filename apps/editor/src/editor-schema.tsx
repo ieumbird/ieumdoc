@@ -30,12 +30,12 @@ export type EquationDraftListener = DraftListener;
 /** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
 export type FigureValidator = (figure: FigureContent) => Promise<string | undefined>;
 
-/** An Equation draft blocks saving only while the editor is open and the draft differs from the applied LaTeX. */
+/** An open Equation form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
   return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
 }
 
-/** A Figure draft blocks saving while its editor is open and differs from the applied Figure, or while a new Figure was never applied. */
+/** An open Figure form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent, sourcePath = ""): boolean {
   const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt || draft.caption !== applied.caption;
   return editing && (changed || (isNewBlockPath(sourcePath) && applied.imageUrl.length === 0));
@@ -423,7 +423,9 @@ const ParagraphSplit = Extension.create({
           const rightSourcePath = rightNode?.content.size === 0
             ? `${NEW_BLOCK_PREFIX}split:${++nextEmptySplitLocator}`
             : sourcePath;
-          tr.setNodeMarkup(start, this.editor.schema.nodes.paragraph, { sourcePath });
+          const leftSourcePath = tr.doc.nodeAt(start)?.content.size === 0 && rightNode!.content.size > 0
+            ? `${NEW_BLOCK_PREFIX}split:${++nextEmptySplitLocator}` : sourcePath;
+          tr.setNodeMarkup(start, this.editor.schema.nodes.paragraph, { sourcePath: leftSourcePath });
           tr.setNodeMarkup(right, this.editor.schema.nodes.paragraph, { sourcePath: rightSourcePath });
           tr.setMeta("paragraphSplit", true);
           return true;
@@ -537,9 +539,6 @@ function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: () 
 
 const structureGuardKey = new PluginKey<string[]>("structureGuard");
 
-/** Replaces the declared deletions after Save remaps snapshot paths. */
-export const DECLARED_DELETIONS_META = "declaredDeletions";
-
 /**
  * Snapshot paths removed by explicit Delete commands since the baseline loaded.
  * The set only grows, so undo and redo stay within it.
@@ -551,11 +550,6 @@ export function declaredDeletions(state: EditorState): string[] {
 /** The editor document as the Save adapter reads it, including declared deletions. */
 export function editorDocumentJSON(state: EditorState): TiptapJSON {
   return { ...(state.doc.toJSON() as TiptapJSON), attrs: { [DELETED_PATHS_ATTR]: declaredDeletions(state) } };
-}
-
-/** Structural comparison; projection JSON and engine JSON may order attributes differently. */
-export function differsFromBaseline(state: EditorState, baseline: TiptapJSON): boolean {
-  return !state.doc.eq(state.schema.nodeFromJSON(baseline));
 }
 
 function snapshotPathsOf(doc: ProseMirrorNode): Set<string> {
@@ -579,8 +573,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
     state: {
       init: () => [],
       apply(transaction, declared) {
-        const replaced = transaction.getMeta(DECLARED_DELETIONS_META) as string[] | undefined;
-        return replaced ?? commandDeletions(transaction, declared);
+        return commandDeletions(transaction, declared);
       },
     },
     // Permit structural changes only through paragraph split/merge keys, block
@@ -588,7 +581,6 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
     // also keeps undo inside that set.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
-      if (transaction.getMeta("savedPaths")) return true;
       const history = state.plugins.some(plugin => {
         const key = (plugin as Plugin & { key: string }).key;
         return key.startsWith("history$") && transaction.getMeta(key);
@@ -795,7 +787,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       <p ref={anchor} className="block-kind block-metadata">{label ? `Figure · ${label}` : "Figure"}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status">
-          Unapplied changes. Apply or Cancel before saving.
+          Unapplied changes are not saved. Apply to include them, or Cancel.
         </p>
       ) : null}
       {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" /> : null}
@@ -990,7 +982,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
       <p className="block-kind block-metadata">{label ? `Equation · ${label}` : "Equation"}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">
-          Unapplied changes. Apply or Cancel before saving.
+          Unapplied changes are not saved. Apply to include them, or Cancel.
         </p>
       ) : null}
       {!editing ? (

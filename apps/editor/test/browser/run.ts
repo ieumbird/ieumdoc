@@ -16,7 +16,7 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 const URL = "http://127.0.0.1:5173";
 const SESSION = "ieumdoc-browser-regression";
 const CONSOLE_MONITOR_START = `async page => {
-  // The same CLI page is reused, so restore its default viewport after visual scenarios resize it.
+  // Give each scenario a consistent viewport and initial focus.
   await page.setViewportSize({width: 1280, height: 720});
   await page.mouse.move(0, 0);
   await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement?.blur(); });
@@ -72,6 +72,7 @@ export const STABLE_SCENARIOS = [
   "new-document",
   "open-files",
   "save-during-edit",
+  "save-session",
   "equation-insertion",
   "equation-save-during-edit",
   "reference-save-reload",
@@ -123,6 +124,10 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "save-session": [
+    {status: 409, pathname: "/api/document", minimum: 1, description: "external edit conflicts with the retained session"},
+    {status: 400, pathname: "/api/document", minimum: 2, description: "invalid content and a mocked failed save retain pending work"},
+  ],
   "editor-shell": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "mocked save rejection"},
     {status: 409, pathname: "/api/document", minimum: 1, description: "mocked save conflict"},
@@ -265,6 +270,10 @@ async function main(requested: string[]): Promise<number> {
     }
     for (const name of scenarios) {
       prepareBrowserFixtures();
+      // Each scenario owns its page. Closing the previous test page is teardown, not
+      // user navigation: it must not strand the next scenario on a beforeunload prompt.
+      playwright(["tab-new", URL], false);
+      playwright(["tab-close", "0"], false);
       const started = Date.now();
       const monitorStart = playwright(["run-code", CONSOLE_MONITOR_START], true);
       const monitorStartOutput = `${monitorStart.stdout ?? ""}${monitorStart.stderr ?? ""}`;

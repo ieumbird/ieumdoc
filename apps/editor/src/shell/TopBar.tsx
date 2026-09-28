@@ -20,12 +20,14 @@ type TopBarProps = {
   /** Why Save is unavailable, when the reason is not obvious from the status. */
   saveHint?: string;
   onSave(): void;
+  onReload?(): void;
+  reloadDisabled?: boolean;
 };
 
 /** Document identity on the left; document state and document-level actions on the right. */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
-  onSave,
+  onSave, onReload, reloadDisabled,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
@@ -61,6 +63,7 @@ export function TopBar({
         )}
       </p>
       <div className="top-bar-actions">
+        {onReload ? <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled}>Reload</Button> : null}
         <div className="view-toggle" role="group" aria-label="Document view">
           <Button
             type="button"

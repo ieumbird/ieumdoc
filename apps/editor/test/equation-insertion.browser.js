@@ -43,6 +43,12 @@ async page => {
     await page.getByTestId('equation-editor').waitFor();
     const afterCancel = await page.locator('[data-block="equation"]').count();
     const noEmptyParagraphAfterSlash = await page.locator('[data-block="paragraph"]').count() === baselineParagraphCount;
+    await page.getByTestId('equation-latex').fill('Unapplied');
+    await page.getByTestId('save').click();
+    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    const placeholderSaveKeepsDraft = !requests.at(-1)?.inserts?.some(item => item.block === 'equation') &&
+      await page.getByTestId('equation-latex').inputValue() === 'Unapplied' &&
+      await page.getByTestId('status').innerText() === 'Unsaved changes';
     await page.getByTestId('equation-cancel').click();
     const cancelRemoved = await page.locator('[data-block="equation"]').count() === baselineEquationCount;
 
@@ -51,7 +57,7 @@ async page => {
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x');
-    const saveBlockedBeforeApply = await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').count() === 1;
+    const saveAvailableBeforeApply = await page.getByTestId("save").isEnabled();
     await page.getByTestId('equation-apply').click();
     const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
@@ -76,8 +82,9 @@ async page => {
       menuHasEquation: true,
       enteredEditor: afterCancel === baselineEquationCount + 1,
       noEmptyParagraphAfterSlash,
+      placeholderSaveKeepsDraft,
       cancelRemoved,
-      saveBlockedBeforeApply,
+      saveAvailableBeforeApply,
       appliedCancelKeepsBlock,
       appliedCancelRestoresLatex,
       appliedAndSaved: insert?.latex === 'x',

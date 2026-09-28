@@ -37,7 +37,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Selected | Figure outline and a dismissible properties summary; summary does not steal editor focus. |
 | Editing | Form and editing outline persist independently of selection. |
-| Dirty / invalid | Existing draft notice and Save guard; validation preserves entered values. These do not replace hover/focus/selection. |
+| Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
 | Read-only | Existing restriction is visible; source view stays read-only. |
 | No hover device | Gutter and Edit remain visible. |
 

@@ -36,23 +36,13 @@ async page => {
     result.boldApplied = await page.locator('[data-source-path="8"] strong').count() === 1;
     await page.keyboard.press('Control+z');
 
-    // Equation draft is shown inside the block and disables Save without a global warning.
+    // Drafts stay visible and explicitly separate from applied Save content.
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
-    result.equationDraftInBlock = await page.locator('[data-block="equation"] [data-testid="equation-draft-status"]').isVisible();
-    // Save stays focusable while disabled (aria-disabled, not the native attribute) so its
-    // reason is reachable as a Tooltip; see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section.
-    await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').waitFor();
-    result.saveDisabledDuringDraft = true;
-    await page.getByTestId('save').focus();
-    result.disabledSaveFocusable = await page.getByTestId('save').evaluate(node => node === document.activeElement);
-    await page.keyboard.press('Enter');
-    result.draftBlocksSaveRequest = requests.length === 0;
-    await page.locator('.top-bar [data-testid="save"]').hover();
-    await page.locator('[data-slot="tooltip-content"]', {hasText:'Apply or Cancel the Equation edit before saving.'}).waitFor();
-    result.saveTooltipShown = true;
-    result.noGlobalDraftWarning = await page.getByTestId('message-area').count() === 0;
+    result.equationDraftInBlock = await page.getByTestId('equation-draft-status').isVisible();
+    result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
+    result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
     await page.getByTestId('equation-cancel').click();
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     result.saveEnabledAfterCancel = await page.getByTestId('equation-draft-status').count() === 0;
