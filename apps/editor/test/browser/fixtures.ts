@@ -38,7 +38,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "writeability-preflight": {
-    files: [fixture("front-matter.md"), fixture("writable.md")],
+    files: [fixture("front-matter.md"), fixture("preserved-markdown.md"), fixture("blocked-markdown.md"), document("diagram.svg")],
     scenarios: ["writeability-preflight"],
   },
   "figure-authoring": {

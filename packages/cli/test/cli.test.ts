@@ -833,10 +833,8 @@ const CHECK_WRITABLE: [string, string][] = [
   ["bom.md", "\uFEFF# Heading\n\nBody.\n"],
 ];
 const CHECK_NOT_WRITABLE: [string, string, RegExp][] = [
-  ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n", /front matter/],
-  ["aligned-table.md", "| a | b |\n|:--|--:|\n| 1 | 2 |\n", /align "left" became \(absent\)/],
+  ["unclosed-front-matter.md", "---\ntitle: Example\n", /front matter/],
   ["keyboard.md", "Press {kbd}`Ctrl` now.\n", /keyboard/],
-  ["image.md", "![alt](./x.png)\n", /image: align/],
 ];
 
 test("CLI check reports canonical writeability in text and JSON and agrees with format", () => {
@@ -905,7 +903,7 @@ test("check and format agree on complete document fixtures", () => {
   }
 });
 
-test("CLI format fails on front matter without rewriting the file", () => {
+test("CLI format and text editing preserve front matter through the Core writer", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
   try {
     for (const [name, source] of [
@@ -914,12 +912,10 @@ test("CLI format fails on front matter without rewriting the file", () => {
     ]) {
       const file = path.join(dir, name);
       writeFileSync(file, source);
-      const before = readFileSync(file);
       for (const args of [["format", file], ["replace-text", file, "--from", "Heading", "--to", "Changed"]]) {
         const result = run(args);
-        assert.equal(result.status, 1, `${name} ${args[0]}`);
-        assert.match(result.stderr, /cannot be preserved in canonical Markdown: .*front matter/, `${name} ${args[0]}`);
-        assert.deepEqual(readFileSync(file), before, `${name} ${args[0]}`);
+        assert.equal(result.status, 0, `${name} ${args[0]}`);
+        assert.equal(readFileSync(file, "utf8"), `---\ntitle: Example\n---\n\n# ${args[0] === "format" ? "Heading" : "Changed"}\n`);
       }
     }
   } finally {

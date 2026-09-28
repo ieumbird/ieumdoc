@@ -1,7 +1,7 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view.browser.js.
 // Switches between Visual and the read-only Source view, checks that Source is the canonical
 // Markdown Save would write (including unsaved Visual edits), that the file is only written by
-// Save, that Equation/Figure drafts survive Source, and that unwritable documents keep Source blocked.
+// Save, that Equation/Figure drafts survive Source, and that unwritable documents show their original Source.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
 async page => {
@@ -124,23 +124,14 @@ async page => {
   await page.getByTestId('figure-cancel').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
 
-  // G. A document Core cannot write canonically has no Source: the open-time writeability warning
-  // already names the reason, Source stays disabled with a hint, nothing is requested, and the
-  // file is unchanged.
+  // G. Unwritable documents expose original source without creating an unsaveable edit.
   await open(lossy);
   await page.getByTestId('writeability-warning').waitFor();
-  await page.getByText('Editable paragraph.', {exact:true}).click();
-  await page.keyboard.press('End');
-  await page.keyboard.type(' Changed');
-  await source.hover();
-  result.unpreservableSourceBlocked = await source.getAttribute('aria-disabled') === 'true' &&
-    await page.getByText('IeumDoc cannot write this document as canonical Markdown, so there is no Source to show.').isVisible() &&
-    /cannot be preserved in canonical Markdown: .*keyboard/.test(await page.getByTestId('writeability-warning').innerText());
-  await source.dispatchEvent('click');
-  result.unpreservableStaysVisual = await sourceView.count() === 0 && await editor.isVisible() &&
-    await page.getByTestId('error').count() === 0;
+  result.unpreservableReadOnly = await page.locator('.document-editor').getAttribute('contenteditable') === 'false';
+  await showSource();
+  result.unpreservableOriginalSource = await sourceText() === lossyBefore &&
+    await sourceView.getByText('Original Markdown · read-only', {exact:true}).count() === 1;
   result.unpreservableFileUnchanged = await markdown(lossy, 'keyboard.md') === lossyBefore;
-  result.unpreservableEditKept = await page.getByText('Editable paragraph. Changed', {exact:true}).count() === 1;
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

@@ -316,8 +316,8 @@ function blockPos(state: EditorState, index: number): number {
   return pos;
 }
 
-function addedCell(state: EditorState, header: boolean) {
-  return state.schema.nodes.tableCell.create({ header, [TABLE_CELL_ADDED_ATTR]: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+function addedCell(state: EditorState, header: boolean, align = "") {
+  return state.schema.nodes.tableCell.create({ header, align, [TABLE_CELL_ADDED_ATTR]: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
 }
 
 /** Add an empty row below the caret's row, or below the last row; the caret moves into it. */
@@ -326,7 +326,7 @@ export function addTableRowBelow(state: EditorState, index: number): Transaction
   const table = state.doc.child(index);
   const current = tableCellAt(state, index);
   const row = (current?.row ?? table.childCount - 1) + 1;
-  const cells = Array.from({ length: table.child(0).childCount }, () => addedCell(state, false));
+  const cells = Array.from({ length: table.child(0).childCount }, (_, column) => addedCell(state, false, table.child(0).child(column).attrs.align));
   let at = blockPos(state, index) + 1;
   for (let i = 0; i < row; i++) at += table.child(i).nodeSize;
   const tr = closeHistory(state.tr).insert(at, state.schema.nodes.tableRow.create(null, cells));

@@ -501,7 +501,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
-- front matter가 있는 문서는 열고 읽을 수 있지만 `format`/Save는 파일을 쓰기 전에 실패한다(아래 "Canonical Input Safety v1"). `check`는 이를 미리 알리고, Editor는 문서를 연 즉시 저장할 수 없다고 표시한다(아래 "Writeability Preflight v1"). front matter 편집·보존은 범위가 아니다.
+- 닫힌 front matter는 시각 편집 없이 보존한다. 지원 본문을 편집하고 Save/Reload해도 메타데이터가 유지된다. 상세 범위는 [Document support v1](../design/document-support-v1.md)을 따른다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
@@ -704,7 +704,7 @@ pnpm exec playwright-cli -s=ieumdoc-figure close
 
 ## Table cell editing v1
 
-Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬, merged cell은 범위가 아니다.
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬 변경, merged cell은 범위가 아니다. 기존 열 정렬은 표시·저장한다.
 
 유효 조건(Core round-trip에서 확인한 조건이다):
 
@@ -745,7 +745,7 @@ Core가 새 table, 기존 table의 행과 열을 만든다. 모두 canonical Mar
 - `insertTable`: top-level 위치에 plain-text cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
 - `insertTableRow`: 빈 body 행을 넣는다. header 행 위(row 0)에는 넣을 수 없다.
 - `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 서식 있는(읽기 전용) cell이 있는 표에도 넣을 수 있다.
-- 열 정렬(`:--`)이 있는 표는 canonical Markdown이 정렬을 보존하지 못해 원래 저장할 수 없고, 행/열 추가도 실패한다. 행/열 삭제·이동은 범위가 아니다.
+- 기존 열 정렬(`:--`, `:-:`, `--:`)은 셀 편집과 저장 뒤에도 유지된다. 새 행은 기존 열의 정렬을 따르고, 새 열은 정렬을 지정하지 않는다. 행/열 삭제·이동은 범위가 아니다.
 
 CLI:
 
@@ -827,7 +827,7 @@ Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`
 - `Visual`로 돌아오면 미저장 편집과 Undo/Redo가 그대로 남는다(Editor는 숨겨질 뿐 다시 만들어지지 않는다).
 - Save와 save status는 두 view에서 같다. Source에서 Save하면 보이던 Markdown이 그대로 저장된다. 다른 파일을 Open/New하면 Visual로 돌아간다.
 - Apply되지 않은 Equation/Figure draft는 Source에 포함되지 않는다. 안내 문구가 보이며 Visual로 돌아오면 입력 중이던 값이 그대로 남는다.
-- 비워진 기존 paragraph 등 실제 저장 불가 내용은 `Source view unavailable: …`로 알리고 Visual에 남는다. 새 빈 편집용 paragraph는 제외한다. 외부 변경 충돌 뒤에도 현재 세션의 확정 내용을 Source로 확인·복사할 수 있으며 파일은 쓰지 않는다. 열 때부터 canonical write가 불가능한 문서는 기존 writeability 경고와 함께 Source를 막는다.
+- 비워진 기존 paragraph 등 실제 저장 불가 내용은 `Source view unavailable: …`로 알리고 Visual에 남는다. 새 빈 편집용 paragraph는 제외한다. 외부 변경 충돌 뒤에도 현재 세션의 확정 내용을 Source로 확인·복사할 수 있으며 파일은 쓰지 않는다. 열 때부터 canonical write가 불가능한 문서는 읽기 전용이며, Source는 `Original Markdown · read-only`로 원본을 보여 준다.
 - CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본과 canonical 기준값 `expected.md`는 `pnpm browser:prepare`가 만든다):
@@ -892,13 +892,13 @@ Core parse 경계(`packages/core/src/myst/parse.ts`)의 계약이다. canonical 
 
 - 입력한 텍스트는 그대로다. MyST 기본값인 typographic quote 치환(markdown-it `typographer` + `smartquotes`)을 끈다. `Don't panic.`, `The state is "READY".`는 Editor Save / CLI 쓰기 / Reload 뒤에도 곧은 따옴표로 남는다. 문서에 이미 있는 `“ ” ‘ ’`도 쓴 그대로 남는다.
 - 파일 맨 앞의 UTF-8 BOM은 인코딩 표시일 뿐 내용이 아니다. parse 전에 한 번 제거하므로 `<BOM># Heading`은 heading이다. Save / `format` 결과에는 BOM을 쓰지 않는다. 문서 중간의 U+FEFF는 내용으로 남는다.
-- front matter(`---`로 시작하는 문서 첫 block)는 읽을 수 있지만(Editor에서는 Unsupported block) canonical Markdown으로 보존할 수 없으므로 `format` / Editor Save / Source view / 다른 쓰기 명령이 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: … (front matter) …`로 실패한다. 판별은 MyST parser가 만든 첫 code block과 그 source 첫 글자로 한다. 문서 중간의 `---`(thematic break), setext heading, 문서 맨 앞의 ```` ```yaml ```` block은 front matter가 아니다. MyST는 닫는 `---`가 없어도 문서 끝까지를 front matter로 읽으므로 그런 문서도 쓰기가 거부된다.
+- 닫힌 front matter는 문서 맨 앞의 메타데이터로 보존한다. 일반 YAML code fence와 구분하며, 닫히지 않았거나 지원하지 않는 delimiter를 쓴 front matter, 메타데이터를 본문으로 이동시키는 쓰기는 거부한다. 표 열 정렬과 일반 Markdown 이미지도 문서 전체의 canonical round-trip 검사를 통과한 경우 보존한다.
 
 수동 확인:
 
 ```bash
 printf '\xef\xbb\xbf# Heading\n\nBody.\n' > /tmp/bom.md && pnpm ieumdoc format /tmp/bom.md && head -c 12 /tmp/bom.md | od -c   # BOM 없이 "# Heading"
-printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc format /tmp/fm.md; cat /tmp/fm.md   # 실패, 파일 그대로
+printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc format /tmp/fm.md; cat /tmp/fm.md   # 성공, front matter 유지
 ```
 
 브라우저 회귀: `pnpm browser:test quote-save-reload`는 scratch 파일 `tmp/quote-save-reload/quotes.md`의 문단에 `Don't panic.`과 `The state is "READY".`를 입력하고 Save → Reload → 다시 열기 뒤 파일과 Editor가 입력 그대로인지 확인한다.
@@ -915,21 +915,21 @@ printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc
 
 보장하지 않는 것: 이미지 등 asset 파일의 존재, reference target의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
 
-저장할 수 없는 예(모두 현재 canonical writer가 의미를 보존하지 못해 거부하는 것): front matter, 정렬이 있는 Markdown 표(`|:--|`), 단독 Markdown image, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
+저장할 수 없는 예(현재 canonical writer가 의미를 보존하지 못해 거부하는 것): 닫히지 않은 front matter, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
 
 ```bash
 printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md
-pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid / 0 code / 1 heading, stderr: writeability failed: …(front matter)…, exit=1
+pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid, writeability ok, exit=0
 ```
 
 Editor:
 
-- 저장할 수 없는 문서도 정상으로 열리고 내용이 그대로 보인다(`Open failed`가 아니다). 연 즉시 top bar 아래에 닫을 수 없는 경고 `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. <이유>`가 보이고, status는 `Cannot save`다.
-- 편집은 막지 않지만 그 문서가 열려 있는 동안 Save/Source는 비활성이다. 편집이 남으면 Open/New도 보호한다. 다른 문서로 이동하려면 Reload에서 명시적으로 버릴지 확인한다.
-- writeability는 문서 응답(Open, Reload, New, Save)마다 Host가 Core로 계산한다. 편집 중 매 입력마다 다시 계산하지 않는다. 저장할 수 없는 block을 지워도 그 세션의 Save는 계속 비활성화된다. 파일을 고친 뒤 다시 연다.
-- 저장 가능한 문서의 Ready/Save/Source 동작은 그대로다.
+- 문서 전체를 Core가 보존할 수 있으면 지원 본문을 편집할 수 있다. front matter·일반 이미지 등 시각 편집 미지원 콘텐츠는 읽기 전용이며 종류와 원본 위치·내용을 펼쳐 볼 수 있다.
+- 실제 저장 불가 문서는 입력 전에 읽기 전용으로 열린다. `Read-only: IeumDoc cannot save this document safely.` 경고에 이유와 위치를 표시하고 Save를 비활성화한다. 블록 조작과 수식·이미지 속성 편집으로 이 상태를 우회할 수 없다.
+- 이때 Source는 저장 후보가 아닌 `Original Markdown · read-only`를 보여 준다. 원문을 복사하거나 외부 편집기/기존 CLI에서 문제를 고친 뒤 Reload한다. Host는 수정한 파일을 다시 parse하여 저장 가능 여부를 Core로 재판정한다.
+- 저장 가능한 편집 세션은 매 Save/Source 요청에서 현재 적용 내용을 Core로 검증한다. 실패하면 파일을 쓰지 않고 세션을 보존한다.
 
-브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch의 front matter 문서를 열어 내용·경고·`Cannot save`를 확인하고, 편집 뒤에도 Save/Source가 요청을 보내지 않으며 파일이 byte 단위로 그대로인지 확인한다. 이어서 저장 가능한 문서를 열어 정상 Save를 확인하고, front matter 문서를 다시 열어 경고가 돌아오는지 확인한다.
+브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch 문서의 front matter·정렬 표·일반/인라인 이미지가 본문·셀 편집 → Save → Reload 뒤 보존되는지 확인한다. task list가 있는 문서에서는 입력·Save 차단과 원문 열람을 확인한 뒤, 다른 Core-backed client가 문제 블록을 제거하고 Reload했을 때 편집·저장이 복구되는지 확인한다.
 
 ## Editing session and Save (#40)
 

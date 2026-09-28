@@ -163,3 +163,18 @@ test("formatted caption and table cell stay read-only", () => {
   assert.equal(formattedCell.rows[1]?.cells[0]?.editable, false);
   assert.equal(formattedCell.rows[1]?.cells[0]?.text, "x");
 });
+
+test("read-only projections expose source and kind without making source a write path", () => {
+  const source = "# Title\n\n![alt](./x.png \"Title\")\n\nInline ![alt](./x.png) image.\n\nBody.\n";
+  const document = parse(source);
+  const image = getEditableDocument(document).blocks[1];
+  assert.equal(image.block, "unsupported");
+  assert.deepEqual(image.original, { kind: "Markdown image", text: '![alt](./x.png "Title")', line: 3 });
+  const paragraph = getEditableDocument(document).blocks[2];
+  assert.equal(paragraph.block, "paragraph");
+  assert.equal(paragraph.block === "paragraph" && paragraph.editable, false);
+  assert.equal(paragraph.original?.text, "Inline ![alt](./x.png) image.");
+  // Returned source is display data: modifying it cannot alter the opaque Document.
+  image.original!.text = "changed display only";
+  assert.equal(serialize(document), source);
+});

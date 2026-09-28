@@ -193,3 +193,19 @@ test("Host rejects table edits that do not match the snapshot table", () => {
     assert.throws(() => saveEdits(mixed, { tables: [table as never] }), reason);
   }
 });
+test("aligned table insertion keeps the displayed grid consistent with Core Save", () => {
+  const source = "Intro.\n\n| L | R |\n|:--|--:|\n| a | b |\n";
+  let { document, state, rejected } = editorState(source);
+  state = apply(state, addTableRowBelow(caretIn(state, 1, 0), TABLE));
+  state = apply(state, addTableColumnRight(state, TABLE));
+  assert.deepEqual(rejected, []);
+  const projected = state.doc.toJSON() as TiptapJSON;
+  const table = projected.content![TABLE];
+  for (const row of table.content!) assert.deepEqual(row.content!.map(cell => cell.attrs?.align), ["left", "", "right"]);
+  const saved = saveEdits(source, collectSupportedEdits(document, projected)).document.blocks[TABLE];
+  assert.ok(saved.block === "table");
+  for (const row of saved.rows) assert.deepEqual(row.cells.map(cell => cell.align ?? ""), ["left", "", "right"]);
+  // There is no alignment authoring operation: added cells cannot silently claim one.
+  table.content![2].content![0].attrs!.align = "center";
+  assert.throws(() => collectSupportedEdits(document, projected), /column alignment/);
+});

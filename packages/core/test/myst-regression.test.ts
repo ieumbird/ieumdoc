@@ -29,7 +29,9 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
     validateStructure(reparsed);
     assert.equal(canonical, expected);
     assert.deepEqual(original, before, "serialization must not mutate its input");
-    assert.deepEqual(getEditableDocument(reparsed), getEditableDocument(original));
+    // Opening-source locations and spelling are provenance, not semantics.
+    assert.deepEqual(getEditableDocument(reparsed).blocks.map(({ original, ...block }) => block),
+      getEditableDocument(original).blocks.map(({ original, ...block }) => block));
     assert.deepEqual(inspectDocument(reparsed), inspectDocument(original));
     assert.equal(serialize(reparsed), canonical);
 

@@ -1,4 +1,4 @@
-import type { InlineContent } from "@ieumdoc/core";
+import type { EditableBlock, InlineContent } from "@ieumdoc/core";
 
 export type TiptapMark = {
   type: string;
@@ -9,7 +9,7 @@ export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: TiptapMark[];
-  attrs?: Record<string, string | number | boolean | string[]>;
+  attrs?: Record<string, string | number | boolean | string[] | EditableBlock["original"]>;
   content?: TiptapJSON[];
 };
 

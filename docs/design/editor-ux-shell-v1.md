@@ -14,7 +14,7 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
-Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 ## Writing interactions
 

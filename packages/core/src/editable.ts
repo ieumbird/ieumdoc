@@ -3,7 +3,8 @@ import { supportedFigureContent } from "./myst/figure.ts";
 import { tableCellText } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
-import { type MystDocument, type MystNode, toText } from "./myst/tree.ts";
+import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
+import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
   path: NodePath;
@@ -16,13 +17,14 @@ export type EditableTableCell = {
   text: string;
   header: boolean;
   editable: boolean;
+  align?: "left" | "center" | "right";
 };
 
 export type EditableTableRow = {
   cells: EditableTableCell[];
 };
 
-export type EditableBlock =
+export type EditableBlock = (
   | {
       block: "heading";
       path: NodePath;
@@ -71,6 +73,9 @@ export type EditableBlock =
       block: "unsupported";
       path: NodePath;
       text: string;
+    }) & {
+      /** Opening-source context for visually unsupported content; never used to write. */
+      original?: { kind: string; text: string; line: number };
     };
 
 export type EditableDocument = {
@@ -78,8 +83,27 @@ export type EditableDocument = {
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
-  const blocks = (document.children ?? []).map((node, index) => toBlock(node, [index]));
+  const blocks = (document.children ?? []).map((node, index) => {
+    const block = toBlock(node, [index]);
+    const readonly = block.block === "unsupported" || ("editable" in block && !block.editable) ||
+      (block.block === "table" && block.rows.some(row => row.cells.some(cell => !cell.editable)));
+    const source = readonly ? sourceExcerpt(document, node) : undefined;
+    if (source) block.original = { kind: contentKind(node), ...source };
+    return block;
+  });
   return { blocks };
+}
+
+function contentKind(node: MystNode): string {
+  if (node[FRONT_MATTER_FIELD] !== undefined) return "Front matter";
+  if (node.type === "image") return "Markdown image";
+  const kinds = new Set<string>();
+  const visit = (child: MystNode) => {
+    if (!["text", "paragraph"].includes(child.type)) kinds.add(child.type);
+    child.children?.forEach(visit);
+  };
+  node.children?.forEach(visit);
+  return `${node.type}${kinds.size ? ` (${[...kinds].join(", ")})` : ""}`;
 }
 
 function toBlock(node: MystNode, path: NodePath): EditableBlock {
@@ -162,6 +186,8 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
       text: toText(cell),
       header: rowIndex === 0,
       editable: tableCellText(cell) !== undefined,
+      ...(["left", "center", "right"].includes(String(cell.align))
+        ? { align: cell.align as "left" | "center" | "right" } : {}),
     })),
   }));
   return {

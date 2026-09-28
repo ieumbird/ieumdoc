@@ -93,5 +93,6 @@ test("public Core rejects invalid heading changes without mutating the source", 
   assert.equal(serialize(readonlyHeading), readonlyBefore);
   assert.deepEqual(getEditableDocument(readonlyHeading).blocks[0], {
     block: "heading", path: [0], level: 2, text: "Read-only heading", editable: false,
+    original: { kind: "heading (strong)", line: 1, text: "## **Read-only heading**" },
   });
 });
