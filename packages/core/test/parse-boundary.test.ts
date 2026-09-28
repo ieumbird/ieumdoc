@@ -113,14 +113,21 @@ test("a leading UTF-8 byte order mark is not document content", () => {
 });
 
 test("closed front matter remains metadata when the body changes", () => {
-  const metadata = "---\ntitle: Example\n# Keep comments and YAML spelling\nauthors:\n  - name: 'Kim'\nabstract: |\n  First line.\n  Second line.\n---\n";
-  for (const bom of ["", "\uFEFF"]) {
+  for (const metadata of [
+    "---\ntitle: Example\n# Keep comments and YAML spelling\nauthors:\n  - name: 'Kim'\nabstract: |\n  First line.\n  Second line.\n---\n",
+    // YAML chomping indicators can make trailing blank lines meaningful.
+    "---\nabstract: |+\n  Keep trailing lines.\n\n\n---\n",
+    "---\nabstract: |-\n  Strip trailing lines.\n\n---\n",
+  ]) for (const bom of ["", "\uFEFF"]) {
     const document = parse(`${bom}${metadata}\n# Heading\n`);
     const edited = updateNodeTextAtPath(document, [1], "Heading", "Changed");
     assert.equal(persisted(edited).markdown, `${metadata}\n# Changed\n`);
     assert.equal(getEditableDocument(document).blocks[0].original?.kind, "Front matter");
   }
-  for (const source of ["---\ntitle: Unclosed\n", "---\n\n# Heading\n\nBody.\n"]) {
+  for (const source of [
+    "---\ntitle: Unclosed\n", "---\n\n# Heading\n\nBody.\n",
+    "---\nabstract: |\n  ---\n  text\n---\n\nBody.\n",
+  ]) {
     assert.throws(() => serialize(parse(source)), /front matter must be closed/);
   }
 });

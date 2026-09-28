@@ -45,8 +45,16 @@ function markFrontMatter(document: MystDocument, source: string): void {
   if (first?.type === "code" && first.position?.start.line === 1 && source.startsWith("-")) {
     const lines = source.split(/\r?\n/);
     const opener = /^(-{3,})[\t ]*$/.exec(lines[0]);
-    const closer = /^[\t ]{0,3}(-{3,})[\t ]*$/.exec(lines[(first.position.end.line ?? 1) - 1]);
+    // An indented marker can belong to a YAML block scalar. The upstream rule
+    // also accepts it as a closer; do not reinterpret that ambiguous input.
+    const closer = /^(-{3,})[\t ]*$/.exec(lines[(first.position.end.line ?? 1) - 1]);
     first[FRONT_MATTER_FIELD] = opener && closer && first.position.end.line > 1 &&
       closer[1].length >= opener[1].length ? true : "unclosed or unsupported delimiter";
+    if (first[FRONT_MATTER_FIELD] === true) {
+      // MyST's code conversion trims a trailing blank line. In YAML a block scalar
+      // (notably |+) can give that newline meaning. Keep the complete metadata value;
+      // the marker above keeps its role and required document-start context semantic.
+      first.value = lines.slice(1, first.position.end.line - 1).join("\n");
+    }
   }
 }
