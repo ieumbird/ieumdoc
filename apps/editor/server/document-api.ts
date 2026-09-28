@@ -15,6 +15,7 @@ import {
   insertTable,
   insertTableColumn,
   insertTableRow,
+  insertList,
   insertParagraph,
   parse,
   removeBlock,
@@ -28,6 +29,7 @@ import {
   updateAdmonitionInlineContent,
   updateFigure,
   updateLabel,
+  updateList,
   updateTableCell,
   updateParagraphInlineContent,
   validateFigure,
@@ -37,6 +39,7 @@ import {
   type AdmonitionVariant,
   type FigureContent,
   type InlineContent,
+  type ListContent,
   type NodePath,
 } from "@ieumdoc/core";
 
@@ -89,6 +92,12 @@ export type TableShapeEdit = {
   cells: { row: number; column: number; text: string }[];
 };
 
+/** The whole new content of an editable list. */
+export type ListEdit = {
+  path: NodePath;
+  list: ListContent;
+};
+
 /** An Equation or Figure label; an empty `to` removes it. */
 export type LabelEdit = {
   path: NodePath;
@@ -102,7 +111,8 @@ export type InsertEdit =
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] };
+  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
+  | { block: "list"; list: ListContent };
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -116,6 +126,7 @@ export type SupportedEdits = {
   cells?: TableCellEdit[];
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
+  lists?: ListEdit[];
   labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
@@ -283,6 +294,7 @@ export function saveCurrentDocument(
     cells: request.cells ?? [],
     tables: request.tables ?? [],
     admonitions: request.admonitions ?? [],
+    lists: request.lists ?? [],
     labels: request.labels ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
@@ -369,6 +381,14 @@ export function saveEdits(
       throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
     }
     document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, admonition.content));
+  }
+  for (const edit of edits.lists ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
+    assertPath(edit.path, "list");
+    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "list") {
+      throw new Error(`list edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    document = editAt(target, () => updateList(document, edit.path, edit.list));
   }
   for (const equation of edits.equations ?? []) {
     const target = { path: [equation.path[0]], part: 0 };
@@ -479,6 +499,7 @@ export function saveEdits(
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
+    ...(edits.lists ?? []).map(edit => edit.path),
     ...(edits.tables ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
@@ -525,6 +546,8 @@ export function saveEdits(
       }
       continue;
     }
+    // Core validates the list content itself when it is inserted.
+    if (insert.block === "list") continue;
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
@@ -584,6 +607,8 @@ export function saveEdits(
       document = editAt(target, () => insertEquation(document, index, item.latex));
     } else if (item.block === "table") {
       document = editAt(target, () => insertTable(document, index, item.rows, item.align));
+    } else if (item.block === "list") {
+      document = editAt(target, () => insertList(document, index, item.list));
     } else {
       document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }
@@ -701,6 +726,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     cells: Array.isArray(body.cells) ? body.cells : [],
     tables: Array.isArray(body.tables) ? body.tables : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
+    lists: Array.isArray(body.lists) ? body.lists : [],
     labels: Array.isArray(body.labels) ? body.labels : [],
     splits: Array.isArray(body.splits) ? body.splits : [],
     merges: Array.isArray(body.merges) ? body.merges : [],

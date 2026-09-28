@@ -5,7 +5,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { freshBlockPath } from "./tiptap-document.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "equation", "figure", "table", "tableRow", "tableCell", "text", "hardBreak", "inlineMath", "crossReference"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "text", "hardBreak", "inlineMath", "crossReference"]);
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 

@@ -410,6 +410,22 @@ h6.heading { font-size: var(--font-size-sm); }
   margin: var(--space-4) 0;
 }
 
+.document-editor > .list {
+  margin: var(--space-4) 0;
+}
+
+.list {
+  padding-left: var(--space-6);
+}
+
+ul.list { list-style: disc; }
+ul.list ul.list { list-style: circle; }
+ol.list { list-style: decimal; }
+
+.list .paragraph {
+  margin: 0;
+}
+
 .admonition {
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--id-color-border);

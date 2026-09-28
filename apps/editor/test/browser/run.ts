@@ -89,6 +89,7 @@ export const STABLE_SCENARIOS = [
   "inline-math-split",
   "admonition-authoring",
   "structural-block-authoring",
+  "list-authoring",
   "source-view",
   "source-view-pending",
   "label-authoring",

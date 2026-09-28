@@ -12,6 +12,7 @@ import {
   insertTable,
   insertTableRow,
   insertTableColumn,
+  insertList,
   insertHardBreak,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -26,6 +27,7 @@ import {
   updateFigure,
   updateLabel,
   updateTableCell,
+  updateList,
   validateStructure,
   type Document,
   type AdmonitionVariant,
@@ -33,6 +35,7 @@ import {
   type EditableDocument,
   type NodePath,
   type InlineContent,
+  type ListContent,
 } from "@ieumdoc/core";
 
 type CommandSpec = {
@@ -68,6 +71,12 @@ const OFFSET_NOTE = [
 const FIGURE_NOTE = [
   "The image URL is required. An empty --alt or --caption removes that property.",
   "The caption is plain text. Values that cannot round-trip through canonical Markdown are rejected.",
+];
+const LIST_NOTE = [
+  "--list is Core ListContent JSON: {\"ordered\": boolean, \"start\"?: number, \"items\": [...]}.",
+  "Each item is {\"content\": InlineContent[], \"list\"?: ListContent}; the optional list nests below the item.",
+  "Numbered lists start at \"start\" (default 1); bullet lists have no start. Every item needs non-empty text.",
+  "Example: --list '{\"ordered\":false,\"items\":[{\"content\":[{\"kind\":\"text\",\"text\":\"First\"}]}]}'",
 ];
 const COMMANDS: CommandSpec[] = [
   {
@@ -217,6 +226,27 @@ const COMMANDS: CommandSpec[] = [
       "--align is an optional JSON array of left, center, right or null, one per column.",
       "Cell text must be one line without leading or trailing whitespace.",
       "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
+    ],
+  },
+  {
+    name: "insert-list",
+    summary: "Insert a bullet or numbered list at a top-level index",
+    usage: "ieumdoc insert-list <file> --at <index> --list <json>",
+    details: [
+      "Insert a bullet or numbered list, optionally with nested lists, at a top-level index.",
+      ...LIST_NOTE,
+    ],
+  },
+  {
+    name: "update-list",
+    summary: "Replace the content of an editable list through Core",
+    usage: "ieumdoc update-list <file> --path <index> --list <json>",
+    details: [
+      "Replace the kind, numbering, items and nesting of one editable top-level list.",
+      ...LIST_NOTE,
+      "inspect --format json shows an editable list's current content in the same shape.",
+      "Task lists and items with several paragraphs or other blocks are read-only.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -434,6 +464,14 @@ function main(argv: string[]): number {
       save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align")));
       return 0;
     }
+    case "insert-list": {
+      save(file, insertList(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list")));
+      return 0;
+    }
+    case "update-list": {
+      save(file, updateList(parse(readFile(file)), pathFlag(flags), jsonFlag<ListContent>(flags, "--list")));
+      return 0;
+    }
     case "insert-table-row": {
       save(file, insertTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
       return 0;
@@ -537,6 +575,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],
   "insert-table": ["--at", "--cells", "--align"],
+  "insert-list": ["--at", "--list"],
+  "update-list": ["--path", "--list"],
   "insert-table-row": ["--path", "--at"],
   "insert-table-column": ["--path", "--at"],
   "update-table-cell": ["--path", "--text"],
@@ -661,6 +701,9 @@ function machineBlock(block: EditableBlock): MachineNode[] {
       ),
     ];
   }
+  if (block.block === "list") {
+    return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
+  }
   return [{ ...base, text: block.text }];
 }
 
@@ -698,7 +741,24 @@ function formatBlock(block: EditableBlock): string[] {
     );
     return [`${path} table`, ...cells];
   }
+  if (block.block === "list") {
+    return [`${path} list`, ...formatListItems(block, 1)];
+  }
   return [`${path} unsupported text=${quote(block.text)}`];
+}
+
+function formatListItems(list: ListContent, depth: number): string[] {
+  const indent = "  ".repeat(depth);
+  return list.items.flatMap((item, index) => [
+    `${indent}${list.ordered ? `${(list.start ?? 1) + index}.` : "-"} text=${quote(inlineText(item.content))}`,
+    ...(item.list ? formatListItems(item.list, depth + 1) : []),
+  ]);
+}
+
+function inlineText(content: InlineContent[]): string {
+  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : inlineText(item.children))).join("");
 }
 
 function formatPath(path: NodePath): string {
