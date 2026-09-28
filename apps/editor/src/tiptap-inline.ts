@@ -60,13 +60,15 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "text" || item.kind === "break" || item.kind === "math" || item.kind === "reference") {
+    if (item.kind === "text" || item.kind === "code" || item.kind === "break" || item.kind === "math" || item.kind === "reference") {
       if (item.kind === "text" && item.text.length === 0) continue;
       const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" }
         : item.kind === "math" ? { type: "inlineMath", attrs: { value: item.value } }
         : item.kind === "reference" ? { type: "crossReference", attrs: { role: item.role, label: item.label } }
+        : item.kind === "code" ? { type: "text", text: item.value }
         : { type: "text", text: item.text };
       const applied: TiptapMark[] = [];
+      if (item.kind === "code") applied.push({ type: "code" });
       if (marks.bold) applied.push({ type: "bold" });
       if (marks.italic) applied.push({ type: "italic" });
       if (marks.link) applied.push({ type: "link", attrs: { href: marks.link.url, title: marks.link.title ?? null } });
@@ -114,17 +116,24 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
 
   const marks: Mark[] = [];
   const seen = new Set<string>();
+  let code = false;
   for (const mark of node.marks ?? []) {
     if (!isTiptapJSON(mark) || typeof mark.type !== "string") {
       throw new Error(`unsupported Tiptap mark at paragraph child ${index}`);
     }
-    if (mark.type !== "bold" && mark.type !== "italic" && mark.type !== "link") {
+    if (mark.type !== "bold" && mark.type !== "italic" && mark.type !== "link" && mark.type !== "code") {
       throw new Error(`unsupported Tiptap mark "${mark.type}" at paragraph child ${index}`);
     }
     if (seen.has(mark.type)) {
       throw new Error(`duplicate Tiptap mark "${mark.type}" at paragraph child ${index}`);
     }
     seen.add(mark.type);
+    // Inline code is a kind of text, not a wrapper around other content.
+    if (mark.type === "code") {
+      if (node.type !== "text") throw new Error(`inline code holds text only at paragraph child ${index}`);
+      code = true;
+      continue;
+    }
     if (node.type === "crossReference" && mark.type === "link") {
       throw new Error(`a cross-reference cannot be inside a link at paragraph child ${index}`);
     }
@@ -137,6 +146,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   const item: InlineContent = node.type === "hardBreak" ? { kind: "break" }
     : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
     : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as "eq" | "numref", label: String(node.attrs!.label) }
+    : code ? { kind: "code", value: node.text! }
     : { kind: "text", text: node.text! };
   const order = [BOLD.key, ITALIC.key];
   return { item, marks: marks.sort((a, b) => rank(a, order) - rank(b, order)) };

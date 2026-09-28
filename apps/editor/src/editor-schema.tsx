@@ -1,5 +1,8 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
+import { Code } from "@tiptap/extension-code";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { common, createLowlight } from "lowlight";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
@@ -153,6 +156,35 @@ const SourcedOrderedList = OrderedList.extend({
 
 const SimpleListItem = ListItem.extend({
   content: "paragraph (bulletList | orderedList)?",
+});
+
+// Code block v1: a language and literal code. Enter and Tab insert text; three Enters or
+// ArrowDown at the end leave the block. The ``` input shortcut is not part of v1.
+// Syntax highlighting is display-only: lowlight decorations never enter the document or
+// the saved Markdown. An empty or unregistered language shows plain code.
+const lowlight = createLowlight(common);
+
+const SourcedCodeBlock = CodeBlockLowlight.extend({
+  addAttributes() {
+    return blockAttrs({ language: { default: "", rendered: false } });
+  },
+  addInputRules() {
+    return [];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CodeBlockView);
+  },
+}).configure({ lowlight, defaultLanguage: null, enableTabIndentation: true, tabSize: 4 });
+
+// Inline code is literal text that may sit inside bold, italic or a link, as in Markdown.
+const InlineCode = Code.extend({
+  excludes: "",
+  addInputRules() {
+    return [];
+  },
+  addPasteRules() {
+    return [];
+  },
 });
 
 const ReadonlyHeading = Node.create({
@@ -455,7 +487,8 @@ const ParagraphHardBreak = Extension.create({
         (parent.type.name === "admonition" && parent.attrs.editable === true);
       // A selected inline math node is not replaced by a break.
       if (!editableInlineParent || state.selection instanceof NodeSelection) return true;
-      const marks = state.storedMarks ?? state.selection.$from.marks();
+      // A break ends inline code; code is text only.
+      const marks = (state.storedMarks ?? state.selection.$from.marks()).filter(mark => mark.type.name !== "code");
       return this.editor.chain()
         .insertContent({ type: "hardBreak", marks: marks.map(mark => mark.toJSON()) })
         .command(({ tr }) => { tr.ensureMarks(marks); return true; })
@@ -566,6 +599,8 @@ export function editorExtensions(
     SourcedHeading,
     ReadonlyHeading,
     ReadonlyParagraph,
+    SourcedCodeBlock,
+    InlineCode,
     SourcedBulletList,
     SourcedOrderedList,
     SimpleListItem,
@@ -1213,6 +1248,31 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
           {error ? <span className="link-form-error" role="alert">{error}</span> : null}
         </form>
       ) : null}
+    </NodeViewWrapper>
+  );
+}
+
+function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
+  return (
+    <NodeViewWrapper
+      as="div"
+      className="code-block"
+      data-block="code"
+      data-source-path={String(node.attrs.sourcePath ?? "")}
+    >
+      <input
+        className="code-language"
+        data-testid="code-language"
+        aria-label="Code language"
+        placeholder="Language"
+        spellCheck={false}
+        contentEditable={false}
+        readOnly={!editor.isEditable}
+        value={String(node.attrs.language ?? "")}
+        // A fence language is one word.
+        onChange={(event) => updateAttributes({ language: event.target.value.replace(/[\s`]/g, "") })}
+      />
+      <pre><NodeViewContent<"code"> as="code" /></pre>
     </NodeViewWrapper>
   );
 }

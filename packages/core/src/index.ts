@@ -22,6 +22,7 @@ export { isAdmonitionVariant } from "./myst/admonition.ts";
 export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export type { ListContent, ListItemContent } from "./list.ts";
+export type { CodeBlockContent } from "./code.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 
@@ -58,6 +59,8 @@ export const insertTableRow = fence(operations.insertTableRow);
 export const insertTableColumn = fence(operations.insertTableColumn);
 export const insertList = fence(operations.insertList);
 export const updateList = fence(operations.updateList);
+export const insertCodeBlock = fence(operations.insertCodeBlock);
+export const updateCodeBlock = fence(operations.updateCodeBlock);
 export const removeBlock = fence(operations.removeBlock);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);

@@ -488,6 +488,8 @@ pnpm ieumdoc insert-table-column <file> --path <table> --at <column>
 pnpm ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>
 pnpm ieumdoc insert-list <file> --at <index> --list <json>
 pnpm ieumdoc update-list <file> --path <index> --list <json>
+pnpm ieumdoc insert-code-block <file> --at <index> --code <text> [--language <name>]
+pnpm ieumdoc update-code-block <file> --path <index> [--language <name>] [--code <text>]
 ```
 
 `pnpm ieumdoc help`와 `pnpm ieumdoc <command> --help`는 사용 가능한 명령을 보여 준다.
@@ -507,8 +509,8 @@ index는 `check`가 출력하는 top-level 번호다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline code / inline math만 있는 paragraph다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, Heading level 변경·삭제 메뉴와 handle drag도 유지된다. 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -773,7 +775,7 @@ Editor:
 
 Core가 top-level 글머리표·번호 목록을 만들고(`insertList`), 편집 가능한 목록의 종류·시작 번호·항목·중첩을 통째로 바꾼다(`updateList`). 모두 canonical Markdown으로 다시 읽어 같은 목록이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
 
-- 편집 가능한 목록: 각 항목이 지원 inline(text, strong, emphasis, 일반 link, inline math, `{eq}`/`{numref}`)만 있는 문단 하나와, 선택적으로 중첩 목록 하나를 가진다. 여러 단계 중첩과 글머리표/번호 혼합이 가능하다.
+- 편집 가능한 목록: 각 항목이 지원 inline(text, strong, emphasis, 일반 link, inline code, inline math, `{eq}`/`{numref}`)만 있는 문단 하나와, 선택적으로 중첩 목록 하나를 가진다. 여러 단계 중첩과 글머리표/번호 혼합이 가능하다.
 - 읽기 전용으로 남는 목록: task list(`- [ ]`), 한 항목에 문단이 여럿이거나 코드·표 등 다른 블록이 있는 목록, 지원하지 않는 inline이 있는 목록.
 - 빈 항목은 저장되지 않는다(`empty list item cannot be saved`). 같은 종류의 목록이 바로 이어지면 다시 읽을 때 하나로 합쳐지므로 거부된다.
 - 목록을 만드는 Markdown 입력 단축(`- `, `1. `)은 #55의 범위다.
@@ -796,11 +798,42 @@ Editor:
 
 브라우저 회귀: `pnpm browser:test list-authoring`은 scratch `tmp/list-authoring/lists.md`에서 Enter·Tab·빈 항목 Enter를 실제 키로 입력하고, `/numbered`로 번호 목록을 넣은 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
+## Code block and inline code authoring v1 (#53)
+
+Core가 fenced code block을 만들고(`insertCodeBlock`), 편집 가능한 code block의 언어와 내용을 바꾼다(`updateCodeBlock`). 인라인 코드는 Core `InlineContent`의 `code`로 저장된다. 모두 canonical Markdown으로 다시 읽어 같은 내용이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+
+- 편집 가능한 code block: 언어(한 단어, 없어도 됨)와 코드만 있는 일반 fenced 또는 indented code. 공백·탭·들여쓰기·빈 줄이 보존된다.
+- 읽기 전용으로 남는 것: caption·label 등 option이 있는 ````{code-block}` directive, `{code-cell}` 등 실행형 directive, front matter.
+- 언어는 공백·backtick 없는 한 단어이고 `{`로 시작하지 않는다. 코드 줄바꿈은 `\n`이다. 인라인 코드는 비어 있지 않은 한 줄 텍스트다.
+- 인라인 코드는 text, strong, emphasis, 일반 link, inline math, `{eq}`/`{numref}`와 함께 지원 inline이다. inline code를 감싼 link도 지원된다. split / merge / hard break에서 inline code는 그 문자 수만큼 센다.
+- 구문 강조는 Editor 표시에만 있는 decoration이며 문서에 기록되지 않는다. 등록되지 않은 언어는 평문으로 보인다.
+- 코드 fence(```` ``` ````)와 인라인 코드(`` ` ``) 입력 단축은 별도 이슈의 범위다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-code-block <file> --at 1 --language python --code "def f():`n    return 1"
+pnpm ieumdoc update-code-block <file> --path 1 --language py
+pnpm ieumdoc update-code-block <file> --path 1 --code "print(1)"
+```
+
+`update-code-block`에서 생략한 속성은 바뀌지 않는다. `--language ""`는 언어를 지운다. 두 flag가 모두 없거나, 언어·코드가 유효하지 않거나, 대상이 편집 가능한 code block이 아니면 exit 1이고 파일은 그대로다. text `inspect`는 `code language="py" code="..."`로 보여 주고, `--format json`은 `language`/`code`를 그대로 준다.
+
+Editor:
+
+- `+` 또는 `/` insert menu의 `Code block`은 빈 code block을 만들고 caret을 그 안에 둔다. 아무것도 입력하지 않은 새 code block은 저장되지 않고 변경으로 보지 않는다.
+- code block 안에서 Enter는 새 코드 줄이고 Tab은 4칸 들여쓰기다(Shift+Tab은 내어 쓰기). 빈 줄에서 Enter 세 번 또는 마지막 줄 끝의 ArrowDown은 block을 빠져나간다. block 위의 Language 입력이 fence 언어다(공백·backtick은 지워진다).
+- 기존 fenced code block은 언어와 함께 편집 가능한 상태로 열리고, 언어가 있으면 구문 강조가 표시된다.
+- 텍스트를 선택하고 selection toolbar의 `Inline code`를 누르면 inline code가 적용·해제된다. inline code는 bold/italic/link와 함께 쓸 수 있고, Shift+Enter 줄바꿈은 inline code를 끝낸다.
+- Save → Reload 후 내용·들여쓰기·빈 줄·언어가 그대로다.
+
+브라우저 회귀는 없다. #53은 작업 범위 조정으로 자동 browser scenario를 추가하지 않았으므로, 위 Editor 항목(실제 키 Enter/Tab 동작과 구문 강조 표시 포함)을 수동으로 확인한다.
+
 ## Inline link authoring v1
 
 일반 Markdown link(`[텍스트](URL "선택적 title")`, `<https://...>`)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `link`로 저장되고 split / merge / hard break도 link를 유지한다. `{eq}` / `{ref}` / `{numref}` 같은 cross-reference는 link가 아니다(`{eq}`/`{numref}` 편집은 "Local cross-reference authoring v1").
 
-읽기 전용으로 남는 link: 표시 텍스트가 빈 link(`[](#x)`), code나 image를 감싼 link, `{download}` link, 같은 대상으로 가는 link 두 개가 붙어 있는 paragraph(`[a](x)[b](x)`; 편집기에서 하나로 합쳐지기 때문).
+읽기 전용으로 남는 link: 표시 텍스트가 빈 link(`[](#x)`), image를 감싼 link, `{download}` link, 같은 대상으로 가는 link 두 개가 붙어 있는 paragraph(`[a](x)[b](x)`; 편집기에서 하나로 합쳐지기 때문).
 
 Editor:
 

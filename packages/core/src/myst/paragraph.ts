@@ -9,7 +9,8 @@ import type { MystNode } from "./tree.ts";
 export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
   if (!content || !semanticUnits(content).some((unit) =>
-    unit.kind === "math" || unit.kind === "reference" || (unit.kind === "text" && unit.text.trim().length > 0))) {
+    unit.kind === "math" || unit.kind === "reference" || unit.kind === "code" ||
+    (unit.kind === "text" && unit.text.trim().length > 0))) {
     throw new Error("persistent paragraph must contain non-empty text");
   }
   const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
@@ -35,6 +36,7 @@ function semanticUnits(content: InlineContent[], marks: string[] = []): { kind: 
     }
     // Inline math is one unit carrying its source.
     if (item.kind === "math") return [{ kind: "math", text: item.value, marks }];
+    if (item.kind === "code") return item.value.split("").map((text) => ({ kind: "code", text, marks }));
     if (item.kind === "reference") return [{ kind: "reference", text: `${item.role} ${item.label}`, marks }];
     // split("") deliberately counts UTF-16 units, not Unicode code points.
     return (item.kind === "text" ? item.text.split("") : ["\n"])

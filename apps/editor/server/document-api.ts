@@ -16,6 +16,7 @@ import {
   insertTableColumn,
   insertTableRow,
   insertList,
+  insertCodeBlock,
   insertParagraph,
   parse,
   removeBlock,
@@ -30,6 +31,7 @@ import {
   updateFigure,
   updateLabel,
   updateList,
+  updateCodeBlock,
   updateTableCell,
   updateParagraphInlineContent,
   validateFigure,
@@ -40,6 +42,7 @@ import {
   type FigureContent,
   type InlineContent,
   type ListContent,
+  type CodeBlockContent,
   type NodePath,
 } from "@ieumdoc/core";
 
@@ -92,6 +95,12 @@ export type TableShapeEdit = {
   cells: { row: number; column: number; text: string }[];
 };
 
+/** The new language and code of an editable code block. */
+export type CodeEdit = {
+  path: NodePath;
+  code: CodeBlockContent;
+};
+
 /** The whole new content of an editable list. */
 export type ListEdit = {
   path: NodePath;
@@ -112,7 +121,8 @@ export type InsertEdit =
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
-  | { block: "list"; list: ListContent };
+  | { block: "list"; list: ListContent }
+  | ({ block: "code" } & CodeBlockContent);
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -127,6 +137,7 @@ export type SupportedEdits = {
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
   lists?: ListEdit[];
+  codes?: CodeEdit[];
   labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
@@ -295,6 +306,7 @@ export function saveCurrentDocument(
     tables: request.tables ?? [],
     admonitions: request.admonitions ?? [],
     lists: request.lists ?? [],
+    codes: request.codes ?? [],
     labels: request.labels ?? [],
     splits: request.splits ?? [],
     merges: request.merges ?? [],
@@ -389,6 +401,14 @@ export function saveEdits(
       throw new Error(`list edit is not allowed at [${edit.path.join(",")}]`);
     }
     document = editAt(target, () => updateList(document, edit.path, edit.list));
+  }
+  for (const edit of edits.codes ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
+    assertPath(edit.path, "code block");
+    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "code") {
+      throw new Error(`code block edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    document = editAt(target, () => updateCodeBlock(document, edit.path, edit.code));
   }
   for (const equation of edits.equations ?? []) {
     const target = { path: [equation.path[0]], part: 0 };
@@ -500,6 +520,7 @@ export function saveEdits(
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
     ...(edits.lists ?? []).map(edit => edit.path),
+    ...(edits.codes ?? []).map(edit => edit.path),
     ...(edits.tables ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
@@ -546,8 +567,8 @@ export function saveEdits(
       }
       continue;
     }
-    // Core validates the list content itself when it is inserted.
-    if (insert.block === "list") continue;
+    // Core validates list and code block content itself when it is inserted.
+    if (insert.block === "list" || insert.block === "code") continue;
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
@@ -609,6 +630,8 @@ export function saveEdits(
       document = editAt(target, () => insertTable(document, index, item.rows, item.align));
     } else if (item.block === "list") {
       document = editAt(target, () => insertList(document, index, item.list));
+    } else if (item.block === "code") {
+      document = editAt(target, () => insertCodeBlock(document, index, { language: item.language, code: item.code }));
     } else {
       document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }
@@ -727,6 +750,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     tables: Array.isArray(body.tables) ? body.tables : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
     lists: Array.isArray(body.lists) ? body.lists : [],
+    codes: Array.isArray(body.codes) ? body.codes : [],
     labels: Array.isArray(body.labels) ? body.labels : [],
     splits: Array.isArray(body.splits) ? body.splits : [],
     merges: Array.isArray(body.merges) ? body.merges : [],
@@ -777,7 +801,7 @@ function figureContent(value: FigureContent | undefined): FigureContent {
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
     : inlineText(item.children))).join("");
 }
 

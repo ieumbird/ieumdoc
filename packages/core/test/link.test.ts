@@ -55,7 +55,6 @@ test("unsupported link forms stay read-only", () => {
   // Supported and unsupported cross-references are covered by cross-reference.test.ts.
   for (const source of [
     "See [](#eq-current) here.",
-    "[a `code` link](u)",
     "[![img](i.png)](u)",
     "{download}`./file.zip` text",
   ]) {
