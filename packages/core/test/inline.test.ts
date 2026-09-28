@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   getEditableDocument,
+  insertParagraph,
   parse,
   serialize,
   updateParagraphInlineContent,
@@ -11,6 +12,23 @@ import {
 } from "./core-internal.ts";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
+
+test("paragraph insertion accepts rich inline semantics without a lossy text intermediate", () => {
+  const content: InlineContent[] = [
+    { kind: "strong", children: [{ kind: "text", text: "Voltage" }] },
+    { kind: "text", text: " " }, { kind: "math", value: "V_{dc}" },
+    { kind: "text", text: " at " },
+    { kind: "link", url: "https://example.com", children: [{ kind: "text", text: "source" }] },
+  ];
+  const original = parse("# Title\n");
+  const inserted = insertParagraph(original, 1, content);
+  const saved = serialize(inserted);
+  const block = getEditableDocument(parse(saved)).blocks[1];
+  assert.ok(block.block === "paragraph");
+  assert.deepEqual(block.content, content);
+  assert.equal(serialize(original), "# Title\n");
+  assert.throws(() => insertParagraph(original, 1, [{ kind: "math", value: "" }]), /math/);
+});
 
 const FORMATTED_TEXT = "The converter regulates the DC-link voltage and phase current.";
 const FORMATTED_INLINE: InlineContent[] = [

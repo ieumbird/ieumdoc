@@ -267,7 +267,7 @@ test("delete command declares the removed snapshot blocks and keeps one block", 
   assert.throws(() => DELETE_COMMAND.run(single, 0), /invalid block deletion/);
 });
 
-test("structure guard admits insert and delete only from block commands", () => {
+test("structure guard admits representable engine insertion and deletion as well as block commands", () => {
   const markdown = "AB\n\n# Heading\n\n$$\nx\n$$";
   const doc = docOf(markdown);
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
@@ -283,10 +283,12 @@ test("structure guard admits insert and delete only from block commands", () => 
   let removed: Transaction | undefined;
   deleteSelection(selected, tr => { removed = tr; });
   assert.ok(removed);
-  assert.equal(selected.applyTransaction(removed).state, selected);
+  const deleted = selected.applyTransaction(removed).state;
+  assert.notEqual(deleted, selected);
+  assert.equal(saveEdits(markdown, collectSupportedEdits(loadEditableDocument(markdown), editorDocumentJSON(deleted))).markdown, "AB\n\n# Heading\n");
   const pasted = state.tr.insert(0, schema.nodes.paragraph.create({ sourcePath: "new:pasted" }, schema.text("X")));
-  assert.equal(accepted(pasted), false);
-  assert.equal(rejected, 2);
+  assert.equal(accepted(pasted), true);
+  assert.equal(rejected, 0);
 });
 
 test("inserted and deleted blocks save through Core insertParagraph and removeBlock", () => {

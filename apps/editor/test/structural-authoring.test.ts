@@ -4,15 +4,35 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { EditorState } from "@tiptap/pm/state";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
 import { changeHeadingLevel } from "../src/block-commands.ts";
-import { editorExtensions } from "../src/editor-schema.tsx";
+import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { joinRichProse } from "../src/document-interaction.ts";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile } from "../server/document-api.ts";
+import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } from "../server/document-api.ts";
 
 const source = "# Structural blocks\n\n## Existing heading\n\nKeep this paragraph.\n";
 const warningBody: InlineContent[] = [{ kind: "text", text: "Check current limit." }];
+
+test("both boundary delete keys join heading and rich prose without losing inline semantics", () => {
+  const markdown = "## Heading\n\n**Bold** and $x$.\n";
+  const editable = loadEditableDocument(markdown);
+  const baseline = toTiptapDocument(editable);
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(baseline);
+  for (const backward of [true, false]) {
+    const state = EditorState.create({schema, doc,
+      selection: TextSelection.create(doc, doc.child(0).nodeSize + (backward ? 1 : -1)),
+      plugins: [structureGuardPlugin(baseline, () => assert.fail("representable join was rejected"))]});
+    const tr = joinRichProse(state, backward);
+    assert.ok(tr);
+    const joined = state.applyTransaction(tr).state;
+    const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(joined)));
+    assert.equal(saved.markdown, "Heading**Bold** and {math}`x`.\n");
+    assert.equal(saved.document.blocks[0].block, "paragraph");
+  }
+});
 
 function editorState(markdown: string) {
   const editable = loadEditableDocument(markdown);

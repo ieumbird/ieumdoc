@@ -66,6 +66,7 @@ const BROWSER_STATE_DIAGNOSTIC = `async page => page.evaluate(() => {
 
 /** Scenarios in apps/editor/test/*.browser.js that pass reliably: currently all of them. */
 export const STABLE_SCENARIOS = [
+  "continuous-editing",
   "editor-shell",
   "layout-rules",
   "quiet-document",

@@ -32,6 +32,7 @@ import {
   type EditableBlock,
   type EditableDocument,
   type NodePath,
+  type InlineContent,
 } from "@ieumdoc/core";
 
 type CommandSpec = {
@@ -127,9 +128,10 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-block",
     summary: "Insert a Paragraph block at a top-level index",
-    usage: "ieumdoc insert-block <file> --at <index> --text <text>",
+    usage: "ieumdoc insert-block <file> --at <index> (--text <text> | --content <json>)",
     details: [
       "Insert a Paragraph block at a top-level index.",
+      "Use --text for plain text or --content for Core InlineContent JSON (marks, math, links and references).",
       "",
       "The current implementation inserts a Paragraph block only.",
     ],
@@ -207,11 +209,12 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-table",
     summary: "Insert a Markdown table at a top-level index",
-    usage: "ieumdoc insert-table <file> --at <index> --cells <json>",
+    usage: "ieumdoc insert-table <file> --at <index> --cells <json> [--align <json>]",
     details: [
       "Insert a Markdown table at a top-level index.",
       "--cells is a JSON array of rows, each an array of cell texts; the first row is the header row.",
       "Every row needs the same number of cells. Cells may be empty.",
+      "--align is an optional JSON array of left, center, right or null, one per column.",
       "Cell text must be one line without leading or trailing whitespace.",
       "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
     ],
@@ -364,7 +367,10 @@ function main(argv: string[]): number {
       return 0;
     }
     case "insert-block": {
-      save(file, insertParagraph(parse(readFile(file)), intFlag(flags, "--at"), flag(flags, "--text")));
+      const text = optionalFlag(flags, "--text");
+      const content = optionalFlag(flags, "--content");
+      if ((text === undefined) === (content === undefined)) throw new Error("insert-block requires exactly one of --text or --content");
+      save(file, insertParagraph(parse(readFile(file)), intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content")));
       return 0;
     }
     case "insert-heading": {
@@ -425,7 +431,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "insert-table": {
-      save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells")));
+      save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align")));
       return 0;
     }
     case "insert-table-row": {
@@ -523,14 +529,14 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   inspect: ["--format"],
   format: [],
   "replace-text": ["--from", "--to"],
-  "insert-block": ["--at", "--text"],
+  "insert-block": ["--at", "--text", "--content"],
   "insert-heading": ["--at", "--level", "--text"],
   "insert-admonition": ["--at", "--variant", "--text"],
   "update-heading-level": ["--path", "--from", "--to"],
   "insert-equation": ["--at", "--latex"],
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],
-  "insert-table": ["--at", "--cells"],
+  "insert-table": ["--at", "--cells", "--align"],
   "insert-table-row": ["--path", "--at"],
   "insert-table-column": ["--path", "--at"],
   "update-table-cell": ["--path", "--text"],

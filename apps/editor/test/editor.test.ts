@@ -369,7 +369,7 @@ test("paragraph split stays in its original snapshot group", () => {
   });
   const dispatched = dispatchOf(splitBlock, state);
   assert.equal(dispatched.applied, true);
-  assert.equal(isSupportedDocumentChange(baseline, dispatched.transaction?.doc.toJSON() as TiptapJSON), false);
+  assert.equal(isSupportedDocumentChange(baseline, dispatched.transaction?.doc.toJSON() as TiptapJSON), true);
 });
 
 test("an empty split sibling becomes a new heading insertion without converting the paragraph", () => {

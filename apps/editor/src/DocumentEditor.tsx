@@ -37,7 +37,7 @@ type DocumentEditorProps = {
   document: EditableDocument;
   documentPath: string;
   readOnly?: boolean;
-  onStructuralReject: () => void;
+  onStructuralReject: (reason?: string) => void;
   onEquationDraftChange?: (active: boolean) => void;
   onFigureDraftChange?: (active: boolean) => void;
   /** Presentation only; reuse the existing document dirty comparison. */

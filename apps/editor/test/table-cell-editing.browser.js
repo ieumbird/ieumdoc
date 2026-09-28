@@ -1,6 +1,6 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/table-cell-editing.browser.js.
 // Edits header and body cells of a Markdown table, saves and reloads a real file, and checks that
-// Enter/Bold cannot change the table and that read-only cells stay unchanged.
+// Bold cannot change cell semantics, Enter exits the table, and read-only cells stay unchanged.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes those copies only.
 async page => {
@@ -47,19 +47,21 @@ async page => {
   const rows = await table.locator('tr').count();
   await typeAtEnd('Port', ' name');
   await typeAtEnd('AC', '-side');
-  await page.keyboard.press('Enter');
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.type('!');
   result.structureUnchanged = await table.locator('tr').count() === rows &&
     await table.locator('[data-table-cell] strong').count() === 0;
   result.typedInCells = await cell('Port name').count() === 1 && await cell('AC-side!').count() === 1;
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('After table.');
+  result.enterExitsTable = await page.locator('.document-editor > p').filter({hasText:'After table.'}).count() === 1;
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
 
   await open(technical);
   const saved = await markdown(technical, 'technical-document.md');
   result.savedAndReloaded = await cell('Port name').count() === 1 && await cell('AC-side!').count() === 1;
-  result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side! \|\n\| P +\| DC +\|\n$/.test(saved);
+  result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side! \|\n\| P +\| DC +\|\n\nAfter table\.\n$/.test(saved);
   result.otherSemanticsKept = saved.includes('See [](#fig-control) and {eq}`eq-current`.') &&
     saved.includes(':label: eq-current') && saved.includes(':name: fig-control');
   result.headerCellsStayHeaders = await table.locator('th[data-table-cell]').count() === 2;

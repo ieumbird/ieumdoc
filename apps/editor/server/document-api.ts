@@ -102,7 +102,7 @@ export type InsertEdit =
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][] };
+  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] };
 
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
@@ -575,8 +575,7 @@ export function saveEdits(
     // New blocks start at the end; the requested order places them.
     const index = locators.length;
     if (item.block === "paragraph") {
-      document = editAt(target, () => insertParagraph(document, index, inlineText(item.content)));
-      document = editAt(target, () => updateParagraphInlineContent(document, [index], item.content));
+      document = editAt(target, () => insertParagraph(document, index, item.content));
     } else if (item.block === "heading") {
       document = editAt(target, () => insertHeading(document, index, item.level, item.text));
     } else if (item.block === "admonition") {
@@ -584,7 +583,7 @@ export function saveEdits(
     } else if (item.block === "equation") {
       document = editAt(target, () => insertEquation(document, index, item.latex));
     } else if (item.block === "table") {
-      document = editAt(target, () => insertTable(document, index, item.rows));
+      document = editAt(target, () => insertTable(document, index, item.rows, item.align));
     } else {
       document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }

@@ -254,8 +254,8 @@ export function App() {
                 onFigureDraftChange={setFigureDraftActive}
                 onDirtyChange={setDocumentDirty}
                 validateFigure={validateFigure}
-                onStructuralReject={() =>
-                  setNotice("That change is not editable in this version, so it was discarded.")
+                onStructuralReject={(reason) =>
+                  setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")
                 }
               />
             </div>
