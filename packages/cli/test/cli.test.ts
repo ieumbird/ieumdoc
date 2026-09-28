@@ -474,15 +474,13 @@ test("inspect prints Core editable targets", () => {
   assert.equal(result.stdout.includes("readonly="), false);
 
   const listDocument = getEditableDocument(parse(readFileSync(fixture, "utf8")));
-  const unsupported = listDocument.blocks.find((block) => block.block === "unsupported");
-  assert.equal(unsupported?.block, "unsupported");
-  if (unsupported?.block === "unsupported") {
+  const list = listDocument.blocks.find((block) => block.block === "list");
+  assert.equal(list?.block, "list");
+  if (list?.block === "list") {
     const listed = run(["inspect", fixture]);
     assert.equal(listed.status, 0, listed.stderr);
     assert.equal(
-      listed.stdout.includes(
-        `${unsupported.path.join(",")} unsupported text=${JSON.stringify(unsupported.text)}`,
-      ),
+      listed.stdout.includes(`${list.path.join(",")} list\n  - text="DC-link voltage controller"\n  - text="AC current controller"\n  - text="PLL"\n`),
       true,
     );
   }
@@ -733,6 +731,56 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI inserts and updates lists through Core and rejects read-only or invalid lists without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-list-"));
+  const file = path.join(dir, "doc.md");
+  const task = path.join(dir, "task.md");
+  writeFileSync(file, "# Steps\n");
+  writeFileSync(task, "- [ ] todo\n");
+  const text = (value: string) => [{ kind: "text", text: value }];
+  try {
+    const inserted = {
+      ordered: false,
+      items: [
+        { content: [{ kind: "strong", children: text("Check") }, { kind: "text", text: " wiring" }], list: { ordered: true, start: 1, items: [{ content: text("Input") }] } },
+        { content: text("Power on") },
+      ],
+    };
+    const insert = run(["insert-list", file, "--at", "1", "--list", JSON.stringify(inserted)]);
+    assert.equal(insert.status, 0, insert.stderr);
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const node = (JSON.parse(inspected.stdout) as { nodes: Array<Record<string, unknown>> }).nodes[1];
+    assert.deepEqual(node, { path: [1], type: "list", ...inserted });
+
+    // The inspected shape is the update input.
+    const updated = { ordered: true, start: 3, items: node.items };
+    const update = run(["update-list", file, "--path", "1", "--list", JSON.stringify(updated)]);
+    assert.equal(update.status, 0, update.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Steps\n\n3.  **Check** wiring\n\n    1.  Input\n4.  Power on\n");
+    assert.equal(serialize(parse(saved)), saved);
+
+    const valid = JSON.stringify({ ordered: false, items: [{ content: text("x") }] });
+    for (const [args, target] of [
+      [["update-list", file, "--path", "0", "--list", valid], file],
+      [["update-list", task, "--path", "0", "--list", valid], task],
+      [["insert-list", file, "--at", "1", "--list", "{"], file],
+      [["insert-list", file, "--at", "1", "--list", JSON.stringify({ ordered: false, items: [] })], file],
+    ] as const) {
+      const before = readFileSync(target, "utf8");
+      const result = run([...args]);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(target, "utf8"), before, args.join(" "));
+    }
+    const readonly = run(["inspect", task]);
+    assert.equal(readonly.status, 0, readonly.stderr);
+    assert.match(readonly.stdout, /^0 unsupported /);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

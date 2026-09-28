@@ -3,6 +3,8 @@ import { supportedFigureContent } from "./myst/figure.ts";
 import { tableCellText } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
+import type { ListContent } from "./list.ts";
+import { supportedListContent } from "./myst/list.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
@@ -63,6 +65,11 @@ export type EditableBlock = (
       path: NodePath;
       rows: EditableTableRow[];
     }
+  | ({
+      /** A List v1 structure; other lists are "unsupported" (read-only). */
+      block: "list";
+      path: NodePath;
+    } & ListContent)
   | {
       block: "equation";
       path: NodePath;
@@ -150,6 +157,10 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   }
   if (node.type === "table") {
     return tableBlock(node, path);
+  }
+  const list = supportedListContent(node);
+  if (list) {
+    return { block: "list", path, ...list };
   }
   return {
     block: "unsupported",

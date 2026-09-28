@@ -486,6 +486,8 @@ pnpm ieumdoc insert-table <file> --at <index> --cells <json>
 pnpm ieumdoc insert-table-row <file> --path <table> --at <row>
 pnpm ieumdoc insert-table-column <file> --path <table> --at <column>
 pnpm ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>
+pnpm ieumdoc insert-list <file> --at <index> --list <json>
+pnpm ieumdoc update-list <file> --path <index> --list <json>
 ```
 
 `pnpm ieumdoc help`와 `pnpm ieumdoc <command> --help`는 사용 가능한 명령을 보여 준다.
@@ -506,7 +508,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), code/image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, Heading level 변경·삭제 메뉴와 handle drag도 유지된다. 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -766,6 +768,33 @@ Editor:
 - Save → Reload 후 새 표와 새 행/열, 입력한 텍스트가 canonical Markdown에 남는다. 저장한 뒤에 추가한 행/열도 다음 Save에서 저장된다. 기존 cell의 수정은 같은 Save에서 함께 저장된다.
 
 브라우저 회귀: `pnpm browser:test table-authoring`은 scratch `tmp/table-authoring/tables.md`에서 insert menu로 표를 만들고, 기존 표의 block menu로 행과 열을 추가해 입력한 뒤 Save하고, 저장 후 행을 하나 더 추가해 다시 Save한다. 두 번의 파일 내용과 다시 연 화면을 확인한다.
+
+## List authoring v1 (#52)
+
+Core가 top-level 글머리표·번호 목록을 만들고(`insertList`), 편집 가능한 목록의 종류·시작 번호·항목·중첩을 통째로 바꾼다(`updateList`). 모두 canonical Markdown으로 다시 읽어 같은 목록이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+
+- 편집 가능한 목록: 각 항목이 지원 inline(text, strong, emphasis, 일반 link, inline math, `{eq}`/`{numref}`)만 있는 문단 하나와, 선택적으로 중첩 목록 하나를 가진다. 여러 단계 중첩과 글머리표/번호 혼합이 가능하다.
+- 읽기 전용으로 남는 목록: task list(`- [ ]`), 한 항목에 문단이 여럿이거나 코드·표 등 다른 블록이 있는 목록, 지원하지 않는 inline이 있는 목록.
+- 빈 항목은 저장되지 않는다(`empty list item cannot be saved`). 같은 종류의 목록이 바로 이어지면 다시 읽을 때 하나로 합쳐지므로 거부된다.
+- 목록을 만드는 Markdown 입력 단축(`- `, `1. `)은 #55의 범위다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-list <file> --at 1 --list '{"ordered":false,"items":[{"content":[{"kind":"text","text":"First"}]}]}'
+pnpm ieumdoc inspect <file> --format json      # 목록 node의 ordered/start/items가 update-list 입력과 같은 형태
+pnpm ieumdoc update-list <file> --path 1 --list '{"ordered":true,"start":3,"items":[{"content":[{"kind":"text","text":"Step"}]}]}'
+```
+
+항목은 `{"content": InlineContent[], "list"?: ListContent}`이다. 거부되면 exit 1이고 파일은 그대로다. text `inspect`는 목록 아래에 항목을 `- text=...`/`1. text=...`로 들여 써서 보여 준다.
+
+Editor:
+
+- `+` 또는 `/` insert menu의 `Bulleted list`, `Numbered list`는 빈 항목 하나인 목록을 만들고 caret을 그 항목에 둔다. 아무것도 입력하지 않은 새 목록은 저장되지 않고 변경으로 보지 않는다.
+- 항목 끝의 Enter는 새 항목을 만들고, 마지막 빈 항목의 Enter는 목록을 빠져나가 paragraph가 된다. Tab은 항목을 앞 항목 아래로 들여 쓰고 Shift+Tab은 내어 쓴다. Shift+Enter는 항목 안 줄바꿈이다. Bold/Italic/Link 툴바와 inline math·reference도 항목 안에서 쓸 수 있다.
+- 목록은 handle로 이동·삭제할 수 있고, Save → Reload 후 편집 가능한 목록으로 다시 열린다.
+
+브라우저 회귀: `pnpm browser:test list-authoring`은 scratch `tmp/list-authoring/lists.md`에서 Enter·Tab·빈 항목 Enter를 실제 키로 입력하고, `/numbered`로 번호 목록을 넣은 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
 ## Inline link authoring v1
 

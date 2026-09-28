@@ -69,6 +69,18 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
   },
   {
+    id: "bulleted-list",
+    label: "Bulleted list",
+    keywords: ["list", "bullet", "ul"],
+    run: (state, index, slash) => insertListAfter(state, index, false, slash),
+  },
+  {
+    id: "numbered-list",
+    label: "Numbered list",
+    keywords: ["list", "numbered", "ordered", "ol"],
+    run: (state, index, slash) => insertListAfter(state, index, true, slash),
+  },
+  {
     id: "equation",
     label: "Equation",
     keywords: ["equation", "math", "latex"],
@@ -224,6 +236,26 @@ export function insertHeadingAfter(
   });
   tr.insert(at, heading);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** Insert a list with one empty item after the target, reusing a transient empty paragraph; the caret goes into the item. */
+export function insertListAfter(state: EditorState, index: number, ordered: boolean, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  const pos = blockPos(state, index);
+  const target = tr.doc.child(index);
+  const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
+  const { bulletList, orderedList, listItem, paragraph } = state.schema.nodes;
+  const list = (ordered ? orderedList : bulletList).create(
+    { sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` },
+    listItem.create(null, paragraph.create()),
+  );
+  const at = reuse ? pos : pos + target.nodeSize;
+  if (reuse) tr.replaceWith(pos, pos + target.nodeSize, list);
+  else tr.insert(at, list);
+  // Inside the list, its item and the item's paragraph.
+  return tr.setSelection(TextSelection.create(tr.doc, at + 3)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
 /** Insert an editable Note or Warning after the target, reusing a transient empty paragraph. */

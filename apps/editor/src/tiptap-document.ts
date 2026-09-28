@@ -1,4 +1,4 @@
-import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type NodePath } from "@ieumdoc/core";
+import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type NodePath } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
@@ -56,6 +56,12 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+/** The whole new content of an editable list. */
+export type ListEdit = {
+  path: NodePath;
+  list: ListContent;
+};
+
 /** An Equation or Figure label; an empty `to` removes it. */
 export type LabelEdit = {
   path: NodePath;
@@ -69,7 +75,8 @@ export type InsertEdit =
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] };
+  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
+  | { block: "list"; list: ListContent };
 
 /** A new top-level block's position in the next order, or an original snapshot block part. */
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
@@ -84,6 +91,7 @@ export type SupportedEdits = {
   cells?: TableCellEdit[];
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
+  lists?: ListEdit[];
   labels?: LabelEdit[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
@@ -117,8 +125,12 @@ const KNOWN_BLOCKS = new Set([
   "figure",
   "equation",
   "table",
+  "bulletList",
+  "orderedList",
   "unsupportedBlock",
 ]);
+
+const LIST_BLOCKS = new Set(["bulletList", "orderedList"]);
 
 const READONLY_BLOCKS = new Set([
   "readonlyHeading",
@@ -153,6 +165,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const cells: TableCellEdit[] = [];
   const tables: TableShapeEdit[] = [];
   const admonitions: AdmonitionEdit[] = [];
+  const lists: ListEdit[] = [];
   const labels: LabelEdit[] = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
@@ -184,6 +197,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         if (insert.block === "figure") assertFigureContent(insert);
         if (insert.block === "table" && insert.rows.flat().every(text => text.length === 0)) {
           throw saveError(node, "empty table cannot be saved");
+        }
+        if (insert.block === "list" && hasEmptyListItem(insert.list)) {
+          throw saveError(node, EMPTY_LIST_ITEM);
         }
         insertOf.set(node, inserts.length);
         inserts.push(insert);
@@ -229,6 +245,11 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (sameInline(content, block.content)) continue;
       if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
       admonitions.push({ path: block.path, content });
+    } else if (block.block === "list") {
+      const list = listContent(node);
+      if (sameList(list, block)) continue;
+      if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM);
+      lists.push({ path: block.path, list });
     } else if (block.block === "table") {
       const next = tableCells(node);
       const shape = tableShape(tableCells(toTiptapBlock(block)), next);
@@ -266,6 +287,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(cells.length ? { cells } : {}),
     ...(tables.length ? { tables } : {}),
     ...(admonitions.length ? { admonitions } : {}),
+    ...(lists.length ? { lists } : {}),
     ...(labels.length ? { labels } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
@@ -281,6 +303,11 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
   if (node.type === "paragraph") return (node.content ?? []).length === 0;
   if (node.type === "equation") return node.attrs?.latex === "";
   if (node.type === "figure") return node.attrs?.imageUrl === "";
+  // A new list whose only item was never written.
+  if (LIST_BLOCKS.has(node.type ?? "")) {
+    const items = node.content ?? [];
+    return items.length === 1 && (items[0].content ?? []).length === 1 && (items[0].content?.[0]?.content ?? []).length === 0;
+  }
   return false;
 }
 
@@ -428,6 +455,10 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       label: block.label,
     });
   }
+  if (block.block === "list") {
+    const node = listNode(block);
+    return { ...node, attrs: { ...node.attrs, sourcePath: pathKey(block.path) } };
+  }
   if (block.block === "table") {
     return {
       type: "table",
@@ -441,6 +472,55 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     };
   }
   return readonlyNode("unsupportedBlock", block.path, { text: block.text });
+}
+
+function listNode(list: ListContent): TiptapJSON {
+  return {
+    type: list.ordered ? "orderedList" : "bulletList",
+    ...(list.ordered ? { attrs: { start: list.start } } : {}),
+    content: list.items.map(item => ({
+      type: "listItem",
+      content: [
+        { type: "paragraph", content: paragraphContent(item.content) },
+        ...(item.list ? [listNode(item.list)] : []),
+      ],
+    })),
+  };
+}
+
+/** List v1 content of an editor list: each item holds one paragraph and at most one nested list.
+ * Empty items are representable while editing; Save rejects them. */
+function listContent(node: TiptapJSON): ListContent {
+  if (!LIST_BLOCKS.has(node.type ?? "")) throw new Error(`unsupported Tiptap node ${describeType(node)} as a list`);
+  const items = (node.content ?? []).map((item) => {
+    if (item.type !== "listItem") throw new Error(`unsupported Tiptap node ${describeType(item)} in list`);
+    const [paragraph, nested, ...rest] = item.content ?? [];
+    if (paragraph?.type !== "paragraph" || rest.length > 0 || (nested !== undefined && !LIST_BLOCKS.has(nested.type ?? ""))) {
+      throw new Error("a list item holds one paragraph, optionally followed by one nested list");
+    }
+    const content = paragraphInline(paragraph);
+    return nested ? { content, list: listContent(nested) } : { content };
+  });
+  if (items.length === 0) throw new Error("a list needs at least one item");
+  if (node.type === "bulletList") return { ordered: false, items };
+  const start = Number(node.attrs?.start ?? 1);
+  if (!Number.isInteger(start) || start < 0) throw new Error("numbered list start must be a non-negative integer");
+  return { ordered: true, start, items };
+}
+
+const EMPTY_LIST_ITEM = "empty list item cannot be saved. Enter text or remove the item.";
+
+function hasEmptyListItem(list: ListContent): boolean {
+  return list.items.some(item => inlineText(item.content).trim().length === 0 || (item.list !== undefined && hasEmptyListItem(item.list)));
+}
+
+function sameList(left: ListContent, right: ListContent): boolean {
+  return left.ordered === right.ordered && (left.start ?? 1) === (right.start ?? 1) && left.items.length === right.items.length &&
+    left.items.every((item, index) => {
+      const other = right.items[index];
+      return sameInline(item.content, other.content) &&
+        (item.list === undefined ? other.list === undefined : other.list !== undefined && sameList(item.list, other.list));
+    });
 }
 
 function readonlyNode(
@@ -495,7 +575,10 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     }
     return { block: "table", rows: grid.map(row => row.map(cell => cell.text)), ...(align.some(Boolean) ? { align } : {}) };
   }
-  throw new Error("only paragraphs, headings, equations, figures, and tables can be inserted");
+  if (LIST_BLOCKS.has(node.type ?? "")) {
+    return { block: "list", list: listContent(node) };
+  }
+  throw new Error("only paragraphs, headings, equations, figures, tables, and lists can be inserted");
 }
 
 function figureContent(node: TiptapJSON): FigureContent {
@@ -528,8 +611,13 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (!KNOWN_BLOCKS.has(afterType)) {
     throw new Error(`unsupported Tiptap block "${afterType || "unknown"}"`);
   }
-  if (beforeType !== afterType) {
+  // A list can switch between bullets and numbers at the same locator.
+  if (beforeType !== afterType && !(LIST_BLOCKS.has(beforeType) && LIST_BLOCKS.has(afterType))) {
     throw new Error(`top-level block type changed from "${beforeType}" to "${afterType}"`);
+  }
+  if (LIST_BLOCKS.has(beforeType)) {
+    listContent(after);
+    return;
   }
   if (beforeType === "equation") {
     const beforeAttrs = before.attrs ?? {};

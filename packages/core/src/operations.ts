@@ -27,6 +27,8 @@ import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
 import { assertReferenceableLabel } from "./myst/reference.ts";
 import { labelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
+import type { ListContent } from "./list.ts";
+import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
@@ -184,6 +186,76 @@ function sameInlineContent(left: InlineContent[], right: InlineContent[]): boole
     return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
   return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));
+}
+
+const LIST_FAILURE = "list cannot round-trip losslessly through canonical Markdown";
+const MAX_LIST_START = 999_999_999;
+
+/** Insert a top-level bullet or numbered list. */
+export function insertList(document: MystDocument, index: number, list: ListContent): MystDocument {
+  const normalized = normalizeList(list);
+  const next = insertBlock(document, index, createListNode(normalized));
+  assertListRoundTrip(next, index, normalized);
+  return next;
+}
+
+/** Replace the whole content of an editable top-level list: its kind, numbering, items and nesting. */
+export function updateList(document: MystDocument, path: NodePath, list: ListContent): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) {
+    throw new Error("updateList requires a top-level list path [index]");
+  }
+  if (!supportedListContent(getNode(document, path))) {
+    throw new Error(`list at [${path.join(",")}] is not editable in this version`);
+  }
+  const normalized = normalizeList(list);
+  const next = cloneDocument(document);
+  next.children[path[0]] = createListNode(normalized);
+  assertListRoundTrip(next, path[0], normalized);
+  return next;
+}
+
+function normalizeList(list: ListContent): ListContent {
+  if (!list || typeof list !== "object" || typeof list.ordered !== "boolean") {
+    throw new Error("list requires a boolean ordered");
+  }
+  if (!Array.isArray(list.items) || list.items.length === 0) {
+    throw new Error("a list needs at least one item");
+  }
+  const start = list.start ?? 1;
+  if (list.ordered && (!Number.isInteger(start) || start < 0 || start > MAX_LIST_START)) {
+    throw new Error(`numbered list start must be an integer from 0 to ${MAX_LIST_START}`);
+  }
+  if (!list.ordered && list.start !== undefined) {
+    throw new Error("a bullet list has no start number");
+  }
+  const items = list.items.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("list item must be an object");
+    assertInlineContent(item.content);
+    if (!hasVisibleContent(item.content)) throw new Error("list item must contain non-empty text");
+    const content = concatenateInlineContent(item.content);
+    return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
+  });
+  return list.ordered ? { ordered: true, start, items } : { ordered: false, items };
+}
+
+function assertListRoundTrip(document: MystDocument, index: number, list: ListContent): void {
+  const markdown = serializeFor(document, LIST_FAILURE);
+  const reparsed = parse(markdown);
+  const reloaded = reparsed.children[index];
+  const content = reloaded && supportedListContent(reloaded);
+  if (reparsed.children.length !== document.children.length || !content || !sameList(content, list) ||
+      serialize(reparsed) !== markdown) {
+    throw new Error(LIST_FAILURE);
+  }
+}
+
+function sameList(left: ListContent, right: ListContent): boolean {
+  return left.ordered === right.ordered && left.start === right.start && left.items.length === right.items.length &&
+    left.items.every((item, index) => {
+      const other = right.items[index];
+      return sameInlineContent(item.content, other.content) && (item.list === undefined
+        ? other.list === undefined : other.list !== undefined && sameList(item.list, other.list));
+    });
 }
 
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */

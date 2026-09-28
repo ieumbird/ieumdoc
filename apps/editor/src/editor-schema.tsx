@@ -1,4 +1,5 @@
 import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
+import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
@@ -119,6 +120,39 @@ const SourcedParagraph = Node.create({
       0,
     ];
   },
+});
+
+// List v1: a top-level list carries its snapshot locator; each item holds one paragraph,
+// optionally followed by one nested list. Enter, Tab/Shift-Tab and Backspace edit items.
+// Markdown input shortcuts that create lists are not part of List v1.
+const listHTML = { class: "list", "data-block": "list" };
+
+const SourcedBulletList = BulletList.extend({
+  addAttributes() {
+    return blockAttrs({});
+  },
+  addInputRules() {
+    return [];
+  },
+}).configure({ HTMLAttributes: listHTML });
+
+const SourcedOrderedList = OrderedList.extend({
+  addAttributes() {
+    // The Markdown list start number only; HTML list types have no Markdown form.
+    return blockAttrs({
+      start: {
+        default: 1,
+        parseHTML: (element) => element.hasAttribute("start") ? Number.parseInt(element.getAttribute("start") ?? "", 10) : 1,
+      },
+    });
+  },
+  addInputRules() {
+    return [];
+  },
+}).configure({ HTMLAttributes: listHTML });
+
+const SimpleListItem = ListItem.extend({
+  content: "paragraph (bulletList | orderedList)?",
 });
 
 const ReadonlyHeading = Node.create({
@@ -438,7 +472,9 @@ const ParagraphSplit = Extension.create({
     return {
       Enter: () => {
         const { selection } = this.editor.state;
-        if (selection.$from.parent.type.name !== "paragraph" || !selection.$from.sameParent(selection.$to)) return false;
+        // Paragraphs inside list items split as list items.
+        if (selection.$from.depth !== 1 || selection.$from.parent.type.name !== "paragraph" ||
+            !selection.$from.sameParent(selection.$to)) return false;
         // Enter on a selected inline math node does not delete it.
         if (selection instanceof NodeSelection) return true;
         const sourcePath = selection.$from.parent.attrs.sourcePath;
@@ -530,6 +566,10 @@ export function editorExtensions(
     SourcedHeading,
     ReadonlyHeading,
     ReadonlyParagraph,
+    SourcedBulletList,
+    SourcedOrderedList,
+    SimpleListItem,
+    ListKeymap,
     Admonition,
     figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),

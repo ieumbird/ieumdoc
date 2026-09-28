@@ -21,6 +21,7 @@ export { isAdmonitionVariant } from "./myst/admonition.ts";
 /** Paragraph offset length of inline content, as used by split and hard break offsets. */
 export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
+export type { ListContent, ListItemContent } from "./list.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 
@@ -55,6 +56,8 @@ export const insertFigure = fence(operations.insertFigure);
 export const insertTable = fence(operations.insertTable);
 export const insertTableRow = fence(operations.insertTableRow);
 export const insertTableColumn = fence(operations.insertTableColumn);
+export const insertList = fence(operations.insertList);
+export const updateList = fence(operations.updateList);
 export const removeBlock = fence(operations.removeBlock);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);

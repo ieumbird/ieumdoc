@@ -80,7 +80,7 @@ test("heading commands insert H1-H3 and place the caret inside the heading", () 
 test("shared insert commands include structural blocks and select their new atoms", () => {
   const state = EditorState.create({ schema, doc: docOf("AB") });
   assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
-    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Note", "Warning", "Equation", "Figure", "Table",
+    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Note", "Warning", "Bulleted list", "Numbered list", "Equation", "Figure", "Table",
   ]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
