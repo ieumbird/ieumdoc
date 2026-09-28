@@ -87,7 +87,7 @@ async page => {
   result.equationFormShowsLabel = await page.getByTestId('equation-label').inputValue() === 'eq-current';
   await page.getByTestId('equation-label').fill('eq-reference');
   // The draft reaches the top bar through a React effect after the input event; wait for it.
-  result.labelDraftBlocksSave = await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]')
+  result.labelDraftMarkedUnsaved = await page.getByTestId("draft-notice")
     .waitFor({state:'attached', timeout:5000}).then(() => true, () => false);
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});

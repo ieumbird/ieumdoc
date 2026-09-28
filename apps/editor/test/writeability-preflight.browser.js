@@ -82,7 +82,10 @@ async page => {
     // 5. The file is byte-for-byte unchanged.
     result.fileUnchanged = await read('front-matter.md') === blockedBytes;
 
-    // 6. Unsaveable edits do not trap the user; a writable document restores the normal flow.
+    // 6. Even unsaveable edits require an explicit discard before switching files.
+    await page.getByRole('button', {name:'Reload', exact:true}).click();
+    await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await open('writable.md');
     await warning.waitFor({state:'detached'});
     result.writableRestored = await status.innerText() === '' && await save.getAttribute('aria-disabled') === null &&

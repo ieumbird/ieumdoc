@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import fs, { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { history, undo, redo } from "@tiptap/pm/history";
-import { blockDropTarget, mapSavedRanges, reorderBlock, type SavedRange } from "../src/block-reorder.ts";
+import { blockDropTarget, reorderBlock } from "../src/block-reorder.ts";
 import { getSchema } from "@tiptap/core";
 import { deleteSelection, joinBackward, splitBlock } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -26,7 +26,6 @@ import {
 } from "@ieumdoc/core";
 import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
 import { renderEquation } from "../src/equation-render.ts";
-import { remapSavedRanges } from "../src/DocumentEditor.tsx";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
 import {
   assertSupportedDocumentChange,
@@ -169,7 +168,7 @@ test("Equation renderer displays valid LaTeX and fails closed on invalid input",
   assert.equal(invalid, "\\notARealKaTeXCommand");
 });
 
-test("an open Equation draft blocks saving only when it differs from the applied LaTeX", () => {
+test("an open Equation form reports unapplied changes against its applied LaTeX", () => {
   assert.equal(isUnappliedEquationDraft(false, "x + 1", "x"), false);
   assert.equal(isUnappliedEquationDraft(true, "x", "x"), false);
   assert.equal(isUnappliedEquationDraft(true, "x + 1", "x"), true);
@@ -508,6 +507,39 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
   }
 });
 
+test("partial writes and conflicts during replacement preserve the disk and permit retry", (context) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-failed-write-"));
+  const file = path.join(dir, "document.md");
+  const source = "Original paragraph.\n";
+  writeFileSync(file, source);
+  const request = { revision: documentRevision(source),
+    paragraphs: [{ path: [0], content: [{ kind: "text" as const, text: "Changed paragraph." }] }] };
+  try {
+    const partialWrite = context.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string, options: fs.WriteFileOptions) => {
+      writeFileSync(target, data.slice(0, 5), options);
+      throw new Error("Disk write interrupted");
+    });
+    assert.throws(() => saveDocumentFile(file, request), /Disk write interrupted/);
+    partialWrite.mock.restore();
+    assert.equal(readFileSync(file, "utf8"), source);
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+    saveDocumentFile(file, request);
+    assert.equal(readFileSync(file, "utf8"), "Changed paragraph.\n");
+    const retry = { revision: loadDocumentFile(file).revision, paragraphs: request.paragraphs };
+    const externalWrite = context.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string, options: fs.WriteFileOptions) => {
+      writeFileSync(target, data, options);
+      writeFileSync(file, "External edit during Save.\n");
+    });
+    assert.throws(() => saveDocumentFile(file, retry), DocumentConflictError);
+    externalWrite.mock.restore();
+    assert.equal(readFileSync(file, "utf8"), "External edit during Save.\n");
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+  } finally {
+    context.mock.restoreAll();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("empty documents project to a transient paragraph without persisting empty content", () => {
   const editable = loadEditableDocument("\n");
   const projection = toTiptapDocument(editable);
@@ -524,11 +556,7 @@ test("empty documents project to a transient paragraph without persisting empty 
   });
 });
 
-test("empty saves skip transient range remapping and keep later inserts representable", () => {
-  assert.deepEqual(
-    remapSavedRanges([{ start: 0, end: 2, path: "0" }], { blocks: [] }),
-    [],
-  );
+test("empty saves keep later inserts representable", () => {
   const editable = loadEditableDocument("\n");
   const projected = toTiptapDocument(editable);
   assert.deepEqual(collectSupportedEdits(editable, projected), { headings: [], paragraphs: [] });
@@ -594,7 +622,7 @@ test("new Equation inserts save and reload through Core semantics", () => {
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "equation", attrs: { sourcePath: "new:empty-equation", latex: "", label: "" } });
-  assert.throws(() => collectSupportedEdits(editable, empty), /empty equation LaTeX/);
+  assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
   assert.throws(
     () => saveEdits("Intro\n", {
       inserts: [{ block: "equation", latex: "" }],
@@ -702,6 +730,42 @@ test("current revision save returns the hash of the saved markdown", () => {
   assert.equal(saved.markdown.includes(PARAGRAPH_TO), true);
   assert.equal(saved.markdown.includes("fig-control"), true);
   assert.equal(saved.markdown.includes("eq-current"), true);
+});
+
+test("session saves replay Core edits against their opening source and prove the last disk state", () => {
+  const opening = "# Heading\n\nFirst.\n\nSecond.\n";
+  const editable = loadEditableDocument(opening);
+  const original = toTiptapDocument(editable);
+  const changed = clone(original);
+  changed.content!.splice(1, 1);
+  changed.attrs = { deletedPaths: ["1"] };
+  changed.content!.push({ type: "paragraph", attrs: { sourcePath: "new:session" }, content: [{ type: "text", text: "Added." }] });
+  const edits = collectSupportedEdits(editable, changed);
+  let disk = opening;
+  let writes = 0;
+  const commit = (request: Parameters<typeof commitDocumentSave>[2]) => commitDocumentSave(
+    () => disk, markdown => { disk = markdown; writes++; }, request,
+  );
+  const first = commit({ revision: documentRevision(disk), base: { source: opening }, ...edits });
+  assert.equal(disk, "# Heading\n\nSecond.\n\nAdded.\n");
+  const restore = collectSupportedEdits(editable, original);
+  const second = commit({ revision: first.revision, base: { source: opening, savedEdits: edits }, ...restore });
+  assert.equal(disk, opening, "undo across Save restores deleted source blocks without stale locators");
+  commit({ revision: second.revision, base: { source: opening, savedEdits: restore }, ...edits });
+  assert.equal(disk, first.markdown, "redo can be saved against the same session source");
+  assert.equal(writes, 3);
+  const currentRevision = documentRevision(disk);
+  for (const base of [{ source: "Replacement.\n" }, { source: opening, savedEdits: restore }]) {
+    assert.throws(() => commit({ revision: currentRevision, base, ...restore }), DocumentConflictError);
+  }
+  disk = "External.\n";
+  const request = { revision: currentRevision, base: { source: opening, savedEdits: edits }, ...restore };
+  assert.throws(() => commit(request), DocumentConflictError);
+  assert.equal(writes, 3);
+  assert.equal(disk, "External.\n");
+  assert.equal(previewDocumentFile("session.md", request).markdown, opening,
+    "Source can recover applied content after a conflict without writing the disk");
+  assert.throws(() => previewDocumentFile("session.md", { ...request, revision: "wrong" }), DocumentConflictError);
 });
 
 test("Host save fails over HTTP before writing when canonical Markdown would lose semantics", async () => {
@@ -1604,26 +1668,19 @@ test("invalid reorder and stale reorder never invoke the writer", () => {
   assert.equal(writes, 0);
 });
 
-test("engine reorder history and pending-save ranges follow moves, edits, undo and redo", () => {
+test("engine reorder history follows moves, edits, undo and redo", () => {
   const schema = getSchema(editorExtensions());
   const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("AB\n\n# Heading\n\nCD")));
   let state = EditorState.create({schema,doc,plugins:[history()]});
-  let ranges: SavedRange[] = [];
-  doc.forEach((node,pos,index) => ranges.push({start:pos,end:pos+node.nodeSize,path:String(index)}));
-  const initial = structuredClone(ranges);
-  const dispatch = (tr: Transaction) => { ranges = mapSavedRanges(ranges,tr); state = state.apply(tr); };
+  const dispatch = (tr: Transaction) => { state = state.apply(tr); };
   dispatch(reorderBlock(state, 2, 0));
   assert.equal(state.doc.firstChild!.textContent,"CD");
-  assert.equal(ranges.find(range => range.path === "2")!.start,0);
   assert.equal(undo(state,dispatch),true);
-  assert.deepEqual([...ranges].sort((a,b)=>a.start-b.start), initial);
   assert.equal(redo(state,dispatch),true);
   dispatch(state.tr.insertText("X",2));
   assert.equal(state.doc.firstChild!.textContent,"CXD");
-  assert.equal(ranges.find(range => range.path === "2")!.end,5);
   dispatch(reorderBlock(state, 0, 2));
   assert.equal(state.doc.lastChild!.textContent,"CXD");
-  assert.equal(ranges.find(range => range.path === "2")!.end, state.doc.content.size);
 });
 
 test("a moved block does not take the selection unless it held it or is a text block", () => {

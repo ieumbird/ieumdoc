@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -123,12 +123,32 @@ export type SupportedEdits = {
   deletes?: NodePath[];
 };
 
+class SaveContentError extends Error {
+  constructor(message: string, readonly target: OrderItem | undefined, options: ErrorOptions) {
+    super(message, options);
+  }
+}
+
+function editAt<T>(target: OrderItem, apply: () => T): T {
+  try { return apply(); }
+  catch (error) { throw new SaveContentError(error instanceof Error ? error.message : String(error), target, { cause: error }); }
+}
+
+function errorPayload(error: unknown) {
+  return { error: error instanceof Error ? error.message : String(error),
+    ...(error instanceof SaveContentError && error.target ? { target: error.target } : {}) };
+}
+
 export type SaveRequest = SupportedEdits & {
   revision?: string;
+  /** Session locators address this opening source, including across Save and engine history.
+   * The previous accepted edits must reproduce the current disk before new edits can write. */
+  base?: { source: string; savedEdits?: SupportedEdits };
 };
 
 export type DocumentFileResponse = {
   path: string;
+  source: string;
   document: EditableDocument;
   revision: string;
   /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
@@ -141,7 +161,7 @@ function readModel(source: string): { document: EditableDocument; writeError: st
   return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null };
 }
 
-export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Reload before saving.";
+export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Your edits are kept. Use Source to copy applied content, or Reload to discard local changes and open the disk version.";
 const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
 
 export class DocumentConflictError extends Error {
@@ -175,7 +195,7 @@ export function documentRevision(source: string): string {
 export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath);
   const source = readFileSync(filePath, "utf8");
-  return { path: filePath, ...readModel(source), revision: documentRevision(source) };
+  return { path: filePath, source, ...readModel(source), revision: documentRevision(source) };
 }
 
 export function createDocumentFile(requestedPath?: string): DocumentFileResponse {
@@ -210,10 +230,24 @@ export function saveDocumentFile(
   const filePath = resolveDocumentPath(requestedPath);
   const saved = commitDocumentSave(
     () => readFileSync(filePath, "utf8"),
-    (markdown) => writeFileSync(filePath, markdown),
+    (markdown) => replaceDocumentFile(filePath, markdown, request.revision),
     request,
   );
-  return { ...saved, path: filePath };
+  return { ...saved, source: saved.markdown, path: filePath };
+}
+
+/** Finish writing beside the destination before replacing it; a failed write keeps the original. */
+function replaceDocumentFile(filePath: string, markdown: string, revision: string | undefined): void {
+  // Preserve a symlink itself by replacing its resolved target.
+  const target = fs.realpathSync(filePath);
+  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
+  try {
+    fs.writeFileSync(temporary, markdown, { encoding: "utf8", flag: "wx", mode: statSync(target).mode });
+    if (documentRevision(readFileSync(target, "utf8")) !== revision) throw new DocumentConflictError();
+    fs.renameSync(temporary, target);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
 }
 
 /**
@@ -222,6 +256,13 @@ export function saveDocumentFile(
  */
 export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): { markdown: string } {
   const filePath = resolveDocumentPath(requestedPath);
+  if (request.base) {
+    // A preview describes this session, even after an external conflict. Validate its
+    // acknowledged revision without writing or requiring the disk to remain unchanged.
+    const previous = request.base.savedEdits
+      ? saveEdits(request.base.source, request.base.savedEdits).markdown : request.base.source;
+    return { markdown: saveCurrentDocument(previous, request).markdown };
+  }
   return { markdown: saveCurrentDocument(readFileSync(filePath, "utf8"), request).markdown };
 }
 
@@ -232,7 +273,8 @@ export function saveCurrentDocument(
   if (request.revision !== documentRevision(source)) {
     throw new DocumentConflictError();
   }
-  const saved = saveEdits(source, {
+  const base = sessionSource(source, request);
+  const saved = saveEdits(base, {
     headings: request.headings ?? [],
     headingLevels: request.headingLevels ?? [],
     paragraphs: request.paragraphs ?? [],
@@ -249,6 +291,18 @@ export function saveCurrentDocument(
     order: request.order,
   });
   return { ...saved, revision: documentRevision(saved.markdown) };
+}
+
+function sessionSource(source: string, request: SaveRequest): string {
+  if (request.base === undefined) return source;
+  const base = request.base;
+  if (!base || typeof base.source !== "string") throw new Error("invalid session source");
+  // This is not a raw Markdown replacement API. A different baseline is accepted only
+  // when replaying the previously saved Core operations reproduces the actual file.
+  if (base.source !== source && (!base.savedEdits || saveEdits(base.source, base.savedEdits).markdown !== source)) {
+    throw new DocumentConflictError();
+  }
+  return base.source;
 }
 
 export function commitDocumentSave(
@@ -269,6 +323,7 @@ export function saveEdits(
   const editable = loadEditableDocument(source);
   let document = parse(source);
   for (const edit of edits.headings ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "heading");
     const block = blockAt(editable, edit.path);
     if (block?.block !== "heading" || !block.editable) {
@@ -280,9 +335,10 @@ export function saveEdits(
     if (edit.to.length === 0) {
       throw new Error("empty heading text cannot be saved");
     }
-    document = updateNodeTextAtPath(document, edit.path, edit.from, edit.to);
+    document = editAt(target, () => updateNodeTextAtPath(document, edit.path, edit.from, edit.to));
   }
   for (const edit of edits.headingLevels ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "heading");
     const block = blockAt(editable, edit.path);
     if (block?.block !== "heading" || !block.editable) {
@@ -291,9 +347,10 @@ export function saveEdits(
     if (edit.from !== block.level) {
       throw new Error(`heading level does not match at [${edit.path.join(",")}]`);
     }
-    document = updateHeadingLevel(document, edit.path, edit.from, edit.to);
+    document = editAt(target, () => updateHeadingLevel(document, edit.path, edit.from, edit.to));
   }
   for (const paragraph of edits.paragraphs ?? []) {
+    const target = { path: [paragraph.path[0]], part: 0 };
     assertPath(paragraph.path, "paragraph");
     const block = blockAt(editable, paragraph.path);
     if (block?.block !== "paragraph" || !block.editable) {
@@ -302,25 +359,28 @@ export function saveEdits(
     if (inlineText(paragraph.content).length === 0) {
       throw new Error("empty paragraph cannot be saved");
     }
-    document = updateParagraphInlineContent(document, paragraph.path, paragraph.content);
+    document = editAt(target, () => updateParagraphInlineContent(document, paragraph.path, paragraph.content));
   }
   for (const admonition of edits.admonitions ?? []) {
+    const target = { path: [admonition.path[0]], part: 0 };
     assertPath(admonition.path, "admonition");
     const block = blockAt(editable, admonition.path);
     if (block?.block !== "admonition" || !block.editable) {
       throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
     }
-    document = updateAdmonitionInlineContent(document, admonition.path, admonition.content);
+    document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, admonition.content));
   }
   for (const equation of edits.equations ?? []) {
+    const target = { path: [equation.path[0]], part: 0 };
     assertPath(equation.path, "equation");
     const block = blockAt(editable, equation.path);
     if (block?.block !== "equation") {
       throw new Error(`equation edit is not allowed at [${equation.path.join(",")}]`);
     }
-    document = updateEquationLatex(document, equation.path, equation.from, equation.to);
+    document = editAt(target, () => updateEquationLatex(document, equation.path, equation.from, equation.to));
   }
   for (const figure of edits.figures ?? []) {
+    const target = { path: [figure.path[0]], part: 0 };
     assertPath(figure.path, "figure");
     const block = blockAt(editable, figure.path);
     if (block?.block !== "figure" || !block.editable) {
@@ -330,9 +390,10 @@ export function saveEdits(
         figure.from.caption !== block.caption.text) {
       throw new Error(`figure does not match at [${figure.path.join(",")}]`);
     }
-    document = updateFigure(document, figure.path, figureContent(figure.to));
+    document = editAt(target, () => updateFigure(document, figure.path, figureContent(figure.to)));
   }
   for (const edit of edits.cells ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "table cell");
     const [table, row, index] = edit.path;
     const block = blockAt(editable, [table]);
@@ -343,11 +404,12 @@ export function saveEdits(
     if (edit.from !== cell.text || typeof edit.to !== "string") {
       throw new Error(`table cell text does not match at [${edit.path.join(",")}]`);
     }
-    document = updateTableCell(document, edit.path, edit.to);
+    document = editAt(target, () => updateTableCell(document, edit.path, edit.to));
   }
   // Snapshot cells are edited above at their snapshot paths; Core then adds rows and columns
   // in new-grid order and fills the added cells.
   for (const edit of edits.tables ?? []) {
+    const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "table");
     const block = blockAt(editable, edit.path);
     if (edit.path.length !== 1 || block?.block !== "table" ||
@@ -361,7 +423,7 @@ export function saveEdits(
       if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
         throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
       }
-      document = updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.text);
+      document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.text));
     }
   }
   const labels = edits.labels ?? [];
@@ -376,8 +438,14 @@ export function saveEdits(
     }
   }
   // Clear the changed labels first, so labels can move between blocks in one save.
-  for (const edit of labels) document = updateLabel(document, edit.path, "");
-  for (const edit of labels) if (edit.to.length > 0) document = updateLabel(document, edit.path, edit.to);
+  for (const edit of labels) {
+    const target = { path: edit.path, part: 0 };
+    document = editAt(target, () => updateLabel(document, edit.path, ""));
+  }
+  for (const edit of labels) if (edit.to.length > 0) {
+    const target = { path: edit.path, part: 0 };
+    document = editAt(target, () => updateLabel(document, edit.path, edit.to));
+  }
   const splits = edits.splits ?? [];
   const merges = edits.merges ?? [];
   if (splits.some(split => !Array.isArray(split.parts) || split.parts.length < 2) ||
@@ -475,6 +543,7 @@ export function saveEdits(
     locators.splice(to, 0, locators.splice(from, 1)[0]);
   };
   for (const group of [...groups].sort((a, b) => b.paths[0][0] - a.paths[0][0])) {
+    const target = { path: group.paths[0], part: 0 };
     // Reordered neighbors may originate at non-adjacent snapshot paths.
     for (let index = 1; index < group.paths.length; index++) {
       const from = locators.findIndex(item => locatorKey(item) === locatorKey({path: group.paths[index], part: 0}));
@@ -484,15 +553,15 @@ export function saveEdits(
     }
     const start = locators.findIndex(item => locatorKey(item) === locatorKey({path: group.paths[0], part: 0}));
     for (let index = group.paths.length - 1; index > 0; index--) {
-      document = mergeParagraphWithPrevious(document, [start + index]);
+      document = editAt(target, () => mergeParagraphWithPrevious(document, [start + index]));
     }
-    document = updateParagraphInlineContent(document, [start], group.parts.flat());
+    document = editAt(target, () => updateParagraphInlineContent(document, [start], group.parts.flat()));
     // Split offsets use Core's paragraph offset definition (inline math counts as one).
     const lengths = group.parts.map(part => inlineContentLength(part));
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
-      document = splitParagraph(document, [start], offset);
+      document = editAt(target, () => splitParagraph(document, [start], offset));
     }
     locators.splice(start, group.paths.length, ...group.parts.map((_, part) => ({path: group.paths[0], part})));
   }
@@ -502,24 +571,26 @@ export function saveEdits(
     locators.splice(index, 1);
   }
   for (const [insert, item] of inserts.entries()) {
+    const target = { insert };
     // New blocks start at the end; the requested order places them.
     const index = locators.length;
     if (item.block === "paragraph") {
-      document = insertParagraph(document, index, inlineText(item.content));
-      document = updateParagraphInlineContent(document, [index], item.content);
+      document = editAt(target, () => insertParagraph(document, index, inlineText(item.content)));
+      document = editAt(target, () => updateParagraphInlineContent(document, [index], item.content));
     } else if (item.block === "heading") {
-      document = insertHeading(document, index, item.level, item.text);
+      document = editAt(target, () => insertHeading(document, index, item.level, item.text));
     } else if (item.block === "admonition") {
-      document = insertAdmonition(document, index, item.variant, item.content);
+      document = editAt(target, () => insertAdmonition(document, index, item.variant, item.content));
     } else if (item.block === "equation") {
-      document = insertEquation(document, index, item.latex);
+      document = editAt(target, () => insertEquation(document, index, item.latex));
     } else if (item.block === "table") {
-      document = insertTable(document, index, item.rows);
+      document = editAt(target, () => insertTable(document, index, item.rows));
     } else {
-      document = insertFigure(document, index, figureContent(item));
+      document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }
     if ((item.block === "equation" || item.block === "figure") && item.label) {
-      document = updateLabel(document, [index], item.label);
+      const label = item.label;
+      document = editAt(target, () => updateLabel(document, [index], label));
     }
     locators.push({ insert });
   }
@@ -564,7 +635,7 @@ export async function handleDocumentRequest(
     try {
       sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
     } catch (error) {
-      sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+      sendJson(res, 400, errorPayload(error));
     }
     return;
   }
@@ -578,9 +649,7 @@ export async function handleDocumentRequest(
       const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
       sendJson(res, 200, previewDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body)));
     } catch (error) {
-      sendJson(res, error instanceof DocumentConflictError ? 409 : 400, {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      sendJson(res, error instanceof DocumentConflictError ? 409 : 400, errorPayload(error));
     }
     return;
   }
@@ -617,13 +686,14 @@ export async function handleDocumentRequest(
     res.statusCode = 405;
     res.end();
   } catch (error) {
-    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    sendJson(res, 400, errorPayload(error));
   }
 }
 
 function saveRequestOf(body: SaveRequest): SaveRequest {
   return {
     revision: body.revision,
+    base: body.base,
     headings: Array.isArray(body.headings) ? body.headings : [],
     headingLevels: Array.isArray(body.headingLevels) ? body.headingLevels : [],
     paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],

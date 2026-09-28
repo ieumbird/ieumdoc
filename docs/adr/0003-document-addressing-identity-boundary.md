@@ -29,6 +29,7 @@ snapshot locator와 persistent identity를 분리하면 현재 parsed tree와 Ed
 - NodePath나 sourcePath를 외부 참조, 영속 링크 또는 문서 간 관계의 identity로 저장해서는 안 된다.
 - persistent reference가 필요한 기능은 stable identity 전략이 결정될 때까지 별도 계약 없이 구현하지 않는다.
 - 현재 Editor의 pending edit mapping과 Core operation은 snapshot 기반 주소의 수명과 stale path 실패를 명확히 처리해야 한다.
+- Editor가 여는 시점의 원본 snapshot을 세션 동안 유지하면 `sourcePath`는 그 원본에 계속 유효할 수 있다. 이 경우 저장 시 원본과 마지막 저장 결과를 검증하고, 최신 디스크 위치로 해석하지 않는다. [Editing session and Save v1](../design/editing-session-save-v1.md)은 이 계약을 사용한다.
 
 ## Non-decisions
 

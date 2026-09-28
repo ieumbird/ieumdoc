@@ -1,7 +1,7 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view.browser.js.
 // Switches between Visual and the read-only Source view, checks that Source is the canonical
 // Markdown Save would write (including unsaved Visual edits), that the file is only written by
-// Save, that Equation/Figure drafts block Source, and that unwritable documents keep Source blocked.
+// Save, that Equation/Figure drafts survive Source, and that unwritable documents keep Source blocked.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
 async page => {
@@ -102,30 +102,27 @@ async page => {
   result.reloadedSourceMatchesFile = await sourceText() === await markdown(technical, 'technical-document.md');
   await showVisual();
 
-  // F. Unapplied Equation and Figure drafts block Source, with the reason in a tooltip.
+  // F. Source contains applied content; returning to Visual preserves each unapplied draft.
   const equation = page.locator('[data-block="equation"]').first();
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
-  await source.hover();
-  result.equationDraftBlocksSource = await source.getAttribute('aria-disabled') === 'true' &&
-    await page.getByText('Apply or Cancel the Equation edit before viewing Source.').isVisible();
-  await source.click({force:true});
-  result.equationDraftStaysVisual = await sourceView.count() === 0;
+  await showSource();
+  result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-notice').isVisible();
+  await showVisual();
+  result.equationDraftRetained = await page.getByTestId('equation-latex').inputValue() === 'x + SourceDraft';
   await page.getByTestId('equation-cancel').click();
   const figure = page.locator('[data-block="figure"]').first();
   await figure.locator('img').click();
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-caption').fill('Draft caption.');
-  await source.hover();
-  result.figureDraftBlocksSource = await source.getAttribute('aria-disabled') === 'true' &&
-    await page.getByText('Apply or Cancel the Figure edit before viewing Source.').isVisible();
+  await showSource();
+  result.sourceExcludesFigureDraft = !(await sourceText()).includes('Draft caption.');
+  await showVisual();
+  result.figureDraftRetained = await page.getByTestId('figure-caption').inputValue() === 'Draft caption.';
   await page.getByTestId('figure-cancel').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
-  await showSource();
-  result.sourceAvailableAfterCancel = await sourceView.isVisible();
-  await showVisual();
 
   // G. A document Core cannot write canonically has no Source: the open-time writeability warning
   // already names the reason, Source stays disabled with a hint, nothing is requested, and the

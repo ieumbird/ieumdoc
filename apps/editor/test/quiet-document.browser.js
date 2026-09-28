@@ -191,6 +191,9 @@ async (page, { screenshots = false } = {}) => {
   check(await page.getByTestId('status').textContent()==='Saved','Undo to the saved baseline did not clear dirty status');
   await page.keyboard.press('Control+Shift+z');
   check(await page.getByTestId('status').textContent()==='Unsaved changes','Redo did not restore dirty status');
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await open('quiet-document.md');
   check((await page.locator('.paragraph').first().textContent()).includes('한글입력')&&!(await page.locator('.paragraph').first().textContent()).includes('AFTER_SAVE'),'Save / Reload did not preserve only the saved composition');
 

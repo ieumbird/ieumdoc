@@ -19,9 +19,10 @@ import {
   insertEquationAfter,
   insertFigureAfter,
 } from "../src/block-commands.ts";
-import { declaredDeletions, differsFromBaseline, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { declaredDeletions, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   assertSupportedDocumentChange,
+  appliedDocument,
   collectSupportedEdits,
   isNewBlockPath,
   toTiptapDocument,
@@ -314,7 +315,7 @@ test("inserted and deleted blocks save through Core insertParagraph and removeBl
   assert.deepEqual(withoutPaths(toTiptapDocument(saved.document).content!), withoutPaths(next.content!));
 });
 
-test("new paragraphs and headings split, merge, and reject empty saves", () => {
+test("new paragraphs and headings split and merge while empty editor paragraphs stay transient", () => {
   const markdown = "AB\n\nCD";
   const editable = loadEditableDocument(markdown);
   const merged = toTiptapDocument(editable);
@@ -333,7 +334,7 @@ test("new paragraphs and headings split, merge, and reject empty saves", () => {
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "paragraph", attrs: { sourcePath: "new:3" } });
-  assert.throws(() => collectSupportedEdits(editable, empty), /empty paragraph cannot be saved/);
+  assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
 
   const heading = toTiptapDocument(editable);
   heading.content!.push({ type: "heading", attrs: { sourcePath: "new:4", level: 1 }, content: text("H") });
@@ -363,13 +364,15 @@ test("invalid inserts and deletes never invoke the writer", () => {
   assert.equal(writes, 0);
 });
 
-test("a freshly loaded document with headings has no unsaved changes", () => {
+test("applied state ignores a new empty paragraph but detects subsequent typing", () => {
   const baseline = toTiptapDocument(loadEditableDocument("# Heading\n\nAB"));
   const state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline) });
-  // Projection and engine JSON order heading attributes differently.
-  assert.notEqual(JSON.stringify(state.doc.toJSON()), JSON.stringify(baseline));
-  assert.equal(differsFromBaseline(state, baseline), false);
-  assert.equal(differsFromBaseline(state.apply(state.tr.insertText("X", 1)), baseline), true);
+  const saved = appliedDocument(editorDocumentJSON(state));
+  const withSpace = state.apply(state.tr.insert(state.doc.content.size,
+    schema.nodes.paragraph.create({ sourcePath: "new:empty" })).setMeta(BLOCK_COMMAND_META, true));
+  assert.deepEqual(appliedDocument(editorDocumentJSON(withSpace)), saved);
+  const typed = withSpace.apply(withSpace.tr.insertText("X", withSpace.doc.content.size - 1));
+  assert.notDeepEqual(appliedDocument(editorDocumentJSON(typed)), saved);
 });
 
 test("editor shell keeps application UI out of the document editor", () => {

@@ -47,7 +47,7 @@ async page => {
   const typedCaption = 'Caption entered after Figure selection moved.';
   await page.getByTestId('figure-caption').fill(typedCaption);
   const draftActive = await page.getByTestId('figure-draft-status').isVisible() &&
-    await page.locator('.top-bar [data-testid="save"][aria-disabled="true"]').count() === 1;
+    await page.getByTestId("draft-notice").isVisible();
   const captionStayedInField = await page.getByTestId('figure-caption').inputValue() === typedCaption &&
     await page.getByTestId('figure-image-url').inputValue() === './diagram.svg';
   await page.getByTestId('figure-apply').click();

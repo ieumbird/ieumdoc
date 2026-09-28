@@ -8,7 +8,6 @@ import { history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
 import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
 import { insertFigureAfter } from "../src/block-commands.ts";
-import { remapSavedRanges } from "../src/DocumentEditor.tsx";
 import { editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   assertSupportedDocumentChange,
@@ -159,14 +158,12 @@ test("new Figure inserts save and reload through Core semantics", () => {
   assert.equal(saved.markdown, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
   assert.deepEqual(figureOf(saved.document, 1), { label: "", ...figure });
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
-  // The saved snapshot re-addresses the transient locator.
-  assert.deepEqual(remapSavedRanges([{ start: 7, end: 8, path: "1" }], saved.document), [{ start: 7, end: 8, path: "1" }]);
 
-  // An unapplied transient Figure is representable in the editor but cannot be saved.
+  // An unapplied transient Figure remains in the session, outside the applied save.
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "figure", attrs: { sourcePath: "new:empty-figure", label: "", editable: true, imageUrl: "", imageAlt: "", caption: "" } });
   assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), empty));
-  assert.throws(() => collectSupportedEdits(editable, empty), /image URL is required/);
+  assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
   assert.throws(() => saveEdits("Intro\n", {
     inserts: [{ block: "figure", imageUrl: "", imageAlt: "", caption: "" }],
     order: [{ path: [0], part: 0 }, { insert: 0 }],
@@ -202,7 +199,7 @@ test("Figure delete and reorder keep other blocks and Core semantics", () => {
   assert.deepEqual(figureOf(withInsert.document, 7), { label: "fig-control", ...ORIGINAL });
 });
 
-test("an open Figure draft blocks saving until applied or canceled", () => {
+test("Figure draft state distinguishes applied content from unapplied input", () => {
   assert.equal(isUnappliedFigureDraft(false, CHANGED, ORIGINAL), false);
   assert.equal(isUnappliedFigureDraft(true, ORIGINAL, ORIGINAL, "6"), false);
   assert.equal(isUnappliedFigureDraft(true, { ...ORIGINAL, caption: "x" }, ORIGINAL, "6"), true);
@@ -213,10 +210,6 @@ test("an open Figure draft blocks saving until applied or canceled", () => {
   assert.equal(isUnappliedFigureDraft(true, CHANGED, CHANGED, "new:figure"), false);
 
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const guard = app.indexOf("if (figureDraftActive) return;");
-  assert.ok(guard >= 0 && guard < app.indexOf("beginSave()"));
-  assert.match(app, /Apply or Cancel the Figure edit before saving\./);
-  assert.match(app, /hasPendingUserState = hasPendingDocumentEdits \|\| hasPendingEquationDraft \|\| hasPendingFigureDraft/);
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
   assert.match(documentEditor, /activeFigureDrafts\.current\.size > 0/);
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");

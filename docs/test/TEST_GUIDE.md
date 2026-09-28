@@ -595,10 +595,10 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 지원 paragraph의 `AB|CD` 위치에서 Enter를 누른다. 두 문단 `AB` / `CD`가 되어야 한다. Bold, Italic, 두 서식 조합 및 hard break가 포함된 문단에서도 반복한다.
 - 양쪽 문단에 텍스트를 추가하고 Undo/Redo한다. 하나의 Editor 안에서 분할과 입력이 복구되어야 한다.
 - Save 후 Reload한다. 두 문단과 서식이 유지되고, 주변 Heading/Equation/Figure/Table/reference 내용이 같아야 한다.
-- 시작/끝에서 Enter를 눌러 빈 문단을 만든 뒤 Save한다. 파일을 쓰지 않고 실패해야 한다. 빈 문단에 텍스트를 입력하면 다시 저장할 수 있다.
+- 시작/끝에서 Enter로 만든 새 빈 문단은 화면과 커서 위치를 유지하며 저장을 막지 않는다. 파일에는 빈 문단을 쓰지 않는다. 기존 문단의 내용을 모두 지우면 해당 block과 이유를 알리고 입력을 유지한다.
 - Heading Enter와 키보드 block 삭제는 계속 차단된다. top-level block 재정렬은 왼쪽 handle을 사용하며, Shift+Enter는 같은 문단 안에 hard break를 만든다.
 - 저장 응답을 지연시키고 추가 입력/분할한다. `Saved; newer edits pending` 후 입력이 남아야 하며 다음 Save 및 Reload에서도 유지되어야 한다.
-- sourcePath는 현재 저장 snapshot의 locator다. 내용이 있는 분할 조각은 저장 전 원본 path를 공유하고, 끝에서 생긴 빈 split sibling은 `new:*` locator를 사용해 새 block insertion으로 저장한다. 성공 응답 후 새 path를 사용하며 영속 ID를 생성하지 않는다.
+- sourcePath는 이 세션에서 Open/New한 snapshot의 locator다. 분할 조각은 원본 path를 공유하며 새 빈 문단은 `new:*` locator를 사용한다. Save 후에도 locator와 편집 이력을 유지하고, 다시 열 때 새 snapshot path를 받는다. 영속 ID는 생성하지 않는다.
 
 ## Editor Paragraph Merge v1
 
@@ -623,13 +623,13 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 
 브라우저 회귀: `pnpm browser:test block-move`는 scratch `tmp/block-move/technical-document.md`에서 실제 handle을 드래그해 위 표시·제자리·선택·연속 드래그·Undo/Redo·draft 차단을 확인한다. 저장하지 않으며 파일이 그대로인지도 확인한다.
 
-## Editor Equation Draft Save Guard v1
+## Editor Equation Draft Save v1
 
-- Equation에서 `Edit`를 누르고 LaTeX를 바꾼다. `Apply` 전에는 해당 Equation block 안에 `Unapplied changes. Apply or Cancel before saving.` 가 보이고, top bar `Save`는 비활성화된다(hover 시 `Apply or Cancel the Equation edit before saving.`). 전역 경고는 없고, 편집창과 draft 내용이 그대로 남아야 한다.
+- Equation에서 `Edit`를 누르고 LaTeX를 바꾼다. Apply 전 입력은 초안으로 남고, Save/Source에는 마지막 Apply 값만 포함된다. block 안과 top bar 아래에 초안은 저장되지 않는다는 안내가 보인다. Save 후에도 초안과 편집창이 그대로 남고 상태는 `Unsaved changes`다.
 - 같은 상태에서 `Apply` → `Save` → Reload한다. 바꾼 LaTeX가 유지된다.
-- 다시 LaTeX를 바꿔 `Save`가 비활성화된 것을 확인한 뒤 `Cancel` → `Save` → Reload한다. 원래 LaTeX가 유지되고 파일은 바뀌지 않는다.
+- 다시 LaTeX를 바꾼 뒤 `Cancel` → `Save` → Reload한다. 마지막 Apply 값이 유지된다.
 - Equation 편집창을 열기만 하고 내용을 바꾸지 않으면 `Save`는 정상 동작한다.
-- 이 차단은 파일 write와 API POST를 발생시키지 않는다. paragraph 편집, block reorder, delayed-save pending 동작은 그대로 유지된다.
+- Save가 확정 내용을 쓰더라도 초안은 Apply/Cancel 전까지 남는다. paragraph 편집, block reorder, delayed-save pending 동작은 그대로 유지된다.
 
 ## Editor UX Shell v1
 
@@ -638,13 +638,13 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - Error는 top bar 아래 message area에 남고 `×`로 닫는다. Notice는 몇 초 뒤 사라진다. 두 메시지 모두 document column 안에 나타나지 않는다.
 - block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
 - paragraph 시작 또는 공백 뒤에서 `/`를 입력하면 `+`와 같은 insert menu가 열린다. 입력한 글자로 걸러지고, ↑/↓/Enter로 고르며 Esc로 닫는다. 선택하면 `/` 입력은 지워진다.
-- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`이 있다(`Figure`는 아래 Figure Authoring v1, `Table`은 아래 Table authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 빈 paragraph, 빈 heading, Apply하지 않은 빈 Equation을 Save하면 실패한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
+- insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`이 있다(`Figure`는 아래 Figure Authoring v1, `Table`은 아래 Table authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 새 빈 paragraph와 미적용 Equation은 세션에 남으며 확정 내용만 저장된다. 빈 heading은 위치·이유를 알리고 저장을 거부한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
 - block menu에는 Core `removeBlock`으로 저장되는 `Delete`가 있다(Table에는 그 위에 `Add row below`, `Add column right`가 더 있다. 아래 Table authoring v1). 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
 - 키보드 Delete/Backspace나 붙여넣기로는 block이 추가·삭제되지 않는다. Save adapter는 Delete command로 선언되지 않은 block 소실을 거부한다.
 
 Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popover, sidebar/top bar의 아이콘 버튼은 shadcn(Base UI, Nova style, Stone base color) 기반이다. 이 전환은 상호작용을 바꾸지 않는다.
 
-- Save가 Equation draft 때문에 비활성일 때도 hover/focus하면 이유가 tooltip으로 뜬다(네이티브 `disabled`가 아니라 `aria-disabled`를 쓰므로 여전히 hover 가능하다).
+- 미적용 Equation/Figure 초안이 있어도 Save는 확정 내용을 저장할 수 있다. 저장 불가 문서의 비활성 Save는 hover/focus tooltip으로 이유를 안내한다.
 - Figure를 선택하면 properties popover가 뜨지만 editor focus는 그대로 유지된다. popover가 열린 상태에서도 Delete 등 키보드 상호작용이 그대로 동작해야 한다.
 - Open dialog는 Escape나 바깥 클릭으로도 닫힌다(이전 임시 구현에는 없던, 표준 dialog의 기본 동작).
 
@@ -660,7 +660,7 @@ pnpm exec playwright-cli -s=ieumdoc-shell close
 pnpm exec playwright-cli -s=ieumdoc-equation close
 ```
 
-`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `saveTooltipShown`은 Equation draft로 Save가 막혔을 때 hover하면 tooltip이 뜨는지 확인한다.
+`editor-shell` 결과의 boolean 값은 모두 `true`, `plusMenuItems`와 `slashMenuItems`는 `["Paragraph", "Heading 1", "Heading 2", "Heading 3", "Equation", "Figure"]`, `blockMenuItems`는 `["Delete"]`, `editorCount`는 `1`이어야 한다. `draftScopeExplained`는 초안과 확정 내용의 저장 범위 안내를 확인한다.
 
 ## Figure Authoring v1
 
@@ -670,7 +670,7 @@ Core `updateFigure` / `insertFigure`가 Figure의 image URL, alt text, caption�
 
 - image URL은 필수다. 앞뒤 공백과 줄바꿈은 안 된다(빈 URL은 Figure가 사라지고, 공백은 저장 후 바뀐다).
 - alt text는 비워도 된다(비우면 `:alt:`가 없어진다). 줄바꿈과 앞 공백은 안 된다.
-- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않으며 Save도 계속 비활성이다.
+- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않는다. Save는 마지막 Apply 값과 다른 확정 내용을 저장한다.
 - legend, 서식 있는 caption 등 v1이 지원하지 않는 구조의 Figure는 읽기 전용이다(`inspect`의 `figureEditable=false`).
 
 CLI:
@@ -685,7 +685,7 @@ pnpm ieumdoc update-figure <file> --path 6 --caption "New caption."
 Editor:
 
 - 기존 Figure를 클릭하면 properties popover(Label, Image, Alt text, Caption)가 보이고 editor focus는 유지된다. block의 `Edit`를 누르면 Image / Alt text / Caption / Label 입력이 있는 form이 열린다.
-- 값을 바꾸면 block 안에 `Unapplied changes. Apply or Cancel before saving.`이 보이고 Save가 비활성이다(tooltip `Apply or Cancel the Figure edit before saving.`). `Apply`(또는 Enter) 후에만 block의 이미지·caption이 바뀌고 Save할 수 있다. `Cancel`(또는 Esc)은 마지막으로 Apply한 값으로 돌아가고 block은 남는다.
+- 값을 바꾸면 block 안에 `Unapplied changes are not saved. Apply to include them, or Cancel.`이 보인다. Save/Source는 마지막 Apply 값만 포함하며 초안은 유지한다. Apply 후 새 값이 저장 대상이 되고 Cancel은 마지막 Apply 값으로 돌아간다.
 - 상대 경로 이미지(`./`, `../`)는 열린 문서의 폴더 기준으로 보인다. 이미지 preview는 Apply 후 갱신된다.
 - `+` 또는 `/figure`로 새 Figure를 넣으면 form이 바로 열리고 Image 입력에 focus가 간다. 빈 새 paragraph에서 `/figure`를 쓰면 그 paragraph가 Figure로 바뀌어 빈 paragraph가 남지 않는다. 한 번도 Apply하지 않고 `Cancel`하면 block이 사라진다(문서의 유일한 block이면 빈 paragraph로 돌아간다). Apply한 뒤 다시 `Edit` → 변경 → `Cancel`하면 block은 남고 Apply한 값으로 돌아간다.
 - Save → Reload 후 image/alt/caption이 유지되고 기존 label은 그대로다. Delete, reorder, Undo/Redo, Save 지연 중 입력한 Figure draft도 기존 block과 같이 동작한다.
@@ -826,8 +826,8 @@ Top bar 오른쪽의 `Visual | Source`는 같은 문서의 두 view다. `Source`
 - `Source`를 누를 때마다 현재 editor 상태로 다시 만든다. 편집, 선택, syntax highlighting, line number는 없다.
 - `Visual`로 돌아오면 미저장 편집과 Undo/Redo가 그대로 남는다(Editor는 숨겨질 뿐 다시 만들어지지 않는다).
 - Save와 save status는 두 view에서 같다. Source에서 Save하면 보이던 Markdown이 그대로 저장된다. 다른 파일을 Open/New하면 Visual로 돌아간다.
-- Apply되지 않은 Equation/Figure draft가 있으면 `Source`는 비활성이고 tooltip으로 이유를 알려 준다.
-- Save가 거부할 상태(빈 paragraph, 외부 변경 conflict 등)면 `Source view unavailable: …` error를 보이고 Visual에 남는다. 파일은 바뀌지 않는다. 열 때부터 canonical Markdown으로 쓸 수 없는 문서는 Source 자체가 비활성화되고 이유는 writeability 경고에 있다(아래 "Writeability Preflight v1").
+- Apply되지 않은 Equation/Figure draft는 Source에 포함되지 않는다. 안내 문구가 보이며 Visual로 돌아오면 입력 중이던 값이 그대로 남는다.
+- 비워진 기존 paragraph 등 실제 저장 불가 내용은 `Source view unavailable: …`로 알리고 Visual에 남는다. 새 빈 편집용 paragraph는 제외한다. 외부 변경 충돌 뒤에도 현재 세션의 확정 내용을 Source로 확인·복사할 수 있으며 파일은 쓰지 않는다. 열 때부터 canonical write가 불가능한 문서는 기존 writeability 경고와 함께 Source를 막는다.
 - CLI에는 미저장 editor 상태가 없으므로 별도 command가 없다. 저장된 파일의 canonical 형태는 `pnpm ieumdoc format <file>`로 만든다.
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본과 canonical 기준값 `expected.md`는 `pnpm browser:prepare`가 만든다):
@@ -847,7 +847,7 @@ pnpm exec playwright-cli -s=ieumdoc-source close
 
 Equation과 Figure의 label(reference target 이름)을 Visual Editor에서 추가 / 수정 / 제거한다. label은 NodePath나 block identity가 아니다. 저장은 Core `updateLabel`을 거친다(CLI: `pnpm ieumdoc update-label <file> --path <index> --label <label>`, 빈 `--label ""`은 제거).
 
-- Equation: `Edit` 폼의 `Label` 입력. Figure: `Edit figure` 폼의 `Label` 입력. 둘 다 `Apply`해야 반영되고, Apply 전에는 draft로 Save/Source가 막힌다. 새 Equation/Figure에도 label을 지정할 수 있다.
+- Equation: `Edit` 폼의 `Label` 입력. Figure: `Edit figure` 폼의 `Label` 입력. 둘 다 `Apply`해야 Save/Source에 반영되며, Apply 전 입력은 별도의 미저장 초안으로 유지된다. 새 Equation/Figure에도 label을 지정할 수 있다.
 - canonical 표현: Equation은 `:label:`, Figure는 `:name:`(`:label:`로 쓴 Figure도 저장하면 `:name:`이 된다). Source View에 미저장 label 변경도 보인다.
 - label은 한 줄이고 앞뒤 공백이 없어야 한다(Apply에서 거부). MyST target이 되지 않는 값(예: `""`), `{eq}`/`{numref}`로 참조할 수 없는 값(예: `eq<a>`)은 Save/Source에서 거부된다.
 - 같은 문서의 다른 target(Equation, Figure, `(label)=` target 등)과 MyST identifier가 같으면(대소문자 무시) 중복으로 거부된다. 파일은 바뀌지 않는다. 한 번의 Save 안에서 두 block의 label을 서로 바꾸는 것은 된다.
@@ -925,8 +925,20 @@ pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid / 0 code / 1 h
 Editor:
 
 - 저장할 수 없는 문서도 정상으로 열리고 내용이 그대로 보인다(`Open failed`가 아니다). 연 즉시 top bar 아래에 닫을 수 없는 경고 `IeumDoc can open this document but cannot save it safely, so changes made here cannot be saved. <이유>`가 보이고, status는 `Cannot save`다.
-- 편집은 막지 않지만 그 문서가 열려 있는 동안 Save와 Source는 비활성화된다(tooltip이 이유를 알려 준다). 저장할 수 없으므로 편집이 남아 있어도 Open/New로 다른 문서로 옮길 수 있다.
+- 편집은 막지 않지만 그 문서가 열려 있는 동안 Save/Source는 비활성이다. 편집이 남으면 Open/New도 보호한다. 다른 문서로 이동하려면 Reload에서 명시적으로 버릴지 확인한다.
 - writeability는 문서 응답(Open, Reload, New, Save)마다 Host가 Core로 계산한다. 편집 중 매 입력마다 다시 계산하지 않는다. 저장할 수 없는 block을 지워도 그 세션의 Save는 계속 비활성화된다. 파일을 고친 뒤 다시 연다.
 - 저장 가능한 문서의 Ready/Save/Source 동작은 그대로다.
 
 브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch의 front matter 문서를 열어 내용·경고·`Cannot save`를 확인하고, 편집 뒤에도 Save/Source가 요청을 보내지 않으며 파일이 byte 단위로 그대로인지 확인한다. 이어서 저장 가능한 문서를 열어 정상 Save를 확인하고, front matter 문서를 다시 열어 경고가 돌아오는지 확인한다.
+
+## Editing session and Save (#40)
+
+설계와 책임 경계는 [Editing session and Save v1](../design/editing-session-save-v1.md)을 따른다.
+
+- 저장 전 선택과 Undo/Redo가 저장 후에도 유지된다. 되돌린 내용을 다시 Save하면 실제 파일에도 반영된다.
+- 새 빈 문단은 저장을 막지 않고 화면에 남는다. Equation/Figure 초안은 Save/Source에 포함되지 않으며 Apply/Cancel까지 유지된다.
+- 저장 중 추가 입력은 다음 Save 대상으로 남는다. 실패 후 재시도하며, 외부 변경 충돌이면 원본 파일과 로컬 작업을 모두 보존한다.
+- 충돌 시 Source에서 확정 내용을 복사할 수 있다. Reload는 미저장 변경·초안을 버릴지 묻고, Keep editing은 세션을 보존한다. 브라우저 이탈은 native 경고로 보호한다.
+- Open/New는 저장 불가 문서의 미저장 작업도 보호한다. 새 문서 읽기가 실패하면 기존 작업은 남는다.
+
+`pnpm browser:test save-session`은 실제 scratch 파일에 반복 저장·Undo/Redo·삭제 복구·지연 저장·실패/충돌·초안·Reload를 검증한다. 브라우저 이탈 경고는 OS별 수동 확인도 가능하다: 초안을 입력하고 새로고침을 시도한 뒤 취소하면 입력이 남아야 한다.

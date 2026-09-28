@@ -46,7 +46,7 @@ test("top bar shows filename while keeping the complete path in its title", () =
   // own text only mounts in a browser (see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section).
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="Apply or Cancel the Equation edit before saving." onSave={noop} />
+      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="No document is open." onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);

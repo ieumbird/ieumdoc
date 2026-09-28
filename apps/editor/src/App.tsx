@@ -6,12 +6,10 @@ import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
-import { collectSupportedEdits, type SupportedEdits } from "./tiptap-document.ts";
+import { collectSupportedEdits, isSessionPlaceholder, type OrderItem, type SupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
-const EQUATION_DRAFT_SAVE_HINT = "Apply or Cancel the Equation edit before saving.";
-const FIGURE_DRAFT_SAVE_HINT = "Apply or Cancel the Figure edit before saving.";
-const EQUATION_DRAFT_SOURCE_HINT = "Apply or Cancel the Equation edit before viewing Source.";
-const FIGURE_DRAFT_SOURCE_HINT = "Apply or Cancel the Figure edit before viewing Source.";
 const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
 const WRITE_BLOCKED_SOURCE_HINT = "IeumDoc cannot write this document as canonical Markdown, so there is no Source to show.";
 
@@ -24,10 +22,12 @@ export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
+  const sessionBase = useRef<{ source: string; savedEdits?: SupportedEdits } | undefined>(undefined);
   const [openedPath, setOpenedPath] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [newDialog, setNewDialog] = useState(false);
+  const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -38,10 +38,11 @@ export function App() {
   // Core's canonical writeability of the loaded snapshot ("" when Save can write it). Set from
   // every document response (Open, Reload, New, Save), never recomputed from editor state.
   const [writeError, setWriteError] = useState("");
-  const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : equationDraftActive ? EQUATION_DRAFT_SAVE_HINT
-    : figureDraftActive ? FIGURE_DRAFT_SAVE_HINT : undefined;
-  const sourceHint = writeError ? WRITE_BLOCKED_SOURCE_HINT : equationDraftActive ? EQUATION_DRAFT_SOURCE_HINT
-    : figureDraftActive ? FIGURE_DRAFT_SOURCE_HINT : undefined;
+  const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
+  const sourceHint = writeError ? WRITE_BLOCKED_SOURCE_HINT : undefined;
+  const draftNotice = equationDraftActive || figureDraftActive
+    ? "Save and Source include applied content only. Equation and Figure drafts remain unsaved until Apply."
+    : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
   const [sourcePending, setSourcePending] = useState(false);
@@ -53,6 +54,7 @@ export function App() {
   // A pending Source preview belongs to the open document, so it blocks document switches too.
   const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…" ||
     sourcePending;
+  const switching = status === "Loading…" || status === "Opening…" || status === "Creating…";
 
   /** Resolves to an error message for a requested path, or "" on success. */
   async function load(requestedPath?: string): Promise<string> {
@@ -62,6 +64,7 @@ export function App() {
     try {
       const next = await requestDocument("GET", requestedPath);
       setDocument(next.document);
+      sessionBase.current = next.source === undefined ? undefined : { source: next.source };
       setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -84,40 +87,33 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
     if (busy) return "Wait for the current operation to finish.";
-    // Changes to a document that cannot be saved must not trap the user in it.
-    if (!writeError && editorRef.current?.hasUnsavedChanges()) {
+    if (editorRef.current?.hasUnsavedChanges()) {
       return "Save or discard the current changes before opening another file.";
     }
     return load(requestedPath);
   }
 
   async function save(): Promise<void> {
-    if (!document || !editorRef.current || !openedPath) return;
+    if (!document || !editorRef.current || !openedPath || busy) return;
     if (writeError) return;
-    if (equationDraftActive) return;
-    if (figureDraftActive) return;
     setError("");
     setNotice("");
     setStatus("Saving…");
+    let submitted: TiptapJSON | undefined;
+    let payload: SupportedEdits | undefined;
     try {
-      const submitted = editorRef.current.beginSave();
-      const payload = collectSupportedEdits(document, submitted);
-      const next = await requestDocument("POST", openedPath, { revision: sourceRevision, ...payload });
-      setDocument(next.document);
+      submitted = editorRef.current.beginSave();
+      payload = collectSupportedEdits(document, submitted);
+      const next = await requestDocument("POST", openedPath, { revision: sourceRevision, base: sessionBase.current, ...payload });
       setWriteError(next.writeError);
       setSourceRevision(next.revision);
-      setOpenedPath(next.path);
-      // A successful response must not replace input entered while saving.
-      const hasPendingDocumentEdits = JSON.stringify(editorRef.current?.getDocument()) !== JSON.stringify(submitted);
-      const hasPendingEquationDraft = editorRef.current?.hasUnappliedEquationDraft() ?? false;
-      const hasPendingFigureDraft = editorRef.current?.hasUnappliedFigureDraft() ?? false;
-      const hasPendingUserState = hasPendingDocumentEdits || hasPendingEquationDraft || hasPendingFigureDraft;
-      editorRef.current?.finishSave(hasPendingUserState ? next.document : undefined);
-      if (!hasPendingUserState) setEditorGeneration((value) => value + 1);
+      if (sessionBase.current) sessionBase.current.savedEdits = payload;
+      editorRef.current?.finishSave(true);
+      const hasPendingUserState = editorRef.current?.hasUnsavedChanges() ?? false;
       setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
     } catch (cause) {
       editorRef.current?.finishSave();
-      setError(messageOf(cause));
+      setError(saveErrorMessage(cause, submitted, payload));
       setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");
     }
   }
@@ -129,12 +125,11 @@ export function App() {
   async function showSource(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || busy) return;
     if (writeError) return;
-    if (equationDraftActive || figureDraftActive) return;
     setError("");
     setSourcePending(true);
     try {
       const payload = collectSupportedEdits(document, editorRef.current.getDocument());
-      setSourceMarkdown(await requestSource(openedPath, { revision: sourceRevision, ...payload }));
+      setSourceMarkdown(await requestSource(openedPath, { revision: sourceRevision, base: sessionBase.current, ...payload }));
       setView("source");
     } catch (cause) {
       setError(`Source view unavailable: ${messageOf(cause)}`);
@@ -148,7 +143,7 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be created.";
     if (busy) return "Wait for the current operation to finish.";
-    if (!writeError && editorRef.current?.hasUnsavedChanges()) {
+    if (editorRef.current?.hasUnsavedChanges()) {
       return "Save or discard the current changes before creating another file.";
     }
     setError("");
@@ -157,6 +152,7 @@ export function App() {
     try {
       const next = await requestDocument("PUT", requestedPath, { path: requestedPath });
       setDocument(next.document);
+      sessionBase.current = next.source === undefined ? undefined : { source: next.source };
       setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -172,6 +168,33 @@ export function App() {
       setStatus("Create failed");
       return message;
     }
+  }
+
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => {
+      if (!editorRef.current?.hasUnsavedChanges() && !busy) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [busy]);
+
+  async function reload(): Promise<void> {
+    if (busy || !openedPath) return;
+    if (editorRef.current?.hasUnsavedChanges()) {
+      setReloadDialog(true);
+      return;
+    }
+    await reloadFromDisk();
+  }
+
+  async function reloadFromDisk(): Promise<void> {
+    // Keep a modal boundary during the read, so newly typed input cannot race a reload.
+    setReloadDialog(true);
+    const message = await load(openedPath);
+    setReloadDialog(false);
+    if (message) setError(message);
   }
 
   return (
@@ -194,14 +217,17 @@ export function App() {
             viewDisabled={!document || busy}
             sourceHint={sourceHint}
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-            saveDisabled={!document || status === "Saving…" || sourcePending || equationDraftActive || figureDraftActive ||
+            saveDisabled={!document || busy ||
               Boolean(writeError)}
             saveHint={saveHint}
             onSave={() => void save()}
+            onReload={() => void reload()}
+            reloadDisabled={!document || busy}
           />
           <MessageArea
             error={error}
             notice={notice}
+            draftNotice={draftNotice}
             warning={writeError ? writeBlockedMessage(writeError) : ""}
             onDismissError={() => setError("")}
             onNoticeExpired={() => setNotice("")}
@@ -238,25 +264,54 @@ export function App() {
         initialPath={openedPath}
         busy={busy}
         onOpen={openFile}
-        onClose={() => setOpenDialog(false)}
+        onClose={() => { if (!switching) setOpenDialog(false); }}
       />
       <NewDialog
         open={newDialog}
         busy={busy}
         onCreate={createFile}
-        onClose={() => setNewDialog(false)}
+        onClose={() => { if (!switching) setNewDialog(false); }}
       />
+      <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{switching ? "Reloading…" : "Discard local changes?"}</DialogTitle>
+            <DialogDescription>Reload replaces your unsaved changes and unapplied drafts with the file on disk. Keep editing to preserve them. Source lets you copy applied content first.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" size="sm" disabled={switching} onClick={() => setReloadDialog(false)}>Keep editing</Button>
+            <Button size="sm" disabled={switching} onClick={() => void reloadFromDisk()}>Discard and reload</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+type SessionSaveRequest = SupportedEdits & { revision: string; base?: { source: string; savedEdits?: SupportedEdits } };
 
 type DocumentResponse = {
   path: string;
   document: EditableDocument;
   revision: string;
+  source?: string;
   /** Why Core cannot write the snapshot as canonical Markdown; "" when it can. */
   writeError: string;
 };
+
+class SaveContentError extends Error {
+  constructor(message: string, readonly target?: OrderItem) { super(message); }
+}
+
+function saveErrorMessage(error: unknown, submitted?: TiptapJSON, edits?: SupportedEdits): string {
+  if (!(error instanceof SaveContentError) || !error.target || !submitted) return messageOf(error);
+  const target = error.target;
+  const nodes = submitted.content ?? [];
+  const node = "path" in target
+    ? nodes.find(node => String(node.attrs?.sourcePath).split(";").includes(target.path.join(",")))
+    : nodes.filter(node => !isSessionPlaceholder(node))[edits?.order?.findIndex(item => "insert" in item && item.insert === target.insert) ?? -1];
+  return node ? `Block ${nodes.indexOf(node) + 1} (${node.type}): ${error.message}` : error.message;
+}
 
 class SaveConflictError extends Error {
   constructor(message: string) {
@@ -268,7 +323,7 @@ class SaveConflictError extends Error {
 async function requestDocument(
   method: "GET" | "POST" | "PUT",
   filePath?: string,
-  body?: (SupportedEdits & { revision: string; path?: string }) | { path: string },
+  body?: (SessionSaveRequest & { path?: string }) | { path: string },
 ): Promise<DocumentResponse> {
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
   const response = await fetch(`/api/document${query}`, {
@@ -280,25 +335,28 @@ async function requestDocument(
     path?: string;
     document?: EditableDocument;
     revision?: string;
+    source?: string;
     writeError?: string | null;
     error?: string;
+    target?: OrderItem;
   };
   if (response.status === 409) {
     throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
   }
   if (!response.ok || !payload.document || typeof payload.revision !== "string" || typeof payload.path !== "string") {
-    throw new Error(payload.error ?? `request failed (${response.status})`);
+    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
   }
   return {
     path: payload.path,
     document: payload.document,
     revision: payload.revision,
+    source: payload.source,
     writeError: typeof payload.writeError === "string" ? payload.writeError : "",
   };
 }
 
 /** Asks the Host for the canonical Markdown a Save request would write. */
-async function requestSource(filePath: string, body: SupportedEdits & { revision: string }): Promise<string> {
+async function requestSource(filePath: string, body: SessionSaveRequest): Promise<string> {
   const response = await fetch("/api/document-source", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
