@@ -23,6 +23,8 @@ export type BlockCommand = {
   /** Whether the block menu lists this command for the block at all; default: every block. */
   applies?(state: EditorState, index: number): boolean;
   enabled(state: EditorState, index: number): boolean;
+  /** Why the command cannot run on this block; the menu reports it and leaves the document unchanged. */
+  rejection?(state: EditorState, index: number): string | undefined;
   run(state: EditorState, index: number): Transaction;
 };
 
@@ -108,17 +110,30 @@ export const INSERT_COMMANDS: InsertCommand[] = [
 
 const isTable = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "table";
 const isHeading = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "heading";
+const isParagraph = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "paragraph";
+const isTextBlock = (state: EditorState, index: number) => isHeading(state, index) || isParagraph(state, index);
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
+  {
+    id: "paragraph",
+    label: "Change to Paragraph",
+    applies: isHeading,
+    enabled: isHeading,
+    run: headingToParagraph,
+  },
   ...Array.from({ length: 6 }, (_, index) => {
     const level = index + 1;
     return {
       id: `heading-level-${level}`,
       label: `Change to Heading ${level}`,
-      applies: isHeading,
+      applies: isTextBlock,
       enabled: (state: EditorState, block: number) =>
-        isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level,
-      run: (state: EditorState, block: number) => changeHeadingLevel(state, block, level),
+        isParagraph(state, block) || (isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level),
+      rejection: (state: EditorState, block: number) =>
+        isParagraph(state, block) ? paragraphToHeadingRejection(state, block) : undefined,
+      run: (state: EditorState, block: number) => isParagraph(state, block)
+        ? paragraphToHeading(state, block, level)
+        : changeHeadingLevel(state, block, level),
     };
   }),
   {
@@ -326,6 +341,37 @@ export function changeHeadingLevel(state: EditorState, index: number, level: num
   if (Number(heading.attrs.level) === level) return state.tr;
   return closeHistory(state.tr)
     .setNodeMarkup(pos, undefined, { ...heading.attrs, level })
+    .setMeta(BLOCK_COMMAND_META, true)
+    .scrollIntoView();
+}
+
+// Save maps a converted block to Core removeBlock and insertHeading/insertParagraph; Core
+// convertBlock is the same conversion for CLI and other headless callers.
+
+/** Editor headings hold unmarked text only, so formatted content cannot become one. */
+export function paragraphToHeadingRejection(state: EditorState, index: number): string | undefined {
+  let plain = true;
+  state.doc.child(index).forEach(child => { if (!child.isText || child.marks.length > 0) plain = false; });
+  return plain ? undefined
+    : "A heading can hold plain text only. Remove formatting, links, inline math, references and line breaks first. Your document is unchanged.";
+}
+
+/** Turn a plain-text Paragraph into a Heading, keeping its text. */
+export function paragraphToHeading(state: EditorState, index: number, level: number): Transaction {
+  if (!isParagraph(state, index) || paragraphToHeadingRejection(state, index)) throw new Error("only a plain-text Paragraph can become a Heading");
+  if (!Number.isInteger(level) || level < 1 || level > 6) throw new Error("invalid heading level");
+  return closeHistory(state.tr)
+    .setNodeMarkup(blockPos(state, index), state.schema.nodes.heading, { ...state.doc.child(index).attrs, level })
+    .setMeta(BLOCK_COMMAND_META, true)
+    .scrollIntoView();
+}
+
+/** Turn a Heading into a Paragraph, keeping its text. */
+export function headingToParagraph(state: EditorState, index: number): Transaction {
+  if (!isHeading(state, index)) throw new Error("only a Heading can become a Paragraph");
+  // The paragraph type keeps the attributes it defines (the session locator) and drops the level.
+  return closeHistory(state.tr)
+    .setNodeMarkup(blockPos(state, index), state.schema.nodes.paragraph, state.doc.child(index).attrs)
     .setMeta(BLOCK_COMMAND_META, true)
     .scrollIntoView();
 }

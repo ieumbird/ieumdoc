@@ -580,6 +580,51 @@ export function updateHeadingLevel(
   return next;
 }
 
+/** The block kind a top-level Paragraph or Heading becomes. */
+export type BlockConversion = { block: "paragraph" } | { block: "heading"; level: number };
+
+const TEXT_BLOCK_FIELDS: Record<string, Set<string>> = {
+  paragraph: new Set(["type", "children", "position"]),
+  heading: new Set(["type", "depth", "children", "position"]),
+};
+
+/** Convert a top-level Paragraph or Heading to another text block kind or heading level, keeping
+ * its inline content. Fails when the target cannot keep that content (e.g. a line break in a heading). */
+export function convertBlock(document: MystDocument, path: NodePath, to: BlockConversion): MystDocument {
+  if (path.length !== 1) throw new Error("convertBlock requires a top-level block path");
+  if (to.block === "heading" && (!Number.isInteger(to.level) || to.level < 1 || to.level > 6)) {
+    throw new Error(`heading level must be an integer from 1 to 6: ${to.level}`);
+  }
+  const current = getNode(document, path);
+  const fields = TEXT_BLOCK_FIELDS[current.type];
+  if (!fields) throw new Error(`only a paragraph or heading can be converted at [${path.join(",")}]`);
+  if (current.type === to.block && (to.block === "paragraph" || Number(current.depth) === to.level)) {
+    throw new Error(`block at [${path.join(",")}] is already this kind`);
+  }
+  const content = projectInlineContent(current);
+  if (!content || Object.entries(current).some(([key, value]) => value !== undefined && !fields.has(key))) {
+    throw new Error(`${current.type} at [${path.join(",")}] has content that conversion cannot preserve`);
+  }
+  if (to.block === "heading" && containsBreak(content)) {
+    throw new Error("a heading cannot contain line breaks");
+  }
+
+  const next = cloneDocument(document);
+  const children = inlineContentToNodes(content);
+  const converted: MystNode = to.block === "heading"
+    ? { type: "heading", depth: to.level, children }
+    : { type: "paragraph", children };
+  next.children[path[0]] = converted;
+  if (converted.type === "paragraph") assertPersistentParagraph(converted);
+  else assertInlineBlockRoundTrip(converted);
+  assertCanonicalBlockBoundaries(next);
+  return next;
+}
+
+function containsBreak(content: InlineContent[]): boolean {
+  return content.some((item) => item.kind === "break" || ("children" in item && containsBreak(item.children)));
+}
+
 /** Update one Equation's LaTeX source while preserving its semantic identity. */
 export function updateEquationLatex(
   document: MystDocument,

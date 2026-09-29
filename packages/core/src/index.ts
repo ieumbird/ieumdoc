@@ -23,6 +23,7 @@ export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export type { ListContent, ListItemContent } from "./list.ts";
 export type { CodeBlockContent } from "./code.ts";
+export type { BlockConversion } from "./operations.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 
@@ -64,6 +65,7 @@ export const updateCodeBlock = fence(operations.updateCodeBlock);
 export const removeBlock = fence(operations.removeBlock);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);
+export const convertBlock = fence(operations.convertBlock);
 export const updateEquationLatex = fence(operations.updateEquationLatex);
 export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);

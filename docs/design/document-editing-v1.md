@@ -34,7 +34,10 @@ Core `insertParagraph` accepts InlineContent directly (CLI `insert-block --conte
 so rich content is never staged as flattened text. Core `insertTable` accepts optional
 column alignment, also exposed by CLI `insert-table --align`. Text-block conversions
 and selection replacement compose existing Core operations, already available
-headlessly. Cursor navigation and session identity repair require no CLI command.
+headlessly. Issue #54 adds block-menu Paragraph/Heading conversion; it saves like
+other engine conversions, and Core `convertBlock` (CLI `convert-block`) is the same
+conversion for headless callers. Editor headings hold plain text only, so a
+formatted paragraph is refused with a visible reason instead of losing marks. Cursor navigation and session identity repair require no CLI command.
 
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.

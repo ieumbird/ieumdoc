@@ -278,6 +278,37 @@ test("CLI updates a real H2 file to H5 and rejects unsafe heading requests witho
   }
 });
 
+test("CLI converts a Paragraph to a Heading and back, rejecting invalid requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-convert-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n");
+  try {
+    const promoted = run(["convert-block", file, "--path", "1", "--to", "heading", "--level", "2"]);
+    assert.equal(promoted.status, 0, promoted.stderr);
+    const heading = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks[1];
+    assert.equal(heading?.block === "heading" && heading.level, 2);
+
+    const demoted = run(["convert-block", file, "--path", "1", "--to", "paragraph"]);
+    assert.equal(demoted.status, 0, demoted.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n");
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["convert-block", file, "--path", "2", "--to", "heading", "--level", "2"],
+      ["convert-block", file, "--path", "1", "--to", "heading"],
+      ["convert-block", file, "--path", "0", "--to", "paragraph", "--level", "2"],
+      ["convert-block", file, "--path", "0", "--to", "list"],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI insert-equation persists a Core equation", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
   const file = path.join(dir, "document.md");
