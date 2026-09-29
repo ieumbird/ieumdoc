@@ -191,6 +191,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     const command = BLOCK_COMMANDS.find(command => command.id === id);
     setBlockMenu(null);
     if (!command?.enabled(editor.state, index)) return;
+    const rejection = command.rejection?.(editor.state, index);
+    if (rejection) {
+      onStructuralReject(rejection);
+      return;
+    }
     editor.view.dispatch(command.run(editor.state, index));
     editor.view.focus();
   };

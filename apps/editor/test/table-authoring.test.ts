@@ -70,7 +70,8 @@ test("Table is an insert command; row and column commands are offered for tables
   const { state } = editorState(mixed);
   const listed = (index: number) => BLOCK_COMMANDS.filter(command => command.applies?.(state, index) ?? true).map(command => command.label);
   assert.deepEqual(listed(TABLE), ["Add row below", "Add column right", "Delete"]);
-  assert.deepEqual(listed(0), ["Delete"]);
+  assert.ok(listed(0).includes("Delete"));
+  assert.ok(!listed(0).some(label => ["Add row below", "Add column right"].includes(label)));
 });
 
 test("a new table has a header row and two body rows of three columns, and saves through Core insertTable", () => {

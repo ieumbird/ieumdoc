@@ -24,6 +24,7 @@ import {
   serialize,
   updateNodeTextAtPath,
   updateHeadingLevel,
+  convertBlock,
   updateEquationLatex,
   updateFigure,
   updateLabel,
@@ -176,6 +177,18 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Change one editable top-level Heading from its current level to another level.",
       "The current level must match --from.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "convert-block",
+    summary: "Convert a Paragraph or Heading to another text block kind",
+    usage: "ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]",
+    details: [
+      "Convert one top-level Paragraph to a Heading, a Heading to a Paragraph,",
+      "or a Heading to another level. Inline content is kept.",
+      "--level is required with --to heading and not allowed with --to paragraph.",
+      "Conversions that cannot keep the content, such as a line break in a heading, are rejected.",
       ...PATH_NOTE,
     ],
   },
@@ -458,6 +471,16 @@ function main(argv: string[]): number {
       ));
       return 0;
     }
+    case "convert-block": {
+      const to = flag(flags, "--to");
+      if (to !== "paragraph" && to !== "heading") throw new Error("--to must be paragraph or heading");
+      if ((to === "heading") !== flags.includes("--level")) {
+        throw new Error("--level is required with --to heading and not allowed with --to paragraph");
+      }
+      save(file, convertBlock(parse(readFile(file)), pathFlag(flags),
+        to === "heading" ? { block: "heading", level: intFlag(flags, "--level") } : { block: "paragraph" }));
+      return 0;
+    }
     case "insert-equation": {
       save(file, insertEquation(
         parse(readFile(file)),
@@ -612,6 +635,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-heading": ["--at", "--level", "--text"],
   "insert-admonition": ["--at", "--variant", "--text"],
   "update-heading-level": ["--path", "--from", "--to"],
+  "convert-block": ["--path", "--to", "--level"],
   "insert-equation": ["--at", "--latex"],
   "insert-figure": ["--at", "--image", "--alt", "--caption"],
   "update-figure": ["--path", "--image", "--alt", "--caption"],

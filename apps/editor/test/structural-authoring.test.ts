@@ -6,7 +6,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
-import { changeHeadingLevel } from "../src/block-commands.ts";
+import { changeHeadingLevel, headingToParagraph, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { joinRichProse } from "../src/document-interaction.ts";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
@@ -135,6 +135,34 @@ test("Heading level edits survive Tiptap collection, Host file save and reload",
       block: "heading", path: [1], level: 5, text: "Renamed heading", editable: true,
     });
     assert.equal(combinedReload[2]?.block === "paragraph" && combinedReload[2].text, "Keep this paragraph.");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("Paragraph and Heading conversions survive Tiptap collection, Host file save and reload", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-convert-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, source);
+  try {
+    const editable = loadEditableDocument(source);
+    const baseline = toTiptapDocument(editable);
+    const schema = getSchema(editorExtensions());
+    let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+      plugins: [structureGuardPlugin(baseline, () => assert.fail("representable conversion was rejected"))] });
+    state = state.applyTransaction(paragraphToHeading(state, 2, 3)).state;
+    state = state.applyTransaction(headingToParagraph(state, 1)).state;
+
+    const saved = saveFile(file, source, collectSupportedEdits(editable, editorDocumentJSON(state)));
+    assert.equal(readFileSync(file, "utf8"), saved.markdown);
+    assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map((block) =>
+      block.block === "heading" ? [block.block, block.level, block.text] : [block.block, "text" in block && block.text]), [
+      ["heading", 1, "Structural blocks"], ["paragraph", "Existing heading"], ["heading", 3, "Keep this paragraph."],
+    ]);
+
+    const rich = editorState("Keep **this** paragraph.\n").state;
+    assert.ok(paragraphToHeadingRejection(rich, 0));
+    assert.throws(() => paragraphToHeading(rich, 0, 2));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

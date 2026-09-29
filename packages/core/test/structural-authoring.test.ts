@@ -6,6 +6,7 @@ import {
   parse,
   serialize,
   updateHeadingLevel,
+  convertBlock,
   type InlineContent,
 } from "@ieumdoc/core";
 
@@ -95,4 +96,41 @@ test("public Core rejects invalid heading changes without mutating the source", 
     block: "heading", path: [0], level: 2, text: "Read-only heading", editable: false,
     original: { kind: "heading (strong)", line: 1, text: "## **Read-only heading**" },
   });
+});
+
+test("public Core converts a paragraph to a heading and back without losing inline content", () => {
+  const source = "# Title\n\nRead **the limit** and $I_{max}$.\n\nUnchanged paragraph.\n";
+  const document = parse(source);
+  const paragraph = getEditableDocument(document).blocks[1];
+  assert.equal(paragraph?.block, "paragraph");
+  if (paragraph?.block !== "paragraph") return;
+
+  const reparsed = parse(serialize(convertBlock(document, [1], { block: "heading", level: 2 })));
+  const heading = getEditableDocument(reparsed).blocks[1];
+  assert.equal(heading?.block, "heading");
+  assert.equal(heading?.block === "heading" && heading.level, 2);
+
+  const level3 = convertBlock(reparsed, [1], { block: "heading", level: 3 });
+  const back = serialize(convertBlock(level3, [1], { block: "paragraph" }));
+  const blocks = getEditableDocument(parse(back)).blocks;
+  assert.deepEqual(blocks.map((block) => block.block), ["heading", "paragraph", "paragraph"]);
+  assert.deepEqual(blocks[1]?.block === "paragraph" && blocks[1].content, paragraph.content);
+  assert.equal(serialize(parse(back)), back);
+});
+
+test("public Core rejects block conversions that cannot keep the block's meaning", () => {
+  const document = parse("# Title\n\nFirst line\\\nsecond line.\n\n- item\n\nPlain text.\n");
+  const before = serialize(document);
+  const invalid = [
+    () => convertBlock(document, [1], { block: "heading", level: 2 }),
+    () => convertBlock(document, [2], { block: "heading", level: 2 }),
+    () => convertBlock(document, [3], { block: "paragraph" }),
+    () => convertBlock(document, [3], { block: "heading", level: 7 }),
+    () => convertBlock(document, [0, 0], { block: "paragraph" }),
+  ];
+
+  for (const operation of invalid) {
+    assert.throws(operation);
+    assert.equal(serialize(document), before);
+  }
 });
