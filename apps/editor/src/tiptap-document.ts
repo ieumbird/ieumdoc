@@ -4,10 +4,10 @@ import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-in
 
 export type { TiptapJSON };
 
+/** The new inline content of an editable Heading. */
 export type HeadingEdit = {
   path: NodePath;
-  from: string;
-  to: string;
+  content: InlineContent[];
 };
 
 export type HeadingLevelEdit = {
@@ -85,7 +85,7 @@ export type QuoteEdit = {
 
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; text: string }
+  | { block: "heading"; level: number; content: InlineContent[] }
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "quote"; content: InlineContent[] }
   | { block: "divider" }
@@ -211,7 +211,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         if (insert.block === "paragraph" && inlineText(insert.content).length === 0) {
           throw saveError(node, "empty paragraph cannot be saved");
         }
-        if (insert.block === "heading" && insert.text.length === 0) {
+        if (insert.block === "heading" && inlineText(insert.content).length === 0) {
           throw saveError(node, "empty heading cannot be saved. Enter text or delete this block.");
         }
         if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
@@ -242,10 +242,10 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "heading" && block.editable) {
       const level = headingLevel(node);
       if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
-      const text = headingText(node);
-      if (text !== block.text) {
-        if (text.length === 0) throw saveError(node, "empty heading text cannot be saved");
-        headings.push({ path: block.path, from: block.text, to: text });
+      const content = headingInline(node);
+      if (!sameInline(content, block.content)) {
+        if (inlineText(content).length === 0) throw saveError(node, "empty heading text cannot be saved");
+        headings.push({ path: block.path, content });
       }
     } else if (block.block === "paragraph" && editableParagraph(block)) {
       if (group.length > 1) {
@@ -449,11 +449,10 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
         text: block.text,
       });
     }
-    const content = block.text.length > 0 ? [{ type: "text", text: block.text }] : [];
     return {
       type: "heading",
       attrs: { level: block.level, sourcePath: pathKey(block.path) },
-      content,
+      content: paragraphContent(block.content),
     };
   }
   if (block.block === "paragraph") {
@@ -618,7 +617,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     return { block: "paragraph", content: paragraphInline(node) };
   }
   if (node.type === "heading") {
-    return { block: "heading", level: headingLevel(node), text: headingText(node) };
+    return { block: "heading", level: headingLevel(node), content: headingInline(node) };
   }
   if (node.type === "admonition") {
     const variant = String(node.attrs?.variant ?? "");
@@ -784,7 +783,7 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   }
   if (beforeType === "heading") {
     headingLevel(after);
-    headingText(after);
+    headingInline(after);
     return;
   }
   if (beforeType === "paragraph") {
@@ -870,25 +869,13 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): { rows: (n
   return { rows, columns };
 }
 
-function headingText(node: TiptapJSON): string {
-  if (node.content === undefined) return "";
-  if (!Array.isArray(node.content)) {
-    throw new Error("heading content must be an array");
-  }
-  let text = "";
-  for (const [index, child] of node.content.entries()) {
-    if (!child || child.type !== "text") {
-      throw new Error(`unsupported Tiptap node ${describeType(child)} in heading`);
-    }
-    if (child.marks !== undefined && (!Array.isArray(child.marks) || child.marks.length > 0)) {
-      throw new Error("heading text cannot contain marks");
-    }
-    if (typeof child.text !== "string") {
-      throw new Error(`heading text node at ${index} must contain text`);
-    }
-    text += child.text;
-  }
-  return text;
+/** Heading content is paragraph inline content without line breaks. */
+function headingInline(node: TiptapJSON): InlineContent[] {
+  const content = paragraphInline(node);
+  const hasBreak = (items: InlineContent[]): boolean =>
+    items.some(item => item.kind === "break" || ("children" in item && hasBreak(item.children)));
+  if (hasBreak(content)) throw new Error("a heading cannot contain line breaks");
+  return content;
 }
 
 function paragraphInline(node: TiptapJSON): InlineContent[] {

@@ -38,6 +38,31 @@ export function currentOutlineItem(headingTops: number[], line: number, bottom?:
   return current;
 }
 
+export type DocumentOutline = { items: OutlineItem[]; current: number };
+
+/**
+ * Outline state outside React's App state. Scrolling changes the current section often; only its
+ * subscribers (the sidebar) re-render, never the editor, whose re-render resets engine props and
+ * can race a pending native caret move.
+ */
+export function createOutlineStore() {
+  let outline: DocumentOutline = { items: [], current: -1 };
+  const listeners = new Set<() => void>();
+  return {
+    get: () => outline,
+    set(next: DocumentOutline) {
+      outline = next;
+      listeners.forEach(listener => listener());
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+  };
+}
+
+export type OutlineStore = ReturnType<typeof createOutlineStore>;
+
 export function sameOutline(left: OutlineItem[], right: OutlineItem[]): boolean {
   return left.length === right.length && left.every((item, index) => {
     const other = right[index];

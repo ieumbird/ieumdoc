@@ -22,14 +22,15 @@ export type BlockShortcut =
  * Replace the top-level paragraph whose typed Markdown prefix spans `from`–`to` with the
  * shortcut's block, keeping the paragraph's remaining content. Returns false, leaving `tr`
  * unchanged, outside a top-level paragraph or when the block cannot hold that content:
- * headings and code blocks hold unmarked text only, and a divider holds nothing.
+ * headings hold no line breaks, code blocks hold unmarked text only, and a divider holds nothing.
  */
 export function applyBlockShortcut(tr: Transaction, from: number, to: number, shortcut: BlockShortcut): boolean {
   const $from = tr.doc.resolve(from);
   if ($from.depth !== 1 || $from.parent.type.name !== "paragraph" || $from.parentOffset !== 0) return false;
   const paragraph = $from.parent;
   const rest = paragraph.content.cut(to - $from.start());
-  if ((shortcut.block === "heading" || shortcut.block === "code") && !plainText(rest)) return false;
+  if (shortcut.block === "code" && !plainText(rest)) return false;
+  if (shortcut.block === "heading" && hasLineBreak(rest)) return false;
   if (shortcut.block === "divider" && rest.size > 0) return false;
   const { nodes } = tr.doc.type.schema;
   const pos = $from.before();
@@ -49,6 +50,12 @@ export function applyBlockShortcut(tr: Transaction, from: number, to: number, sh
   tr.setSelection(TextSelection.create(tr.doc, caret));
   closeHistory(tr);
   return true;
+}
+
+function hasLineBreak(content: Fragment): boolean {
+  let lineBreak = false;
+  content.forEach(child => { if (child.type.name === "hardBreak") lineBreak = true; });
+  return lineBreak;
 }
 
 function plainText(content: Fragment): boolean {

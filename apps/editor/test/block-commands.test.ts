@@ -228,14 +228,15 @@ test("slash command removes its query and shares the insert command list", () =>
   assert.equal(slashQueryAt(EditorState.create({ schema, doc: heading, selection: TextSelection.create(heading, 2) })), null);
 });
 
-test("selection formatting is offered only for a text selection inside one paragraph", () => {
+test("selection formatting is offered only for a text selection inside one editable inline block", () => {
   const doc = docOf("# Title\n\nAB\n\nCD");
   const at = (from: number, to: number) =>
     formattableSelection(EditorState.create({ schema, doc, selection: TextSelection.create(doc, from, to) }));
   const paragraph = positionOf(doc, "1");
   assert.deepEqual(at(paragraph + 1, paragraph + 3), { from: paragraph + 1, to: paragraph + 3 });
   assert.equal(at(paragraph + 1, paragraph + 1), null);
-  assert.equal(at(2, 4), null);
+  // Headings hold formatted text too.
+  assert.deepEqual(at(2, 4), { from: 2, to: 4 });
   assert.equal(at(paragraph + 1, positionOf(doc, "2") + 2), null);
 });
 
@@ -341,7 +342,7 @@ test("new paragraphs and headings split and merge while empty editor paragraphs 
   const heading = toTiptapDocument(editable);
   heading.content!.push({ type: "heading", attrs: { sourcePath: "new:4", level: 1 }, content: text("H") });
   assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading));
-  assert.deepEqual(collectSupportedEdits(editable, heading).inserts, [{ block: "heading", level: 1, text: "H" }]);
+  assert.deepEqual(collectSupportedEdits(editable, heading).inserts, [{ block: "heading", level: 1, content: [{ kind: "text", text: "H" }] }]);
 });
 
 test("invalid inserts and deletes never invoke the writer", () => {

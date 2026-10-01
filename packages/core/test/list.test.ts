@@ -81,7 +81,7 @@ test("public Core replaces a list's kind, numbering, items and nesting without t
   const blocks = getEditableDocument(reparsed).blocks;
 
   assert.deepEqual(blocks[1], { block: "list", path: [1], ...next });
-  assert.deepEqual(blocks[0], { block: "heading", path: [0], level: 1, text: "Steps", editable: true });
+  assert.deepEqual(blocks[0], { block: "heading", path: [0], level: 1, text: "Steps", content: [{ kind: "text", text: "Steps" }], editable: true });
   assert.equal(blocks[2]?.block === "paragraph" && blocks[2].text, "Closing paragraph.");
   assert.equal(serialize(reparsed), markdown);
 });

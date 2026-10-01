@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditableDocument, FigureContent } from "@ieumdoc/core";
-import { DocumentEditor, type DocumentEditorHandle, type DocumentOutline } from "./DocumentEditor.tsx";
-import type { OutlineItem } from "./outline.ts";
+import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
+import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
@@ -35,7 +35,8 @@ export function App() {
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
-  const [outline, setOutline] = useState<DocumentOutline>({ items: [], current: -1 });
+  // Outline changes on scrolling re-render the sidebar only, never the App and its editor.
+  const outlineStore = useRef(createOutlineStore()).current;
   // Unwritable snapshots are read-only. Reload checks the repaired file through Core;
   // writable sessions are validated again on every Save/Source request.
   const [writeError, setWriteError] = useState("");
@@ -233,7 +234,7 @@ export function App() {
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
-        outline={document ? outline : undefined}
+        outline={document ? outlineStore : undefined}
         onSelectHeading={revealHeading}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
@@ -284,7 +285,7 @@ export function App() {
                 onEquationDraftChange={setEquationDraftActive}
                 onFigureDraftChange={setFigureDraftActive}
                 onDirtyChange={setDocumentDirty}
-                onOutlineChange={setOutline}
+                onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}
                 onStructuralReject={(reason) =>
                   setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")

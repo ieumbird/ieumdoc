@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { Button, IconButton } from "./ui/primitives.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
-/** Inline marks for supported paragraph and admonition body selections. */
+/** Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies. */
 export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditReference }: {
   editor: Editor;
   style: CSSProperties;
@@ -103,7 +103,7 @@ function toggleMark(editor: Editor, mark: "bold" | "italic" | "strike" | "code",
 function editableInlineContext(editor: Editor): boolean {
   const parent = editor.state.selection.$from.parent;
   return parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || parent.type.name === "heading" || (parent.type.name === "admonition" && parent.attrs.editable === true);
 }
 
 /** The paragraph text range a link form edits, and the link already there, if any. */

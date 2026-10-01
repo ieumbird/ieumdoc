@@ -62,10 +62,13 @@ async page => {
   await currentIs('Section 2', 'after Section 2');
   const keyboardNavigates = await landed('Section 2');
 
-  // Scrolling to the end makes the last section current.
+  // Scrolling to the end makes the last section current. It re-renders the outline only: re-rendering
+  // the editor re-applies its options (a new editor.options object), which can race native caret moves.
+  await page.locator('.document-editor').evaluate(element => { window.outlineEditorOptions = element.editor.options; });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await currentIs('Detail 6', 'after Detail 6');
   const scrollFollowsSection = await current() === 'Detail 6';
+  const scrollKeepsEditor = await page.locator('.document-editor').evaluate(element => element.editor.options === window.outlineEditorOptions);
 
   // Renaming, adding and deleting headings update the outline at once.
   await page.locator('.document-editor').evaluate(element => {
@@ -101,7 +104,7 @@ async page => {
   await currentIs('Detail 4', 'after Detail 4');
   const sourceReturnsToVisual = await landed('Detail 4');
 
-  const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, editsUpdate, sourceReturnsToVisual };
+  const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual };
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Outline failed: ${JSON.stringify({result, texts: await texts()})}`);
   return result;

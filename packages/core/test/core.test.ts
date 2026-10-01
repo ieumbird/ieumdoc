@@ -74,6 +74,7 @@ test("Core inserts headings with a canonical semantic round-trip", () => {
     path: [1],
     level: 3,
     text: "Details",
+    content: [{ kind: "text", text: "Details" }],
     editable: true,
   });
   assert.throws(() => insertHeading(parse("Intro"), 1, 0, "Invalid"), /1 to 6/);

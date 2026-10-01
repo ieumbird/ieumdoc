@@ -30,6 +30,7 @@ import {
   updateQuoteInlineContent,
   insertDivider,
   convertBlock,
+  updateHeadingInlineContent,
   updateEquationLatex,
   updateFigure,
   updateLabel,
@@ -161,10 +162,21 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-heading",
     summary: "Insert a Heading block at a top-level index",
-    usage: "ieumdoc insert-heading <file> --at <index> --level <1-6> --text <text>",
+    usage: "ieumdoc insert-heading <file> --at <index> --level <1-6> (--text <text> | --content <json>)",
     details: [
       "Insert a Heading block at a top-level index.",
-      "Heading levels 1 through 6 are supported.",
+      "Heading levels 1 through 6 are supported. --content is Core InlineContent JSON without line breaks.",
+    ],
+  },
+  {
+    name: "update-heading",
+    summary: "Replace the text of a Heading, keeping its level",
+    usage: "ieumdoc update-heading <file> --path <index> (--text <text> | --content <json>)",
+    details: [
+      "Replace the inline content of one editable top-level Heading.",
+      "--content is Core InlineContent JSON (marks, links, inline math and references); headings cannot hold line breaks.",
+      "Headings with unsupported inline content are read-only.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -489,8 +501,12 @@ function main(argv: string[]): number {
         parse(readFile(file)),
         intFlag(flags, "--at"),
         intFlag(flags, "--level"),
-        flag(flags, "--text"),
+        textOrContent(flags),
       ));
+      return 0;
+    }
+    case "update-heading": {
+      save(file, updateHeadingInlineContent(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "insert-admonition": {
@@ -685,7 +701,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   format: [],
   "replace-text": ["--from", "--to"],
   "insert-block": ["--at", "--text", "--content"],
-  "insert-heading": ["--at", "--level", "--text"],
+  "insert-heading": ["--at", "--level", "--text", "--content"],
+  "update-heading": ["--path", "--text", "--content"],
   "insert-admonition": ["--at", "--variant", "--text"],
   "update-admonition-variant": ["--path", "--variant"],
   "insert-quote": ["--at", "--text", "--content"],

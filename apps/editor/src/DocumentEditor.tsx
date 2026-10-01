@@ -21,7 +21,7 @@ import {
 } from "./editor-schema.tsx";
 import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
-import { currentOutlineItem, documentOutline, sameOutline, type OutlineItem } from "./outline.ts";
+import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline, type OutlineItem } from "./outline.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
@@ -38,7 +38,6 @@ export type DocumentEditorHandle = {
   revealHeading(item: OutlineItem): void;
 };
 
-export type DocumentOutline = { items: OutlineItem[]; current: number };
 
 type DocumentEditorProps = {
   document: EditableDocument;

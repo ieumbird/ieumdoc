@@ -371,17 +371,16 @@ export function changeHeadingLevel(state: EditorState, index: number, level: num
 // Save maps a converted block to Core removeBlock and insertHeading/insertParagraph; Core
 // convertBlock is the same conversion for CLI and other headless callers.
 
-/** Editor headings hold unmarked text only, so formatted content cannot become one. */
+/** Markdown headings cannot hold line breaks; other paragraph content carries over. */
 export function paragraphToHeadingRejection(state: EditorState, index: number): string | undefined {
-  let plain = true;
-  state.doc.child(index).forEach(child => { if (!child.isText || child.marks.length > 0) plain = false; });
-  return plain ? undefined
-    : "A heading can hold plain text only. Remove formatting, links, inline math, references and line breaks first. Your document is unchanged.";
+  let lineBreak = false;
+  state.doc.child(index).forEach(child => { if (child.type.name === "hardBreak") lineBreak = true; });
+  return lineBreak ? "A heading cannot contain line breaks. Remove them first. Your document is unchanged." : undefined;
 }
 
-/** Turn a plain-text Paragraph into a Heading, keeping its text. */
+/** Turn a Paragraph without line breaks into a Heading, keeping its inline content. */
 export function paragraphToHeading(state: EditorState, index: number, level: number): Transaction {
-  if (!isParagraph(state, index) || paragraphToHeadingRejection(state, index)) throw new Error("only a plain-text Paragraph can become a Heading");
+  if (!isParagraph(state, index) || paragraphToHeadingRejection(state, index)) throw new Error("only a Paragraph without line breaks can become a Heading");
   if (!Number.isInteger(level) || level < 1 || level > 6) throw new Error("invalid heading level");
   return closeHistory(state.tr)
     .setNodeMarkup(blockPos(state, index), state.schema.nodes.heading, { ...state.doc.child(index).attrs, level })
@@ -554,14 +553,14 @@ export function slashQueryAt(state: EditorState): SlashQuery | null {
   };
 }
 
-/** Inline formatting applies only to a text selection inside one paragraph. */
+/** Inline formatting applies only to a text selection inside one editable inline block. */
 export function formattableSelection(state: EditorState): { from: number; to: number } | null {
   const { selection } = state;
   if (selection.empty || !(selection instanceof TextSelection)) return null;
   const { $from, $to } = selection;
   const parent = $from.parent;
   const editableInlineParent = parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || parent.type.name === "heading" || (parent.type.name === "admonition" && parent.attrs.editable === true);
   if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }

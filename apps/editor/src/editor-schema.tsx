@@ -76,11 +76,11 @@ function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute>
   return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, ...attrs };
 }
 
+// A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
 const SourcedHeading = Node.create({
   name: "heading",
   group: "block",
-  content: "inline*",
-  marks: "",
+  content: "(text | inlineMath | crossReference)*",
   defining: true,
   addAttributes() {
     return blockAttrs({ level: hiddenAttr(1) });
