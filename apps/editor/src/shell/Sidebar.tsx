@@ -1,14 +1,14 @@
-import type { CSSProperties, KeyboardEvent } from "react";
+import { useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { FilePlus2, FileText, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import type { OutlineItem } from "../outline.ts";
+import type { OutlineItem, OutlineStore } from "../outline.ts";
 import { splitDocumentPath } from "./document-path.ts";
 
 type SidebarProps = {
   open: boolean;
   documentPath: string;
   /** Headings of the open document and the index of the section being read. */
-  outline?: { items: OutlineItem[]; current: number };
+  outline?: OutlineStore;
   onSelectHeading?(item: OutlineItem): void;
   onToggle(): void;
   onOpen(): void;
@@ -59,7 +59,8 @@ export function Sidebar({ open, documentPath, outline, onSelectHeading, onToggle
   );
 }
 
-function Outline({ outline, onSelect }: { outline: { items: OutlineItem[]; current: number }; onSelect(item: OutlineItem): void }) {
+function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect(item: OutlineItem): void }) {
+  const outline = useSyncExternalStore(store.subscribe, store.get);
   // Arrow keys, Home and End move between headings; Enter or Space goes to one.
   const move = (event: KeyboardEvent<HTMLOListElement>) => {
     const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
