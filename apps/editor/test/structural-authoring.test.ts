@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
 import { applyBlockShortcut, type BlockShortcut } from "../src/markdown-input-rules.ts";
-import { changeHeadingLevel, headingToParagraph, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
+import { changeHeadingLevel, headingToParagraph, insertDividerAfter, insertQuoteAfter, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { joinRichProse } from "../src/document-interaction.ts";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
@@ -209,4 +209,30 @@ test("Markdown block shortcuts replace the typed prefix and save as the equivale
   assert.equal(inList.type.name, "paragraph");
   assert.equal(applyBlockShortcut(state.tr, state.doc.child(0).nodeSize + 3, state.doc.child(0).nodeSize + 3,
     { block: "heading", level: 2 }), false);
+});
+
+test("quotes and dividers from commands and shortcuts save as Core quotes and dividers", () => {
+  const markdown = "# Title\n\n> Existing quote.\n\nQuote me\n\n\n";
+  const editable = loadEditableDocument(markdown);
+  const baseline = toTiptapDocument(editable);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+    plugins: [structureGuardPlugin(baseline, () => assert.fail("representable quote edit was rejected"))] });
+  const apply = (tr: Transaction) => { state = state.applyTransaction(tr).state; };
+  // Edit the existing quote, then add a quote and a divider after it from the insert menu.
+  apply(state.tr.insertText("Edited ", state.doc.child(0).nodeSize + 1));
+  apply(insertQuoteAfter(state, 1));
+  apply(state.tr.insertText("New quote."));
+  apply(insertDividerAfter(state, 2));
+  // `> ` on the paragraph that followed; the empty paragraph after a divider is session space.
+  const start = Array.from({ length: 5 }, (_, i) => state.doc.child(i).nodeSize).reduce((a, b) => a + b, 0) + 1;
+  assert.equal(state.doc.child(5).textContent, "Quote me");
+  const tr = state.tr.insertText(">", start);
+  assert.ok(applyBlockShortcut(tr, start, start + 1, { block: "quote" }));
+  apply(tr);
+
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state)));
+  assert.deepEqual(saved.document.blocks.map(block => block.block === "quote" ? `quote ${block.text}` : block.block), [
+    "heading", "quote Edited Existing quote.", "quote New quote.", "divider", "quote Quote me",
+  ]);
 });

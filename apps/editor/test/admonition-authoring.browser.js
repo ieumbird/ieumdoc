@@ -51,7 +51,7 @@ async page => {
   const result = {};
   await open();
   result.admonitionCount = await admonitions().count() === 6;
-  result.onlySimpleNoteWarningEditable = await editor.locator('aside[data-block="admonition"][data-readonly="false"]').count() === 2;
+  result.onlySimpleStandardKindsEditable = await editor.locator('aside[data-block="admonition"][data-readonly="false"]').count() === 3;
   result.variantsInitially = JSON.stringify(await admonitions().evaluateAll(nodes => nodes.map(node => node.dataset.variant))) ===
     JSON.stringify(['warning', 'note', 'note', 'warning', 'note', 'tip']);
 
@@ -94,7 +94,7 @@ async page => {
     ':::',
     '',
     ':::{tip}',
-    'Custom variant remains read-only.',
+    'A tip is a standard kind and stays editable.',
     ':::',
     '',
     'End paragraph.',
@@ -111,11 +111,12 @@ async page => {
     await blocks.nth(0).getByTestId('inline-math').count() === 1 &&
     await blocks.nth(0).locator('br').count() === 1 &&
     await blocks.nth(1).locator('strong', {hasText:'simple'}).count() === 1;
-  result.unsupportedRemainReadOnly = await editor.locator('aside[data-block="admonition"][data-readonly="true"]').count() === 4 &&
+  result.unsupportedRemainReadOnly = await editor.locator('aside[data-block="admonition"][data-readonly="true"]').count() === 3 &&
     await blocks.nth(2).getByText('Title body remains read-only.').count() === 1 &&
     await blocks.nth(3).getByText('Option body remains read-only.').count() === 1 &&
     await blocks.nth(4).getByText('Second paragraph.').count() === 1 &&
-    await blocks.nth(5).getByText('Custom variant remains read-only.').count() === 1;
+    // A standard kind such as tip is editable.
+    await blocks.nth(5).getAttribute('data-readonly') === 'false';
   result.otherBlocksPreserved = await editor.locator('h1', {hasText:'Admonition authoring'}).count() === 1 &&
     await editor.locator('p.paragraph', {hasText:'Intro paragraph.'}).count() === 1 &&
     await editor.locator('p.paragraph', {hasText:'End paragraph.'}).count() === 1;

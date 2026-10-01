@@ -1,6 +1,6 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import type { AdmonitionVariant } from "@ieumdoc/core";
+import { ADMONITION_VARIANTS, type AdmonitionVariant } from "@ieumdoc/core";
 import { isNewBlockPath, NEW_BLOCK_PREFIX, TABLE_CELL_ADDED_ATTR } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
@@ -40,24 +40,12 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["text", "p"],
     run: insertParagraphAfter,
   },
-  {
-    id: "heading-1",
-    label: "Heading 1",
-    keywords: ["heading", "h1"],
-    run: (state, index, slash) => insertHeadingAfter(state, index, 1, slash),
-  },
-  {
-    id: "heading-2",
-    label: "Heading 2",
-    keywords: ["heading", "h2"],
-    run: (state, index, slash) => insertHeadingAfter(state, index, 2, slash),
-  },
-  {
-    id: "heading-3",
-    label: "Heading 3",
-    keywords: ["heading", "h3"],
-    run: (state, index, slash) => insertHeadingAfter(state, index, 3, slash),
-  },
+  ...Array.from({ length: 6 }, (_, index): InsertCommand => ({
+    id: `heading-${index + 1}`,
+    label: `Heading ${index + 1}`,
+    keywords: ["heading", `h${index + 1}`],
+    run: (state, block, slash) => insertHeadingAfter(state, block, index + 1, slash),
+  })),
   {
     id: "note",
     label: "Note",
@@ -69,6 +57,18 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     label: "Warning",
     keywords: ["warning", "admonition"],
     run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
+  },
+  {
+    id: "quote",
+    label: "Quote",
+    keywords: ["quote", "blockquote", "citation"],
+    run: insertQuoteAfter,
+  },
+  {
+    id: "divider",
+    label: "Divider",
+    keywords: ["divider", "hr", "rule", "separator", "line"],
+    run: insertDividerAfter,
   },
   {
     id: "bulleted-list",
@@ -108,7 +108,23 @@ export const INSERT_COMMANDS: InsertCommand[] = [
   },
 ];
 
+/** Display names of MyST's standard admonition kinds, in menu order. */
+export const ADMONITION_LABELS: Record<AdmonitionVariant, string> = {
+  note: "Note", tip: "Tip", hint: "Hint", important: "Important", seealso: "See also",
+  attention: "Attention", caution: "Caution", warning: "Warning", danger: "Danger", error: "Error",
+};
+
+/** The visual tone of a kind: informational, cautionary or dangerous. */
+export function admonitionTone(variant: string): "note" | "warning" | "danger" {
+  if (variant === "danger" || variant === "error") return "danger";
+  return ["attention", "caution", "warning"].includes(variant) ? "warning" : "note";
+}
+
 const isTable = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "table";
+const isEditableAdmonition = (state: EditorState, index: number) => {
+  const node = state.doc.maybeChild(index);
+  return node?.type.name === "admonition" && node.attrs.editable === true;
+};
 const isHeading = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "heading";
 const isParagraph = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "paragraph";
 const isTextBlock = (state: EditorState, index: number) => isHeading(state, index) || isParagraph(state, index);
@@ -136,6 +152,13 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
         : changeHeadingLevel(state, block, level),
     };
   }),
+  ...ADMONITION_VARIANTS.map((variant): BlockCommand => ({
+    id: `admonition-${variant}`,
+    label: `Change to ${ADMONITION_LABELS[variant]}`,
+    applies: isEditableAdmonition,
+    enabled: (state, block) => isEditableAdmonition(state, block) && state.doc.child(block).attrs.variant !== variant,
+    run: (state, block) => changeAdmonitionVariant(state, block, variant),
+  })),
   {
     id: "table-row",
     label: "Add row below",
@@ -294,7 +317,7 @@ export function insertCodeBlockAfter(state: EditorState, index: number, slash?: 
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
-/** Insert an editable Note or Warning after the target, reusing a transient empty paragraph. */
+/** Insert an editable admonition after the target, reusing a transient empty paragraph. */
 export function insertAdmonitionAfter(
   state: EditorState,
   index: number,
@@ -372,6 +395,52 @@ export function headingToParagraph(state: EditorState, index: number): Transacti
   // The paragraph type keeps the attributes it defines (the session locator) and drops the level.
   return closeHistory(state.tr)
     .setNodeMarkup(blockPos(state, index), state.schema.nodes.paragraph, state.doc.child(index).attrs)
+    .setMeta(BLOCK_COMMAND_META, true)
+    .scrollIntoView();
+}
+
+/** Insert an empty Quote after the target, reusing a transient empty paragraph; the caret goes into it. */
+export function insertQuoteAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  const pos = blockPos(state, index);
+  const target = tr.doc.child(index);
+  const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
+  const quote = state.schema.nodes.quote.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  const at = reuse ? pos : pos + target.nodeSize;
+  if (reuse) tr.replaceWith(pos, pos + target.nodeSize, quote);
+  else tr.insert(at, quote);
+  return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/**
+ * Insert a Divider after the target, followed by an empty paragraph that takes the caret.
+ * A transient empty target paragraph is replaced; an unused empty paragraph is never saved.
+ */
+export function insertDividerAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  if (!Number.isInteger(index) || index < 0 || index >= state.doc.childCount) throw new Error("invalid block index");
+  const tr = closeHistory(state.tr);
+  if (slash) tr.delete(slash.from, slash.to);
+  const pos = blockPos(state, index);
+  const target = tr.doc.child(index);
+  const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
+  const { divider, paragraph } = state.schema.nodes;
+  const nodes = [
+    divider.create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` }),
+    paragraph.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` }),
+  ];
+  const at = reuse ? pos : pos + target.nodeSize;
+  if (reuse) tr.replaceWith(pos, pos + target.nodeSize, nodes);
+  else tr.insert(at, nodes);
+  return tr.setSelection(TextSelection.create(tr.doc, at + nodes[0].nodeSize + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
+}
+
+/** Change an editable admonition to another standard kind, keeping its body. */
+export function changeAdmonitionVariant(state: EditorState, index: number, variant: AdmonitionVariant): Transaction {
+  if (!isEditableAdmonition(state, index)) throw new Error("kind changes require an editable admonition");
+  return closeHistory(state.tr)
+    .setNodeMarkup(blockPos(state, index), undefined, { ...state.doc.child(index).attrs, variant })
     .setMeta(BLOCK_COMMAND_META, true)
     .scrollIntoView();
 }
@@ -492,7 +561,7 @@ export function formattableSelection(state: EditorState): { from: number; to: nu
   const { $from, $to } = selection;
   const parent = $from.parent;
   const editableInlineParent = parent.type.name === "paragraph" ||
-    (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true);
   if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }

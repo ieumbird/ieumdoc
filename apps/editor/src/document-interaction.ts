@@ -5,7 +5,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { freshBlockPath } from "./tiptap-document.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
@@ -102,7 +102,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           if (selection instanceof NodeSelection && selection.node.isBlock) {
             view.dispatch(paragraphBeside(state, true)); return true;
           }
-          if (selection.$from.depth > 0 && ["table", "admonition"].includes(selection.$from.node(1).type.name)) {
+          if (selection.$from.depth > 0 && ["table", "admonition", "quote"].includes(selection.$from.node(1).type.name)) {
             if (!selection.empty) return false;
             view.dispatch(paragraphBeside(state, true)); return true;
           }
@@ -191,7 +191,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         transformPastedHTML: html => {
           pasteError = undefined;
           const document = new DOMParser().parseFromString(html, "text/html");
-          const allowed = new Set(["P", "DIV", "SPAN", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
+          const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
           for (const element of document.body.querySelectorAll("*")) {
             const typed = element.getAttribute("data-ieumdoc-type");
             if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||

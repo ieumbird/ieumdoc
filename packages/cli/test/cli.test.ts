@@ -183,7 +183,7 @@ test("CLI insert-heading persists a Core heading", () => {
   }
 });
 
-test("CLI inserts Note and Warning into a real file and rejects unsafe requests without writing", () => {
+test("CLI inserts admonitions, changes their kind and rejects unsafe requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-admonition-authoring-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
@@ -225,10 +225,52 @@ test("CLI inserts Note and Warning into a real file and rejects unsafe requests 
     assert.equal(checked.status, 0, checked.stderr);
     assert.match(checked.stdout, /^structure valid\n/);
 
+    const changed = run(["update-admonition-variant", file, "--path", "1", "--variant", "caution"]);
+    assert.equal(changed.status, 0, changed.stderr);
+    assert.equal(readFileSync(file, "utf8"), saved.replace(":::{warning}", ":::{caution}"));
+
     const unchanged = readFileSync(file);
     for (const args of [
-      ["insert-admonition", file, "--at", "1", "--variant", "tip", "--text", "Invalid variant."],
+      ["insert-admonition", file, "--at", "1", "--variant", "admonition", "--text", "Invalid variant."],
       ["insert-admonition", file, "--at", "99", "--variant", "note", "--text", "Invalid index."],
+      ["update-admonition-variant", file, "--path", "1", "--variant", "caution"],
+      ["update-admonition-variant", file, "--path", "0", "--variant", "tip"],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI inserts and edits quotes and dividers in a real file and rejects unsafe requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-quote-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "# Title\n\nAfter.\n");
+  try {
+    for (const args of [
+      ["insert-quote", file, "--at", "1", "--text", "Quoted."],
+      ["insert-divider", file, "--at", "2"],
+      ["update-quote", file, "--path", "1", "--content", JSON.stringify([{ kind: "delete", children: [{ kind: "text", text: "Old" }] }, { kind: "text", text: " new." }])],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, `${args.join(" ")}\n${result.stderr}`);
+    }
+    const saved = readFileSync(file, "utf8");
+    const blocks = getEditableDocument(parse(saved)).blocks;
+    assert.deepEqual(blocks.map((block) => block.block), ["heading", "quote", "divider", "paragraph"]);
+    assert.deepEqual(blocks[1]?.block === "quote" && blocks[1].content,
+      [{ kind: "delete", children: [{ kind: "text", text: "Old" }] }, { kind: "text", text: " new." }]);
+    assert.match(run(["inspect", file]).stdout, /^1 quote inlineEditable=true .*\n2 divider$/m);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["insert-quote", file, "--at", "1", "--text", "Both", "--content", "[]"],
+      ["insert-quote", file, "--at", "1", "--text", " "],
+      ["update-quote", file, "--path", "3", "--text", "Not a quote."],
+      ["insert-divider", file, "--at", "9"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);

@@ -31,6 +31,7 @@ import type { ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
+import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
@@ -142,7 +143,7 @@ export function insertHeading(document: MystDocument, index: number, level: numb
 
 const ADMONITION_INSERTION_FAILURE = "admonition insertion cannot round-trip losslessly through canonical Markdown";
 
-/** Insert a top-level simple note or warning with supported inline content. */
+/** Insert a top-level simple admonition of a standard MyST kind with supported inline content. */
 export function insertAdmonition(
   document: MystDocument,
   index: number,
@@ -174,6 +175,53 @@ export function insertAdmonition(
   ) {
     throw new Error(ADMONITION_INSERTION_FAILURE);
   }
+  return next;
+}
+
+const QUOTE_FAILURE = "quote cannot round-trip losslessly through canonical Markdown";
+
+/** Insert a top-level quote holding one paragraph of supported inline content. */
+export function insertQuote(document: MystDocument, index: number, content: InlineContent[]): MystDocument {
+  const normalized = quoteContent(content);
+  const next = insertBlock(document, index, createQuoteNode(normalized));
+  assertQuoteRoundTrip(next, index, normalized);
+  return next;
+}
+
+/** Replace the paragraph of one Quote v1 block. */
+export function updateQuoteInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
+  if (path.length !== 1) throw new Error("quote edits require a top-level path");
+  const normalized = quoteContent(content);
+  if (!supportedQuoteContent(getNode(document, path))) {
+    throw new Error(`quote edit is not supported at [${path.join(",")}]`);
+  }
+  const next = cloneDocument(document);
+  next.children[path[0]] = createQuoteNode(normalized);
+  assertQuoteRoundTrip(next, path[0], normalized);
+  return next;
+}
+
+function quoteContent(content: InlineContent[]): InlineContent[] {
+  assertInlineContent(content);
+  if (inlineContentText(content).trim().length === 0) throw new Error("quote must contain non-empty text");
+  return concatenateInlineContent(content);
+}
+
+function assertQuoteRoundTrip(document: MystDocument, index: number, content: InlineContent[]): void {
+  const markdown = serializeFor(document, QUOTE_FAILURE);
+  const reparsed = parse(markdown);
+  const quote = reparsed.children[index];
+  const projected = quote && supportedQuoteContent(quote);
+  if (!projected || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
+    throw new Error(QUOTE_FAILURE);
+  }
+  assertCanonicalBlockBoundaries(document);
+}
+
+/** Insert a top-level divider (a Markdown thematic break). */
+export function insertDivider(document: MystDocument, index: number): MystDocument {
+  const next = insertBlock(document, index, { type: "thematicBreak" });
+  assertCanonicalBlockBoundaries(next);
   return next;
 }
 
@@ -693,7 +741,7 @@ export function updateParagraphInlineContent(
   return next;
 }
 
-/** Update the single supported paragraph body of a simple note or warning admonition. */
+/** Update the single supported paragraph body of a simple admonition. */
 export function updateAdmonitionInlineContent(
   document: MystDocument,
   path: NodePath,
@@ -716,6 +764,27 @@ export function updateAdmonitionInlineContent(
   const markdown = serializeFor({ type: "root", children: [node] }, failure);
   const reloaded = parse(markdown).children[0];
   if (!reloaded || reloaded.kind !== node.kind || !supportedAdmonitionContent(reloaded) ||
+      serialize(parse(markdown)) !== markdown) {
+    throw new Error(failure);
+  }
+  return next;
+}
+
+/** Change the kind of one simple admonition, keeping its body. */
+export function updateAdmonitionVariant(document: MystDocument, path: NodePath, variant: AdmonitionVariant): MystDocument {
+  if (path.length !== 1) throw new Error("admonition edits require a top-level path");
+  if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
+  const node = getNode(document, path);
+  const content = supportedAdmonitionContent(node);
+  if (!content) throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
+  if (node.kind === variant) throw new Error(`admonition at [${path.join(",")}] is already a ${variant}`);
+  const next = cloneDocument(document);
+  getNode(next, path).kind = variant;
+  const failure = "admonition kind change cannot round-trip losslessly through canonical Markdown";
+  const markdown = serializeFor({ type: "root", children: [getNode(next, path)] }, failure);
+  const reloaded = parse(markdown).children[0];
+  const reloadedContent = reloaded && supportedAdmonitionContent(reloaded);
+  if (reloaded?.kind !== variant || !reloadedContent || !sameInlineContent(content, reloadedContent) ||
       serialize(parse(markdown)) !== markdown) {
     throw new Error(failure);
   }

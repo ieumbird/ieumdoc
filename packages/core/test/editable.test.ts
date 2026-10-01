@@ -76,10 +76,11 @@ test("technical document exposes an editor read model", () => {
   assert.equal(equation.latex.includes("P^{"), true);
 });
 
-test("a plain note or warning admonition projects its supported inline body as editable", () => {
+test("a plain admonition of a standard kind projects its supported inline body as editable", () => {
   for (const [variant, markdown] of [
     ["note", ":::{note}\nA **bold** *italic* [link](https://a.example) and $x$\\\nnext line.\n:::\n"],
     ["warning", ":::{warning}\nCalibrate before operation.\n:::\n"],
+    ["seealso", ":::{seealso}\nThe calibration guide.\n:::\n"],
   ] as const) {
     const block = getEditableDocument(parse(markdown)).blocks[0];
     assert.equal(block?.block, "admonition");
@@ -97,12 +98,11 @@ test("a plain note or warning admonition projects its supported inline body as e
   }
 });
 
-test("only one-paragraph note and warning admonitions are editable", () => {
+test("only one-paragraph admonitions of a standard MyST kind are editable", () => {
   for (const markdown of [
     ":::{admonition} Title\nBody\n:::\n",
     ":::{note}\n:class: custom\nBody\n:::\n",
     ":::{note}\nOne\n\nTwo\n:::\n",
-    ":::{tip}\nBody\n:::\n",
   ]) {
     const block = getEditableDocument(parse(markdown)).blocks[0];
     assert.equal(block?.block, "admonition");

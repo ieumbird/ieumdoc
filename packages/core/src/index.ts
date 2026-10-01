@@ -17,7 +17,7 @@ export type { Document, NodePath, BlockSummary } from "./document.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export type { InlineContent, ReferenceRole } from "./inline.ts";
 export type { AdmonitionVariant } from "./myst/admonition.ts";
-export { isAdmonitionVariant } from "./myst/admonition.ts";
+export { ADMONITION_VARIANTS, isAdmonitionVariant } from "./myst/admonition.ts";
 /** Paragraph offset length of inline content, as used by split and hard break offsets. */
 export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
@@ -71,5 +71,9 @@ export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);
 export const updateParagraphInlineContent = fence(operations.updateParagraphInlineContent);
 export const updateAdmonitionInlineContent = fence(operations.updateAdmonitionInlineContent);
+export const updateAdmonitionVariant = fence(operations.updateAdmonitionVariant);
+export const insertQuote = fence(operations.insertQuote);
+export const updateQuoteInlineContent = fence(operations.updateQuoteInlineContent);
+export const insertDivider = fence(operations.insertDivider);
 export const updateLabel = fence(operations.updateLabel);
 export const validateFigure = operations.validateFigure;
