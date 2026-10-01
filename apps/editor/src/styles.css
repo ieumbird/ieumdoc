@@ -414,6 +414,27 @@ h6.heading { font-size: var(--font-size-sm); }
   margin: var(--space-4) 0;
 }
 
+.document-editor > .quote {
+  margin: var(--space-4) 0;
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--id-color-border-strong);
+  color: var(--id-color-text-muted);
+}
+
+.quote-body {
+  margin: 0;
+}
+
+.document-editor > .divider {
+  padding: var(--space-3) 0;
+}
+
+.divider hr {
+  margin: 0;
+  border: 0;
+  border-top: var(--border-width) solid var(--id-color-border-strong);
+}
+
 .list {
   padding-left: var(--space-6);
 }
@@ -519,6 +540,13 @@ ol.list { list-style: decimal; }
 }
 
 .admonition-warning .admonition-label { color: var(--id-color-warning); }
+
+.admonition-danger {
+  border-left-color: var(--id-color-danger);
+  background: var(--id-color-surface-danger);
+}
+
+.admonition-danger .admonition-label { color: var(--id-color-danger); }
 
 .admonition-body {
   margin: 0;

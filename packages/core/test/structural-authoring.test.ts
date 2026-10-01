@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ADMONITION_VARIANTS,
   getEditableDocument,
   insertAdmonition,
+  updateAdmonitionVariant,
+  insertQuote,
+  updateQuoteInlineContent,
+  insertDivider,
   parse,
   serialize,
   updateHeadingLevel,
@@ -22,8 +27,8 @@ const richBody: InlineContent[] = [
   { kind: "text", text: "." },
 ];
 
-test("public Core inserts Note and Warning with supported inline content and stable Markdown", () => {
-  for (const variant of ["note", "warning"] as const) {
+test("public Core inserts every standard admonition kind with supported inline content and stable Markdown", () => {
+  for (const variant of ADMONITION_VARIANTS) {
     const document = parse("Intro paragraph.\n");
     const markdown = serialize(insertAdmonition(document, 1, variant, richBody));
     const reparsed = parse(markdown);
@@ -42,7 +47,7 @@ test("public Core rejects invalid admonition inserts without mutating the source
   const before = serialize(document);
   const invalid = [
     () => insertAdmonition(document, 1, "note", []),
-    () => insertAdmonition(document, 1, "tip" as never, [{ kind: "text", text: "Body." }]),
+    () => insertAdmonition(document, 1, "admonition" as never, [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, -1, "warning", [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, 3, "warning", [{ kind: "text", text: "Body." }]),
   ];
@@ -50,6 +55,24 @@ test("public Core rejects invalid admonition inserts without mutating the source
   for (const operation of invalid) {
     assert.throws(operation);
     assert.equal(serialize(document), before);
+  }
+});
+
+test("public Core changes an admonition's kind and keeps its body, rejecting unsupported changes", () => {
+  const document = parse(":::{warning}\nRead **the limit**.\n:::\n\n:::{note}\nOne\n\nTwo\n:::\n");
+  const before = getEditableDocument(document).blocks[0];
+  const changed = getEditableDocument(parse(serialize(updateAdmonitionVariant(document, [0], "tip")))).blocks[0];
+  assert.equal(changed?.block === "admonition" && changed.variant, "tip");
+  assert.deepEqual(changed?.block === "admonition" && changed.content, before?.block === "admonition" && before.content);
+
+  const unchanged = serialize(document);
+  for (const operation of [
+    () => updateAdmonitionVariant(document, [0], "warning"),
+    () => updateAdmonitionVariant(document, [0], "admonition" as never),
+    () => updateAdmonitionVariant(document, [1], "tip"),
+  ]) {
+    assert.throws(operation);
+    assert.equal(serialize(document), unchanged);
   }
 });
 
@@ -130,6 +153,39 @@ test("public Core rejects block conversions that cannot keep the block's meaning
   ];
 
   for (const operation of invalid) {
+    assert.throws(operation);
+    assert.equal(serialize(document), before);
+  }
+});
+
+test("public Core inserts and edits one-paragraph quotes and dividers with stable Markdown", () => {
+  const body: InlineContent[] = [
+    { kind: "text", text: "Measure " }, { kind: "strong", children: [{ kind: "text", text: "twice" }] }, { kind: "break" },
+    { kind: "delete", children: [{ kind: "text", text: "cut once" }] },
+  ];
+  const inserted = insertDivider(insertQuote(parse("# Title\n\nAfter.\n"), 1, body), 2);
+  const markdown = serialize(inserted);
+  const blocks = getEditableDocument(parse(markdown)).blocks;
+  assert.deepEqual(blocks.map((block) => block.block), ["heading", "quote", "divider", "paragraph"]);
+  assert.deepEqual(blocks[1]?.block === "quote" && [blocks[1].editable, blocks[1].content], [true, body]);
+  assert.equal(serialize(parse(markdown)), markdown);
+
+  const edited = updateQuoteInlineContent(parse(markdown), [1], [{ kind: "text", text: "Edited." }]);
+  const quote = getEditableDocument(parse(serialize(edited))).blocks[1];
+  assert.deepEqual(quote?.block === "quote" && quote.content, [{ kind: "text", text: "Edited." }]);
+});
+
+test("quotes with several paragraphs stay read-only and invalid quote writes change nothing", () => {
+  const document = parse("> One.\n>\n> Two.\n\nPlain.\n");
+  const quote = getEditableDocument(document).blocks[0];
+  assert.deepEqual(quote?.block === "quote" && [quote.editable, quote.text], [false, "One.Two."]);
+  const before = serialize(document);
+  for (const operation of [
+    () => updateQuoteInlineContent(document, [0], [{ kind: "text", text: "Flattened." }]),
+    () => updateQuoteInlineContent(document, [1], [{ kind: "text", text: "Not a quote." }]),
+    () => insertQuote(document, 2, [{ kind: "text", text: "  " }]),
+    () => insertDivider(document, 9),
+  ]) {
     assert.throws(operation);
     assert.equal(serialize(document), before);
   }

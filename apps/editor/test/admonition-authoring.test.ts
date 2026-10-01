@@ -6,6 +6,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState } from "@tiptap/pm/state";
 import type { InlineContent } from "@ieumdoc/core";
+import { changeAdmonitionVariant } from "../src/block-commands.ts";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } from "../server/document-api.ts";
@@ -81,12 +82,24 @@ test("admonition body edits pass through Core and preserve inline semantics on r
   if (reloaded[2]?.block === "paragraph") assert.equal(reloaded[2].text, "Outside paragraph.");
 });
 
+test("an admonition kind change and a body edit save together and keep the inline body", () => {
+  const { state, rejected } = editorState(source);
+  const range = textRange(state.doc, "Before");
+  const changed = state.apply(changeAdmonitionVariant(state, 1, "danger"));
+  const edited = changed.apply(changed.tr.insertText("Now", range.from, range.to));
+  assert.equal(rejected(), 0);
+  const edits = collectSupportedEdits(loadEditableDocument(source), edited.doc.toJSON() as TiptapJSON);
+  assert.equal(edits.admonitions?.[0]?.variant, "danger");
+  const saved = saveEdits(source, edits);
+  assert.ok(saved.markdown.includes(":::{danger}\nNow **bold** and *italic*"), saved.markdown);
+  assert.equal(saved.document.blocks[1]?.block === "admonition" && saved.document.blocks[1].editable, true);
+});
+
 test("unsupported admonitions remain read-only and a failed edit never writes the file", () => {
   const unsupported = [
     ":::{admonition} Title\nBody\n:::\n",
     ":::{note}\n:class: custom\nBody\n:::\n",
     ":::{note}\nOne\n\nTwo\n:::\n",
-    ":::{tip}\nBody\n:::\n",
   ];
   for (const markdown of unsupported) {
     const block = loadEditableDocument(markdown).blocks[0];

@@ -28,6 +28,10 @@ import {
   updateHeadingLevel,
   updateEquationLatex,
   updateAdmonitionInlineContent,
+  updateAdmonitionVariant,
+  insertQuote,
+  updateQuoteInlineContent,
+  insertDivider,
   updateFigure,
   updateLabel,
   updateList,
@@ -75,9 +79,11 @@ export type FigureEdit = {
   to: FigureContent;
 };
 
+/** A simple admonition's new kind and/or body; absent fields are unchanged. */
 export type AdmonitionEdit = {
   path: NodePath;
-  content: InlineContent[];
+  variant?: AdmonitionVariant;
+  content?: InlineContent[];
 };
 
 export type TableCellEdit = {
@@ -114,10 +120,18 @@ export type LabelEdit = {
   to: string;
 };
 
+/** The new paragraph content of an editable Quote. */
+export type QuoteEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
+  | { block: "quote"; content: InlineContent[] }
+  | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
@@ -136,6 +150,7 @@ export type SupportedEdits = {
   cells?: TableCellEdit[];
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
+  quotes?: QuoteEdit[];
   lists?: ListEdit[];
   codes?: CodeEdit[];
   labels?: LabelEdit[];
@@ -305,6 +320,7 @@ export function saveCurrentDocument(
     cells: request.cells ?? [],
     tables: request.tables ?? [],
     admonitions: request.admonitions ?? [],
+    quotes: request.quotes ?? [],
     lists: request.lists ?? [],
     codes: request.codes ?? [],
     labels: request.labels ?? [],
@@ -392,7 +408,18 @@ export function saveEdits(
     if (block?.block !== "admonition" || !block.editable) {
       throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
     }
-    document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, admonition.content));
+    const { variant, content } = admonition;
+    if (variant !== undefined) document = editAt(target, () => updateAdmonitionVariant(document, admonition.path, variant));
+    if (content !== undefined) document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, content));
+  }
+  for (const quote of edits.quotes ?? []) {
+    const target = { path: [quote.path[0]], part: 0 };
+    assertPath(quote.path, "quote");
+    const block = blockAt(editable, quote.path);
+    if (block?.block !== "quote" || !block.editable) {
+      throw new Error(`quote edit is not allowed at [${quote.path.join(",")}]`);
+    }
+    document = editAt(target, () => updateQuoteInlineContent(document, quote.path, quote.content));
   }
   for (const edit of edits.lists ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
@@ -519,6 +546,7 @@ export function saveEdits(
     ...(edits.equations ?? []).map(edit => edit.path),
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
+    ...(edits.quotes ?? []).map(edit => edit.path),
     ...(edits.lists ?? []).map(edit => edit.path),
     ...(edits.codes ?? []).map(edit => edit.path),
     ...(edits.tables ?? []).map(edit => edit.path),
@@ -545,7 +573,7 @@ export function saveEdits(
       continue;
     }
     if (insert.block === "admonition") {
-      if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be a Note or Warning");
+      if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be of a standard MyST kind");
       if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
         throw new Error("admonition body cannot be empty");
       }
@@ -567,8 +595,14 @@ export function saveEdits(
       }
       continue;
     }
+    if (insert.block === "quote") {
+      if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
+        throw new Error("quote cannot be empty");
+      }
+      continue;
+    }
     // Core validates list and code block content itself when it is inserted.
-    if (insert.block === "list" || insert.block === "code") continue;
+    if (insert.block === "list" || insert.block === "code" || insert.block === "divider") continue;
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
@@ -624,6 +658,10 @@ export function saveEdits(
       document = editAt(target, () => insertHeading(document, index, item.level, item.text));
     } else if (item.block === "admonition") {
       document = editAt(target, () => insertAdmonition(document, index, item.variant, item.content));
+    } else if (item.block === "quote") {
+      document = editAt(target, () => insertQuote(document, index, item.content));
+    } else if (item.block === "divider") {
+      document = editAt(target, () => insertDivider(document, index));
     } else if (item.block === "equation") {
       document = editAt(target, () => insertEquation(document, index, item.latex));
     } else if (item.block === "table") {
@@ -749,6 +787,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     cells: Array.isArray(body.cells) ? body.cells : [],
     tables: Array.isArray(body.tables) ? body.tables : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
+    quotes: Array.isArray(body.quotes) ? body.quotes : [],
     lists: Array.isArray(body.lists) ? body.lists : [],
     codes: Array.isArray(body.codes) ? body.codes : [],
     labels: Array.isArray(body.labels) ? body.labels : [],

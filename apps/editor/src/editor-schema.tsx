@@ -10,12 +10,12 @@ import { documentInteraction } from "./document-interaction.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
-import type { EditableBlock, FigureContent } from "@ieumdoc/core";
+import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
-import { BLOCK_COMMAND_META } from "./block-commands.ts";
+import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
@@ -247,6 +247,55 @@ const Admonition = Node.create({
   },
   addNodeView() {
     return ReactNodeViewRenderer(AdmonitionView);
+  },
+});
+
+// Quote v1: one paragraph of inline content, edited like a simple admonition body. Enter leaves
+// the quote; Shift+Enter is a line break. Other quotes are unsupported (read-only) blocks.
+const Quote = Node.create({
+  name: "quote",
+  group: "block",
+  content: "inline*",
+  isolating: true,
+  defining: true,
+  addAttributes() {
+    return blockAttrs({});
+  },
+  parseHTML() {
+    return [{ tag: "blockquote[data-quote]", contentElement: "p" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return ["blockquote", {
+      ...HTMLAttributes,
+      class: "quote",
+      "data-block": "quote",
+      "data-quote": "",
+      "data-source-path": String(node.attrs.sourcePath ?? ""),
+    }, ["p", { class: "quote-body" }, 0]];
+  },
+});
+
+/** A Markdown thematic break. */
+const Divider = Node.create({
+  name: "divider",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: false,
+  addAttributes() {
+    return blockAttrs({});
+  },
+  parseHTML() {
+    return [{ tag: "div[data-divider]" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return ["div", {
+      ...HTMLAttributes,
+      class: "divider",
+      "data-block": "divider",
+      "data-divider": "",
+      "data-source-path": String(node.attrs.sourcePath ?? ""),
+    }, ["hr"]];
   },
 });
 
@@ -485,7 +534,7 @@ const ParagraphHardBreak = Extension.create({
       const { state } = this.editor;
       const parent = state.selection.$from.parent;
       const editableInlineParent = parent.type.name === "paragraph" ||
-        (parent.type.name === "admonition" && parent.attrs.editable === true);
+        parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true);
       // A selected inline math node is not replaced by a break.
       if (!editableInlineParent || state.selection instanceof NodeSelection) return true;
       // A break ends inline code; code is text only.
@@ -589,7 +638,6 @@ export function editorExtensions(
       listKeymap: false,
       orderedList: false,
       paragraph: false,
-      strike: false,
       trailingNode: false,
       underline: false,
     }),
@@ -607,6 +655,8 @@ export function editorExtensions(
     SimpleListItem,
     ListKeymap,
     Admonition,
+    Quote,
+    Divider,
     figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
     Table,
@@ -741,17 +791,18 @@ function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
 function AdmonitionView({ node }: ReactNodeViewProps) {
   const variant = String(node.attrs.variant ?? "note");
   const editable = node.attrs.editable === true;
+  const label = isAdmonitionVariant(variant) ? ADMONITION_LABELS[variant] : variant;
   return (
     <NodeViewWrapper
       as="aside"
-      className={`admonition admonition-${variant}`}
+      className={`admonition admonition-${admonitionTone(variant)}`}
       data-block="admonition"
       data-variant={variant}
       data-source-path={String(node.attrs.sourcePath ?? "")}
       data-readonly={editable ? "false" : "true"}
       contentEditable={editable ? undefined : false}
     >
-      <p className="admonition-label" contentEditable={false}>{variant}{editable ? "" : " · Read-only"}</p>
+      <p className="admonition-label" contentEditable={false}>{label}{editable ? "" : " · Read-only"}</p>
       {editable
         ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
         : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}

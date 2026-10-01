@@ -59,6 +59,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "list-authoring": { files: [fixture("lists.md")], scenarios: ["list-authoring"] },
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },
   "markdown-input": { files: [fixture("markdown-input.md")], scenarios: ["markdown-input"] },
+  "basic-blocks": { files: [fixture("basic-blocks.md")], scenarios: ["basic-blocks"] },
   "source-view": {
     files: [
       ...technical,

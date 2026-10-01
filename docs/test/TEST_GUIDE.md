@@ -475,7 +475,11 @@ pnpm ieumdoc check <file>
 pnpm ieumdoc format <file>
 pnpm ieumdoc replace-text <file> --from <text> --to <text>
 pnpm ieumdoc insert-block <file> --at <index> (--text <text> | --content <json>)
-pnpm ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>
+pnpm ieumdoc insert-admonition <file> --at <index> --variant <kind> --text <text>
+pnpm ieumdoc update-admonition-variant <file> --path <index> --variant <kind>
+pnpm ieumdoc insert-quote <file> --at <index> (--text <text> | --content <json>)
+pnpm ieumdoc update-quote <file> --path <index> (--text <text> | --content <json>)
+pnpm ieumdoc insert-divider <file> --at <index>
 pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]
 pnpm ieumdoc remove-block <file> --at <index>
@@ -510,7 +514,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 Note/Warning 본문, text / strong / emphasis / 일반 link / inline code / inline math만 있는 paragraph다.
+- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
 - `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 서식·link·inline math·reference·줄바꿈이 있는 문단은 Editor에서 제목으로 바꿀 수 없고 이유가 표시된다(CLI `convert-block`은 줄바꿈이 없으면 서식을 유지한 채 변환한다). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
@@ -838,9 +842,40 @@ Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은
 - 서식·link·inline math·reference·줄바꿈이 있는 문단은 제목·code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
 - 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). mark를 쓸 수 없는 제목·표 cell에서는 구분자가 지워지지 않고 그대로 남는다. code block 안에서는 어떤 단축도 적용되지 않는다.
 - 단축 직후 Ctrl/Cmd+Z 또는 Backspace는 입력한 문자 그대로(예: `## `) 되돌리고 caret을 그 뒤에 둔다. Enter로 적용한 code fence는 Enter 없이 ```` ```js ````로 되돌아간다.
-- 인용문(`> `)·구분선(`---`)·취소선은 지원 블록이 아니므로 단축이 없다(#57).
+- 인용문(`> `), 구분선(빈 문단에서 `---`), 취소선(`~~취소~~`)은 아래 Basic blocks(#57)를 따른다.
 
 브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block·표 cell·제목에서 문자가 그대로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
+
+## Basic blocks (#57)
+
+Core가 인용문(`insertQuote`/`updateQuoteInlineContent`), 구분선(`insertDivider`), admonition 종류 변경(`updateAdmonitionVariant`), 취소선 InlineContent(`delete`)를 제공한다. 모두 canonical Markdown으로 다시 읽어 같은 내용이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+
+- 인용문 v1: 문단 하나(지원 inline과 Shift+Enter 줄바꿈)를 담는 `> ` 인용문. 문단이 여럿이거나 목록·코드 등 다른 블록이 든 인용문은 읽기 전용이다.
+- 구분선: Markdown thematic break(`---`). `***`, `___`로 쓴 구분선도 편집 가능한 구분선으로 열리고 `---`로 저장된다.
+- 취소선: MyST `{del}` role로 저장된다. 굵게·기울임·link·inline math와 함께 쓸 수 있다. GFM `~~취소~~` 문법은 MyST가 읽지 않으므로 파일에 있으면 글자 그대로다.
+- admonition 종류: note, tip, hint, important, seealso, attention, caution, warning, danger, error. 제목이 필요한 일반 `{admonition}`은 읽기 전용이다.
+- 제목 H4–H6을 insert menu와 `/h4`–`/h6`으로 넣는다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-quote <file> --at 1 --text "Quoted."
+pnpm ieumdoc update-quote <file> --path 1 --content '[{"kind":"delete","children":[{"kind":"text","text":"Old"}]}]'
+pnpm ieumdoc insert-divider <file> --at 2
+pnpm ieumdoc update-admonition-variant <file> --path 3 --variant tip
+```
+
+거부되면 exit 1이고 파일은 그대로다. text `inspect`는 `quote inlineEditable=... text=...`, `divider`로 보여 준다.
+
+Editor:
+
+- insert menu의 `Quote`는 빈 인용문을 만들고 caret을 그 안에 둔다. 인용문 안의 Enter는 인용문을 빠져나가 아래 paragraph로 가고, Shift+Enter는 줄바꿈이다. 빈 인용문은 저장되지 않는다(Save 오류).
+- insert menu의 `Divider`는 구분선과 그 아래 빈 paragraph를 만들고 caret을 paragraph에 둔다. 구분선은 handle로 이동·삭제한다.
+- selection toolbar의 `Strikethrough`(또는 Ctrl/Cmd+Shift+S)가 취소선을 적용·해제한다.
+- admonition의 handle 메뉴에서 `Change to Tip` 등으로 종류를 바꾼다. 색상은 정보(note·tip·hint·important·see also), 주의(attention·caution·warning), 위험(danger·error) 세 가지다.
+- Markdown 단축: 최상위 문단 맨 앞의 `> `는 인용문(나머지 내용 유지), 빈 문단의 `---`는 구분선, `~~취소~~`는 취소선이 된다. 단축 직후 Undo는 입력한 문자로 되돌린다.
+
+브라우저 회귀: `pnpm browser:test basic-blocks`는 scratch `tmp/basic-blocks/basic-blocks.md`에서 위 Editor 동작을 실제 메뉴·키로 수행하고 Save해 파일 내용과 다시 연 화면을 확인한다.
 
 ## Inline link authoring v1
 

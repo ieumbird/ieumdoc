@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import {
   canonicalWriteError,
   getEditableDocument,
+  ADMONITION_VARIANTS,
   isAdmonitionVariant,
   inspectDocument,
   insertParagraph,
@@ -24,6 +25,10 @@ import {
   serialize,
   updateNodeTextAtPath,
   updateHeadingLevel,
+  updateAdmonitionVariant,
+  insertQuote,
+  updateQuoteInlineContent,
+  insertDivider,
   convertBlock,
   updateEquationLatex,
   updateFigure,
@@ -85,6 +90,7 @@ const CODE_NOTE = [
   "The language is one word such as python; omit it or pass an empty --language for none.",
   "Code line breaks must be \\n.",
 ];
+const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
   {
     name: "insert-hard-break",
@@ -163,12 +169,48 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-admonition",
-    summary: "Insert a simple Note or Warning admonition",
-    usage: "ieumdoc insert-admonition <file> --at <index> --variant <note|warning> --text <text>",
+    summary: "Insert a simple admonition of a standard MyST kind",
+    usage: "ieumdoc insert-admonition <file> --at <index> --variant <kind> --text <text>",
     details: [
-      "Insert a top-level Note or Warning admonition through Core.",
+      "Insert a top-level admonition through Core.",
+      ADMONITION_KIND_NOTE,
       "The body must contain non-empty text.",
     ],
+  },
+  {
+    name: "update-admonition-variant",
+    summary: "Change the kind of a simple admonition",
+    usage: "ieumdoc update-admonition-variant <file> --path <index> --variant <kind>",
+    details: [
+      "Change one editable top-level admonition to another kind, keeping its body.",
+      ADMONITION_KIND_NOTE,
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-quote",
+    summary: "Insert a Quote at a top-level index",
+    usage: "ieumdoc insert-quote <file> --at <index> (--text <text> | --content <json>)",
+    details: [
+      "Insert a top-level block quote holding one paragraph.",
+      "Use --text for plain text or --content for Core InlineContent JSON. The quote must contain non-empty text.",
+    ],
+  },
+  {
+    name: "update-quote",
+    summary: "Replace the text of a Quote",
+    usage: "ieumdoc update-quote <file> --path <index> (--text <text> | --content <json>)",
+    details: [
+      "Replace the paragraph of one editable top-level Quote.",
+      "Quotes with several paragraphs or other blocks inside are read-only.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-divider",
+    summary: "Insert a divider (thematic break) at a top-level index",
+    usage: "ieumdoc insert-divider <file> --at <index>",
+    details: ["Insert a top-level divider, written as a Markdown thematic break."],
   },
   {
     name: "update-heading-level",
@@ -452,14 +494,25 @@ function main(argv: string[]): number {
       return 0;
     }
     case "insert-admonition": {
-      const value = flag(flags, "--variant");
-      if (!isAdmonitionVariant(value)) {
-        throw new Error("--variant must be note or warning");
-      }
-      const variant: AdmonitionVariant = value;
-      save(file, insertAdmonition(parse(readFile(file)), intFlag(flags, "--at"), variant, [
+      save(file, insertAdmonition(parse(readFile(file)), intFlag(flags, "--at"), variantFlag(flags), [
         { kind: "text", text: flag(flags, "--text") },
       ]));
+      return 0;
+    }
+    case "insert-quote": {
+      save(file, insertQuote(parse(readFile(file)), intFlag(flags, "--at"), textOrContent(flags)));
+      return 0;
+    }
+    case "update-quote": {
+      save(file, updateQuoteInlineContent(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      return 0;
+    }
+    case "insert-divider": {
+      save(file, insertDivider(parse(readFile(file)), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "update-admonition-variant": {
+      save(file, updateAdmonitionVariant(parse(readFile(file)), pathFlag(flags), variantFlag(flags)));
       return 0;
     }
     case "update-heading-level": {
@@ -634,6 +687,10 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-block": ["--at", "--text", "--content"],
   "insert-heading": ["--at", "--level", "--text"],
   "insert-admonition": ["--at", "--variant", "--text"],
+  "update-admonition-variant": ["--path", "--variant"],
+  "insert-quote": ["--at", "--text", "--content"],
+  "update-quote": ["--path", "--text", "--content"],
+  "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
   "insert-equation": ["--at", "--latex"],
@@ -768,6 +825,12 @@ function machineBlock(block: EditableBlock): MachineNode[] {
       ),
     ];
   }
+  if (block.block === "quote") {
+    return [{ ...base, editable: block.editable, text: block.text }];
+  }
+  if (block.block === "divider") {
+    return [base];
+  }
   if (block.block === "code") {
     return [{ ...base, language: block.language, code: block.code }];
   }
@@ -813,6 +876,12 @@ function formatBlock(block: EditableBlock): string[] {
   }
   if (block.block === "list") {
     return [`${path} list`, ...formatListItems(block, 1)];
+  }
+  if (block.block === "quote") {
+    return [`${path} quote inlineEditable=${block.editable} text=${quote(block.text)}`];
+  }
+  if (block.block === "divider") {
+    return [`${path} divider`];
   }
   if (block.block === "code") {
     return [`${path} code language=${quote(block.language)} code=${quote(block.code)}`];
@@ -866,6 +935,20 @@ function flag(args: string[], name: string): string {
   if (index < 0 || value === undefined || value.startsWith("--")) {
     throw new Error(`missing ${name}`);
   }
+  return value;
+}
+
+/** Exactly one of --text (plain) or --content (Core InlineContent JSON). */
+function textOrContent(args: string[]): InlineContent[] {
+  const text = optionalFlag(args, "--text");
+  const content = optionalFlag(args, "--content");
+  if ((text === undefined) === (content === undefined)) throw new Error("exactly one of --text or --content is required");
+  return text !== undefined ? [{ kind: "text", text }] : jsonFlag<InlineContent[]>(args, "--content");
+}
+
+function variantFlag(args: string[]): AdmonitionVariant {
+  const value = flag(args, "--variant");
+  if (!isAdmonitionVariant(value)) throw new Error(`--variant must be one of ${ADMONITION_VARIANTS.join(", ")}`);
   return value;
 }
 

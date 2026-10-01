@@ -1,7 +1,10 @@
 import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
 
-export const ADMONITION_VARIANTS = ["note", "warning"] as const;
+/** MyST's standard admonition kinds. The generic `admonition` directive needs a title and is not authored. */
+export const ADMONITION_VARIANTS = [
+  "note", "tip", "hint", "important", "seealso", "attention", "caution", "warning", "danger", "error",
+] as const;
 export type AdmonitionVariant = typeof ADMONITION_VARIANTS[number];
 
 const SIMPLE_VARIANTS = new Set<string>(ADMONITION_VARIANTS);

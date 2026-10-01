@@ -45,9 +45,11 @@ export type TableShapeEdit = {
   cells: { row: number; column: number; text: string }[];
 };
 
+/** A simple admonition's new kind and/or body; absent fields are unchanged. */
 export type AdmonitionEdit = {
   path: NodePath;
-  content: InlineContent[];
+  variant?: AdmonitionVariant;
+  content?: InlineContent[];
 };
 
 export type FigureEdit = {
@@ -75,10 +77,18 @@ export type LabelEdit = {
   to: string;
 };
 
+/** The new paragraph content of an editable Quote. */
+export type QuoteEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; text: string }
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
+  | { block: "quote"; content: InlineContent[] }
+  | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
@@ -98,6 +108,7 @@ export type SupportedEdits = {
   cells?: TableCellEdit[];
   tables?: TableShapeEdit[];
   admonitions?: AdmonitionEdit[];
+  quotes?: QuoteEdit[];
   lists?: ListEdit[];
   codes?: CodeEdit[];
   labels?: LabelEdit[];
@@ -130,6 +141,8 @@ const KNOWN_BLOCKS = new Set([
   "readonlyHeading",
   "readonlyParagraph",
   "admonition",
+  "quote",
+  "divider",
   "figure",
   "equation",
   "table",
@@ -176,6 +189,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const cells: TableCellEdit[] = [];
   const tables: TableShapeEdit[] = [];
   const admonitions: AdmonitionEdit[] = [];
+  const quotes: QuoteEdit[] = [];
   const lists: ListEdit[] = [];
   const codes: CodeEdit[] = [];
   const labels: LabelEdit[] = [];
@@ -202,6 +216,9 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         }
         if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
           throw saveError(node, "admonition body cannot be empty");
+        }
+        if (insert.block === "quote" && inlineText(insert.content).trim().length === 0) {
+          throw saveError(node, "quote cannot be empty");
         }
         if (insert.block === "equation" && insert.latex.length === 0) {
           throw saveError(node, "empty equation LaTeX cannot be saved");
@@ -253,10 +270,20 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       assertFigureContent(to);
       figures.push({ path: block.path, from, to });
     } else if (block.block === "admonition" && block.editable) {
+      const variant = String(node.attrs?.variant ?? "");
+      const content = paragraphInline(node);
+      const edit: AdmonitionEdit = { path: block.path };
+      if (variant !== block.variant && isAdmonitionVariant(variant)) edit.variant = variant;
+      if (!sameInline(content, block.content)) {
+        if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
+        edit.content = content;
+      }
+      if (edit.variant || edit.content) admonitions.push(edit);
+    } else if (block.block === "quote" && block.editable) {
       const content = paragraphInline(node);
       if (sameInline(content, block.content)) continue;
-      if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
-      admonitions.push({ path: block.path, content });
+      if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
+      quotes.push({ path: block.path, content });
     } else if (block.block === "code") {
       const code = codeContent(node);
       if (code.language !== block.language || code.code !== block.code) codes.push({ path: block.path, code });
@@ -302,6 +329,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(cells.length ? { cells } : {}),
     ...(tables.length ? { tables } : {}),
     ...(admonitions.length ? { admonitions } : {}),
+    ...(quotes.length ? { quotes } : {}),
     ...(lists.length ? { lists } : {}),
     ...(codes.length ? { codes } : {}),
     ...(labels.length ? { labels } : {}),
@@ -452,6 +480,15 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       editable: false,
     });
   }
+  if (block.block === "quote") {
+    // Quote v1 holds one paragraph; other quotes are read-only like any unsupported block.
+    return block.editable
+      ? { type: "quote", attrs: { sourcePath: pathKey(block.path) }, content: paragraphContent(block.content) }
+      : readonlyNode("unsupportedBlock", block.path, { text: block.text });
+  }
+  if (block.block === "divider") {
+    return { type: "divider", attrs: { sourcePath: pathKey(block.path) } };
+  }
   if (block.block === "figure") {
     return {
       type: "figure",
@@ -586,9 +623,16 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "admonition") {
     const variant = String(node.attrs?.variant ?? "");
     if (node.attrs?.editable !== true || !isAdmonitionVariant(variant)) {
-      throw new Error("a new admonition must be an editable Note or Warning");
+      throw new Error("a new admonition must be editable and of a standard MyST kind");
     }
     return { block: "admonition", variant, content: paragraphInline(node) };
+  }
+  if (node.type === "quote") {
+    return { block: "quote", content: paragraphInline(node) };
+  }
+  if (node.type === "divider") {
+    if ((node.content ?? []).length > 0) throw new Error("a divider has no content");
+    return { block: "divider" };
   }
   if (node.type === "equation") {
     const label = blockLabel(node);
@@ -618,7 +662,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "codeBlock") {
     return { block: "code", ...codeContent(node) };
   }
-  throw new Error("only paragraphs, headings, equations, figures, tables, lists, and code blocks can be inserted");
+  throw new Error("only paragraphs, headings, admonitions, quotes, dividers, equations, figures, tables, lists, and code blocks can be inserted");
 }
 
 function figureContent(node: TiptapJSON): FigureContent {
@@ -709,7 +753,7 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType === "admonition") {
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
-    for (const key of ["sourcePath", "variant", "text", "editable"]) {
+    for (const key of ["sourcePath", "text", "editable"]) {
       if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
         throw new Error(`admonition identity cannot change (${key})`);
       }
@@ -718,8 +762,20 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
       assertReadonlyUnchanged(before, after);
       return;
     }
+    // An editable admonition may change to another standard kind.
+    if (!isAdmonitionVariant(String(afterAttrs.variant ?? ""))) throw new Error("admonition kind is not a standard MyST kind");
     const content = paragraphInline(after);
     if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+    return;
+  }
+  if (beforeType === "quote") {
+    paragraphInline(after);
+    return;
+  }
+  if (beforeType === "divider") {
+    if (normalizeAttr(before.attrs?.sourcePath) !== normalizeAttr(after.attrs?.sourcePath) || (after.content ?? []).length > 0) {
+      throw new Error("a divider cannot change");
+    }
     return;
   }
   if (READONLY_BLOCKS.has(beforeType)) {

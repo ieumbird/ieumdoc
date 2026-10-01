@@ -62,7 +62,7 @@ export function insertReference(editor: Editor, range: { from: number; to: numbe
   const $to = state.doc.resolve(range.to);
   const parent = $from.parent;
   if (!$from.sameParent($to) || !(parent.type.name === "paragraph" ||
-      (parent.type.name === "admonition" && parent.attrs.editable === true))) return false;
+      parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true))) return false;
   const marks = (range.from === range.to ? state.storedMarks ?? $from.marks() : $from.marksAcross($to) ?? [])
     .filter((mark) => mark.type.name !== "link");
   return editor.chain().focus().insertContentAt(range, {

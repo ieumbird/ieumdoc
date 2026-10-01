@@ -30,7 +30,25 @@ test("paragraph insertion accepts rich inline semantics without a lossy text int
   assert.throws(() => insertParagraph(original, 1, [{ kind: "math", value: "" }]), /math/);
 });
 
-const FORMATTED_TEXT = "The converter regulates the DC-link voltage and phase current.";
+test("strikethrough is editable inline content written as the {del} role", () => {
+  const paragraph = getEditableDocument(parse("A {del}`gone **bold**` text.\n")).blocks[0];
+  assert.ok(paragraph.block === "paragraph" && paragraph.editable);
+  assert.deepEqual(paragraph.content[1], { kind: "delete", children: [
+    { kind: "text", text: "gone " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] },
+  ] });
+
+  const content: InlineContent[] = [
+    { kind: "emphasis", children: [{ kind: "text", text: "Old " }, { kind: "delete", children: [{ kind: "text", text: "value" }] }] },
+    { kind: "text", text: " " }, { kind: "delete", children: [{ kind: "math", value: "x" }] },
+  ];
+  const saved = serialize(insertParagraph(parse("# Title\n"), 1, content));
+  assert.ok(saved.includes("{del}`value`"), saved);
+  const block = getEditableDocument(parse(saved)).blocks[1];
+  assert.ok(block.block === "paragraph");
+  assert.deepEqual(block.content, content);
+});
+
+const FORMATTED_TEXT ="The converter regulates the DC-link voltage and phase current.";
 const FORMATTED_INLINE: InlineContent[] = [
   { kind: "text", text: "The converter regulates the " },
   { kind: "strong", children: [{ kind: "text", text: "DC-link voltage" }] },

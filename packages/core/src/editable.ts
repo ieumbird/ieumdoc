@@ -7,6 +7,7 @@ import type { ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { supportedCodeBlock } from "./myst/code.ts";
 import { supportedListContent } from "./myst/list.ts";
+import { isDivider, supportedQuoteContent } from "./myst/quote.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
@@ -51,6 +52,19 @@ export type EditableBlock = (
       text: string;
       content: InlineContent[];
       editable: boolean;
+    }
+  | {
+      /** Quote v1: one paragraph of supported inline content; other quotes are read-only. */
+      block: "quote";
+      path: NodePath;
+      text: string;
+      content: InlineContent[];
+      editable: boolean;
+    }
+  | {
+      /** A plain thematic break (`---`). */
+      block: "divider";
+      path: NodePath;
     }
   | {
       block: "figure";
@@ -150,6 +164,13 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
       content: content ?? [],
       editable: content !== undefined,
     };
+  }
+  if (node.type === "blockquote") {
+    const content = supportedQuoteContent(node);
+    return { block: "quote", path, text: toText(node), content: content ?? [], editable: content !== undefined };
+  }
+  if (isDivider(node)) {
+    return { block: "divider", path };
   }
   if (node.type === "container" && node.kind === "figure") {
     return figureBlock(node, path);

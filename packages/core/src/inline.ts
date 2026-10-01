@@ -31,6 +31,11 @@ export type InlineContent =
       children: InlineContent[];
     }
   | {
+      /** Strikethrough, written as the MyST `{del}` role. */
+      kind: "delete";
+      children: InlineContent[];
+    }
+  | {
       /** An ordinary Markdown link. Semantic cross-references are not links. */
       kind: "link";
       url: string;
@@ -48,7 +53,7 @@ export type InlineContent =
 /** The mark an item applies to its content, for comparing rendered semantics:
  * strong/emphasis nesting is irrelevant, a link's target is part of the mark. */
 export function inlineMarkKey(item: InlineContent): string | undefined {
-  if (item.kind === "strong" || item.kind === "emphasis") return item.kind;
+  if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") return item.kind;
   if (item.kind === "link") return `link ${JSON.stringify([item.url, item.title ?? null])}`;
   return undefined;
 }
@@ -104,7 +109,7 @@ function projectNode(node: MystNode): InlineContent | undefined {
       Object.keys(node).every((key) => REFERENCE_FIELDS.has(key))) {
     return { kind: "reference", role: node.kind as ReferenceRole, label: node.label };
   }
-  if (node.type === "strong" || node.type === "emphasis") {
+  if (node.type === "strong" || node.type === "emphasis" || node.type === "delete") {
     const children = projectNodes(node.children ?? []);
     if (!children) return undefined;
     return { kind: node.type, children };
@@ -140,7 +145,7 @@ function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "text") {
     return { type: "text", value: item.text };
   }
-  if (item.kind === "strong" || item.kind === "emphasis") {
+  if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") {
     return { type: item.kind, children: item.children.map(inlineToNode) };
   }
   if (item.kind === "link") {
@@ -178,7 +183,7 @@ export function assertInlineContent(content: InlineContent[]): void {
       }
       continue;
     }
-    if (item.kind === "strong" || item.kind === "emphasis") {
+    if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") {
       assertInlineContent(item.children);
       continue;
     }
@@ -248,6 +253,8 @@ export function splitInlineContent(content: InlineContent[], offset: number): [I
 
 /** Coalesce adjacent equal marks, and adjacent inline code, so Markdown delimiters cannot collide.
  * Adjacent links stay separate: `[a](x)[b](x)` is two links. */
+const MARK_KINDS = new Set(["strong", "emphasis", "delete"]);
+
 export function concatenateInlineContent(...parts: InlineContent[][]): InlineContent[] {
   const result: InlineContent[] = [];
   for (const item of parts.flat()) {
@@ -256,8 +263,7 @@ export function concatenateInlineContent(...parts: InlineContent[][]): InlineCon
     const previous = result.at(-1);
     if (previous?.kind === "text" && current.kind === "text") previous.text += current.text;
     else if (previous?.kind === "code" && current.kind === "code") previous.value += current.value;
-    else if ((previous?.kind === "strong" || previous?.kind === "emphasis") &&
-      (current.kind === "strong" || current.kind === "emphasis") && previous.kind === current.kind) {
+    else if (previous && current.kind === previous.kind && MARK_KINDS.has(current.kind) && "children" in previous && "children" in current) {
       previous.children = concatenateInlineContent(previous.children, current.children);
     } else result.push(current);
   }

@@ -28,7 +28,7 @@ Second paragraph.
 :::
 
 :::{tip}
-Custom variant remains read-only.
+A tip is a standard kind and stays editable.
 :::
 
 End paragraph.
