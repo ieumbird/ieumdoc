@@ -779,7 +779,7 @@ Core가 top-level 글머리표·번호 목록을 만들고(`insertList`), 편집
 - 편집 가능한 목록: 각 항목이 지원 inline(text, strong, emphasis, 일반 link, inline code, inline math, `{eq}`/`{numref}`)만 있는 문단 하나와, 선택적으로 중첩 목록 하나를 가진다. 여러 단계 중첩과 글머리표/번호 혼합이 가능하다.
 - 읽기 전용으로 남는 목록: task list(`- [ ]`), 한 항목에 문단이 여럿이거나 코드·표 등 다른 블록이 있는 목록, 지원하지 않는 inline이 있는 목록.
 - 빈 항목은 저장되지 않는다(`empty list item cannot be saved`). 같은 종류의 목록이 바로 이어지면 다시 읽을 때 하나로 합쳐지므로 거부된다.
-- 목록을 만드는 Markdown 입력 단축(`- `, `1. `)은 #55의 범위다.
+- 목록을 만드는 Markdown 입력 단축(`- `, `1. `)은 아래 Markdown input shortcuts(#55)를 따른다.
 
 CLI:
 
@@ -808,7 +808,7 @@ Core가 fenced code block을 만들고(`insertCodeBlock`), 편집 가능한 code
 - 언어는 공백·backtick 없는 한 단어이고 `{`로 시작하지 않는다. 코드 줄바꿈은 `\n`이다. 인라인 코드는 비어 있지 않은 한 줄 텍스트다.
 - 인라인 코드는 text, strong, emphasis, 일반 link, inline math, `{eq}`/`{numref}`와 함께 지원 inline이다. inline code를 감싼 link도 지원된다. split / merge / hard break에서 inline code는 그 문자 수만큼 센다.
 - 구문 강조는 Editor 표시에만 있는 decoration이며 문서에 기록되지 않는다. 등록되지 않은 언어는 평문으로 보인다.
-- 코드 fence(```` ``` ````)와 인라인 코드(`` ` ``) 입력 단축은 별도 이슈의 범위다.
+- 코드 fence(```` ``` ````)와 인라인 코드(`` ` ``) 입력 단축은 아래 Markdown input shortcuts(#55)를 따른다.
 
 CLI:
 
@@ -829,6 +829,18 @@ Editor:
 - Save → Reload 후 내용·들여쓰기·빈 줄·언어가 그대로다.
 
 브라우저 회귀는 없다. #53은 작업 범위 조정으로 자동 browser scenario를 추가하지 않았으므로, 위 Editor 항목(실제 키 Enter/Tab 동작과 구문 강조 표시 포함)을 수동으로 확인한다.
+
+## Markdown input shortcuts (#55)
+
+Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은 같은 insert/변환 명령과 같은 editor 문서를 만들고, Save는 같은 Core operation(`removeBlock`, `insertHeading`, `insertList`, `insertCodeBlock`, 문단 inline 변경)으로 저장한다.
+
+- 최상위 문단 맨 앞에서: `#`–`######` + 공백 → 제목 1–6, `- `/`* `/`+ ` → 글머리표 목록, `3. ` → 3부터 시작하는 번호 목록, ```` ```js ```` + 공백 또는 Enter → 언어가 `js`인 code block. 문단의 나머지 내용은 새 블록으로 옮겨진다.
+- 서식·link·inline math·reference·줄바꿈이 있는 문단은 제목·code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
+- 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). mark를 쓸 수 없는 제목·표 cell에서는 구분자가 지워지지 않고 그대로 남는다. code block 안에서는 어떤 단축도 적용되지 않는다.
+- 단축 직후 Ctrl/Cmd+Z 또는 Backspace는 입력한 문자 그대로(예: `## `) 되돌리고 caret을 그 뒤에 둔다. Enter로 적용한 code fence는 Enter 없이 ```` ```js ````로 되돌아간다.
+- 인용문(`> `)·구분선(`---`)·취소선은 지원 블록이 아니므로 단축이 없다(#57).
+
+브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block·표 cell·제목에서 문자가 그대로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
 ## Inline link authoring v1
 

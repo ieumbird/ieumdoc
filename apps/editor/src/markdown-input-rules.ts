@@ -1,0 +1,110 @@
+import { Extension, InputRule, markInputRule, type InputRuleFinder } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
+import type { Fragment, MarkType } from "@tiptap/pm/model";
+import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import { freshBlockPath } from "./tiptap-document.ts";
+
+// Markdown input shortcuts are Editor-only interaction: each one produces the same engine
+// document as the equivalent insert or conversion command, and Save maps it to the same Core
+// operations. Only blocks and marks the Editor can author have a shortcut.
+
+/** The only extension whose input rules the editor enables. */
+export const MARKDOWN_INPUT_RULES = "markdownInputRules";
+
+export type BlockShortcut =
+  | { block: "heading"; level: number }
+  | { block: "list"; ordered: boolean; start?: number }
+  | { block: "code"; language: string };
+
+/**
+ * Replace the top-level paragraph whose typed Markdown prefix spans `from`–`to` with the
+ * shortcut's block, keeping the paragraph's remaining content. Returns false, leaving `tr`
+ * unchanged, outside a top-level paragraph or when the block cannot hold that content:
+ * headings and code blocks hold unmarked text only.
+ */
+export function applyBlockShortcut(tr: Transaction, from: number, to: number, shortcut: BlockShortcut): boolean {
+  const $from = tr.doc.resolve(from);
+  if ($from.depth !== 1 || $from.parent.type.name !== "paragraph" || $from.parentOffset !== 0) return false;
+  const paragraph = $from.parent;
+  const rest = paragraph.content.cut(to - $from.start());
+  if (shortcut.block !== "list" && !plainText(rest)) return false;
+  const { nodes } = tr.doc.type.schema;
+  const pos = $from.before();
+  // A fresh locator: the snapshot paragraph is replaced, as by the equivalent command.
+  const sourcePath = freshBlockPath();
+  const block = shortcut.block === "heading"
+    ? nodes.heading.create({ sourcePath, level: shortcut.level }, rest)
+    : shortcut.block === "code"
+      ? nodes.codeBlock.create({ sourcePath, language: shortcut.language }, rest)
+      : nodes[shortcut.ordered ? "orderedList" : "bulletList"].create(
+        { sourcePath, ...(shortcut.ordered ? { start: shortcut.start ?? 1 } : {}) },
+        nodes.listItem.create(null, nodes.paragraph.create(null, rest)));
+  tr.replaceWith(pos, pos + paragraph.nodeSize, block);
+  // Inside a list the caret goes into the item's paragraph.
+  tr.setSelection(TextSelection.create(tr.doc, pos + (shortcut.block === "list" ? 3 : 1)));
+  closeHistory(tr);
+  return true;
+}
+
+function plainText(content: Fragment): boolean {
+  let plain = true;
+  content.forEach(child => { if (!child.isText || child.marks.length > 0) plain = false; });
+  return plain;
+}
+
+function blockRule(find: RegExp, shortcut: (match: RegExpMatchArray) => BlockShortcut, undoable = true): InputRule {
+  return new InputRule({
+    find,
+    undoable,
+    handler: ({ state, range, match }) =>
+      applyBlockShortcut(state.tr, range.from, range.to, shortcut(match)) ? undefined : null,
+  });
+}
+
+/** Tiptap's mark rule would drop the delimiters even where the mark is not allowed (headings, table cells). */
+function markRule(find: InputRuleFinder, type: MarkType): InputRule {
+  const rule = markInputRule({ find, type });
+  return new InputRule({
+    find,
+    handler: (props) => {
+      if (!props.state.doc.resolve(props.range.from).parent.type.allowsMarkType(type)) return null;
+      const result = rule.handler(props);
+      closeHistory(props.state.tr);
+      return result;
+    },
+  });
+}
+
+export const MarkdownInputRules = Extension.create({
+  name: MARKDOWN_INPUT_RULES,
+  // Ahead of Enter handling and history: a rule sees Enter first, and Undo right after a rule restores the typed text.
+  priority: 1000,
+  addInputRules() {
+    const { marks } = this.editor.schema;
+    return [
+      blockRule(/^(#{1,6}) $/, match => ({ block: "heading", level: match[1].length })),
+      blockRule(/^[-+*] $/, () => ({ block: "list", ordered: false })),
+      blockRule(/^(\d{1,9})\. $/, match => ({ block: "list", ordered: true, start: Number(match[1]) })),
+      // A code language is one word that does not start with `{` (a MyST directive).
+      blockRule(/^```((?!\{)[^\s`]*) $/, match => ({ block: "code", language: match[1] })),
+      // Enter is not typed text: Undo returns to the fence as typed, without a line break.
+      blockRule(/^```((?!\{)[^\s`]*)\n$/, match => ({ block: "code", language: match[1] }), false),
+      markRule(/(?:^|\s)(\*\*(?!\s+\*\*)((?:[^*]+))\*\*(?!\s+\*\*))$/, marks.bold),
+      markRule(/(?:^|\s)(__(?!\s+__)((?:[^_]+))__(?!\s+__))$/, marks.bold),
+      markRule(/(?:^|\s)(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))$/, marks.italic),
+      markRule(/(?:^|\s)(_(?!\s+_)((?:[^_]+))_(?!\s+_))$/, marks.italic),
+      markRule(/(?:^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))$/, marks.code),
+    ];
+  },
+  addKeyboardShortcuts() {
+    // Right after a rule, restore the typed text with the caret after it, as if the rule never applied.
+    const undoRule = () => {
+      const { state } = this.editor;
+      const applied = state.plugins.find(plugin => plugin.spec.isInputRules)?.getState(state) as
+        { from: number; text: string } | null | undefined;
+      if (!applied) return false;
+      return this.editor.chain().undoInputRule().setTextSelection(applied.from + applied.text.length).run();
+    };
+    return { "Mod-z": undoRule, Backspace: undoRule };
+  },
+});

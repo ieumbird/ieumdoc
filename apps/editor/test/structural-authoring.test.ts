@@ -6,6 +6,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
+import { applyBlockShortcut, type BlockShortcut } from "../src/markdown-input-rules.ts";
 import { changeHeadingLevel, headingToParagraph, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { joinRichProse } from "../src/document-interaction.ts";
@@ -166,4 +167,46 @@ test("Paragraph and Heading conversions survive Tiptap collection, Host file sav
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("Markdown block shortcuts replace the typed prefix and save as the equivalent Core blocks", () => {
+  const markdown = "# Title\n\nFirst item **bold**\n\nSecond\n\nsnippet\n\nKeep.\n\nRich **text**\n";
+  const editable = loadEditableDocument(markdown);
+  const baseline = toTiptapDocument(editable);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+    plugins: [structureGuardPlugin(baseline, () => assert.fail("representable shortcut was rejected"))] });
+  const typed = (index: number, prefix: string, shortcut: BlockShortcut) => {
+    let start = 1;
+    for (let i = 0; i < index; i++) start += state.doc.child(i).nodeSize;
+    state = state.applyTransaction(state.tr.insertText(prefix, start)).state;
+    const tr = state.tr;
+    const applied = applyBlockShortcut(tr, start, start + prefix.length, shortcut);
+    if (applied) state = state.applyTransaction(tr).state;
+    return applied;
+  };
+  assert.ok(typed(1, "-", { block: "list", ordered: false }));
+  assert.ok(typed(2, "3.", { block: "list", ordered: true, start: 3 }));
+  assert.ok(typed(3, "```js", { block: "code", language: "js" }));
+  assert.ok(typed(4, "##", { block: "heading", level: 2 }));
+  // Headings hold unmarked text only; the typed prefix stays as text.
+  assert.equal(typed(5, "##", { block: "heading", level: 2 }), false);
+  assert.equal(state.doc.child(5).type.name, "paragraph");
+
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state)));
+  const blocks = saved.document.blocks;
+  assert.deepEqual(blocks.map(block => block.block), ["heading", "list", "list", "code", "heading", "paragraph"]);
+  assert.deepEqual(blocks[1]?.block === "list" && blocks[1].items.map(item => item.content), [
+    [{ kind: "text", text: "First item " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] }],
+  ]);
+  assert.deepEqual(blocks[2]?.block === "list" && [blocks[2].ordered, blocks[2].start], [true, 3]);
+  assert.deepEqual(blocks[3]?.block === "code" && [blocks[3].language, blocks[3].code], ["js", "snippet"]);
+  assert.deepEqual(blocks[4]?.block === "heading" && [blocks[4].level, blocks[4].text], [2, "Keep."]);
+  assert.equal(blocks[5]?.block === "paragraph" && blocks[5].text, "##Rich text");
+
+  // Block shortcuts apply to top-level paragraphs only, not to paragraphs inside list items.
+  const inList = state.doc.child(1).firstChild!.firstChild!;
+  assert.equal(inList.type.name, "paragraph");
+  assert.equal(applyBlockShortcut(state.tr, state.doc.child(0).nodeSize + 3, state.doc.child(0).nodeSize + 3,
+    { block: "heading", level: 2 }), false);
 });

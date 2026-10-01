@@ -7,6 +7,7 @@ import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
+import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, FigureContent } from "@ieumdoc/core";
@@ -127,7 +128,7 @@ const SourcedParagraph = Node.create({
 
 // List v1: a top-level list carries its snapshot locator; each item holds one paragraph,
 // optionally followed by one nested list. Enter, Tab/Shift-Tab and Backspace edit items.
-// Markdown input shortcuts that create lists are not part of List v1.
+// List input shortcuts (`- `, `1. `) are MarkdownInputRules, not Tiptap's list rules.
 const listHTML = { class: "list", "data-block": "list" };
 
 const SourcedBulletList = BulletList.extend({
@@ -159,7 +160,7 @@ const SimpleListItem = ListItem.extend({
 });
 
 // Code block v1: a language and literal code. Enter and Tab insert text; three Enters or
-// ArrowDown at the end leave the block. The ``` input shortcut is not part of v1.
+// ArrowDown at the end leave the block. The ``` input shortcut is a MarkdownInputRule.
 // Syntax highlighting is display-only: lowlight decorations never enter the document or
 // the saved Markdown. An empty or unregistered language shows plain code.
 const lowlight = createLowlight(common);
@@ -615,6 +616,7 @@ export function editorExtensions(
     UnsupportedBlock,
     InlineMath,
     CrossReference,
+    MarkdownInputRules,
   ];
 }
 

@@ -83,7 +83,7 @@ pnpm ieumdoc inspect packages/core/test/fixtures/technical-document.md
 
 Paragraph hard breaks, splits, and merges are available through Core and CLI.
 Run `pnpm ieumdoc help split-paragraph` for the UTF-16 offset and snapshot-path contract.
-The Editor supports heading/paragraph splits and joins, Shift+Enter hard breaks, table-cell navigation, cross-block selection and clipboard, Undo/Redo, and top-level block reordering and paragraph/heading conversion through the left handles. See [Continuous document editing](docs/design/document-editing-v1.md) for preservation boundaries.
+The Editor supports heading/paragraph splits and joins, Shift+Enter hard breaks, table-cell navigation, cross-block selection and clipboard, Undo/Redo, Markdown input shortcuts (`## `, `- `, `1. `, code fences, `**bold**`, `` `code` ``), and top-level block reordering and paragraph/heading conversion through the left handles. See [Continuous document editing](docs/design/document-editing-v1.md) for preservation boundaries.
 
 ## MVP 2 Alpha
 
