@@ -24,6 +24,16 @@ Open/New refuse while changes or drafts remain, including documents that cannot 
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
 
+## Save shortcut and work-loss protection (#56)
+
+Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New or Reload dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
+
+Decision: no autosave and no local draft recovery for now.
+
+- Autosave would turn every pause into a canonical write of the Git-tracked SSOT. It would also surface Save validation errors for half-typed content (empty blocks, incomplete tables), and conflicts with external edits, while the user is still typing. Writing to the document is an explicit user action in IeumDoc.
+- Draft recovery would need durable storage of the editor session: the opening source, the acknowledged revision and edits, and the editor state keyed by snapshot locators. That is persistence, and `apps/editor/server` is a development adapter that must not grow into it. A recovered session would also need its own conflict rules against the current disk.
+- `beforeunload` remains the guard against closing or navigating away with unsaved work. Revisit this decision together with the long-term persistence/backend design.
+
 ## Evidence
 
 Before the change, an actual browser Save replaced the editor, changed selection from 287 to 1, and changed `can().undo()` from true to false. `save-session.browser.js` exercises real scratch-file persistence across Save/history, transient content, delayed responses, rejection, conflict, draft preservation and reload. Existing Figure, table, Source and delayed-save scenarios cover their distinct integration risks. Run `pnpm browser:test save-session` or the complete CI suite described in [TEST_GUIDE](../test/TEST_GUIDE.md).
