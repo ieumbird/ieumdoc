@@ -20,6 +20,7 @@ import {
   editorDocumentJSON,
 } from "./editor-schema.tsx";
 import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 
@@ -96,6 +97,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     shouldRerenderOnTransaction: true,
     extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
     content: projection,
+    // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
+    enableInputRules: [MARKDOWN_INPUT_RULES],
     onTransaction({ transaction }) {
       // Block indexes are snapshot positions; a document change invalidates an open menu.
       if (transaction.docChanged) setBlockMenu(null);
