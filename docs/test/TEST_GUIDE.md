@@ -846,6 +846,18 @@ Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은
 
 브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block·표 cell·제목에서 문자가 그대로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
+## Document outline (#61)
+
+Editor 전용 탐색이다(CLI parity 대상 아님, 구조는 `ieumdoc inspect`가 보여 준다). 개요는 Editor 문서에서 파생하며 문서에 기록하지 않는다.
+
+- 사이드바를 펼치면 문서 아래에 `Outline`이 있고 최상위 제목(서식 있는 읽기 전용 제목 포함)이 순서대로 레벨별 들여쓰기로 보인다. 제목이 없으면 `No headings`.
+- 항목을 누르면 그 제목이 상단 헤더 바로 아래로 스크롤되고 caret이 제목 맨 앞에 놓여 바로 입력할 수 있다. Source 보기에서 누르면 Visual로 돌아와 이동한다.
+- 키보드: Tab으로 항목에 들어가 ↑/↓/Home/End로 이동하고 Enter 또는 Space로 이동한다. 이 Enter는 문서에 입력되지 않는다.
+- 현재 읽는 절이 강조된다(화면 위 30% 지점을 지난 마지막 제목, 문서 끝에서는 화면에 보이는 마지막 제목). 개요로 고른 제목은 스크롤하기 전까지 현재 절로 남는다.
+- 제목을 고치거나 `## `·메뉴로 추가하거나 삭제하면 개요가 즉시 바뀐다.
+
+브라우저 회귀: `pnpm browser:test outline`은 scratch `tmp/outline/outline.md`에서 클릭·키보드 이동, 스크롤에 따른 현재 절, 편집 반영, Source에서의 이동을 확인한다. 저장하지 않는다.
+
 ## Basic blocks (#57)
 
 Core가 인용문(`insertQuote`/`updateQuoteInlineContent`), 구분선(`insertDivider`), admonition 종류 변경(`updateAdmonitionVariant`), 취소선 InlineContent(`delete`)를 제공한다. 모두 canonical Markdown으로 다시 읽어 같은 내용이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.

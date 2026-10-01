@@ -9,7 +9,7 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc, Open, New and current document. User-controlled collapse/expand; no workspace tree or placeholder navigation. |
+| Sidebar | IeumDoc, Open, New, current document and its heading outline (#61). User-controlled collapse/expand; no workspace tree or placeholder navigation. The outline is derived from the editor document, indents 12px per level below H1, marks the section being read and scrolls by itself; it is never written to the document. |
 | TopBar | Filename (full path in title), Visual/Source, actual status, Reload and Save. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |

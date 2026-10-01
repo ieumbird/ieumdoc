@@ -91,6 +91,7 @@ export const STABLE_SCENARIOS = [
   "structural-block-authoring",
   "markdown-input",
   "basic-blocks",
+  "outline",
   "list-authoring",
   "source-view",
   "source-view-pending",

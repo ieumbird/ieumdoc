@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditableDocument, FigureContent } from "@ieumdoc/core";
-import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
+import { DocumentEditor, type DocumentEditorHandle, type DocumentOutline } from "./DocumentEditor.tsx";
+import type { OutlineItem } from "./outline.ts";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
@@ -34,6 +35,7 @@ export function App() {
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
+  const [outline, setOutline] = useState<DocumentOutline>({ items: [], current: -1 });
   // Unwritable snapshots are read-only. Reload checks the repaired file through Core;
   // writable sessions are validated again on every Save/Source request.
   const [writeError, setWriteError] = useState("");
@@ -199,6 +201,16 @@ export function App() {
     return () => window.removeEventListener("beforeunload", protect);
   }, [busy]);
 
+  /** Outline navigation always lands in the Visual view, where the heading is. */
+  function revealHeading(item: OutlineItem): void {
+    if (view === "visual") {
+      editorRef.current?.revealHeading(item);
+      return;
+    }
+    setView("visual");
+    requestAnimationFrame(() => editorRef.current?.revealHeading(item));
+  }
+
   async function reload(): Promise<void> {
     if (busy || !openedPath) return;
     if (editorRef.current?.hasUnsavedChanges()) {
@@ -221,6 +233,8 @@ export function App() {
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
+        outline={document ? outline : undefined}
+        onSelectHeading={revealHeading}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
         onNew={() => setNewDialog(true)}
@@ -270,6 +284,7 @@ export function App() {
                 onEquationDraftChange={setEquationDraftActive}
                 onFigureDraftChange={setFigureDraftActive}
                 onDirtyChange={setDocumentDirty}
+                onOutlineChange={setOutline}
                 validateFigure={validateFigure}
                 onStructuralReject={(reason) =>
                   setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")
