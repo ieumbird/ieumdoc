@@ -105,6 +105,82 @@ button {
   text-overflow: ellipsis;
 }
 
+/* The outline takes the remaining sidebar height and scrolls by itself. */
+.sidebar-outline {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+}
+
+.sidebar-section-label,
+.sidebar-outline-empty {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
+.sidebar-section-label {
+  font-weight: var(--font-weight-semibold);
+}
+
+.sidebar-outline-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sidebar-outline-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  /* One 12px step per heading level below H1. */
+  padding-left: calc(var(--space-3) + var(--outline-depth, 0) * var(--space-3));
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--id-radius-md);
+  background: transparent;
+  color: var(--id-color-text-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sidebar-outline-item:hover {
+  background: var(--id-color-surface-muted);
+}
+
+.sidebar-outline-item:focus-visible {
+  outline: 2px solid var(--id-color-border-focus);
+  outline-offset: -2px;
+}
+
+.sidebar-outline-item[aria-current="location"] {
+  background: var(--id-color-interaction-soft);
+  color: var(--id-color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sidebar-outline-untitled {
+  color: var(--id-color-text-subtle);
+  font-style: italic;
+}
+
+/* A heading reached from the outline clears the sticky header. */
+.document-editor > .heading,
+.document-editor > .heading-readonly {
+  scroll-margin-top: calc(var(--layout-header-row) + var(--space-8));
+}
+
 .app-main {
   min-width: 0;
 }

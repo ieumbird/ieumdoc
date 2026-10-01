@@ -21,6 +21,8 @@ import {
 } from "./editor-schema.tsx";
 import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
+import { currentOutlineItem, documentOutline, sameOutline, type OutlineItem } from "./outline.ts";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 
@@ -32,7 +34,11 @@ export type DocumentEditorHandle = {
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
   hasUnsavedChanges(): boolean;
+  /** Move the caret to an outline heading and scroll it to the top of the document view. */
+  revealHeading(item: OutlineItem): void;
 };
+
+export type DocumentOutline = { items: OutlineItem[]; current: number };
 
 type DocumentEditorProps = {
   document: EditableDocument;
@@ -44,10 +50,12 @@ type DocumentEditorProps = {
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
   validateFigure?: FigureValidator;
+  /** The heading outline and the section being read, for navigation outside the editor. */
+  onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure },
+  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure, onOutlineChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -62,6 +70,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const activeFigureDrafts = useRef(new Set<string>());
   const onDirtyChangeRef = useRef(onDirtyChange);
   onDirtyChangeRef.current = onDirtyChange;
+  const onOutlineChangeRef = useRef(onOutlineChange);
+  onOutlineChangeRef.current = onOutlineChange;
+  // A heading revealed from the outline stays the current section until the reader scrolls,
+  // even when the document ends before it can reach the top of the view.
+  const revealed = useRef<{ index: number; scrollY: number } | null>(null);
+  const scheduleOutline = useRef(() => {});
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
   const [slashActive, setSlashActive] = useState(0);
@@ -138,6 +152,22 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return activeEquationDrafts.current.size > 0 || activeFigureDrafts.current.size > 0 ||
           hasDocumentChanges();
       },
+      revealHeading(item) {
+        if (!editor) return;
+        const node = editor.state.doc.maybeChild(item.index);
+        if (!node || (node.type.name !== "heading" && node.type.name !== "readonlyHeading")) return;
+        let pos = 0;
+        for (let i = 0; i < item.index; i++) pos += editor.state.doc.child(i).nodeSize;
+        const selection = node.type.name === "heading"
+          ? TextSelection.create(editor.state.doc, pos + 1)
+          : NodeSelection.create(editor.state.doc, pos);
+        editor.view.dispatch(editor.state.tr.setSelection(selection));
+        editor.view.focus();
+        const element = editor.view.nodeDOM(pos);
+        if (element instanceof HTMLElement) element.scrollIntoView({ block: "start" });
+        revealed.current = { index: item.index, scrollY: window.scrollY };
+        scheduleOutline.current();
+      },
       getDocument() {
         if (!editor) {
           throw new Error("Editor is not ready");
@@ -159,6 +189,43 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     reportDirty();
     editor.on("update", reportDirty);
     return () => { editor.off("update", reportDirty); };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    // Recompute on edits, scrolling and resizing; report only when something changed.
+    let reported: DocumentOutline | null = null;
+    let frame = 0;
+    const report = () => {
+      frame = 0;
+      const items = documentOutline(editor.state.doc);
+      const tops = items.map(item => {
+        const element = editor.view.nodeDOM(item.pos);
+        return element instanceof HTMLElement ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+      });
+      // A heading that has scrolled into the upper part of the view starts the section being read.
+      if (revealed.current && Math.abs(window.scrollY - revealed.current.scrollY) > 1) revealed.current = null;
+      const pinned = revealed.current && items.findIndex(item => item.index === revealed.current!.index);
+      const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, window.innerHeight * 0.3,
+        window.scrollY > 0 && window.scrollY + window.innerHeight >= window.document.documentElement.scrollHeight - 1 ? window.innerHeight : undefined);
+      if (reported && reported.current === current && sameOutline(reported.items, items)) return;
+      reported = { items, current };
+      onOutlineChangeRef.current?.(reported);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(report); };
+    // Edits move headings; the reading position decides again.
+    const edited = () => { revealed.current = null; schedule(); };
+    scheduleOutline.current = schedule;
+    report();
+    editor.on("update", edited);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      editor.off("update", edited);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
   }, [editor]);
 
   useEffect(() => {
