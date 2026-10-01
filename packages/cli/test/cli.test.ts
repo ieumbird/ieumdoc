@@ -173,6 +173,7 @@ test("CLI insert-heading persists a Core heading", () => {
       path: [1],
       level: 2,
       text: "Details",
+      content: [{ kind: "text", text: "Details" }],
       editable: true,
     });
     assert.equal(saved, serialize(parse(saved)));
@@ -281,6 +282,34 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
   }
 });
 
+test("CLI writes formatted headings and rejects line breaks and read-only headings without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "## See {ref}`intro`\n\nIntro.\n");
+  try {
+    const bold = JSON.stringify([{ kind: "text", text: "Limits of " }, { kind: "strong", children: [{ kind: "text", text: "current" }] }]);
+    const inserted = run(["insert-heading", file, "--at", "2", "--level", "2", "--content", bold]);
+    assert.equal(inserted.status, 0, inserted.stderr);
+    const updated = run(["update-heading", file, "--path", "2", "--content",
+      JSON.stringify([{ kind: "emphasis", children: [{ kind: "text", text: "Revised" }] }, { kind: "text", text: " limits" }])]);
+    assert.equal(updated.status, 0, updated.stderr);
+    assert.match(readFileSync(file, "utf8"), /^## \*Revised\* limits$/m);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["update-heading", file, "--path", "0", "--text", "Flattened"],
+      ["update-heading", file, "--path", "2", "--content", JSON.stringify([{ kind: "text", text: "A" }, { kind: "break" }])],
+      ["update-heading", file, "--path", "2", "--text", "A", "--content", "[]"],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI updates a real H2 file to H5 and rejects unsafe heading requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-level-"));
   const file = path.join(dir, "document.md");
@@ -293,7 +322,7 @@ test("CLI updates a real H2 file to H5 and rejects unsafe heading requests witho
     const blocks = getEditableDocument(parse(saved)).blocks;
     assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
     assert.deepEqual(blocks[1], {
-      block: "heading", path: [1], level: 5, text: "Stable heading", editable: true,
+      block: "heading", path: [1], level: 5, text: "Stable heading", content: [{ kind: "text", text: "Stable heading" }], editable: true,
     });
     assert.deepEqual(blocks[2], {
       block: "paragraph", path: [2], text: "Keep this paragraph.",

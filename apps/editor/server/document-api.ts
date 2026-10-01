@@ -26,6 +26,7 @@ import {
   moveBlock,
   updateNodeTextAtPath,
   updateHeadingLevel,
+  updateHeadingInlineContent,
   updateEquationLatex,
   updateAdmonitionInlineContent,
   updateAdmonitionVariant,
@@ -50,10 +51,10 @@ import {
   type NodePath,
 } from "@ieumdoc/core";
 
+/** The new inline content of an editable Heading. */
 export type HeadingEdit = {
   path: NodePath;
-  from: string;
-  to: string;
+  content: InlineContent[];
 };
 
 export type HeadingLevelEdit = {
@@ -128,7 +129,7 @@ export type QuoteEdit = {
 
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; text: string }
+  | { block: "heading"; level: number; content: InlineContent[] }
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "quote"; content: InlineContent[] }
   | { block: "divider" }
@@ -369,13 +370,7 @@ export function saveEdits(
     if (block?.block !== "heading" || !block.editable) {
       throw new Error(`heading edit is not allowed at [${edit.path.join(",")}]`);
     }
-    if (edit.from !== block.text) {
-      throw new Error(`heading text does not match at [${edit.path.join(",")}]`);
-    }
-    if (edit.to.length === 0) {
-      throw new Error("empty heading text cannot be saved");
-    }
-    document = editAt(target, () => updateNodeTextAtPath(document, edit.path, edit.from, edit.to));
+    document = editAt(target, () => updateHeadingInlineContent(document, edit.path, edit.content));
   }
   for (const edit of edits.headingLevels ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
@@ -606,7 +601,7 @@ export function saveEdits(
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
-    if (insert.text.length === 0) {
+    if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
       throw new Error("empty heading cannot be saved");
     }
   }
@@ -655,7 +650,7 @@ export function saveEdits(
     if (item.block === "paragraph") {
       document = editAt(target, () => insertParagraph(document, index, item.content));
     } else if (item.block === "heading") {
-      document = editAt(target, () => insertHeading(document, index, item.level, item.text));
+      document = editAt(target, () => insertHeading(document, index, item.level, item.content));
     } else if (item.block === "admonition") {
       document = editAt(target, () => insertAdmonition(document, index, item.variant, item.content));
     } else if (item.block === "quote") {

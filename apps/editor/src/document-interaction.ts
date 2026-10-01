@@ -49,8 +49,8 @@ function tableTab(state: EditorState, backward: boolean): Transaction | null {
   return selection ? state.tr.setSelection(selection).scrollIntoView() : paragraphBeside(state, !backward);
 }
 
-/** A plain-text heading cannot hold marks or inline atoms. Joining rich prose
- * therefore uses the paragraph type and ProseMirror's normal join transform. */
+/** A heading cannot hold line breaks. Joining prose that has them therefore uses
+ * the paragraph type and ProseMirror's normal join transform. */
 export function joinRichProse(state: EditorState, backward: boolean): Transaction | null {
   const { selection } = state;
   if (!selection.empty || selection.$from.depth !== 1) return null;
@@ -60,7 +60,7 @@ export function joinRichProse(state: EditorState, backward: boolean): Transactio
   const $boundary = state.doc.resolve(boundary);
   const left = $boundary.nodeBefore, right = $boundary.nodeAfter;
   if (left?.type.name !== "heading" || right?.type.name !== "paragraph" ||
-      !right.content.content.some(node => node.marks.length || !node.isText)) return null;
+      !right.content.content.some(node => node.type.name === "hardBreak")) return null;
   const tr = state.tr.setNodeMarkup(boundary - left.nodeSize, state.schema.nodes.paragraph, left.attrs).join(boundary);
   return tr.setSelection(TextSelection.create(tr.doc, boundary - 1)).scrollIntoView();
 }
@@ -212,10 +212,16 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           if (error) return fail(error);
           if (event.clipboardData?.files.length) return fail("Pasting files is not supported. Use the Figure controls to choose an image URL. Your selection and clipboard are kept.");
           if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
-          if (["heading", "tableCell"].includes(view.state.selection.$from.parent.type.name)) {
+          const target = view.state.selection.$from.parent.type.name;
+          if (target === "tableCell") {
             let rich = false;
             slice.content.descendants(node => { if (node.marks.length || node.isInline && !node.isText) rich = true; });
-            if (rich) return fail("This heading or table cell supports plain text. Paste formatted content into a paragraph to keep it intact. The clipboard and selection are kept.");
+            if (rich) return fail("This table cell supports plain text. Paste formatted content into a paragraph to keep it intact. The clipboard and selection are kept.");
+          }
+          if (target === "heading") {
+            let lineBreak = false;
+            slice.content.descendants(node => { if (node.type.name === "hardBreak") lineBreak = true; });
+            if (lineBreak) return fail("A heading cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.");
           }
           const tr = view.state.tr.replaceSelection(slice);
           const labels = new Set<string>();

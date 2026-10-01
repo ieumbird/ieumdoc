@@ -66,6 +66,7 @@ export const removeBlock = fence(operations.removeBlock);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);
 export const convertBlock = fence(operations.convertBlock);
+export const updateHeadingInlineContent = fence(operations.updateHeadingInlineContent);
 export const updateEquationLatex = fence(operations.updateEquationLatex);
 export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);

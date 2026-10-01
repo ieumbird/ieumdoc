@@ -425,7 +425,7 @@ test("an empty split sibling becomes a new heading insertion without converting 
   };
   assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), heading));
   const edits = collectSupportedEdits(editable, heading);
-  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, text: "Inserted heading" }]);
+  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, content: [{ kind: "text", text: "Inserted heading" }] }]);
   const saved = saveEdits(markdown, edits);
   assert.deepEqual(saved.document.blocks.map((block) => block.block), ["paragraph", "heading"]);
   assert.deepEqual(saved.document.blocks[1], {
@@ -433,6 +433,7 @@ test("an empty split sibling becomes a new heading insertion without converting 
     path: [1],
     level: 2,
     text: "Inserted heading",
+    content: [{ kind: "text", text: "Inserted heading" }],
     editable: true,
   });
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
@@ -612,7 +613,7 @@ test("new heading inserts save and reload through Core semantics", () => {
     content: [{ type: "text", text: "Details" }],
   });
   const edits = collectSupportedEdits(editable, next);
-  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, text: "Details" }]);
+  assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, content: [{ kind: "text", text: "Details" }] }]);
   const saved = saveEdits("Intro\n", edits);
   assert.equal(saved.markdown, "Intro\n\n## Details\n");
   assert.deepEqual(saved.document.blocks[1], {
@@ -620,6 +621,7 @@ test("new heading inserts save and reload through Core semantics", () => {
     path: [1],
     level: 2,
     text: "Details",
+    content: [{ kind: "text", text: "Details" }],
     editable: true,
   });
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
@@ -631,7 +633,7 @@ test("new heading inserts save and reload through Core semantics", () => {
     () => saveEdits("Intro\n", {
       headings: [],
       paragraphs: [],
-      inserts: [{ block: "heading", level: 1, text: "" }],
+      inserts: [{ block: "heading", level: 1, content: [] }],
       order: [{ path: [0], part: 0 }, { insert: 0 }],
     }),
     /empty heading cannot be saved/,
@@ -1023,7 +1025,7 @@ test("a saved revision can save again and the loaded revision cannot", () => {
   const loaded = documentRevision(source);
   const first = saveCurrentDocument(source, {
     revision: loaded,
-    headings: [{ path: [0], from: HEADING_FROM, to: HEADING_TO }],
+    headings: [{ path: [0], content: [{ kind: "text", text: HEADING_TO }] }],
   });
   const second = saveCurrentDocument(first.markdown, {
     revision: first.revision,
@@ -1085,7 +1087,7 @@ test("heading text edits keep the heading level", () => {
   const heading = document.blocks.find((block) => block.block === "heading" && block.text === HEADING_FROM);
   assert.equal(heading?.block, "heading");
   if (heading?.block !== "heading") return;
-  const saved = saveEdits(source, { headings: [{ path: heading.path, from: heading.text, to: HEADING_TO }] });
+  const saved = saveEdits(source, { headings: [{ path: heading.path, content: [{ kind: "text", text: HEADING_TO }] }] });
   const reparsed = parse(saved.markdown);
   const updated = getEditableDocument(reparsed).blocks[heading.path[0]];
   assert.equal(updated?.block, "heading");
@@ -1135,40 +1137,40 @@ test("empty paragraph and empty heading saves are rejected", () => {
     /empty paragraph cannot be saved/,
   );
   assert.throws(
-    () => saveEdits(source, { headings: [{ path: [0], from: HEADING_FROM, to: "" }] }),
-    /empty heading text cannot be saved/,
+    () => saveEdits(source, { headings: [{ path: [0], content: [] }] }),
+    /empty heading/,
   );
   const emptied = clone(toTiptapDocument(editable));
   blockAt(emptied, "8").content = [];
   assert.throws(() => collectSupportedEdits(editable, emptied), /empty paragraph cannot be saved/);
 });
 
-test("read-only targets and rich headings are rejected by save", () => {
+test("read-only targets and unsupported headings are rejected by save", () => {
   assert.throws(
     () => saveEdits(source, { paragraphs: [{ path: [2], content: [{ kind: "text", text: "flattened" }] }] }),
     /paragraph edit is not allowed at \[2\]/,
   );
   assert.throws(
-    () => saveEdits(source, { headings: [{ path: [6], from: "figure", to: "changed" }] }),
+    () => saveEdits(source, { headings: [{ path: [6], content: [{ kind: "text", text: "changed" }] }] }),
     /heading edit is not allowed at \[6\]/,
   );
   assert.throws(
     () =>
       saveEdits(source, {
-        headings: [{ path: [6, 1], from: "Control block diagram of the grid-connected converter.", to: "changed" }],
+        headings: [{ path: [6, 1], content: [{ kind: "text", text: "changed" }] }],
       }),
     /heading edit is not allowed at \[6,1\]/,
   );
 
-  const richSource = "# Plain **bold** title\n\nBody.\n";
+  const richSource = "# See {ref}`intro`\n\nBody.\n";
   assert.throws(
-    () => saveEdits(richSource, { headings: [{ path: [0], from: "Plain bold title", to: "Changed" }] }),
+    () => saveEdits(richSource, { headings: [{ path: [0], content: [{ kind: "text", text: "Changed" }] }] }),
     /heading edit is not allowed at \[0\]/,
   );
   const saved = saveEdits(richSource, {
     paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed body." }] }],
   });
-  assert.match(saved.markdown, /^# Plain \*\*bold\*\* title$/m);
+  assert.match(saved.markdown, /^# See \{ref\}`intro`$/m);
 });
 
 test("supported edits preserve untouched semantics", () => {
@@ -1186,7 +1188,7 @@ test("supported edits preserve untouched semantics", () => {
     item.kind === "text" ? { ...item, text: item.text.replaceAll("regulates", "controls") } : item,
   );
   const saved = saveEdits(source, {
-    headings: [{ path: heading.path, from: heading.text, to: HEADING_TO }],
+    headings: [{ path: heading.path, content: [{ kind: "text", text: HEADING_TO }] }],
     paragraphs: [
       { path: rich.path, content: richContent },
       { path: plain.path, content: [{ kind: "text", text: PARAGRAPH_TO }] },
@@ -1330,7 +1332,7 @@ function saveSample() {
     throw new Error("missing sample edit targets");
   }
   return saveEdits(source, {
-    headings: [{ path: heading.path, from: heading.text, to: HEADING_TO }],
+    headings: [{ path: heading.path, content: [{ kind: "text", text: HEADING_TO }] }],
     paragraphs: [{ path: paragraph.path, content: [{ kind: "text", text: PARAGRAPH_TO }] }],
   });
 }
@@ -1574,7 +1576,7 @@ test("invalid or stale paragraph splits never invoke the file writer", () => {
 test("multiple split targets retain snapshot paths and heading edits", () => {
   const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
   const saved = saveEdits("ABCD\n\n# Title\n\nEFGH", {
-    headings: [{path: [1], from: "Title", to: "Edited"}],
+    headings: [{path: [1], content: text("Edited")}],
     splits: [
       {path: [0], parts: [text("A"),text("B"),text("CD")]},
       {path: [2], parts: [text("EF"),text("GH")]},

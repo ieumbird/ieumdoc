@@ -11,6 +11,8 @@ import {
   parse,
   serialize,
   updateHeadingLevel,
+  updateHeadingInlineContent,
+  insertHeading,
   convertBlock,
   type InlineContent,
 } from "@ieumdoc/core";
@@ -84,10 +86,10 @@ test("public Core changes an H2 to H4 without changing its text or surrounding b
 
   assert.deepEqual(blocks.map((block) => block.block), ["heading", "heading", "paragraph"]);
   assert.deepEqual(blocks[0], {
-    block: "heading", path: [0], level: 1, text: "Keep title", editable: true,
+    block: "heading", path: [0], level: 1, text: "Keep title", content: [{ kind: "text", text: "Keep title" }], editable: true,
   });
   assert.deepEqual(blocks[1], {
-    block: "heading", path: [1], level: 4, text: "Stable heading", editable: true,
+    block: "heading", path: [1], level: 4, text: "Stable heading", content: [{ kind: "text", text: "Stable heading" }], editable: true,
   });
   assert.deepEqual(blocks[2], {
     block: "paragraph", path: [2], text: "Unchanged paragraph.",
@@ -99,7 +101,7 @@ test("public Core changes an H2 to H4 without changing its text or surrounding b
 test("public Core rejects invalid heading changes without mutating the source", () => {
   const source = "# Keep title\n\n## Stable heading\n\nUnchanged paragraph.\n";
   const document = parse(source);
-  const readonlyHeading = parse("## **Read-only heading**\n");
+  const readonlyHeading = parse("## See {ref}`intro`\n");
   const readonlyBefore = serialize(readonlyHeading);
   const before = serialize(document);
   const invalid = [
@@ -115,10 +117,9 @@ test("public Core rejects invalid heading changes without mutating the source", 
     assert.equal(serialize(document), before);
   }
   assert.equal(serialize(readonlyHeading), readonlyBefore);
-  assert.deepEqual(getEditableDocument(readonlyHeading).blocks[0], {
-    block: "heading", path: [0], level: 2, text: "Read-only heading", editable: false,
-    original: { kind: "heading (strong)", line: 1, text: "## **Read-only heading**" },
-  });
+  const readonly = getEditableDocument(readonlyHeading).blocks[0];
+  assert.deepEqual(readonly?.block === "heading" && [readonly.editable, readonly.content, readonly.original?.text],
+    [false, [], "## See {ref}`intro`"]);
 });
 
 test("public Core converts a paragraph to a heading and back without losing inline content", () => {
@@ -185,6 +186,33 @@ test("quotes with several paragraphs stay read-only and invalid quote writes cha
     () => updateQuoteInlineContent(document, [1], [{ kind: "text", text: "Not a quote." }]),
     () => insertQuote(document, 2, [{ kind: "text", text: "  " }]),
     () => insertDivider(document, 9),
+  ]) {
+    assert.throws(operation);
+    assert.equal(serialize(document), before);
+  }
+});
+
+test("public Core writes formatted headings and rejects line breaks or read-only targets", () => {
+  const rich: InlineContent[] = [
+    { kind: "text", text: "Limits of " }, { kind: "strong", children: [{ kind: "text", text: "phase" }] },
+    { kind: "text", text: " current " }, { kind: "math", value: "I_{max}" },
+  ];
+  const inserted = insertHeading(parse("Intro.\n"), 1, 2, rich);
+  const heading = getEditableDocument(parse(serialize(inserted))).blocks[1];
+  assert.deepEqual(heading?.block === "heading" && [heading.level, heading.editable, heading.content], [2, true, rich]);
+
+  const edited: InlineContent[] = [{ kind: "emphasis", children: [{ kind: "text", text: "Revised" }] }, { kind: "text", text: " limits" }];
+  const updated = getEditableDocument(parse(serialize(updateHeadingInlineContent(inserted, [1], edited)))).blocks[1];
+  assert.deepEqual(updated?.block === "heading" && [updated.level, updated.content], [2, edited]);
+
+  const document = parse("## See {ref}`intro`\n\nIntro.\n\n## Plain\n");
+  const before = serialize(document);
+  for (const operation of [
+    () => updateHeadingInlineContent(document, [0], [{ kind: "text", text: "Flattened" }]),
+    () => updateHeadingInlineContent(document, [1], [{ kind: "text", text: "Not a heading" }]),
+    () => updateHeadingInlineContent(document, [2], [{ kind: "text", text: "A" }, { kind: "break" }, { kind: "text", text: "B" }]),
+    () => updateHeadingInlineContent(document, [2], []),
+    () => insertHeading(document, 1, 2, [{ kind: "break" }]),
   ]) {
     assert.throws(operation);
     assert.equal(serialize(document), before);

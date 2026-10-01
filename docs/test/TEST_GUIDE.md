@@ -514,9 +514,9 @@ index는 `check`가 출력하는 top-level 번호다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
-- 화면에서 직접 저장할 수 있는 변경은 plain heading 텍스트와 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
+- 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
 - `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
-- Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 서식·link·inline math·reference·줄바꿈이 있는 문단은 Editor에서 제목으로 바꿀 수 없고 이유가 표시된다(CLI `convert-block`은 줄바꿈이 없으면 서식을 유지한 채 변환한다). 자세한 경계는 아래 Continuous document editing을 따른다.
+- Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
 - 기존 수식은 Equation editor에서 LaTeX를 수정할 수 있고, 새 수식은 insert menu에서 추가할 수 있다.
@@ -839,12 +839,31 @@ Editor:
 Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은 같은 insert/변환 명령과 같은 editor 문서를 만들고, Save는 같은 Core operation(`removeBlock`, `insertHeading`, `insertList`, `insertCodeBlock`, 문단 inline 변경)으로 저장한다.
 
 - 최상위 문단 맨 앞에서: `#`–`######` + 공백 → 제목 1–6, `- `/`* `/`+ ` → 글머리표 목록, `3. ` → 3부터 시작하는 번호 목록, ```` ```js ```` + 공백 또는 Enter → 언어가 `js`인 code block. 문단의 나머지 내용은 새 블록으로 옮겨진다.
-- 서식·link·inline math·reference·줄바꿈이 있는 문단은 제목·code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
+- 줄바꿈이 있는 문단은 제목으로, 서식·link·inline math·reference·줄바꿈이 있는 문단은 code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 제목 단축은 서식을 유지한다. 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
 - 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). mark를 쓸 수 없는 제목·표 cell에서는 구분자가 지워지지 않고 그대로 남는다. code block 안에서는 어떤 단축도 적용되지 않는다.
 - 단축 직후 Ctrl/Cmd+Z 또는 Backspace는 입력한 문자 그대로(예: `## `) 되돌리고 caret을 그 뒤에 둔다. Enter로 적용한 code fence는 Enter 없이 ```` ```js ````로 되돌아간다.
 - 인용문(`> `), 구분선(빈 문단에서 `---`), 취소선(`~~취소~~`)은 아래 Basic blocks(#57)를 따른다.
 
 브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block·표 cell·제목에서 문자가 그대로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
+
+## Formatted headings (#58, 제목)
+
+Core 제목 read model은 `content`(InlineContent)를 갖는다. 줄바꿈 없는 지원 inline(굵게·기울임·취소선·inline code·일반 link·inline math·`{eq}`/`{numref}`)만 있는 제목은 편집 가능하고, `{ref}` 등 지원하지 않는 inline이나 줄바꿈(Setext 제목 안의 `\`)이 있는 제목은 읽기 전용이다. `updateHeadingInlineContent`와 `insertHeading`(InlineContent 허용)은 canonical round-trip을 확인하고, 아니면 파일을 쓰지 않는다.
+
+CLI:
+
+```bash
+pnpm ieumdoc insert-heading <file> --at 1 --level 2 --content '[{"kind":"strong","children":[{"kind":"text","text":"Limits"}]}]'
+pnpm ieumdoc update-heading <file> --path 1 --text "Revised limits"
+```
+
+Editor:
+
+- 서식 있는 기존 제목이 편집 가능한 제목으로 열린다. 제목 안에서 selection toolbar(굵게·기울임·취소선·inline code·link·inline math·cross-reference)와 `**`·`*`·`~~`·` ` ` 입력 단축이 동작한다. Shift+Enter 줄바꿈은 제목에 들어가지 않는다.
+- 줄바꿈이 있는 내용을 제목에 붙여넣으면 이유가 표시되고 아무것도 바뀌지 않는다. 줄바꿈이 있는 문단을 제목 뒤에서 Backspace로 합치면 문단이 되고, 줄바꿈 없는 서식 문단은 제목에 그대로 합쳐진다.
+- 표 셀과 그림 캡션의 서식 편집은 이 이슈의 후속 작업이다(아직 읽기 전용).
+
+브라우저 회귀: `structural-block-authoring`은 서식 있는 문단을 제목으로 바꾸고 제목 안에서 기울임을 적용해 저장·다시 열기를 확인하고, 줄바꿈이 있는 문단의 변환 거부를 확인한다. `markdown-input`은 제목 안의 `**` 단축을 확인한다.
 
 ## Document outline (#61)
 

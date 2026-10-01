@@ -35,7 +35,9 @@ export type EditableBlock = (
       path: NodePath;
       level: number;
       text: string;
-      /** False when a text replacement would flatten inline marks. */
+      /** Supported inline content; empty when the heading is read-only. */
+      content: InlineContent[];
+      /** False when the heading holds inline content an edit could not keep. */
       editable: boolean;
     }
   | {
@@ -136,12 +138,14 @@ function contentKind(node: MystNode): string {
 
 function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (node.type === "heading") {
+    const content = headingContent(node);
     return {
       block: "heading",
       path,
       level: Number(node.depth ?? 1),
       text: toText(node),
-      editable: isPlainHeading(node),
+      content: content ?? [],
+      editable: content !== undefined,
     };
   }
   if (node.type === "paragraph") {
@@ -256,11 +260,18 @@ function paragraphText(node: MystNode): string {
   return (node.children ?? []).map(paragraphText).join("");
 }
 
-function isPlainHeading(node: MystNode): boolean {
-  const children = node.children ?? [];
-  if (children.length === 0) return false;
-  if (!children.every((child) => child.type === "text" && typeof child.value === "string")) return false;
-  return toText(node).length > 0;
+const HEADING_FIELDS = new Set(["type", "depth", "children", "position"]);
+
+/** Editable headings hold non-empty supported inline content without line breaks. */
+function headingContent(node: MystNode): InlineContent[] | undefined {
+  if (!Object.entries(node).every(([key, value]) => HEADING_FIELDS.has(key) || value === undefined)) return undefined;
+  const content = projectInlineContent(node);
+  if (!content || inlineContentText(content).length === 0 || containsBreak(content)) return undefined;
+  return content;
+}
+
+function containsBreak(content: InlineContent[]): boolean {
+  return content.some((item) => item.kind === "break" || ("children" in item && containsBreak(item.children)));
 }
 
 function isTextOnly(node: MystNode): boolean {

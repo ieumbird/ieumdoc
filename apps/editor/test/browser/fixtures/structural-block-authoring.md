@@ -9,3 +9,6 @@ Keep this paragraph.
 ## Demote me
 
 Some **bold** text.
+
+Line one\
+line two.

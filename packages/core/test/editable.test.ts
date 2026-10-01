@@ -138,13 +138,20 @@ test("admonition inline update preserves variant and inline semantics through ca
   assert.deepEqual(reloaded.content, content);
 });
 
-test("heading with inline marks stays read-only", () => {
-  const heading = getEditableDocument(parse("# Plain **bold** title\n")).blocks[0];
+test("a heading with supported inline content is editable; line breaks and unsupported inline stay read-only", () => {
+  const heading = getEditableDocument(parse("# Plain **bold** and $x$ title\n")).blocks[0];
   assert.equal(heading?.block, "heading");
   if (heading?.block !== "heading") return;
-  assert.equal(heading.editable, false);
-  assert.equal(heading.text, "Plain bold title");
-  assert.equal(heading.level, 1);
+  assert.equal(heading.editable, true);
+  assert.equal(heading.text, "Plain bold and x title");
+  assert.deepEqual(heading.content, [
+    { kind: "text", text: "Plain " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] },
+    { kind: "text", text: " and " }, { kind: "math", value: "x" }, { kind: "text", text: " title" },
+  ]);
+  for (const markdown of ["Two\\\nlines\n===\n", "# See {ref}`intro`\n"]) {
+    const readonly = getEditableDocument(parse(markdown)).blocks[0];
+    assert.deepEqual(readonly?.block === "heading" && [readonly.editable, readonly.content], [false, []], markdown);
+  }
 });
 
 test("formatted caption and table cell stay read-only", () => {

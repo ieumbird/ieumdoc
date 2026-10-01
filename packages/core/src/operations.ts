@@ -115,30 +115,50 @@ export function insertParagraph(document: MystDocument, index: number, text: str
 
 const HEADING_FAILURE = "heading insertion cannot round-trip losslessly through canonical Markdown";
 
-/** Insert a persistent top-level heading while keeping its MyST details inside Core. */
-export function insertHeading(document: MystDocument, index: number, level: number, text: string): MystDocument {
+/** Insert a persistent top-level heading of plain text or supported inline content without line breaks. */
+export function insertHeading(document: MystDocument, index: number, level: number, text: string | InlineContent[]): MystDocument {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
     throw new Error(`heading level must be an integer from 1 to 6: ${level}`);
   }
-  const heading: MystNode = {
-    type: "heading",
-    depth: level,
-    children: [{ type: "text", value: text }],
-  };
+  const content = headingContent(typeof text === "string" ? [{ kind: "text", text }] : text);
+  const heading: MystNode = { type: "heading", depth: level, children: inlineContentToNodes(content) };
   assertInlineBlockRoundTrip(heading);
   const next = insertBlock(document, index, heading);
   const markdown = serializeFor(next, HEADING_FAILURE);
   const reparsed = parse(markdown);
   const reparsedHeading = reparsed.children[index];
+  const projected = reparsedHeading && projectInlineContent(reparsedHeading);
   if (
     reparsedHeading?.type !== "heading" ||
     Number(reparsedHeading.depth) !== level ||
-    toText(reparsedHeading) !== text ||
+    !projected || !sameInlineContent(content, projected) ||
     serialize(reparsed) !== markdown
   ) {
     throw new Error(HEADING_FAILURE);
   }
   return next;
+}
+
+/** Replace the inline content of one editable top-level Heading, keeping its level. */
+export function updateHeadingInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
+  if (path.length !== 1) throw new Error("heading edits require a top-level path");
+  const normalized = headingContent(content);
+  const block = getEditableDocument(document).blocks[path[0]];
+  if (getNode(document, path).type !== "heading" || block?.block !== "heading" || !block.editable) {
+    throw new Error(`heading edit is not supported at [${path.join(",")}]`);
+  }
+  const next = cloneDocument(document);
+  getNode(next, path).children = inlineContentToNodes(normalized);
+  assertInlineBlockRoundTrip(getNode(next, path));
+  return next;
+}
+
+/** Heading content is non-empty supported inline content without line breaks. */
+function headingContent(content: InlineContent[]): InlineContent[] {
+  assertInlineContent(content);
+  if (containsBreak(content)) throw new Error("a heading cannot contain line breaks");
+  if (inlineContentText(content).length === 0) throw new Error("empty heading cannot be saved");
+  return concatenateInlineContent(content);
 }
 
 const ADMONITION_INSERTION_FAILURE = "admonition insertion cannot round-trip losslessly through canonical Markdown";

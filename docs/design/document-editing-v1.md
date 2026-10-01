@@ -6,7 +6,8 @@ persistent changes and canonical semantic validation.
 
 - Enter splits prose and headings, exits a heading at its end, and creates space
   beside an atomic block. Backspace/Delete use engine joins and selections. A
-  heading joined with rich prose becomes a paragraph to retain marks and atoms.
+  heading joined with prose that has line breaks becomes a paragraph to retain them
+  (headings hold marks and inline atoms but no line breaks, #58).
   Admonitions and table cells are isolating: they never silently become prose.
 - Tab/Shift+Tab move between editable table cells, skipping read-only cells;
   leaving the first/last cell enters surrounding prose (creating a paragraph at
@@ -36,8 +37,10 @@ column alignment, also exposed by CLI `insert-table --align`. Text-block convers
 and selection replacement compose existing Core operations, already available
 headlessly. Issue #54 adds block-menu Paragraph/Heading conversion; it saves like
 other engine conversions, and Core `convertBlock` (CLI `convert-block`) is the same
-conversion for headless callers. Editor headings hold plain text only, so a
-formatted paragraph is refused with a visible reason instead of losing marks. Cursor navigation and session identity repair require no CLI command.
+conversion for headless callers. Headings hold inline content without line breaks
+(#58), so a paragraph with line breaks is refused with a visible reason instead of
+losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
+`update-heading`). Cursor navigation and session identity repair require no CLI command.
 
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
