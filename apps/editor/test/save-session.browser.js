@@ -33,12 +33,16 @@ async page => {
   await page.keyboard.type(' Saved');
   await page.evaluate(() => {
     const editor = document.querySelector('.document-editor').editor;
-    window.saveSession = {editor, selection: editor.state.selection.toJSON()};
+    window.saveSession = {editor, selection: editor.state.selection.toJSON(), browserSave: []};
+    window.addEventListener('keydown', event => { if (event.code === 'KeyS') window.saveSession.browserSave.push(!event.defaultPrevented); });
   });
-  await save();
-  check('saveKeepsEditorAndSelection', await page.evaluate(() => {
+  // Ctrl+S from the editor saves through the Save path without leaving the editor.
+  await page.keyboard.press('Control+s');
+  await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+  check('saveShortcutKeepsEditorFocusSelectionAndHistory', await page.evaluate(() => {
     const e = document.querySelector('.document-editor').editor;
-    return e === window.saveSession.editor && JSON.stringify(e.state.selection.toJSON()) === JSON.stringify(window.saveSession.selection) && e.can().undo();
+    return e === window.saveSession.editor && JSON.stringify(e.state.selection.toJSON()) === JSON.stringify(window.saveSession.selection) &&
+      e.can().undo() && e.view.hasFocus() && JSON.stringify(window.saveSession.browserSave) === '[false]';
   }));
   check('firstFile', (await read(file)).source.includes('Alpha. Saved'));
   await undo();
@@ -131,8 +135,10 @@ async page => {
   await paragraph().click(); await page.keyboard.press('End'); await page.keyboard.type(' Retry');
   await page.route('**/api/document', route => route.request().method() === 'POST'
     ? route.fulfill({status:400, json:{error:'Temporary save failure'}}) : route.continue());
-  await page.getByTestId('save').click();
+  // The shortcut reports a failure exactly like the button.
+  await page.keyboard.press('Control+s');
   await page.getByText('Save failed', {exact:true}).waitFor();
+  check('shortcutFailureShown', (await page.getByTestId('error').innerText()).includes('Temporary save failure'));
   check('failureRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
   await page.unrouteAll(); await save();
   check('retryWrites', (await read(file)).source.includes('Retry'));

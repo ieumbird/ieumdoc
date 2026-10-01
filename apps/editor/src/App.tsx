@@ -172,6 +172,23 @@ export function App() {
     }
   }
 
+  // Ctrl/Cmd+S is the Save button: same path, same messages. The browser's own page save
+  // never applies. Modal dialogs cover the Save button, so the shortcut waits for them too.
+  const saveShortcut = useRef<(event: KeyboardEvent) => void>(() => {});
+  saveShortcut.current = (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
+        (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
+    event.preventDefault();
+    if (openDialog || newDialog || reloadDialog) return;
+    void save();
+  };
+  useEffect(() => {
+    // Capture, so inputs inside node views (Equation, Figure, code language) cannot swallow it.
+    const listener = (event: KeyboardEvent) => saveShortcut.current(event);
+    window.addEventListener("keydown", listener, true);
+    return () => window.removeEventListener("keydown", listener, true);
+  }, []);
+
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
       if (!editorRef.current?.hasUnsavedChanges() && !busy) return;

@@ -1015,8 +1015,9 @@ Editor:
 - 저장 중 추가 입력은 다음 Save 대상으로 남는다. 실패 후 재시도하며, 외부 변경 충돌이면 원본 파일과 로컬 작업을 모두 보존한다.
 - 충돌 시 Source에서 확정 내용을 복사할 수 있다. Reload는 미저장 변경·초안을 버릴지 묻고, Keep editing은 세션을 보존한다. 브라우저 이탈은 native 경고로 보호한다.
 - Open/New는 저장 불가 문서의 미저장 작업도 보호한다. 새 문서 읽기가 실패하면 기존 작업은 남는다.
+- Ctrl/Cmd+S(#56)는 Save 버튼과 같은 저장이다. 브라우저의 페이지 저장 창은 뜨지 않고, caret·선택·Undo 이력과 편집기 focus가 그대로다. 실패·충돌 안내도 버튼과 같다. Open/New/Reload dialog가 열려 있으면 저장하지 않는다. 자동 저장과 로컬 초안 복구는 채택하지 않았다(이유는 설계 문서).
 
-`pnpm browser:test save-session`은 실제 scratch 파일에 반복 저장·Undo/Redo·삭제 복구·지연 저장·실패/충돌·초안·Reload를 검증한다. 브라우저 이탈 경고는 OS별 수동 확인도 가능하다: 초안을 입력하고 새로고침을 시도한 뒤 취소하면 입력이 남아야 한다.
+`pnpm browser:test save-session`은 실제 scratch 파일에 Ctrl+S와 버튼으로 반복 저장·Undo/Redo·삭제 복구·지연 저장·실패/충돌·초안·Reload를 검증한다. 브라우저 이탈 경고는 OS별 수동 확인도 가능하다: 초안을 입력하고 새로고침을 시도한 뒤 취소하면 입력이 남아야 한다.
 
 ## Continuous document editing (#41)
 

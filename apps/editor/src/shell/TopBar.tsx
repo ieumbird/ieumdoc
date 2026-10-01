@@ -4,6 +4,8 @@ import { splitDocumentPath } from "./document-path.ts";
 
 export type DocumentView = "visual" | "source";
 
+const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
+
 type TopBarProps = {
   documentPath: string;
   status: string;
@@ -95,7 +97,8 @@ export function TopBar({
             <TooltipContent>{saveHint}</TooltipContent>
           </Tooltip>
         ) : (
-          <Button type="button" onClick={onSave} disabled={saveDisabled} data-testid="save">
+          <Button type="button" onClick={onSave} disabled={saveDisabled} data-testid="save"
+            title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
             Save
           </Button>
         )}
