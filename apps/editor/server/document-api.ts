@@ -745,13 +745,24 @@ export function resolveMediaPath(assetPath: string, documentPath?: string): stri
   const decodedPath = decodeURIComponent(assetPath);
   const documentFile = resolveDocumentPath(documentPath);
   const documentDirectory = path.dirname(documentFile);
-  if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath)) {
+  if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath) || path.win32.isAbsolute(decodedPath) || /^[A-Za-z]:/.test(decodedPath)) {
     throw new Error("media path must be relative to the document");
+  }
+  if (/%(?:2e|2f|5c|00)/i.test(decodedPath)) {
+    throw new Error("media path escapes the document directory");
   }
   const resolved = path.resolve(documentDirectory, decodedPath);
   const relative = path.relative(documentDirectory, resolved);
   if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new Error("media path escapes the document directory");
+  }
+  // Existing media (and the nearest existing parent) must also stay inside the real boundary.
+  const root = fs.realpathSync(documentDirectory);
+  let existing = resolved;
+  while (!fs.existsSync(existing) && existing !== documentDirectory) existing = path.dirname(existing);
+  const actual = path.relative(root, fs.realpathSync(existing));
+  if (actual === ".." || actual.startsWith(`..${path.sep}`) || path.isAbsolute(actual)) {
+    throw new Error("media symlink escapes the document directory");
   }
   return resolved;
 }
@@ -768,7 +779,8 @@ function serveMedia(assetPath: string, res: ServerResponse, documentPath?: strin
   try {
     const data = readFileSync(file);
     res.statusCode = 200;
-    res.setHeader("Content-Type", path.extname(file).toLowerCase() === ".svg" ? "image/svg+xml" : "application/octet-stream");
+    res.setHeader("Content-Type", path.extname(file).toLowerCase() === ".svg" ? "image/svg+xml" : path.extname(file).toLowerCase() === ".png" ? "image/png" : "application/octet-stream");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.end(data);
   } catch {
     res.statusCode = 404;

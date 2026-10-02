@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
+import { randomBytes } from "node:crypto";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
@@ -15,8 +16,17 @@ export default defineConfig({
     {
       name: "ieumdoc-document",
       configureServer(server: ViteDevServer) {
+        const assetSigningKey = randomBytes(32);
         server.middlewares.use((req, res, next) => {
           const url = req.url?.split("?")[0] ?? "";
+          if (url === "/api/asset") {
+            void server.ssrLoadModule("/server/asset-api.ts").then(mod => mod.handleAssetRequest(req, res, assetSigningKey)).catch((error: unknown) => {
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+            });
+            return;
+          }
           if (url !== "/api/document" && url !== "/api/document-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;

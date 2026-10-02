@@ -1,6 +1,6 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { ADMONITION_VARIANTS, type AdmonitionVariant } from "@ieumdoc/core";
+import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { isNewBlockPath, NEW_BLOCK_PREFIX, TABLE_CELL_ADDED_ATTR } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
@@ -211,14 +211,15 @@ export function insertEquationAfter(state: EditorState, index: number, slash?: S
   return insertAtomAfter(state, index, "equation", { latex: "", label: "" }, slash);
 }
 
-/** Insert an empty, unlabeled Figure after the target, reusing only a transient empty paragraph. */
-export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+/** Insert an unlabeled Figure with an empty caption and optional applied image, reusing transient empty prose. */
+export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange, applied?: Pick<FigureContent, "imageUrl" | "imageAlt">): Transaction {
   return insertAtomAfter(state, index, "figure", {
     label: "",
     imageUrl: "",
     imageAlt: "",
     caption: "",
     editable: true,
+    ...applied,
   }, slash);
 }
 

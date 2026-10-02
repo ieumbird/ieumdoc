@@ -7,6 +7,7 @@ import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
+import { imageAssets } from "./image-assets.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
@@ -682,8 +683,12 @@ export function createEditorExtensions(
   documentPath?: string,
   onFigureDraftChange?: DraftListener,
   validateFigure?: FigureValidator,
+  onAssetPendingChange?: (active: boolean) => void,
+  onAssetError?: (reason: string) => void,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure), documentInteraction(onReject), structureGuard(baseline, onReject)];
+  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure),
+    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
+    documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
 
 function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Extension {

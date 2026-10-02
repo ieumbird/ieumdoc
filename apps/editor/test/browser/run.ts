@@ -81,6 +81,7 @@ export const STABLE_SCENARIOS = [
   "writeability-preflight",
   "block-move",
   "figure-authoring",
+  "image-assets",
   "figure-draft-race",
   "table-cell-editing",
   "table-authoring",
@@ -129,6 +130,10 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "image-assets": [
+    { status: 400, pathname: "/api/asset", minimum: 1, description: "mocked Host write rejection keeps the document unchanged" },
+    { status: 403, pathname: "/api/asset", minimum: 1, description: "mocked rollback failure exposes the remaining asset path" },
+  ],
   "save-session": [
     {status: 409, pathname: "/api/document", minimum: 1, description: "external edit conflicts with the retained session"},
     {status: 400, pathname: "/api/document", minimum: 2, description: "invalid content and a mocked failed save retain pending work"},

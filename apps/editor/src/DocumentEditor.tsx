@@ -46,6 +46,8 @@ type DocumentEditorProps = {
   onStructuralReject: (reason?: string) => void;
   onEquationDraftChange?: (active: boolean) => void;
   onFigureDraftChange?: (active: boolean) => void;
+  onAssetPendingChange?: (active: boolean) => void;
+  onAssetError?: (reason: string) => void;
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
   validateFigure?: FigureValidator;
@@ -54,7 +56,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onDirtyChange, validateFigure, onOutlineChange },
+  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, validateFigure, onOutlineChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -108,7 +110,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError),
     content: projection,
     // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
     enableInputRules: [MARKDOWN_INPUT_RULES],

@@ -91,6 +91,8 @@ Visual Editor is `apps/editor`. It displays a technical document and writes chan
 
 It supports nested lists, code blocks and inline code, quotes, dividers, strikethrough, H1–H6 and standard admonition kinds. Supported inline content in headings, table cells and Figure captions is editable; unsupported structures remain read-only. The sidebar provides a document outline, and Ctrl/Cmd+S uses the same Save path as the button, preserving selection and Undo/Redo history.
 
+Paste a clipboard PNG or drop one local PNG into the Editor to insert a Figure. The local Host saves it under the Markdown document's `assets/` directory with a portable relative path; edit caption, alt text and label with the existing Figure controls. See [Asset Host Contract v1](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59) for limits and failure handling.
+
 ```bash
 pnpm --filter @ieumdoc/editor dev
 ```
