@@ -75,10 +75,14 @@ a clipboard PNG file still takes the #59 asset path first.
   color, underline, alignment), sub/superscript, other link targets, images and
   drawings (no download), table captions (kept as a paragraph before the table) and
   header cells outside the first row (the first row becomes the header row).
+  Unsupported inline semantics are never dropped silently: `kbd`, `samp`, `var`,
+  `cite`, `abbr`/`acronym`, `dfn`, `q`, `time` and `data` keep their text with a
+  notice, which also covers lost metadata such as an `abbr` title or a `datetime`.
 - Refused, keeping document, selection and clipboard: merged or nested table cells,
   ragged rows, cells, list items or quotes with several paragraphs or other blocks,
   headings with line breaks, links around blocks, embeds and media, form controls
-  (task lists), MathML, definition lists and collapsible sections.
+  (task lists), MathML, definition lists and collapsible sections, and `ruby`,
+  whose annotations would run into the base text if flattened.
 - Word writes list items as `mso-list` paragraphs rather than HTML lists; this one
   vendor rule turns them into lists so they do not become "·"-prefixed paragraphs.
   A skipped level, or a level above the list's first item, is refused rather than

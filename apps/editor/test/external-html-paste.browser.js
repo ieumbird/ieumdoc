@@ -47,6 +47,8 @@ async page => {
     '<p>Text with <strong>bold <em>both</em></strong>, <s>gone</s>, <code>x = 1</code> and <a href="https://example.com/a" title="Example">a link</a>.</p>' +
     '<ul><li>One<ul><li>Nested</li></ul></li><li>Two</li></ul><ol start="3"><li>Third</li></ol>' +
     '<blockquote><p>Quoted <span style="color:#c00">red</span> text.</p></blockquote>' +
+    // Inline semantics IeumDoc cannot express keep their text, with a notice.
+    '<p>Press <kbd>Ctrl+C</kbd> and see <cite>Example</cite>.</p>' +
     '<pre><code class="language-python">def f():\n    return 1\n</code></pre><hr>' +
     '<table><thead><tr><th align="right">Key</th><th>Value</th></tr></thead><tbody><tr><td align="right">a</td><td>1</td></tr></tbody></table>';
   await select('Alpha.', true);
@@ -55,7 +57,7 @@ async page => {
     'text/html': new Blob([html], {type:'text/html'}), 'text/plain': new Blob(['Web heading'], {type:'text/plain'}),
   })]), web);
   await page.keyboard.press('Control+v');
-  await notice.filter({hasText:'Pasted with normalization: unsupported visual styles were removed.'}).waitFor();
+  await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor();
   const pasted = await state();
   assert(pasted.doc !== before.doc, 'External HTML must paste');
   await page.keyboard.press('Control+z');
@@ -71,7 +73,7 @@ async page => {
   const disk = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.replaceAll('\r\n', '\n');
   const saved = '# External\n\n## Web *heading*\n\n' +
     'Text with **bold *both***, {del}`gone`, `x = 1` and [a link](https://example.com/a "Example").\n\n' +
-    '*   One\n\n    *   Nested\n*   Two\n\n3.  Third\n\n> Quoted red text.\n\n' +
+    '*   One\n\n    *   Nested\n*   Two\n\n3.  Third\n\n> Quoted red text.\n\nPress Ctrl+C and see Example.\n\n' +
     '```python\ndef f():\n    return 1\n```\n\n---\n\n| Key | Value |\n| --: | ----- |\n|   a | 1     |\n\nOmega.\n';
   assert(disk === preview && disk === saved, `Save writes the canonical Markdown Source showed: ${JSON.stringify(disk)}`);
   await page.getByRole('button', {name:'Reload', exact:true}).click();
@@ -101,6 +103,9 @@ async page => {
     styled: ['<p><span style="font-family:Georgia;color:rgb(200,0,0)">Styled</span> x<sup>2</sup> <a href="javascript:alert(1)">unsafe</a> <a href="#local">local</a></p>',
       'Styled x2 unsafe [local](#local)Omega.\n',
       'Pasted with normalization: superscript and subscript became plain text; unsupported visual styles were removed; unsupported links became plain text.'],
+    // The visible text survives; the expansion and machine-readable date do not, so they are reported.
+    metadata: ['<p><abbr title="Alternating Current">AC</abbr> since <time datetime="2026-10-02">today</time></p>',
+      'AC since todayOmega.\n', 'Pasted with normalization: unsupported semantic formatting became plain text.'],
   };
   for (const [name, [html, expected, message]] of Object.entries(cases)) {
     await select('Omega.');
@@ -123,6 +128,7 @@ async page => {
     'form controls and task lists are not supported': '<ul><li><input type="checkbox" checked> Done</li></ul>',
     'a list item holds one paragraph, optionally followed by one nested list': '<ul><li><p>One</p><p>Two</p></li></ul>',
     'a heading holds one line of inline content': '<h2>Line<br>break</h2>',
+    'ruby annotations cannot become plain text': '<p><ruby>漢<rt>kan</rt></ruby></p>',
     // Word level 1 → level 3 has no exact nested-list form; it is not lowered to level 2.
     'a Word list skips a nesting level or goes above its first item':
       `<p class=MsoListParagraph style='mso-list:l0 level1 lfo1'><span style='mso-list:Ignore'>·</span>Top</p>` +

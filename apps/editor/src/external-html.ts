@@ -13,9 +13,14 @@ const REJECTED: [selector: string, reason: string][] = [
   ["input,select,textarea", "form controls and task lists are not supported"],
   ["math", "math formulas cannot be converted"],
   ["dl,details", "definition lists and collapsible sections are not supported"],
+  // Flattened, annotations run into their base text ("漢kan").
+  ["ruby", "ruby annotations cannot become plain text"],
 ];
+/** Standard inline semantics with no IeumDoc form: their text is kept, their meaning (and title/datetime) is not. */
+const SEMANTIC = "abbr,acronym,cite,data,dfn,kbd,q,samp,time,var";
 const NOTICES = {
   styles: "unsupported visual styles were removed",
+  semantic: "unsupported semantic formatting became plain text",
   scripts: "superscript and subscript became plain text",
   images: "images were not pasted (paste a PNG file to add a Figure)",
   links: "unsupported links became plain text",
@@ -93,8 +98,9 @@ export function normalizeExternalHTML(html: string): ExternalHTML {
   return { html: body.innerHTML, ...(notice ? { notice: `Pasted with normalization: ${notice}.` } : {}) };
 }
 
-/** Records visible formatting that has no IeumDoc meaning. Classes, ids and layout styles are not reported. */
+/** Records visible formatting and inline semantics that have no IeumDoc meaning. Classes, ids and layout styles are not reported. */
 function visualFormatting(body: HTMLElement, notices: Set<Notice>): void {
+  if (body.querySelector(SEMANTIC)) notices.add("semantic");
   if (body.querySelector("sub,sup")) notices.add("scripts");
   if (body.querySelector("u,ins,mark,font,small,big,center,ol[type]:not([type='1']),[align]:not(td,th)")) notices.add("styles");
   for (const { style } of body.querySelectorAll<HTMLElement>("[style]")) {
