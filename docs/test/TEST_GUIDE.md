@@ -103,7 +103,7 @@ pnpm test
 ✔ Core source does not import Tiptap or ProseMirror
 ```
 
-하나라도 FAIL이면 이번 MVP write path가 성립하지 않은 것이다.
+하나라도 FAIL이면 현재 write path와 의미 보존 계약을 확인해야 한다.
 
 ## 2. 실제 파일로 CLI 확인
 
@@ -383,7 +383,7 @@ pnpm --filter @ieumdoc/editor dev
 - 텍스트만 바뀐다.
 - heading level은 그대로다. 제목 1 수준이 제목 2가 되지 않는다.
 
-### F. Read-only 의미 보존
+### F. 수정하지 않은 의미 보존
 
 Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는지 본다.
 
@@ -393,7 +393,7 @@ Heading과 paragraph만 수정한 뒤 같은 파일에서 다음이 유지되는
 - `fig-control`, `eq-current` 참조
 - 표의 행 수와 `Port`, `Type`, `U`, `AC`, `P`, `DC`
 
-Figure, admonition, reference paragraph는 클릭해서 고칠 수 없다. Figure를 클릭하면 속성 popover가 보이지만 읽기 전용이다. Table은 plain-text cell만 수정할 수 있다(아래 "Table cell editing v1").
+Figure와 지원 admonition은 편집할 수 있다. Figure 속성은 Edit에서, 서식 있는 캡션은 문서 안에서 수정한다. Table은 지원되는 인라인 내용의 cell을 편집할 수 있다(아래 "Table cell editing v1"). 이 fixture의 빈 표시 텍스트 link(`[](#fig-control)`)가 있는 reference paragraph는 계속 읽기 전용이며 원본 의미를 보존해야 한다.
 
 Save 후 파일의 `See [](#fig-control) and {eq}`eq-current`.` 줄은 그대로여야 한다. `{eq}` reference가 `[](#eq-current)` link로 바뀌면 실패다.
 
@@ -408,7 +408,7 @@ pnpm exec playwright-cli -s=ieumdoc-reference close
 
 결과의 값은 모두 `true`여야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
-### G. 구조 변경 거부
+### G. 구조 편집과 저장 검증
 
 편집 가능한 paragraph 중간에서 Enter를 누른다. 같은 Editor 안에서 두 paragraph로 나뉘어야 한다.
 
@@ -416,7 +416,7 @@ paragraph 맨 앞에서 Backspace를 누른다. 인접한 paragraph/heading은 �
 
 Equation 또는 Figure를 선택하고 Delete 또는 Backspace를 누른다. 블록이 삭제되고 Undo로 복구되어야 한다. handle 메뉴의 `Delete`도 유지된다.
 
-top bar 아래 message area에 안내 문장이 잠시 보였다가 사라질 수 있다. 저장 파일의 블록 구성은 바뀌지 않아야 한다.
+지원되는 구조 변경은 Save 후 Reload해도 유지되어야 한다. 지원하지 않는 구조 변경은 이유를 표시하고 원본 의미를 보존해야 한다.
 
 paragraph의 글을 모두 지우고 `Save` 를 누르면 `Save failed` 가 되고 파일은 저장되지 않아야 한다.
 
@@ -515,7 +515,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -605,7 +605,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 양쪽 문단에 텍스트를 추가하고 Undo/Redo한다. 하나의 Editor 안에서 분할과 입력이 복구되어야 한다.
 - Save 후 Reload한다. 두 문단과 서식이 유지되고, 주변 Heading/Equation/Figure/Table/reference 내용이 같아야 한다.
 - 시작/끝에서 Enter로 만든 새 빈 문단은 화면과 커서 위치를 유지하며 저장을 막지 않는다. 파일에는 빈 문단을 쓰지 않는다. 기존 문단의 내용을 모두 지우면 해당 block과 이유를 알리고 입력을 유지한다.
-- Heading Enter와 키보드 block 삭제는 계속 차단된다. top-level block 재정렬은 왼쪽 handle을 사용하며, Shift+Enter는 같은 문단 안에 hard break를 만든다.
+- Heading의 Enter는 제목을 나누고 끝에서는 paragraph로 나온다. Equation/Figure 등 선택한 block은 Delete/Backspace로 삭제하고 Undo로 복구할 수 있다. top-level block 재정렬은 왼쪽 handle을 사용하며, Shift+Enter는 같은 문단 안에 hard break를 만든다.
 - 저장 응답을 지연시키고 추가 입력/분할한다. `Saved; newer edits pending` 후 입력이 남아야 하며 다음 Save 및 Reload에서도 유지되어야 한다.
 - sourcePath는 이 세션에서 Open/New한 snapshot의 locator다. 분할 조각은 원본 path를 공유하며 새 빈 문단은 `new:*` locator를 사용한다. Save 후에도 locator와 편집 이력을 유지하고, 다시 열 때 새 snapshot path를 받는다. 영속 ID는 생성하지 않는다.
 
@@ -614,7 +614,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - 두 번째 지원 paragraph의 맨 앞에 cursor를 두고 Backspace한다. 이전 paragraph와 공백 추가 없이 합쳐져야 한다.
 - Bold/Italic/두 서식 조합과 hard break가 포함된 문단에서도 반복한다. Undo/Redo 후 같은 문단·서식으로 복구되어야 한다.
 - Enter로 나눈 직후 Backspace로 다시 합친다. 병합 후 내용을 추가하고 Save → Reload하여 서식과 줄바꿈이 유지되는지 확인한다.
-- 이전 block이 Heading/Equation/Figure/Table 또는 read-only paragraph이면 병합되지 않아야 한다. 문단 중간의 Backspace는 일반 문자 삭제다.
+- 편집 가능한 Heading과도 공백 추가 없이 합쳐지고 지원 서식이 유지되어야 한다. 이전 block이 Equation/Figure/Table 또는 read-only paragraph이면 병합되지 않아야 한다. 문단 중간의 Backspace는 일반 문자 삭제다.
 - Save 응답을 지연한 동안 추가 입력·병합·분할한다. 응답 후 입력이 남고 다음 Save → Reload에서도 같아야 한다.
 - 병합 대상의 snapshot path 목록은 Editor 세션의 출처 정보이며, 파일에 저장되는 ID가 아니다. 서버는 Core merge/update/split operation만 호출한다.
 

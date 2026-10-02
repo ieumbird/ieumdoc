@@ -44,123 +44,39 @@ import {
   validateStructure,
   type EditableBlock,
   type EditableDocument,
-  type AdmonitionVariant,
   type FigureContent,
   type InlineContent,
-  type ListContent,
-  type CodeBlockContent,
   type NodePath,
 } from "@ieumdoc/core";
 
-/** The new inline content of an editable Heading. */
-export type HeadingEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type HeadingLevelEdit = {
-  path: NodePath;
-  from: number;
-  to: number;
-};
-
-export type ParagraphEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type EquationEdit = {
-  path: NodePath;
-  from: string;
-  to: string;
-};
-
-export type FigureEdit = {
-  path: NodePath;
-  from: FigureContent;
-  to: FigureContent;
-};
-
-/** A simple admonition's new kind and/or body; absent fields are unchanged. */
-export type AdmonitionEdit = {
-  path: NodePath;
-  variant?: AdmonitionVariant;
-  content?: InlineContent[];
-};
-
-/** The new inline content of an editable table cell; empty clears it. */
-export type TableCellEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-/** Rows and columns added to a table: each entry is the snapshot index, or null when added. */
-export type TableShapeEdit = {
-  path: NodePath;
-  rows: (number | null)[];
-  columns: (number | null)[];
-  /** Content typed into added cells, by position in the new grid. */
-  cells: { row: number; column: number; content: InlineContent[] }[];
-};
-
-/** The new language and code of an editable code block. */
-export type CodeEdit = {
-  path: NodePath;
-  code: CodeBlockContent;
-};
-
-/** The whole new content of an editable list. */
-export type ListEdit = {
-  path: NodePath;
-  list: ListContent;
-};
-
-/** An Equation or Figure label; an empty `to` removes it. */
-export type LabelEdit = {
-  path: NodePath;
-  from: string;
-  to: string;
-};
-
-/** The new paragraph content of an editable Quote. */
-export type QuoteEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type InsertEdit =
-  | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; content: InlineContent[] }
-  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
-  | { block: "quote"; content: InlineContent[] }
-  | { block: "divider" }
-  | { block: "equation"; latex: string; label?: string }
-  | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[] }
-  | { block: "list"; list: ListContent }
-  | ({ block: "code" } & CodeBlockContent);
-
-export type OrderItem = { path: NodePath; part: number } | { insert: number };
-
-export type SupportedEdits = {
-  order?: OrderItem[];
-  headings?: HeadingEdit[];
-  headingLevels?: HeadingLevelEdit[];
-  paragraphs?: ParagraphEdit[];
-  equations?: EquationEdit[];
-  figures?: FigureEdit[];
-  cells?: TableCellEdit[];
-  tables?: TableShapeEdit[];
-  admonitions?: AdmonitionEdit[];
-  quotes?: QuoteEdit[];
-  lists?: ListEdit[];
-  codes?: CodeEdit[];
-  labels?: LabelEdit[];
-  splits?: { path: NodePath; parts: InlineContent[][] }[];
-  merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
-  inserts?: InsertEdit[];
-  deletes?: NodePath[];
-};
+import type {
+  OrderItem,
+  SupportedEdits,
+  SaveRequest,
+  DocumentFileResponse,
+  SaveResponse,
+  SourceResponse,
+  DocumentErrorResponse,
+} from "../shared/document-protocol.ts";
+export type {
+  HeadingEdit,
+  HeadingLevelEdit,
+  ParagraphEdit,
+  EquationEdit,
+  FigureEdit,
+  AdmonitionEdit,
+  TableCellEdit,
+  TableShapeEdit,
+  ListEdit,
+  CodeEdit,
+  LabelEdit,
+  QuoteEdit,
+  InsertEdit,
+  OrderItem,
+  SupportedEdits,
+  SaveRequest,
+  DocumentFileResponse,
+} from "../shared/document-protocol.ts";
 
 class SaveContentError extends Error {
   constructor(message: string, readonly target: OrderItem | undefined, options: ErrorOptions) {
@@ -173,26 +89,10 @@ function editAt<T>(target: OrderItem, apply: () => T): T {
   catch (error) { throw new SaveContentError(error instanceof Error ? error.message : String(error), target, { cause: error }); }
 }
 
-function errorPayload(error: unknown) {
+function errorPayload(error: unknown): DocumentErrorResponse {
   return { error: error instanceof Error ? error.message : String(error),
     ...(error instanceof SaveContentError && error.target ? { target: error.target } : {}) };
 }
-
-export type SaveRequest = SupportedEdits & {
-  revision?: string;
-  /** Session locators address this opening source, including across Save and engine history.
-   * The previous accepted edits must reproduce the current disk before new edits can write. */
-  base?: { source: string; savedEdits?: SupportedEdits };
-};
-
-export type DocumentFileResponse = {
-  path: string;
-  source: string;
-  document: EditableDocument;
-  revision: string;
-  /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
-  writeError: string | null;
-};
 
 /** The read model and canonical writeability of one parsed snapshot. */
 function readModel(source: string): { document: EditableDocument; writeError: string | null } {
@@ -293,7 +193,7 @@ function replaceDocumentFile(filePath: string, markdown: string, revision: strin
  * The canonical Markdown this save request would write, through the same Core
  * save path. The file is only read, never written.
  */
-export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): { markdown: string } {
+export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): SourceResponse {
   const filePath = resolveDocumentPath(requestedPath);
   if (request.base) {
     // A preview describes this session, even after an external conflict. Validate its
@@ -727,7 +627,7 @@ export async function handleDocumentRequest(
       return;
     }
     try {
-      const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
+      const body = JSON.parse(await readBody(req)) as SaveRequest;
       sendJson(res, 200, previewDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body)));
     } catch (error) {
       sendJson(res, error instanceof DocumentConflictError ? 409 : 400, errorPayload(error));
@@ -751,10 +651,10 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as SaveRequest & { path?: unknown };
+      const body = JSON.parse(await readBody(req)) as SaveRequest;
       try {
         const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
-        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError });
+        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError } satisfies SaveResponse);
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });
