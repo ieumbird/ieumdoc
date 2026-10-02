@@ -282,3 +282,18 @@ export function insertInlineBreak(content: InlineContent[], offset: number): Inl
   const [left, right] = splitInlineContent(content, offset);
   return concatenateInlineContent(left, [{ kind: "break" }], right);
 }
+
+/** Compare inline semantics independent of text fragmentation and mark nesting. */
+export function sameInlineContent(left: InlineContent[], right: InlineContent[]): boolean {
+  const markedText = (content: InlineContent[], marks: string[] = []): [string, string][] => content.flatMap((item) => {
+    if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
+    if (item.kind === "break") return [["\n", [...marks, "break"].sort().join(",")]];
+    if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].sort().join(",")]];
+    if (item.kind === "code") return item.value.split("").map((text) => [text, [...marks, "code"].sort().join(",")]);
+    if (item.kind === "reference") {
+      return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
+    }
+    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
+  });
+  return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));
+}

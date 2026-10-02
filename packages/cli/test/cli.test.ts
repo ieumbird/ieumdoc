@@ -420,6 +420,9 @@ test("CLI insert-figure persists a Core Figure", () => {
       [figure.editable, figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
       [true, "", "./plot.svg", "Plot", "Measured plot."],
     );
+    const richCaption = [{ kind: "strong", children: [{ kind: "text", text: "Bold" }] }];
+    assert.equal(run(["insert-figure", file, "--at", "2", "--image", "./plot.svg", "--caption-content", JSON.stringify(richCaption)]).status, 0);
+    assert.match(readFileSync(file, "utf8"), /\*\*Bold\*\*/);
     assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
     const minimal = readFileSync(file, "utf8");
     assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
@@ -493,6 +496,15 @@ test("CLI update-figure changes Figure properties through Core and preserves the
     assert.equal(partial?.block === "figure" && partial.imageUrl, "./diagram-v2.svg");
     assert.equal(partial?.block === "figure" && partial.caption.text, "Only caption.");
 
+    const caption = [{ kind: "strong", children: [{ kind: "text", text: "Rich caption" }] }];
+    const rich = run(["update-figure", file, "--path", figurePath, "--caption-content", JSON.stringify(caption)]);
+    assert.equal(rich.status, 0, rich.stderr);
+    const richFigure = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks.find(block => block.block === "figure");
+    assert.deepEqual(richFigure?.block === "figure" && richFigure.caption.content, caption);
+    assert.equal(richFigure?.block === "figure" && richFigure.label, "fig-control");
+    assert.equal(run(["update-figure", file, "--path", figurePath, "--alt", "New alt"]).status, 0);
+    assert.match(readFileSync(file, "utf8"), /\*\*Rich caption\*\*/);
+
     const before = readFileSync(file);
     for (const args of [
       ["update-figure", file, "--path", "0", "--caption", "not a figure"],
@@ -501,6 +513,9 @@ test("CLI update-figure changes Figure properties through Core and preserves the
       ["update-figure", file, "--path", figurePath, "--image", ""],
       ["update-figure", file, "--path", figurePath, "--alt", "line\nbreak"],
       ["update-figure", file, "--path", figurePath, "--caption", "% comment"],
+      ["update-figure", file, "--path", figurePath, "--caption", "text", "--caption-content", "[]"],
+      ["update-figure", file, "--path", figurePath, "--caption-content", "{}"],
+      ["update-figure", file, "--path", figurePath, "--caption-content", "[{\"kind\":\"unknown\"}]"],
       ["update-figure", file, "--path", figurePath, "--label", "fig-other"],
     ]) {
       assert.equal(run(args).status, 1, args.join(" "));
@@ -815,17 +830,22 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
       const result = run(["update-table-cell", file, "--path", cell, "--text", text]);
       assert.equal(result.status, 0, result.stderr);
     }
+    const bold = [{ kind: "strong", children: [{ kind: "text", text: "P" }] }];
+    const formatted = run(["update-table-cell", file, "--path", "12,2,0", "--content", JSON.stringify(bold)]);
+    assert.equal(formatted.status, 0, formatted.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| P +\| +\|\n$/);
+    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| \*\*P\*\* +\| +\|\n$/);
     assert.equal(serialize(parse(saved)), saved);
     const table = getEditableDocument(parse(saved)).blocks[12];
     assert.equal(table?.block, "table");
     if (table?.block === "table") {
       assert.deepEqual(table.rows.map((row) => row.cells.map((item) => item.text)), [["Port name", "Type"], ["U", "AC-side"], ["P", ""]]);
+      assert.deepEqual(table.rows[2].cells[0].content, bold);
     }
     for (const args of [
       ["--path", "12,1,1", "--text", " padded"],
       ["--path", "12,1,1", "--text", "cost $x$"],
+      ["--path", "12,1,1", "--text", "x", "--content", JSON.stringify(bold)],
       ["--path", "2,0,0", "--text", "x"],
       ["--path", "12,1", "--text", "x"],
     ]) {

@@ -1,7 +1,7 @@
 // Run with pnpm browser:test markdown-input.
 // Types Markdown shortcuts with real keys: `## `, `- `, `3. `, a code fence and inline marks,
 // checks that Undo right after a shortcut restores the typed text, that no shortcut applies inside
-// code blocks or table cells while marks apply in headings, then saves a scratch Markdown file and reloads it.
+// code blocks while marks apply in table cells and headings, then saves a scratch Markdown file and reloads it.
 async page => {
   await page.unrouteAll();
   await page.reload();
@@ -87,12 +87,12 @@ async page => {
   await inline.locator('em').filter({hasText:'it'}).waitFor({state:'visible'});
   await inline.locator('code').filter({hasText:'code'}).waitFor({state:'visible'});
 
-  // Delimiters stay as typed text where a mark is not allowed (table cells); headings take the mark.
+  // Table cells and headings accept the same supported inline mark shortcuts.
   await caret('x', true);
   await page.keyboard.type(' **y**');
   await caret('Markdown input', true);
   await page.keyboard.type(' **z**');
-  const literalWhereUnsupported = await editor.locator('td').filter({hasText:'x **y**'}).count() === 1;
+  const cellMarkApplied = await editor.locator('td strong').filter({hasText:'y'}).count() === 1;
   const headingMarkApplied = await editor.locator('h1 strong').filter({hasText:'z'}).count() === 1;
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
@@ -112,7 +112,7 @@ async page => {
     undoRestoredPrefix,
     codeLiteral,
     markUndone,
-    literalWhereUnsupported,
+    cellMarkApplied,
     headingMarkApplied,
     headingReloaded: await reloaded.locator('h2').filter({hasText:'Heading target'}).count() === 1,
     bulletListReloaded: await reloaded.locator('ul[data-block="list"] > li').filter({hasText:'List target'}).count() === 1,
@@ -122,7 +122,7 @@ async page => {
       await reloadedInline.locator('em').filter({hasText:'it'}).count() === 1 &&
       await reloadedInline.locator('code').filter({hasText:'code'}).count() === 1 &&
       (await reloadedInline.innerText()).includes('**bold**'),
-    literalsReloaded: await reloaded.locator('td').filter({hasText:'x **y**'}).count() === 1 &&
+    marksReloaded: await reloaded.locator('td strong').filter({hasText:'y'}).count() === 1 &&
       await reloaded.locator('h1 strong').filter({hasText:'z'}).count() === 1,
   };
   const failed = Object.entries(result).filter(([, value]) => value !== true);

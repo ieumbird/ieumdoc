@@ -3,6 +3,7 @@ import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
 import {
   assertInlineContent,
+  sameInlineContent,
   inlineContentLength,
   inlineMarkKey,
   splitInlineContent,
@@ -14,7 +15,7 @@ import {
   type InlineContent,
 } from "./inline.ts";
 
-import { figureContentError, type FigureContent } from "./figure.ts";
+import { figureCaptionContent, figureContentError, type FigureContent } from "./figure.ts";
 import {
   assertFigureRoundTrip,
   createFigureNode,
@@ -34,7 +35,7 @@ import { createListNode, hasVisibleContent, supportedListContent } from "./myst/
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
-import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellText, tableCellText } from "./myst/table.ts";
+import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellContent, tableCellContent } from "./myst/table.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
@@ -245,19 +246,6 @@ export function insertDivider(document: MystDocument, index: number): MystDocume
   return next;
 }
 
-function sameInlineContent(left: InlineContent[], right: InlineContent[]): boolean {
-  const markedText = (content: InlineContent[], marks: string[] = []): [string, string][] => content.flatMap((item) => {
-    if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
-    if (item.kind === "break") return [["\n", [...marks, "break"].sort().join(",")]];
-    if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].sort().join(",")]];
-    if (item.kind === "code") return item.value.split("").map((text) => [text, [...marks, "code"].sort().join(",")]);
-    if (item.kind === "reference") {
-      return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
-    }
-    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
-  });
-  return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));
-}
 
 const LIST_FAILURE = "list cannot round-trip losslessly through canonical Markdown";
 const MAX_LIST_START = 999_999_999;
@@ -401,48 +389,64 @@ export function insertFigure(document: MystDocument, index: number, figure: Figu
   return next;
 }
 
-/** Update a Figure's image URL, alt text or plain-text caption; its label is preserved. */
 const TABLE_CELL_FAILURE = "table cell text cannot be preserved through canonical round-trip";
 
-/** Replace the whole plain text of an editable cell in a top-level table ([table, row, cell]). */
-export function updateTableCell(document: MystDocument, path: NodePath, text: string): MystDocument {
+/** A cell's content: plain text, or supported inline content without line breaks. */
+export type TableCellInput = string | InlineContent[];
+
+/** Replace the whole content of an editable cell in a top-level table ([table, row, cell]). */
+export function updateTableCell(document: MystDocument, path: NodePath, cell: TableCellInput): MystDocument {
   if (path.length !== 3) {
     throw new Error("updateTableCell requires a top-level table cell path [table,row,cell]");
   }
-  if (getNode(document, [path[0]]).type !== "table" || tableCellText(getNode(document, path)) === undefined) {
+  if (getNode(document, [path[0]]).type !== "table" || tableCellContent(getNode(document, path)) === undefined) {
     throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
   }
-  assertTableCellText(text);
+  const content = tableCellInput(cell);
   const next = cloneDocument(document);
-  setTableCellText(getNode(next, path), text);
-  assertStableTable(next, TABLE_CELL_FAILURE);
+  setTableCellContent(getNode(next, path), content);
+  assertStableTable(next, path[0], TABLE_CELL_FAILURE);
   return next;
 }
 
-function assertTableCellText(text: string): void {
-  if (typeof text !== "string") {
-    throw new Error("table cell text must be a string");
+function tableCellInput(cell: TableCellInput): InlineContent[] {
+  if (typeof cell !== "string" && !Array.isArray(cell)) {
+    throw new Error("table cell content must be text or InlineContent");
   }
-  if (/[\r\n]/.test(text)) {
+  const content: InlineContent[] = typeof cell === "string" ? (cell.length > 0 ? [{ kind: "text", text: cell }] : []) : cell;
+  assertInlineContent(content);
+  const text = inlineContentText(content);
+  if (containsBreak(content) || /[\r\n]/.test(text)) {
     throw new Error("table cell text cannot contain line breaks");
   }
   if (text !== text.trim()) {
     throw new Error("table cell text cannot start or end with whitespace");
   }
+  // An empty cell has no children, as MyST parses it.
+  return concatenateInlineContent(content).filter((item) => item.kind !== "text" || item.text.length > 0);
 }
 
-// serialize() rejects any semantic change; also require a stable canonical form.
-function assertStableTable(document: MystDocument, failure: string): void {
+// serialize() rejects any semantic change; also require a stable canonical form in which every
+// editable cell of the table keeps its inline content (typed `$x$` text must not become math).
+function assertStableTable(document: MystDocument, index: number, failure: string): void {
   const markdown = serializeFor(document, failure);
-  if (serialize(parse(markdown)) !== markdown) {
+  const reparsed = parse(markdown);
+  const cells = (table: MystNode | undefined) => (table?.children ?? []).map((row) => (row.children ?? []).map(tableCellContent));
+  const before = cells(document.children[index]);
+  const after = cells(reparsed.children[index]);
+  if (serialize(reparsed) !== markdown || reparsed.children[index]?.type !== "table" || after.length !== before.length ||
+      before.some((row, rowIndex) => row.length !== after[rowIndex].length || row.some((content, column) => {
+        const reloaded = after[rowIndex][column];
+        return content !== undefined && (reloaded === undefined || !sameInlineContent(content, reloaded));
+      }))) {
     throw new Error(failure);
   }
 }
 
 const TABLE_FAILURE = "table cannot be preserved through canonical round-trip";
 
-/** Insert a top-level Markdown table of plain-text cells; the first row is its header row. */
-export function insertTable(document: MystDocument, index: number, rows: string[][], align?: ("left" | "center" | "right" | null)[]): MystDocument {
+/** Insert a top-level Markdown table of text or inline-content cells; the first row is its header row. */
+export function insertTable(document: MystDocument, index: number, rows: TableCellInput[][], align?: ("left" | "center" | "right" | null)[]): MystDocument {
   if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length === 0) {
     throw new Error("a table needs a header row with at least one cell");
   }
@@ -453,9 +457,9 @@ export function insertTable(document: MystDocument, index: number, rows: string[
       align.some(value => value !== null && !["left", "center", "right"].includes(value)))) {
     throw new Error("table alignment must contain left, center, right or null for each column");
   }
-  rows.flat().forEach(assertTableCellText);
-  const next = insertBlock(document, index, createTableNode(rows, align));
-  assertStableTable(next, TABLE_FAILURE);
+  const content = rows.map((row) => row.map(tableCellInput));
+  const next = insertBlock(document, index, createTableNode(content, align));
+  assertStableTable(next, index, TABLE_FAILURE);
   return next;
 }
 
@@ -467,7 +471,7 @@ export function insertTableRow(document: MystDocument, path: NodePath, row: numb
   }
   const next = cloneDocument(document);
   insertTableRowNode(getNode(next, path), row);
-  assertStableTable(next, TABLE_FAILURE);
+  assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
 
@@ -479,7 +483,7 @@ export function insertTableColumn(document: MystDocument, path: NodePath, column
   }
   const next = cloneDocument(document);
   insertTableColumnNode(getNode(next, path), column);
-  assertStableTable(next, TABLE_FAILURE);
+  assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
 
@@ -580,6 +584,7 @@ export function validateFigure(figure: FigureContent): string | undefined {
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
   if (error) throw new Error(error);
+  assertInlineContent(figureCaptionContent(figure.caption));
 }
 
 export function updateNodeTextAtPath(

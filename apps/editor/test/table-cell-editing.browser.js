@@ -1,11 +1,12 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/table-cell-editing.browser.js.
 // Edits header and body cells of a Markdown table, saves and reloads a real file, and checks that
-// Bold cannot change cell semantics, Enter exits the table, and read-only cells stay unchanged.
+// cells keep applied, pasted and removed formatting, Enter exits the table, and read-only cells stay unchanged.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes those copies only.
 async page => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -30,12 +31,26 @@ async page => {
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
+  const save = async () => {
+    await page.getByRole('button', {name:'Save', exact:true}).click();
+    await page.getByText('Saved', {exact:true}).waitFor();
+  };
   const table = page.locator('[data-block="table"]');
   const cell = text => table.locator('[data-table-cell]', {hasText: new RegExp(`^${text}$`)});
   const typeAtEnd = async (text, suffix) => {
     await cell(text).click();
     await page.keyboard.press('End');
     await page.keyboard.type(suffix);
+  };
+  const selectCell = async text => {
+    await cell(text).click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Shift+Home');
+    await page.waitForFunction(text => {
+      const e = document.querySelector('.document-editor').editor;
+      const s = e.state.selection;
+      return s.$from.parent.type.name === 'tableCell' && e.state.doc.textBetween(s.from, s.to) === text;
+    }, text);
   };
 
   const before = await markdown(technical, 'technical-document.md');
@@ -47,31 +62,59 @@ async page => {
   const rows = await table.locator('tr').count();
   await typeAtEnd('Port', ' name');
   await typeAtEnd('AC', '-side');
+  await selectCell('AC-side');
   await page.keyboard.press('ControlOrMeta+b');
-  await page.keyboard.type('!');
-  result.structureUnchanged = await table.locator('tr').count() === rows &&
-    await table.locator('[data-table-cell] strong').count() === 0;
-  result.typedInCells = await cell('Port name').count() === 1 && await cell('AC-side!').count() === 1;
+  result.boldApplied = await cell('AC-side').locator('strong').innerText() === 'AC-side';
+
+  // Formatted text copied from a paragraph keeps its marks in a cell.
+  await page.locator('.document-editor strong', {hasText: 'DC-link voltage'}).evaluate(element => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  });
+  await page.waitForFunction(() => {
+    const e = document.querySelector('.document-editor').editor;
+    return e.state.doc.textBetween(e.state.selection.from, e.state.selection.to) === 'DC-link voltage';
+  });
+  await page.keyboard.press('ControlOrMeta+c');
+  await typeAtEnd('DC', ' ');
+  await page.keyboard.press('ControlOrMeta+v');
+  result.formattedPaste = await cell('DC DC-link voltage').locator('strong').innerText() === 'DC-link voltage';
+  result.structureUnchanged = await table.locator('tr').count() === rows;
   await page.keyboard.press('Enter');
   await page.keyboard.type('After table.');
   result.enterExitsTable = await page.locator('.document-editor > p').filter({hasText:'After table.'}).count() === 1;
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await save();
 
   await open(technical);
   const saved = await markdown(technical, 'technical-document.md');
-  result.savedAndReloaded = await cell('Port name').count() === 1 && await cell('AC-side!').count() === 1;
-  result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side! \|\n\| P +\| DC +\|\n\nAfter table\.\n$/.test(saved);
+  result.savedAndReloaded = await cell('Port name').count() === 1 &&
+    await cell('AC-side').locator('strong').count() === 1 && await cell('DC DC-link voltage').locator('strong').count() === 1;
+  result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| \*\*AC-side\*\* +\|\n\| P +\| DC \*\*DC-link voltage\*\* \|\n\nAfter table\.\n$/.test(saved);
   result.otherSemanticsKept = saved.includes('See [](#fig-control) and {eq}`eq-current`.') &&
     saved.includes(':label: eq-current') && saved.includes(':name: fig-control');
   result.headerCellsStayHeaders = await table.locator('th[data-table-cell]').count() === 2;
 
+  // Editing text inside a formatted cell loaded from disk keeps its marks.
+  await typeAtEnd('AC-side', ' revised');
+  result.existingFormattedCellEdited = await cell('AC-side revised').locator('strong').innerText() === 'AC-side revised';
+  await save();
+  await open(technical);
+  result.existingFormattedCellReloaded = await cell('AC-side revised').locator('strong').innerText() === 'AC-side revised';
+
   await open(mixed);
   const readonly = table.locator('[data-readonly-cell]');
-  result.readonlyCellShown = await readonly.count() === 1 && (await readonly.innerText()) === 'bold';
+  result.readonlyCellShown = await readonly.count() === 1 && (await readonly.innerText()) === 'V';
   await readonly.click();
   await page.keyboard.type('x');
-  result.readonlyCellUnchanged = (await readonly.innerText()) === 'bold';
+  result.readonlyCellUnchanged = (await readonly.innerText()) === 'V';
+  // An existing formatted cell is editable, and its formatting can be removed.
+  await selectCell('bold');
+  await page.keyboard.press('ControlOrMeta+b');
+  result.boldRemoved = await cell('bold').locator('strong').count() === 0;
+  await save();
+  result.formattingRemovedOnDisk = (await markdown(mixed, 'mixed-table.md')).includes('| U    | bold | {sub}`V` |');
   result.consoleErrors = problems;
   const failed = Object.entries(result).filter(([key, value]) => key !== 'consoleErrors' && value !== true);
   if (failed.length > 0 || problems.length > 0) throw new Error(`Table cell editing failed: ${JSON.stringify(result)}`);

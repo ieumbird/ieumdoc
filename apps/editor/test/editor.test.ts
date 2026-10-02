@@ -110,7 +110,7 @@ test("technical document projects to one typed Tiptap document", () => {
   assert.equal(figure?.attrs?.label, "fig-control");
   assert.equal(figure?.attrs?.imageUrl, "./diagram.svg");
   assert.equal(figure?.attrs?.imageAlt, "Control block diagram");
-  assert.equal(figure?.attrs?.caption, "Control block diagram of the grid-connected converter.");
+  assert.deepEqual(figure?.content, [{ type: "text", text: "Control block diagram of the grid-connected converter." }]);
   const equation = projection.content?.find((block) => block.type === "equation");
   assert.equal(equation?.attrs?.label, "eq-current");
   assert.equal(String(equation?.attrs?.latex ?? "").includes("P^{"), true);

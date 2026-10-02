@@ -21,7 +21,8 @@ import {
 } from "../src/tiptap-document.ts";
 import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
 
-const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | **bold** |\n| P |  |\n";
+const text = (value: string) => [{ kind: "text" as const, text: value }];
+const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | {sub}`bold` |\n| P |  |\n";
 const TABLE = 1;
 
 function editorState(source: string) {
@@ -91,9 +92,9 @@ test("a new table has a header row and two body rows of three columns, and saves
   state = apply(state, state.tr.insertText("Port"));
   state = apply(state, caretIn(state, 1, 0, 1).tr.insertText("U"));
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.deepEqual(edits.inserts, [{ block: "table", rows: [["Port", "", ""], ["U", "", ""], ["", "", ""]] }]);
+  assert.deepEqual(edits.inserts, [{ block: "table", rows: [[text("Port"), [], []], [text("U"), [], []], [[], [], []]] }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note     |\n| ---- | -------- |\n| U    | **bold** |\n| P    |          |\n");
+  assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note        |\n| ---- | ----------- |\n| U    | {sub}`bold` |\n| P    |             |\n");
   assert.equal(saved.document.blocks[1]?.block, "table");
 });
 
@@ -133,15 +134,15 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
   assert.equal(rejected.length, 0);
 
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.deepEqual(edits.cells, [{ path: [TABLE, 2, 0], from: "P", to: "QP" }]);
+  assert.deepEqual(edits.cells, [{ path: [TABLE, 2, 0], content: text("QP") }]);
   assert.deepEqual(edits.tables, [{
     path: [TABLE],
     rows: [0, 1, null, 2, null],
     columns: [0, null, 1, null],
-    cells: [{ row: 2, column: 0, text: "I" }, { row: 2, column: 1, text: "x" }],
+    cells: [{ row: 2, column: 0, content: text("I") }, { row: 2, column: 1, content: text("x") }],
   }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note     |   |\n| ---- | - | -------- | - |\n| U    |   | **bold** |   |\n| I    | x |          |   |\n| QP   |   |          |   |\n|      |   |          |   |\n");
+  assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note        |   |\n| ---- | - | ----------- | - |\n| U    |   | {sub}`bold` |   |\n| I    | x |             |   |\n| QP   |   |             |   |\n|      |   |             |   |\n");
   const table = saved.document.blocks[TABLE];
   assert.ok(table?.block === "table");
   assert.deepEqual(table.rows.map(row => row.cells.map(cell => cell.editable)), [
@@ -188,7 +189,7 @@ test("Host rejects table edits that do not match the snapshot table", () => {
     [{ path: [TABLE], rows: [0, 1, 2], columns: [1, 0], cells: [] }, /table edit is not allowed/],
     [{ path: [TABLE], rows: [0, 1], columns: [0, 1], cells: [] }, /table edit is not allowed/],
     [{ path: [TABLE], rows: [null, 0, 1, 2], columns: [0, 1], cells: [] }, /table row index must be an integer from 1/],
-    [{ path: [TABLE], rows: [0, 1, 2, null], columns: [0, 1], cells: [{ row: 1, column: 0, text: "x" }] }, /was not added/],
+    [{ path: [TABLE], rows: [0, 1, 2, null], columns: [0, 1], cells: [{ row: 1, column: 0, content: text("x") }] }, /was not added/],
   ];
   for (const [table, reason] of rejected) {
     assert.throws(() => saveEdits(mixed, { tables: [table as never] }), reason);

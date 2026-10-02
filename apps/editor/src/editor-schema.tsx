@@ -11,7 +11,7 @@ import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ieumdoc/core";
-import { figureContentError } from "@ieumdoc/core/figure";
+import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
@@ -20,10 +20,12 @@ import { CrossReference } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   DELETED_PATHS_ATTR,
+  figureContent,
   isNewBlockPath,
   isSupportedDocumentChange,
   NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
+  paragraphContent,
   TABLE_CELL_ADDED_ATTR,
   type TiptapJSON,
 } from "./tiptap-document.ts";
@@ -44,7 +46,8 @@ export function isUnappliedEquationDraft(editing: boolean, draft: string, latex:
 
 /** An open Figure form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent, sourcePath = ""): boolean {
-  const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt || draft.caption !== applied.caption;
+  const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt ||
+    JSON.stringify(draft.caption) !== JSON.stringify(applied.caption);
   return editing && (changed || (isNewBlockPath(sourcePath) && applied.imageUrl.length === 0));
 }
 
@@ -302,7 +305,8 @@ const Divider = Node.create({
 const Figure = Node.create({
   name: "figure",
   group: "block",
-  atom: true,
+  content: "(text | hardBreak | inlineMath | crossReference)*",
+  isolating: true,
   selectable: true,
   draggable: false,
   addAttributes() {
@@ -315,10 +319,11 @@ const Figure = Node.create({
     });
   },
   parseHTML() {
-    return [{ tag: "figure[data-figure]" }];
+    return [{ tag: "figure[data-figure]", contentElement: "figcaption" }];
   },
-  renderHTML({ HTMLAttributes }) {
-    return ["figure", { ...HTMLAttributes, "data-figure": "" }];
+  renderHTML({ node, HTMLAttributes }) {
+    return ["figure", { ...HTMLAttributes, "data-figure": "" },
+      ["img", { src: node.attrs.imageUrl, alt: node.attrs.imageAlt }], ["figcaption", 0]];
   },
   addNodeView() {
     return ReactNodeViewRenderer(FigureView);
@@ -370,8 +375,8 @@ function createEquationNodeView(onDraftChange?: EquationDraftListener) {
   };
 }
 
-// A Markdown table lives in the single document state: editable cells hold plain
-// text (no marks), other cells are read-only leaves. Whole rows and columns of
+// A Markdown table lives in the single document state: editable cells hold supported
+// inline content without line breaks; other cells are read-only leaves. Whole rows and columns of
 // editable cells can be added by commands; the structure guard rejects any other
 // change to the grid, such as removing or moving cells.
 const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (element) => element.tagName === "TH" };
@@ -436,10 +441,10 @@ const TableRow = Node.create({
   },
 });
 
+// A cell holds inline content without line breaks, like a heading.
 const TableCell = Node.create({
   name: "tableCell",
-  content: "text*",
-  marks: "",
+  content: "(text | inlineMath | crossReference)*",
   isolating: true,
   addAttributes() {
     return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_ADDED_ATTR]: { default: "", rendered: false } };
@@ -812,14 +817,14 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
 }
 
 function figureAttrs(node: ProseMirrorNode): FigureContent {
-  return {
+  return node.attrs.editable === true ? figureContent(node.toJSON() as TiptapJSON) : {
     imageUrl: String(node.attrs.imageUrl ?? ""),
     imageAlt: String(node.attrs.imageAlt ?? ""),
     caption: String(node.attrs.caption ?? ""),
   };
 }
 
-function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
+function FigureView({ node, selected, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const applied = figureAttrs(node);
@@ -836,7 +841,10 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   const [error, setError] = useState("");
   const [validating, setValidating] = useState(false);
   const validation = useRef(0);
-  const hasUnappliedDraft = isUnappliedFigureDraft(editing, draft, applied, sourcePath) ||
+  const captionChanged = useRef(false);
+  const captionKey = JSON.stringify(applied.caption);
+  const hasUnappliedDraft = isUnappliedFigureDraft(editing,
+    { ...draft, caption: captionChanged.current ? draft.caption : applied.caption }, applied, sourcePath) ||
     (editing && labelDraft !== label);
 
   useEffect(() => {
@@ -844,7 +852,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       setDraft(applied);
       setLabelDraft(label);
     }
-  }, [editing, applied.imageUrl, applied.imageAlt, applied.caption, label]);
+  }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
 
   // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form.
   // Once editing starts, selection changes must not end the draft; Apply and Cancel own that boundary.
@@ -860,6 +868,7 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {
+    captionChanged.current = false;
     setDraft(applied);
     setLabelDraft(label);
     setError("");
@@ -879,7 +888,11 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
   // Whether the label is referenceable and unique in the document is checked by Core on Save.
   const apply = async () => {
-    const candidate = draft;
+    const position = getPos();
+    const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
+    if (!current) return;
+    const liveCaption = figureAttrs(current).caption;
+    const candidate = { ...draft, caption: captionChanged.current ? draft.caption : liveCaption };
     const nextLabel = labelDraft;
     const local = labelError(nextLabel) ?? figureContentError(candidate) ??
       (validateFigure ? undefined : "Figure validation is unavailable.");
@@ -903,7 +916,17 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       setError(message);
       return;
     }
-    updateAttributes({ ...candidate, label: nextLabel });
+    const latestPosition = getPos();
+    const latest = typeof latestPosition === "number" ? view.state.doc.nodeAt(latestPosition) : null;
+    if (!latest || typeof latestPosition !== "number") return;
+    if (JSON.stringify(figureAttrs(latest).caption) !== JSON.stringify(liveCaption)) {
+      setError("Caption changed during validation. Apply again.");
+      return;
+    }
+    const { caption, ...attributes } = candidate;
+    const replacement = latest.type.create({ ...latest.attrs, ...attributes, label: nextLabel },
+      view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content);
+    view.dispatch(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement));
     setEditing(false);
   };
   const field = (key: keyof FigureContent, name: string, testId: string) => (
@@ -913,8 +936,9 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
         ref={key === "imageUrl" ? imageInput : undefined}
         data-testid={testId}
         disabled={validating}
-        value={draft[key]}
+        value={typeof draft[key] === "string" ? draft[key] : ""}
         onChange={(event) => {
+          if (key === "caption") captionChanged.current = true;
           setDraft({ ...draft, [key]: event.target.value });
           setError("");
         }}
@@ -926,7 +950,6 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
     ["Label", label],
     ["Image", applied.imageUrl],
     ["Alt text", applied.imageAlt],
-    ["Caption", applied.caption],
   ];
   return (
     <NodeViewWrapper
@@ -937,20 +960,29 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
       data-selected={selected}
       data-source-path={sourcePath}
       data-readonly={editableFigure ? "false" : "true"}
-      contentEditable={false}
+      contentEditable={editableFigure ? undefined : false}
       onMouseDown={() => { if (!editing) setSummaryDismissed(false); }}
     >
-      <p ref={anchor} className="block-kind block-metadata">{label ? `Figure · ${label}` : "Figure"}</p>
+      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{label ? `Figure · ${label}` : "Figure"}</p>
       {hasUnappliedDraft ? (
-        <p className="draft-status" role="status" data-testid="figure-draft-status">
+        <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
           Unapplied changes are not saved. Apply to include them, or Cancel.
         </p>
       ) : null}
-      {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" /> : null}
-      <figcaption className="caption">{applied.caption}</figcaption>
+      {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" contentEditable={false}
+        onMouseDown={event => {
+          const position = getPos();
+          if (typeof position !== "number") return;
+          event.preventDefault();
+          view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)));
+          view.focus();
+        }} /> : null}
+      {editableFigure
+        ? <figcaption className="caption"><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
+        : <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>}
       <OriginalContent node={node} />
       {editableFigure && !editing ? (
-        <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" onClick={beginEdit}>
+        <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
           Edit
         </Button>
       ) : null}
@@ -989,7 +1021,8 @@ function FigureView({ node, selected, updateAttributes, deleteNode, getPos, view
             >
               {field("imageUrl", "Image", "figure-image-url")}
               {field("imageAlt", "Alt text", "figure-alt")}
-              {field("caption", "Caption", "figure-caption")}
+              {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", "Caption", "figure-caption")
+                : <p className="block-popover-note">Edit the formatted caption directly below the image.</p>}
               <label className="form-field">
                 <span>Label</span>
                 <Input

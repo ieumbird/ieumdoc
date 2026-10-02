@@ -6,13 +6,14 @@ import { fileURLToPath } from "node:url";
 import { getSchema } from "@tiptap/core";
 import { history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
-import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
+import { parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
 import { insertFigureAfter } from "../src/block-commands.ts";
 import { editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   assertSupportedDocumentChange,
   collectSupportedEdits,
   toTiptapDocument,
+  paragraphContent,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
 import {
@@ -50,6 +51,13 @@ function blockAt(doc: TiptapJSON, sourcePath: string): TiptapJSON {
   return block;
 }
 
+function setFigure(node: TiptapJSON, figure: FigureContent): TiptapJSON {
+  const { caption, ...attrs } = figure;
+  node.attrs = { ...node.attrs, ...attrs };
+  node.content = paragraphContent(typeof caption === "string" ? (caption ? [{ kind: "text", text: caption }] : []) : caption);
+  return node;
+}
+
 function figureOf(document: EditableDocument, index: number) {
   const block = document.blocks[index];
   assert.equal(block?.block, "figure");
@@ -59,15 +67,16 @@ function figureOf(document: EditableDocument, index: number) {
 
 test("Figure projection carries editable properties and its label", () => {
   const figure = blockAt(toTiptapDocument(loadEditableDocument(source)), FIGURE);
-  assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", ...ORIGINAL, editable: true });
-  const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n**bold caption**\n:::\n"));
+  assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: ORIGINAL.imageAlt, editable: true });
+  assert.deepEqual(figure.content, [{ type: "text", text: ORIGINAL.caption }]);
+  const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n{sub}`V`\n:::\n"));
   assert.equal(readonly.content?.[0]?.attrs?.editable, false);
 });
 
 test("image, alt text, caption and label are the editable Figure attributes", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const changed = clone(baseline);
-  Object.assign(blockAt(changed, FIGURE).attrs!, CHANGED);
+  setFigure(blockAt(changed, FIGURE), CHANGED);
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, changed));
   assert.deepEqual(collectSupportedEdits(loadEditableDocument(source), changed).figures, [
     { path: [6], from: ORIGINAL, to: CHANGED },
@@ -85,7 +94,7 @@ test("image, alt text, caption and label are the editable Figure attributes", ()
     assert.throws(() => assertSupportedDocumentChange(baseline, identity), /figure identity|block deletion is not allowed/);
   }
 
-  const readonlySource = ":::{figure} ./a.png\n**bold caption**\n:::\n";
+  const readonlySource = ":::{figure} ./a.png\n{sub}`V`\n:::\n";
   const readonly = toTiptapDocument(loadEditableDocument(readonlySource));
   const flattened = clone(readonly);
   flattened.content![0].attrs!.caption = "flattened";
@@ -118,10 +127,10 @@ test("Figure validity is enforced before Save and by the Core write path", () =>
   ]) {
     assert.throws(() => commitDocumentSave(() => source, () => writes++, { revision: documentRevision(source), figures }));
   }
-  const readonlySource = ":::{figure} ./a.png\n**bold caption**\n:::\n";
+  const readonlySource = ":::{figure} ./a.png\n{sub}`V`\n:::\n";
   assert.throws(() => commitDocumentSave(() => readonlySource, () => writes++, {
     revision: documentRevision(readonlySource),
-    figures: [{ path: [0], from: { imageUrl: "./a.png", imageAlt: "", caption: "bold caption" }, to: CHANGED }],
+    figures: [{ path: [0], from: { imageUrl: "./a.png", imageAlt: "", caption: "V" }, to: CHANGED }],
   }), /figure edit is not allowed/);
   assert.equal(writes, 0);
 });
@@ -129,7 +138,7 @@ test("Figure validity is enforced before Save and by the Core write path", () =>
 test("Figure edit survives Apply projection, reorder, Save and reload with its label", () => {
   const editable = loadEditableDocument(source);
   const projection = toTiptapDocument(editable);
-  Object.assign(blockAt(projection, FIGURE).attrs!, CHANGED);
+  setFigure(blockAt(projection, FIGURE), CHANGED);
   projection.content!.unshift(projection.content!.splice(6, 1)[0]);
   const edits = collectSupportedEdits(editable, projection);
   assert.deepEqual(edits.figures, [{ path: [6], from: ORIGINAL, to: CHANGED }]);
@@ -142,7 +151,7 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
 
   // Clearing optional properties keeps the Figure and its label.
   const cleared = toTiptapDocument(editable);
-  Object.assign(blockAt(cleared, FIGURE).attrs!, { imageAlt: "", caption: "" });
+  setFigure(blockAt(cleared, FIGURE), { ...ORIGINAL, imageAlt: "", caption: "" });
   const clearedSave = saveEdits(source, collectSupportedEdits(editable, cleared));
   assert.deepEqual(figureOf(clearedSave.document, 6), { label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: "", caption: "" });
 });
@@ -151,7 +160,7 @@ test("new Figure inserts save and reload through Core semantics", () => {
   const editable = loadEditableDocument("Intro\n");
   const next = toTiptapDocument(editable);
   const figure = { imageUrl: "./plot.svg", imageAlt: "Plot", caption: "Measured plot." };
-  next.content!.push({ type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true, ...figure } });
+  next.content!.push(setFigure({ type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true } }, figure));
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.inserts, [{ block: "figure", ...figure }]);
   const saved = saveEdits("Intro\n", edits);
@@ -171,12 +180,12 @@ test("new Figure inserts save and reload through Core semantics", () => {
 
   // A new Figure can carry a label; persistent blocks cannot become Figures.
   const labeled = toTiptapDocument(editable);
-  labeled.content!.push({ type: "figure", attrs: { sourcePath: "new:labeled", label: "fig-x", editable: true, ...figure } });
+  labeled.content!.push(setFigure({ type: "figure", attrs: { sourcePath: "new:labeled", label: "fig-x", editable: true } }, figure));
   const labeledEdits = collectSupportedEdits(editable, labeled);
   assert.deepEqual(labeledEdits.inserts, [{ block: "figure", ...figure, label: "fig-x" }]);
   assert.match(saveEdits("Intro\n", labeledEdits).markdown, /:::\{figure\} \.\/plot\.svg\n:name: fig-x\n/);
   const conversion = toTiptapDocument(editable);
-  conversion.content![0] = { type: "figure", attrs: { sourcePath: "0", label: "", editable: true, ...figure } };
+  conversion.content![0] = setFigure({ type: "figure", attrs: { sourcePath: "0", label: "", editable: true } }, figure);
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
 });
 
@@ -193,7 +202,7 @@ test("Figure delete and reorder keep other blocks and Core semantics", () => {
 
   const inserted = toTiptapDocument(editable);
   const figure = { imageUrl: "./plot.svg", imageAlt: "", caption: "Plot." };
-  inserted.content!.splice(1, 0, { type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true, ...figure } });
+  inserted.content!.splice(1, 0, setFigure({ type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true } }, figure));
   const withInsert = saveEdits(source, collectSupportedEdits(editable, inserted));
   assert.deepEqual(figureOf(withInsert.document, 1), { label: "", ...figure });
   assert.deepEqual(figureOf(withInsert.document, 7), { label: "fig-control", ...ORIGINAL });
@@ -217,7 +226,7 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   assert.match(schemaSource, /const neverApplied = isNewBlockPath\(sourcePath\) && applied\.imageUrl\.length === 0;/);
   assert.match(schemaSource, /if \(neverApplied\) removeUnappliedBlock\(view, getPos, node, deleteNode\);/);
   // Apply commits only after Core's persistent validation through the Host accepts the value.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}\s*updateAttributes\(\{ \.\.\.candidate, label: nextLabel \}\);/);
+  assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(view\.state\.tr\.replaceWith/);
   assert.match(app, /fetch\("\/api\/figure-validation"/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });
@@ -245,8 +254,9 @@ test("Figure Apply participates in the structure guard and undo/redo", () => {
   let position = -1;
   state.doc.forEach((node, pos) => { if (node.attrs.sourcePath === FIGURE) position = pos; });
   const figure = state.doc.nodeAt(position)!;
-  state = state.apply(state.tr.setNodeMarkup(position, undefined, { ...figure.attrs, ...CHANGED }));
-  assert.equal(state.doc.nodeAt(position)?.attrs.caption, CHANGED.caption);
+  const changed = schema.nodeFromJSON(setFigure(figure.toJSON() as TiptapJSON, CHANGED));
+  state = state.apply(state.tr.replaceWith(position, position + figure.nodeSize, changed));
+  assert.equal(state.doc.nodeAt(position)?.textContent, CHANGED.caption);
   const identityTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, editable: false });
   assert.equal(state.apply(identityTr).doc, state.doc);
   assert.equal(rejected, 1);

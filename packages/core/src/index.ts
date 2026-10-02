@@ -23,7 +23,7 @@ export { inlineContentLength } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export type { ListContent, ListItemContent } from "./list.ts";
 export type { CodeBlockContent } from "./code.ts";
-export type { BlockConversion } from "./operations.ts";
+export type { BlockConversion, TableCellInput } from "./operations.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 

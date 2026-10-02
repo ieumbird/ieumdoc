@@ -10,6 +10,7 @@ import {
   removeBlock,
   serialize,
   updateTableCell,
+  type InlineContent,
   type MystDocument,
 } from "./core-internal.ts";
 
@@ -22,14 +23,43 @@ function cells(document: MystDocument, index: number) {
   return block.block === "table" ? block.rows.map((row) => row.cells.map(({ text, header, editable }) => ({ text, header, editable }))) : [];
 }
 
-test("plain-text and empty cells of a Markdown table are editable; other cells stay read-only", () => {
+test("cells of supported inline content and empty cells are editable; other cells stay read-only", () => {
   assert.deepEqual(cells(parse(technical), TABLE), [
     [{ text: "Port", header: true, editable: true }, { text: "Type", header: true, editable: true }],
     [{ text: "U", header: false, editable: true }, { text: "AC", header: false, editable: true }],
     [{ text: "P", header: false, editable: true }, { text: "DC", header: false, editable: true }],
   ]);
-  const mixed = parse("| A | B | C | D |\n| --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) |\n");
-  assert.deepEqual(cells(mixed, 0)[1].map((cell) => cell.editable), [true, false, false, false]);
+  const mixed = parse("| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) | {ref}`intro` |\n");
+  assert.deepEqual(cells(mixed, 0)[1].map((cell) => cell.editable), [true, true, true, true, false]);
+  const block = getEditableDocument(mixed).blocks[0];
+  assert.deepEqual(block.block === "table" && block.rows[1].cells.map((cell) => cell.content), [
+    [], [{ kind: "strong", children: [{ kind: "text", text: "b" }] }], [{ kind: "math", value: "x" }],
+    [{ kind: "link", url: "u", children: [{ kind: "text", text: "l" }] }], [],
+  ]);
+});
+
+test("updateTableCell and insertTable keep inline content through canonical Markdown", () => {
+  const formatted: InlineContent[] = [
+    { kind: "strong", children: [{ kind: "text", text: "AC" }] }, { kind: "text", text: " at " }, { kind: "math", value: "x_1" },
+    { kind: "text", text: " " }, { kind: "code", value: "a_b" }, { kind: "text", text: " " },
+    { kind: "link", url: "https://a.example", children: [{ kind: "text", text: "spec" }] },
+    { kind: "text", text: " " }, { kind: "reference", role: "eq", label: "eq-current" },
+  ];
+  const edited = updateTableCell(parse(technical), [TABLE, 1, 1], formatted);
+  const inserted = insertTable(parse(""), 0, [["Port", [{ kind: "emphasis", children: [{ kind: "text", text: "Type" }] }]], ["U", formatted]]);
+  for (const [document, index] of [[edited, TABLE], [inserted, 0]] as const) {
+    const markdown = serialize(document);
+    assert.equal(serialize(parse(markdown)), markdown);
+    const block = getEditableDocument(parse(markdown)).blocks[index];
+    assert.equal(block.block, "table");
+    if (block.block !== "table") continue;
+    assert.equal(block.rows[1].cells[1].editable, true);
+    assert.deepEqual(block.rows[1].cells[1].content, formatted);
+  }
+  // Plain text replaces a formatted cell, clearing its marks.
+  const plain = updateTableCell(edited, [TABLE, 1, 1], "AC");
+  assert.deepEqual(cells(plain, TABLE)[1][1], { text: "AC", header: false, editable: true });
+  assert.match(serialize(plain), /\| U +\| AC +\|/);
 });
 
 test("updateTableCell writes header and body cell text through canonical Markdown", () => {
@@ -56,17 +86,23 @@ test("cells can be cleared and filled, and Markdown syntax is kept as literal te
     { text: "a | b *c* `d`", header: false, editable: true },
   ]);
   assert.equal(serialize(parse(markdown)), markdown);
+  // Empty inline content clears a cell like empty text.
+  assert.equal(serialize(updateTableCell(filled, [0, 1, 0], [{ kind: "text", text: "" }])), markdown);
 });
 
 test("updateTableCell fails closed without mutating the document", () => {
   const document = parse(technical);
   const before = structuredClone(document);
-  const rejected: [number[], string, RegExp][] = [
+  const rejected: [number[], string | InlineContent[], RegExp][] = [
     [[TABLE, 1, 1], "A\nB", /line breaks/],
+    [[TABLE, 1, 1], [{ kind: "text", text: "A" }, { kind: "break" }, { kind: "text", text: "B" }], /line breaks/],
+    [[TABLE, 1, 1], [{ kind: "strong", children: [{ kind: "text", text: "AC " }] }], /whitespace/],
     [[TABLE, 1, 1], " AC", /whitespace/],
     [[TABLE, 1, 1], "AC ", /whitespace/],
     // `$x$` would reparse as inline math, not the text that was typed.
     [[TABLE, 1, 1], "cost $x$", /table cell text cannot be preserved through canonical round-trip/],
+    // The writer does not escape a pipe inside inline code or math, so it would end the cell.
+    [[TABLE, 1, 1], [{ kind: "code", value: "a|b" }], /table cell text cannot be preserved through canonical round-trip/],
     [[TABLE, 1], "x", /requires a top-level table cell path/],
     [[2, 0, 0], "x", /not editable/],
     [[TABLE, 9, 0], "x", /out of range/],
@@ -75,7 +111,7 @@ test("updateTableCell fails closed without mutating the document", () => {
     assert.throws(() => updateTableCell(document, path, text), reason, `${path} ${JSON.stringify(text)}`);
   }
   assert.deepEqual(document, before);
-  const readonlyCell = parse("| A |\n| --- |\n| **b** |\n");
+  const readonlyCell = parse("| A |\n| --- |\n| {ref}`b` |\n");
   assert.throws(() => updateTableCell(readonlyCell, [0, 1, 0], "b"), /not editable/);
   // Table directives are not Markdown tables and stay read-only.
   const directive = parse(":::{list-table}\n* - a\n:::\n");
@@ -125,7 +161,7 @@ test("insertTableColumn adds an empty column, header cell included, at any posit
   assert.equal(serialize(parse(markdown)), markdown);
   assert.deepEqual(cells(parse(markdown), 0), [
     [{ text: "", header: true, editable: true }, { text: "A", header: true, editable: true }, { text: "B", header: true, editable: true }, { text: "", header: true, editable: true }],
-    [{ text: "", header: false, editable: true }, { text: "x", header: false, editable: true }, { text: "y", header: false, editable: false }, { text: "", header: false, editable: true }],
+    [{ text: "", header: false, editable: true }, { text: "x", header: false, editable: true }, { text: "y", header: false, editable: true }, { text: "", header: false, editable: true }],
   ]);
 });
 

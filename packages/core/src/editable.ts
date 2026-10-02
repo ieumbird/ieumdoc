@@ -1,6 +1,7 @@
 import type { NodePath } from "./document.ts";
+import { figureCaptionContent } from "./figure.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
-import { tableCellText } from "./myst/table.ts";
+import { tableCellContent } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
@@ -14,13 +15,17 @@ import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/
 export type EditableCaption = {
   path: NodePath;
   text: string;
+  content: InlineContent[];
   editable: boolean;
 };
 
 export type EditableTableCell = {
   path: NodePath;
   text: string;
+  /** Supported inline content; empty when the cell is empty or read-only. */
+  content: InlineContent[];
   header: boolean;
+  /** False when the cell holds inline content an edit could not keep. */
   editable: boolean;
   align?: "left" | "center" | "right";
 };
@@ -211,6 +216,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
   const captionIndex = children.findIndex((child) => child.type === "caption");
   const image = imageIndex >= 0 ? children[imageIndex] : undefined;
   const caption = captionIndex >= 0 ? children[captionIndex] : undefined;
+  const supported = supportedFigureContent(node);
   return {
     block: "figure",
     path,
@@ -220,22 +226,27 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
     caption: {
       path: captionIndex >= 0 ? [...path, captionIndex] : path,
       text: caption ? toText(caption) : "",
-      editable: caption ? isTextOnly(caption) : false,
+      content: supported ? figureCaptionContent(supported.caption) : [],
+      editable: supported !== undefined,
     },
-    editable: supportedFigureContent(node) !== undefined,
+    editable: supported !== undefined,
   };
 }
 
 function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   const rows = (node.children ?? []).map((row, rowIndex) => ({
-    cells: (row.children ?? []).map((cell, cellIndex) => ({
-      path: [...path, rowIndex, cellIndex] as NodePath,
-      text: toText(cell),
-      header: rowIndex === 0,
-      editable: tableCellText(cell) !== undefined,
-      ...(["left", "center", "right"].includes(String(cell.align))
-        ? { align: cell.align as "left" | "center" | "right" } : {}),
-    })),
+    cells: (row.children ?? []).map((cell, cellIndex) => {
+      const content = tableCellContent(cell);
+      return {
+        path: [...path, rowIndex, cellIndex] as NodePath,
+        text: toText(cell),
+        content: content ?? [],
+        header: rowIndex === 0,
+        editable: content !== undefined,
+        ...(["left", "center", "right"].includes(String(cell.align))
+          ? { align: cell.align as "left" | "center" | "right" } : {}),
+      };
+    }),
   }));
   return {
     block: "table",

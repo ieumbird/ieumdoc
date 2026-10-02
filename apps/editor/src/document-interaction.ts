@@ -102,7 +102,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           if (selection instanceof NodeSelection && selection.node.isBlock) {
             view.dispatch(paragraphBeside(state, true)); return true;
           }
-          if (selection.$from.depth > 0 && ["table", "admonition", "quote"].includes(selection.$from.node(1).type.name)) {
+          if (selection.$from.depth > 0 && ["table", "admonition", "quote", "figure"].includes(selection.$from.node(1).type.name)) {
             if (!selection.empty) return false;
             view.dispatch(paragraphBeside(state, true)); return true;
           }
@@ -139,7 +139,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           getAttrs: (element: HTMLElement) => {
             try { return JSON.parse(element.getAttribute("data-ieumdoc-attrs") ?? "{}"); } catch { return false; }
           },
-          ...(type === "table" ? { contentElement: "tbody" } : {}),
+          ...(type === "table" ? { contentElement: "tbody" } : type === "figure" ? { contentElement: "figcaption" } : {}),
         })),
         ...PMDOMParser.fromSchema(schema).rules,
       ]);
@@ -194,6 +194,8 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
           for (const element of document.body.querySelectorAll("*")) {
             const typed = element.getAttribute("data-ieumdoc-type");
+            // The Figure's typed attrs own its image; only its figcaption is parsed as content.
+            if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-ieumdoc-type="figure"]')) continue;
             if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
                 (["H1", "H2", "H3", "H4", "H5", "H6"].includes(element.tagName) &&
                   (element.querySelector("strong,b,em,i,a,br,code,[data-ieumdoc-type]") || element.closest("strong,b,em,i,a,code"))) ||
@@ -213,15 +215,10 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           if (event.clipboardData?.files.length) return fail("Pasting files is not supported. Use the Figure controls to choose an image URL. Your selection and clipboard are kept.");
           if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
           const target = view.state.selection.$from.parent.type.name;
-          if (target === "tableCell") {
-            let rich = false;
-            slice.content.descendants(node => { if (node.marks.length || node.isInline && !node.isText) rich = true; });
-            if (rich) return fail("This table cell supports plain text. Paste formatted content into a paragraph to keep it intact. The clipboard and selection are kept.");
-          }
-          if (target === "heading") {
+          if (target === "heading" || target === "tableCell") {
             let lineBreak = false;
             slice.content.descendants(node => { if (node.type.name === "hardBreak") lineBreak = true; });
-            if (lineBreak) return fail("A heading cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.");
+            if (lineBreak) return fail(`A ${target === "heading" ? "heading" : "table cell"} cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.`);
           }
           const tr = view.state.tr.replaceSelection(slice);
           const labels = new Set<string>();

@@ -154,21 +154,14 @@ test("a heading with supported inline content is editable; line breaks and unsup
   }
 });
 
-test("formatted caption and table cell stay read-only", () => {
+test("formatted caption exposes supported inline content", () => {
   const formattedCaption = getEditableDocument(
     parse("# Title\n\n:::{figure} ./diagram.svg\n**bold caption**\n:::\n"),
   ).blocks.find((block) => block.block === "figure");
   assert.equal(formattedCaption?.block, "figure");
   if (formattedCaption?.block !== "figure") return;
-  assert.equal(formattedCaption.caption.editable, false);
-
-  const formattedCell = getEditableDocument(parse("| A |\n| --- |\n| *x* |\n")).blocks.find(
-    (block) => block.block === "table",
-  );
-  assert.equal(formattedCell?.block, "table");
-  if (formattedCell?.block !== "table") return;
-  assert.equal(formattedCell.rows[1]?.cells[0]?.editable, false);
-  assert.equal(formattedCell.rows[1]?.cells[0]?.text, "x");
+  assert.equal(formattedCaption.caption.editable, true);
+  assert.deepEqual(formattedCaption.caption.content, [{ kind: "strong", children: [{ kind: "text", text: "bold caption" }] }]);
 });
 
 test("read-only projections expose source and kind without making source a write path", () => {
