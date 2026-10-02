@@ -43,6 +43,7 @@ test("updateTableCell and insertTable keep inline content through canonical Mark
     { kind: "strong", children: [{ kind: "text", text: "AC" }] }, { kind: "text", text: " at " }, { kind: "math", value: "x_1" },
     { kind: "text", text: " " }, { kind: "code", value: "a_b" }, { kind: "text", text: " " },
     { kind: "link", url: "https://a.example", children: [{ kind: "text", text: "spec" }] },
+    { kind: "text", text: " " }, { kind: "reference", role: "eq", label: "eq-current" },
   ];
   const edited = updateTableCell(parse(technical), [TABLE, 1, 1], formatted);
   const inserted = insertTable(parse(""), 0, [["Port", [{ kind: "emphasis", children: [{ kind: "text", text: "Type" }] }]], ["U", formatted]]);

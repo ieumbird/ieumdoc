@@ -96,6 +96,13 @@ async page => {
     saved.includes(':label: eq-current') && saved.includes(':name: fig-control');
   result.headerCellsStayHeaders = await table.locator('th[data-table-cell]').count() === 2;
 
+  // Editing text inside a formatted cell loaded from disk keeps its marks.
+  await typeAtEnd('AC-side', ' revised');
+  result.existingFormattedCellEdited = await cell('AC-side revised').locator('strong').innerText() === 'AC-side revised';
+  await save();
+  await open(technical);
+  result.existingFormattedCellReloaded = await cell('AC-side revised').locator('strong').innerText() === 'AC-side revised';
+
   await open(mixed);
   const readonly = table.locator('[data-readonly-cell]');
   result.readonlyCellShown = await readonly.count() === 1 && (await readonly.innerText()) === 'V';
