@@ -713,6 +713,18 @@ pnpm exec playwright-cli -s=ieumdoc-figure close
 
 결과의 boolean 값은 모두 `true`, `consoleProblems`는 `[]`이어야 한다. Focused regression은 editor selection이 Figure 밖으로 이동해도 Apply 또는 Cancel 전까지 form과 draft가 유지되고, Apply → Save → Reload 후 caption이 보존되는지 확인한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
+## PNG paste / file drop (#59)
+
+개발 Host를 실행한 뒤 `pnpm browser:test image-assets`로 clipboard·drop·실제 PNG 로딩·Save → Reload·rollback을 함께 검증한다.
+
+1. 저장 가능한 문서의 본문에 커서를 두고 스크린샷 PNG를 붙여넣는다. 선택한 블록 뒤에 Figure가 생기고 이미지가 표시되어야 한다. 원본 filename 대신 `./assets/image-<UUID>.png`를 사용한다.
+2. 로컬 PNG 하나를 다른 본문 위치로 drop한다. 포인터가 가리킨 블록 뒤에 Figure가 생긴다. caption·alt·label은 기존 Figure 편집 UI로 수정한다. Undo 한 번은 Figure 삽입만 되돌린다.
+3. Save → Reload 후 Figure 경로와 실제 이미지를 확인한다. 문서와 `assets/`를 함께 이동한 뒤 다시 열어도 이미지가 표시된다.
+4. 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 외부 text/HTML과 PNG file이 함께 있으면 PNG만 삽입한다. 파일이 없는 text/rich paste와 top-level block drag reorder는 기존 흐름을 유지한다.
+5. 빈 파일, 지원하지 않는 MIME, 크기 초과, read-only 문서, symlink `assets/`를 거부하고 문서를 그대로 유지해야 한다. 크기 상한은 [asset-policy.ts](../../apps/editor/shared/asset-policy.ts)가 기준이다. 업로드 중에는 `Adding image…`가 표시되며 Save와 문서 전환이 잠시 비활성화된다.
+
+Host 실패는 Figure를 삽입하지 않는다. 파일 생성 뒤 삽입이 거부되면 해당 파일만 rollback하며, rollback 실패는 지울 파일 경로와 오류를 계속 표시한다. 정상 삽입 뒤 Undo·삭제·미저장 종료의 orphan은 v1에서 자동 정리하지 않는다. 응답 유실/Host 재시작의 제한은 [Host design](../design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)을 따른다.
+
 ## Table cell editing v1
 
 Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬 변경, merged cell은 범위가 아니다. 기존 열 정렬은 표시·저장한다.

@@ -43,6 +43,7 @@ export function App() {
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
+  const [assetPending, setAssetPending] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   // Outline changes on scrolling re-render the sidebar only, never the App and its editor.
   const outlineStore = useRef(createOutlineStore()).current;
@@ -63,7 +64,7 @@ export function App() {
 
   // A pending Source preview belongs to the open document, so it blocks document switches too.
   const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…" ||
-    sourcePending;
+    sourcePending || assetPending;
   const switching = status === "Loading…" || status === "Opening…" || status === "Creating…";
 
   /** Resolves to an error message for a requested path, or "" on success. */
@@ -253,7 +254,7 @@ export function App() {
         <div className="app-header">
           <TopBar
             documentPath={openedPath}
-            status={status}
+            status={assetPending ? "Adding image…" : status}
             unsaved={documentDirty || equationDraftActive || figureDraftActive}
             writable={!writeError}
             view={view}
@@ -293,6 +294,8 @@ export function App() {
                 documentPath={openedPath}
                 onEquationDraftChange={setEquationDraftActive}
                 onFigureDraftChange={setFigureDraftActive}
+                onAssetPendingChange={setAssetPending}
+                onAssetError={setError}
                 onDirtyChange={setDocumentDirty}
                 onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}

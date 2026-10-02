@@ -9,6 +9,10 @@ const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider",
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
+export function isInternalClipboard(html: string): boolean {
+  return /\bdata-ieumdoc-type\s*=/.test(html);
+}
+
 function portable(node: PMNode): boolean {
   return TYPES.has(node.type.name) &&
     (!(node.type.name === "admonition" || node.type.name === "figure") || node.attrs.editable === true) &&
@@ -212,7 +216,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           const error = event.clipboardData?.getData("text/html") ? pasteError : undefined;
           pasteError = undefined;
           if (error) return fail(error);
-          if (event.clipboardData?.files.length) return fail("Pasting files is not supported. Use the Figure controls to choose an image URL. Your selection and clipboard are kept.");
+          if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail("Add one PNG image at a time. Your selection and clipboard are kept.");
           if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
           const target = view.state.selection.$from.parent.type.name;
           if (target === "heading" || target === "tableCell") {
