@@ -99,6 +99,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 
 - `apps/editor/server/document-api.ts`가 요청된 `.md` path를 resolve하고 Node filesystem API로 read/write한다.
 - 현재 Browser와 adapter 사이의 transport는 `/api/document`를 경유하는 localhost HTTP다.
+- `apps/editor/shared/document-protocol.ts`가 Browser와 Host의 저장 요청·응답 타입을 공유한다. 이 파일은 Core 공개 타입을 사용하는 데이터 계약이며, 파일 접근·검증·저장 실행은 포함하지 않는다.
 - adapter는 Core의 parse, semantic save operation, validation 및 serialization을 호출하고, 파일 I/O 자체는 adapter가 수행한다.
 - 문서 revision을 확인하여 외부 변경 후 stale save를 거부하는 현재 conflict 동작도 이 경계 안의 host/editor adapter 동작이다.
 - 상대 media는 열린 document directory를 기준으로 resolve하며 directory 밖 traversal을 거부한다.

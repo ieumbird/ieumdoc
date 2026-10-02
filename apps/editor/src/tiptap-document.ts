@@ -1,122 +1,43 @@
-import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type CodeBlockContent, type NodePath } from "@ieumdoc/core";
+import { isAdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type CodeBlockContent, type NodePath } from "@ieumdoc/core";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
+import type {
+  HeadingEdit,
+  HeadingLevelEdit,
+  ParagraphEdit,
+  EquationEdit,
+  FigureEdit,
+  AdmonitionEdit,
+  TableCellEdit,
+  TableShapeEdit,
+  ListEdit,
+  CodeEdit,
+  LabelEdit,
+  QuoteEdit,
+  InsertEdit,
+  OrderItem,
+  SupportedEdits,
+} from "../shared/document-protocol.ts";
+
 export type { TiptapJSON };
-
-/** The new inline content of an editable Heading. */
-export type HeadingEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type HeadingLevelEdit = {
-  path: NodePath;
-  from: number;
-  to: number;
-};
-
-export type ParagraphEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type EquationEdit = {
-  path: NodePath;
-  from: string;
-  to: string;
-};
-
-/** The new inline content of an editable table cell; empty clears it. */
-export type TableCellEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-/**
- * Rows and columns added to a snapshot table. Each entry of `rows`/`columns` is the snapshot
- * index of that row/column in the new grid, or null when it was added.
- */
-export type TableShapeEdit = {
-  path: NodePath;
-  rows: (number | null)[];
-  columns: (number | null)[];
-  /** Content typed into added cells, by position in the new grid. */
-  cells: { row: number; column: number; content: InlineContent[] }[];
-};
-
-/** A simple admonition's new kind and/or body; absent fields are unchanged. */
-export type AdmonitionEdit = {
-  path: NodePath;
-  variant?: AdmonitionVariant;
-  content?: InlineContent[];
-};
-
-export type FigureEdit = {
-  path: NodePath;
-  from: FigureContent;
-  to: FigureContent;
-};
-
-/** The new language and code of an editable code block. */
-export type CodeEdit = {
-  path: NodePath;
-  code: CodeBlockContent;
-};
-
-/** The whole new content of an editable list. */
-export type ListEdit = {
-  path: NodePath;
-  list: ListContent;
-};
-
-/** An Equation or Figure label; an empty `to` removes it. */
-export type LabelEdit = {
-  path: NodePath;
-  from: string;
-  to: string;
-};
-
-/** The new paragraph content of an editable Quote. */
-export type QuoteEdit = {
-  path: NodePath;
-  content: InlineContent[];
-};
-
-export type InsertEdit =
-  | { block: "paragraph"; content: InlineContent[] }
-  | { block: "heading"; level: number; content: InlineContent[] }
-  | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
-  | { block: "quote"; content: InlineContent[] }
-  | { block: "divider" }
-  | { block: "equation"; latex: string; label?: string }
-  | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[] }
-  | { block: "list"; list: ListContent }
-  | ({ block: "code" } & CodeBlockContent);
-
-/** A new top-level block's position in the next order, or an original snapshot block part. */
-export type OrderItem = { path: NodePath; part: number } | { insert: number };
-
-export type SupportedEdits = {
-  order?: OrderItem[];
-  headings: HeadingEdit[];
-  headingLevels?: HeadingLevelEdit[];
-  paragraphs: ParagraphEdit[];
-  equations?: EquationEdit[];
-  figures?: FigureEdit[];
-  cells?: TableCellEdit[];
-  tables?: TableShapeEdit[];
-  admonitions?: AdmonitionEdit[];
-  quotes?: QuoteEdit[];
-  lists?: ListEdit[];
-  codes?: CodeEdit[];
-  labels?: LabelEdit[];
-  splits?: { path: NodePath; parts: InlineContent[][] }[];
-  merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
-  inserts?: InsertEdit[];
-  deletes?: NodePath[];
-};
+export type {
+  HeadingEdit,
+  HeadingLevelEdit,
+  ParagraphEdit,
+  EquationEdit,
+  FigureEdit,
+  AdmonitionEdit,
+  TableCellEdit,
+  TableShapeEdit,
+  ListEdit,
+  CodeEdit,
+  LabelEdit,
+  QuoteEdit,
+  InsertEdit,
+  OrderItem,
+  SupportedEdits,
+} from "../shared/document-protocol.ts";
 
 // Unsaved top-level paragraphs have no snapshot locator yet. This session-only
 // marker stays in the session across saves; a newly opened document gets fresh snapshot paths. It is never persisted.
@@ -179,7 +100,7 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   };
 }
 
-export function collectSupportedEdits(document: EditableDocument, next: TiptapJSON): SupportedEdits {
+export function collectSupportedEdits(document: EditableDocument, next: TiptapJSON): SupportedEdits & Required<Pick<SupportedEdits, "headings" | "paragraphs">> {
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
   const headingLevels: HeadingLevelEdit[] = [];

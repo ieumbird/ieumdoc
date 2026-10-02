@@ -20,7 +20,7 @@
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
-| Callout | UI stack, 14/21px; Note blue-gray and Warning warm surfaces retain semantic distinction; plain variant title, explicit read-only restriction when applicable |
+| Callout | UI stack, 14/21px; standard admonition kinds use informational, caution and danger surfaces; plain variant title, explicit read-only restriction when applicable |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 

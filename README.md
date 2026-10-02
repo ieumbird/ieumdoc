@@ -66,7 +66,7 @@ Architecture decisions:
 - [ADR-0002: Document persistence and semantic ownership](docs/adr/0002-document-persistence-semantic-ownership.md)
 - [ADR-0003: Document addressing and identity boundary](docs/adr/0003-document-addressing-identity-boundary.md)
 
-## MVP 1 Alpha
+## Headless Core and CLI
 
 Headless document core is `packages/core`. File commands are `packages/cli`.
 
@@ -85,9 +85,11 @@ Paragraph hard breaks, splits, and merges are available through Core and CLI.
 Run `pnpm ieumdoc help split-paragraph` for the UTF-16 offset and snapshot-path contract.
 The Editor supports heading/paragraph splits and joins, Shift+Enter hard breaks, table-cell navigation, cross-block selection and clipboard, Undo/Redo, Markdown input shortcuts (`## `, `- `, `1. `, code fences, `**bold**`, `` `code` ``), and top-level block reordering and paragraph/heading conversion through the left handles. See [Continuous document editing](docs/design/document-editing-v1.md) for preservation boundaries.
 
-## MVP 2 Alpha
+## Visual Editor
 
 Visual Editor is `apps/editor`. It displays a technical document and writes changes through IeumDoc Core.
+
+It supports nested lists, code blocks and inline code, quotes, dividers, strikethrough, H1–H6 and standard admonition kinds. Supported inline content in headings, table cells and Figure captions is editable; unsupported structures remain read-only. The sidebar provides a document outline, and Ctrl/Cmd+S uses the same Save path as the button, preserving selection and Undo/Redo history.
 
 ```bash
 pnpm --filter @ieumdoc/editor dev

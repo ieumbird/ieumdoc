@@ -7,7 +7,16 @@ import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
-import { collectSupportedEdits, isSessionPlaceholder, type OrderItem, type SupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
+import { collectSupportedEdits, isSessionPlaceholder, type TiptapJSON } from "./tiptap-document.ts";
+import type {
+  DocumentFileResponse,
+  SaveResponse,
+  SourceResponse,
+  DocumentErrorResponse,
+  OrderItem,
+  SupportedEdits,
+  SessionSaveRequest,
+} from "../shared/document-protocol.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
@@ -22,7 +31,7 @@ export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
-  const sessionBase = useRef<{ source: string; savedEdits?: SupportedEdits } | undefined>(undefined);
+  const sessionBase = useRef<SessionSaveRequest["base"]>(undefined);
   const [openedPath, setOpenedPath] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -324,14 +333,9 @@ export function App() {
   );
 }
 
-type SessionSaveRequest = SupportedEdits & { revision: string; base?: { source: string; savedEdits?: SupportedEdits } };
-
-type DocumentResponse = {
-  path: string;
-  document: EditableDocument;
-  revision: string;
-  source?: string;
-  /** Why Core cannot write the snapshot as canonical Markdown; "" when it can. */
+/** Client view model normalizes the Host's null writeability verdict to an empty UI message. */
+type DocumentResponse = Omit<SaveResponse, "writeError"> & {
+  source?: DocumentFileResponse["source"];
   writeError: string;
 };
 
@@ -359,7 +363,7 @@ class SaveConflictError extends Error {
 async function requestDocument(
   method: "GET" | "POST" | "PUT",
   filePath?: string,
-  body?: (SessionSaveRequest & { path?: string }) | { path: string },
+  body?: SessionSaveRequest | { path: string },
 ): Promise<DocumentResponse> {
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
   const response = await fetch(`/api/document${query}`, {
@@ -367,15 +371,7 @@ async function requestDocument(
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify({ path: filePath, ...body }) : undefined,
   });
-  const payload = (await response.json()) as {
-    path?: string;
-    document?: EditableDocument;
-    revision?: string;
-    source?: string;
-    writeError?: string | null;
-    error?: string;
-    target?: OrderItem;
-  };
+  const payload = (await response.json()) as Partial<DocumentFileResponse> & Partial<DocumentErrorResponse>;
   if (response.status === 409) {
     throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
   }
@@ -398,7 +394,7 @@ async function requestSource(filePath: string, body: SessionSaveRequest): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path: filePath, ...body }),
   });
-  const payload = (await response.json()) as { markdown?: string; error?: string };
+  const payload = (await response.json()) as Partial<SourceResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || typeof payload.markdown !== "string") {
     throw new Error(payload.error ?? `request failed (${response.status})`);
   }
