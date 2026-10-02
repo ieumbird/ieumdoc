@@ -213,6 +213,72 @@ async page => {
     result.delayedDraftAppliedAndSaved = posted[1]?.figures?.[0]?.to?.caption === 'Caption typed during save.' &&
       (await semantic())[0].caption === 'Caption typed during save.' && (await semantic())[0].label === 'fig-control';
 
+    // #58: captions live in the same editor state as prose. Native formatting,
+    // rich clipboard input, edits to existing formatting, Undo/Redo and Reload keep it.
+    const caption = figures.first().getByTestId('figure-caption-content');
+    const selectCaption = async text => {
+      await caption.click();
+      await page.keyboard.press('End');
+      await page.keyboard.press('Shift+Home');
+      await page.waitForFunction(text => {
+        const e = document.querySelector('.document-editor').editor;
+        const s = e.state.selection;
+        return s.$from.parent.type.name === 'figure' && e.state.doc.textBetween(s.from, s.to) === text;
+      }, text);
+    };
+    await selectCaption('Caption typed during save.');
+    await page.keyboard.type('Caption rich');
+    await selectCaption('Caption rich');
+    await page.keyboard.press('ControlOrMeta+b');
+    result.captionBoldApplied = await caption.locator('strong').innerText() === 'Caption rich';
+    await save();
+    await openScratch();
+    result.captionFormattingReloaded = await caption.locator('strong').innerText() === 'Caption rich';
+    await caption.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' revised');
+    result.formattedCaptionTextEdited = await caption.locator('strong').innerText() === 'Caption rich revised';
+    await save();
+    await openScratch();
+    result.captionTextAndFormattingReloaded = await caption.locator('strong').innerText() === 'Caption rich revised';
+    await selectCaption('Caption rich revised');
+    await page.keyboard.press('ControlOrMeta+b');
+    result.captionBoldRemoved = await caption.locator('strong').count() === 0;
+    await page.keyboard.press('ControlOrMeta+z');
+    result.captionUndoKeepsFormatting = await caption.locator('strong').count() === 1;
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    result.captionRedoRemovesFormatting = await caption.locator('strong').count() === 0;
+    await save();
+    await openScratch();
+    result.captionRemovalReloaded = await caption.locator('strong').count() === 0;
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.locator('.document-editor strong', {hasText:'DC-link voltage'}).evaluate(element => {
+      const range = document.createRange(); range.selectNodeContents(element);
+      getSelection().removeAllRanges(); getSelection().addRange(range);
+    });
+    await page.waitForFunction(() => {
+      const e = document.querySelector('.document-editor').editor;
+      return e.state.doc.textBetween(e.state.selection.from, e.state.selection.to) === 'DC-link voltage';
+    });
+    await page.keyboard.press('ControlOrMeta+c');
+    await selectCaption('Caption rich revised');
+    await page.keyboard.press('ControlOrMeta+v');
+    result.captionRichPaste = await caption.locator('strong').innerText() === 'DC-link voltage';
+    await save();
+    await openScratch();
+    result.captionRichPasteReloaded = await caption.locator('strong').innerText() === 'DC-link voltage';
+    // Updating metadata never flattens an existing formatted caption.
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
+    await figures.first().getByRole('button', {name:'Edit figure'}).click();
+    await editor.waitFor();
+    await page.getByTestId('figure-alt').fill('Rich caption image');
+    await page.getByTestId('figure-apply').click();
+    await editor.waitFor({state:'detached'});
+    await save();
+    await openScratch();
+    result.metadataKeepsCaptionFormatting = await caption.locator('strong').innerText() === 'DC-link voltage' &&
+      (await semantic())[0].imageAlt === 'Rich caption image' && (await semantic())[0].label === 'fig-control';
+
     // Canceling a never-applied Figure that is the only block restores the empty-document paragraph.
     const emptyPath = filePath.replace('technical-document.md', `empty-${Date.now()}.md`);
     await page.getByRole('button', {name:'New', exact:true}).click();

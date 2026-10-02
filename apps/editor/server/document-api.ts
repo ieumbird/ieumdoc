@@ -3,6 +3,7 @@ import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
   canonicalWriteError,
   getEditableDocument,
@@ -87,10 +88,10 @@ export type AdmonitionEdit = {
   content?: InlineContent[];
 };
 
+/** The new inline content of an editable table cell; empty clears it. */
 export type TableCellEdit = {
   path: NodePath;
-  from: string;
-  to: string;
+  content: InlineContent[];
 };
 
 /** Rows and columns added to a table: each entry is the snapshot index, or null when added. */
@@ -98,8 +99,8 @@ export type TableShapeEdit = {
   path: NodePath;
   rows: (number | null)[];
   columns: (number | null)[];
-  /** Text typed into added cells, by position in the new grid. */
-  cells: { row: number; column: number; text: string }[];
+  /** Content typed into added cells, by position in the new grid. */
+  cells: { row: number; column: number; content: InlineContent[] }[];
 };
 
 /** The new language and code of an editable code block. */
@@ -135,7 +136,7 @@ export type InsertEdit =
   | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
+  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[] }
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent);
 
@@ -449,7 +450,7 @@ export function saveEdits(
       throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
     }
     if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
-        figure.from.caption !== block.caption.text) {
+        JSON.stringify(figureCaptionContent(figure.from.caption)) !== JSON.stringify(block.caption.content)) {
       throw new Error(`figure does not match at [${figure.path.join(",")}]`);
     }
     document = editAt(target, () => updateFigure(document, figure.path, figureContent(figure.to)));
@@ -463,10 +464,10 @@ export function saveEdits(
     if (!cell?.editable) {
       throw new Error(`table cell edit is not allowed at [${edit.path.join(",")}]`);
     }
-    if (edit.from !== cell.text || typeof edit.to !== "string") {
-      throw new Error(`table cell text does not match at [${edit.path.join(",")}]`);
+    if (!Array.isArray(edit.content)) {
+      throw new Error(`table cell content must be InlineContent at [${edit.path.join(",")}]`);
     }
-    document = editAt(target, () => updateTableCell(document, edit.path, edit.to));
+    document = editAt(target, () => updateTableCell(document, edit.path, edit.content));
   }
   // Snapshot cells are edited above at their snapshot paths; Core then adds rows and columns
   // in new-grid order and fills the added cells.
@@ -485,7 +486,7 @@ export function saveEdits(
       if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
         throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
       }
-      document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.text));
+      document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.content));
     }
   }
   const labels = edits.labels ?? [];
@@ -585,7 +586,7 @@ export function saveEdits(
       continue;
     }
     if (insert.block === "table") {
-      if (!Array.isArray(insert.rows) || insert.rows.flat().every(text => text === "")) {
+      if (!Array.isArray(insert.rows) || insert.rows.flat().every(content => inlineText(content) === "")) {
         throw new Error("empty table cannot be saved");
       }
       continue;
@@ -826,8 +827,9 @@ export function validateFigureRequest(value: FigureContent | undefined): string 
 
 /** A complete typed Figure value; omitted properties are not treated as unchanged. */
 function figureContent(value: FigureContent | undefined): FigureContent {
-  if (typeof value?.imageUrl !== "string" || typeof value.imageAlt !== "string" || typeof value.caption !== "string") {
-    throw new Error("figure image URL, alt text, and caption must be strings");
+  if (typeof value?.imageUrl !== "string" || typeof value.imageAlt !== "string" ||
+      (typeof value.caption !== "string" && !Array.isArray(value.caption))) {
+    throw new Error("figure image URL and alt text must be strings; caption must be text or InlineContent");
   }
   return { imageUrl: value.imageUrl, imageAlt: value.imageAlt, caption: value.caption };
 }

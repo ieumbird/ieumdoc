@@ -163,7 +163,7 @@ test("updateFigure rejects non-Figure and invalid paths", () => {
 
 test("updateFigure fails closed for unsupported Figure structures", () => {
   for (const markdown of [
-    ":::{figure} ./a.png\n**bold caption**\n:::\n",
+    ":::{figure} ./a.png\n{sub}`V`\n:::\n",
     ":::{figure} ./a.png\nCaption\n\nLegend paragraph\n:::\n",
     ":::{figure} ./a.png\n% comment\n:::\n",
   ]) {
@@ -171,5 +171,39 @@ test("updateFigure fails closed for unsupported Figure structures", () => {
     const block = getEditableDocument(document).blocks[0];
     assert.equal(block?.block === "figure" && block.editable, false, markdown);
     assert.throws(() => updateFigure(document, [0], { imageAlt: "x" }), /not editable/);
+  }
+});
+
+test("Figure captions keep supported inline semantics through updates, inserts and canonical reload", () => {
+  const caption: import("./core-internal.ts").InlineContent[] = [
+    { kind: "strong", children: [{ kind: "text", text: "Bold" }] }, { kind: "text", text: " " },
+    { kind: "emphasis", children: [{ kind: "text", text: "italic" }] }, { kind: "text", text: " " },
+    { kind: "delete", children: [{ kind: "text", text: "old" }] }, { kind: "text", text: " " },
+    { kind: "link", url: "https://a.example", children: [{ kind: "text", text: "manual" }] },
+    { kind: "text", text: " " }, { kind: "code", value: "a_b" }, { kind: "text", text: " " },
+    { kind: "math", value: "x_1" }, { kind: "text", text: " " }, { kind: "reference", role: "eq", label: "eq-current" },
+  ];
+  for (const [document, index] of [
+    [updateFigure(parse(source), FIGURE_PATH, { caption }), FIGURE_PATH[0]],
+    [insertFigure(parse(source), 0, { imageUrl: "./a.png", imageAlt: "", caption }), 0],
+  ] as const) {
+    const { markdown } = roundTrip(document, index);
+    const block = getEditableDocument(parse(markdown)).blocks[index];
+    assert.equal(block.block, "figure");
+    if (block.block !== "figure") continue;
+    assert.equal(block.editable, true);
+    assert.deepEqual(block.caption.content, caption);
+    const imageOnly = updateFigure(parse(markdown), [index], { imageAlt: "Changed alt" });
+    const preserved = getEditableDocument(imageOnly).blocks[index];
+    assert.deepEqual(preserved.block === "figure" && preserved.caption.content, caption);
+    const plain = updateFigure(document, [index], { caption: "Plain" });
+    const plainBlock = getEditableDocument(plain).blocks[index];
+    assert.deepEqual(plainBlock.block === "figure" && plainBlock.caption.content, [{ kind: "text", text: "Plain" }]);
+  }
+  const original = parse(source);
+  const before = serialize(original);
+  for (const invalid of [[{ kind: "text", text: "cost $x$" }], [{ kind: "link", url: "", children: [] }], [{ kind: "unknown" }]]) {
+    assert.throws(() => updateFigure(original, FIGURE_PATH, { caption: invalid as never }));
+    assert.equal(serialize(original), before);
   }
 });

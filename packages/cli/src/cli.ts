@@ -79,7 +79,8 @@ const OFFSET_NOTE = [
 ];
 const FIGURE_NOTE = [
   "The image URL is required. An empty --alt or --caption removes that property.",
-  "The caption is plain text. Values that cannot round-trip through canonical Markdown are rejected.",
+  "Use --caption for text or --caption-content for Core InlineContent JSON; they are mutually exclusive.",
+  "Values that cannot round-trip through canonical Markdown are rejected.",
 ];
 const LIST_NOTE = [
   "--list is Core ListContent JSON: {\"ordered\": boolean, \"start\"?: number, \"items\": [...]}.",
@@ -258,7 +259,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-figure",
     summary: "Insert a Figure block at a top-level index",
-    usage: "ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]",
+    usage: "ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text> | --caption-content <json>]",
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
@@ -268,7 +269,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "update-figure",
     summary: "Update a Figure's image, alt text, or caption through Core",
-    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]",
+    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>]",
     details: [
       "Update one top-level Figure through Core. Omitted properties are unchanged.",
       ...FIGURE_NOTE,
@@ -294,10 +295,10 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc insert-table <file> --at <index> --cells <json> [--align <json>]",
     details: [
       "Insert a Markdown table at a top-level index.",
-      "--cells is a JSON array of rows, each an array of cell texts; the first row is the header row.",
-      "Every row needs the same number of cells. Cells may be empty.",
+      "--cells is a JSON array of rows, each an array of cells; the first row is the header row.",
+      "A cell is its text or Core InlineContent JSON. Every row needs the same number of cells. Cells may be empty.",
       "--align is an optional JSON array of left, center, right or null, one per column.",
-      "Cell text must be one line without leading or trailing whitespace.",
+      "Cell content must be one line without leading or trailing whitespace.",
       "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
     ],
   },
@@ -364,11 +365,12 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-table-cell",
-    summary: "Replace the text of a Markdown table cell through Core",
-    usage: "ieumdoc update-table-cell <file> --path <table,row,cell> --text <text>",
+    summary: "Replace the content of a Markdown table cell through Core",
+    usage: "ieumdoc update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)",
     details: [
-      "Replace the whole text of one cell in a top-level Markdown table. Use an empty --text to clear it.",
-      "Only empty or plain-text cells are editable; the text must be one line without leading or trailing whitespace.",
+      "Replace the whole content of one cell in a top-level Markdown table. Use an empty --text to clear it.",
+      "--content is Core InlineContent JSON (marks, links, inline math and references) without line breaks.",
+      "The content must be one line without leading or trailing whitespace. Cells with unsupported inline content are read-only.",
       ...PATH_NOTE,
     ],
   },
@@ -562,7 +564,7 @@ function main(argv: string[]): number {
       save(file, insertFigure(parse(readFile(file)), intFlag(flags, "--at"), {
         imageUrl: flag(flags, "--image"),
         imageAlt: optionalFlag(flags, "--alt") ?? "",
-        caption: optionalFlag(flags, "--caption") ?? "",
+        caption: captionInput(flags) ?? "",
       }));
       return 0;
     }
@@ -570,10 +572,10 @@ function main(argv: string[]): number {
       const changes = {
         imageUrl: optionalFlag(flags, "--image"),
         imageAlt: optionalFlag(flags, "--alt"),
-        caption: optionalFlag(flags, "--caption"),
+        caption: captionInput(flags),
       };
       if (Object.values(changes).every((value) => value === undefined)) {
-        throw new Error("update-figure requires --image, --alt, or --caption");
+        throw new Error("update-figure requires --image, --alt, --caption, or --caption-content");
       }
       save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
       return 0;
@@ -614,7 +616,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "update-table-cell": {
-      save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), flag(flags, "--text")));
+      save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "remove-block": {
@@ -711,8 +713,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
   "insert-equation": ["--at", "--latex"],
-  "insert-figure": ["--at", "--image", "--alt", "--caption"],
-  "update-figure": ["--path", "--image", "--alt", "--caption"],
+  "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content"],
+  "update-figure": ["--path", "--image", "--alt", "--caption", "--caption-content"],
   "insert-table": ["--at", "--cells", "--align"],
   "insert-list": ["--at", "--list"],
   "update-list": ["--path", "--list"],
@@ -720,7 +722,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-code-block": ["--path", "--language", "--code"],
   "insert-table-row": ["--path", "--at"],
   "insert-table-column": ["--path", "--at"],
-  "update-table-cell": ["--path", "--text"],
+  "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
   "update-node-text": ["--path", "--from", "--to"],
@@ -956,6 +958,13 @@ function flag(args: string[], name: string): string {
 }
 
 /** Exactly one of --text (plain) or --content (Core InlineContent JSON). */
+function captionInput(args: string[]): string | InlineContent[] | undefined {
+  const text = optionalFlag(args, "--caption");
+  const content = optionalFlag(args, "--caption-content");
+  if (text !== undefined && content !== undefined) throw new Error("--caption and --caption-content are mutually exclusive");
+  return content === undefined ? text : jsonFlag<InlineContent[]>(args, "--caption-content");
+}
+
 function textOrContent(args: string[]): InlineContent[] {
   const text = optionalFlag(args, "--text");
   const content = optionalFlag(args, "--content");

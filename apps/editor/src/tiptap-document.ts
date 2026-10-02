@@ -1,5 +1,5 @@
 import { isAdmonitionVariant, type AdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type CodeBlockContent, type NodePath } from "@ieumdoc/core";
-import { figureContentError } from "@ieumdoc/core/figure";
+import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
 export type { TiptapJSON };
@@ -27,10 +27,10 @@ export type EquationEdit = {
   to: string;
 };
 
+/** The new inline content of an editable table cell; empty clears it. */
 export type TableCellEdit = {
   path: NodePath;
-  from: string;
-  to: string;
+  content: InlineContent[];
 };
 
 /**
@@ -41,8 +41,8 @@ export type TableShapeEdit = {
   path: NodePath;
   rows: (number | null)[];
   columns: (number | null)[];
-  /** Text typed into added cells, by position in the new grid. */
-  cells: { row: number; column: number; text: string }[];
+  /** Content typed into added cells, by position in the new grid. */
+  cells: { row: number; column: number; content: InlineContent[] }[];
 };
 
 /** A simple admonition's new kind and/or body; absent fields are unchanged. */
@@ -91,7 +91,7 @@ export type InsertEdit =
   | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: string[][]; align?: ("left" | "center" | "right" | null)[] }
+  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[] }
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent);
 
@@ -224,7 +224,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
           throw saveError(node, "empty equation LaTeX cannot be saved");
         }
         if (insert.block === "figure") assertFigureContent(insert);
-        if (insert.block === "table" && insert.rows.flat().every(text => text.length === 0)) {
+        if (insert.block === "table" && insert.rows.flat().every(content => inlineText(content).length === 0)) {
           throw saveError(node, "empty table cannot be saved");
         }
         if (insert.block === "list" && hasEmptyListItem(insert.list)) {
@@ -264,9 +264,10 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     } else if (block.block === "figure" && block.editable) {
       const label = blockLabel(node);
       if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
-      const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: block.caption.text };
+      const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: captionValue(block.caption.content) };
       const to = figureContent(node);
-      if (JSON.stringify(to) === JSON.stringify(from)) continue;
+      if (to.imageUrl === from.imageUrl && to.imageAlt === from.imageAlt &&
+          sameInline(figureCaptionContent(to.caption), block.caption.content)) continue;
       assertFigureContent(to);
       figures.push({ path: block.path, from, to });
     } else if (block.block === "admonition" && block.editable) {
@@ -296,12 +297,12 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       const next = tableCells(node);
       const shape = tableShape(tableCells(toTiptapBlock(block)), next);
       block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
-        const text = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.text;
-        if (cell.editable && text !== undefined && text !== cell.text) cells.push({ path: cell.path, from: cell.text, to: text });
+        const content = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.content;
+        if (cell.editable && content !== undefined && !sameInline(content, cell.content)) cells.push({ path: cell.path, content });
       }));
       if (shape.rows.includes(null) || shape.columns.includes(null)) {
         tables.push({ path: block.path, ...shape, cells: next.flatMap((row, rowIndex) => row.flatMap((cell, column) =>
-          (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.text ? [{ row: rowIndex, column, text: cell.text }] : [])) });
+          (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.content.length ? [{ row: rowIndex, column, content: cell.content }] : [])) });
       }
     }
   }
@@ -496,9 +497,10 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
         label: block.label,
         imageUrl: block.imageUrl,
         imageAlt: block.imageAlt,
-        caption: block.caption.text,
+        ...(block.editable ? {} : { caption: block.caption.text }),
         editable: block.editable,
       },
+      ...(block.editable ? { content: paragraphContent(block.caption.content) } : {}),
     };
   }
   if (block.block === "equation") {
@@ -525,7 +527,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       content: block.rows.map((row) => ({
         type: "tableRow",
         content: row.cells.map((cell): TiptapJSON => cell.editable
-          ? { type: "tableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}) }, content: cell.text ? [{ type: "text", text: cell.text }] : [] }
+          ? { type: "tableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}) }, content: paragraphContent(cell.content) }
           : { type: "readonlyTableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}), text: cell.text } }),
       })),
     };
@@ -607,7 +609,7 @@ function readonlyNode(
   };
 }
 
-function paragraphContent(content: InlineContent[]): TiptapJSON[] {
+export function paragraphContent(content: InlineContent[]): TiptapJSON[] {
   const projected = toTiptapContent(content);
   return projected.content?.[0]?.content ?? [];
 }
@@ -653,7 +655,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     if (grid.some(row => row.some((cell, column) => (cell.align || null) !== align[column]))) {
       throw new Error("table alignment must be uniform within each column");
     }
-    return { block: "table", rows: grid.map(row => row.map(cell => cell.text)), ...(align.some(Boolean) ? { align } : {}) };
+    return { block: "table", rows: grid.map(row => row.map(cell => cell.content)), ...(align.some(Boolean) ? { align } : {}) };
   }
   if (LIST_BLOCKS.has(node.type ?? "")) {
     return { block: "list", list: listContent(node) };
@@ -664,12 +666,17 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   throw new Error("only paragraphs, headings, admonitions, quotes, dividers, equations, figures, tables, lists, and code blocks can be inserted");
 }
 
-function figureContent(node: TiptapJSON): FigureContent {
-  const { imageUrl, imageAlt, caption } = node.attrs ?? {};
-  if (typeof imageUrl !== "string" || typeof imageAlt !== "string" || typeof caption !== "string") {
-    throw new Error("figure image URL, alt text, and caption must be strings");
+export function figureContent(node: TiptapJSON): FigureContent {
+  const { imageUrl, imageAlt } = node.attrs ?? {};
+  if (typeof imageUrl !== "string" || typeof imageAlt !== "string") {
+    throw new Error("figure image URL and alt text must be strings");
   }
-  return { imageUrl, imageAlt, caption };
+  return { imageUrl, imageAlt, caption: captionValue(paragraphInline(node)) };
+}
+
+// Retain the text convenience representation for existing plain-caption clients.
+function captionValue(content: InlineContent[]): FigureContent["caption"] {
+  return content.every(item => item.kind === "text") ? inlineText(content) : content;
 }
 
 function assertFigureContent(figure: FigureContent): void {
@@ -737,9 +744,6 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     }
     blockLabel(after);
     figureContent(after);
-    if ((after.content ?? []).length > 0) {
-      throw new Error("figure content cannot change");
-    }
     return;
   }
   if (beforeType === "table") {
@@ -805,29 +809,25 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
   }
 }
 
-/** `added` marks a cell absent from the opening snapshot (see TABLE_CELL_ADDED_ATTR). */
-type TableCellShape = { editable: boolean; header: boolean; text: string; align: string; added: boolean };
+/** `added` marks a cell absent from the opening snapshot (see TABLE_CELL_ADDED_ATTR).
+ * `text` is a read-only cell's display text; `content` is an editable cell's content. */
+type TableCellShape = { editable: boolean; header: boolean; text: string; content: InlineContent[]; align: string; added: boolean };
 
 /** Session-only tableCell attribute: an id for a cell added since Open/New, else empty. */
 export const TABLE_CELL_ADDED_ATTR = "added";
 
-/** The cell grid of a table node; editable cells must hold unmarked text only. */
+/** The cell grid of a table node; editable cells hold inline content without line breaks. */
 function tableCells(node: TiptapJSON): TableCellShape[][] {
   return (node.content ?? []).map((row) => {
     if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
     return (row.content ?? []).map((cell) => {
       const header = cell.attrs?.header === true;
       const align = String(cell.attrs?.align ?? "");
-      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), added: false };
+      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], added: false };
       if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
-      let text = "";
-      for (const child of cell.content ?? []) {
-        if (child.type !== "text" || typeof child.text !== "string" || (child.marks?.length ?? 0) > 0) {
-          throw new Error("table cells hold plain text only");
-        }
-        text += child.text;
-      }
-      return { editable: true, header, align, text, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
+      const content = paragraphInline(cell);
+      if (hasBreak(content)) throw new Error("a table cell cannot contain line breaks");
+      return { editable: true, header, align, text: "", content, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
     });
   });
 }
@@ -872,10 +872,12 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): { rows: (n
 /** Heading content is paragraph inline content without line breaks. */
 function headingInline(node: TiptapJSON): InlineContent[] {
   const content = paragraphInline(node);
-  const hasBreak = (items: InlineContent[]): boolean =>
-    items.some(item => item.kind === "break" || ("children" in item && hasBreak(item.children)));
   if (hasBreak(content)) throw new Error("a heading cannot contain line breaks");
   return content;
+}
+
+function hasBreak(items: InlineContent[]): boolean {
+  return items.some(item => item.kind === "break" || ("children" in item && hasBreak(item.children)));
 }
 
 function paragraphInline(node: TiptapJSON): InlineContent[] {

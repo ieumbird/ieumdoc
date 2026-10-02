@@ -8,10 +8,10 @@ persistent changes and canonical semantic validation.
   beside an atomic block. Backspace/Delete use engine joins and selections. A
   heading joined with prose that has line breaks becomes a paragraph to retain them
   (headings hold marks and inline atoms but no line breaks, #58).
-  Admonitions and table cells are isolating: they never silently become prose.
+  Admonitions, Figures and table cells are isolating: they never silently become prose.
 - Tab/Shift+Tab move between editable table cells, skipping read-only cells;
   leaving the first/last cell enters surrounding prose (creating a paragraph at
-  a document edge). Enter leaves a table or a simple admonition.
+  a document edge). Enter leaves a table, a Figure caption or a simple admonition.
 - Selecting an existing Equation leaves keyboard focus in the document; Edit
   opens its source form. A newly inserted empty Equation still opens its form
   automatically. NodeView selection alone must not steal navigation focus.
@@ -45,3 +45,13 @@ losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
 Automated composition events exercise the browser input lifecycle, not an OS IME.
+
+Issue #58 extends table cells and Figure captions to the supported InlineContent
+contract. Core updateTableCell/insertTable accept text or inline content (CLI
+update-table-cell --content and insert-table --cells); cells reject line breaks.
+Core updateFigure/insertFigure accept text or inline captions (CLI --caption-content).
+A Figure's caption is inline content in the single ProseMirror document, editable
+in place with the existing formatting/clipboard controls. Image/alt/label drafts
+retain Apply/Cancel; the legacy plain-caption field remains available for plain
+captions. Metadata Apply keeps rich caption content. Legends and unsupported
+inline elements stay read-only with original source and a visible reason.

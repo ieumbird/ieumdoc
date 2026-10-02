@@ -3,9 +3,14 @@ export type FigureContent = {
   imageUrl: string;
   /** Empty means no alt text. */
   imageAlt: string;
-  /** Plain text; empty means no caption. */
-  caption: string;
+  /** Plain text or supported inline content; empty means no caption. */
+  caption: string | InlineContent[];
 };
+
+/** Normalize the text convenience input to the editor-neutral inline contract. */
+export function figureCaptionContent(caption: FigureContent["caption"]): InlineContent[] {
+  return typeof caption === "string" ? (caption ? [{ kind: "text", text: caption }] : []) : caption;
+}
 
 /**
  * Field rules observed in canonical MyST round-trips: an empty URL drops the
@@ -16,8 +21,8 @@ export type FigureContent = {
  */
 export function figureContentError(figure: FigureContent): string | undefined {
   if (typeof figure?.imageUrl !== "string" || typeof figure.imageAlt !== "string" ||
-      typeof figure.caption !== "string") {
-    return "Figure image URL, alt text, and caption must be strings.";
+      (typeof figure.caption !== "string" && !Array.isArray(figure.caption))) {
+    return "Figure image URL and alt text must be strings; caption must be text or InlineContent.";
   }
   if (figure.imageUrl.length === 0) return "Figure image URL is required.";
   if (/[\r\n]/.test(figure.imageUrl) || figure.imageUrl.trim() !== figure.imageUrl) {
@@ -28,3 +33,4 @@ export function figureContentError(figure: FigureContent): string | undefined {
   }
   return undefined;
 }
+import type { InlineContent } from "./inline.ts";

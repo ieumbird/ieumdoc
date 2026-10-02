@@ -78,8 +78,8 @@ pnpm test
 ✔ ieumdoc help exits successfully
 ✔ inspect prints Core editable targets
 ✔ technical document exposes an editor read model
-✔ heading with inline marks stays read-only
-✔ formatted caption and table cell stay read-only
+✔ heading with supported inline marks is editable
+✔ supported formatted captions and table cells are editable; unsupported inline content stays read-only
 ✔ formatted paragraph projects to editor-neutral inline content
 ✔ paragraph inline write preserves strong and emphasis
 ✔ paragraph inline mutation round-trips through parse and serialize
@@ -505,7 +505,7 @@ index는 `check`가 출력하는 top-level 번호다.
 
 ## 5. 현재 구현의 한계 (실패로 보지 말 것)
 
-- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition/caption은 `update-node-text --path`, table cell은 `update-table-cell --path`를 쓴다.
+- `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition은 `update-node-text --path`, caption은 `update-figure --path --caption` 또는 `--caption-content`, table cell은 `update-table-cell --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
 - Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
@@ -515,7 +515,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 plain-text cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 서식 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 서식 있는 caption 등 v1이 지원하지 않는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/caption/label을 Figure editor에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -528,7 +528,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `fromIndex out of range` / `index out of range`: `check`로 현재 index를 다시 본다. 앞 단계 명령을 건너뛰면 index가 달라진다.
 - 두 번째 `format` 후 파일이 바뀌면 Core serialize invariant가 깨진 것이다.
 - Editor 페이지가 비어 있으면 `pnpm --filter @ieumdoc/editor dev` 가 저장소 루트에서 실행 중인지, 주소가 `http://localhost:5173` 인지 확인한다.
-- Save 후 파일에 반영되지 않으면 heading level/text, Note/Warning 본문 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. 지원되지 않는 admonition 구조, reference paragraph, 서식 있는 table cell은 저장 대상이 아니다.
+- Save 후 파일에 반영되지 않으면 heading level/text, Note/Warning 본문 또는 지원되는 paragraph를 수정한 뒤 `Save` 를 다시 누른다. 지원되지 않는 admonition 구조와 인라인 요소가 있는 paragraph/table cell은 저장 대상이 아니다.
 - Heading Enter가 새 블록으로 이어지는지 확인한다. Note와 표 셀은 일반 paragraph로 합쳐지지 않아야 한다.
 
 ## Single Editor 저장 경계 회귀 확인
@@ -679,24 +679,26 @@ Core `updateFigure` / `insertFigure`가 Figure의 image URL, alt text, caption�
 
 - image URL은 필수다. 앞뒤 공백과 줄바꿈은 안 된다(빈 URL은 Figure가 사라지고, 공백은 저장 후 바뀐다).
 - alt text는 비워도 된다(비우면 `:alt:`가 없어진다). 줄바꿈과 앞 공백은 안 된다.
-- caption은 plain text이며 비워도 된다(비우면 caption이 없어진다). MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않는다. Save는 마지막 Apply 값과 다른 확정 내용을 저장한다.
-- legend, 서식 있는 caption 등 v1이 지원하지 않는 구조의 Figure는 읽기 전용이다(`inspect`의 `figureEditable=false`).
+- caption은 지원되는 인라인 내용이며 비워도 된다(비우면 caption이 없어진다). 일반 텍스트 입력은 문자열, 서식 있는 입력은 `InlineContent[]`로 Core에 전달한다. MyST가 다른 의미로 읽는 caption(예: `cost $5 and $x$`, `% ...`, `+++`)은 Core round-trip에서 거부된다. Editor `Apply`는 Host(`POST /api/figure-validation`)를 통해 같은 Core `validateFigure`를 호출하므로, 이런 값은 Apply 시점에 form이 유지된 채 오류가 보이고 block 값은 바뀌지 않는다. Save는 마지막 Apply 값과 다른 확정 내용을 저장한다.
+- legend, 지원되지 않는 인라인 요소(예: `{sub}`) 등 표현할 수 없는 구조의 Figure는 읽기 전용이다(`inspect`의 `figureEditable=false`).
 
 CLI:
 
 ```bash
 pnpm ieumdoc insert-figure <file> --at 1 --image ./plot.svg --alt "Plot" --caption "Measured plot."
 pnpm ieumdoc update-figure <file> --path 6 --caption "New caption."
+pnpm ieumdoc update-figure <file> --path 6 --caption-content '[{"kind":"strong","children":[{"kind":"text","text":"Bold caption"}]}]'
 ```
 
-`update-figure`에서 생략한 속성은 바뀌지 않는다. `--path`가 Figure가 아니거나 값이 유효하지 않으면 exit 1이고 파일은 그대로다.
+`--caption`과 `--caption-content`는 함께 쓸 수 없다. `insert-figure`에서도 같은 두 옵션을 쓸 수 있다. `update-figure`에서 생략한 속성은 바뀌지 않는다. `--path`가 Figure가 아니거나 값이 유효하지 않으면 exit 1이고 파일은 그대로다.
 
 Editor:
 
 - 기존 Figure를 클릭하면 properties popover(Label, Image, Alt text, Caption)가 보이고 editor focus는 유지된다. block의 `Edit`를 누르면 Image / Alt text / Caption / Label 입력이 있는 form이 열린다.
-- 값을 바꾸면 block 안에 `Unapplied changes are not saved. Apply to include them, or Cancel.`이 보인다. Save/Source는 마지막 Apply 값만 포함하며 초안은 유지한다. Apply 후 새 값이 저장 대상이 되고 Cancel은 마지막 Apply 값으로 돌아간다.
+- Figure form 값을 바꾸면 block 안에 `Unapplied changes are not saved. Apply to include them, or Cancel.`이 보인다. Save/Source는 form의 마지막 Apply 값과 문서에서 직접 편집한 caption을 포함하며 form 초안은 유지한다. Apply 후 새 값이 저장 대상이 되고 Cancel은 마지막 Apply 값으로 돌아간다.
 - 상대 경로 이미지(`./`, `../`)는 열린 문서의 폴더 기준으로 보인다. 이미지 preview는 Apply 후 갱신된다.
 - `+` 또는 `/figure`로 새 Figure를 넣으면 form이 바로 열리고 Image 입력에 focus가 간다. 빈 새 paragraph에서 `/figure`를 쓰면 그 paragraph가 Figure로 바뀌어 빈 paragraph가 남지 않는다. 한 번도 Apply하지 않고 `Cancel`하면 block이 사라진다(문서의 유일한 block이면 빈 paragraph로 돌아간다). Apply한 뒤 다시 `Edit` → 변경 → `Cancel`하면 block은 남고 Apply한 값으로 돌아간다.
+- caption은 그림 아래 문서 안에서 직접 편집한다. 선택 서식 툴바·단축키, 서식 있는 붙여넣기, Undo/Redo가 문단처럼 작동한다. Enter는 그림 다음 문단으로 이동한다. 기존 일반 텍스트 caption은 Figure form의 Caption 입력도 사용할 수 있다. 서식 있는 caption의 form은 본문에서 편집하라는 안내를 보이며 image/alt/label Apply가 caption 서식을 보존한다.
 - Save → Reload 후 image/alt/caption이 유지되고 기존 label은 그대로다. Delete, reorder, Undo/Redo, Save 지연 중 입력한 Figure draft도 기존 block과 같이 동작한다.
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
@@ -713,7 +715,7 @@ pnpm exec playwright-cli -s=ieumdoc-figure close
 
 ## Table cell editing v1
 
-Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 텍스트 전체를 바꾼다. 수정 가능한 cell은 비어 있거나 plain text만 있는 cell이다. 서식(굵게 등), 수식, link, role이 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬 변경, merged cell은 범위가 아니다. 기존 열 정렬은 표시·저장한다.
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬 변경, merged cell은 범위가 아니다. 기존 열 정렬은 표시·저장한다.
 
 유효 조건(Core round-trip에서 확인한 조건이다):
 
@@ -725,6 +727,7 @@ CLI:
 
 ```bash
 pnpm ieumdoc update-table-cell <file> --path 12,1,1 --text "AC-side"
+pnpm ieumdoc update-table-cell <file> --path 12,1,1 --content '[{"kind":"strong","children":[{"kind":"text","text":"AC-side"}]}]'
 pnpm ieumdoc update-table-cell <file> --path 12,2,1 --text ""
 ```
 
@@ -733,7 +736,7 @@ pnpm ieumdoc update-table-cell <file> --path 12,2,1 --text ""
 Editor:
 
 - Table은 문서 안의 일반 표로 보인다. 수정 가능한 cell을 클릭하고 바로 입력한다. 읽기 전용 cell은 흐린 글자이고 입력해도 바뀌지 않는다.
-- Enter, Shift+Enter, cell 시작의 Backspace는 표 구조를 바꾸지 않는다. cell 안에서는 굵게/기울임이 적용되지 않는다. Undo/Redo는 다른 편집과 같다.
+- Enter는 표 다음 문단으로 이동한다. Shift+Enter와 cell 시작의 Backspace는 표 구조를 바꾸지 않는다. cell 안에서 서식 툴바·단축키로 굵게/기울임/링크/인라인 수식/교차 참조 등을 적용·해제하고 서식 있는 내용을 붙여넣을 수 있다. 줄바꿈은 거부한다. Undo/Redo는 다른 편집과 같다.
 - Save → Reload 후 수정한 header/body cell이 canonical Markdown에 남고, 다른 block은 그대로다. 유효하지 않은 cell 텍스트는 `Save failed`로 거부되고 파일은 바뀌지 않는다.
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):
@@ -751,9 +754,9 @@ pnpm exec playwright-cli -s=ieumdoc-table close
 
 Core가 새 table, 기존 table의 행과 열을 만든다. 모두 canonical Markdown으로 다시 읽어 같은 표가 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
 
-- `insertTable`: 선택적 열 정렬(left/center/right/null, CLI `--align`)과 함께 top-level 위치에 plain-text cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
+- `insertTable`: 선택적 열 정렬(left/center/right/null, CLI `--align`)과 함께 top-level 위치에 일반 텍스트 또는 `InlineContent[]` cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
 - `insertTableRow`: 빈 body 행을 넣는다. header 행 위(row 0)에는 넣을 수 없다.
-- `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 서식 있는(읽기 전용) cell이 있는 표에도 넣을 수 있다.
+- `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 지원되지 않는 인라인 요소가 있는 읽기 전용 cell의 표에도 넣을 수 있다.
 - 기존 열 정렬(`:--`, `:-:`, `--:`)은 셀 편집과 저장 뒤에도 유지된다. 새 행은 기존 열의 정렬을 따르고, 새 열은 정렬을 지정하지 않는다. 행/열 삭제·이동은 범위가 아니다.
 
 CLI:
@@ -840,11 +843,11 @@ Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은
 
 - 최상위 문단 맨 앞에서: `#`–`######` + 공백 → 제목 1–6, `- `/`* `/`+ ` → 글머리표 목록, `3. ` → 3부터 시작하는 번호 목록, ```` ```js ```` + 공백 또는 Enter → 언어가 `js`인 code block. 문단의 나머지 내용은 새 블록으로 옮겨진다.
 - 줄바꿈이 있는 문단은 제목으로, 서식·link·inline math·reference·줄바꿈이 있는 문단은 code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 제목 단축은 서식을 유지한다. 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
-- 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). mark를 쓸 수 없는 제목·표 cell에서는 구분자가 지워지지 않고 그대로 남는다. code block 안에서는 어떤 단축도 적용되지 않는다.
+- 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). 제목·표 cell·그림 caption에서도 지원되는 인라인 서식 단축이 적용된다. code block 안에서는 어떤 단축도 적용되지 않는다.
 - 단축 직후 Ctrl/Cmd+Z 또는 Backspace는 입력한 문자 그대로(예: `## `) 되돌리고 caret을 그 뒤에 둔다. Enter로 적용한 code fence는 Enter 없이 ```` ```js ````로 되돌아간다.
 - 인용문(`> `), 구분선(빈 문단에서 `---`), 취소선(`~~취소~~`)은 아래 Basic blocks(#57)를 따른다.
 
-브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block·표 cell·제목에서 문자가 그대로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
+브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block에서는 문자가 그대로 남고 표 cell·제목에는 서식이 적용되는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
 ## Formatted headings (#58, 제목)
 
@@ -861,7 +864,7 @@ Editor:
 
 - 서식 있는 기존 제목이 편집 가능한 제목으로 열린다. 제목 안에서 selection toolbar(굵게·기울임·취소선·inline code·link·inline math·cross-reference)와 `**`·`*`·`~~`·` ` ` 입력 단축이 동작한다. Shift+Enter 줄바꿈은 제목에 들어가지 않는다.
 - 줄바꿈이 있는 내용을 제목에 붙여넣으면 이유가 표시되고 아무것도 바뀌지 않는다. 줄바꿈이 있는 문단을 제목 뒤에서 Backspace로 합치면 문단이 되고, 줄바꿈 없는 서식 문단은 제목에 그대로 합쳐진다.
-- 표 셀과 그림 캡션의 서식 편집은 이 이슈의 후속 작업이다(아직 읽기 전용).
+- 표 셀과 그림 캡션도 지원되는 서식을 편집한다(위 Table cell editing / Figure authoring 참조).
 
 브라우저 회귀: `structural-block-authoring`은 서식 있는 문단을 제목으로 바꾸고 제목 안에서 기울임을 적용해 저장·다시 열기를 확인하고, 줄바꿈이 있는 문단의 변환 거부를 확인한다. `markdown-input`은 제목 안의 `**` 단축을 확인한다.
 

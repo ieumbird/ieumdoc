@@ -21,15 +21,15 @@ import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } f
 const fixture = fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url));
 const source = readFileSync(fixture, "utf8");
 const TABLE = 12;
-const mixed = "| Name | Note |\n| --- | --- |\n| U | **bold** |\n| P |  |\n";
+const mixed = "| Name | Note |\n| --- | --- |\n| U | {sub}`bold` |\n| P |  |\n";
 
 function tableOf(projection: TiptapJSON): TiptapJSON {
   return projection.content!.find((block) => block.type === "table")!;
 }
 
-function setCell(projection: TiptapJSON, row: number, cell: number, text: string): TiptapJSON {
+function setCell(projection: TiptapJSON, row: number, cell: number, text: string, marks?: TiptapJSON["marks"]): TiptapJSON {
   const next = structuredClone(projection);
-  tableOf(next).content![row].content![cell].content = text ? [{ type: "text", text }] : [];
+  tableOf(next).content![row].content![cell].content = text ? [{ type: "text", text, ...(marks ? { marks } : {}) }] : [];
   return next;
 }
 
@@ -52,14 +52,14 @@ test("changed header and body cells become Core cell edits; unchanged tables sen
   const document = loadEditableDocument(source);
   const projection = toTiptapDocument(document);
   assert.equal(collectSupportedEdits(document, projection).cells, undefined);
-  const edited = setCell(setCell(projection, 0, 0, "Port name"), 1, 1, "AC-side");
+  const edited = setCell(setCell(projection, 0, 0, "Port name"), 1, 1, "AC-side", [{ type: "bold" }]);
   assert.deepEqual(collectSupportedEdits(document, edited).cells, [
-    { path: [TABLE, 0, 0], from: "Port", to: "Port name" },
-    { path: [TABLE, 1, 1], from: "AC", to: "AC-side" },
+    { path: [TABLE, 0, 0], content: [{ kind: "text", text: "Port name" }] },
+    { path: [TABLE, 1, 1], content: [{ kind: "strong", children: [{ kind: "text", text: "AC-side" }] }] },
   ]);
 });
 
-test("table structure, read-only cells and marks cannot change", () => {
+test("table structure, read-only cells and line breaks cannot change", () => {
   const baseline = toTiptapDocument(loadEditableDocument(mixed));
   const changes: [string, (table: TiptapJSON) => void][] = [
     ["added row", (table) => { table.content!.push(structuredClone(table.content![2])); }],
@@ -68,7 +68,7 @@ test("table structure, read-only cells and marks cannot change", () => {
     ["cell kind", (table) => { table.content![1].content![1] = { type: "tableCell", attrs: { header: false }, content: [] }; }],
     ["header flag", (table) => { table.content![2].content![0].attrs!.header = true; }],
     ["column alignment", (table) => { table.content![2].content![0].attrs!.align = "right"; }],
-    ["mark", (table) => { table.content![1].content![0].content = [{ type: "text", text: "U", marks: [{ type: "bold" }] }]; }],
+    ["line break", (table) => { table.content![1].content![0].content = [{ type: "text", text: "U" }, { type: "hardBreak" }, { type: "text", text: "V" }]; }],
   ];
   for (const [name, change] of changes) {
     const next = structuredClone(baseline);
@@ -103,13 +103,13 @@ test("typing in a cell is allowed and undoable; Enter cannot change the table", 
 test("Host Save writes edited header and body cells and keeps everything else", () => {
   const saved = saveEdits(source, {
     cells: [
-      { path: [TABLE, 0, 0], from: "Port", to: "Port name" },
-      { path: [TABLE, 2, 1], from: "DC", to: "" },
+      { path: [TABLE, 0, 0], content: [{ kind: "strong", children: [{ kind: "text", text: "Port name" }] }] },
+      { path: [TABLE, 2, 1], content: [] },
     ],
   });
-  assert.match(saved.markdown, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC +\|\n\| P +\| +\|\n$/);
+  assert.match(saved.markdown, /\| \*\*Port name\*\* \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC +\|\n\| P +\| +\|\n$/);
   // Everything before the table (the rest of the document) is the unchanged canonical form.
-  const beforeTable = (markdown: string) => markdown.slice(0, markdown.indexOf("| Port"));
+  const beforeTable = (markdown: string) => markdown.slice(0, markdown.indexOf("\n| "));
   assert.ok(beforeTable(saved.markdown).includes("{eq}`eq-current`"));
   assert.equal(beforeTable(saved.markdown), beforeTable(saveEdits(source, {}).markdown));
   const table = saved.document.blocks[TABLE];
@@ -123,18 +123,18 @@ test("Host Save writes edited header and body cells and keeps everything else", 
   }
 });
 
-test("Host rejects stale, read-only and unpreservable cell edits without writing", () => {
+test("Host rejects malformed, read-only and unpreservable cell edits without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-save-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, mixed);
   try {
     const revision = documentRevision(mixed);
     const rejected: [unknown, RegExp][] = [
-      [{ path: [0, 1, 0], from: "stale", to: "x" }, /does not match/],
-      [{ path: [0, 1, 1], from: "bold", to: "x" }, /not allowed/],
-      [{ path: [0, 1], from: "U", to: "x" }, /not allowed/],
-      [{ path: [0, 1, 0], from: "U", to: "cost $x$" }, /table cell text cannot be preserved/],
-      [{ path: [0, 1, 0], from: "U", to: "U " }, /whitespace/],
+      [{ path: [0, 1, 0], content: "x" }, /must be InlineContent/],
+      [{ path: [0, 1, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
+      [{ path: [0, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
+      [{ path: [0, 1, 0], content: [{ kind: "text", text: "cost $x$" }] }, /table cell text cannot be preserved/],
+      [{ path: [0, 1, 0], content: [{ kind: "text", text: "U " }] }, /whitespace/],
     ];
     for (const [cell, reason] of rejected) {
       assert.throws(() => saveDocumentFile(file, { revision, cells: [cell as never] }), reason);
