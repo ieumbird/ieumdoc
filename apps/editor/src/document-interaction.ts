@@ -1,8 +1,9 @@
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
-import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec } from "@tiptap/pm/model";
+import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath } from "./tiptap-document.ts";
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
@@ -11,6 +12,29 @@ const CUT_RESTRICTION = "This selection contains read-only content that cannot b
 
 export function isInternalClipboard(html: string): boolean {
   return /\bdata-ieumdoc-type\s*=/.test(html);
+}
+
+/** IeumDoc's own clipboard must hold only typed content it can paste losslessly. */
+function internalPasteError(html: string, schema: Schema): string | undefined {
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
+  // Content of a typed textblock must be what its schema allows: marks and inline atoms in a heading,
+  // but no line break in a heading or cell and no block inside text.
+  const misplaced = (element: Element, typed: string) => {
+    const type = schema.nodes[typed], parent = schema.nodes[element.parentElement?.closest("[data-ieumdoc-type]")?.getAttribute("data-ieumdoc-type") ?? ""];
+    return Boolean(type && parent?.isTextblock && !parent.contentMatch.matchType(type));
+  };
+  for (const element of document.body.querySelectorAll("*")) {
+    const typed = element.getAttribute("data-ieumdoc-type");
+    // The Figure's typed attrs own its image; only its figcaption is parsed as content.
+    if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-ieumdoc-type="figure"]')) continue;
+    if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
+        (typed && !TYPES.has(typed)) || misplaced(element, typed ?? (element.tagName === "BR" ? "hardBreak" : "")) ||
+        (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
+      return "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content.";
+    }
+  }
+  return undefined;
 }
 
 function portable(node: PMNode): boolean {
@@ -27,6 +51,13 @@ function freshSlice(slice: Slice): Slice {
       Fragment.fromArray(node.content.content.map(copy)), node.marks);
   };
   return new Slice(Fragment.fromArray(slice.content.content.map(copy)), slice.openStart, slice.openEnd);
+}
+
+/** External content joins the text around the selection only through a paragraph edge. Other
+ * edge blocks (headings, lists, code) stay whole instead of merging into or absorbing that text. */
+function closeExternalSlice(slice: Slice): Slice {
+  const open = (node: PMNode | null, depth: number) => depth === 1 && node?.type.name === "paragraph" ? 1 : 0;
+  return new Slice(slice.content, open(slice.content.firstChild, slice.openStart), open(slice.content.lastChild, slice.openEnd));
 }
 
 function paragraphBeside(state: EditorState, after: boolean): Transaction {
@@ -147,7 +178,11 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         })),
         ...PMDOMParser.fromSchema(schema).rules,
       ]);
-      let pasteError: string | undefined;
+      // Parsing (transformPastedHTML) precedes handlePaste/handleDrop for the same clipboard data.
+      let pasted: ExternalHTML | undefined;
+      let external = false;
+      // Shown once the engine's paste transaction is applied; the structure guard may still refuse it.
+      let pastedNotice: string | undefined;
       const fail = (message: string) => { reject(message); return true; };
       return [new Plugin({
         view: view => {
@@ -169,10 +204,17 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           const document = view.dom.ownerDocument;
           document.addEventListener("copy", restrict, true);
           document.addEventListener("cut", restrict, true);
-          return { destroy() {
-            document.removeEventListener("copy", restrict, true);
-            document.removeEventListener("cut", restrict, true);
-          } };
+          return {
+            // The notice shares the restriction message channel.
+            update(view, previous) {
+              if (pastedNotice && view.state.doc !== previous.doc) reject(pastedNotice);
+              pastedNotice = undefined;
+            },
+            destroy() {
+              document.removeEventListener("copy", restrict, true);
+              document.removeEventListener("cut", restrict, true);
+            },
+          };
         },
         props: {
         clipboardSerializer: new DOMSerializer(serializers, DOMSerializer.marksFromSchema(schema)),
@@ -192,29 +234,25 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
             event.preventDefault(); return fail(CUT_RESTRICTION);
           },
         },
+        // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
         transformPastedHTML: html => {
-          pasteError = undefined;
-          const document = new DOMParser().parseFromString(html, "text/html");
-          const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
-          for (const element of document.body.querySelectorAll("*")) {
-            const typed = element.getAttribute("data-ieumdoc-type");
-            // The Figure's typed attrs own its image; only its figcaption is parsed as content.
-            if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-ieumdoc-type="figure"]')) continue;
-            if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
-                (["H1", "H2", "H3", "H4", "H5", "H6"].includes(element.tagName) &&
-                  (element.querySelector("strong,b,em,i,a,br,code,[data-ieumdoc-type]") || element.closest("strong,b,em,i,a,code"))) ||
-                (typed && !TYPES.has(typed)) ||
-                (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
-              pasteError = "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content.";
-              break;
-            }
-          }
-          return html;
+          external = !isInternalClipboard(html);
+          pasted = external ? normalizeExternalHTML(html) : { html, error: internalPasteError(html, schema) };
+          return pasted.html;
         },
-        transformPasted: slice => freshSlice(slice),
+        transformPasted: slice => freshSlice(external ? closeExternalSlice(slice) : slice),
+        handleDrop: (_view, _event, _slice, moved) => {
+          const { error, notice } = moved ? {} : pasted ?? {};
+          pasted = undefined;
+          external = false;
+          if (error) return fail(error);
+          pastedNotice = notice;
+          return false;
+        },
         handlePaste: (view, event, slice) => {
-          const error = event.clipboardData?.getData("text/html") ? pasteError : undefined;
-          pasteError = undefined;
+          const { error, notice } = event.clipboardData?.getData("text/html") ? pasted ?? {} : {};
+          pasted = undefined;
+          external = false;
           if (error) return fail(error);
           if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail("Add one PNG image at a time. Your selection and clipboard are kept.");
           if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
@@ -233,7 +271,9 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
             if (labels.has(label)) duplicate = true;
             labels.add(label);
           });
-          return duplicate ? fail("Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept.") : false;
+          if (duplicate) return fail("Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept.");
+          pastedNotice = notice;
+          return false;
         },
       } })];
     },
