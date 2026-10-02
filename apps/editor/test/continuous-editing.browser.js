@@ -119,7 +119,7 @@ async page => {
   await select(['End paragraph.', 0], ['End paragraph.', 3]);
   const beforeRejected = semantic(await doc());
   await page.evaluate(async () => navigator.clipboard.write([new ClipboardItem({
-    'text/html': new Blob(['<ul><li>Unsupported list</li></ul>'], {type:'text/html'}),
+    'text/html': new Blob(['<table><tr><td colspan="2">Unsupported list</td></tr></table>'], {type:'text/html'}),
     'text/plain': new Blob(['Unsupported list'], {type:'text/plain'}),
   })]));
   await page.keyboard.press('Control+v');

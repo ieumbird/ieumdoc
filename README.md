@@ -93,6 +93,8 @@ It supports nested lists, code blocks and inline code, quotes, dividers, striket
 
 Paste a clipboard PNG or drop one local PNG into the Editor to insert a Figure. The local Host saves it under the Markdown document's `assets/` directory with a portable relative path; edit caption, alt text and label with the existing Figure controls. See [Asset Host Contract v1](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59) for limits and failure handling.
 
+Formatted content copied from web pages, Notion or Word pastes as the supported blocks. Formatting IeumDoc cannot keep is removed with a notice; structure it cannot represent, such as merged table cells or embeds, is refused with the reason. See [Continuous document editing](docs/design/document-editing-v1.md).
+
 ```bash
 pnpm --filter @ieumdoc/editor dev
 ```
