@@ -114,7 +114,7 @@ function markStyle({ style }: HTMLElement): string {
 /**
  * Word writes list items as paragraphs styled `mso-list:lN levelM` whose generated marker is a
  * `mso-list:Ignore` span, not as HTML lists. This is the one vendor rule: without it a Word list
- * would silently become paragraphs starting with "·". Deeper levels nest one level at a time.
+ * would silently become paragraphs starting with "·". Levels must change like nested lists do.
  */
 function wordLists(body: HTMLElement): void {
   let stack: { list: Element; level: number }[] = [];
@@ -126,8 +126,13 @@ function wordLists(body: HTMLElement): void {
     const label = (marker?.textContent ?? "").replace(/\s/g, "");
     marker?.remove();
     const tag = /^\(?[0-9a-z]+[.)]$/i.test(label) ? "OL" : "UL";
-    while (stack.length > 1 && stack.at(-1)!.level > level) stack.pop();
+    const continuing = stack.length > 0;
+    while (stack.length && stack.at(-1)!.level > level) stack.pop();
     let top = stack.at(-1);
+    // A skipped level, or a return above the run's first level, has no exact nested-list form.
+    if ((continuing && !top) || (top && level > top.level + 1)) {
+      throw new Rejected("a Word list skips a nesting level or goes above its first item");
+    }
     if (!top || top.level < level || top.list.tagName !== tag) {
       const list = body.ownerDocument.createElement(tag);
       if (tag === "OL" && /^\(?\d+/.test(label)) list.setAttribute("start", String(Number.parseInt(label.replace("(", ""), 10)));

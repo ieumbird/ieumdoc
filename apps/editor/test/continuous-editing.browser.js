@@ -204,6 +204,39 @@ async page => {
   const moved = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file.replace('continuous-editing.md', 'edge-equation.md'))}`)).json();
   assert(moved.document.blocks.at(-1).block === 'equation' && moved.document.blocks.at(-1).label === 'eq-move', 'Cut/paste must preserve the equation and its label at the new position');
 
+  // Formatted headings, Figure captions and table cells keep every supported inline kind through the typed clipboard.
+  await openSibling('formatted-clipboard.md');
+  const formattedBlocks = value => ['heading', 'figure', 'table'].map(type => semantic(value.content.filter(node => node.type === type)));
+  const twiceBlocks = blocks => blocks.map(json => JSON.stringify([...JSON.parse(json), ...JSON.parse(json)]));
+  await select(['After.', 0]);
+  await page.keyboard.press('Control+a');
+  await page.waitForFunction(() => { const e = document.querySelector('.document-editor').editor; return e.state.selection.from === 0 && e.state.selection.to === e.state.doc.content.size; });
+  await page.keyboard.press('Control+c');
+  const formatted = formattedBlocks(await doc());
+  await end();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+v');
+  const formattedTwice = formattedBlocks(await doc());
+  assert(formattedTwice.join() === twiceBlocks(formatted).join(), `Typed clipboard must keep formatted heading, caption and cells: ${formattedTwice}`);
+  await page.keyboard.press('Control+z');
+  assert(formattedBlocks(await doc()).join() === formatted.join(), 'Undo must remove the formatted paste');
+  await page.keyboard.press('Control+Shift+z');
+  assert(formattedBlocks(await doc()).join() === formattedTwice.join(), 'Redo must restore the formatted paste');
+  await save();
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  assert(formattedBlocks(await doc()).join() === formattedTwice.join(), 'Formatted paste must survive Save and Reload');
+  // A line break is still not heading content, even in typed clipboard HTML.
+  await select(['After.', 0]);
+  const beforeBreak = semantic(await doc());
+  await page.locator('.document-editor').evaluate(el => {
+    const data = new DataTransfer();
+    data.setData('text/html', '<h2 data-ieumdoc-type="heading" data-ieumdoc-attrs="{&quot;level&quot;:2}">A<br data-ieumdoc-type="hardBreak" data-ieumdoc-attrs="{}">B</h2>');
+    el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
+  });
+  assert(semantic(await doc()) === beforeBreak, 'A heading with a line break must not be pasted');
+  assert((await page.locator('body').innerText()).includes('unsupported structure or formatting'), 'A refused heading line break needs a visible reason');
+
   // Read-only source is never replaced by a lossy cut, including ordinary Markdown images.
   await openSibling('preserved-markdown.md');
   await select(['Editable body.', 0]);
@@ -215,5 +248,5 @@ async page => {
   assert(semantic(await doc()) === readonlyBefore, 'Unsupported cut must keep the original document');
   assert((await page.locator('body').innerText()).includes('Nothing was removed'), `Unsupported cut must explain its restriction: ${await page.locator('body').innerText()}`);
   assert(await page.evaluate(() => navigator.clipboard.readText()) === clipboardBefore, 'Unsupported cut must keep the prior clipboard');
-  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, readonlyCutRetained:true};
+  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, readonlyCutRetained:true};
 }

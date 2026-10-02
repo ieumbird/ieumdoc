@@ -1,7 +1,7 @@
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
-import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec } from "@tiptap/pm/model";
+import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath } from "./tiptap-document.ts";
@@ -15,17 +15,21 @@ export function isInternalClipboard(html: string): boolean {
 }
 
 /** IeumDoc's own clipboard must hold only typed content it can paste losslessly. */
-function internalPasteError(html: string): string | undefined {
+function internalPasteError(html: string, schema: Schema): string | undefined {
   const document = new DOMParser().parseFromString(html, "text/html");
   const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
+  // Content of a typed textblock must be what its schema allows: marks and inline atoms in a heading,
+  // but no line break in a heading or cell and no block inside text.
+  const misplaced = (element: Element, typed: string) => {
+    const type = schema.nodes[typed], parent = schema.nodes[element.parentElement?.closest("[data-ieumdoc-type]")?.getAttribute("data-ieumdoc-type") ?? ""];
+    return Boolean(type && parent?.isTextblock && !parent.contentMatch.matchType(type));
+  };
   for (const element of document.body.querySelectorAll("*")) {
     const typed = element.getAttribute("data-ieumdoc-type");
     // The Figure's typed attrs own its image; only its figcaption is parsed as content.
     if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-ieumdoc-type="figure"]')) continue;
     if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
-        (["H1", "H2", "H3", "H4", "H5", "H6"].includes(element.tagName) &&
-          (element.querySelector("strong,b,em,i,a,br,code,[data-ieumdoc-type]") || element.closest("strong,b,em,i,a,code"))) ||
-        (typed && !TYPES.has(typed)) ||
+        (typed && !TYPES.has(typed)) || misplaced(element, typed ?? (element.tagName === "BR" ? "hardBreak" : "")) ||
         (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
       return "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content.";
     }
@@ -233,7 +237,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
         transformPastedHTML: html => {
           external = !isInternalClipboard(html);
-          pasted = external ? normalizeExternalHTML(html) : { html, error: internalPasteError(html) };
+          pasted = external ? normalizeExternalHTML(html) : { html, error: internalPasteError(html, schema) };
           return pasted.html;
         },
         transformPasted: slice => freshSlice(external ? closeExternalSlice(slice) : slice),

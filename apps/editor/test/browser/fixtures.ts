@@ -28,6 +28,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "external-html-paste": { files: [{ name: "external.md", create: () => "# External\n\nAlpha.\n\nOmega.\n" }], scenarios: ["external-html-paste"] },
   "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
     { name: "edge-equation.md", create: () => "$$\nx\n$$\n" },
+    // Every inline kind a heading, Figure caption and table cell hold (#58).
+    { name: "formatted-clipboard.md", create: () => "## **Bold** *it* {del}`gone` [link](https://example.com) `code` $x$ {eq}`eq-a` {numref}`fig-a`\n\n" +
+      ":::{figure} diagram.svg\n:alt: Diagram\n\n**Bold** caption with $y$ and [link](https://example.com).\n:::\n\n" +
+      "| **Head** | Plain |\n| --- | --- |\n| *it* `c` $z$ | {eq}`eq-a` |\n\nAfter.\n" },
     fixture("preserved-markdown.md")], scenarios: ["continuous-editing"] },
   "save-session": {
     files: [...technical, { name: "session.md", create: () => "# Session\n\nAlpha.\n\nBeta.\n" }],

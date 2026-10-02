@@ -731,7 +731,7 @@ Host 실패는 Figure를 삽입하지 않는다. 파일 생성 뒤 삽입이 거
 
 1. 웹 페이지, Notion, Word에서 제목(H1–H6)·문단·굵게/기울임/취소선·인라인 코드·링크·목록(중첩)·인용·코드 블록·구분선·표를 복사해 붙여넣는다. 대응 블록이 생기고 Save → Reload 뒤에도 유지된다. Word 목록 문단은 목록이 되고, 표의 첫 행은 header 행이 된다.
 2. 글꼴·색·크기·밑줄·정렬 같은 시각 서식, 위/아래 첨자, `javascript:` 등 일반 링크가 아닌 대상, 그림, 표 header 조정, 표 caption은 정리되고 `Pasted with normalization: …` 안내가 잠시 표시된다. wrapper·class·id·data attribute·여백 같은 layout style만 있는 HTML은 안내 없이 붙여넣어진다.
-3. 병합 셀, 중첩 표, 여러 문단·블록이 든 표 cell·목록 항목·인용, 줄바꿈이 든 제목, iframe·video 등 embed, 입력 control(task list), MathML, 정의 목록, 그림만 있는 HTML은 `Nothing was pasted: …` 이유를 표시하고 문서·선택·clipboard를 유지한다. 필요하면 plain-text paste(Ctrl/Cmd+Shift+V)를 쓴다.
+3. 병합 셀, 중첩 표, 여러 문단·블록이 든 표 cell·목록 항목·인용, 줄바꿈이 든 제목, iframe·video 등 embed, 입력 control(task list), MathML, 정의 목록, level을 건너뛴 Word 목록, 그림만 있는 HTML은 `Nothing was pasted: …` 이유를 표시하고 문서·선택·clipboard를 유지한다. 필요하면 plain-text paste(Ctrl/Cmd+Shift+V)를 쓴다.
 4. Undo 한 번으로 붙여넣기 전 내용과 선택으로 돌아가고 Redo로 다시 적용된다. 붙여넣은 내용의 양 끝이 제목·목록·코드·표이면 커서 주변 문단과 합쳐지지 않고 블록 그대로 들어간다.
 5. 내부 IeumDoc clipboard는 정규화하지 않고 기존 typed paste를 쓴다(`continuous-editing`). PNG file이 함께 있으면 #59 이미지 경로가 우선한다(`image-assets`).
 

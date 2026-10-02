@@ -81,6 +81,8 @@ a clipboard PNG file still takes the #59 asset path first.
   (task lists), MathML, definition lists and collapsible sections.
 - Word writes list items as `mso-list` paragraphs rather than HTML lists; this one
   vendor rule turns them into lists so they do not become "·"-prefixed paragraphs.
+  A skipped level, or a level above the list's first item, is refused rather than
+  lowered or filled with invented items.
 - At the paste edges only a paragraph joins the text around the selection; edge
   headings, lists, code blocks and tables stay whole.
 - Limits: task lists drawn without form controls and code copied without `<pre>`

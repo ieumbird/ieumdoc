@@ -123,6 +123,10 @@ async page => {
     'form controls and task lists are not supported': '<ul><li><input type="checkbox" checked> Done</li></ul>',
     'a list item holds one paragraph, optionally followed by one nested list': '<ul><li><p>One</p><p>Two</p></li></ul>',
     'a heading holds one line of inline content': '<h2>Line<br>break</h2>',
+    // Word level 1 → level 3 has no exact nested-list form; it is not lowered to level 2.
+    'a Word list skips a nesting level or goes above its first item':
+      `<p class=MsoListParagraph style='mso-list:l0 level1 lfo1'><span style='mso-list:Ignore'>·</span>Top</p>` +
+      `<p class=MsoListParagraph style='mso-list:l0 level3 lfo1'><span style='mso-list:Ignore'>§</span>Deep</p>`,
     'images can be added only as PNG files': '<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>',
   };
   for (const [reason, html] of Object.entries(refused)) {
