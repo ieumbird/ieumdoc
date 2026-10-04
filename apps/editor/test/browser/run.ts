@@ -82,6 +82,7 @@ export const STABLE_SCENARIOS = [
   "block-move",
   "figure-authoring",
   "image-assets",
+  "external-html-paste",
   "figure-draft-race",
   "table-cell-editing",
   "table-authoring",

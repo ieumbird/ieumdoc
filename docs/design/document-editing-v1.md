@@ -55,3 +55,42 @@ in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain
 captions. Metadata Apply keeps rich caption content. Legends and unsupported
 inline elements stay read-only with original source and a visible reason.
+
+Issue #60 normalizes external clipboard HTML (web pages, Notion, Word) before the
+engine parses it (`transformPastedHTML`, `apps/editor/src/external-html.ts`). It
+rewrites semantic HTML into the editor's own block markup, so ProseMirror still
+parses, fits and replaces the selection in one transaction (one Undo), and Save
+still goes through Core validation. IeumDoc's typed clipboard is not normalized, and
+a clipboard PNG file still takes the #59 asset path first.
+
+- Kept: paragraphs, H1–H6, bullet/numbered lists within List v1, single-paragraph
+  quotes, `<pre>` code (whitespace kept, a `language-*` class as the language, one
+  trailing newline dropped), dividers, rectangular tables of single-line cells, and
+  bold/italic/strikethrough, inline code and links as the engine's mark rules read
+  them. Only http(s), mailto, tel, ftp, relative and `#` targets stay links; a `#`
+  target is an ordinary link, never a cross-reference. Column alignment comes only
+  from a uniform HTML `align` attribute, never from CSS.
+- Dropped silently: wrappers, classes, ids, data and vendor attributes, layout
+  styles and blank paragraphs. Dropped with a notice: visual styles (font, size,
+  color, underline, alignment), sub/superscript, other link targets, images and
+  drawings (no download), table captions (kept as a paragraph before the table) and
+  header cells outside the first row (the first row becomes the header row).
+  Unsupported inline semantics are never dropped silently: `kbd`, `samp`, `var`,
+  `cite`, `abbr`/`acronym`, `dfn`, `q`, `time` and `data` keep their text with a
+  notice, which also covers lost metadata such as an `abbr` title or a `datetime`.
+- Refused, keeping document, selection and clipboard: merged or nested table cells,
+  ragged rows, cells, list items or quotes with several paragraphs or other blocks,
+  headings with line breaks, links around blocks, embeds and media, form controls
+  (task lists), MathML, definition lists and collapsible sections, and `ruby`,
+  whose annotations would run into the base text if flattened.
+- Word writes list items as `mso-list` paragraphs rather than HTML lists; this one
+  vendor rule turns them into lists so they do not become "·"-prefixed paragraphs.
+  A skipped level, or a level above the list's first item, is refused rather than
+  lowered or filled with invented items.
+- At the paste edges only a paragraph joins the text around the selection; edge
+  headings, lists, code blocks and tables stay whole.
+- Limits: task lists drawn without form controls and code copied without `<pre>`
+  (styled `<div>` lines) arrive as ordinary lists and paragraphs.
+
+The result uses existing blocks and InlineContent only, so no Core operation or CLI
+command is added; pasting is an editor input interaction.
