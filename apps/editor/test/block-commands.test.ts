@@ -8,7 +8,7 @@ import { history, redo, undo } from "@tiptap/pm/history";
 import { deleteSelection } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { parse, serialize } from "@ieumdoc/core";
+import { moveSection, parse, removeSection, serialize } from "@ieumdoc/core";
 import {
   BLOCK_COMMAND_META,
   BLOCK_COMMANDS,
@@ -392,4 +392,38 @@ test("editor shell keeps application UI out of the document editor", () => {
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   assert.match(schemaSource, /data-testid="equation-draft-status"/);
   assert.match(schemaSource, /data-testid="figure-properties"/);
+});
+
+test("heading section commands move past sibling sections and delete a section, saving what Core moveSection/removeSection write", () => {
+  // 0 # One · 1 (sec-a)= · 2 ## A · 3 read-only paragraph · 4 ### A.1 · 5 ## B · 6 Body B · 7 # Two
+  const markdown = "# One\n\n(sec-a)=\n## A\n\nRead {sub}`only`.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n";
+  const editable = loadEditableDocument(markdown);
+  const baseline = toTiptapDocument(editable);
+  let rejected = 0;
+  const create = () => EditorState.create({ schema, doc: docOf(markdown), plugins: [history(), structureGuardPlugin(baseline, () => rejected++)] });
+  const command = (id: string) => BLOCK_COMMANDS.find(entry => entry.id === id)!;
+  const saved = (state: EditorState) => saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state))).markdown;
+  const state = create();
+  // Only headings offer section commands; siblings share a level within the same parent.
+  assert.equal(command("section-up").applies!(state, 3), false);
+  assert.deepEqual(["section-up", "section-down", "section-delete"].map(id => command(id).enabled(state, 2)), [false, true, true]);
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 4)), [false, false]);
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 7)), [true, false]);
+
+  // Section A (its target, read-only paragraph and A.1) moves below B in one undoable transaction.
+  let moved = state.apply(command("section-down").run(state, 2));
+  assert.deepEqual(moved.doc.content.content.map(node => node.textContent || node.type.name).slice(0, 3), ["One", "B", "Body B."]);
+  assert.equal(rejected, 0);
+  assert.equal(saved(moved), serialize(moveSection(parse(markdown), 2, 7)));
+  assert.equal(undo(moved, tr => { moved = moved.apply(tr); }), true);
+  assert.ok(moved.doc.eq(state.doc));
+  // Section Two moves above One.
+  assert.equal(saved(state.apply(command("section-up").run(state, 7))), serialize(moveSection(parse(markdown), 7, 0)));
+
+  const deleted = state.apply(command("section-delete").run(state, 2));
+  assert.equal(rejected, 0);
+  assert.equal(saved(deleted), serialize(removeSection(parse(markdown), 2)));
+  // A section spanning the whole document is not deleted: the editor keeps a block.
+  const only = EditorState.create({ schema, doc: docOf("# Only\n\nBody.\n") });
+  assert.equal(command("section-delete").enabled(only, 0), false);
 });

@@ -1,7 +1,8 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 // The document outline is Editor navigation derived from the engine document. It is never
-// written to the document and has no Core or CLI counterpart (`ieumdoc inspect` lists headings).
+// written to the document and has no Core or CLI counterpart (`ieumdoc inspect` lists headings and
+// their section ranges).
 
 export type OutlineItem = {
   /** Top-level block index of the heading. */

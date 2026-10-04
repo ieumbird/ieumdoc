@@ -66,6 +66,16 @@ maps the edited grid to the snapshot. The Host then removes, moves, adds and ali
 through the same Core operations. Read-only cells move verbatim with their row or
 column. Cell merge has no GFM form and is not supported.
 
+Issue #76 adds section moves and deletion. A section is computed from the current
+top-level blocks: a heading, the label targets directly before it, and the blocks up to
+the next heading of the same or a higher level. It has no identity or Markdown syntax
+of its own (ADR-0003). One Core rule (`@ieumdoc/core/section`) serves Core `moveSection`/
+`removeSection` (CLI move-section/remove-section; `inspect` shows each heading's range)
+and the Editor. A heading's block menu moves its section past the previous or next
+sibling section, or deletes it, in one engine transaction. Save reuses the existing
+block order and deletion path, and the result matches the Core operation. Heading
+levels never change. Read-only blocks and targets move or are removed verbatim.
+
 Issue #60 normalizes external clipboard HTML (web pages, Notion, Word) before the
 engine parses it (`transformPastedHTML`, `apps/editor/src/external-html.ts`). It
 rewrites semantic HTML into the editor's own block markup, so ProseMirror still

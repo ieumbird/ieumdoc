@@ -26,6 +26,7 @@ export type { CodeBlockContent } from "./code.ts";
 export type { BlockConversion, TableCellInput } from "./operations.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
+export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R
@@ -50,6 +51,8 @@ export const splitParagraph = fence(operations.splitParagraph);
 export const mergeParagraphWithPrevious = fence(operations.mergeParagraphWithPrevious);
 export const replaceText = fence(operations.replaceText);
 export const moveBlock = fence(operations.moveBlock);
+export const moveSection = fence(operations.moveSection);
+export const removeSection = fence(operations.removeSection);
 export const insertParagraph = fence(operations.insertParagraph);
 export const insertHeading = fence(operations.insertHeading);
 export const insertAdmonition = fence(operations.insertAdmonition);

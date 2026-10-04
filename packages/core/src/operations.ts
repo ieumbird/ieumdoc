@@ -1,6 +1,7 @@
 import { assertPersistentParagraph } from "./myst/paragraph.ts";
 import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
+import { sectionBoundaries, sectionMarker, sectionRange } from "./section.ts";
 import {
   assertInlineContent,
   sameInlineContent,
@@ -75,6 +76,36 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
   blocks.splice(toIndex, 0, block);
   assertCanonicalBlockBoundaries(next);
   return next;
+}
+
+/**
+ * Move the section a top-level heading opens, with its label targets and deeper sections, to `to`:
+ * the start of another section or the end of the document. Heading levels are kept.
+ */
+export function moveSection(document: MystDocument, heading: number, to: number): MystDocument {
+  const markers = sectionMarkers(document);
+  const { start, end } = sectionRange(markers, heading);
+  if (!Number.isInteger(to) || !sectionBoundaries(markers).includes(to)) {
+    throw new Error(`a section moves to the start of a section or the end of the document: ${to}`);
+  }
+  if (to > start && to < end) throw new Error("a section cannot move into itself");
+  const next = cloneDocument(document);
+  const moved = next.children.splice(start, end - start);
+  next.children.splice(to > start ? to - moved.length : to, 0, ...moved);
+  assertCanonicalBlockBoundaries(next);
+  return next;
+}
+
+/** Remove the section a top-level heading opens, with its label targets and deeper sections. */
+export function removeSection(document: MystDocument, heading: number): MystDocument {
+  const { start, end } = sectionRange(sectionMarkers(document), heading);
+  const next = cloneDocument(document);
+  next.children.splice(start, end - start);
+  return next;
+}
+
+function sectionMarkers(document: MystDocument) {
+  return getEditableDocument(document).blocks.map(sectionMarker);
 }
 
 const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";

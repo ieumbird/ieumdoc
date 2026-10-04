@@ -115,6 +115,8 @@ test("ieumdoc help exits successfully", () => {
       "insert-figure",
       "remove-block",
       "move-block",
+      "move-section",
+      "remove-section",
       "update-node-text",
       "update-equation-latex",
       "update-figure",
@@ -945,6 +947,31 @@ test("CLI inserts and updates code blocks through Core and rejects read-only or 
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(target, "utf8"), before, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI shows heading sections and moves or removes a section through Core", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-section-"));
+  const file = path.join(dir, "doc.md");
+  writeFileSync(file, "# One\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\n## B\n\nBody B.\n");
+  try {
+    const inspected = run(["inspect", file]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    // Section A: its target, heading, body and subsection A.1.
+    assert.match(inspected.stdout, /^2 heading level=2 .* section=\[1,5\)$/m);
+    const json = JSON.parse(run(["inspect", file, "--format", "json"]).stdout) as { nodes: { path: number[]; section?: unknown }[] };
+    assert.deepEqual(json.nodes.find(node => node.path[0] === 2)?.section, { start: 1, end: 5 });
+    const before = readFileSync(file, "utf8");
+    const into = run(["move-section", file, "--from", "2", "--to", "4"]);
+    assert.equal(into.status, 1);
+    assert.match(into.stderr, /cannot move into itself/);
+    assert.equal(readFileSync(file, "utf8"), before);
+    assert.equal(run(["move-section", file, "--from", "2", "--to", "7"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), "# One\n\n## B\n\nBody B.\n\n(sec-a)=\n\n## A\n\nBody A.\n\n### A.1\n");
+    assert.equal(run(["remove-section", file, "--at", "4"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), "# One\n\n## B\n\nBody B.\n");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

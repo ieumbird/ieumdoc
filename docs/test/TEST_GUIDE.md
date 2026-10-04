@@ -484,6 +484,8 @@ pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]
 pnpm ieumdoc remove-block <file> --at <index>
 pnpm ieumdoc move-block <file> --from <index> --to <index>
+pnpm ieumdoc move-section <file> --from <heading index> --to <index>
+pnpm ieumdoc remove-section <file> --at <heading index>
 pnpm ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>
 pnpm ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text>]
 pnpm ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text>]
@@ -909,7 +911,29 @@ Editor 전용 탐색이다(CLI parity 대상 아님, 구조는 `ieumdoc inspect`
 - 현재 읽는 절이 강조된다(화면 위 30% 지점을 지난 마지막 제목, 문서 끝에서는 화면에 보이는 마지막 제목). 개요로 고른 제목은 스크롤하기 전까지 현재 절로 남는다.
 - 제목을 고치거나 `## `·메뉴로 추가하거나 삭제하면 개요가 즉시 바뀐다.
 
-브라우저 회귀: `pnpm browser:test outline`은 scratch `tmp/outline/outline.md`에서 클릭·키보드 이동, 스크롤에 따른 현재 절, 편집 반영, Source에서의 이동을 확인한다. 저장하지 않는다.
+브라우저 회귀: `pnpm browser:test outline`은 scratch `tmp/outline/outline.md`에서 클릭·키보드 이동, 스크롤에 따른 현재 절, 편집 반영, Source에서의 이동을 확인한다. 이어서 아래 섹션 이동·삭제와 Undo/Redo를 실행하고 Save한 파일의 제목 순서를 확인한다.
+
+## Section move and delete (#76)
+
+섹션은 제목부터 같은 레벨이나 더 높은 레벨의 다음 제목 직전까지의 최상위 블록이다. 제목 바로 앞의 label target(`(label)=`)은 그 섹션에 속하고, 하위 섹션은 함께 움직인다. 섹션은 현재 문서에서 계산하는 범위이며 별도 ID나 Markdown 문법이 없다. 이 규칙은 Core(`@ieumdoc/core/section`) 하나를 Core 연산·CLI·Editor가 함께 쓴다.
+
+- Core `moveSection`: 섹션을 다른 섹션의 시작이나 문서 끝으로 옮긴다. 제목 레벨은 바뀌지 않는다. 자기 안으로 옮기면 거부한다.
+- Core `removeSection`: 섹션 전체를 지운다.
+- 섹션 안의 읽기 전용·미지원 블록과 label target은 원문 그대로 함께 이동하거나 지워진다.
+
+CLI:
+
+```bash
+pnpm ieumdoc inspect <file>                              # 제목 줄의 section=[start,end) (JSON은 section {start,end})
+pnpm ieumdoc move-section <file> --from <제목 index> --to <index>   # 섹션 시작 또는 블록 수(끝)
+pnpm ieumdoc remove-section <file> --at <제목 index>
+```
+
+Editor:
+
+- 제목(서식 있는 읽기 전용 제목 포함)의 `⠿` menu에 `Move section up`, `Move section down`, `Delete section`이 있다.
+- 위/아래 이동은 같은 부모 안에서 같은 레벨의 이웃 섹션과 자리를 바꾼다. 이웃이 없으면 비활성이다. 섹션이 문서 전체이면 `Delete section`은 비활성이다.
+- 각 명령은 transaction 하나이며 Undo 한 번으로 돌아간다. 개요가 즉시 바뀌고, Save → Reload 뒤 CLI의 같은 연산과 같은 Markdown이 된다.
 
 ## Basic blocks (#57)
 
