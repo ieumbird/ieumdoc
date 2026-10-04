@@ -1,7 +1,8 @@
 // Run with pnpm browser:test table-authoring (prepare is automatic).
 // Creates a table from the insert menu and adds a row and a column to an existing table from its
 // block menu, types into the new cells, saves, then adds another row after that save and saves
-// again. The file must hold exactly what was typed, and reopening shows it. Scratch files live
+// again. The file must hold exactly what was typed, and reopening shows it. The reopened table's
+// rows and columns are then moved, realigned and removed from the block menu, and saved again. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
 async page => {
   await page.unrouteAll();
@@ -63,7 +64,9 @@ async page => {
   const existing = tables.last();
   await existing.locator('td', {hasText:/^U$/}).click();
   const items = await blockMenu(4, 'Add row below');
-  result.menuOffersRowAndColumn = JSON.stringify(items) === JSON.stringify(['Add row below', 'Add column right', 'Delete']);
+  result.menuOffersRowAndColumn = JSON.stringify(items) === JSON.stringify(['Add row below', 'Add column right', 'Move row up', 'Move row down',
+    'Move column left', 'Move column right', 'Align column left', 'Align column center', 'Align column right', 'Clear column alignment',
+    'Delete row', 'Delete column', 'Delete']);
   await page.keyboard.type('P');
   await blockMenu(4, 'Add column right');
   await page.keyboard.type('W');
@@ -86,6 +89,32 @@ async page => {
   result.reopened = JSON.stringify(await grid(tables.last())) ===
     JSON.stringify([['#Name', '#', '#Value'], ['U', '', 'AC'], ['', '', 'Q'], ['P', 'W', '']]) &&
     await tables.last().locator('[data-readonly-cell]').count() === 0;
+
+  // 5. In the reopened table, rows and columns move, a column is realigned and a row is removed at the
+  // caret; Undo/Redo step through them, and Save writes the same grid.
+  const reopened = tables.last();
+  await reopened.locator('td', {hasText:/^P$/}).click();
+  await blockMenu(4, 'Move row up');
+  await reopened.locator('td', {hasText:/^W$/}).click();
+  await blockMenu(4, 'Move column right');
+  await blockMenu(4, 'Align column center');
+  await reopened.locator('td', {hasText:/^Q$/}).click();
+  await blockMenu(4, 'Delete row');
+  const reshaped = [['#Name', '#Value', '#'], ['U', 'AC', ''], ['P', '', 'W']];
+  result.reshaped = JSON.stringify(await grid(reopened)) === JSON.stringify(reshaped);
+  await page.keyboard.press('Control+z');
+  result.undoRestoresRow = (await grid(reopened)).length === 4;
+  await page.keyboard.press('Control+Shift+z');
+  result.redoRemovesRow = JSON.stringify(await grid(reopened)) === JSON.stringify(reshaped);
+  result.thirdSave = await save();
+  result.thirdFile = (await read()).endsWith('| Name | Value |     |\n| ---- | ----- | :-: |\n| U    | AC    |     |\n| P    |       |  W  |\n');
+  // A later Save in the same session replays these changes against the opening snapshot.
+  await reopened.locator('td', {hasText:/^W$/}).click();
+  await blockMenu(4, 'Clear column alignment');
+  result.fourthSave = await save();
+  result.fourthFile = (await read()).endsWith('| Name | Value |   |\n| ---- | ----- | - |\n| U    | AC    |   |\n| P    |       | W |\n');
+  await open();
+  result.reshapedAfterReopen = JSON.stringify(await grid(tables.last())) === JSON.stringify(reshaped);
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);

@@ -52,11 +52,14 @@ export type TableCellEdit = {
   content: InlineContent[];
 };
 
-/** Rows and columns added to a table: each entry is the snapshot index, or null when added. */
+/** A table's new grid: each row and column is its snapshot index, or null when added. Snapshot
+ * rows and columns that are absent were removed; the order of the others is their new order. */
 export type TableShapeEdit = {
   path: NodePath;
   rows: (number | null)[];
   columns: (number | null)[];
+  /** Each column's alignment in the new grid, when any differs from the snapshot. */
+  align?: ("left" | "center" | "right" | null)[];
   /** Content typed into added cells, by position in the new grid. */
   cells: { row: number; column: number; content: InlineContent[] }[];
 };

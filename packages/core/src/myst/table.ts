@@ -50,3 +50,32 @@ export function insertTableRowNode(table: MystNode, index: number): void {
 export function insertTableColumnNode(table: MystNode, index: number): void {
   table.children!.forEach((row, rowIndex) => row.children!.splice(index, 0, cell([], rowIndex === 0)));
 }
+
+/** Remove a row; its cells, read-only ones included, go with it. */
+export function removeTableRowNode(table: MystNode, index: number): void {
+  table.children!.splice(index, 1);
+}
+
+/** Remove a column from every row. */
+export function removeTableColumnNode(table: MystNode, index: number): void {
+  table.children!.forEach(row => row.children!.splice(index, 1));
+}
+
+/** Move a row; its cells keep their content and alignment. */
+export function moveTableRowNode(table: MystNode, from: number, to: number): void {
+  table.children!.splice(to, 0, ...table.children!.splice(from, 1));
+}
+
+/** Move a column in every row; its cells keep their content and alignment. */
+export function moveTableColumnNode(table: MystNode, from: number, to: number): void {
+  table.children!.forEach(row => row.children!.splice(to, 0, ...row.children!.splice(from, 1)));
+}
+
+/** GFM alignment belongs to a column, so MyST records it on every cell of the column. */
+export function setTableColumnAlignNode(table: MystNode, index: number, align: "left" | "center" | "right" | null): void {
+  for (const row of table.children!) {
+    const target = row.children![index];
+    if (align) target.align = align;
+    else delete target.align;
+  }
+}

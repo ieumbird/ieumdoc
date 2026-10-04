@@ -13,6 +13,10 @@ import {
   insertTable,
   insertTableRow,
   insertTableColumn,
+  moveTableColumn,
+  moveTableRow,
+  removeTableColumn,
+  removeTableRow,
   insertList,
   insertCodeBlock,
   insertHardBreak,
@@ -35,6 +39,7 @@ import {
   updateFigure,
   updateLabel,
   updateTableCell,
+  updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
   validateStructure,
@@ -364,6 +369,53 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "remove-table-row",
+    summary: "Remove a body row from a Markdown table",
+    usage: "ieumdoc remove-table-row <file> --path <table> --at <row>",
+    details: [
+      "Remove a body row, read-only cells included, from a top-level Markdown table.",
+      "Row 0 is the header row and cannot be removed, so --at is from 1 to the last row.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "remove-table-column",
+    summary: "Remove a column from a Markdown table",
+    usage: "ieumdoc remove-table-column <file> --path <table> --at <column>",
+    details: [
+      "Remove a column, header cell included, from a top-level Markdown table.",
+      "A table keeps at least one column; use remove-block to remove the whole table.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "move-table-row",
+    summary: "Move a body row within a Markdown table",
+    usage: "ieumdoc move-table-row <file> --path <table> --from <row> --to <row>",
+    details: [
+      "Move a body row of a top-level Markdown table. Row 0 is the header row and stays first.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "move-table-column",
+    summary: "Move a column within a Markdown table",
+    usage: "ieumdoc move-table-column <file> --path <table> --from <column> --to <column>",
+    details: [
+      "Move a column, header cell and alignment included, within a top-level Markdown table.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "update-table-alignment",
+    summary: "Set or clear the alignment of a Markdown table column",
+    usage: "ieumdoc update-table-alignment <file> --path <table> --column <column> --align <left|center|right|none>",
+    details: [
+      "Set the alignment of one column of a top-level Markdown table, or clear it with none.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
     name: "update-table-cell",
     summary: "Replace the content of a Markdown table cell through Core",
     usage: "ieumdoc update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)",
@@ -615,6 +667,29 @@ function main(argv: string[]): number {
       save(file, insertTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
       return 0;
     }
+    case "remove-table-row": {
+      save(file, removeTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "remove-table-column": {
+      save(file, removeTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      return 0;
+    }
+    case "move-table-row": {
+      save(file, moveTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      return 0;
+    }
+    case "move-table-column": {
+      save(file, moveTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      return 0;
+    }
+    case "update-table-alignment": {
+      const align = flag(flags, "--align");
+      if (!["left", "center", "right", "none"].includes(align)) throw new Error("--align must be left, center, right or none");
+      save(file, updateTableColumnAlignment(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--column"),
+        align === "none" ? null : align as "left" | "center" | "right"));
+      return 0;
+    }
     case "update-table-cell": {
       save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
@@ -721,6 +796,11 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-code-block": ["--at", "--language", "--code"],
   "update-code-block": ["--path", "--language", "--code"],
   "insert-table-row": ["--path", "--at"],
+  "remove-table-row": ["--path", "--at"],
+  "remove-table-column": ["--path", "--at"],
+  "move-table-row": ["--path", "--from", "--to"],
+  "move-table-column": ["--path", "--from", "--to"],
+  "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],

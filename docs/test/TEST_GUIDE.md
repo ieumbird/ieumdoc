@@ -515,7 +515,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가할 수 있다(아래 "Table authoring v1"). 행/열 삭제·이동과 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가·삭제·이동하며 열 정렬을 바꿀 수 있다(아래 "Table authoring v1"). 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -648,7 +648,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 - block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
 - paragraph 시작 또는 공백 뒤에서 `/`를 입력하면 `+`와 같은 insert menu가 열린다. 입력한 글자로 걸러지고, ↑/↓/Enter로 고르며 Esc로 닫는다. 선택하면 `/` 입력은 지워진다.
 - insert menu에는 현재 Core로 생성·편집·저장할 수 있는 `Paragraph`, `Heading 1`, `Heading 2`, `Heading 3`, `Equation`, `Figure`, `Table`이 있다(`Figure`는 아래 Figure Authoring v1, `Table`은 아래 Table authoring v1). 빈 paragraph에서 `Paragraph`를 고르면 그 paragraph를 그대로 쓰고, 아니면 아래에 새 paragraph를 만든다. `Heading`을 고르면 빈 heading이 생기고 caret이 그 안에 놓인다. `Equation`을 고르면 inline Equation editor가 바로 열리고 LaTeX를 입력한 뒤 `Apply`해야 한다. 새 block에 글을 쓰고 Save → Reload하면 paragraph는 Core `insertParagraph`, heading은 Core `insertHeading`, Equation은 Core `insertEquation`으로 저장된다. 새 빈 paragraph와 미적용 Equation은 세션에 남으며 확정 내용만 저장된다. 빈 heading은 위치·이유를 알리고 저장을 거부한다. 새 Equation을 `Cancel`하면 미완성 block이 남지 않는다. 끝에서 Enter로 생긴 빈 split sibling에서 Heading 또는 Equation을 고르면 원래 paragraph는 유지되고 새 block으로 저장된다.
-- block menu에는 Core `removeBlock`으로 저장되는 `Delete`가 있다(Table에는 그 위에 `Add row below`, `Add column right`가 더 있다. 아래 Table authoring v1). 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
+- block menu에는 Core `removeBlock`으로 저장되는 `Delete`가 있다(Table에는 그 위에 행·열 추가·이동·정렬·삭제 항목이 더 있다. 아래 Table authoring v1). 문서에 block이 하나뿐이면 비활성이다. Delete 후 Undo/Redo, Save → Reload를 확인한다. 다른 Equation을 편집 중이어도 draft가 유지되어야 한다.
 - 키보드 Delete/Backspace와 지원 콘텐츠 붙여넣기로 block을 추가·삭제할 수 있다. Adapter가 승인한 엔진 변경의 삭제 경로를 기록하고 Core 연산으로 저장한다. 읽기 전용 survivor 변경과 표현할 수 없는 구조는 계속 거부한다.
 
 Save 버튼, Open dialog, Open dialog의 경로 입력, Figure properties popover, sidebar/top bar의 아이콘 버튼은 shadcn(Base UI, Nova style, Stone base color) 기반이다. 이 전환은 상호작용을 바꾸지 않는다.
@@ -737,7 +737,7 @@ Host 실패는 Figure를 삽입하지 않는다. 파일 생성 뒤 삽입이 거
 
 ## Table cell editing v1
 
-Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가는 아래 "Table authoring v1"을 본다. 행/열 삭제·이동, 정렬 변경, merged cell은 범위가 아니다. 기존 열 정렬은 표시·저장한다.
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가·삭제·이동과 열 정렬 변경은 아래 "Table authoring v1"을 본다. merged cell은 범위가 아니다.
 
 유효 조건(Core round-trip에서 확인한 조건이다):
 
@@ -772,14 +772,17 @@ pnpm exec playwright-cli -s=ieumdoc-table close
 
 결과의 boolean 값은 모두 `true`, `consoleErrors`는 `[]`이어야 한다. 다시 실행하려면 `pnpm browser:prepare`를 다시 실행한다.
 
-## Table authoring v1
+## Table authoring v1 (#34, #75)
 
-Core가 새 table, 기존 table의 행과 열을 만든다. 모두 canonical Markdown으로 다시 읽어 같은 표가 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
+Core가 새 table을 만들고, 기존 table의 행과 열을 추가·삭제·이동하며 열 정렬을 바꾼다. 모두 canonical Markdown으로 다시 읽어 같은 표가 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
 
 - `insertTable`: 선택적 열 정렬(left/center/right/null, CLI `--align`)과 함께 top-level 위치에 일반 텍스트 또는 `InlineContent[]` cell의 Markdown table을 넣는다. 첫 행이 header 행이고, 모든 행의 cell 수가 같아야 한다. cell 조건은 위 Table cell editing v1과 같다(빈 cell 가능).
 - `insertTableRow`: 빈 body 행을 넣는다. header 행 위(row 0)에는 넣을 수 없다.
 - `insertTableColumn`: header cell을 포함한 빈 열을 아무 위치에나 넣는다. 지원되지 않는 인라인 요소가 있는 읽기 전용 cell의 표에도 넣을 수 있다.
-- 기존 열 정렬(`:--`, `:-:`, `--:`)은 셀 편집과 저장 뒤에도 유지된다. 새 행은 기존 열의 정렬을 따르고, 새 열은 정렬을 지정하지 않는다. 행/열 삭제·이동은 범위가 아니다.
+- `removeTableRow`·`moveTableRow`: body 행을 삭제하거나 다른 body 위치로 옮긴다. header 행(row 0)은 삭제·이동하지 않는다. body 행을 모두 지우면 header 행만 있는 GFM 표가 된다.
+- `removeTableColumn`·`moveTableColumn`: header cell을 포함한 열을 삭제하거나 옮긴다. 표에는 열이 하나 이상 남는다(표 전체는 `remove-block`).
+- `updateTableColumnAlignment`: 열 정렬을 left/center/right로 정하거나 지운다(CLI `none`).
+- 읽기 전용 cell은 원문 그대로 행·열과 함께 이동하고, 그 행·열을 삭제하면 함께 지워진다. 기존 열 정렬은 셀 편집·이동·저장 뒤에도 유지된다. 새 행은 기존 열의 정렬을 따르고, 새 열은 정렬을 지정하지 않는다. 셀 병합과 header 행 변경은 범위가 아니다.
 
 CLI:
 
@@ -788,6 +791,11 @@ pnpm ieumdoc insert-table <file> --at 1 --cells '[["Port","Type"],["U","AC"]]'
 pnpm ieumdoc insert-table-row <file> --path 1 --at 2      # 1..행 수(끝)
 pnpm ieumdoc insert-table-column <file> --path 1 --at 1   # 0..열 수(끝)
 pnpm ieumdoc update-table-cell <file> --path 1,2,0 --text "P"
+pnpm ieumdoc move-table-row <file> --path 1 --from 2 --to 1      # body 행 1..마지막
+pnpm ieumdoc move-table-column <file> --path 1 --from 0 --to 1
+pnpm ieumdoc remove-table-row <file> --path 1 --at 2
+pnpm ieumdoc remove-table-column <file> --path 1 --at 1
+pnpm ieumdoc update-table-alignment <file> --path 1 --column 0 --align center   # left|center|right|none
 ```
 
 `--cells`는 행 배열의 JSON이다(첫 행이 header). 거부되면 exit 1이고 파일은 그대로다.
@@ -795,11 +803,12 @@ pnpm ieumdoc update-table-cell <file> --path 1,2,0 --text "P"
 Editor:
 
 - `+` 또는 `/` insert menu의 `Table`은 header 행과 body 2행, 3열의 빈 표를 만들고 caret을 첫 header cell에 둔다. 빈 transient paragraph에서 고르면 그 자리를 대신한다. 모든 cell이 빈 새 표는 저장되지 않는다(`empty table cannot be saved`).
-- 표의 `⠿`를 click하면 block menu에 `Add row below`, `Add column right`, `Delete`가 있다. caret이 그 표의 cell에 있으면 그 행 아래 / 그 열 오른쪽에, 아니면 마지막 행 아래 / 마지막 열 오른쪽에 빈 행/열이 생기고 caret이 새 cell로 간다. 다른 block의 menu에는 두 항목이 없다.
-- 새 cell은 편집 가능한 빈 cell이다(새 열의 header 행 cell은 header). 행/열 추가는 각각 Undo 한 번으로 되돌아가고, 되돌린 뒤에는 저장할 변경이 없다.
-- Save → Reload 후 새 표와 새 행/열, 입력한 텍스트가 canonical Markdown에 남는다. 저장한 뒤에 추가한 행/열도 다음 Save에서 저장된다. 기존 cell의 수정은 같은 Save에서 함께 저장된다.
+- 표의 `⠿`를 click하면 block menu에 `Add row below`, `Add column right`, `Move row up/down`, `Move column left/right`, `Align column left/center/right`, `Clear column alignment`, `Delete row`, `Delete column`, `Delete`가 있다. 다른 block의 menu에는 행·열 항목이 없다.
+- 추가는 caret이 그 표의 cell에 있으면 그 행 아래 / 그 열 오른쪽에, 아니면 마지막 행 아래 / 마지막 열 오른쪽에 빈 행/열을 만들고 caret을 새 cell로 옮긴다. 이동·정렬·삭제는 caret이 있는 편집 가능한 cell의 행·열에 적용되며 caret은 옮긴 cell을 따라간다. caret이 표 밖에 있거나 header 행이면(행 이동·삭제), 열이 하나뿐이면(열 삭제) 해당 항목은 비활성이다. 편집 가능한 cell이 없는 행은 Editor에서 고를 수 없으므로 CLI를 쓴다.
+- 새 cell은 편집 가능한 빈 cell이다(새 열의 header 행 cell은 header). 각 행/열 명령은 Undo 한 번으로 되돌아가고, 모두 되돌린 뒤에는 저장할 변경이 없다.
+- Save → Reload 후 새 표와 행/열 변경, 열 정렬, 입력한 텍스트가 canonical Markdown에 남는다. 저장한 뒤의 변경도 다음 Save에서 저장된다. 기존 cell의 수정은 같은 Save에서 함께 저장된다.
 
-브라우저 회귀: `pnpm browser:test table-authoring`은 scratch `tmp/table-authoring/tables.md`에서 insert menu로 표를 만들고, 기존 표의 block menu로 행과 열을 추가해 입력한 뒤 Save하고, 저장 후 행을 하나 더 추가해 다시 Save한다. 두 번의 파일 내용과 다시 연 화면을 확인한다.
+브라우저 회귀: `pnpm browser:test table-authoring`은 scratch `tmp/table-authoring/tables.md`에서 insert menu로 표를 만들고, 기존 표의 block menu로 행과 열을 추가해 입력한 뒤 Save하고, 저장 후 행을 하나 더 추가해 다시 Save한다. 두 번의 파일 내용과 다시 연 화면을 확인한다. 다시 연 표에서 block menu로 행·열을 옮기고 열을 정렬하고 행을 삭제한 뒤 Undo/Redo, Save, 같은 세션의 다음 Save, 다시 열기를 확인한다.
 
 ## List authoring v1 (#52)
 

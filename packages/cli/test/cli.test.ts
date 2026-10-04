@@ -121,6 +121,11 @@ test("ieumdoc help exits successfully", () => {
       "insert-table",
       "insert-table-row",
       "insert-table-column",
+      "remove-table-row",
+      "remove-table-column",
+      "move-table-row",
+      "move-table-column",
+      "update-table-alignment",
       "update-table-cell",
       "update-label",
     ]) {
@@ -945,7 +950,7 @@ test("CLI inserts and updates code blocks through Core and rejects read-only or 
   }
 });
 
-test("CLI creates a table and adds rows and columns through Core, rejecting invalid shapes", () => {
+test("CLI creates a table, adds, moves and removes rows and columns, and aligns columns through Core, rejecting invalid shapes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
   const file = path.join(dir, "doc.md");
   writeFileSync(file, "# Ratings\n");
@@ -975,6 +980,28 @@ test("CLI creates a table and adds rows and columns through Core, rejecting inva
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), saved, args.join(" "));
       if (reason) assert.match(result.stderr, reason);
+    }
+    // Rows and columns are reordered, removed and realigned through the same Core operations as the Editor.
+    for (const args of [
+      ["move-table-row", file, "--path", "1", "--from", "2", "--to", "1"],
+      ["move-table-column", file, "--path", "1", "--from", "2", "--to", "0"],
+      ["remove-table-column", file, "--path", "1", "--at", "2"],
+      ["update-table-alignment", file, "--path", "1", "--column", "0", "--align", "none"],
+      ["remove-table-row", file, "--path", "1", "--at", "2"],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
+    }
+    const reshaped = readFileSync(file, "utf8");
+    assert.equal(reshaped, "# Ratings\n\n| Type | Port |\n| ---- | :--- |\n|      | P    |\n");
+    for (const [args, reason] of [
+      [["remove-table-row", file, "--path", "1", "--at", "0"], /from 1 to 1/],
+      [["update-table-alignment", file, "--path", "1", "--column", "0", "--align", "justify"], /--align must be/],
+    ] as [string[], RegExp][]) {
+      const result = run(args);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), reshaped, args.join(" "));
+      assert.match(result.stderr, reason);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

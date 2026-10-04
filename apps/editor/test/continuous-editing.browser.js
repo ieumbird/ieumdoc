@@ -14,7 +14,7 @@ async page => {
   await page.getByRole('dialog').getByRole('button', { name: 'Open', exact: true }).click();
   await page.locator('.document-editor h2').filter({hasText:'Heading'}).waitFor();
   const doc = () => page.locator('.document-editor').evaluate(el => el.editor.getJSON());
-  const semantic = value => JSON.stringify(value, (key, item) => ['sourcePath', 'original', 'added'].includes(key) ? undefined : item);
+  const semantic = value => JSON.stringify(value, (key, item) => ['sourcePath', 'original', 'sourceCell'].includes(key) ? undefined : item);
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const select = async (start, end = start) => page.locator('.document-editor').evaluate((el, args) => {
     const editor = el.editor;

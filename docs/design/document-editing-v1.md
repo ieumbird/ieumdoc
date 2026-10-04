@@ -56,6 +56,16 @@ retain Apply/Cancel; the legacy plain-caption field remains available for plain
 captions. Metadata Apply keeps rich caption content. Legends and unsupported
 inline elements stay read-only with original source and a visible reason.
 
+Issue #75 adds table structure edits within what a GFM pipe table expresses. Core
+removes and moves body rows and columns and sets or clears column alignment (CLI
+remove-table-row/-column, move-table-row/-column, update-table-alignment); the header
+row stays first and a table keeps one column. The block menu applies them to the
+caret's cell in one engine transaction each. Each opening-snapshot cell carries its
+`row,column` as a session-only locator, like a block's `sourcePath` (ADR-0003), so Save
+maps the edited grid to the snapshot. The Host then removes, moves, adds and aligns
+through the same Core operations. Read-only cells move verbatim with their row or
+column. Cell merge has no GFM form and is not supported.
+
 Issue #60 normalizes external clipboard HTML (web pages, Notion, Word) before the
 engine parses it (`transformPastedHTML`, `apps/editor/src/external-html.ts`). It
 rewrites semantic HTML into the editor's own block markup, so ProseMirror still

@@ -221,7 +221,8 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
         const content = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.content;
         if (cell.editable && content !== undefined && !sameInline(content, cell.content)) cells.push({ path: cell.path, content });
       }));
-      if (shape.rows.includes(null) || shape.columns.includes(null)) {
+      const unchanged = (axis: (number | null)[], count: number) => axis.length === count && axis.every((from, index) => from === index);
+      if (shape.align || !unchanged(shape.rows, block.rows.length) || !unchanged(shape.columns, block.rows[0]?.cells.length ?? 0)) {
         tables.push({ path: block.path, ...shape, cells: next.flatMap((row, rowIndex) => row.flatMap((cell, column) =>
           (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.content.length ? [{ row: rowIndex, column, content: cell.content }] : [])) });
       }
@@ -445,11 +446,14 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
     return {
       type: "table",
       attrs: { sourcePath: pathKey(block.path) },
-      content: block.rows.map((row) => ({
+      content: block.rows.map((row, rowIndex) => ({
         type: "tableRow",
-        content: row.cells.map((cell): TiptapJSON => cell.editable
-          ? { type: "tableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}) }, content: paragraphContent(cell.content) }
-          : { type: "readonlyTableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}), text: cell.text } }),
+        content: row.cells.map((cell, column): TiptapJSON => {
+          const attrs = { header: cell.header, ...(cell.align ? { align: cell.align } : {}), [TABLE_CELL_SOURCE_ATTR]: `${rowIndex},${column}` };
+          return cell.editable
+            ? { type: "tableCell", attrs, content: paragraphContent(cell.content) }
+            : { type: "readonlyTableCell", attrs: { ...attrs, text: cell.text } };
+        }),
       })),
     };
   }
@@ -730,12 +734,13 @@ function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
   }
 }
 
-/** `added` marks a cell absent from the opening snapshot (see TABLE_CELL_ADDED_ATTR).
+/** `source` is a cell's `row,column` in the opening snapshot, empty when it was added since.
  * `text` is a read-only cell's display text; `content` is an editable cell's content. */
-type TableCellShape = { editable: boolean; header: boolean; text: string; content: InlineContent[]; align: string; added: boolean };
+type TableCellShape = { editable: boolean; header: boolean; text: string; content: InlineContent[]; align: string; source: string };
 
-/** Session-only tableCell attribute: an id for a cell added since Open/New, else empty. */
-export const TABLE_CELL_ADDED_ATTR = "added";
+/** Session-only cell attribute: the cell's `row,column` in the opening snapshot table, empty for a
+ * cell added since Open/New. A snapshot locator like `sourcePath`, never persisted (ADR-0003). */
+export const TABLE_CELL_SOURCE_ATTR = "sourceCell";
 
 /** The cell grid of a table node; editable cells hold inline content without line breaks. */
 function tableCells(node: TiptapJSON): TableCellShape[][] {
@@ -744,50 +749,57 @@ function tableCells(node: TiptapJSON): TableCellShape[][] {
     return (row.content ?? []).map((cell) => {
       const header = cell.attrs?.header === true;
       const align = String(cell.attrs?.align ?? "");
-      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], added: false };
+      const source = String(cell.attrs?.[TABLE_CELL_SOURCE_ATTR] ?? "");
+      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], source };
       if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
       const content = paragraphInline(cell);
       if (hasBreak(content)) throw new Error("a table cell cannot contain line breaks");
-      return { editable: true, header, align, text: "", content, added: Boolean(cell.attrs?.[TABLE_CELL_ADDED_ATTR]) };
+      return { editable: true, header, align, text: "", content, source };
     });
   });
 }
 
+type TableShape = Pick<TableShapeEdit, "rows" | "columns" | "align">;
+
 /**
- * How an edited table grid maps to its snapshot grid. Only whole rows (below the header row) and
- * whole columns can be added; snapshot cells keep their order, kind and read-only text.
+ * How an edited table grid maps to its snapshot grid: each row and column is a snapshot index or
+ * null when added. Whole rows and columns can be added, removed or moved; the header row stays
+ * first. Snapshot cells keep their kind and read-only text. Alignment belongs to a column; `align`
+ * is set when it differs from the snapshot.
  */
-function tableShape(was: TableCellShape[][], is: TableCellShape[][]): { rows: (number | null)[]; columns: (number | null)[] } {
+function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape {
   const width = is[0]?.length ?? 0;
-  if (is.some(row => row.length !== width)) throw new Error("table rows must have the same number of cells");
-  const kept = (row: TableCellShape[]) => row.flatMap((cell, index) => cell.added ? [] : [index]);
-  const keptRows = is.flatMap((row, index) => row.some(cell => !cell.added) ? [index] : []);
-  if (keptRows.length !== was.length || keptRows[0] !== 0) {
-    throw new Error("table rows can only be added below the header row, never removed");
+  if (width === 0 || is.some(row => row.length !== width)) throw new Error("table rows must have the same number of cells");
+  const snapshot = (cells: TableCellShape[], part: number) => {
+    const found = new Set(cells.flatMap(cell => cell.source ? [Number(cell.source.split(",")[part])] : []));
+    if (found.size > 1) throw new Error("table cells can only move as whole rows or columns");
+    return found.size ? [...found][0] : null;
+  };
+  const rows = is.map(row => snapshot(row, 0));
+  const columns = is[0].map((_, column) => snapshot(is.map(row => row[column]), 1));
+  const distinct = (axis: (number | null)[], count: number) => {
+    const kept = axis.filter(index => index !== null);
+    return new Set(kept).size === kept.length && kept.every(index => index < count);
+  };
+  if (rows[0] !== 0 || !distinct(rows, was.length) || !distinct(columns, was[0].length)) {
+    throw new Error("the header row stays first; rows and columns are added, moved or removed whole");
   }
-  const keptColumns = kept(is[0]);
-  if (keptColumns.length !== was[0].length || keptRows.some(index => kept(is[index]).join() !== keptColumns.join())) {
-    throw new Error("table cells can only be added as whole rows or columns, never removed");
-  }
-  let row = 0;
-  let column = 0;
-  const rows = is.map((_, index) => keptRows.includes(index) ? row++ : null);
-  const columns = is[0].map((_, index) => keptColumns.includes(index) ? column++ : null);
+  const align = is[0].map(cell => cell.align);
   is.forEach((cells, rowIndex) => cells.forEach((cell, index) => {
     const from = rows[rowIndex];
     const to = columns[index];
+    if (cell.align !== align[index]) throw new Error("table alignment must be uniform within each column");
     if (from !== null && to !== null) {
       const old = was[from][to];
-      if (cell.editable !== old.editable || cell.header !== old.header || cell.align !== old.align || (!old.editable && cell.text !== old.text)) {
+      if (cell.source !== `${from},${to}` || cell.editable !== old.editable || cell.header !== old.header || (!old.editable && cell.text !== old.text)) {
         throw new Error("read-only table cells and cell kinds cannot change");
       }
-    } else if (!cell.editable || cell.header !== (rowIndex === 0)) {
+    } else if (cell.source || !cell.editable || cell.header !== (rowIndex === 0)) {
       throw new Error("added table cells are editable, with header cells only in the header row");
-    } else if (cell.align !== (to === null ? "" : was[0][to].align)) {
-      throw new Error("added cells must preserve existing column alignment; new columns are unaligned");
     }
   }));
-  return { rows, columns };
+  const aligned = align.some((value, index) => value !== (columns[index] === null ? "" : was[0][columns[index]!].align));
+  return { rows, columns, ...(aligned ? { align: align.map(value => (value || null) as "left" | "center" | "right" | null) } : {}) };
 }
 
 /** Heading content is paragraph inline content without line breaks. */

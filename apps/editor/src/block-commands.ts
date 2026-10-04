@@ -1,7 +1,7 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
-import { isNewBlockPath, NEW_BLOCK_PREFIX, TABLE_CELL_ADDED_ATTR } from "./tiptap-document.ts";
+import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -172,6 +172,56 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     applies: isTable,
     enabled: isTable,
     run: addTableColumnRight,
+  },
+  // These act on the caret's cell; the header row stays first.
+  {
+    id: "table-row-up",
+    label: "Move row up",
+    applies: isTable,
+    enabled: (state, index) => (caretTable(state, index)?.row ?? 0) > 1,
+    run: (state, index) => moveTableRow(state, index, -1),
+  },
+  {
+    id: "table-row-down",
+    label: "Move row down",
+    applies: isTable,
+    enabled: (state, index) => { const caret = caretTable(state, index); return !!caret && caret.row > 0 && caret.row < caret.rows - 1; },
+    run: (state, index) => moveTableRow(state, index, 1),
+  },
+  {
+    id: "table-column-left",
+    label: "Move column left",
+    applies: isTable,
+    enabled: (state, index) => (caretTable(state, index)?.column ?? 0) > 0,
+    run: (state, index) => moveTableColumn(state, index, -1),
+  },
+  {
+    id: "table-column-right",
+    label: "Move column right",
+    applies: isTable,
+    enabled: (state, index) => { const caret = caretTable(state, index); return !!caret && caret.column < caret.columns - 1; },
+    run: (state, index) => moveTableColumn(state, index, 1),
+  },
+  ...(["left", "center", "right", ""] as const).map((align): BlockCommand => ({
+    id: `table-align-${align || "none"}`,
+    label: align ? `Align column ${align}` : "Clear column alignment",
+    applies: isTable,
+    enabled: (state, index) => { const caret = caretTable(state, index); return !!caret && caret.align !== align; },
+    run: (state, index) => alignTableColumn(state, index, align),
+  })),
+  {
+    id: "table-row-delete",
+    label: "Delete row",
+    applies: isTable,
+    enabled: (state, index) => (caretTable(state, index)?.row ?? 0) > 0,
+    run: removeTableRow,
+  },
+  {
+    id: "table-column-delete",
+    label: "Delete column",
+    applies: isTable,
+    enabled: (state, index) => (caretTable(state, index)?.columns ?? 0) > 1,
+    run: removeTableColumn,
   },
   {
     id: "delete",
@@ -485,7 +535,8 @@ function blockPos(state: EditorState, index: number): number {
 }
 
 function addedCell(state: EditorState, header: boolean, align = "") {
-  return state.schema.nodes.tableCell.create({ header, align, [TABLE_CELL_ADDED_ATTR]: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  // An added cell has no snapshot position.
+  return state.schema.nodes.tableCell.create({ header, align });
 }
 
 /** Add an empty row below the caret's row, or below the last row; the caret moves into it. */
@@ -521,6 +572,100 @@ export function addTableColumnRight(state: EditorState, index: number): Transact
     rowPos += row.nodeSize;
   });
   return tr.setSelection(TextSelection.create(tr.doc, caret)).scrollIntoView();
+}
+
+/** The caret's cell and the table's shape, when the caret is inside the table at `index`. */
+function caretTable(state: EditorState, index: number) {
+  const cell = isTable(state, index) ? tableCellAt(state, index) : undefined;
+  if (!cell) return undefined;
+  const table = state.doc.child(index);
+  return { ...cell, rows: table.childCount, columns: table.child(0).childCount, align: String(table.child(0).child(cell.column).attrs.align ?? "") };
+}
+
+/** The start of each row, and of each cell in each row, of the table at `index`. */
+function tableLayout(doc: EditorState["doc"], index: number) {
+  let rowPos = 1;
+  for (let i = 0; i < index; i++) rowPos += doc.child(i).nodeSize;
+  const rows: { pos: number; cells: number[] }[] = [];
+  doc.child(index).forEach(row => {
+    const cells: number[] = [];
+    let cellPos = rowPos + 1;
+    row.forEach(cell => { cells.push(cellPos); cellPos += cell.nodeSize; });
+    rows.push({ pos: rowPos, cells });
+    rowPos += row.nodeSize;
+  });
+  return rows;
+}
+
+/** Move the caret's body row up (-1) or down (+1); the caret moves with it. */
+export function moveTableRow(state: EditorState, index: number, by: -1 | 1): Transaction {
+  const caret = caretTable(state, index);
+  const to = (caret?.row ?? 0) + by;
+  if (!caret || caret.row < 1 || to < 1 || to >= caret.rows) throw new Error("invalid table row move");
+  const table = state.doc.child(index);
+  const layout = tableLayout(state.doc, index);
+  const [upper, lower] = by < 0 ? [to, caret.row] : [caret.row, to];
+  const offset = state.selection.from - layout[caret.row].pos;
+  const tr = closeHistory(state.tr).replaceWith(layout[upper].pos, layout[lower].pos + table.child(lower).nodeSize, [table.child(lower), table.child(upper)]);
+  // The rows swap places, so the moved row starts where the upper row did, or right after the other one.
+  const start = by < 0 ? layout[upper].pos : layout[upper].pos + table.child(lower).nodeSize;
+  return tr.setSelection(TextSelection.create(tr.doc, start + offset)).scrollIntoView();
+}
+
+/** Move the caret's column left (-1) or right (+1) in every row; the caret moves with it. */
+export function moveTableColumn(state: EditorState, index: number, by: -1 | 1): Transaction {
+  const caret = caretTable(state, index);
+  const to = (caret?.column ?? 0) + by;
+  if (!caret || to < 0 || to >= caret.columns) throw new Error("invalid table column move");
+  const table = state.doc.child(index);
+  const [left, right] = by < 0 ? [to, caret.column] : [caret.column, to];
+  const layout = tableLayout(state.doc, index);
+  const offset = state.selection.from - layout[caret.row].cells[caret.column];
+  // Swapping two cells keeps the row's size, so the positions of later rows stay valid.
+  const tr = closeHistory(state.tr);
+  layout.forEach(({ cells }, row) => {
+    const cell = table.child(row);
+    tr.replaceWith(cells[left], cells[right] + cell.child(right).nodeSize, [cell.child(right), cell.child(left)]);
+  });
+  const cells = layout[caret.row].cells;
+  const start = by < 0 ? cells[left] : cells[left] + table.child(caret.row).child(right).nodeSize;
+  return tr.setSelection(TextSelection.create(tr.doc, start + offset)).scrollIntoView();
+}
+
+/** Remove the caret's body row; the caret goes to the nearest remaining cell. */
+export function removeTableRow(state: EditorState, index: number): Transaction {
+  const caret = caretTable(state, index);
+  if (!caret || caret.row < 1) throw new Error("only a body row can be removed");
+  const { pos } = tableLayout(state.doc, index)[caret.row];
+  const tr = closeHistory(state.tr).delete(pos, pos + state.doc.child(index).child(caret.row).nodeSize);
+  return tr.setSelection(Selection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size)), -1)).scrollIntoView();
+}
+
+/** Remove the caret's column from every row; a table keeps at least one column. */
+export function removeTableColumn(state: EditorState, index: number): Transaction {
+  const caret = caretTable(state, index);
+  if (!caret || caret.columns <= 1) throw new Error("a table keeps at least one column");
+  const layout = tableLayout(state.doc, index);
+  const tr = closeHistory(state.tr);
+  // From the last row up, so earlier positions stay valid.
+  for (let row = layout.length - 1; row >= 0; row--) {
+    const at = layout[row].cells[caret.column];
+    tr.delete(at, at + state.doc.child(index).child(row).child(caret.column).nodeSize);
+  }
+  const at = tr.mapping.map(layout[caret.row].cells[caret.column]);
+  return tr.setSelection(Selection.near(tr.doc.resolve(at), caret.column > 0 ? -1 : 1)).scrollIntoView();
+}
+
+/** Set ("left", "center", "right") or clear ("") the alignment of the caret's column. */
+export function alignTableColumn(state: EditorState, index: number, align: string): Transaction {
+  const caret = caretTable(state, index);
+  if (!caret) throw new Error("place the caret in a table cell first");
+  const tr = closeHistory(state.tr);
+  for (const { cells } of tableLayout(state.doc, index)) {
+    const node = tr.doc.nodeAt(cells[caret.column])!;
+    tr.setNodeMarkup(cells[caret.column], undefined, { ...node.attrs, align });
+  }
+  return tr.scrollIntoView();
 }
 
 export function deleteBlock(state: EditorState, index: number): Transaction {
