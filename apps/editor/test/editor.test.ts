@@ -120,7 +120,7 @@ test("technical document projects to one typed Tiptap document", () => {
   const rows = table?.content ?? [];
   assert.equal(rows.length, 3);
   assert.deepEqual(rows[0]?.content?.map((cell) => [cell.type, cell.attrs?.header]), [["tableCell", true], ["tableCell", true]]);
-  assert.deepEqual(rows[1]?.content?.[1], { type: "tableCell", attrs: { header: false }, content: [{ type: "text", text: "AC" }] });
+  assert.deepEqual(rows[1]?.content?.[1], { type: "tableCell", attrs: { header: false, sourceCell: "1,1" }, content: [{ type: "text", text: "AC" }] });
 });
 
 test("projected technical document round-trips through the Tiptap schema without semantic edits", () => {

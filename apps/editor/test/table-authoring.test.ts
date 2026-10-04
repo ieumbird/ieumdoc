@@ -6,16 +6,20 @@ import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import {
   addTableColumnRight,
   addTableRowBelow,
+  alignTableColumn,
   BLOCK_COMMANDS,
   filterInsertCommands,
   insertParagraphAfter,
   insertTableAfter,
+  moveTableColumn,
+  moveTableRow,
+  removeTableColumn,
+  removeTableRow,
 } from "../src/block-commands.ts";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   assertSupportedDocumentChange,
   collectSupportedEdits,
-  TABLE_CELL_ADDED_ATTR,
   toTiptapDocument,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
@@ -70,9 +74,17 @@ test("Table is an insert command; row and column commands are offered for tables
   assert.deepEqual(filterInsertCommands("tab").map(command => command.id), ["table"]);
   const { state } = editorState(mixed);
   const listed = (index: number) => BLOCK_COMMANDS.filter(command => command.applies?.(state, index) ?? true).map(command => command.label);
-  assert.deepEqual(listed(TABLE), ["Add row below", "Add column right", "Delete"]);
+  assert.deepEqual(listed(TABLE), ["Add row below", "Add column right", "Move row up", "Move row down", "Move column left", "Move column right",
+    "Align column left", "Align column center", "Align column right", "Clear column alignment", "Delete row", "Delete column", "Delete"]);
   assert.ok(listed(0).includes("Delete"));
-  assert.ok(!listed(0).some(label => ["Add row below", "Add column right"].includes(label)));
+  assert.ok(!listed(0).some(label => label.includes("row") || label.includes("column")));
+  // Row and column commands act on the caret's cell; the header row neither moves nor is removed.
+  const enabled = (current: EditorState) => BLOCK_COMMANDS.filter(command => (command.applies?.(current, TABLE) ?? true) && command.enabled(current, TABLE)).map(command => command.id);
+  assert.deepEqual(enabled(state), ["table-row", "table-column", "delete"]);
+  assert.deepEqual(enabled(caretIn(state, 0, 0)), ["table-row", "table-column", "table-column-right", "table-align-left", "table-align-center",
+    "table-align-right", "table-column-delete", "delete"]);
+  assert.deepEqual(enabled(caretIn(state, 2, 1)).filter(id => id.startsWith("table-row") || id.startsWith("table-column-")),
+    ["table-row", "table-row-up", "table-column-left", "table-row-delete", "table-column-delete"]);
 });
 
 test("a new table has a header row and two body rows of three columns, and saves through Core insertTable", () => {
@@ -161,34 +173,74 @@ test("adding a row or column is one undo step and leaves nothing to save once un
   assert.equal(collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON).tables, undefined);
 });
 
-test("only whole added rows and columns of editable cells are accepted", () => {
+test("rows and columns are added, removed and moved only whole, and the header row stays first", () => {
   const baseline = toTiptapDocument(loadEditableDocument(mixed));
-  const added = (header = false) => ({ type: "tableCell", attrs: { header, [TABLE_CELL_ADDED_ATTR]: "new:x" }, content: [] });
+  // An added cell has no snapshot position.
+  const added = (header = false) => ({ type: "tableCell", attrs: { header }, content: [] });
   const tableOf = (projection: TiptapJSON) => projection.content![TABLE];
   const changes: [string, (table: TiptapJSON) => void][] = [
     ["row above the header", (table) => { table.content!.unshift({ type: "tableRow", content: [added(true), added(true)] }); }],
-    ["removed row", (table) => { table.content!.pop(); table.content!.push({ type: "tableRow", content: [added(), added()] }); }],
+    ["header row moved down", (table) => { table.content!.push(table.content!.shift()!); }],
+    ["cells swapped in one row only", (table) => { table.content![2].content!.reverse(); }],
+    ["duplicated snapshot row", (table) => { table.content!.push(structuredClone(table.content![2])); }],
     ["single added cell", (table) => { table.content![1].content!.push(added()); }],
     ["added body cell marked header", (table) => { table.content!.push({ type: "tableRow", content: [added(true), added()] }); }],
     ["added header cell not marked header", (table) => { table.content!.forEach(row => row.content!.push(added())); }],
-    ["unmarked extra row", (table) => { table.content!.push(structuredClone(table.content![2])); }],
+    ["one cell realigned", (table) => { table.content![2].content![0].attrs!.align = "right"; }],
   ];
   for (const [name, change] of changes) {
     const next = structuredClone(baseline);
     change(tableOf(next));
     assert.throws(() => assertSupportedDocumentChange(baseline, next), Error, name);
   }
-  const ok = structuredClone(baseline);
-  tableOf(ok).content!.forEach((row, index) => row.content!.push(added(index === 0)));
-  assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, ok));
+  const accepted: [string, (table: TiptapJSON) => void][] = [
+    ["added column", (table) => { table.content!.forEach((row, index) => row.content!.push(added(index === 0))); }],
+    ["removed row", (table) => { table.content!.pop(); }],
+    ["moved body rows", (table) => { table.content!.push(table.content!.splice(1, 1)[0]); }],
+    ["moved columns", (table) => { table.content!.forEach(row => row.content!.reverse()); }],
+    ["realigned column", (table) => { table.content!.forEach(row => { row.content![1].attrs!.align = "center"; }); }],
+  ];
+  for (const [name, change] of accepted) {
+    const next = structuredClone(baseline);
+    change(tableOf(next));
+    assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, next), name);
+  }
+});
+
+test("rows and columns move and are removed at the caret, columns are realigned, and Core saves the same grid", () => {
+  let { document, state, rejected } = editorState(mixed);
+  const before = state.doc;
+  state = apply(state, moveTableRow(caretIn(state, 2, 0), TABLE, -1));
+  assert.deepEqual(grid(state), [["Name", "Note"], ["P", ""], ["U", "(bold)"]]);
+  assert.deepEqual(cellOf(state), { row: 1, column: 0 });
+  state = apply(state, moveTableColumn(state, TABLE, 1));
+  assert.deepEqual(grid(state), [["Note", "Name"], ["", "P"], ["(bold)", "U"]]);
+  assert.deepEqual(cellOf(state), { row: 1, column: 1 });
+  state = apply(state, alignTableColumn(state, TABLE, "center"));
+  state = apply(state, removeTableRow(state, TABLE));
+  assert.deepEqual(grid(state), [["Note", "Name"], ["(bold)", "U"]]);
+  assert.deepEqual(rejected, []);
+  // The read-only cell moved with its row and column; its source is unchanged.
+  let edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
+  assert.deepEqual(edits.tables, [{ path: [TABLE], rows: [0, 1], columns: [1, 0], align: [null, "center"], cells: [] }]);
+  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Note        | Name |\n| ----------- | :--: |\n| {sub}`bold` |   U  |\n");
+  // Removing a column takes its cells, read-only ones included.
+  state = apply(state, removeTableColumn(caretIn(state, 0, 0), TABLE));
+  edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
+  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Name |\n| :--: |\n|   U  |\n");
+  // Each command is one undo step.
+  for (let step = 0; step < 5; step++) undo(state, tr => { state = state.apply(tr); });
+  assert.ok(state.doc.eq(before));
 });
 
 test("Host rejects table edits that do not match the snapshot table", () => {
   const rejected: [unknown, RegExp][] = [
     [{ path: [0], rows: [0, null], columns: [0] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1, 2], columns: [1, 0], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1], columns: [0, 1], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [null, 0, 1, 2], columns: [0, 1], cells: [] }, /table row index must be an integer from 1/],
+    [{ path: [TABLE], rows: [0, 1, 2], columns: [0, 0], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE], rows: [1, 0, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE], rows: [null, 0, 1, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE], rows: [0, 1, 2], columns: [], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE], rows: [0, 1, 2], columns: [0, 1], align: ["justify", null], cells: [] }, /table edit is not allowed/],
     [{ path: [TABLE], rows: [0, 1, 2, null], columns: [0, 1], cells: [{ row: 1, column: 0, content: text("x") }] }, /was not added/],
   ];
   for (const [table, reason] of rejected) {
@@ -207,7 +259,7 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
   const saved = saveEdits(source, collectSupportedEdits(document, projected)).document.blocks[TABLE];
   assert.ok(saved.block === "table");
   for (const row of saved.rows) assert.deepEqual(row.cells.map(cell => cell.align ?? ""), ["left", "", "right"]);
-  // There is no alignment authoring operation: added cells cannot silently claim one.
+  // Alignment belongs to a column: one cell cannot silently claim its own.
   table.content![2].content![0].attrs!.align = "center";
-  assert.throws(() => collectSupportedEdits(document, projected), /column alignment/);
+  assert.throws(() => collectSupportedEdits(document, projected), /uniform within each column/);
 });

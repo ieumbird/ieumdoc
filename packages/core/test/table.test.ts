@@ -6,10 +6,15 @@ import {
   insertTable,
   insertTableColumn,
   insertTableRow,
+  moveTableColumn,
+  moveTableRow,
   parse,
   removeBlock,
+  removeTableColumn,
+  removeTableRow,
   serialize,
   updateTableCell,
+  updateTableColumnAlignment,
   type InlineContent,
   type MystDocument,
 } from "./core-internal.ts";
@@ -202,4 +207,48 @@ test("aligned tables retain column semantics across cell edits and row/column in
   for (const row of block.rows) assert.deepEqual(row.cells.map(cell => cell.align), ["left", "center", undefined, "right", undefined]);
   assert.equal(block.rows[2].cells[1].text, "changed");
   assert.equal(serialize(parse(markdown)), markdown);
+});
+
+test("table rows and columns can be removed and moved, keeping read-only cells and alignment", () => {
+  const source = "| A | B | C |\n| :-- | :-: | --: |\n| a1 | {ref}`intro` | c1 |\n| a2 | b2 | c2 |\n";
+  let document = moveTableRow(parse(source), [0], 2, 1);
+  document = moveTableColumn(document, [0], 0, 2);
+  let markdown = serialize(document);
+  assert.equal(markdown, "|       B      |  C | A  |\n| :----------: | -: | :- |\n|      b2      | c2 | a2 |\n| {ref}`intro` | c1 | a1 |\n");
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.deepEqual(cells(parse(markdown), 0)[2].map(cell => cell.editable), [false, true, true]);
+  document = removeTableColumn(removeTableRow(document, [0], 2), [0], 1);
+  markdown = serialize(document);
+  assert.equal(markdown, "|  B  | A  |\n| :-: | :- |\n|  b2 | a2 |\n");
+  // A header row alone is a GFM table.
+  const header = serialize(removeTableRow(document, [0], 1));
+  assert.equal(serialize(parse(header)), header);
+  assert.deepEqual(cells(parse(header), 0).map(row => row.map(cell => cell.text)), [["B", "A"]]);
+});
+
+test("updateTableColumnAlignment sets or clears a column's alignment on every row", () => {
+  const document = parse("| A | B |\n| --- | :-: |\n| x | y |\n");
+  const markdown = serialize(updateTableColumnAlignment(updateTableColumnAlignment(document, [0], 0, "right"), [0], 1, null));
+  assert.equal(markdown, "|  A | B |\n| -: | - |\n|  x | y |\n");
+  const block = getEditableDocument(parse(markdown)).blocks[0];
+  assert.deepEqual(block.block === "table" && block.rows.map(row => row.cells.map(cell => cell.align)), [["right", undefined], ["right", undefined]]);
+});
+
+test("table structure changes fail closed without mutating the document", () => {
+  const document = parse(technical);
+  const before = structuredClone(document);
+  const headerOnly = parse("| A |\n| - |\n");
+  const rejected: [() => unknown, RegExp][] = [
+    [() => removeTableRow(document, [TABLE], 0), /from 1 to 2/],
+    [() => removeTableRow(document, [TABLE], 3), /from 1 to 2/],
+    [() => removeTableRow(headerOnly, [0], 1), /no body row/],
+    [() => removeTableColumn(headerOnly, [0], 0), /at least one column/],
+    [() => removeTableColumn(document, [TABLE], 2), /from 0 to 1/],
+    [() => moveTableRow(document, [TABLE], 1, 0), /from 1 to 2/],
+    [() => moveTableColumn(document, [TABLE], 0, 2), /from 0 to 1/],
+    [() => updateTableColumnAlignment(document, [TABLE], 0, "justify" as "left"), /left, center, right or null/],
+    [() => removeTableRow(document, [0], 1), /requires a table at \[0\]/],
+  ];
+  for (const [run, reason] of rejected) assert.throws(run, reason);
+  assert.deepEqual(document, before);
 });

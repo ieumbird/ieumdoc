@@ -17,7 +17,7 @@ async page => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const editor = page.locator('.document-editor');
   const state = () => editor.evaluate(el => ({
-    doc: JSON.stringify(el.editor.getJSON(), (key, value) => ['sourcePath', 'original', 'added'].includes(key) ? undefined : value),
+    doc: JSON.stringify(el.editor.getJSON(), (key, value) => ['sourcePath', 'original', 'sourceCell'].includes(key) ? undefined : value),
     selection: [el.editor.state.selection.from, el.editor.state.selection.to],
   }));
   const select = (text, whole = false) => editor.evaluate((el, args) => {

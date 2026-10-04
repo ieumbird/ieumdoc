@@ -4,7 +4,7 @@ import { splitBlockAs } from "@tiptap/pm/commands";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
-import { freshBlockPath } from "./tiptap-document.ts";
+import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
@@ -47,7 +47,8 @@ function portable(node: PMNode): boolean {
 function freshSlice(slice: Slice): Slice {
   const copy = (node: PMNode): PMNode => {
     if (node.isText) return node;
-    return node.type.create("sourcePath" in node.attrs ? { ...node.attrs, sourcePath: freshBlockPath(), original: null } : node.attrs,
+    return node.type.create("sourcePath" in node.attrs ? { ...node.attrs, sourcePath: freshBlockPath(), original: null }
+      : TABLE_CELL_SOURCE_ATTR in node.attrs ? { ...node.attrs, [TABLE_CELL_SOURCE_ATTR]: "" } : node.attrs,
       Fragment.fromArray(node.content.content.map(copy)), node.marks);
   };
   return new Slice(Fragment.fromArray(slice.content.content.map(copy)), slice.openStart, slice.openEnd);

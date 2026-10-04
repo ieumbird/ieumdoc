@@ -16,6 +16,11 @@ import {
   insertTable,
   insertTableColumn,
   insertTableRow,
+  moveTableColumn,
+  moveTableRow,
+  removeTableColumn,
+  removeTableRow,
+  updateTableColumnAlignment,
   insertList,
   insertCodeBlock,
   insertParagraph,
@@ -369,19 +374,39 @@ export function saveEdits(
     }
     document = editAt(target, () => updateTableCell(document, edit.path, edit.content));
   }
-  // Snapshot cells are edited above at their snapshot paths; Core then adds rows and columns
-  // in new-grid order and fills the added cells.
+  // Snapshot cells are edited above at their snapshot paths. Core then removes the absent rows and
+  // columns, moves the kept ones into their new order, adds rows and columns in new-grid order,
+  // aligns the columns and fills the added cells.
   for (const edit of edits.tables ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "table");
     const block = blockAt(editable, edit.path);
-    if (edit.path.length !== 1 || block?.block !== "table" ||
-        !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, block.rows[0]?.cells.length ?? 0) ||
-        !Array.isArray(edit.cells)) {
+    const width = block?.block === "table" ? block.rows[0]?.cells.length ?? 0 : 0;
+    if (edit.path.length !== 1 || block?.block !== "table" || edit.rows[0] !== 0 ||
+        !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, width) || !Array.isArray(edit.cells) ||
+        (edit.align !== undefined && (!Array.isArray(edit.align) || edit.align.length !== edit.columns.length ||
+          edit.align.some(align => align !== null && !["left", "center", "right"].includes(align))))) {
       throw new Error(`table edit is not allowed at [${edit.path.join(",")}]`);
     }
+    const reshape = (axis: (number | null)[], count: number, remove: typeof removeTableRow, move: typeof moveTableRow) => {
+      for (let index = count - 1; index >= 0; index--) {
+        if (!axis.includes(index)) document = editAt(target, () => remove(document, edit.path, index));
+      }
+      const order = [...Array(count).keys()].filter(index => axis.includes(index));
+      axis.filter(index => index !== null).forEach((index, to) => {
+        const from = order.indexOf(index);
+        if (from === to) return;
+        document = editAt(target, () => move(document, edit.path, from, to));
+        order.splice(to, 0, ...order.splice(from, 1));
+      });
+    };
+    reshape(edit.rows, block.rows.length, removeTableRow, moveTableRow);
+    reshape(edit.columns, width, removeTableColumn, moveTableColumn);
     for (const [row, from] of edit.rows.entries()) if (from === null) document = insertTableRow(document, edit.path, row);
     for (const [column, from] of edit.columns.entries()) if (from === null) document = insertTableColumn(document, edit.path, column);
+    for (const [column, align] of (edit.align ?? []).entries()) {
+      document = editAt(target, () => updateTableColumnAlignment(document, edit.path, column, align));
+    }
     for (const cell of edit.cells) {
       if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
         throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
@@ -698,10 +723,11 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
 type Locator = OrderItem;
 
 /** Every snapshot index 0..count-1 once and in order, with null entries for added rows/columns. */
+/** Each new row or column is a distinct snapshot index or null (added); at least one remains. */
 function isTableAxis(axis: unknown, count: number): axis is (number | null)[] {
-  if (!Array.isArray(axis)) return false;
+  if (!Array.isArray(axis) || axis.length === 0) return false;
   const kept = axis.filter(item => item !== null);
-  return kept.length === count && kept.every((item, index) => item === index);
+  return new Set(kept).size === kept.length && kept.every(item => Number.isInteger(item) && item >= 0 && item < count);
 }
 
 function locatorKey(item: Locator): string {

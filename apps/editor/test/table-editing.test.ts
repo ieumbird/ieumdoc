@@ -41,8 +41,8 @@ test("editable, empty and read-only cells round-trip through the single Tiptap s
     ["tableCell", "readonlyTableCell"],
     ["tableCell", "tableCell"],
   ]);
-  assert.deepEqual(rows[1].content![1].attrs, { header: false, text: "bold" });
-  assert.deepEqual(rows[2].content![1], { type: "tableCell", attrs: { header: false }, content: [] });
+  assert.deepEqual(rows[1].content![1].attrs, { header: false, sourceCell: "1,1", text: "bold" });
+  assert.deepEqual(rows[2].content![1], { type: "tableCell", attrs: { header: false, sourceCell: "2,1" }, content: [] });
   const schema = getSchema(editorExtensions());
   assert.deepEqual(schema.nodeFromJSON(projection).toJSON(), schema.nodeFromJSON(schema.nodeFromJSON(projection).toJSON()).toJSON());
   assert.ok(schema.nodeFromJSON(projection).eq(schema.nodeFromJSON(projection)));

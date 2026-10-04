@@ -27,7 +27,7 @@ import {
   NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
   paragraphContent,
-  TABLE_CELL_ADDED_ATTR,
+  TABLE_CELL_SOURCE_ATTR,
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
@@ -377,9 +377,9 @@ function createEquationNodeView(onDraftChange?: EquationDraftListener) {
 }
 
 // A Markdown table lives in the single document state: editable cells hold supported
-// inline content without line breaks; other cells are read-only leaves. Whole rows and columns of
-// editable cells can be added by commands; the structure guard rejects any other
-// change to the grid, such as removing or moving cells.
+// inline content without line breaks; other cells are read-only leaves. Commands add, remove and
+// move whole rows (below the header row) and columns, and set column alignment; snapshot cells
+// carry their opening position. The structure guard rejects any other change to the grid.
 const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (element) => element.tagName === "TH" };
 
 const Table = Node.create({
@@ -448,7 +448,7 @@ const TableCell = Node.create({
   content: "(text | inlineMath | crossReference)*",
   isolating: true,
   addAttributes() {
-    return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_ADDED_ATTR]: { default: "", rendered: false } };
+    return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_SOURCE_ATTR]: { default: "", rendered: false } };
   },
   parseHTML() {
     return [{ tag: "th[data-table-cell]" }, { tag: "td[data-table-cell]" }];
@@ -466,6 +466,7 @@ const ReadonlyTableCell = Node.create({
     return {
       header: headerAttr,
       align: hiddenAttr(""),
+      [TABLE_CELL_SOURCE_ATTR]: { default: "", rendered: false },
       text: { default: "", rendered: false, parseHTML: (element) => element.textContent ?? "" },
     };
   },

@@ -81,7 +81,7 @@ async page => {
     await page.getByRole('button',{name:'Move table block 15'}).click();
     const blockMenu = page.getByRole('menu',{name:'Block actions'});
     result.blockMenuItems = await blockMenu.getByRole('menuitem').allInnerTexts();
-    await blockMenu.getByRole('menuitem',{name:'Delete'}).click();
+    await blockMenu.getByRole('menuitem',{name:'Delete', exact:true}).click();
     result.tableDeleted = await page.locator('[data-block="table"]').count() === 0;
     result.draftSurvivesDelete = await page.getByTestId('equation-latex').inputValue() === 'x + 2';
     await page.getByTestId('equation-cancel').click();

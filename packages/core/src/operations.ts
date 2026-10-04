@@ -35,7 +35,10 @@ import { createListNode, hasVisibleContent, supportedListContent } from "./myst/
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
-import { createTableNode, insertTableColumnNode, insertTableRowNode, setTableCellContent, tableCellContent } from "./myst/table.ts";
+import {
+  createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
+  setTableCellContent, setTableColumnAlignNode, tableCellContent,
+} from "./myst/table.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
@@ -485,6 +488,75 @@ export function insertTableColumn(document: MystDocument, path: NodePath, column
   insertTableColumnNode(getNode(next, path), column);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
+}
+
+/** Remove a body row from a top-level table; row 0 is the header row and stays. */
+export function removeTableRow(document: MystDocument, path: NodePath, row: number): MystDocument {
+  const rows = tableAt(document, path, "removeTableRow").children?.length ?? 0;
+  assertTableBodyRow(row, rows);
+  const next = cloneDocument(document);
+  removeTableRowNode(getNode(next, path), row);
+  assertStableTable(next, path[0], TABLE_FAILURE);
+  return next;
+}
+
+/** Remove a column, header cell included; a table keeps at least one column. */
+export function removeTableColumn(document: MystDocument, path: NodePath, column: number): MystDocument {
+  const columns = tableAt(document, path, "removeTableColumn").children?.[0]?.children?.length ?? 0;
+  if (columns <= 1) throw new Error("a table needs at least one column; remove the table instead");
+  assertTableColumn(column, columns);
+  const next = cloneDocument(document);
+  removeTableColumnNode(getNode(next, path), column);
+  assertStableTable(next, path[0], TABLE_FAILURE);
+  return next;
+}
+
+/** Move a body row to another body position; the header row stays first. */
+export function moveTableRow(document: MystDocument, path: NodePath, from: number, to: number): MystDocument {
+  const rows = tableAt(document, path, "moveTableRow").children?.length ?? 0;
+  assertTableBodyRow(from, rows);
+  assertTableBodyRow(to, rows);
+  const next = cloneDocument(document);
+  moveTableRowNode(getNode(next, path), from, to);
+  assertStableTable(next, path[0], TABLE_FAILURE);
+  return next;
+}
+
+/** Move a column, header cell included, to another column position. */
+export function moveTableColumn(document: MystDocument, path: NodePath, from: number, to: number): MystDocument {
+  const columns = tableAt(document, path, "moveTableColumn").children?.[0]?.children?.length ?? 0;
+  assertTableColumn(from, columns);
+  assertTableColumn(to, columns);
+  const next = cloneDocument(document);
+  moveTableColumnNode(getNode(next, path), from, to);
+  assertStableTable(next, path[0], TABLE_FAILURE);
+  return next;
+}
+
+/** Set (left, center, right) or clear (null) the alignment of a table column. */
+export function updateTableColumnAlignment(document: MystDocument, path: NodePath, column: number, align: "left" | "center" | "right" | null): MystDocument {
+  const columns = tableAt(document, path, "updateTableColumnAlignment").children?.[0]?.children?.length ?? 0;
+  assertTableColumn(column, columns);
+  if (align !== null && !["left", "center", "right"].includes(align)) {
+    throw new Error("table alignment must be left, center, right or null");
+  }
+  const next = cloneDocument(document);
+  setTableColumnAlignNode(getNode(next, path), column, align);
+  assertStableTable(next, path[0], TABLE_FAILURE);
+  return next;
+}
+
+function assertTableBodyRow(row: number, rows: number): void {
+  if (rows <= 1) throw new Error("the table has no body row");
+  if (!Number.isInteger(row) || row < 1 || row >= rows) {
+    throw new Error(`table body row index must be an integer from 1 to ${rows - 1}: ${row}`);
+  }
+}
+
+function assertTableColumn(column: number, columns: number): void {
+  if (!Number.isInteger(column) || column < 0 || column >= columns) {
+    throw new Error(`table column index must be an integer from 0 to ${columns - 1}: ${column}`);
+  }
 }
 
 function tableAt(document: MystDocument, path: NodePath, operation: string): MystNode {
