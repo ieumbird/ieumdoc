@@ -64,7 +64,7 @@ export function referenceTargets(doc: ProseMirrorNode): ReferenceTarget[] {
     if (label.length === 0 || !role) return;
     const kind = node.type.name as NumberedKind;
     const number = numbers[index][kind];
-    targets.push({ role, label, kind, ...(number === undefined ? {} : { number }) });
+    targets.push({ role, label, ...(kind === "table" ? { kind } : {}), ...(number === undefined ? {} : { number }) });
   });
   return targets;
 }
