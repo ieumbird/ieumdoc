@@ -1,10 +1,16 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Fragment, useEffect, useRef, type CSSProperties } from "react";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 export type CommandMenuItem = {
   id: string;
   label: string;
   disabled?: boolean;
+  /** Consecutive items of one group are divided from the previous group by a separator. */
+  group?: string;
+  /** A short secondary text, such as the Markdown shortcut for the same block. */
+  hint?: string;
+  icon?: LucideIcon;
 };
 
 type CommandMenuProps = {
@@ -58,20 +64,31 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
       }}
     >
       {items.length === 0 ? <p className="command-menu-empty">{emptyText ?? "No matches"}</p> : null}
-      {items.map((item, index) => (
-        <button
-          key={item.id}
-          type="button"
-          role="menuitem"
-          className={`command-menu-item${index === activeIndex ? " active" : ""}`}
-          disabled={item.disabled}
-          // Keep the editor selection for slash commands.
-          onMouseDown={event => event.preventDefault()}
-          onClick={() => onSelect(item.id)}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item, index) => {
+        const Icon = item.icon;
+        return (
+          <Fragment key={item.id}>
+            {index > 0 && item.group !== items[index - 1].group
+              ? <div className="command-menu-separator" role="separator" aria-label={item.group} />
+              : null}
+            <button
+              type="button"
+              role="menuitem"
+              // The hint is secondary text; the item is named by its label alone.
+              aria-label={item.label}
+              className={`command-menu-item${index === activeIndex ? " active" : ""}`}
+              disabled={item.disabled}
+              // Keep the editor selection for slash commands.
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => onSelect(item.id)}
+            >
+              {Icon ? <Icon className="command-menu-icon" aria-hidden="true" size={16} /> : null}
+              <span className="command-menu-label">{item.label}</span>
+              {item.hint ? <kbd className="command-menu-hint">{item.hint}</kbd> : null}
+            </button>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

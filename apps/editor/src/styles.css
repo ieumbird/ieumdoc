@@ -926,6 +926,9 @@ ol.list { list-style: decimal; }
 }
 
 .command-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   border: 0;
   border-radius: var(--id-radius-sm);
@@ -935,6 +938,30 @@ ol.list { list-style: decimal; }
   cursor: pointer;
   overflow-wrap: anywhere;
   min-height: var(--size-control-compact);
+}
+
+/* A divider between groups of commands. */
+.command-menu-separator {
+  margin: var(--space-1) var(--space-2);
+  border-top: var(--border-width) solid var(--id-color-border-subtle);
+}
+
+.command-menu-icon {
+  flex: none;
+  color: var(--id-color-text-muted);
+}
+
+.command-menu-label {
+  flex: 1 1 auto;
+}
+
+/* The Markdown shortcut that makes the same block. */
+.command-menu-hint {
+  flex: none;
+  margin-left: var(--space-4);
+  color: var(--id-color-text-subtle);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
 }
 
 .command-menu-item:hover,
@@ -999,7 +1026,7 @@ ol.list { list-style: decimal; }
 
 .inline-math-error {
   color: var(--id-color-danger);
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
 }
 
 /* The source form sits under the math instead of above a text selection. */
@@ -1261,7 +1288,7 @@ ol.list { list-style: decimal; }
 
 .source-view-text {
   margin: 0;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
   white-space: pre-wrap;
