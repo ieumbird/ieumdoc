@@ -18,7 +18,10 @@ export default defineConfig({
       configureServer(server: ViteDevServer) {
         const assetSigningKey = randomBytes(32);
         server.middlewares.use((req, res, next) => {
-          const url = req.url?.split("?")[0] ?? "";
+          const requestUrl = req.url ?? "";
+          const base = server.config.base;
+          const localUrl = requestUrl.startsWith(base) ? `/${requestUrl.slice(base.length)}` : requestUrl;
+          const url = localUrl.split("?")[0];
           if (url === "/api/asset") {
             void server.ssrLoadModule("/server/asset-api.ts").then(mod => mod.handleAssetRequest(req, res, assetSigningKey)).catch((error: unknown) => {
               res.statusCode = 500;
@@ -31,6 +34,7 @@ export default defineConfig({
             next();
             return;
           }
+          req.url = localUrl;
           void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
             const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
               .handleDocumentRequest;
