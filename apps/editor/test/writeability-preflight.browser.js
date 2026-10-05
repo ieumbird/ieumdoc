@@ -67,7 +67,8 @@ async page => {
   await page.keyboard.type(' MUST NOT APPEAR');
   assert(!await editor.innerText().then(t => t.includes('MUST NOT APPEAR')), 'Unsaveable input accepted');
   assert(await page.locator('.block-gutter').count() === 0, 'Read-only document exposes structural controls');
-  assert(await page.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).isDisabled(), 'Equation edit bypasses read-only');
+  // Like a Figure, a read-only Equation offers no Edit.
+  assert(await page.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).count() === 0, 'Equation edit bypasses read-only');
   await page.getByTestId('inline-math').locator('.inline-math-rendered').click();
   assert(await page.getByTestId('inline-math-form').count() === 0, 'Inline math edit bypasses read-only');
   await save.dispatchEvent('click');
