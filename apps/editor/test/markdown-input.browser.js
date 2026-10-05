@@ -1,6 +1,6 @@
 // Run with pnpm browser:test markdown-input.
 // Types Markdown shortcuts with real keys: `## `, `- `, `3. `, a code fence and inline marks,
-// checks that Undo right after a shortcut restores the typed text, that no shortcut applies inside
+// and `$...$` inline math, checks that Undo right after a shortcut restores the typed text, that no shortcut applies inside
 // code blocks while marks apply in table cells and headings, then saves a scratch Markdown file and reloads it.
 async page => {
   await page.unrouteAll();
@@ -86,6 +86,14 @@ async page => {
   await page.keyboard.type(' _it_ `code`');
   await inline.locator('em').filter({hasText:'it'}).waitFor({state:'visible'});
   await inline.locator('code').filter({hasText:'code'}).waitFor({state:'visible'});
+  // `$THD$` becomes inline math; a dollar with a space just inside stays text.
+  await page.keyboard.type(' $THD$ and $5 and $6');
+  await inline.getByTestId('inline-math').first().waitFor({state:'visible'});
+  const inlineMath = await page.locator('.document-editor').evaluate(element => {
+    const values = [];
+    element.editor.state.doc.descendants(node => { if (node.type.name === 'inlineMath') values.push(node.attrs.value); });
+    return JSON.stringify(values);
+  }) === JSON.stringify(['THD']) && (await inline.innerText()).endsWith(' and $5 and $6');
 
   // Table cells and headings accept the same supported inline mark shortcuts.
   await caret('x', true);
@@ -113,6 +121,7 @@ async page => {
     codeLiteral,
     markUndone,
     cellMarkApplied,
+    inlineMath,
     headingMarkApplied,
     headingReloaded: await reloaded.locator('h2').filter({hasText:'Heading target'}).count() === 1,
     bulletListReloaded: await reloaded.locator('ul[data-block="list"] > li').filter({hasText:'List target'}).count() === 1,
@@ -122,6 +131,7 @@ async page => {
       await reloadedInline.locator('em').filter({hasText:'it'}).count() === 1 &&
       await reloadedInline.locator('code').filter({hasText:'code'}).count() === 1 &&
       (await reloadedInline.innerText()).includes('**bold**'),
+    inlineMathSaved: saved.includes('{math}`THD` and \\$5 and \\$6'),
     marksReloaded: await reloaded.locator('td strong').filter({hasText:'y'}).count() === 1 &&
       await reloaded.locator('h1 strong').filter({hasText:'z'}).count() === 1,
   };
