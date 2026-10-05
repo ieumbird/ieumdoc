@@ -369,7 +369,7 @@ async function requestDocument(
   body?: SessionSaveRequest | { path: string },
 ): Promise<DocumentResponse> {
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
-  const response = await fetch(`/api/document${query}`, {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document${query}`, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify({ path: filePath, ...body }) : undefined,
@@ -392,7 +392,7 @@ async function requestDocument(
 
 /** Asks the Host for the canonical Markdown a Save request would write. */
 async function requestSource(filePath: string, body: SessionSaveRequest): Promise<string> {
-  const response = await fetch("/api/document-source", {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document-source`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path: filePath, ...body }),
@@ -406,7 +406,7 @@ async function requestSource(filePath: string, body: SessionSaveRequest): Promis
 
 /** Asks the Host to run Core's persistent Figure validation. */
 async function validateFigure(figure: FigureContent): Promise<string | undefined> {
-  const response = await fetch("/api/figure-validation", {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/figure-validation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(figure),

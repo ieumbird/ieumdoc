@@ -1101,7 +1101,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
   const encodedPath = relativePath.split("/").map(encodeURIComponent).join("/");
   const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
-  return `/document/${encodedPath}${query}`;
+  return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
 function EquationView({ node, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {

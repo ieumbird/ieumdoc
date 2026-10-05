@@ -227,7 +227,7 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   assert.match(schemaSource, /if \(neverApplied\) removeUnappliedBlock\(view, getPos, node, deleteNode\);/);
   // Apply commits only after Core's persistent validation through the Host accepts the value.
   assert.match(schemaSource, /message = await validateFigure!\(candidate\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(view\.state\.tr\.replaceWith/);
-  assert.match(app, /fetch\("\/api\/figure-validation"/);
+  assert.match(app, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });
 
