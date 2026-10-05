@@ -10,4 +10,5 @@ export { inlineContentLength, type InlineContent } from "../src/inline.ts";
 export { figureContentError, type FigureContent } from "../src/figure.ts";
 export { labelError, labelKey } from "../src/label.ts";
 export * from "../src/operations.ts";
+export { unresolvedReferences } from "../src/references.ts";
 export { validateStructure } from "../src/validation.ts";

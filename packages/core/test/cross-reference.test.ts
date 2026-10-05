@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeLabel } from "myst-common";
+import { basicTransformations, enumerateTargetsTransform, ReferenceState, resolveReferencesTransform } from "myst-transforms";
+import { VFile } from "vfile";
 import {
   getEditableDocument,
   getNode,
@@ -11,7 +13,10 @@ import {
   parse,
   serialize,
   splitParagraph,
+  unresolvedReferences,
+  removeBlock,
   updateAdmonitionInlineContent,
+  updateLabel,
   updateParagraphInlineContent,
   type InlineContent,
   type MystDocument,
@@ -133,4 +138,41 @@ test("labelKey matches the identifier MyST resolves references with", () => {
     assert.equal(labelKey(label), normalizeLabel(label)?.identifier ?? "", JSON.stringify(label));
   }
   assert.equal(labelKey(""), "");
+});
+
+test("unresolvedReferences reports references that name no target in the document, as MyST resolves them", () => {
+  const source = [
+    "(sec-a)=",
+    "## Section A",
+    "$$\nx\n$$ (eq-one)",
+    ":::{figure} ./a.png\n:label: fig-one\nCaption {eq}`eq-gone`.\n:::",
+    ":::{table} Values\n:label: tbl-one\n| a |\n| - |\n| {numref}`fig-gone` |\n:::",
+    "See {eq}`EQ-One`, {numref}`fig-one`, {numref}`tbl-one`, {ref}`sec-a`, {eq}`missing` and {numref}`Figure %s <gone>`.",
+    ":::{note}\n- {ref}`nope`\n:::",
+  ].join("\n\n") + "\n";
+  const document = parse(source);
+  assert.deepEqual(unresolvedReferences(document), [
+    { role: "eq", label: "eq-gone", path: [3], line: 11 },
+    { role: "numref", label: "fig-gone", path: [4], line: 18 },
+    { role: "eq", label: "missing", path: [5], line: 21 },
+    { role: "numref", label: "gone", path: [5], line: 21 },
+    { role: "ref", label: "nope", path: [6], line: 24 },
+  ]);
+  // The same labels MyST's own reference resolution cannot find.
+  const tree = structuredClone(document);
+  const file = new VFile();
+  basicTransformations(tree as never, file);
+  const state = new ReferenceState("document.md", { vfile: file });
+  enumerateTargetsTransform(tree as never, { state });
+  resolveReferencesTransform(tree as never, file, { state });
+  assert.deepEqual(file.messages.map((message) => message.message.replace(/^Cross reference target was not found: /, "")),
+    unresolvedReferences(document).map((reference) => normalizeLabel(reference.label)?.identifier));
+});
+
+test("removing or relabeling a referenced target leaves an unresolved reference to report", () => {
+  const document = parse("See {numref}`fig-a`.\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
+  assert.deepEqual(unresolvedReferences(document), []);
+  const unresolved = [{ role: "numref", label: "fig-a", path: [0], line: 1 }];
+  assert.deepEqual(unresolvedReferences(removeBlock(document, 1)), unresolved);
+  assert.deepEqual(unresolvedReferences(updateLabel(document, [1], "fig-b")), unresolved);
 });

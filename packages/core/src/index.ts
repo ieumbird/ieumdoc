@@ -11,6 +11,7 @@ import { parse as parseTree } from "./myst/parse.ts";
 import { canonicalWriteError as canonicalWriteErrorTree, serialize as serializeTree } from "./myst/serialize.ts";
 import type { MystDocument } from "./myst/tree.ts";
 import * as operations from "./operations.ts";
+import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
 import { validateStructure as validateTree } from "./validation.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
@@ -24,6 +25,7 @@ export type { FigureContent } from "./figure.ts";
 export type { ListContent, ListItemContent } from "./list.ts";
 export type { CodeBlockContent } from "./code.ts";
 export type { BlockConversion, TableCellInput } from "./operations.ts";
+export type { UnresolvedReference } from "./references.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
@@ -45,6 +47,8 @@ export const canonicalWriteError = fence(canonicalWriteErrorTree);
 export const getEditableDocument = fence(editableTree);
 export const inspectDocument = fence(inspectTree);
 export const validateStructure = fence(validateTree);
+/** Cross-references that name no target in this document; reported, never a write rule. */
+export const unresolvedReferences = fence(unresolvedReferencesTree);
 
 export const insertHardBreak = fence(operations.insertHardBreak);
 export const splitParagraph = fence(operations.splitParagraph);
