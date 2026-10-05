@@ -36,7 +36,7 @@ async page => {
     // A previous save can still show "Saved" until React handles this click. Wait
     // for this request's acknowledgement before checking the status or disk.
     const response = page.waitForResponse(response => response.request().method() === 'POST' &&
-      new URL(response.url()).pathname.endsWith('/api/document'));
+      /\/api\/document(?:\?|$)/.test(response.url()));
     await page.getByRole('button', {name:'Save', exact:true}).click();
     if ((await response).status() !== 200) throw new Error('Label save was rejected');
     await page.getByText('Saved', {exact:true}).waitFor();
