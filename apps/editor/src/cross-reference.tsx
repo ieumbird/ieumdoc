@@ -1,37 +1,98 @@
 import { Node, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { NodeSelection } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
+import { Pencil } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
+import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "./ui/primitives.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
-/** A labeled Equation or Figure in the current editor document that a reference can name. */
-export type ReferenceTarget = { role: ReferenceRole; label: string };
+/** A labeled Equation or Figure in the current editor document that a reference can name,
+ * with its computed number when it has one. */
+export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number };
 
 const KIND: Record<ReferenceRole, string> = { eq: "Equation", numref: "Figure" };
 const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig." };
+const ROLE_KIND: Record<ReferenceRole, NumberedKind> = { eq: "equation", numref: "figure" };
+const ROLE_BLOCK: Record<ReferenceRole, string> = { eq: "equation", numref: "figure" };
+
+/**
+ * The equation, figure and table numbers of each top-level block of the current editor
+ * document, by Core's numbering rule: snapshot blocks keep the targets Core counted, blocks
+ * added since have their kind's default. Numbers are display only and never saved.
+ */
+export function blockNumbers(doc: ProseMirrorNode): NumberedTargets[] {
+  const blocks: NumberedTargets[] = [];
+  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, numbered: node.attrs.numbered as NumberedTargets | null })));
+  return targetNumbers(blocks);
+}
+
+/** The computed number of the top-level block at `pos`, for one target kind. */
+export function blockNumberAt(doc: ProseMirrorNode, pos: number, kind: NumberedKind): number | undefined {
+  return blockNumbers(doc)[doc.resolve(pos).index(0)]?.[kind];
+}
+
+/** A target block's computed number, following every change to the editor document. */
+export function useBlockNumber(editor: Editor, getPos: () => number | undefined, kind: NumberedKind): number | undefined {
+  return useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      const pos = getPos();
+      return current && typeof pos === "number" ? blockNumberAt(current.state.doc, pos, kind) : undefined;
+    },
+  }) ?? undefined;
+}
+
+/** How a number is shown: equations in parentheses, as MyST renders them. */
+export function numberText(kind: NumberedKind, number: number): string {
+  return kind === "equation" ? `(${number})` : String(number);
+}
 
 /**
  * The applied Equation ({eq}) and Figure ({numref}) labels of the current document, in
  * document order. Labels come from Core's read model and the label edits applied since.
  */
 export function referenceTargets(doc: ProseMirrorNode): ReferenceTarget[] {
+  const numbers = blockNumbers(doc);
   const targets: ReferenceTarget[] = [];
-  doc.forEach((node) => {
+  doc.forEach((node, _pos, index) => {
     const label = String(node.attrs.label ?? "");
-    if (label.length === 0) return;
-    if (node.type.name === "equation") targets.push({ role: "eq", label });
-    else if (node.type.name === "figure") targets.push({ role: "numref", label });
+    const role = (Object.keys(ROLE_BLOCK) as ReferenceRole[]).find((candidate) => ROLE_BLOCK[candidate] === node.type.name);
+    if (label.length === 0 || !role) return;
+    const number = numbers[index][ROLE_KIND[role]];
+    targets.push({ role, label, ...(number === undefined ? {} : { number }) });
   });
   return targets;
 }
 
+/** The target a reference names here, compared the way MyST resolves labels. */
+export function resolvedTarget(targets: ReferenceTarget[], role: ReferenceRole, label: string): ReferenceTarget | undefined {
+  const key = labelKey(label);
+  return targets.find((target) => target.role === role && labelKey(target.label) === key);
+}
+
 /** Whether a reference names a target of its kind here, compared the way MyST resolves labels. */
 export function isResolved(targets: ReferenceTarget[], role: ReferenceRole, label: string): boolean {
+  return resolvedTarget(targets, role, label) !== undefined;
+}
+
+/** Select the block a reference names and bring it into view; false when it names no target here. */
+export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label: string): boolean {
   const key = labelKey(label);
-  return targets.some((target) => target.role === role && labelKey(target.label) === key);
+  let target: number | undefined;
+  editor.state.doc.forEach((node, pos) => {
+    const own = String(node.attrs.label ?? "");
+    if (target === undefined && node.type.name === ROLE_BLOCK[role] && own.length > 0 && labelKey(own) === key) target = pos;
+  });
+  if (target === undefined) return false;
+  editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, target)));
+  editor.view.focus();
+  const element = editor.view.nodeDOM(target);
+  if (element instanceof HTMLElement) element.scrollIntoView({ block: "center" });
+  return true;
 }
 
 /** Slash menu items that insert a reference to each target matching the query. */
@@ -116,7 +177,8 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor,
     selector: ({ editor: current }) => JSON.stringify(current ? referenceTargets(current.state.doc) : []),
   });
-  const resolved = isResolved(JSON.parse(targets ?? "[]") as ReferenceTarget[], role, label);
+  const target = resolvedTarget(JSON.parse(targets ?? "[]") as ReferenceTarget[], role, label);
+  const resolved = target !== undefined;
   const close = () => {
     setEditing(false);
     editor.commands.focus();
@@ -129,7 +191,9 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
       { type: "text", text: label, marks: node.marks.map((mark) => mark.toJSON()) }).run();
   };
-  const status = resolved ? `${KIND[role]} ${label}` : `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
+  const status = resolved ? `${KIND[role]} ${label}. Click to go to it.` : `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
+  // A resolved reference shows its target's computed number, as MyST renders it.
+  const shown = target?.number !== undefined ? numberText(ROLE_KIND[role], target.number) : label;
   return (
     <NodeViewWrapper
       as="span"
@@ -137,10 +201,18 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
       data-selected={selected ? "true" : "false"}
       data-resolved={resolved ? "true" : "false"}
       data-testid="cross-reference"
+      data-role={role}
+      data-label={label}
     >
-      <span className="cross-reference-chip" title={status} aria-label={status} onClick={() => setEditing(true)}>
-        {PREFIX[role]} {label}
+      {/* A resolved reference goes to its target; one without a target opens the form. */}
+      <span className="cross-reference-chip" title={status} aria-label={status}
+        onClick={() => { if (!revealReferenceTarget(editor, role, label)) setEditing(true); }}>
+        {PREFIX[role]} {shown}
       </span>
+      <button type="button" className="cross-reference-edit" aria-label="Edit reference" title="Edit reference"
+        data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>
+        <Pencil aria-hidden="true" size={12} />
+      </button>
       {editing ? (
         <ReferenceForm
           className="cross-reference-form"

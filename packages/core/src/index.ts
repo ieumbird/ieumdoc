@@ -29,6 +29,7 @@ export type { UnresolvedReference } from "./references.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
+export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R

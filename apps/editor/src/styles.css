@@ -699,6 +699,36 @@ ol.list { list-style: decimal; }
   overflow-x: auto;
 }
 
+/* The formula stays centered; its computed number sits at the right, as in print. */
+.equation-row {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) 3rem;
+  align-items: center;
+}
+
+.equation-row > .equation-math {
+  grid-column: 2;
+}
+
+.equation-number {
+  grid-column: 3;
+  text-align: right;
+  color: var(--id-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A Figure's computed number leads its caption; the caption text stays editable after it. */
+.caption[data-number]::before {
+  content: attr(data-number) ". ";
+  color: var(--id-color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.caption[data-number] [data-node-view-content],
+.caption[data-number] [data-node-view-content-react] {
+  display: inline;
+}
+
 /* Size our wrapper to the formula; leave KaTeX's internal layout intact. */
 .equation-content {
   width: max-content;
@@ -1012,6 +1042,29 @@ ol.list { list-style: decimal; }
 .cross-reference-chip:hover,
 .cross-reference[data-selected="true"] .cross-reference-chip {
   box-shadow: var(--focus-ring);
+}
+
+/* Clicking a resolved chip goes to its target; this corner button changes the reference. */
+.cross-reference-edit {
+  position: absolute;
+  top: -0.75em;
+  right: -0.75em;
+  z-index: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-surface);
+  color: var(--id-color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.cross-reference:is(:hover, [data-selected="true"]) .cross-reference-edit,
+.cross-reference-edit:focus-visible {
+  display: inline-flex;
 }
 
 .reference-form {

@@ -92,8 +92,8 @@ async page => {
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await setFigureLabel(figure, 'fig-diagram');
-  result.kindsShowLabels = await equation.locator('.block-kind').textContent() === 'Equation · eq-reference' &&
-    await figure.locator('.block-kind').textContent() === 'Figure · fig-diagram';
+  result.kindsShowLabels = await equation.locator('.block-kind').textContent() === 'Equation (1) · eq-reference' &&
+    await figure.locator('.block-kind').textContent() === 'Figure 1 · fig-diagram';
   const preview = await sourceText();
   result.sourceShowsUnsavedLabels = preview.includes(`\`\`\`{math}\n:label: eq-reference\n\n${latex}\n\`\`\``) &&
     preview.includes(':::{figure} ./diagram.svg\n:name: fig-diagram\n:alt: Control block diagram\n\nControl block diagram of the grid-connected converter.\n:::');
@@ -104,8 +104,8 @@ async page => {
   await save();
   result.saveMatchesSource = await markdown() === preview;
   await open();
-  result.reloadedLabels = await equation.locator('.block-kind').textContent() === 'Equation · eq-reference' &&
-    await figure.locator('.block-kind').textContent() === 'Figure · fig-diagram';
+  result.reloadedLabels = await equation.locator('.block-kind').textContent() === 'Equation (1) · eq-reference' &&
+    await figure.locator('.block-kind').textContent() === 'Figure 1 · fig-diagram';
   result.reloadedSourceMatchesFile = await sourceText() === await markdown();
 
   // C. A duplicate (compared like MyST identifiers) fails Save and Source without writing.
@@ -156,8 +156,8 @@ async page => {
   result.newBlocksSaved = withNew === newPreview && withNew.includes('```{math}\n:label: eq-new\n\ny = 1\n```') &&
     withNew.includes(':::{figure} ./diagram.svg\n:name: fig-new\n:::');
   await open();
-  result.newBlocksReloaded = await page.locator('[data-block="equation"] .block-kind', {hasText:'Equation · eq-new'}).count() === 1 &&
-    await page.locator('[data-block="figure"] .block-kind', {hasText:'Figure · fig-new'}).count() === 1;
+  result.newBlocksReloaded = await page.locator('[data-block="equation"] .block-kind', {hasText:/^Equation \([0-9]+\) · eq-new$/}).count() === 1 &&
+    await page.locator('[data-block="figure"] .block-kind', {hasText:/^Figure [0-9]+ · fig-new$/}).count() === 1;
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

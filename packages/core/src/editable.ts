@@ -1,6 +1,8 @@
 import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
+import { numberedTargets } from "./myst/numbering.ts";
+import { blockTargets, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
 import { tableCellContent } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
@@ -111,6 +113,9 @@ export type EditableBlock = (
     }) & {
       /** Opening-source context for visually unsupported content; never used to write. */
       original?: { kind: string; text: string; line: number };
+      /** The numbered targets the block holds, only where they differ from its kind's
+       * default (see `blockTargets`). Numbers come from `targetNumbers`. */
+      numbered?: NumberedTargets;
     };
 
 export type EditableDocument = {
@@ -118,12 +123,15 @@ export type EditableDocument = {
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
+  const numbered = numberedTargets(document);
   const blocks = (document.children ?? []).map((node, index) => {
     const block = toBlock(node, [index]);
     const readonly = block.block === "unsupported" || ("editable" in block && !block.editable) ||
       (block.block === "table" && block.rows.some(row => row.cells.some(cell => !cell.editable)));
     const source = readonly ? sourceExcerpt(document, node) : undefined;
     if (source) block.original = { kind: contentKind(node), ...source };
+    const defaults = blockTargets(block);
+    if (NUMBERED_KINDS.some((kind) => (numbered[index][kind] ?? 0) !== (defaults[kind] ?? 0))) block.numbered = numbered[index];
     return block;
   });
   return { blocks };

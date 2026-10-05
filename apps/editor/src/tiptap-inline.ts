@@ -9,7 +9,7 @@ export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: TiptapMark[];
-  attrs?: Record<string, string | number | boolean | string[] | EditableBlock["original"]>;
+  attrs?: Record<string, string | number | boolean | string[] | EditableBlock["original"] | EditableBlock["numbered"]>;
   content?: TiptapJSON[];
 };
 

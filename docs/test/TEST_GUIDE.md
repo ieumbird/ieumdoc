@@ -1071,7 +1071,8 @@ pnpm exec playwright-cli -s=ieumdoc-label close
 
 - 편집 대상은 표시 텍스트가 없는 `{eq}`label``, `{numref}`label``뿐이다. `{numref}`Figure %s <label>`` 같은 표시 텍스트, `{ref}`, link 안의 reference가 있는 paragraph는 계속 읽기 전용이다.
 - 삽입: 텍스트를 선택하고 selection toolbar의 `Cross-reference`(#)를 누르면 target을 고르는 작은 form이 열린다(선택한 텍스트와 같은 label이 있으면 미리 선택된다). caret 위치에서는 `/`를 입력하고 `Equation reference: …` / `Figure reference: …`를 고른다.
-- reference를 클릭하면 target을 바꾸거나 `Remove`로 label 텍스트로 되돌릴 수 있다. 굵게/기울임은 reference에도 적용되고, link는 적용되지 않는다. split / merge / hard break에서 reference는 한 글자로 센다.
+- 해석되는 reference를 클릭하면 target 블록으로 이동해 선택한다. 해석되지 않는 reference를 클릭하거나, reference에 마우스를 올렸을 때 모서리에 나오는 연필 버튼(`Edit reference`)을 누르면 form이 열린다. form에서 target을 바꾸거나 `Remove`로 label 텍스트로 되돌릴 수 있다. 굵게/기울임은 reference에도 적용되고, link는 적용되지 않는다. split / merge / hard break에서 reference는 한 글자로 센다.
+- 번호(#88): MyST처럼 display equation, figure, 캡션이 있는 table에 문서 순서대로 번호가 붙는다(label이 없어도, `:enumerated: false`는 제외, admonition 안 수식처럼 중첩된 것도 센다). Editor는 수식 오른쪽에 `(n)`, 그림 캡션 앞에 `Figure n.`, 해석되는 reference에 `Eq. (n)` / `Fig. n`을 보여 준다. 블록을 추가·이동·삭제하면 즉시 다시 계산되고, 번호는 파일에 쓰지 않는다. `pnpm ieumdoc inspect`는 `numbers=equation:1`(JSON `numbers`)로 같은 번호를 보여 준다. front matter의 번호 설정은 아직 읽지 않는다.
 - 문서 안에 같은 종류의 target이 있으면(MyST처럼 대소문자 무시) 보통 표시, 없으면 흐린 점선으로 표시되고 tooltip에 `Unresolved`가 나온다. label을 바꾸면 바로 반영된다. 끊어진 reference도 그대로 저장된다.
 - target 목록은 현재 문서의 Equation/Figure label(Apply한 미저장 label 포함)이다. `{numref}`가 Equation이나 table을 가리키면 v1에서는 unresolved로 보인다.
 
