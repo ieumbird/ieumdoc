@@ -135,8 +135,12 @@ test("Figure validity rules reject values that canonical MyST cannot persist", (
     assert.throws(() => insertFigure(parse("Intro"), 1, { ...valid, ...change }), message);
     assert.throws(() => updateFigure(parse(source), FIGURE_PATH, change), message);
   }
+  // Literal dollars are escaped and stay caption text.
+  const dollars = insertFigure(parse("Intro"), 1, { ...valid, caption: "cost $5 and $x$" });
+  assert.match(serialize(dollars), /\ncost \\\$5 and \\\$x\\\$\n/);
+  assert.equal(serialize(parse(serialize(dollars))), serialize(dollars));
   // Captions that MyST would reinterpret fail the Core round-trip.
-  for (const caption of ["cost $5 and $x$", "% comment", "+++", ":::"]) {
+  for (const caption of ["% comment", "+++", ":::"]) {
     assert.throws(() => insertFigure(parse("Intro"), 1, { ...valid, caption }), /canonical round-trip|not canonical/);
     assert.throws(() => updateFigure(parse(source), FIGURE_PATH, { caption }), /canonical round-trip|not canonical/);
   }
@@ -148,7 +152,7 @@ test("validateFigure is the persistent validity used by insertFigure", () => {
   assert.equal(validateFigure({ ...valid, imageAlt: "", caption: "" }), undefined);
   assert.match(validateFigure({ ...valid, imageUrl: "" }) ?? "", /image URL is required/);
   // Field rules alone accept this caption; only the canonical round-trip rejects it.
-  const reinterpreted = { ...valid, caption: "cost $5 and $x$" };
+  const reinterpreted = { ...valid, caption: "% comment" };
   assert.equal(figureContentError(reinterpreted), undefined);
   assert.match(validateFigure(reinterpreted) ?? "", /canonical round-trip|not canonical/);
   assert.throws(() => insertFigure(parse("Intro"), 1, reinterpreted), /canonical round-trip|not canonical/);
@@ -202,7 +206,7 @@ test("Figure captions keep supported inline semantics through updates, inserts a
   }
   const original = parse(source);
   const before = serialize(original);
-  for (const invalid of [[{ kind: "text", text: "cost $x$" }], [{ kind: "link", url: "", children: [] }], [{ kind: "unknown" }]]) {
+  for (const invalid of [[{ kind: "text", text: "% comment" }], [{ kind: "link", url: "", children: [] }], [{ kind: "unknown" }]]) {
     assert.throws(() => updateFigure(original, FIGURE_PATH, { caption: invalid as never }));
     assert.equal(serialize(original), before);
   }

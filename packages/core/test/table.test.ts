@@ -104,8 +104,6 @@ test("updateTableCell fails closed without mutating the document", () => {
     [[TABLE, 1, 1], [{ kind: "strong", children: [{ kind: "text", text: "AC " }] }], /whitespace/],
     [[TABLE, 1, 1], " AC", /whitespace/],
     [[TABLE, 1, 1], "AC ", /whitespace/],
-    // `$x$` would reparse as inline math, not the text that was typed.
-    [[TABLE, 1, 1], "cost $x$", /table cell text cannot be preserved through canonical round-trip/],
     // The writer does not escape a pipe inside inline code or math, so it would end the cell.
     [[TABLE, 1, 1], [{ kind: "code", value: "a|b" }], /table cell text cannot be preserved through canonical round-trip/],
     [[TABLE, 1], "x", /requires a top-level table cell path/],
@@ -181,7 +179,6 @@ test("table insertion fails closed without mutating the document", () => {
     [() => insertTable(document, 0, [["A", "B"], ["x"]]), /same number of cells/],
     [() => insertTable(document, 0, [["A"], ["x\ny"]]), /line breaks/],
     [() => insertTable(document, 0, [[" A"]]), /whitespace/],
-    [() => insertTable(document, 0, [["cost $x$"]]), /table cannot be preserved through canonical round-trip/],
     [() => insertTable(document, 99, [["A"]]), /index out of range/],
     [() => insertTableRow(document, [TABLE], 0), /from 1 to 3/],
     [() => insertTableRow(document, [TABLE], 4), /from 1 to 3/],

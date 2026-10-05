@@ -1,12 +1,12 @@
 import { Extension, InputRule, markInputRule, type InputRuleFinder } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import type { Fragment, MarkType } from "@tiptap/pm/model";
+import type { Fragment, MarkType, NodeType } from "@tiptap/pm/model";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 import { freshBlockPath } from "./tiptap-document.ts";
 
 // Markdown input shortcuts are Editor-only interaction: each one produces the same engine
 // document as the equivalent insert or conversion command, and Save maps it to the same Core
-// operations. Only blocks and marks the Editor can author have a shortcut.
+// operations. Only blocks, marks and inline math the Editor can author have a shortcut.
 
 /** The only extension whose input rules the editor enables. */
 export const MARKDOWN_INPUT_RULES = "markdownInputRules";
@@ -87,6 +87,25 @@ function markRule(find: InputRuleFinder, type: MarkType): InputRule {
   });
 }
 
+/**
+ * `$source$` becomes inline math with that LaTeX source, like the toolbar's Inline math, keeping
+ * the marks that cover it. A space just inside either dollar keeps the text: `$5 and $6` stays text.
+ */
+function inlineMathRule(type: NodeType): InputRule {
+  return new InputRule({
+    find: /(?:^|\s)(\$([^\s$](?:[^$]*[^\s$])?)\$)$/,
+    handler: ({ state, range, match }) => {
+      const from = range.from + match[0].length - match[1].length;
+      const $from = state.doc.resolve(from);
+      const $to = state.doc.resolve(range.to);
+      if (!$from.sameParent($to) || !$from.parent.canReplaceWith($from.index(), $to.index(), type)) return null;
+      const marks = $from.marksAcross($to) ?? [];
+      state.tr.replaceWith(from, range.to, type.create({ value: match[2] }, null, marks));
+      closeHistory(state.tr);
+    },
+  });
+}
+
 export const MarkdownInputRules = Extension.create({
   name: MARKDOWN_INPUT_RULES,
   // Ahead of Enter handling and history: a rule sees Enter first, and Undo right after a rule restores the typed text.
@@ -110,6 +129,7 @@ export const MarkdownInputRules = Extension.create({
       markRule(/(?:^|\s)(_(?!\s+_)((?:[^_]+))_(?!\s+_))$/, marks.italic),
       markRule(/(?:^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))$/, marks.code),
       markRule(/(?:^|\s)(~~(?!\s+~~)((?:[^~]+))~~(?!\s+~~))$/, marks.strike),
+      inlineMathRule(this.editor.schema.nodes.inlineMath),
     ];
   },
   addKeyboardShortcuts() {

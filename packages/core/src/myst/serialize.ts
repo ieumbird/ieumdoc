@@ -69,6 +69,11 @@ function prepareWriter(tree: MystDocument): string {
     if (node.type === "table" && node.children?.[0]?.children?.some(cell => cell.align !== undefined)) {
       node.align = node.children[0].children.map(cell => cell.align ?? null);
     }
+    // myst-to-md does not escape `$`, so literal dollars in text would reload as inline
+    // math. Write each as `\$`; the writer emits `html` values verbatim.
+    if (node.children?.some(child => child.type === "text" && String(child.value).includes("$"))) {
+      node.children = node.children.flatMap(child => child.type === "text" ? escapeDollars(child) : [child]);
+    }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node));
     // MyST lifts standalone images out of paragraphs. Restore the writer's flow
     // wrapper so adjacent text/images get a blank separator, not merged inline.
@@ -80,6 +85,13 @@ function prepareWriter(tree: MystDocument): string {
   visit(tree, 0);
   if (prefix) tree.children.shift();
   return prefix;
+}
+
+function escapeDollars(text: MystNode): MystNode[] {
+  return String(text.value).split("$").flatMap((value, index) => [
+    ...(index > 0 ? [{ type: "html", value: "\\$" }] : []),
+    ...(value ? [{ ...text, value }] : []),
+  ]);
 }
 
 /**

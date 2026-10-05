@@ -436,7 +436,7 @@ test("CLI insert-figure persists a Core Figure", () => {
     for (const args of [
       ["insert-figure", file, "--at", "0", "--image", ""],
       ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
-      ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "cost $5 and $x$"],
+      ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "% comment"],
       ["insert-figure", file, "--at", "9", "--image", "./a.svg"],
       ["insert-figure", file, "--at", "0", "--alt", "missing image"],
     ]) {
@@ -852,7 +852,6 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
     }
     for (const args of [
       ["--path", "12,1,1", "--text", " padded"],
-      ["--path", "12,1,1", "--text", "cost $x$"],
       ["--path", "12,1,1", "--text", "x", "--content", JSON.stringify(bold)],
       ["--path", "2,0,0", "--text", "x"],
       ["--path", "12,1", "--text", "x"],

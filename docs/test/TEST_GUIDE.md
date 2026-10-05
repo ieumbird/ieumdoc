@@ -877,10 +877,11 @@ Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은
 - 최상위 문단 맨 앞에서: `#`–`######` + 공백 → 제목 1–6, `- `/`* `/`+ ` → 글머리표 목록, `3. ` → 3부터 시작하는 번호 목록, ```` ```js ```` + 공백 또는 Enter → 언어가 `js`인 code block. 문단의 나머지 내용은 새 블록으로 옮겨진다.
 - 줄바꿈이 있는 문단은 제목으로, 서식·link·inline math·reference·줄바꿈이 있는 문단은 code block으로 바뀌지 않는다(입력한 문자가 그대로 남는다). 제목 단축은 서식을 유지한다. 목록은 서식을 그대로 담는다. 목록 항목·Note/Warning·표 cell 안에서는 블록 단축이 적용되지 않는다.
 - 인라인: `**굵게**`/`__굵게__`, `*기울임*`/`_기울임_`, `` `코드` ``(앞이 줄 시작이나 공백일 때). 제목·표 cell·그림 caption에서도 지원되는 인라인 서식 단축이 적용된다. code block 안에서는 어떤 단축도 적용되지 않는다.
+- 인라인 수식(#84): `$THD$`처럼 `$…$`를 입력하면(앞이 줄 시작이나 공백일 때) LaTeX 원문이 `THD`인 inline math가 되고, 덮고 있던 서식을 유지한다. 여는 `$` 바로 뒤나 닫는 `$` 바로 앞이 공백이면(`$5 and $6`) 글자 그대로 남는다. 글자 그대로 남은 `$`는 Core가 `\$`로 저장한다.
 - 단축 직후 Ctrl/Cmd+Z 또는 Backspace는 입력한 문자 그대로(예: `## `) 되돌리고 caret을 그 뒤에 둔다. Enter로 적용한 code fence는 Enter 없이 ```` ```js ````로 되돌아간다.
 - 인용문(`> `), 구분선(빈 문단에서 `---`), 취소선(`~~취소~~`)은 아래 Basic blocks(#57)를 따른다.
 
-브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block에서는 문자가 그대로 남고 표 cell·제목에는 서식이 적용되는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
+브라우저 회귀: `pnpm browser:test markdown-input`은 scratch `tmp/markdown-input/markdown-input.md`에서 위 단축을 실제 키로 입력하고, Undo로 `## `가 돌아오는지, code block에서는 문자가 그대로 남고 표 cell·제목에는 서식이 적용되는지, `$THD$`는 inline math가 되고 `$5 and $6`은 text로 남는지 확인한 뒤 Save해 파일 내용과 다시 연 화면을 확인한다.
 
 ## Formatted headings (#58, 제목)
 

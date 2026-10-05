@@ -133,7 +133,7 @@ test("Host rejects malformed, read-only and unpreservable cell edits without wri
       [{ path: [0, 1, 0], content: "x" }, /must be InlineContent/],
       [{ path: [0, 1, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
       [{ path: [0, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
-      [{ path: [0, 1, 0], content: [{ kind: "text", text: "cost $x$" }] }, /table cell text cannot be preserved/],
+      [{ path: [0, 1, 0], content: [{ kind: "code", value: "a|b" }] }, /table cell text cannot be preserved/],
       [{ path: [0, 1, 0], content: [{ kind: "text", text: "U " }] }, /whitespace/],
     ];
     for (const [cell, reason] of rejected) {

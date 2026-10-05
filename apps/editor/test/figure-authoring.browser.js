@@ -105,12 +105,12 @@ async page => {
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
-    await page.getByTestId('figure-caption').fill('cost $5 and $x$');
+    await page.getByTestId('figure-caption').fill('% comment');
     await page.getByTestId('figure-apply').click();
     const coreError = editor.getByText(/canonical round-trip|not canonical/);
     await coreError.waitFor();
     result.invalidApplyKeepsForm = await editor.isVisible() &&
-      await page.getByTestId('figure-caption').inputValue() === 'cost $5 and $x$';
+      await page.getByTestId('figure-caption').inputValue() === '% comment';
     result.invalidApplyShowsCoreError = await coreError.isVisible();
     result.invalidApplyKeepsAppliedValue = await figures.first().locator('figcaption').innerText() === appliedCaption;
     result.invalidApplyAllowsAppliedSave = await saveEnabled.count() === 1;
