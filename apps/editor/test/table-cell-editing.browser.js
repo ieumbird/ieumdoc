@@ -109,6 +109,9 @@ async page => {
   await readonly.click();
   await page.keyboard.type('x');
   result.readonlyCellUnchanged = (await readonly.innerText()) === 'V';
+  // Where Chromium puts the caret after a click on a non-editable cell varies by platform: the
+  // typed text may land in the neighboring editable cell. Undo it so the next step starts clean.
+  await page.keyboard.press('ControlOrMeta+z');
   // An existing formatted cell is editable, and its formatting can be removed.
   await selectCell('bold');
   await page.keyboard.press('ControlOrMeta+b');
