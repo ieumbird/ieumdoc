@@ -359,7 +359,8 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
     for (const node of group) assertBlockChange(originals[0], node);
   }
   const deleted = new Set(deletedPathsOf(next));
-  if (before.some(node => !used.has(sourcePathOf(node)) && !deleted.has(sourcePathOf(node)))) {
+  // A new document's empty starting paragraph is no snapshot block: replacing it deletes nothing.
+  if (before.some(node => !isNewBlockPath(sourcePathOf(node)) && !used.has(sourcePathOf(node)) && !deleted.has(sourcePathOf(node)))) {
     throw new Error("block deletion is not allowed");
   }
 }
