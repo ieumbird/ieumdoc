@@ -110,6 +110,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const figures: FigureEdit[] = [];
   const cells: TableCellEdit[] = [];
   const tables: TableShapeEdit[] = [];
+  const tableCaptions: NonNullable<SupportedEdits["tableCaptions"]> = [];
   const admonitions: AdmonitionEdit[] = [];
   const quotes: QuoteEdit[] = [];
   const lists: ListEdit[] = [];
@@ -216,6 +217,10 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
       if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM);
       lists.push({ path: block.path, list });
     } else if (block.block === "table") {
+      const label = blockLabel(node);
+      if (label !== (block.label ?? "")) labels.push({ path: block.path, from: block.label ?? "", to: label });
+      const caption = tableCaption(node);
+      if (!sameInline(caption, block.caption ?? [])) tableCaptions.push({ path: block.path, content: caption });
       const next = tableCells(node);
       const shape = tableShape(tableCells(toTiptapBlock(block)), next);
       block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
@@ -252,6 +257,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     ...(figures.length ? { figures } : {}),
     ...(cells.length ? { cells } : {}),
     ...(tables.length ? { tables } : {}),
+    ...(tableCaptions.length ? { tableCaptions } : {}),
     ...(admonitions.length ? { admonitions } : {}),
     ...(quotes.length ? { quotes } : {}),
     ...(lists.length ? { lists } : {}),
@@ -447,7 +453,7 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
   if (block.block === "table") {
     return {
       type: "table",
-      attrs: { sourcePath: pathKey(block.path) },
+      attrs: { sourcePath: pathKey(block.path), label: block.label ?? "", caption: block.caption ?? [] },
       content: block.rows.map((row, rowIndex) => ({
         type: "tableRow",
         content: row.cells.map((cell, column): TiptapJSON => {
@@ -582,7 +588,10 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     if (grid.some(row => row.some((cell, column) => (cell.align || null) !== align[column]))) {
       throw new Error("table alignment must be uniform within each column");
     }
-    return { block: "table", rows: grid.map(row => row.map(cell => cell.content)), ...(align.some(Boolean) ? { align } : {}) };
+    const caption = tableCaption(node);
+    const label = blockLabel(node);
+    return { block: "table", rows: grid.map(row => row.map(cell => cell.content)), ...(align.some(Boolean) ? { align } : {}),
+      ...(caption.length ? { caption } : {}), ...(label ? { label } : {}) };
   }
   if (LIST_BLOCKS.has(node.type ?? "")) {
     return { block: "list", list: listContent(node) };
@@ -674,6 +683,8 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     return;
   }
   if (beforeType === "table") {
+    blockLabel(after);
+    tableCaption(after);
     if (normalizeAttr(before.attrs?.sourcePath) !== normalizeAttr(after.attrs?.sourcePath)) {
       throw new Error("table identity cannot change");
     }
@@ -825,6 +836,12 @@ function paragraphInline(node: TiptapJSON): InlineContent[] {
 function equationLatex(node: TiptapJSON): string {
   if (typeof node.attrs?.latex !== "string") throw new Error("equation LaTeX must be a string");
   return node.attrs.latex;
+}
+
+export function tableCaption(node: TiptapJSON): InlineContent[] {
+  const caption = node.attrs?.caption ?? [];
+  if (!Array.isArray(caption)) throw new Error("table caption must be InlineContent");
+  return fromTiptapContent(toTiptapContent(caption as InlineContent[]));
 }
 
 function blockLabel(node: TiptapJSON): string {

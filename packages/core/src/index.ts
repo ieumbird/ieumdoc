@@ -83,6 +83,7 @@ export const updateHeadingInlineContent = fence(operations.updateHeadingInlineCo
 export const updateEquationLatex = fence(operations.updateEquationLatex);
 export const updateFigure = fence(operations.updateFigure);
 export const updateTableCell = fence(operations.updateTableCell);
+export const updateTableCaption = fence(operations.updateTableCaption);
 export const updateParagraphInlineContent = fence(operations.updateParagraphInlineContent);
 export const updateAdmonitionInlineContent = fence(operations.updateAdmonitionInlineContent);
 export const updateAdmonitionVariant = fence(operations.updateAdmonitionVariant);

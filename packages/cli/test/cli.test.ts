@@ -1332,3 +1332,21 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("CLI authors table captions and labels through Core and rejects multiline captions without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-caption-"));
+  const file = path.join(dir, "table.md");
+  writeFileSync(file, "| A |\n|---|\n| 1 |\n");
+  try {
+    for (const args of [
+      ["update-table-caption", file, "--path", "0", "--text", "Values"],
+      ["update-label", file, "--path", "0", "--label", "tbl-values"],
+    ]) { const result = run(args); assert.equal(result.status, 0, result.stderr); }
+    const saved = readFileSync(file, "utf8");
+    assert.match(saved, /:::\{table\} Values\n:name: tbl-values/);
+    const result = run(["update-table-caption", file, "--path", "0", "--text", "two\nlines"]);
+    assert.notEqual(result.status, 0);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

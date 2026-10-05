@@ -116,6 +116,43 @@ async page => {
   await open();
   result.reshapedAfterReopen = JSON.stringify(await grid(tables.last())) === JSON.stringify(reshaped);
 
+  // Caption and label use the shared properties form and survive subsequent grid edits.
+  const table = tables.last();
+  await table.hover();
+  await table.getByRole('button', {name:'Edit table'}).click();
+  await page.getByTestId('table-caption-input').fill('Cancelled caption');
+  await page.getByTestId('table-cancel').click();
+  result.captionCancelKeepsTable = await table.getByTestId('table-caption').count() === 0;
+  await table.hover();
+  await table.getByRole('button', {name:'Edit table'}).click();
+  await page.getByTestId('table-caption-input').fill('Port values');
+  await page.getByTestId('table-label').fill('tbl-ports');
+  await page.getByTestId('table-apply').click();
+  await page.getByTestId('table-editor').waitFor({state:'detached'});
+  result.captionApplied = await table.getByTestId('table-caption').innerText() === 'Port values' &&
+    await table.getByTestId('table-caption').getAttribute('data-number') === 'Table 1';
+  result.captionSave = await save();
+  result.captionWritten = (await read()).includes(':::{table} Port values\n:name: tbl-ports');
+  await open();
+  result.captionReloaded = await tables.last().getByTestId('table-caption').innerText() === 'Port values';
+  await tables.last().locator('td', {hasText:/^W$/}).click();
+  await page.keyboard.type('att');
+  result.captionCellSave = await save();
+  result.captionAndCellKept = (await read()).includes('Port values') && (await read()).includes('Watt');
+  // The slash menu inserts a numbered Table reference; clicking it selects the target.
+  await page.getByText('Intro paragraph.', {exact:true}).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' /tbl');
+  await page.getByRole('menuitem', {name:'Table reference: tbl-ports'}).click();
+  const ref = page.getByTestId('cross-reference').filter({hasText:'Table 1'});
+  result.tableReferenceShown = await ref.count() === 1;
+  await ref.locator('.cross-reference-chip').click();
+  result.tableReferenceNavigates = await tables.last().getAttribute('data-selected') === 'true';
+  result.referenceSave = await save();
+  result.tableRoleWritten = (await read()).includes('{numref}`tbl-ports`');
+  await open();
+  result.tableReferenceReloaded = await page.getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
+
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);
   return result;

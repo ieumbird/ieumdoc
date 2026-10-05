@@ -97,7 +97,7 @@ export type InsertEdit =
   | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[] }
+  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string }
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent);
 
@@ -112,6 +112,7 @@ export type SupportedEdits = {
   figures?: FigureEdit[];
   cells?: TableCellEdit[];
   tables?: TableShapeEdit[];
+  tableCaptions?: { path: NodePath; content: InlineContent[] }[];
   admonitions?: AdmonitionEdit[];
   quotes?: QuoteEdit[];
   lists?: ListEdit[];

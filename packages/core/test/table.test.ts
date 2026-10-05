@@ -14,6 +14,8 @@ import {
   removeTableRow,
   serialize,
   updateTableCell,
+  updateTableCaption,
+  updateLabel,
   updateTableColumnAlignment,
   type InlineContent,
   type MystDocument,
@@ -248,4 +250,37 @@ test("table structure changes fail closed without mutating the document", () => 
   ];
   for (const [run, reason] of rejected) assert.throws(run, reason);
   assert.deepEqual(document, before);
+});
+
+
+test("table captions and labels survive cell, grid and alignment edits, and can be removed", () => {
+  const plain = parse("| A | B |\n|:---|---:|\n| 1 | 2 |\n");
+  const before = structuredClone(plain);
+  let document = updateTableCaption(plain, [0], [{ kind: "strong", children: [{ kind: "text", text: "Values" }] }]);
+  document = updateLabel(document, [0], "tbl-values");
+  document = updateTableCell(document, [0, 1, 1], "3");
+  document = insertTableRow(document, [0], 2);
+  document = moveTableColumn(document, [0], 1, 0);
+  const markdown = serialize(document);
+  assert.match(markdown, /:::\{table\} \*\*Values\*\*\n:name: tbl-values/);
+  const block = getEditableDocument(parse(markdown)).blocks[0];
+  assert.equal(block.block, "table");
+  if (block.block !== "table") return;
+  assert.equal(block.label, "tbl-values");
+  assert.equal(block.rows[1].cells[0].text, "3");
+  assert.equal(block.rows[0].cells[0].align, "right");
+  assert.deepEqual(block.caption, [{ kind: "strong", children: [{ kind: "text", text: "Values" }] }]);
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.deepEqual(plain, before);
+  document = updateTableCaption(document, [0], "");
+  assert.match(serialize(document), /:::\{table\}\n:name: tbl-values/);
+  document = updateLabel(document, [0], "");
+  assert.equal(document.children[0].type, "table");
+  assert.doesNotMatch(serialize(document), /:::|tbl-values/);
+  // Label-only tables must not recurse when first adding or changing the label.
+  assert.match(serialize(updateLabel(plain, [0], "tbl-only")), /:name: tbl-only/);
+  assert.throws(() => updateTableCaption(plain, [0], " two lines\ncaption"), /line breaks|whitespace/);
+  const unsupported = parse(":::{table} Cap\n:enumerated: false\n| A |\n|---|\n| 1 |\n:::\n");
+  assert.equal(getEditableDocument(unsupported).blocks[0].block, "unsupported");
+  assert.throws(() => updateTableCaption(unsupported, [0], "change"), /editable table/);
 });

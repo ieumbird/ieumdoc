@@ -44,6 +44,7 @@ import {
   updateList,
   updateCodeBlock,
   updateTableCell,
+  updateTableCaption,
   updateParagraphInlineContent,
   validateFigure,
   validateStructure,
@@ -226,6 +227,7 @@ export function saveCurrentDocument(
     figures: request.figures ?? [],
     cells: request.cells ?? [],
     tables: request.tables ?? [],
+    tableCaptions: request.tableCaptions ?? [],
     admonitions: request.admonitions ?? [],
     quotes: request.quotes ?? [],
     lists: request.lists ?? [],
@@ -414,14 +416,22 @@ export function saveEdits(
       document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.content));
     }
   }
+  for (const edit of edits.tableCaptions ?? []) {
+    const target = { path: edit.path, part: 0 };
+    assertPath(edit.path, "table caption");
+    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "table" || !Array.isArray(edit.content)) {
+      throw new Error("table caption edit is not allowed");
+    }
+    document = editAt(target, () => updateTableCaption(document, edit.path, edit.content));
+  }
   const labels = edits.labels ?? [];
   for (const edit of labels) {
     assertPath(edit.path, "label");
     const block = blockAt(editable, edit.path);
-    if (edit.path.length !== 1 || !(block?.block === "equation" || (block?.block === "figure" && block.editable))) {
+    if (edit.path.length !== 1 || !(block?.block === "equation" || block?.block === "table" || (block?.block === "figure" && block.editable))) {
       throw new Error(`label edit is not allowed at [${edit.path.join(",")}]`);
     }
-    if (edit.from !== block.label || typeof edit.to !== "string") {
+    if (edit.from !== (block.label ?? "") || typeof edit.to !== "string") {
       throw new Error(`label does not match at [${edit.path.join(",")}]`);
     }
   }
@@ -471,6 +481,7 @@ export function saveEdits(
     ...(edits.lists ?? []).map(edit => edit.path),
     ...(edits.codes ?? []).map(edit => edit.path),
     ...(edits.tables ?? []).map(edit => edit.path),
+    ...(edits.tableCaptions ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
@@ -587,6 +598,7 @@ export function saveEdits(
       document = editAt(target, () => insertEquation(document, index, item.latex));
     } else if (item.block === "table") {
       document = editAt(target, () => insertTable(document, index, item.rows, item.align));
+      if (item.caption) document = editAt(target, () => updateTableCaption(document, [index], item.caption!));
     } else if (item.block === "list") {
       document = editAt(target, () => insertList(document, index, item.list));
     } else if (item.block === "code") {
@@ -594,7 +606,7 @@ export function saveEdits(
     } else {
       document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }
-    if ((item.block === "equation" || item.block === "figure") && item.label) {
+    if ((item.block === "equation" || item.block === "figure" || item.block === "table") && item.label) {
       const label = item.label;
       document = editAt(target, () => updateLabel(document, [index], label));
     }
@@ -707,6 +719,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     figures: Array.isArray(body.figures) ? body.figures : [],
     cells: Array.isArray(body.cells) ? body.cells : [],
     tables: Array.isArray(body.tables) ? body.tables : [],
+    tableCaptions: Array.isArray(body.tableCaptions) ? body.tableCaptions : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
     quotes: Array.isArray(body.quotes) ? body.quotes : [],
     lists: Array.isArray(body.lists) ? body.lists : [],

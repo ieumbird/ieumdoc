@@ -19,10 +19,11 @@ export const NUMBERED_KINDS: readonly NumberedKind[] = ["equation", "figure", "t
  * equation per equation block, one figure per figure block, none otherwise. Blocks an interface
  * adds through Core's insert operations have that default.
  */
-export function blockTargets(block: { block: string; numbered?: NumberedTargets | null }): NumberedTargets {
+export function blockTargets(block: { block: string; numbered?: NumberedTargets | null; label?: string; caption?: unknown }): NumberedTargets {
   if (block.numbered) return block.numbered;
   if (block.block === "equation") return { equation: 1 };
   if (block.block === "figure") return { figure: 1 };
+  if (block.block === "table" && (block.label || (Array.isArray(block.caption) && block.caption.length > 0))) return { table: 1 };
   return {};
 }
 

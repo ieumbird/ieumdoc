@@ -12,7 +12,7 @@ import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** A labeled Equation or Figure in the current editor document that a reference can name,
  * with its computed number when it has one. */
-export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number };
+export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number; kind?: NumberedKind };
 
 const KIND: Record<ReferenceRole, string> = { eq: "Equation", numref: "Figure" };
 const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig." };
@@ -26,7 +26,7 @@ const ROLE_BLOCK: Record<ReferenceRole, string> = { eq: "equation", numref: "fig
  */
 export function blockNumbers(doc: ProseMirrorNode): NumberedTargets[] {
   const blocks: NumberedTargets[] = [];
-  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, numbered: node.attrs.numbered as NumberedTargets | null })));
+  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.attrs.caption, numbered: node.attrs.numbered as NumberedTargets | null })));
   return targetNumbers(blocks);
 }
 
@@ -60,10 +60,11 @@ export function referenceTargets(doc: ProseMirrorNode): ReferenceTarget[] {
   const targets: ReferenceTarget[] = [];
   doc.forEach((node, _pos, index) => {
     const label = String(node.attrs.label ?? "");
-    const role = (Object.keys(ROLE_BLOCK) as ReferenceRole[]).find((candidate) => ROLE_BLOCK[candidate] === node.type.name);
+    const role: ReferenceRole | undefined = node.type.name === "equation" ? "eq" : ["figure", "table"].includes(node.type.name) ? "numref" : undefined;
     if (label.length === 0 || !role) return;
-    const number = numbers[index][ROLE_KIND[role]];
-    targets.push({ role, label, ...(number === undefined ? {} : { number }) });
+    const kind = node.type.name as NumberedKind;
+    const number = numbers[index][kind];
+    targets.push({ role, label, kind, ...(number === undefined ? {} : { number }) });
   });
   return targets;
 }
@@ -85,7 +86,7 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
   let target: number | undefined;
   editor.state.doc.forEach((node, pos) => {
     const own = String(node.attrs.label ?? "");
-    if (target === undefined && node.type.name === ROLE_BLOCK[role] && own.length > 0 && labelKey(own) === key) target = pos;
+    if (target === undefined && (role === "eq" ? node.type.name === "equation" : ["figure", "table"].includes(node.type.name)) && own.length > 0 && labelKey(own) === key) target = pos;
   });
   if (target === undefined) return false;
   editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, target)));
@@ -99,9 +100,9 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
 export function referenceCommandItems(targets: ReferenceTarget[], query: string): { id: string; label: string }[] {
   const needle = query.toLowerCase();
   return targets
-    .filter((target) => needle.length === 0 || ["reference", "ref", KIND[target.role].toLowerCase(), target.label.toLowerCase()]
+    .filter((target) => needle.length === 0 || ["reference", "ref", (target.kind === "table" ? "table" : KIND[target.role].toLowerCase()), target.label.toLowerCase()]
       .some((word) => word.startsWith(needle)))
-    .map((target) => ({ id: referenceCommandId(target), label: `${KIND[target.role]} reference: ${target.label}` }));
+    .map((target) => ({ id: referenceCommandId(target), label: `${target.kind === "table" ? "Table" : KIND[target.role]} reference: ${target.label}` }));
 }
 
 export function referenceCommandId(target: ReferenceTarget): string {
@@ -191,7 +192,8 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
       { type: "text", text: label, marks: node.marks.map((mark) => mark.toJSON()) }).run();
   };
-  const status = resolved ? `${KIND[role]} ${label}. Click to go to it.` : `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
+  const kindName = target?.kind === "table" ? "Table" : KIND[role];
+  const status = resolved ? `${kindName} ${label}. Click to go to it.` : `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
   // A resolved reference shows its target's computed number, as MyST renders it.
   const shown = target?.number !== undefined ? numberText(ROLE_KIND[role], target.number) : label;
   return (
@@ -207,7 +209,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
       {/* A resolved reference goes to its target; one without a target opens the form. */}
       <span className="cross-reference-chip" title={status} aria-label={status}
         onClick={() => { if (!revealReferenceTarget(editor, role, label)) setEditing(true); }}>
-        {PREFIX[role]} {shown}
+        {target?.kind === "table" ? "Table" : PREFIX[role]} {shown}
       </span>
       <button type="button" className="cross-reference-edit" aria-label="Edit reference" title="Edit reference"
         data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>
@@ -296,7 +298,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
               const missing = !isResolved(targets, target.role, target.label);
               return (
                 <option key={referenceCommandId(target)} value={referenceCommandId(target)}>
-                  {KIND[target.role]} · {target.label}{missing ? " (unresolved)" : ""}
+                  {target.kind === "table" ? "Table" : KIND[target.role]} · {target.label}{missing ? " (unresolved)" : ""}
                 </option>
               );
             })}
