@@ -722,7 +722,6 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
 
 type Locator = OrderItem;
 
-/** Every snapshot index 0..count-1 once and in order, with null entries for added rows/columns. */
 /** Each new row or column is a distinct snapshot index or null (added); at least one remains. */
 function isTableAxis(axis: unknown, count: number): axis is (number | null)[] {
   if (!Array.isArray(axis) || axis.length === 0) return false;

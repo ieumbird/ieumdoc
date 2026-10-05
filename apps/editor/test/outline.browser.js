@@ -1,7 +1,8 @@
 // Run with pnpm browser:test outline.
 // Navigates a long scratch document from the sidebar outline with the mouse and the keyboard,
 // follows the current section while scrolling, and checks that heading edits update the outline
-// immediately. The outline is navigation only; nothing is saved.
+// immediately. The outline itself is navigation only; heading block menu section moves and
+// deletion are then saved to the scratch file.
 async page => {
   await page.unrouteAll();
   await page.reload();
@@ -104,7 +105,37 @@ async page => {
   await currentIs('Detail 4', 'after Detail 4');
   const sourceReturnsToVisual = await landed('Detail 4');
 
-  const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual };
+  // A heading's block menu moves its whole section past the next sibling and deletes a section,
+  // as Core moveSection/removeSection do; the outline follows, and Save writes the result.
+  const headingAction = async (text, item) => {
+    const index = await page.locator('.document-editor').evaluate((element, text) => {
+      let found = -1;
+      element.editor.state.doc.forEach((node, _pos, at) => { if (found < 0 && node.textContent === text) found = at; });
+      return found + 1;
+    }, text);
+    await editor.locator('h1, h2, h3').filter({hasText:new RegExp(`^${text}$`)}).hover();
+    await page.getByRole("button", {name:`Move heading block ${index}`, exact:true}).click();
+    await page.getByRole('menuitem', {name:item, exact:true}).click();
+  };
+  const afterEdits = ['Outline guide', 'Section 1', 'Section 2', 'Detail 2', 'Section 3 renamed', 'Added section', 'Section 4', 'Detail 4', 'Section 5', 'Detail 6'];
+  const outlineIs = list => page.waitForFunction(list => JSON.stringify([...document.querySelectorAll('[data-testid="outline"] button')].map(button => button.textContent.trim())) === JSON.stringify(list), list, {timeout: 5000}).then(() => true, () => false);
+  const sectionMoved = ['Outline guide', 'Section 2', 'Detail 2', 'Section 1', 'Section 3 renamed', 'Added section', 'Section 4', 'Detail 4', 'Section 5', 'Detail 6'];
+  await headingAction('Section 1', 'Move section down');
+  const sectionMoves = await outlineIs(sectionMoved);
+  await page.keyboard.press('Control+z');
+  const sectionUndo = await outlineIs(afterEdits);
+  await page.keyboard.press('Control+Shift+z');
+  const sectionRedo = await outlineIs(sectionMoved);
+  await headingAction('Section 4', 'Delete section');
+  const sectionDeleted = await outlineIs(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor();
+  const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
+  const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'Saved' &&
+    JSON.stringify(disk.document.blocks.filter(block => block.block === 'heading').map(block => block.text)) === JSON.stringify(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
+
+  const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual,
+    sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Outline failed: ${JSON.stringify({result, texts: await texts()})}`);
   return result;

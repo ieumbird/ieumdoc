@@ -23,8 +23,12 @@ import {
   splitParagraph,
   mergeParagraphWithPrevious,
   moveBlock,
+  moveSection,
   parse,
   removeBlock,
+  removeSection,
+  sectionMarker,
+  sectionRange,
   replaceText,
   serialize,
   updateNodeTextAtPath,
@@ -293,6 +297,22 @@ const COMMANDS: CommandSpec[] = [
     summary: "Move a top-level block",
     usage: "ieumdoc move-block <file> --from <index> --to <index>",
     details: ["Move a top-level block."],
+  },
+  {
+    name: "move-section",
+    summary: "Move a heading's section",
+    usage: "ieumdoc move-section <file> --from <heading index> --to <index>",
+    details: [
+      "Move the section a top-level heading opens: its label targets, content and deeper sections.",
+      "--to is the start of another section or the block count (the end). Heading levels are kept.",
+      "inspect shows each heading's section as [start,end).",
+    ],
+  },
+  {
+    name: "remove-section",
+    summary: "Remove a heading's section",
+    usage: "ieumdoc remove-section <file> --at <heading index>",
+    details: ["Remove the section a top-level heading opens: its label targets, content and deeper sections."],
   },
   {
     name: "insert-table",
@@ -698,6 +718,14 @@ function main(argv: string[]): number {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
     }
+    case "move-section": {
+      save(file, moveSection(parse(readFile(file)), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      return 0;
+    }
+    case "remove-section": {
+      save(file, removeSection(parse(readFile(file)), intFlag(flags, "--at")));
+      return 0;
+    }
     case "move-block": {
       save(file, moveBlock(parse(readFile(file)), intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
@@ -805,6 +833,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
+  "move-section": ["--from", "--to"],
+  "remove-section": ["--at"],
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
   "update-label": ["--path", "--label"],
@@ -876,7 +906,11 @@ type MachineNode = {
 };
 
 function machineNodes(document: EditableDocument): MachineNode[] {
-  return document.blocks.flatMap(machineBlock);
+  const markers = document.blocks.map(sectionMarker);
+  return document.blocks.flatMap((block, index) => {
+    const nodes = machineBlock(block);
+    return typeof markers[index] === "number" ? [{ ...nodes[0], section: sectionRange(markers, index) }, ...nodes.slice(1)] : nodes;
+  });
 }
 
 function machineBlock(block: EditableBlock): MachineNode[] {
@@ -940,7 +974,14 @@ function machineBlock(block: EditableBlock): MachineNode[] {
 }
 
 function formatInspect(document: EditableDocument): string {
-  return document.blocks.flatMap(formatBlock).join("\n");
+  const markers = document.blocks.map(sectionMarker);
+  // A heading's section is its half-open top-level block range [start,end).
+  return document.blocks.flatMap((block, index) => {
+    const lines = formatBlock(block);
+    if (typeof markers[index] !== "number") return lines;
+    const { start, end } = sectionRange(markers, index);
+    return [`${lines[0]} section=[${start},${end})`, ...lines.slice(1)];
+  }).join("\n");
 }
 
 function formatBlock(block: EditableBlock): string[] {

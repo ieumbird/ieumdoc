@@ -1,6 +1,7 @@
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
+import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
@@ -128,6 +129,8 @@ const isEditableAdmonition = (state: EditorState, index: number) => {
 const isHeading = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "heading";
 const isParagraph = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "paragraph";
 const isTextBlock = (state: EditorState, index: number) => isHeading(state, index) || isParagraph(state, index);
+const isSectionHeading = (state: EditorState, index: number) =>
+  ["heading", "readonlyHeading"].includes(state.doc.maybeChild(index)?.type.name ?? "");
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
   {
@@ -222,6 +225,28 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     applies: isTable,
     enabled: (state, index) => (caretTable(state, index)?.columns ?? 0) > 1,
     run: removeTableColumn,
+  },
+  // A heading's section: its label targets, content and deeper sections (Core's section rule).
+  {
+    id: "section-up",
+    label: "Move section up",
+    applies: isSectionHeading,
+    enabled: (state, index) => siblingSectionTarget(state, index, -1) !== undefined,
+    run: (state, index) => moveSectionBy(state, index, -1),
+  },
+  {
+    id: "section-down",
+    label: "Move section down",
+    applies: isSectionHeading,
+    enabled: (state, index) => siblingSectionTarget(state, index, 1) !== undefined,
+    run: (state, index) => moveSectionBy(state, index, 1),
+  },
+  {
+    id: "section-delete",
+    label: "Delete section",
+    applies: isSectionHeading,
+    enabled: (state, index) => isSectionHeading(state, index) && !wholeDocumentSection(state, index),
+    run: deleteSection,
   },
   {
     id: "delete",
@@ -666,6 +691,77 @@ export function alignTableColumn(state: EditorState, index: number, align: strin
     tr.setNodeMarkup(cells[caret.column], undefined, { ...node.attrs, align });
   }
   return tr.scrollIntoView();
+}
+
+/** Section markers of the engine document's top-level blocks, as Core classifies read-model blocks. */
+function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
+  const markers: SectionMarker[] = [];
+  doc.forEach(node => {
+    const heading = node.type.name === "heading" || node.type.name === "readonlyHeading";
+    markers.push(sectionMarker({
+      block: heading ? "heading" : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name,
+      level: Number(node.attrs.level), original: node.attrs.original ?? undefined,
+    }));
+  });
+  return markers;
+}
+
+/**
+ * Where the section at `index` goes to swap with its previous (-1) or next (+1) sibling section:
+ * a section of the same level within the same parent. Undefined without one.
+ */
+export function siblingSectionTarget(state: EditorState, index: number, by: -1 | 1): number | undefined {
+  if (!isSectionHeading(state, index)) return undefined;
+  const markers = sectionMarkers(state.doc);
+  const level = markers[index] as number;
+  const { start, end } = sectionRange(markers, index);
+  if (by > 0) {
+    const next = markers.findIndex((marker, at) => at >= end && typeof marker === "number");
+    return next >= 0 && markers[next] === level ? sectionRange(markers, next).end : undefined;
+  }
+  for (let at = start - 1; at >= 0; at--) {
+    const marker = markers[at];
+    if (typeof marker !== "number" || marker > level) continue;
+    return marker === level ? sectionRange(markers, at).start : undefined;
+  }
+  return undefined;
+}
+
+/** Move the section at `index` past its previous or next sibling section, in one transaction. */
+export function moveSectionBy(state: EditorState, index: number, by: -1 | 1): Transaction {
+  const to = siblingSectionTarget(state, index, by);
+  if (to === undefined) throw new Error("the section has no sibling section in that direction");
+  const { start, end } = sectionRange(sectionMarkers(state.doc), index);
+  const from = blockPos(state, start), until = blockPos(state, end);
+  const target = to > start ? blockPos(state, to) - (until - from) : blockPos(state, to);
+  const tr = closeHistory(state.tr).delete(from, until).insert(target, state.doc.slice(from, until).content);
+  // A selection inside the section moves with it; otherwise the moved heading takes the caret.
+  const { from: selFrom, to: selTo } = state.selection;
+  if (selFrom >= from && selTo <= until) {
+    const json = state.selection.toJSON();
+    const shift = (pos: number) => pos - from + target;
+    tr.setSelection(Selection.fromJSON(tr.doc, { ...json, anchor: shift(json.anchor), head: json.head === undefined ? undefined : shift(json.head) }));
+  } else {
+    tr.setSelection(Selection.near(tr.doc.resolve(target + blockPos(state, index) - from + 1)));
+  }
+  return tr.scrollIntoView();
+}
+
+/** Whether removing the section at `index` would leave the document with no block. */
+const wholeDocumentSection = (state: EditorState, index: number) => {
+  const { start, end } = sectionRange(sectionMarkers(state.doc), index);
+  return start === 0 && end === state.doc.childCount;
+};
+
+/** Remove the section at `index`: its label targets, content and deeper sections. */
+export function deleteSection(state: EditorState, index: number): Transaction {
+  if (!isSectionHeading(state, index) || wholeDocumentSection(state, index)) throw new Error("invalid section deletion");
+  const { start, end } = sectionRange(sectionMarkers(state.doc), index);
+  const from = blockPos(state, start);
+  // The structure guard declares the snapshot blocks removed by this command.
+  const tr = closeHistory(state.tr).delete(from, blockPos(state, end));
+  tr.setSelection(Selection.near(tr.doc.resolve(Math.min(from, tr.doc.content.size))));
+  return tr.setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
 export function deleteBlock(state: EditorState, index: number): Transaction {
