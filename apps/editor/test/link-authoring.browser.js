@@ -61,7 +61,7 @@ async page => {
   await open();
   result.linkParagraphEditable = await editor.locator('p.paragraph', {hasText: 'OpenAI'}).count() === 1;
   // {eq} reference paragraphs are editable since cross-reference authoring.
-  result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"]', {hasText: 'eq-a'}).count() === 1;
+  result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI');

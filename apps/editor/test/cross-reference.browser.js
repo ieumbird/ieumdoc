@@ -1,5 +1,6 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/cross-reference.browser.js.
-// Inserts {eq}/{numref} references from a selection and from the slash menu, retargets and removes
+// Inserts {eq}/{numref} references from a selection and from the slash menu, checks computed numbers
+// and that clicking a reference goes to its target, retargets and removes
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md, "Local cross-reference authoring v1").
@@ -37,7 +38,15 @@ async page => {
     return text;
   };
   const paragraph = index => page.locator('.document-editor > p').nth(index);
-  const chip = (scope, text) => scope.locator('[data-testid="cross-reference"]', {hasText: text});
+  // Chips show computed numbers; find one by the role and label it is written with ('Eq. eq-a').
+  const chip = (scope, name) => {
+    const [prefix, label] = name.split(' ');
+    return scope.locator(`[data-testid="cross-reference"][data-role="${prefix === 'Eq.' ? 'eq' : 'numref'}"][data-label="${label}"]`);
+  };
+  const editReference = async reference => {
+    await reference.hover();
+    await reference.getByTestId('cross-reference-edit').click();
+  };
   // Select through the editor's own TextSelection, then wait for the toolbar that selection shows.
   const selectText = async needle => {
     await page.evaluate(needle => {
@@ -71,6 +80,19 @@ async page => {
     (await broken.locator('.cross-reference-chip').getAttribute('title')).startsWith('Unresolved');
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
 
+  // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.
+  result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === 'Eq. (1)' &&
+    await page.getByTestId('equation-number').first().innerText() === '(1)' &&
+    await page.locator('[data-block="figure"] figcaption').first().getAttribute('data-number') === 'Figure 1';
+  await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').click();
+  result.chipGoesToTarget = await page.evaluate(() => {
+    const selection = document.querySelector('.document-editor').editor.state.selection;
+    return selection.node?.type.name === 'equation' && selection.node.attrs.label === 'eq-a';
+  }) && await page.locator('[data-block="equation"]').first().evaluate(element => {
+    const box = element.getBoundingClientRect();
+    return box.top >= 0 && box.bottom <= innerHeight;
+  }) && await page.getByTestId('reference-form').count() === 0;
+
   // B. Selected text becomes an Equation reference through the selection toolbar.
   await selectText('control law');
   await page.getByRole('button', {name:'Cross-reference'}).click();
@@ -100,11 +122,11 @@ async page => {
   result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/fig');
 
   // D. Retarget an existing reference; E. remove one back to plain text.
-  await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').click();
+  await editReference(chip(paragraph(1), 'Eq. eq-a'));
   await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();
   result.retargeted = await chip(paragraph(1), 'Eq. eq-b').count() === 1 && await chip(paragraph(1), 'Eq. eq-a').count() === 0;
-  await chip(paragraph(2), 'Eq. eq-a').locator('.cross-reference-chip').click();
+  await editReference(chip(paragraph(2), 'Eq. eq-a'));
   await page.getByTestId('reference-remove').click();
   result.removedToText = await chip(paragraph(2), 'Eq. eq-a').count() === 0 && (await paragraph(2).innerText()).includes('later and eq-a.');
 

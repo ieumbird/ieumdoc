@@ -112,7 +112,11 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   const projection = toTiptapDocument(loadEditableDocument(source));
   const doc = schema.nodeFromJSON(projection);
   const targets = referenceTargets(doc);
-  assert.deepEqual(targets, [{ role: "eq", label: "eq-a" }, { role: "numref", label: "fig-a" }]);
+  assert.deepEqual(targets, [{ role: "eq", label: "eq-a", number: 1 }, { role: "numref", label: "fig-a", number: 1 }]);
+  // Numbers follow the engine document: an Equation added before is counted at once.
+  const added = clone(projection);
+  added.content!.unshift({ type: "equation", attrs: { sourcePath: "new:engine:1", latex: "x", label: "" } });
+  assert.equal(referenceTargets(schema.nodeFromJSON(added))[0]?.number, 2);
   assert.equal(isResolved(targets, "eq", "eq-a"), true);
   assert.equal(isResolved(targets, "eq", "EQ-A"), true);
   assert.equal(isResolved(targets, "eq", "missing"), false);
@@ -124,7 +128,8 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
   // Slash items insert a reference to each matching target.
   assert.deepEqual(referenceCommandItems(targets, "fig").map((item) => item.label), ["Figure reference: fig-a"]);
-  assert.deepEqual(referenceCommandItems(targets, "ref").map((item) => referenceOfCommand(item.id)), targets);
+  assert.deepEqual(referenceCommandItems(targets, "ref").map((item) => referenceOfCommand(item.id)),
+    targets.map(({ role, label }) => ({ role, label })));
   assert.deepEqual(referenceCommandItems(targets, "heading"), []);
 });
 

@@ -675,6 +675,10 @@ test("inspect and check expose stable machine-readable Core results", () => {
     assert.ok(Array.isArray(paragraph.path));
     assert.equal(typeof paragraph.editable, "boolean");
     assert.equal(typeof paragraph.text, "string");
+    // Computed target numbers, as MyST numbers them; they are never written.
+    const numbered = inspectResult.nodes.flatMap((node) => "numbers" in node ? [[node.type, node.numbers]] : []);
+    assert.deepEqual(numbered, [["figure", { figure: 1 }], ["equation", { equation: 1 }]]);
+    assert.match(textInspect.stdout, /^6 figure .* numbers=figure:1$/m);
 
     const checked = run(["check", file, "--format", "json"]);
     assert.equal(checked.status, 0, checked.stderr);

@@ -29,6 +29,8 @@ import {
   removeSection,
   sectionMarker,
   sectionRange,
+  blockTargets,
+  targetNumbers,
   replaceText,
   serialize,
   updateNodeTextAtPath,
@@ -144,6 +146,8 @@ const COMMANDS: CommandSpec[] = [
       "Inspect semantic blocks and editable targets.",
       "",
       "Editability fields describe the current semantic projection.",
+      "numbers= (JSON: numbers) gives the computed number of a block's first equation, figure or",
+      "captioned table, as MyST numbers them; numbers are never written to the document.",
       "Other Core commands may support additional text operations.",
       "",
       ...PATH_NOTE,
@@ -916,9 +920,14 @@ type MachineNode = {
 
 function machineNodes(document: EditableDocument): MachineNode[] {
   const markers = document.blocks.map(sectionMarker);
+  const numbers = targetNumbers(document.blocks.map(blockTargets));
   return document.blocks.flatMap((block, index) => {
-    const nodes = machineBlock(block);
-    return typeof markers[index] === "number" ? [{ ...nodes[0], section: sectionRange(markers, index) }, ...nodes.slice(1)] : nodes;
+    const [first, ...rest] = machineBlock(block);
+    return [{
+      ...first,
+      ...(typeof markers[index] === "number" ? { section: sectionRange(markers, index) } : {}),
+      ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
+    }, ...rest];
   });
 }
 
@@ -984,12 +993,14 @@ function machineBlock(block: EditableBlock): MachineNode[] {
 
 function formatInspect(document: EditableDocument): string {
   const markers = document.blocks.map(sectionMarker);
-  // A heading's section is its half-open top-level block range [start,end).
+  const numbers = targetNumbers(document.blocks.map(blockTargets));
+  // A heading's section is its half-open top-level block range [start,end). Numbers are the
+  // computed numbers of the block's first equation, figure or table; they are never written.
   return document.blocks.flatMap((block, index) => {
-    const lines = formatBlock(block);
-    if (typeof markers[index] !== "number") return lines;
-    const { start, end } = sectionRange(markers, index);
-    return [`${lines[0]} section=[${start},${end})`, ...lines.slice(1)];
+    const [first, ...rest] = formatBlock(block);
+    const section = typeof markers[index] === "number" ? sectionRange(markers, index) : undefined;
+    const numbered = Object.entries(numbers[index]).map(([kind, number]) => `${kind}:${number}`).join(",");
+    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}`, ...rest];
   }).join("\n");
 }
 

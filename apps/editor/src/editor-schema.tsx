@@ -17,7 +17,7 @@ import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
-import { CrossReference } from "./cross-reference.tsx";
+import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   DELETED_PATHS_ATTR,
@@ -77,7 +77,8 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 }
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
-  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, ...attrs };
+  // `numbered`: the snapshot's numbered targets where they differ from the block kind's default.
+  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, ...attrs };
 }
 
 // A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
@@ -830,7 +831,10 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   };
 }
 
-function FigureView({ node, selected, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
+function FigureView({ node, editor, selected, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
+  const number = useBlockNumber(editor, getPos, "figure");
+  // The computed number prefixes the caption, as MyST renders it; it is never saved.
+  const numbered = number === undefined ? undefined : `Figure ${number}`;
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const applied = figureAttrs(node);
@@ -969,7 +973,7 @@ function FigureView({ node, selected, deleteNode, getPos, view, documentPath, on
       contentEditable={editableFigure ? undefined : false}
       onMouseDown={() => { if (!editing) setSummaryDismissed(false); }}
     >
-      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{label ? `Figure · ${label}` : "Figure"}</p>
+      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? "Figure", label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
           Unapplied changes are not saved. Apply to include them, or Cancel.
@@ -984,8 +988,8 @@ function FigureView({ node, selected, deleteNode, getPos, view, documentPath, on
           view.focus();
         }} /> : null}
       {editableFigure
-        ? <figcaption className="caption"><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
-        : <figcaption className="caption">{String(node.attrs.caption ?? "")}</figcaption>}
+        ? <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
+        : <figcaption className="caption" data-number={numbered}>{String(node.attrs.caption ?? "")}</figcaption>}
       <OriginalContent node={node} />
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
@@ -1104,8 +1108,9 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
-function EquationView({ node, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
+function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
   const label = String(node.attrs.label ?? "");
+  const number = useBlockNumber(editor, getPos, "equation");
   const latex = String(node.attrs.latex ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
@@ -1178,7 +1183,7 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
-      <p className="block-kind block-metadata">{label ? `Equation · ${label}` : "Equation"}</p>
+      <p className="block-kind block-metadata">{[number === undefined ? "Equation" : `Equation (${number})`, label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">
           Unapplied changes are not saved. Apply to include them, or Cancel.
@@ -1186,7 +1191,11 @@ function EquationView({ node, selected, updateAttributes, deleteNode, getPos, vi
       ) : null}
       {!editing ? (
         <>
-          <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
+          {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
+          <div className="equation-row">
+            <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
+            {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
+          </div>
           <Button className="equation-edit" size="sm" variant="subtle" disabled={!view.editable} onClick={beginEdit}>
             Edit
           </Button>

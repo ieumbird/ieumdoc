@@ -215,7 +215,9 @@ async (page, { screenshots = false } = {}) => {
   await bounds(page.getByTestId('inline-math-form'),'Inline math resized/scrolled');
   await shot('704-inline-math');
   await page.getByTestId('inline-math-source').press('Escape');
-  await page.locator('.cross-reference-chip').last().click();
+  // A resolved chip goes to its target; its edit button opens the reference form.
+  await page.locator('.cross-reference').last().hover();
+  await page.getByTestId('cross-reference-edit').last().click();
   await bounds(page.getByTestId('reference-form'),'Reference 704');
   await shot('704-reference');
   await page.getByTestId('reference-target').press('Escape');
