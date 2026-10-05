@@ -218,6 +218,27 @@ test("Markdown block shortcuts replace the typed prefix and save as the equivale
     { block: "heading", level: 2 }), false);
 });
 
+test("a new document's empty starting paragraph becomes a heading by shortcut or conversion", () => {
+  const editable = loadEditableDocument("");
+  const baseline = toTiptapDocument(editable);
+  const schema = getSchema(editorExtensions());
+  const start = () => EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+    plugins: [structureGuardPlugin(baseline, () => assert.fail("heading in a new document was rejected"))] });
+  const titled = (state: EditorState) => state.applyTransaction(state.tr.insertText("OBCM", 1)).state;
+
+  let typed = start();
+  typed = typed.applyTransaction(typed.tr.insertText("#", 1)).state;
+  const tr = typed.tr;
+  assert.ok(applyBlockShortcut(tr, 1, 2, { block: "heading", level: 1 }));
+  typed = titled(typed.applyTransaction(tr).state);
+  const converted = titled(start().applyTransaction(paragraphToHeading(start(), 0, 1)).state);
+
+  for (const state of [typed, converted]) {
+    assert.equal(state.doc.child(0).type.name, "heading");
+    assert.equal(saveEdits("", collectSupportedEdits(editable, editorDocumentJSON(state))).markdown, "# OBCM\n");
+  }
+});
+
 test("quotes and dividers from commands and shortcuts save as Core quotes and dividers", () => {
   const markdown = "# Title\n\n> Existing quote.\n\nQuote me\n\n\n";
   const editable = loadEditableDocument(markdown);
