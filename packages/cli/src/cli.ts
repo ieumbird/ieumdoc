@@ -46,6 +46,7 @@ import {
   updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
+  unresolvedReferences,
   validateStructure,
   type Document,
   type AdmonitionVariant,
@@ -129,7 +130,9 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
       "Markdown without losing semantics (the same check format and Editor Save use).",
-      "Exits 1 when it cannot. Asset files and reference targets are not checked.",
+      "Exits 1 when it cannot. Asset files are not checked.",
+      "References ({eq}, {numref}, {ref}) that name no target in this document are reported",
+      "as warnings with their block and line; they do not fail the check.",
       "Output format is text by default; JSON is available with --format json.",
     ],
   },
@@ -537,17 +540,23 @@ function main(argv: string[]): number {
       const document = parse(readFile(file));
       validateStructure(document);
       const writeError = canonicalWriteError(document);
+      const unresolved = unresolvedReferences(document);
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({
           ok: writeError === undefined,
           command: "check",
           validation: { valid: true },
           writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
+          references: { unresolved },
         })}\n`);
       } else {
         process.stdout.write(`${summarize(document)}\n`);
         if (writeError === undefined) process.stdout.write("writeability ok\n");
         else process.stderr.write(`writeability failed: ${writeError}\n`);
+        for (const { role, label, path, line } of unresolved) {
+          const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
+          process.stderr.write(`warning: {${role}}\`${label}\` (${at}) names no target in this document\n`);
+        }
       }
       return writeError === undefined ? 0 : 1;
     }

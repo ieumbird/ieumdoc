@@ -1111,14 +1111,23 @@ printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc
 - 파일을 읽어 parse할 수 있고 구조 검사(`structure valid`)를 통과한다.
 - 지금 이 파일에 `format`(또는 Editor Save)을 실행하면 의미를 보존한 canonical Markdown을 쓸 수 있다(`writeability ok`). 쓸 수 없으면 block 목록 뒤에 stderr로 `writeability failed: <이유>`를 출력하고 exit code 1로 끝난다. `--format json`은 `"writeability": {"writable": false, "error": "…"}`와 `"ok": false`를 준다.
 - `check`는 파일을 절대 쓰지 않는다.
+- 이 문서 안에 target이 없는 reference(`{eq}`, `{numref}`, `{ref}`)는 Core `unresolvedReferences(document)`로 찾아 stderr에 `warning: {role}`label` (block <index>, line <n>) names no target in this document`로 알린다. 판정은 MyST가 label을 해석하는 방식(identifier 비교, target 종류 무관)과 같다. 경고는 exit code를 바꾸지 않는다. 끊긴 reference도 유효한 MyST이고 그대로 저장되기 때문이다. `--format json`은 `"references": {"unresolved": [{"role", "label", "path", "line"}]}`를 준다. `line`은 reference를 담은 문단·표 행·목록 항목이 시작하는 줄이다. 다른 문서를 가리키는 MyST project reference도 이 문서 기준으로 끊긴 것으로 보고한다.
 
-보장하지 않는 것: 이미지 등 asset 파일의 존재, reference target의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
+보장하지 않는 것: 이미지 등 asset 파일의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
 
 저장할 수 없는 예(현재 canonical writer가 의미를 보존하지 못해 거부하는 것): 닫히지 않은 front matter, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
 
 ```bash
 printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md
 pnpm ieumdoc check /tmp/fm.md; echo "exit=$?"   # structure valid, writeability ok, exit=0
+printf -- 'See {numref}`fig-a`.
+
+:::{figure} ./a.png
+:label: fig-a
+:::
+' > /tmp/ref.md
+pnpm ieumdoc remove-block /tmp/ref.md --at 1
+pnpm ieumdoc check /tmp/ref.md; echo "exit=$?"  # warning: {numref}`fig-a` (block 0, line 1) names no target in this document, exit=0
 ```
 
 Editor:

@@ -683,6 +683,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       command: "check",
       validation: { valid: true },
       writeability: { writable: true },
+      references: { unresolved: [] },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);
@@ -1157,6 +1158,29 @@ test("CLI check reports canonical writeability in text and JSON and agrees with 
       assert.equal(formatted.status, text.status, `${name}: ${formatted.stderr}`);
       assert.deepEqual(readFileSync(file), before, `${name}: failed format never writes`);
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("check warns about references a removal left without a target, without failing or writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-references-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "# Title\n\nSee {numref}`fig-a`.\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
+  try {
+    const removed = run(["remove-block", file, "--at", "2"]);
+    assert.equal(removed.status, 0, removed.stderr);
+    const after = readFileSync(file, "utf8");
+    const text = run(["check", file]);
+    assert.equal(text.status, 0, text.stderr);
+    assert.match(text.stdout, /\nwriteability ok\n$/);
+    assert.equal(text.stderr, "warning: {numref}`fig-a` (block 1, line 3) names no target in this document\n");
+    const json = run(["check", file, "--format", "json"]);
+    assert.equal(json.status, 0, json.stderr);
+    assert.deepEqual(JSON.parse(json.stdout).references, {
+      unresolved: [{ role: "numref", label: "fig-a", path: [1], line: 3 }],
+    });
+    assert.equal(readFileSync(file, "utf8"), after, "check never writes");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
