@@ -2,6 +2,8 @@ import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
 import { numberedTargets } from "./myst/numbering.ts";
+import { getHeadingNumbering } from "./myst/heading-numbering.ts";
+import type { HeadingNumbering } from "./numbering.ts";
 import { blockTargets, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
@@ -122,6 +124,7 @@ export type EditableBlock = (
 
 export type EditableDocument = {
   blocks: EditableBlock[];
+  headingNumbering?: HeadingNumbering;
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
@@ -136,7 +139,8 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
     if (NUMBERED_KINDS.some((kind) => (numbered[index][kind] ?? 0) !== (defaults[kind] ?? 0))) block.numbered = numbered[index];
     return block;
   });
-  return { blocks };
+  const headingNumbering = getHeadingNumbering(document);
+  return { blocks, ...(headingNumbering ? { headingNumbering } : {}) };
 }
 
 function contentKind(node: MystNode): string {

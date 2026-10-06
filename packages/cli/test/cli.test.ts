@@ -1350,3 +1350,23 @@ test("CLI authors table captions and labels through Core and rejects multiline c
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+
+test("CLI heading numbering persists document settings and exposes the computed numbers", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-heading-numbering-"));
+  const file = path.join(dir, "headings.md");
+  writeFileSync(file, "# Title\n\n## First\n\n### Detail\n");
+  try {
+    const changed = run(["update-heading-numbering", file, "--enabled", "true"]);
+    assert.equal(changed.status, 0, changed.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.match(saved, /headings: true/);
+    assert.doesNotMatch(saved, /## 1/);
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {headingNumber?: string}) => node.headingNumber), [undefined, "1", "1.1"]);
+    const invalid = run(["update-heading-numbering", file, "--enabled", "yes"]);
+    assert.notEqual(invalid.status, 0);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

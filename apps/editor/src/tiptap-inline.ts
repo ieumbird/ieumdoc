@@ -2,14 +2,14 @@ import type { EditableBlock, InlineContent } from "@ieumdoc/core";
 
 export type TiptapMark = {
   type: string;
-  attrs?: Record<string, string | number | boolean | null | undefined>;
+  attrs?: Record<string, null | string | number | boolean | null | undefined>;
 };
 
 export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: TiptapMark[];
-  attrs?: Record<string, string | number | boolean | string[] | InlineContent[] | EditableBlock["original"] | EditableBlock["numbered"]>;
+  attrs?: Record<string, null | string | number | boolean | string[] | InlineContent[] | import("@ieumdoc/core").HeadingNumbering | EditableBlock["original"] | EditableBlock["numbered"]>;
   content?: TiptapJSON[];
 };
 

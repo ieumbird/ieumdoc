@@ -1,3 +1,4 @@
+import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 // The document outline is Editor navigation derived from the engine document. It is never
@@ -16,11 +17,14 @@ export type OutlineItem = {
 /** Top-level headings in document order, editable or read-only. */
 export function documentOutline(doc: ProseMirrorNode): OutlineItem[] {
   const items: OutlineItem[] = [];
+  const blocks: { block: string; level: number }[] = [];
+  doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level) }));
+  const numbers = headingNumbers(blocks, doc.attrs.headingNumbering as HeadingNumbering | null);
   doc.forEach((node, pos, index) => {
     if (node.type.name === "heading") {
-      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: node.textContent });
+      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: `${numbers[index] ? `${numbers[index]} ` : ""}${node.textContent}` });
     } else if (node.type.name === "readonlyHeading") {
-      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: String(node.attrs.text ?? "") });
+      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: `${numbers[index] ? `${numbers[index]} ` : ""}${String(node.attrs.text ?? "")}` });
     }
   });
   return items;

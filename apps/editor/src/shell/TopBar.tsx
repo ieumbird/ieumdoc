@@ -8,6 +8,9 @@ const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad
 
 type TopBarProps = {
   documentPath: string;
+  headingNumbering?: boolean;
+  onToggleHeadingNumbering?(): void;
+  numberingDisabled?: boolean;
   status: string;
   unsaved?: boolean;
   /** False when IeumDoc cannot write the open document as canonical Markdown. */
@@ -29,7 +32,7 @@ type TopBarProps = {
 /** Document identity on the left; document state and document-level actions on the right. */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
-  onSave, onReload, reloadDisabled,
+  onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
@@ -65,6 +68,7 @@ export function TopBar({
         )}
       </p>
       <div className="top-bar-actions">
+        {onToggleHeadingNumbering ? <Button type="button" size="sm" variant="ghost" aria-label="Number headings" title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>1. H</Button> : null}
         {onReload ? <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled}>Reload</Button> : null}
         <div className="view-toggle" role="group" aria-label="Document view">
           <Button

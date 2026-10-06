@@ -3,8 +3,9 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { editorExtensions } from "../src/editor-schema.tsx";
 import { currentOutlineItem, documentOutline } from "../src/outline.ts";
-import { toTiptapDocument } from "../src/tiptap-document.ts";
-import { loadEditableDocument } from "../server/document-api.ts";
+import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
+import { collectSupportedEdits, type TiptapJSON, toTiptapDocument } from "../src/tiptap-document.ts";
+import { saveEdits, loadEditableDocument } from "../server/document-api.ts";
 
 test("the outline lists top-level headings in order, read-only headings included", () => {
   const markdown = "# Title\n\nIntro.\n\n## Plain section\n\n### **Formatted** section\n\n> ## Not a top-level heading\n\n## Last\n";
@@ -25,4 +26,23 @@ test("the section being read is the last heading above the reading line", () => 
   // At the end of the page, a last heading still low in the view is current.
   assert.equal(currentOutlineItem([-900, -400, 500], 200, 720), 2);
   assert.equal(currentOutlineItem([-900, -400, 800], 200, 720), 1);
+});
+
+
+test("heading numbering follows the single document state and saves as Core metadata", () => {
+  const source = "# Title\n\n## First\n\n### Detail\n";
+  const opening = loadEditableDocument(source);
+  const schema = getSchema(editorExtensions());
+  const json = toTiptapDocument(opening);
+  json.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
+  const doc = schema.nodeFromJSON(json);
+  assert.deepEqual(documentOutline(doc).map(item => item.text), ["Title", "1 First", "1.1 Detail"]);
+  const edits = collectSupportedEdits(opening, doc.toJSON() as TiptapJSON);
+  assert.equal(edits.headingNumbering, true);
+  const saved = saveEdits(source, edits);
+  assert.match(saved.markdown, /headings: true/);
+  assert.deepEqual(collectSupportedEdits(saved.document, toTiptapDocument(saved.document)), { headings: [], paragraphs: [] });
+  const without = toTiptapDocument(saved.document);
+  without.attrs!.headingNumbering = null;
+  assert.equal(collectSupportedEdits(saved.document, without).headingNumbering, false);
 });
