@@ -14,6 +14,8 @@ import { useEffect, useRef, useState } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ieumdoc/core";
 import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
+import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
@@ -80,7 +82,7 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
   // `numbered`: the snapshot's numbered targets where they differ from the block kind's default.
-  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, ...attrs };
+  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, headingLevels: { default: null, rendered: false }, ...attrs };
 }
 
 // A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
@@ -709,6 +711,7 @@ export function editorExtensions(
       trailingNode: false,
       underline: false,
     }),
+    DocumentNumbering,
     ParagraphHardBreak,
     ParagraphSplit,
     ParagraphMerge,
@@ -774,7 +777,7 @@ export function declaredDeletions(state: EditorState): string[] {
 
 /** The editor document as the Save adapter reads it, including declared deletions. */
 export function editorDocumentJSON(state: EditorState): TiptapJSON {
-  return { ...(state.doc.toJSON() as TiptapJSON), attrs: { [DELETED_PATHS_ATTR]: declaredDeletions(state) } };
+  return { ...(state.doc.toJSON() as TiptapJSON), attrs: { ...state.doc.attrs, [DELETED_PATHS_ATTR]: declaredDeletions(state) } };
 }
 
 function snapshotPathsOf(doc: ProseMirrorNode): Set<string> {
@@ -1411,3 +1414,19 @@ function UnsupportedView({ node }: ReactNodeViewProps) {
     </NodeViewWrapper>
   );
 }
+
+
+const DocumentNumbering = Extension.create({
+  name: "documentNumbering",
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false } } }]; },
+  addProseMirrorPlugins() {
+    return [new Plugin({ props: { decorations(state) {
+      const blocks: { block: string; level?: number; headingLevels?: number[] }[] = [];
+      state.doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level), headingLevels: node.attrs.headingLevels }));
+      const numbers = headingNumbers(blocks, state.doc.attrs.headingNumbering as HeadingNumbering | null);
+      const decorations: Decoration[] = [];
+      state.doc.forEach((node, pos, index) => { if (numbers[index]) decorations.push(Decoration.node(pos, pos + node.nodeSize, { "data-heading-number": numbers[index]! })); });
+      return DecorationSet.create(state.doc, decorations);
+    } } })];
+  },
+});

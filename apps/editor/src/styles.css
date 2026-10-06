@@ -1308,3 +1308,5 @@ ol.list { list-style: decimal; }
 
 .table-block { position: relative; }
 .table-block .caption p { display: inline; margin: 0; }
+
+[data-block="heading"][data-heading-number]::before { content: attr(data-heading-number) " "; }

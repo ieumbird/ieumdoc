@@ -46,6 +46,8 @@ import {
   updateLabel,
   updateTableCell,
   updateTableCaption,
+  updateHeadingNumbering,
+  headingNumbers,
   updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
@@ -444,6 +446,12 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "update-heading-numbering",
+    summary: "Enable or disable document heading numbers through Core",
+    usage: "ieumdoc update-heading-numbering <file> --enabled <true|false>",
+    details: ["H1 remains a title; H2-H6 are numbered automatically. Only numbering settings are written, never heading text."],
+  },
+  {
     name: "update-table-caption",
     summary: "Set or remove a table caption through Core",
     usage: "ieumdoc update-table-caption <file> --path <table> (--text <text> | --content <json>)",
@@ -730,6 +738,12 @@ function main(argv: string[]): number {
         align === "none" ? null : align as "left" | "center" | "right"));
       return 0;
     }
+    case "update-heading-numbering": {
+      const enabled = flag(flags, "--enabled");
+      if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
+      save(file, updateHeadingNumbering(parse(readFile(file)), enabled === "true"));
+      return 0;
+    }
     case "update-table-caption": {
       save(file, updateTableCaption(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
@@ -854,6 +868,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "move-table-column": ["--path", "--from", "--to"],
   "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
+  "update-heading-numbering": ["--enabled"],
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
@@ -933,10 +948,12 @@ type MachineNode = {
 function machineNodes(document: EditableDocument): MachineNode[] {
   const markers = document.blocks.map(sectionMarker);
   const numbers = targetNumbers(document.blocks.map(blockTargets));
+  const headings = headingNumbers(document.blocks, document.headingNumbering);
   return document.blocks.flatMap((block, index) => {
     const [first, ...rest] = machineBlock(block);
     return [{
       ...first,
+      ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: sectionRange(markers, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
     }, ...rest];
@@ -1006,6 +1023,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
 function formatInspect(document: EditableDocument): string {
   const markers = document.blocks.map(sectionMarker);
   const numbers = targetNumbers(document.blocks.map(blockTargets));
+  const headings = headingNumbers(document.blocks, document.headingNumbering);
   // A heading's section is its half-open top-level block range [start,end). Numbers are the
   // computed numbers of the block's first equation, figure or table; they are never written.
   return document.blocks.flatMap((block, index) => {

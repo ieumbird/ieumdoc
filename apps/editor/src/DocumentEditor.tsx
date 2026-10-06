@@ -15,6 +15,7 @@ import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, referenceTargets, ReferenceForm } from "./cross-reference.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
@@ -38,6 +39,7 @@ const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
+  toggleHeadingNumbering(): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
   hasUnsavedChanges(): boolean;
@@ -57,13 +59,14 @@ type DocumentEditorProps = {
   onAssetError?: (reason: string) => void;
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
+  onHeadingNumberingChange?: (enabled: boolean) => void;
   validateFigure?: FigureValidator;
   /** The heading outline and the section being read, for navigation outside the editor. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, validateFigure, onOutlineChange },
+  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, onOutlineChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -110,7 +113,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const moveBlockedHint = (index: number) => {
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
     if (activeEquationDrafts.current.has(path)) return EQUATION_DRAFT_MOVE_HINT;
-    if (activeFigureDrafts.current.has(path)) return FIGURE_DRAFT_MOVE_HINT;
+    if (activeFigureDrafts.current.has(path)) return editor.state.doc.maybeChild(index)?.type.name === "table"
+      ? "Apply or Cancel the Table edit before moving it." : FIGURE_DRAFT_MOVE_HINT;
     return undefined;
   };
   const editor = useEditor({
@@ -134,6 +138,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     },
   });
 
+  useEffect(() => {
+    if (!editor) return;
+    const notify = () => onHeadingNumberingChange?.(Boolean(editor.state.doc.attrs.headingNumbering));
+    notify();
+    editor.on("update", notify);
+    return () => { editor.off("update", notify); };
+  }, [editor, onHeadingNumberingChange]);
+
   // Keep the opening snapshot and its locators for the lifetime of the editor. Save
   // acknowledges a submitted snapshot; it never rewrites nodes, selection or engine history.
   if (editor && saved.current === null) saved.current = editorDocumentJSON(editor.state);
@@ -143,6 +155,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useImperativeHandle(
     ref,
     () => ({
+      toggleHeadingNumbering() {
+        if (!editor || !editor.isEditable) return;
+        const settings = editor.state.doc.attrs.headingNumbering ? null : document.headingNumberingDefault ?? defaultHeadingNumbering(true);
+        editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
+      },
       beginSave() {
         if (!editor) throw new Error("Editor is not ready");
         // Separate subsequent typing from this save's undo event without changing the document.
@@ -183,7 +200,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return editorDocumentJSON(editor.state);
       },
     }),
-    [editor],
+    [editor, document.headingNumberingDefault],
   );
 
   useEffect(() => {

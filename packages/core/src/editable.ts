@@ -2,7 +2,9 @@ import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
 import { numberedTargets } from "./myst/numbering.ts";
-import { blockTargets, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
+import { getHeadingNumbering } from "./myst/heading-numbering.ts";
+import type { HeadingNumbering } from "./numbering.ts";
+import { blockTargets, defaultHeadingNumbering, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
@@ -118,10 +120,15 @@ export type EditableBlock = (
       /** The numbered targets the block holds, only where they differ from its kind's
        * default (see `blockTargets`). Numbers come from `targetNumbers`. */
       numbered?: NumberedTargets;
+      /** Nested headings in preserved blocks, in document order; they advance heading counters. */
+      headingLevels?: number[];
     };
 
 export type EditableDocument = {
   blocks: EditableBlock[];
+  headingNumbering?: HeadingNumbering;
+  /** Enabling the default heading policy with this document's retained numbering metadata. */
+  headingNumberingDefault?: HeadingNumbering;
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
@@ -134,9 +141,21 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
     if (source) block.original = { kind: contentKind(node), ...source };
     const defaults = blockTargets(block);
     if (NUMBERED_KINDS.some((kind) => (numbered[index][kind] ?? 0) !== (defaults[kind] ?? 0))) block.numbered = numbered[index];
+    if (block.block !== "heading") {
+      const levels: number[] = [];
+      const visit = (child: MystNode) => {
+        if (child.type === "heading") levels.push(Number(child.depth));
+        child.children?.forEach(visit);
+      };
+      node.children?.forEach(visit);
+      if (levels.length) block.headingLevels = levels;
+    }
     return block;
   });
-  return { blocks };
+  const headingNumbering = getHeadingNumbering(document);
+  const policy = getHeadingNumbering(document, true);
+  const customPolicy = policy && JSON.stringify(policy) !== JSON.stringify(defaultHeadingNumbering(true));
+  return { blocks, ...(headingNumbering ? { headingNumbering } : {}), ...(customPolicy ? { headingNumberingDefault: policy } : {}) };
 }
 
 function contentKind(node: MystNode): string {

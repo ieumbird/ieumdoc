@@ -33,6 +33,7 @@ export function App() {
   const [sourceRevision, setSourceRevision] = useState("");
   const sessionBase = useRef<SessionSaveRequest["base"]>(undefined);
   const [openedPath, setOpenedPath] = useState("");
+  const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [newDialog, setNewDialog] = useState(false);
@@ -52,7 +53,7 @@ export function App() {
   const [writeError, setWriteError] = useState("");
   const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
   const draftNotice = equationDraftActive || figureDraftActive
-    ? "Save and Source include applied content only. Equation and Figure drafts remain unsaved until Apply."
+    ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
@@ -263,6 +264,9 @@ export function App() {
             saveDisabled={!document || busy ||
               Boolean(writeError)}
             saveHint={saveHint}
+            headingNumbering={headingNumbering}
+            onToggleHeadingNumbering={() => editorRef.current?.toggleHeadingNumbering()}
+            numberingDisabled={!document || busy || Boolean(writeError) || view !== "visual"}
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
@@ -297,6 +301,7 @@ export function App() {
                 onAssetPendingChange={setAssetPending}
                 onAssetError={setError}
                 onDirtyChange={setDocumentDirty}
+                onHeadingNumberingChange={setHeadingNumbering}
                 onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}
                 onStructuralReject={(reason) =>

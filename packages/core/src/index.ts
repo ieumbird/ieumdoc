@@ -13,6 +13,7 @@ import type { MystDocument } from "./myst/tree.ts";
 import * as operations from "./operations.ts";
 import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
 import { validateStructure as validateTree } from "./validation.ts";
+import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/heading-numbering.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
@@ -30,6 +31,8 @@ export { figureContentError } from "./figure.ts";
 export { labelError, labelKey } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
+export { headingNumbers, defaultHeadingNumbering, type HeadingNumbering } from "./numbering.ts";
+export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R

@@ -1,4 +1,5 @@
 import { isAdmonitionVariant, type EditableBlock, type EditableDocument, type FigureContent, type InlineContent, type ListContent, type CodeBlockContent, type NodePath } from "@ieumdoc/core";
+import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
@@ -90,11 +91,13 @@ export function pathKey(path: NodePath): string {
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
+    ...(document.headingNumbering ? { attrs: { headingNumbering: document.headingNumbering } } : {}),
     content: document.blocks.length > 0
       ? document.blocks.map(block => {
         const node = toTiptapBlock(block);
         if (block.original) node.attrs = { ...node.attrs, original: block.original };
         if (block.numbered) node.attrs = { ...node.attrs, numbered: block.numbered };
+        if (block.headingLevels) node.attrs = { ...node.attrs, headingLevels: block.headingLevels };
         return node;
       })
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],
@@ -248,7 +251,13 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
   const reordered = inserts.length > 0 || deletes.length > 0 ||
     positions.some((position, index) => index > 0 && position < positions[index - 1]) ||
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
+  const settings = next.attrs?.headingNumbering ?? null;
+  const changedSettings = JSON.stringify(settings) !== JSON.stringify(document.headingNumbering ?? null);
+  if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(document.headingNumberingDefault ?? defaultHeadingNumbering(true))) {
+    throw new Error("unsupported heading numbering settings");
+  }
   return {
+    ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(reordered ? { order } : {}),
     headings,
     ...(headingLevels.length ? { headingLevels } : {}),
@@ -289,7 +298,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 /** Compare the applied state that Save acknowledges, excluding editor-only placeholders.
  * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
-  return { type: "doc", content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
+  return { type: "doc", ...(document.attrs?.headingNumbering ? { attrs: { headingNumbering: document.attrs.headingNumbering } } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {

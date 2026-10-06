@@ -45,6 +45,7 @@ import {
   updateCodeBlock,
   updateTableCell,
   updateTableCaption,
+  updateHeadingNumbering,
   updateParagraphInlineContent,
   validateFigure,
   validateStructure,
@@ -226,6 +227,7 @@ export function saveCurrentDocument(
     equations: request.equations ?? [],
     figures: request.figures ?? [],
     cells: request.cells ?? [],
+    ...(request.headingNumbering === undefined ? {} : { headingNumbering: request.headingNumbering }),
     tables: request.tables ?? [],
     tableCaptions: request.tableCaptions ?? [],
     admonitions: request.admonitions ?? [],
@@ -628,6 +630,7 @@ export function saveEdits(
       if (from !== to) move(from, to);
     }
   }
+  if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
   validateStructure(document);
   const markdown = serialize(document);
   return { markdown, ...readModel(markdown) };
@@ -718,6 +721,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     equations: Array.isArray(body.equations) ? body.equations : [],
     figures: Array.isArray(body.figures) ? body.figures : [],
     cells: Array.isArray(body.cells) ? body.cells : [],
+    ...(body.headingNumbering === undefined ? {} : { headingNumbering: body.headingNumbering }),
     tables: Array.isArray(body.tables) ? body.tables : [],
     tableCaptions: Array.isArray(body.tableCaptions) ? body.tableCaptions : [],
     admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],

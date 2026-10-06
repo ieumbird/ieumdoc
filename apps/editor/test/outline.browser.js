@@ -136,6 +136,37 @@ async page => {
 
   const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual,
     sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
+  // Numbering is a document setting and uses the same counters in the page and outline.
+  const toggle = page.getByRole('button', {name:'Number headings', exact:true});
+  await toggle.click();
+  await page.waitForFunction(() => document.querySelector('.document-editor h2')?.getAttribute('data-heading-number') === '1' &&
+    document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
+  result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
+    (await texts())[1].startsWith('1 ');
+  await editor.locator('h2').first().click();
+  await page.keyboard.press('Control+z');
+  result.headingNumberingUndo = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
+  await page.keyboard.press('Control+Shift+z');
+  result.headingNumberingRedo = await editor.locator('h2').first().getAttribute('data-heading-number') === '1';
+  const acknowledgement = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await acknowledgement;
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  const numbered = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
+  result.headingNumberingSaved = numbered.source.includes('headings: true') && !numbered.source.includes('## 1');
+  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByTestId('file-path').fill(file);
+  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  result.headingNumberingReloaded = await toggle.getAttribute('aria-pressed') === 'true' &&
+    await editor.locator('h2').first().getAttribute('data-heading-number') === '1';
+  await toggle.click();
+  result.headingNumberingDisabled = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
+  const offAck = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await offAck;
+  result.headingNumberingOffSaved = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('headings: false');
+
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Outline failed: ${JSON.stringify({result, texts: await texts()})}`);
   return result;
