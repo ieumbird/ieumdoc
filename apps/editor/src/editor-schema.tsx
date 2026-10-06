@@ -947,7 +947,10 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     setError("");
     setEditing(true);
     // After the form renders and after an insert command refocuses the editor.
-    requestAnimationFrame(() => imageInput.current?.focus());
+    requestAnimationFrame(() => {
+      const input = imageInput.current;
+      if (input && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
+    });
   }
   const cancel = () => {
     validation.current++;
@@ -1172,7 +1175,10 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     setError("");
     setEditing(true);
     // After the panel renders and after an insert command refocuses the editor.
-    requestAnimationFrame(() => latexInput.current?.focus());
+    requestAnimationFrame(() => {
+      const input = latexInput.current;
+      if (input && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
+    });
   }
   const cancel = () => {
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
