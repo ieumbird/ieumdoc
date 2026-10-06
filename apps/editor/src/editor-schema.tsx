@@ -36,6 +36,7 @@ import {
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { TableCellFocus, TableTools } from "./table-tools.tsx";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
 export type DraftListener = (key: string, active: boolean) => void;
@@ -424,6 +425,7 @@ function tableNode(onDraftChange?: DraftListener) {
 }
 
 function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+  const grid = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const number = useBlockNumber(editor, getPos, "table");
@@ -451,7 +453,10 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
     data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
-    <NodeViewContent<"table"> as="table" className="table" />
+    <div className="table-scroll"><div ref={grid} className="table-grid">
+      <NodeViewContent<"table"> as="table" className="table" />
+      <TableTools editor={editor} node={node} getPos={getPos} grid={grid} onEdit={begin} hidden={editing} />
+    </div></div>
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: generateHTML(toTiptapContent(caption), editor.extensionManager.extensions) }} /> : null}
     <OriginalContent node={node} />
@@ -712,6 +717,7 @@ export function editorExtensions(
       underline: false,
     }),
     DocumentNumbering,
+    TableCellFocus,
     ParagraphHardBreak,
     ParagraphSplit,
     ParagraphMerge,

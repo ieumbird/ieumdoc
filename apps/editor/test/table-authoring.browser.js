@@ -48,6 +48,67 @@ async page => {
   const result = {};
   await open();
 
+  // Direct handles/append buttons preserve the native caret and history. The menu can
+  // target B while the caret remains in A; its portal must not be clipped by local scroll.
+  const initial = tables.first();
+  await initial.locator('td', {hasText:/^U$/}).click();
+  result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
+    await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
+    await initial.getByRole('button', {name:'Column A actions', exact:true}).getAttribute('aria-pressed') === 'true';
+  await initial.getByRole('button', {name:'Append row', exact:true}).click();
+  result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
+    const editor = document.querySelector('.document-editor').editor;
+    return editor.view.hasFocus() && editor.state.selection.$from.index(1) === 2;
+  });
+  await initial.getByRole('button', {name:'Append column', exact:true}).click();
+  result.appendColumnFocus = (await grid(initial))[0].length === 3 && await page.evaluate(() => {
+    const editor = document.querySelector('.document-editor').editor;
+    return editor.view.hasFocus() && editor.state.selection.$from.index(2) === 2;
+  });
+  await page.keyboard.press('Control+z');
+  result.appendUndo = (await grid(initial))[0].length === 2 && (await grid(initial)).length === 3;
+  await page.keyboard.press('Control+Shift+z');
+  result.appendRedo = (await grid(initial))[0].length === 3;
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+z');
+  result.appendUndoRestores = JSON.stringify(await grid(initial)) === JSON.stringify([['#Name', '#Value'], ['U', 'AC']]);
+  await initial.locator('td', {hasText:/^U$/}).click();
+  await initial.getByRole('button', {name:'Column B actions', exact:true}).click();
+  const columnMenu = page.getByRole('menu', {name:'Column B actions', exact:true});
+  await columnMenu.getByRole('menuitem', {name:'Align column right', exact:true}).click();
+  result.handleTargetsColumn = await initial.locator('tr').evaluateAll(rows => rows.every(row => row.cells[1].style.textAlign === 'right' && row.cells[0].style.textAlign !== 'right'));
+  await page.keyboard.press('Control+z');
+  const headerHandle = initial.getByRole('button', {name:'Row 1 actions (header)', exact:true});
+  await headerHandle.focus();
+  await page.keyboard.press('Enter');
+  const headerMenu = page.getByRole('menu', {name:'Row 1 actions', exact:true});
+  result.headerProtected = await headerMenu.getByRole('menuitem', {name:'Delete row', exact:true}).isDisabled() &&
+    await headerMenu.getByRole('menuitem', {name:'Move row down', exact:true}).isDisabled();
+  await page.keyboard.press('Escape');
+  result.keyboardMenuReturns = await headerHandle.evaluate(button => document.activeElement === button);
+  await page.setViewportSize({width:768, height:720});
+  await initial.hover();
+  for (let i = 0; i < 5; i++) await initial.getByRole('button', {name:'Append column', exact:true}).click();
+  await initial.locator('.table-scroll').evaluate(scroll => { scroll.scrollLeft = scroll.scrollWidth; });
+  const last = initial.getByRole('button', {name:'Column G actions', exact:true});
+  await last.click();
+  result.narrowGeometry = await initial.evaluate(block => {
+    const table = block.querySelector('table');
+    const handles = [...block.querySelectorAll('.table-column-handle')];
+    return block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
+      handles.every((handle, i) => Math.abs(handle.getBoundingClientRect().left - table.rows[0].cells[i].getBoundingClientRect().left) < 1) &&
+      document.documentElement.scrollWidth <= innerWidth;
+  });
+  result.menuWithinViewport = await page.getByRole('menu', {name:'Column G actions', exact:true}).evaluate(menu => {
+    const r = menu.getBoundingClientRect();
+    return r.left >= 0 && r.right <= innerWidth && r.top >= document.querySelector('.app-header').getBoundingClientRect().bottom && r.bottom <= innerHeight;
+  });
+  await page.keyboard.press('Escape');
+  await initial.locator('td').first().click();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Control+z');
+  await page.setViewportSize({width:1280, height:720});
+  result.toolsNeverPersist = !JSON.stringify(await page.evaluate(() => document.querySelector('.document-editor').editor.getJSON())).includes('data-current-cell');
+
   // 1. Insert menu → Table: a header row and two body rows of three columns, caret in the first cell.
   await page.getByText('Intro paragraph.', {exact:true}).hover();
   await page.getByRole('button', {name:'Insert block after paragraph block 2', exact:true}).click();
@@ -94,12 +155,16 @@ async page => {
   // caret; Undo/Redo step through them, and Save writes the same grid.
   const reopened = tables.last();
   await reopened.locator('td', {hasText:/^P$/}).click();
-  await blockMenu(4, 'Move row up');
+  await reopened.getByRole('button', {name:'Row 4 actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Row 4 actions', exact:true}).getByRole('menuitem', {name:'Move row up', exact:true}).click();
   await reopened.locator('td', {hasText:/^W$/}).click();
-  await blockMenu(4, 'Move column right');
-  await blockMenu(4, 'Align column center');
+  await reopened.getByRole('button', {name:'Column B actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Column B actions', exact:true}).getByRole('menuitem', {name:'Move column right', exact:true}).click();
+  await reopened.getByRole('button', {name:'Column C actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Column C actions', exact:true}).getByRole('menuitem', {name:'Align column center', exact:true}).click();
   await reopened.locator('td', {hasText:/^Q$/}).click();
-  await blockMenu(4, 'Delete row');
+  await reopened.getByRole('button', {name:'Row 4 actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Row 4 actions', exact:true}).getByRole('menuitem', {name:'Delete row', exact:true}).click();
   const reshaped = [['#Name', '#Value', '#'], ['U', 'AC', ''], ['P', '', 'W']];
   result.reshaped = JSON.stringify(await grid(reopened)) === JSON.stringify(reshaped);
   await page.keyboard.press('Control+z');
@@ -119,7 +184,8 @@ async page => {
   // Caption and label use the shared properties form and survive subsequent grid edits.
   const table = tables.last();
   await table.hover();
-  await table.getByRole('button', {name:'Edit table'}).click();
+  await table.getByRole('button', {name:'Table actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Edit caption and label', exact:true}).click();
   await page.getByTestId('table-caption-input').fill('Cancelled caption');
   await page.getByTestId('table-cancel').click();
   result.captionCancelKeepsTable = await table.getByTestId('table-caption').count() === 0;
@@ -152,6 +218,25 @@ async page => {
   result.tableRoleWritten = (await read()).includes('{numref}`tbl-ports`');
   await open();
   result.tableReferenceReloaded = await page.getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
+
+  // Last-column protection and explicit table deletion remain undoable.
+  const finalTable = tables.last();
+  await finalTable.locator('td').first().click();
+  for (const name of ['C', 'B']) {
+    await finalTable.getByRole('button', {name:`Column ${name} actions`, exact:true}).click();
+    await page.getByRole('menu', {name:`Column ${name} actions`, exact:true}).getByRole('menuitem', {name:'Delete column', exact:true}).click();
+  }
+  await finalTable.getByRole('button', {name:'Column A actions', exact:true}).click();
+  result.lastColumnProtected = await page.getByRole('menu', {name:'Column A actions', exact:true}).getByRole('menuitem', {name:'Delete column', exact:true}).isDisabled();
+  await page.keyboard.press('Escape');
+  await finalTable.locator('td').first().click();
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+z');
+  result.columnUndoKeepsCaption = (await grid(finalTable))[0].length === 3 && await finalTable.getByTestId('table-caption').innerText() === 'Port values';
+  await finalTable.getByRole('button', {name:'Delete table', exact:true}).click();
+  result.deleteTable = await tables.count() === 1;
+  await page.keyboard.press('Control+z');
+  result.undoTableDeletion = await tables.count() === 2 && await tables.last().getByTestId('table-caption').innerText() === 'Port values';
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);

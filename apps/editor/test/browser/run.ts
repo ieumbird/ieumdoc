@@ -13,7 +13,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 
-const URL = "http://127.0.0.1:5173";
+const URL = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5173";
 const SESSION = "ieumdoc-browser-regression";
 const CONSOLE_MONITOR_START = `async page => {
   // Give each scenario a consistent viewport and initial focus.

@@ -70,6 +70,25 @@ function caretIn(state: EditorState, row: number, column: number, index = TABLE)
 
 const cellOf = (state: EditorState) => ({ row: state.selection.$from.index(1), column: state.selection.$from.index(2) });
 
+test("handle targets reuse commands outside the table, preserving read-only cells and one-step undo", () => {
+  let { document, state, rejected } = editorState(mixed);
+  // The caret stays in Intro, while the handle addresses a different row/column.
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+  const opening = state.doc;
+  state = apply(state, addTableRowBelow(state, TABLE, { row: 1, column: 1 }));
+  assert.deepEqual(cellOf(state), { row: 2, column: 1 });
+  assert.equal(undo(state, tr => { state = apply(state, tr); }), true);
+  assert.ok(state.doc.eq(opening));
+  state = apply(state, alignTableColumn(state, TABLE, "right", { row: 1, column: 1 }));
+  state = apply(state, moveTableColumn(state, TABLE, -1, { row: 1, column: 1 }));
+  assert.deepEqual(grid(state), [["Note", "Name"], ["(bold)", "U"], ["", "P"]]);
+  const saved = saveEdits(mixed, collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON));
+  assert.match(saved.markdown, /\{sub\}`bold`/);
+  assert.deepEqual(rejected, []);
+  assert.equal(BLOCK_COMMANDS.find(command => command.id === "table-row-delete")!.enabled(state, TABLE, { row: 0, column: 0 }), false);
+  assert.throws(() => addTableRowBelow(state, TABLE, { row: 99, column: 0 }), /invalid table cell target/);
+});
+
 test("Table is an insert command; row and column commands are offered for tables only", () => {
   assert.deepEqual(filterInsertCommands("tab").map(command => command.id), ["table"]);
   const { state } = editorState(mixed);
