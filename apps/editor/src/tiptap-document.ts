@@ -97,6 +97,7 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
         const node = toTiptapBlock(block);
         if (block.original) node.attrs = { ...node.attrs, original: block.original };
         if (block.numbered) node.attrs = { ...node.attrs, numbered: block.numbered };
+        if (block.headingLevels) node.attrs = { ...node.attrs, headingLevels: block.headingLevels };
         return node;
       })
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],

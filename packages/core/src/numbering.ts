@@ -28,17 +28,22 @@ export function defaultHeadingNumbering(enabled: boolean): HeadingNumbering | nu
 }
 
 /** Computed heading numbers in the current block order; no number is authored as text. */
-export function headingNumbers(blocks: { block: string; level?: number }[], settings?: HeadingNumbering | null): (string | undefined)[] {
+export function headingNumbers(blocks: { block: string; level?: number; headingLevels?: number[] | null }[], settings?: HeadingNumbering | null): (string | undefined)[] {
   let counts = [...(settings?.counts ?? [])];
-  return blocks.map(block => {
-    const level = block.level ?? 1;
-    if (block.block !== "heading" || !settings?.enabled[level - 1]) return undefined;
+  const increment = (level: number) => {
+    if (!settings?.enabled[level - 1]) return undefined;
     const depth = level + settings.offset;
     counts = counts.map((count, index) => count === null || index < depth - 1 ? count : index === depth - 1 ? count + 1 : 0);
     const parts = counts.filter(count => count !== null);
     while (parts.at(-1) === 0) parts.pop();
     const number = parts.join(".");
     return settings.enumerators[level - 1]?.replace(/%s/g, number) ?? number;
+  };
+  return blocks.map(block => {
+    if (block.block === "heading") return increment(block.level ?? 1);
+    // Preserved/read-only blocks can contain headings that still advance MyST's counters.
+    block.headingLevels?.forEach(increment);
+    return undefined;
   });
 }
 

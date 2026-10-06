@@ -82,7 +82,7 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
   // `numbered`: the snapshot's numbered targets where they differ from the block kind's default.
-  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, ...attrs };
+  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, headingLevels: { default: null, rendered: false }, ...attrs };
 }
 
 // A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
@@ -1415,8 +1415,8 @@ const DocumentNumbering = Extension.create({
   addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
-      const blocks: { block: string; level?: number }[] = [];
-      state.doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level) }));
+      const blocks: { block: string; level?: number; headingLevels?: number[] }[] = [];
+      state.doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level), headingLevels: node.attrs.headingLevels }));
       const numbers = headingNumbers(blocks, state.doc.attrs.headingNumbering as HeadingNumbering | null);
       const decorations: Decoration[] = [];
       state.doc.forEach((node, pos, index) => { if (numbers[index]) decorations.push(Decoration.node(pos, pos + node.nodeSize, { "data-heading-number": numbers[index]! })); });

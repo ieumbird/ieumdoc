@@ -17,8 +17,8 @@ export type OutlineItem = {
 /** Top-level headings in document order, editable or read-only. */
 export function documentOutline(doc: ProseMirrorNode): OutlineItem[] {
   const items: OutlineItem[] = [];
-  const blocks: { block: string; level: number }[] = [];
-  doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level) }));
+  const blocks: { block: string; level: number; headingLevels?: number[] }[] = [];
+  doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level), headingLevels: node.attrs.headingLevels }));
   const numbers = headingNumbers(blocks, doc.attrs.headingNumbering as HeadingNumbering | null);
   doc.forEach((node, pos, index) => {
     if (node.type.name === "heading") {

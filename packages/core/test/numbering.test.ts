@@ -99,4 +99,13 @@ test("heading numbering matches MyST and preserves metadata without inserting nu
   // Boolean numbering retains its effect on non-heading objects when expanded.
   const expanded = serialize(updateHeadingNumbering(parse("---\nnumbering: false\n---\n\n## Section\n"), true));
   assert.match(expanded, /all: false/);
+  // A nested read-only heading is omitted from the editable outline but still consumes a number.
+  const nested = updateHeadingNumbering(parse("# Title\n\n## First\n\n> ## Quoted\n\n## Last\n"), true);
+  const nestedRead = getEditableDocument(nested);
+  const nestedTree = structuredClone(nested);
+  const nestedMetadata = parseDocument(String(nestedTree.children[0].value)).toJS();
+  nestedMetadata.numbering = validateNumbering(nestedMetadata.numbering, {property:"numbering", messages:{}});
+  enumerateTargetsTransform(nestedTree as never, {state: new ReferenceState("document.md", {frontmatter:nestedMetadata, vfile:new VFile()})});
+  assert.deepEqual(headingNumbers(nestedRead.blocks, nestedRead.headingNumbering), nestedTree.children.map(node => node.type === "heading" ? node.enumerator : undefined));
+  assert.equal(headingNumbers(nestedRead.blocks, nestedRead.headingNumbering).at(-1), "3");
 });

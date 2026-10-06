@@ -15,6 +15,11 @@ test("the outline lists top-level headings in order, read-only headings included
     [0, 1, "Title"], [2, 2, "Plain section"], [3, 3, "Formatted section"], [5, 2, "Last"],
   ]);
   for (const item of documentOutline(doc)) assert.equal(doc.nodeAt(item.pos), doc.child(item.index));
+  const numbered = toTiptapDocument(loadEditableDocument(markdown));
+  numbered.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
+  assert.deepEqual(documentOutline(schema.nodeFromJSON(numbered)).map(item => item.text), [
+    "Title", "1 Plain section", "1.1 Formatted section", "3 Last",
+  ]);
 });
 
 test("the section being read is the last heading above the reading line", () => {
