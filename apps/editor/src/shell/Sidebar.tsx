@@ -1,6 +1,7 @@
 import { useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
-import { FilePlus2, FileText, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowUp, FilePlus2, FileText, Folder, FolderOpen, FolderTree, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
+import type { FolderResponse } from "../../shared/document-protocol.ts";
 import type { OutlineItem, OutlineStore } from "../outline.ts";
 import { splitDocumentPath } from "./document-path.ts";
 
@@ -13,10 +14,19 @@ type SidebarProps = {
   onToggle(): void;
   onOpen(): void;
   onNew(): void;
+  /** The folder the user chose, listed one level at a time. */
+  folder?: FolderResponse;
+  onOpenFolder?(): void;
+  onBrowseFolder?(path: string): void;
+  onOpenDocument?(path: string): void;
+  onCloseFolder?(): void;
 };
 
-/** App-level entry points and the open document's outline. No workspace tree until that structure is decided. */
-export function Sidebar({ open, documentPath, outline, onSelectHeading, onToggle, onOpen, onNew }: SidebarProps) {
+/** App-level entry points, the folder the user chose and the open document's outline. */
+export function Sidebar({
+  open, documentPath, outline, onSelectHeading, onToggle, onOpen, onNew,
+  folder, onOpenFolder, onBrowseFolder, onOpenDocument, onCloseFolder,
+}: SidebarProps) {
   const { name } = splitDocumentPath(documentPath);
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
@@ -39,6 +49,10 @@ export function Sidebar({ open, documentPath, outline, onSelectHeading, onToggle
               <FolderOpen aria-hidden="true" />
               Open…
             </Button>
+            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={() => onOpenFolder?.()}>
+              <FolderTree aria-hidden="true" />
+              Open folder…
+            </Button>
             <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onNew}>
               <FilePlus2 aria-hidden="true" />
               New
@@ -52,10 +66,74 @@ export function Sidebar({ open, documentPath, outline, onSelectHeading, onToggle
               </li>
             </ul>
           ) : null}
+          {folder ? (
+            <FolderList
+              folder={folder}
+              documentPath={documentPath}
+              onBrowse={path => onBrowseFolder?.(path)}
+              onOpenDocument={path => onOpenDocument?.(path)}
+              onClose={() => onCloseFolder?.()}
+            />
+          ) : null}
           {documentPath && outline ? <Outline outline={outline} onSelect={item => onSelectHeading?.(item)} /> : null}
         </>
       ) : null}
     </nav>
+  );
+}
+
+type FolderListProps = {
+  folder: FolderResponse;
+  documentPath: string;
+  onBrowse(path: string): void;
+  onOpenDocument(path: string): void;
+  onClose(): void;
+};
+
+/** One level of the chosen folder: Up while below it, then sub-folders and Markdown files. */
+function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onClose }: FolderListProps) {
+  // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
+  const name = (path: string) => splitDocumentPath(path).name || path;
+  return (
+    <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
+      <div className="sidebar-folder-header">
+        <p className="sidebar-section-label" id="sidebar-folder-label" title={folder.path}>{name(folder.path)}</p>
+        <Button variant="ghost" size="icon-xs" aria-label="Close folder" onClick={onClose}>
+          <X />
+        </Button>
+      </div>
+      <ul className="sidebar-folder-list">
+        {folder.parent ? (
+          <li>
+            <button
+              type="button"
+              className="sidebar-folder-item"
+              title={folder.parent}
+              aria-label={`Up to ${name(folder.parent)}`}
+              onClick={() => onBrowse(folder.parent!)}
+            >
+              <ArrowUp aria-hidden="true" />
+              <span>{name(folder.parent)}</span>
+            </button>
+          </li>
+        ) : null}
+        {folder.entries.map(entry => (
+          <li key={entry.path}>
+            <button
+              type="button"
+              className="sidebar-folder-item"
+              title={entry.path}
+              aria-current={entry.kind === "document" && entry.path === documentPath ? "page" : undefined}
+              onClick={() => (entry.kind === "folder" ? onBrowse(entry.path) : onOpenDocument(entry.path))}
+            >
+              {entry.kind === "folder" ? <Folder aria-hidden="true" /> : <FileText aria-hidden="true" />}
+              <span>{entry.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {folder.entries.length === 0 ? <p className="sidebar-outline-empty">No folders or Markdown files</p> : null}
+    </section>
   );
 }
 

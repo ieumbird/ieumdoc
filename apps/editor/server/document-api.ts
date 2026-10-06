@@ -19,6 +19,8 @@ import type {
   SaveResponse,
   SourceResponse,
   DocumentErrorResponse,
+  FolderEntry,
+  FolderResponse,
 } from "../shared/document-protocol.ts";
 export type {
   HeadingEdit,
@@ -257,6 +259,19 @@ export async function handleDocumentRequest(
     }
     return;
   }
+  if (url === "/api/folder") {
+    if (req.method !== "GET") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined));
+    } catch (error) {
+      sendJson(res, 400, errorPayload(error));
+    }
+    return;
+  }
   if (url !== "/api/document") {
     next();
     return;
@@ -319,6 +334,42 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
     deletes: Array.isArray(body.deletes) ? body.deletes : [],
     order: body.order,
   };
+}
+
+const entryOrder = new Intl.Collator(undefined, { numeric: true });
+
+/**
+ * One level of a folder the user chose. Only regular folders and regular `.md` files are listed:
+ * hidden entries and symlinks are left out, and a requested folder must stay inside the chosen
+ * one, symlinks resolved. Nothing is remembered between requests.
+ */
+export function listFolder(requestedRoot: string | undefined, requestedPath?: string): FolderResponse {
+  if (!requestedRoot?.trim()) throw new Error("folder path is required");
+  const root = path.resolve(requestedRoot.trim());
+  const folder = requestedPath?.trim() ? path.resolve(requestedPath.trim()) : root;
+  if (!isInside(root, folder)) throw new Error("folder is outside the chosen folder");
+  try {
+    if (!statSync(folder).isDirectory()) throw new Error("folder path must point to a directory");
+    if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
+    const entries = fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry): FolderEntry[] => {
+      if (entry.name.startsWith(".")) return [];
+      const kind = entry.isDirectory() ? "folder" : entry.isFile() && path.extname(entry.name).toLowerCase() === ".md" ? "document" : undefined;
+      return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
+    });
+    entries.sort((a, b) => (a.kind === b.kind ? entryOrder.compare(a.name, b.name) : a.kind === "folder" ? -1 : 1));
+    return { root, path: folder, ...(path.relative(root, folder) === "" ? {} : { parent: path.dirname(folder) }), entries };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") throw new Error("folder does not exist");
+    if (code === "ENOTDIR") throw new Error("folder path must point to a directory");
+    if (code === "EACCES" || code === "EPERM") throw new Error("folder cannot be read: permission denied");
+    throw error;
+  }
+}
+
+function isInside(root: string, target: string): boolean {
+  const relative = path.relative(root, target);
+  return !(relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative));
 }
 
 export function resolveMediaPath(assetPath: string, documentPath?: string): string {

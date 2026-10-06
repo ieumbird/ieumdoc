@@ -517,7 +517,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - 닫힌 front matter는 시각 편집 없이 보존한다. 지원 본문을 편집하고 Save/Reload해도 메타데이터가 유지된다. 상세 범위는 [Document support v1](../design/document-support-v1.md)을 따른다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
 - merged cell 전용 시스템은 없다.
-- Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
+- Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나, 또는 `Open folder…`로 고른 folder 목록에서 누른 문서를 연다. 한 번에 한 문서만 Tiptap editor 하나로 연다. 재귀 tree·검색·Git 표시는 없다.
 - 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
 - 표시 텍스트가 있는 cross-reference(`{ref}`Text <x>`` 등), 그 밖의 role, 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`/`{ref}`는 아래 "Local cross-reference authoring v1"과 "Section references v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가·삭제·이동하며 열 정렬을 바꿀 수 있다(아래 "Table authoring v1"). 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
@@ -647,7 +647,7 @@ Hard Break가 있는 지원 paragraph는 편집 가능하며 Shift+Enter로 줄�
 
 ## Editor UX Shell v1
 
-- 화면은 sidebar, top bar, document column 세 영역이다. sidebar는 `«` / `»`로 접고 편다. sidebar에는 제품명, `Open…`, 현재 문서만 있다.
+- 화면은 sidebar, top bar, document column 세 영역이다. sidebar는 `«` / `»`로 접고 편다. sidebar에는 제품명, `Open…`, `Open folder…`, `New`, 현재 문서가 있고, folder를 고르면 그 목록이 보인다(아래 Folder navigation v1).
 - `Open…`을 누르면 작은 dialog가 열린다. 경로를 입력하고 `Open`을 누른다. 저장하지 않은 변경이 있으면 dialog 안에 `Save or discard the current changes before opening another file.`가 보이고 현재 문서는 그대로다.
 - Error는 top bar 아래 message area에 남고 `×`로 닫는다. Notice는 몇 초 뒤 사라진다. 두 메시지 모두 document column 안에 나타나지 않는다.
 - block에 hover하면 왼쪽에 `+`와 `⠿`가 보인다. `+`는 insert menu를, `⠿` click은 block menu를 연다. `⠿` drag는 기존 reorder다.
@@ -1223,3 +1223,16 @@ To verify a second checkout without replacing an existing dev server, start it o
 ## Heading numbering v1 (#96)
 
 Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stays a document title; H2-H6 display 1, 1.1 and deeper numbers in both the page and Outline. Undo/Redo restores the setting. Save → Reload keeps it, while Source shows only numbering metadata and the original heading text. Click again and save to disable numbers. Existing section move/delete commands recalculate the numbers. `pnpm browser:test outline` verifies the setting, page/Outline agreement and actual persistence. See [Heading numbering v1](../design/heading-numbering-v1.md).
+
+## Folder navigation v1 (#112)
+
+설계는 [Filesystem Host Boundary의 Folder listing v1](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112)을 따른다.
+
+- sidebar `Open folder…`에 folder 경로를 입력하고 `Open`을 누른다. 열린 문서의 folder가 기본값이다. 문서는 바뀌지 않고, sidebar에 그 folder의 하위 folder와 `.md` 파일이 folder 먼저·이름순으로 보인다. `.`으로 시작하는 항목, 다른 파일, symlink는 보이지 않는다.
+- `.md` 파일 경로나 없는 경로를 입력하면 dialog 안에 이유가 나오고 목록은 그대로다.
+- 파일을 누르면 그 문서가 열리고 목록에서 현재 항목으로 표시된다. folder를 누르면 그 안으로 들어가고, 맨 위의 `↑ <상위 folder>`로 돌아온다. 고른 folder보다 위로는 가지 않는다.
+- 저장하지 않은 변경이 있을 때 다른 파일을 누르면 top bar 아래에 `Save or discard the current changes before opening another file.`가 보이고 현재 문서와 입력이 그대로다.
+- `New`로 보이는 folder에 문서를 만들면 목록에 나타난다. 그 밖의 외부 변경은 자동 반영하지 않는다. folder를 다시 누르면 새로 읽는다.
+- folder 이름 옆 `×`(Close folder)가 목록을 닫는다. 페이지를 새로고침하면 folder 선택은 사라진다(저장하지 않는다).
+
+`pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, New 반영, Close folder를 확인한다.

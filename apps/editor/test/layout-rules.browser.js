@@ -43,7 +43,7 @@ async page => {
           if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
         }
         const icons=collapsed?null:[...document.querySelectorAll('.sidebar-actions svg,.sidebar-document-icon')].map(n=>n.getBoundingClientRect());
-        if(icons&&icons.length!==3)throw Error('Missing expanded sidebar icons');
+        if(icons&&icons.length!==4)throw Error('Missing expanded sidebar icons');
         const labels=collapsed?null:[...document.querySelectorAll('.sidebar-actions button,.sidebar-document-name')].map(n=>{
           const text=[...n.childNodes].find(c=>c.nodeType===Node.TEXT_NODE&&c.textContent.trim());
           if(!text)throw Error('Missing sidebar label');

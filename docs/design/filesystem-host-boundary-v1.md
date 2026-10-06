@@ -29,7 +29,7 @@ Browser Editor는 Host를 통해 다음을 요청한다.
 - file read
 - file write
 - file create
-- 향후 file/directory listing
+- 사용자가 고른 folder의 한 단계 listing (아래 Folder listing v1)
 - 향후 filesystem watch
 
 Host는 요청된 document locator를 실제 filesystem 동작으로 연결한다. Locator는 interface/host layer의 값이며 Core의 semantic document model에 포함하지 않는다.
@@ -54,7 +54,7 @@ Browser -> file upload -> remote service -> edit -> download
 
 - OS filesystem에 대한 read, write, create
 - document locator를 실제 path 또는 native file handle로 해석하는 일
-- 향후 directory/file listing과 filesystem watch
+- 사용자가 고른 folder의 listing과 향후 filesystem watch
 - filesystem error를 Browser에 전달할 수 있는 host-level 결과와 오류
 - path normalization, traversal 방지, 허용된 filesystem 범위, overwrite protection 등 filesystem security 검증
 - 열린 `.md` 파일 directory를 기준으로 한 상대 media resolution
@@ -103,6 +103,17 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 PNG 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
+### Folder listing v1 (#112)
+
+사용자가 `Open folder…`에 folder 경로 하나를 명시적으로 입력하면 Host가 그 folder를 한 단계씩 list하고, Sidebar가 그 안에서 이동하며 문서를 연다. Workspace가 아니다. 선택한 folder는 Browser 페이지 상태에만 있고 Host, 파일, 설정에 저장하지 않는다.
+
+- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `parent`는 root보다 아래일 때만 있다.
+- 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
+- Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
+- 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 기존 Open처럼 전환을 거부한다. 문서를 열거나 만들면 보이는 folder를 다시 list한다. watch는 없다.
+- `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
+- Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
+
 ## Current implementation mapping
 
 현재 `apps/editor/server`는 **local filesystem host boundary의 현재 dev implementation**이다.
@@ -113,6 +124,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - adapter는 Core의 parse, semantic save operation, validation 및 serialization을 호출하고, 파일 I/O 자체는 adapter가 수행한다.
 - 문서 revision을 확인하여 외부 변경 후 stale save를 거부하는 현재 conflict 동작도 이 경계 안의 host/editor adapter 동작이다.
 - 상대 media는 열린 document directory를 기준으로 resolve하며 directory 밖 traversal을 거부한다.
+- `/api/folder`가 Folder listing v1을 구현한다(`listFolder`).
 
 이 매핑은 현재 개발 구현을 설명할 뿐이다. `apps/editor/server`를 production backend, permanent local server architecture 또는 workspace server로 정의하지 않는다.
 
@@ -155,9 +167,9 @@ New Document 기능 자체와 그 UI/adapter 구현은 이 문서의 작업 범�
 
 ## Non-goals
 
-- Open Folder UX, workspace root 또는 project concept
-- Git repository detection, recent workspace, file tree
-- `.ieumdoc/`, workspace config 또는 multi-document navigation
+- workspace root 또는 project concept. Folder listing v1의 folder는 페이지 상태일 뿐 workspace가 아니다.
+- Git repository detection, recent workspace, 재귀 file tree, 검색 또는 index
+- `.ieumdoc/`, workspace config, 여러 문서 동시 열기 또는 문서 간 탐색 기록
 - 특정 HTTP API, localhost server 또는 production backend architecture
 - browser file upload 또는 Browser File System Access API를 기본 architecture로 채택하는 결정
 - database, remote document service 또는 별도 document storage를 SSOT로 추가하는 결정

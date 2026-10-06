@@ -9,12 +9,12 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc, Open, New, current document and its heading outline (#61). User-controlled collapse/expand; no workspace tree or placeholder navigation. The outline is derived from the editor document, indents 12px per level below H1, marks the section being read and scrolls by itself; it is never written to the document. |
+| Sidebar | IeumDoc, Open, Open folder, New, current document, the chosen folder (#112) and the heading outline (#61). User-controlled collapse/expand; no workspace or placeholder navigation. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes at most two fifths of the height and scrolls by itself; the open document uses the neutral current treatment and Close folder removes the list. The outline is derived from the editor document, indents 12px per level below H1, marks the section being read and scrolls by itself; it is never written to the document. |
 | TopBar | Filename (full path in title), Visual/Source, actual status, Reload and Save. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
-Open uses the existing local path dialog. New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+Open uses the existing local path dialog. Open folder uses the same dialog for a folder path; a document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 ## Writing interactions
 
@@ -29,6 +29,6 @@ Open uses the existing local path dialog. New creates through the existing API i
 
 ## Boundaries
 
-No workspace tree, search, accounts, autosave, right-hand inspector, new block semantics, overlay framework or persistence architecture is introduced. New UI primitives enter through `components/ui`; native legacy controls continue to share product styles safely.
+No workspace, recursive tree, search, accounts, autosave, right-hand inspector, new block semantics, overlay framework or persistence architecture is introduced. New UI primitives enter through `components/ui`; native legacy controls continue to share product styles safely.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual visual evidence: [review record](editor-visual-refinement-v1-review.md).

@@ -6,6 +6,7 @@ import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
+import { splitDocumentPath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
 import type {
@@ -15,6 +16,7 @@ import type {
   SaveResponse,
   SourceResponse,
   DocumentErrorResponse,
+  FolderResponse,
   OrderItem,
   SupportedEdits,
   SessionSaveRequest,
@@ -38,6 +40,9 @@ export function App() {
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [folderDialog, setFolderDialog] = useState(false);
+  // The folder the user chose for this page session; never stored or watched.
+  const [folder, setFolder] = useState<FolderResponse | null>(null);
   const [newDialog, setNewDialog] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
@@ -106,6 +111,39 @@ export function App() {
     }
     return load(requestedPath);
   }
+
+  /** Lists the folder the user typed; it becomes the sidebar folder on success. */
+  async function openFolder(path: string): Promise<string> {
+    const root = path.trim();
+    if (!root) return "Enter a folder path.";
+    try {
+      setFolder(await requestFolder(root));
+      return "";
+    } catch (cause) {
+      return messageOf(cause);
+    }
+  }
+
+  /** Lists another folder inside the chosen one. Failures keep the current listing. */
+  async function browseFolder(path: string): Promise<void> {
+    if (!folder) return;
+    try {
+      setFolder(await requestFolder(folder.root, path));
+    } catch (cause) {
+      setError(messageOf(cause));
+    }
+  }
+
+  async function openFolderDocument(path: string): Promise<void> {
+    if (path === openedPath) return;
+    const message = await openFile(path);
+    if (message) setError(message);
+  }
+
+  // Opening or creating a document lists the shown folder again; there is no watch.
+  useEffect(() => {
+    if (folder && openedPath) void browseFolder(folder.path);
+  }, [openedPath]);
 
   async function save(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || busy) return;
@@ -195,7 +233,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (openDialog || newDialog || reloadDialog) return;
+    if (openDialog || folderDialog || newDialog || reloadDialog) return;
     void save();
   };
   useEffect(() => {
@@ -252,6 +290,11 @@ export function App() {
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
         onNew={() => setNewDialog(true)}
+        folder={folder ?? undefined}
+        onOpenFolder={() => setFolderDialog(true)}
+        onBrowseFolder={(path) => void browseFolder(path)}
+        onOpenDocument={(path) => void openFolderDocument(path)}
+        onCloseFolder={() => setFolder(null)}
       />
       <div className="app-main">
         <div className="app-header">
@@ -321,6 +364,14 @@ export function App() {
         busy={busy}
         onOpen={openFile}
         onClose={() => { if (!switching) setOpenDialog(false); }}
+      />
+      <OpenDialog
+        folder
+        open={folderDialog}
+        initialPath={folder?.root ?? splitDocumentPath(openedPath).directory}
+        busy={false}
+        onOpen={openFolder}
+        onClose={() => setFolderDialog(false)}
       />
       <NewDialog
         open={newDialog}
@@ -396,6 +447,15 @@ async function requestDocument(
     source: payload.source,
     writeError: typeof payload.writeError === "string" ? payload.writeError : "",
   };
+}
+
+/** Asks the Host for one level of a folder inside the folder the user chose. */
+async function requestFolder(root: string, path?: string): Promise<FolderResponse> {
+  const query = new URLSearchParams({ root, ...(path ? { path } : {}) });
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder?${query}`);
+  const payload = (await response.json()) as Partial<FolderResponse> & Partial<DocumentErrorResponse>;
+  if (!response.ok || !Array.isArray(payload.entries)) throw new Error(payload.error ?? `request failed (${response.status})`);
+  return payload as FolderResponse;
 }
 
 /** Asks the Host for the canonical Markdown a Save request would write. */
