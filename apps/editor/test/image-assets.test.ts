@@ -268,7 +268,7 @@ test("unwritable Core snapshots and abnormal document locators cannot create ass
     assert.throws(() => createImageAsset(locator, "image/png", PNG, key));
     assert.equal(fs.existsSync(assets), false);
   }
-  fs.writeFileSync(doc, "# Blocked\n\n- [ ] todo\n");
+  fs.writeFileSync(doc, "# Blocked\n\nPress {kbd}`Ctrl` now.\n");
   assert.throws(() => createImageAsset(doc, "image/png", PNG, key), /read-only/);
   assert.equal(fs.existsSync(assets), false);
 });

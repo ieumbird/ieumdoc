@@ -60,7 +60,7 @@ async page => {
   await open('blocked-markdown.md');
   const before = await read('blocked-markdown.md');
   const message = await warning.innerText();
-  assert(message.includes('Read-only:') && message.includes('Block 2') && message.includes('checked') && message.includes('then Reload'), 'Missing location, reason or recovery path');
+  assert(message.includes('Read-only:') && message.includes('Line 3') && message.includes('keyboard') && message.includes('then Reload'), 'Missing location, reason or recovery path');
   assert(await editor.getAttribute('contenteditable') === 'false', 'Blocked document accepts typing');
   await page.getByText('Editable after repair.', {exact:true}).click();
   await page.keyboard.press('End');

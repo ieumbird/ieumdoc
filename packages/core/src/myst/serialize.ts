@@ -100,6 +100,18 @@ function prepareWriter(tree: MystDocument): string {
       node.children = node.children?.map(child => child.type === "image"
         ? { type: "paragraph", children: [child] } : child);
     }
+    // myst-to-md has no GFM task list writer and drops `checked`. Write each checkbox
+    // verbatim before its item's first paragraph. myst-parser reads checkboxes only in
+    // tight lists, so a task list it read was tight and is written tight.
+    if (node.type === "list" && node.children?.some(item => typeof item.checked === "boolean")) {
+      for (const item of node.children) {
+        item.spread = false;
+        const paragraph = item.children?.[0];
+        if (typeof item.checked === "boolean" && paragraph?.type === "paragraph") {
+          paragraph.children = [{ type: "html", value: item.checked ? "[x] " : "[ ] " }, ...(paragraph.children ?? [])];
+        }
+      }
+    }
   }
   visit(tree, 0);
   if (prefix) tree.children.shift();
