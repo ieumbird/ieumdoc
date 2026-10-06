@@ -1173,6 +1173,14 @@ Editor:
 
 Hover a table and choose Edit. Set Caption and Label, then Apply. Cancel must keep the previously applied grid and properties. Save → Reload must preserve the caption, label, cells and column alignment; subsequent cell and row/column changes must still save. A caption or label shows Table numbering. Type `/tbl` in a paragraph to choose a labeled Table reference; the chip shows Table n and clicking it navigates to the table. `pnpm browser:test table-authoring table-cell-editing` verifies the supported flow on scratch files. Additional directive options and legends remain read-only. See [Table caption v1](../design/table-caption-v1.md).
 
+### Table handles
+
+Click a cell: its outline and matching A/B/C column and 1/2/3 row handles must be highlighted. Handles appear on hover or while the caret is in the table; keyboard focus and touch also expose them. Click a row or column handle to add, move, delete or align using the menu. The first row is the header and cannot be moved/deleted; a table retains at least one column. The right/bottom `+` buttons append a column/row and focus its new cell, even when the caret was elsewhere. Each action is one Undo step.
+
+The bottom `…` opens caption/label editing and explicitly named table deletion. Escape closes a handle menu and returns focus to its button. In a narrow viewport, scroll the table horizontally: column handles must stay aligned with their cells, and menus must remain inside the viewport. Save → Reload must keep content, alignment, caption and label without adding the A/B/C or row-number UI to Markdown. Existing table browser scenarios cover these checks. See [Table interaction v1](../design/table-interaction-v1.md).
+
+To verify a second checkout without replacing an existing dev server, start it on a free port and set `IEUMDOC_BROWSER_URL` for `pnpm browser:test` (default: `http://127.0.0.1:5173`).
+
 ## Heading numbering v1 (#96)
 
 Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stays a document title; H2-H6 display 1, 1.1 and deeper numbers in both the page and Outline. Undo/Redo restores the setting. Save → Reload keeps it, while Source shows only numbering metadata and the original heading text. Click again and save to disable numbers. Existing section move/delete commands recalculate the numbers. `pnpm browser:test outline` verifies the setting, page/Outline agreement and actual persistence. See [Heading numbering v1](../design/heading-numbering-v1.md).
