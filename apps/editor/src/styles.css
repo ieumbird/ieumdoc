@@ -356,6 +356,11 @@ button {
   padding: var(--space-12) var(--layout-content-gutter) var(--space-16);
 }
 
+/* The Wide document preference changes only the column's maximum width. */
+.app-shell--wide .document-column {
+  max-width: var(--layout-content-width-wide);
+}
+
 .status {
   margin: 0;
   color: var(--id-color-text-muted);

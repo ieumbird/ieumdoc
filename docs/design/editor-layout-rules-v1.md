@@ -9,7 +9,7 @@
 - Sidebar icons use a 16px slot and 8px label gap; action and current-file text starts align within 1px (button border).
 - Sidebar and TopBar share a 48px header row. At ≤704px the TopBar wraps and grows; the sidebar header remains 48px.
 - TopBar and MessageArea share a 20px inline inset. TopBar status sits beside the filename; a status change moves no control (0px, measured).
-- The document column centers in the area remaining beside the sidebar. Its maximum width is 928px, with 16px outer insets.
+- The document column centers in the area remaining beside the sidebar. Its maximum width is `--layout-content-width` (928px), or `--layout-content-width-wide` (1280px) with the Wide document preference, with 16px outer insets; it never exceeds the available area. Both values are [adjustable values](editor-visual-language-v1.md#adjustable-values-and-preferences). Wide changes only the column width: the content axis, 80px gutter and block rules stay the same.
 - Document owns the 80px starting gutter: 8px edge + 28px control + 4px gap + 28px control + 12px safety. Trailing inset is 80px, becoming 16px at ≤1024px.
 - All top-level block wrappers share the content axis. Block-internal content may inset or center. Controls overlay the gutter and never shift text.
 - Sidebar width is 208px, 176px at ≤1024px, and 48px when explicitly collapsed. Open/New remain behind the existing expansion policy.
@@ -27,5 +27,5 @@
 - TopBar shows the filename, ellipsizing long names; the full unchanged address remains in `title`.
 - Tables and formulas scroll inside their block; overlay contents may scroll if viewport height demands it. Never hide overflow on the whole document or restyle KaTeX internals to make measurements pass.
 - Overlay positioning respects the viewport and sticky header. Required controls must exist and stay reachable.
-- `layout-rules.browser.js` measures real scratch documents at 1440, 1025, 1024, 768, 705 and 704px with sidebar open/collapsed. No-element results fail. Collapsed sidebar icon/label alignment is explicitly not applicable.
+- `layout-rules.browser.js` measures real scratch documents at 1440, 1025, 1024, 768, 705 and 704px with sidebar open/collapsed. No-element results fail. Collapsed sidebar icon/label alignment is explicitly not applicable. At 1920px it toggles Wide document and checks the column against `--layout-content-width-wide` (capped by the area), centering, the shared axis, the text inset, unmoved TopBar controls and the preference surviving a reload.
 - No change to Core/CLI, document semantics, save API, Tiptap state architecture or backend persistence.

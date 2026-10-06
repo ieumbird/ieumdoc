@@ -53,7 +53,7 @@ Features added after v1 (outline, table handles, heading numbering, block source
 
 | Area | Rule |
 | --- | --- |
-| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
+| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source, then the Wide document icon toggle), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
 | Sidebar | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
 | Color | Two blue axes only. Interaction (`interaction`, `interaction-soft`): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Chrome uses neutrals. `--id-color-admonition` and `--id-color-surface-admonition` were removed. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
@@ -77,6 +77,14 @@ A change to the Editor's look or a new visible control states which rule above (
 3. Compare the captures in each checkout's `tmp/visual-refinement/` and attach the representative pairs to the PR.
 
 This replaces a runtime old/new toggle such as Linear's dev toolbar: IeumDoc keeps one stylesheet, so the base checkout is the "old" side and nothing needs a second style set.
+
+## Adjustable values and preferences
+
+Values meant to be tuned by hand, or that change with a user's taste, are shared variables, never numbers repeated in rules or scripts.
+
+- They live at the top of `styles/tokens.css` under **Adjustable values**, each with a comment saying what it controls. Changing one value there changes the Editor; tests read the variable instead of pinning its number.
+- A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
+- Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The TopBar Wide document toggle chooses between them.
 
 ## Responsibility boundaries
 

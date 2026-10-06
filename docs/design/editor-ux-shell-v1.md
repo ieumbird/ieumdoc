@@ -10,7 +10,7 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | IeumDoc, Open, Open folder, New, current document, the chosen folder (#112) and the heading outline (#61). User-controlled collapse/expand; no workspace or placeholder navigation. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes at most two fifths of the height and scrolls by itself; the open document uses the neutral current treatment and Close folder removes the list. The outline is derived from the editor document, indents 12px per level below H1, marks the section being read and scrolls by itself; it is never written to the document. |
-| TopBar | Filename (full path in title), Visual/Source, actual status, Reload and Save. Sticky while document scrolls. |
+| TopBar | Filename (full path in title), Visual/Source, Wide document, actual status, Reload and Save. Wide document widens the document column and is remembered in this browser only. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 

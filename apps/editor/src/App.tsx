@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
+import { readDocumentWidth, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
@@ -39,6 +40,7 @@ export function App() {
   const [openedPath, setOpenedPath] = useState("");
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [openDialog, setOpenDialog] = useState(false);
   const [folderDialog, setFolderDialog] = useState(false);
   // The folder the user chose for this page session; never stored or watched.
@@ -263,6 +265,12 @@ export function App() {
     requestAnimationFrame(() => editorRef.current?.revealHeading(item));
   }
 
+  function toggleDocumentWidth(): void {
+    const next = documentWidth === "wide" ? "standard" : "wide";
+    setDocumentWidth(next);
+    writeDocumentWidth(next);
+  }
+
   async function reload(): Promise<void> {
     if (busy || !openedPath) return;
     if (editorRef.current?.hasUnsavedChanges()) {
@@ -281,7 +289,7 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}`}>
+    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
@@ -315,6 +323,8 @@ export function App() {
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
+            wide={documentWidth === "wide"}
+            onToggleWide={toggleDocumentWidth}
           />
           <MessageArea
             error={error}

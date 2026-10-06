@@ -1236,3 +1236,12 @@ Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stay
 - folder 이름 옆 `×`(Close folder)가 목록을 닫는다. 페이지를 새로고침하면 folder 선택은 사라진다(저장하지 않는다).
 
 `pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, New 반영, Close folder를 확인한다.
+
+## Document width (Standard / Wide)
+
+- Top bar의 `Visual`/`Source` 오른쪽 아이콘(`Wide document`)을 누르면 문서 칸이 넓어지고 버튼이 눌린 상태로 보인다. 다시 누르면 기본 폭으로 돌아온다. 이때 top bar 버튼 위치는 바뀌지 않는다.
+- 1920px 창에서 기본 폭은 928px, 넓게는 1280px이다. 창이 좁으면 남은 폭까지만 넓어진다. 블록 시작선, 왼쪽 블록 도구, 표·수식·그림 정렬은 두 모드에서 같다.
+- 페이지를 새로고침하거나 다른 문서를 열어도 선택이 유지된다. 이 브라우저에만 저장되며 Markdown 파일은 바뀌지 않는다(Source와 Save 결과가 같다).
+- 폭 값은 `apps/editor/src/styles/tokens.css` 맨 위 Adjustable values의 `--layout-content-width`, `--layout-content-width-wide`에서 바꾼다.
+
+`pnpm browser:test layout-rules`가 1920px에서 넓게 모드의 폭, 정렬, top bar 위치, 새로고침 후 유지를 확인한다.

@@ -1,4 +1,4 @@
-import { ListOrdered, RotateCcw } from "lucide-react";
+import { ListOrdered, RotateCcw, UnfoldHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -28,16 +28,19 @@ type TopBarProps = {
   onSave(): void;
   onReload?(): void;
   reloadDisabled?: boolean;
+  /** The Wide document display preference. */
+  wide?: boolean;
+  onToggleWide?(): void;
 };
 
 /**
  * Document identity and its state on the left, so status changes never move the controls.
- * On the right: the document setting, the view, then file actions. Only Save with unsaved
+ * On the right: the document setting, the view (mode, then width), then file actions. Only Save with unsaved
  * changes takes the accent; every other control is a quiet ghost button.
  */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
-  onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled,
+  onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled, wide, onToggleWide,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
@@ -108,6 +111,12 @@ export function TopBar({
             <Button {...sourceProps}>Source</Button>
           )}
         </div>
+        {onToggleWide ? (
+          <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Wide document"
+            title="Wide document (this browser only)" aria-pressed={wide} onClick={onToggleWide}>
+            <UnfoldHorizontal aria-hidden="true" />
+          </Button>
+        ) : null}
         {onReload ? (
           <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled} title="Reload the file from disk">
             <RotateCcw aria-hidden="true" />

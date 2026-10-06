@@ -93,5 +93,33 @@ async page => {
   const dirty=await controls();
   await page.keyboard.press('Control+z');
   if(JSON.stringify(clean)!==JSON.stringify(dirty))throw Error(`Status moved the top bar controls: ${JSON.stringify({clean,dirty})}`);
+  // Wide document: the column takes --layout-content-width-wide (capped by the window), keeps the
+  // content axis and gutter, moves no top bar control, and is remembered across a reload.
+  await page.setViewportSize({width:1920,height:1000});
+  await page.mouse.move(1918,2);
+  const column=()=>page.evaluate(()=>{
+    const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
+    const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
+    const starts=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'].map(s=>rect('.document-editor '+s).left);
+    const probe=document.createElement('div');
+    probe.style.width=getComputedStyle(document.documentElement).getPropertyValue('--layout-content-width-wide');
+    document.body.append(probe);const wide=probe.getBoundingClientRect().width;probe.remove();
+    return {width:column.width,available:main.width,wide,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),textInset:doc.left-column.left};
+  });
+  const toggle=page.getByRole('button',{name:'Wide document',exact:true});
+  const standard=await column();
+  const before=await controls();
+  await toggle.click();
+  const wide=await column();
+  const after=await controls();
+  if(!(wide.wide>0)||Math.abs(wide.width-Math.min(wide.wide,wide.available))>1||wide.width<=standard.width||wide.centerDelta>1||wide.blockDelta>1||
+    Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||await toggle.getAttribute('aria-pressed')!=='true')
+    throw Error(`Wide document layout: ${JSON.stringify({standard,wide,before,after})}`);
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const remembered=await toggle.getAttribute('aria-pressed')==='true'&&await page.locator('.app-shell--wide').count()===1;
+  await toggle.click();
+  if(!remembered||await page.locator('.app-shell--wide').count()!==0)throw Error('Wide document preference was not remembered or cleared');
+  results.push({wide:{standard:standard.width,wide:wide.width}});
   return results;
 }

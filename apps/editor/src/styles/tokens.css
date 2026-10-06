@@ -1,6 +1,14 @@
 /* Product values: one source, consumed by CSS and mapped into Tailwind in index.css. */
 :root {
   color-scheme: light;
+
+  /* Adjustable values: tuned by hand or chosen by a user preference. Change them here only;
+   * no rule or script repeats these numbers. See Visual Language "Adjustable values". */
+  /* Document column, outer insets included. Standard keeps a readable measure (736px of text
+   * at 1440px); Wide is the user's Wide document preference and is capped by the window. */
+  --layout-content-width: 58rem;
+  --layout-content-width-wide: 80rem;
+
   --id-color-canvas: var(--id-color-surface);
   --id-color-surface: #ffffff;
   --id-color-surface-subtle: #f7f7f6;
@@ -66,7 +74,6 @@
   --focus-ring: 0 0 0 2px var(--id-color-interaction);
   --shadow-overlay: 0 8px 28px rgb(35 27 31 / 12%), 0 2px 6px rgb(35 27 31 / 5%);
 
-  --layout-content-width: 58rem;
   --layout-content-gutter: var(--space-4);
   --layout-document-block-padding: 0px;
   --layout-document-inline-padding: var(--layout-document-gutter);
