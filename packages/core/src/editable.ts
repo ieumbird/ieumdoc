@@ -13,6 +13,7 @@ import type { CodeBlockContent } from "./code.ts";
 import { supportedCodeBlock } from "./myst/code.ts";
 import { supportedListContent } from "./myst/list.ts";
 import { isDivider, supportedQuoteContent } from "./myst/quote.ts";
+import { supportedTargetLabel } from "./myst/reference.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
@@ -108,6 +109,12 @@ export type EditableBlock = (
       block: "equation";
       path: NodePath;
       latex: string;
+      label: string;
+    }
+  | {
+      /** A `(label)=` target: it labels the block after it, typically a section heading. */
+      block: "target";
+      path: NodePath;
       label: string;
     }
   | {
@@ -232,6 +239,10 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   const code = supportedCodeBlock(node);
   if (code) {
     return { block: "code", path, ...code };
+  }
+  const target = supportedTargetLabel(node);
+  if (target !== undefined) {
+    return { block: "target", path, label: target };
   }
   return {
     block: "unsupported",

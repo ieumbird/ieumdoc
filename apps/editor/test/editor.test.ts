@@ -1162,7 +1162,7 @@ test("read-only targets and unsupported headings are rejected by save", () => {
     /heading edit is not allowed at \[6,1\]/,
   );
 
-  const richSource = "# See {ref}`intro`\n\nBody.\n";
+  const richSource = "# See {ref}`Intro <intro>`\n\nBody.\n";
   assert.throws(
     () => saveEdits(richSource, { headings: [{ path: [0], content: [{ kind: "text", text: "Changed" }] }] }),
     /heading edit is not allowed at \[0\]/,
@@ -1170,7 +1170,7 @@ test("read-only targets and unsupported headings are rejected by save", () => {
   const saved = saveEdits(richSource, {
     paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed body." }] }],
   });
-  assert.match(saved.markdown, /^# See \{ref\}`intro`$/m);
+  assert.match(saved.markdown, /^# See \{ref\}`Intro <intro>`$/m);
 });
 
 test("supported edits preserve untouched semantics", () => {

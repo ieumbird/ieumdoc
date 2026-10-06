@@ -1,4 +1,4 @@
-import type { EditableBlock, InlineContent } from "@ieumdoc/core";
+import type { EditableBlock, InlineContent, ReferenceRole } from "@ieumdoc/core";
 
 export type TiptapMark = {
   type: string;
@@ -102,9 +102,9 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
       node.type !== "crossReference")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
   }
-  if (node.type === "crossReference" && ((node.attrs?.role !== "eq" && node.attrs?.role !== "numref") ||
+  if (node.type === "crossReference" && (!["eq", "numref", "ref"].includes(String(node.attrs?.role)) ||
       typeof node.attrs?.label !== "string" || node.attrs.label.length === 0 || node.content !== undefined)) {
-    throw new Error(`cross-reference at paragraph child ${index} requires an eq or numref role and a label`);
+    throw new Error(`cross-reference at paragraph child ${index} requires an eq, numref or ref role and a label`);
   }
   if (node.type === "inlineMath" && (typeof node.attrs?.value !== "string" || node.attrs.value.length === 0 ||
       node.content !== undefined)) {
@@ -150,7 +150,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   }
   const item: InlineContent = node.type === "hardBreak" ? { kind: "break" }
     : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
-    : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as "eq" | "numref", label: String(node.attrs!.label) }
+    : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as ReferenceRole, label: String(node.attrs!.label) }
     : code ? { kind: "code", value: node.text! }
     : { kind: "text", text: node.text! };
   const order = [BOLD.key, ITALIC.key, STRIKE.key];

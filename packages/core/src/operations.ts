@@ -27,7 +27,7 @@ import {
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
 import { assertReferenceableLabel } from "./myst/reference.ts";
-import { labelError } from "./label.ts";
+import { labelError, targetLabelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
@@ -672,33 +672,22 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
 }
 
 /**
- * Set, change or remove ("") the label of a top-level Equation or Figure: the name
- * references use to target it. Content is kept, and references are never renamed.
- * The label must name a target MyST can resolve, be addressable by the reference role
- * Core writes for that block, and not name another target in the document.
+ * Set, change or remove ("") the label of a top-level Equation, Figure or Table, or change
+ * the label of a `(label)=` target: the name references use. Content is kept, and references
+ * are never renamed. The label must name a target MyST can resolve, be addressable by the
+ * reference role Core writes for that block, and not name another target in the document.
+ * A target is its label: remove one with removeBlock.
  */
 export function updateLabel(document: MystDocument, path: NodePath, label: string): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateLabel requires a top-level Equation, Figure or Table path [index]");
+    throw new Error("updateLabel requires a top-level Equation, Figure, Table or target path [index]");
   }
   const current = getNode(document, path);
-  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : tableOf(current) ? "Table" : undefined;
-  if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure or Table at [${path.join(",")}]`);
-  const error = labelError(label);
-  if (error) throw new Error(error);
-  let identifier: string | undefined;
-  if (label.length > 0) {
-    identifier = labelIdentifier(label);
-    if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
-    try {
-      assertReferenceableLabel(kind === "Equation" ? "eq" : "numref", label, identifier);
-    } catch {
-      throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
-    }
-    if (targetIdentifiers(document, current).has(identifier)) {
-      throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
-    }
-  }
+  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : tableOf(current) ? "Table"
+    : current.type === "mystTarget" ? "Target" : undefined;
+  if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure, Table or target at [${path.join(",")}]`);
+  if (kind === "Target" && label.length === 0) throw new Error("a target cannot be unlabeled; remove the block instead");
+  const identifier = label.length > 0 ? newLabelIdentifier(document, kind, label, current) : undefined;
   const next = cloneDocument(document);
   if (kind === "Table") {
     const paragraph = tableCaptionParagraph(current);
@@ -713,16 +702,54 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
     delete node.identifier;
   } else {
     node.label = label;
-    node.identifier = identifier;
+    // A target holds only its label; MyST derives the identifier when it resolves it.
+    if (kind !== "Target") node.identifier = identifier;
   }
-  const failure = `${kind} label cannot be preserved through canonical round-trip`;
-  const markdown = serializeFor(next, failure);
+  assertLabelRoundTrip(next, path[0], label, `${kind} label cannot be preserved through canonical round-trip`);
+  return next;
+}
+
+/**
+ * Insert a `(label)=` target at a top-level index. It labels the block after it; before a
+ * heading, `{ref}` references then name that section. The label follows updateLabel's rules.
+ */
+export function insertTarget(document: MystDocument, index: number, label: string): MystDocument {
+  if (!Number.isInteger(index) || index < 0 || index > document.children.length) {
+    throw new Error(`insertTarget index out of range: ${index}`);
+  }
+  if (label.length === 0) throw new Error("a target needs a label");
+  newLabelIdentifier(document, "Target", label);
+  const next = cloneDocument(document);
+  next.children.splice(index, 0, { type: "mystTarget", label });
+  assertLabelRoundTrip(next, index, label, "Target cannot be preserved through canonical round-trip");
+  return next;
+}
+
+/** The identifier of a label a block may take: one MyST resolves, that its reference role can
+ * address through canonical Markdown, and that names no other target than `except`. */
+function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" | "Table" | "Target", label: string, except?: MystNode): string {
+  const error = kind === "Target" ? targetLabelError(label) : labelError(label);
+  if (error) throw new Error(error);
+  const identifier = labelIdentifier(label);
+  if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
+  try {
+    assertReferenceableLabel(kind === "Equation" ? "eq" : kind === "Target" ? "ref" : "numref", label, identifier);
+  } catch {
+    throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
+  }
+  if (targetIdentifiers(document, except).has(identifier)) {
+    throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
+  }
+  return identifier;
+}
+
+function assertLabelRoundTrip(document: MystDocument, index: number, label: string, failure: string): void {
+  const markdown = serializeFor(document, failure);
   const reparsed = parse(markdown);
-  const reloaded = reparsed.children[path[0]];
-  if (reloaded?.type !== node.type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
+  const reloaded = reparsed.children[index];
+  if (reloaded?.type !== document.children[index].type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
     throw new Error(failure);
   }
-  return next;
 }
 
 /**

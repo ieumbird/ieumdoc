@@ -817,6 +817,46 @@ ol.list { list-style: decimal; }
   color: var(--id-color-text-subtle);
 }
 
+/* A section label sits on its own line above the heading it names. */
+.label-target {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 calc(-1 * var(--space-3));
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.label-target-text {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.label-target-edit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.label-target:is(:hover, :focus-within, [data-selected="true"]) > .label-target-edit {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.label-target[data-selected="true"] {
+  outline: var(--border-width) solid var(--id-color-interaction);
+  outline-offset: var(--space-1);
+  border-radius: var(--id-radius-sm);
+}
+
+@media (hover: none) {
+  .label-target-edit {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* One gutter for all top-level engine nodes, including atomic NodeViews. */
 .block-gutter {
   position: absolute;

@@ -47,7 +47,7 @@ test("the Host applies block source only to read-only snapshot blocks and report
   assert.throws(() => applyBlockSource({ base: markdown, path: [1], source: "```\ncode" }), /not closed/);
   assert.throws(() => saveEdits(markdown, { sources: [{ path: [0], source: "# Other" }] }), /block source edit is not allowed at \[0\]/);
   // The session's other applied sources come first: a label they take is not free.
-  const labeled = "(a)=\n\n# Title\n\n![logo](./logo.png)\n";
+  const labeled = "![a](./a.png)\n\n# Title\n\n![logo](./logo.png)\n";
   assert.throws(() => applyBlockSource({ base: labeled, path: [2], source: "(b)=", sources: [{ path: [0], source: "(b)=" }] }),
     /label "b" already names another target/);
 });

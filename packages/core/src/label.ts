@@ -14,6 +14,16 @@ export function labelError(label: string): string | undefined {
 }
 
 /**
+ * Field rules for a `(label)=` target's label. MyST reads the line as a target only when
+ * the label is 1-100 of these characters; anything else reloads as an ordinary paragraph.
+ * Restated without the MyST dependency, like `labelKey`; Core tests pin it to the parser.
+ */
+export function targetLabelError(label: string): string | undefined {
+  return labelError(label) ?? (/^[a-zA-Z0-9|@<>*./_\-+:]{1,100}$/.test(label) ? undefined
+    : "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters.");
+}
+
+/**
  * The key MyST resolves a reference to its target by: myst-common's `normalizeLabel`
  * identifier, restated without the MyST dependency so the Editor can tell whether a
  * reference names a target in the current document. Core tests pin it to MyST's.

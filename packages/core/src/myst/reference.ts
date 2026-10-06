@@ -52,8 +52,14 @@ function referenceRole(node: MystNode): MystNode {
 }
 
 /** Throws unless a `{kind}` reference role can address `label` through canonical Markdown. */
-export function assertReferenceableLabel(kind: "eq" | "numref", label: string, identifier: string): void {
+export function assertReferenceableLabel(kind: "eq" | "numref" | "ref", label: string, identifier: string): void {
   referenceRole({ type: "crossReference", kind, label, identifier });
+}
+
+/** The label of a `(label)=` target Core can write back as written, or undefined. */
+export function supportedTargetLabel(node: MystNode): string | undefined {
+  return node.type === "mystTarget" && typeof node.label === "string" && node.label.length > 0 &&
+    Object.keys(node).every((key) => TARGET_KEYS.has(key)) ? node.label : undefined;
 }
 
 /** `(label)=` targets label the following block, e.g. a section heading.

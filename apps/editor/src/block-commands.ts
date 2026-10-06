@@ -3,6 +3,7 @@ import { NodeSelection, Selection, TextSelection, type EditorState, type Transac
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
+import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -253,6 +254,13 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     run: removeTableColumn,
   },
   // A heading's section: its label targets, content and deeper sections (Core's section rule).
+  {
+    id: "section-label",
+    label: "Add section label",
+    applies: isSectionHeading,
+    enabled: (state, index) => isSectionHeading(state, index) && !hasSectionLabel(state.doc, index),
+    run: addSectionLabel,
+  },
   {
     id: "section-up",
     label: "Move section up",
@@ -740,7 +748,7 @@ function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
   doc.forEach(node => {
     const heading = node.type.name === "heading" || node.type.name === "readonlyHeading";
     markers.push(sectionMarker({
-      block: heading ? "heading" : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name,
+      block: heading ? "heading" : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name === "labelTarget" ? "target" : node.type.name,
       level: Number(node.attrs.level), original: node.attrs.original ?? undefined,
     }));
   });

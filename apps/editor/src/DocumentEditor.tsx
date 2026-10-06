@@ -12,7 +12,7 @@ import {
 import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
-import { insertReference, referenceCommandItems, referenceOfCommand, referenceTargets, ReferenceForm } from "./cross-reference.tsx";
+import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
@@ -301,7 +301,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(referenceTargets(editor.state.doc), slash.query)].map(insertMenuItem)
+    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {

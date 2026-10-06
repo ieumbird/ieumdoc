@@ -8,7 +8,7 @@ export { inspectDocument, type BlockSummary, type NodePath } from "../src/docume
 export { getEditableDocument, type EditableBlock, type EditableDocument } from "../src/editable.ts";
 export { inlineContentLength, type InlineContent } from "../src/inline.ts";
 export { figureContentError, type FigureContent } from "../src/figure.ts";
-export { labelError, labelKey } from "../src/label.ts";
+export { labelError, labelKey, targetLabelError } from "../src/label.ts";
 export * from "../src/operations.ts";
 export { unresolvedReferences } from "../src/references.ts";
 export { validateStructure } from "../src/validation.ts";

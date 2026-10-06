@@ -115,6 +115,7 @@ test("ieumdoc help exits successfully", () => {
       "insert-figure",
       "remove-block",
       "replace-block-source",
+      "insert-target",
       "move-block",
       "move-section",
       "remove-section",
@@ -293,7 +294,7 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
 test("CLI writes formatted headings and rejects line breaks and read-only headings without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "## See {ref}`intro`\n\nIntro.\n");
+  writeFileSync(file, "## See {ref}`Intro <intro>`\n\nIntro.\n");
   try {
     const bold = JSON.stringify([{ kind: "text", text: "Limits of " }, { kind: "strong", children: [{ kind: "text", text: "current" }] }]);
     const inserted = run(["insert-heading", file, "--at", "2", "--level", "2", "--content", bold]);
@@ -830,6 +831,28 @@ test("replace-block-source edits a read-only block's source through Core and wri
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("insert-target and update-label label a section that {ref} references name", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-target-"));
+  const file = path.join(dir, "document.md");
+  const original = "# Title\n\n## Intro\n\nSee {ref}`intro`.\n";
+  writeFileSync(file, original);
+  try {
+    for (const args of [["insert-target", file, "--at", "1", "--label", "개요"], ["update-label", file, "--path", "2", "--label", "intro"]]) {
+      assert.notEqual(run(args).status, 0, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), original);
+    }
+    assert.equal(run(["insert-target", file, "--at", "1", "--label", "sec-intro"]).status, 0);
+    assert.equal(run(["update-label", file, "--path", "1", "--label", "intro"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\n(intro)=\n\n## Intro\n\nSee {ref}`intro`.\n");
+    const nodes = JSON.parse(run(["inspect", file, "--format", "json"]).stdout).nodes;
+    assert.deepEqual(nodes[1], { path: [1], type: "target", label: "intro" });
+    assert.equal(nodes[3].editable, true);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(checked.stderr, "");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 function run(args: string[]) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
@@ -1071,19 +1094,19 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
 test("CLI paragraph commands keep ordinary links and {eq} references, and leave other references read-only", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-links-"));
   const file = path.join(dir, "links.md");
-  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`sec-a` there.\n");
+  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`Section A <sec-a>` there.\n");
   try {
     const inspected = run(["inspect", file]);
     assert.equal(inspected.status, 0, inspected.stderr);
     assert.match(inspected.stdout, /^0 paragraph inlineEditable=true text="Go to the site now\."$/m);
     assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
-    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\." source="See \{ref\}`sec-a` there\."$/m);
+    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\." source="See \{ref\}`Section A <sec-a>` there\."$/m);
     const split = run(["split-paragraph", file, "--path", "0", "--offset", "8"]);
     assert.equal(split.status, 0, split.stderr);
     // A reference is one offset unit.
     assert.equal(run(["split-paragraph", file, "--path", "2", "--offset", "5"]).status, 0);
     assert.equal(readFileSync(file, "utf8"),
-      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`sec-a` there.\n");
+      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`Section A <sec-a>` there.\n");
     const saved = readFileSync(file, "utf8");
     assert.equal(run(["split-paragraph", file, "--path", "4", "--offset", "3"]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);

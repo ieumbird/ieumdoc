@@ -65,7 +65,7 @@ for(const offset of [0,4,5,-1,1.5,NaN,Infinity]) {
 test('paragraph operations fail closed for paths, types and unsupported inline',()=>{
   for(const operation of [insertHardBreak,splitParagraph]) {
     // Plain links are supported inline content (see link.test.ts); these forms are not.
-    for(const source of ['# Heading','See {ref}`target`.','[](#target) and text','{download}`./file.zip` text']) assert.throws(()=>operation(parse(source),[0],2));
+    for(const source of ['# Heading','See {ref}`Text <target>`.','[](#target) and text','{download}`./file.zip` text']) assert.throws(()=>operation(parse(source),[0],2));
     for(const path of [[],[99],[-1],[0.5]]) assert.throws(()=>operation(parse('ABCD'),path,2));
   }
   assert.throws(()=>splitParagraph(parse('> ABCD'),[0,0],2),/top-level/);

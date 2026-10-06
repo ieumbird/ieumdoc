@@ -6,6 +6,8 @@ import { VFile } from "vfile";
 import {
   getEditableDocument,
   getNode,
+  insertTarget,
+  targetLabelError,
   inlineContentLength,
   insertHardBreak,
   labelKey,
@@ -58,7 +60,7 @@ test("references outside the v1 subset stay read-only", () => {
   for (const source of [
     "See {numref}`Figure %s <fig-a>`.", // custom display text
     "See {eq}`Eq <eq-a>`.",
-    "See {ref}`sec-a`.", // heading targets are not authored in v1
+    "See {ref}`Section <sec-a>`.",
     "See [{eq}`eq-a`](https://x.example).", // a reference inside a link
     "See [](#eq-a).", // an empty-text fragment link stays what it was
     "See {term}`x`.",
@@ -128,7 +130,7 @@ test("reference labels that cannot be written or read back fail closed", () => {
     assert.throws(() => updateParagraphInlineContent(parse("Plain.\n"), [0], [ref("eq", label)]), Error, JSON.stringify(label));
   }
   assert.throws(() => updateParagraphInlineContent(parse("Plain.\n"), [0],
-    [{ kind: "reference", role: "ref", label: "sec-a" } as never]), /reference role/);
+    [{ kind: "reference", role: "cite", label: "sec-a" } as never]), /reference role/);
   assert.throws(() => updateParagraphInlineContent(parse("Plain.\n"), [0],
     [{ kind: "link", url: "u", children: [ref("eq", "eq-a")] }]), /links cannot contain references/);
 });
@@ -175,4 +177,42 @@ test("removing or relabeling a referenced target leaves an unresolved reference 
   const unresolved = [{ role: "numref", label: "fig-a", path: [0], line: 1 }];
   assert.deepEqual(unresolvedReferences(removeBlock(document, 1)), unresolved);
   assert.deepEqual(unresolvedReferences(updateLabel(document, [1], "fig-b")), unresolved);
+});
+
+test("a section is labeled by a target before its heading and referenced with {ref}", () => {
+  const source = "# Title\n\n## Intro\n\nSee the intro.\n";
+  const labeled = insertTarget(parse(source), 1, "sec-intro");
+  assert.deepEqual(getEditableDocument(labeled).blocks[1], { block: "target", path: [1], label: "sec-intro" });
+  const document = updateParagraphInlineContent(labeled, [3], [text("See "), { kind: "reference", role: "ref", label: "sec-intro" }, text(".")]);
+  const markdown = serialize(document);
+  assert.equal(markdown, "# Title\n\n(sec-intro)=\n\n## Intro\n\nSee {ref}`sec-intro`.\n");
+  assert.deepEqual(getEditableDocument(parse(markdown)).blocks, getEditableDocument(document).blocks);
+  assert.deepEqual(unresolvedReferences(parse(markdown)), []);
+  // Renaming the target never renames its references.
+  assert.equal(serialize(updateLabel(document, [1], "intro")), markdown.replace("(sec-intro)=", "(intro)="));
+});
+
+test("target labels follow the label rules and a target cannot lose its label", () => {
+  const document = parse("(sec-a)=\n\n## A\n\n$$\nx\n$$ (eq-a)\n");
+  for (const [label, reason] of [
+    ["eq-a", /already names another target/],
+    [" sec", /leading or trailing spaces/],
+    ["sec<a>", /cannot be referenced/],
+    ["개요", /section label uses 1-100 ASCII/],
+  ] as const) {
+    assert.throws(() => insertTarget(document, 2, label), reason, label);
+    assert.throws(() => updateLabel(document, [0], label), reason, label);
+  }
+  assert.throws(() => updateLabel(document, [0], ""), /remove the block instead/);
+  assert.throws(() => insertTarget(document, 2, ""), /needs a label/);
+  assert.throws(() => insertTarget(document, 4, "sec-b"), /out of range/);
+  assert.equal(serialize(updateLabel(document, [0], "sec-a")), serialize(document));
+});
+
+test("targetLabelError accepts exactly the labels MyST reads as a (label)= target", () => {
+  for (const label of ["sec-a", "Sec_1.2", "a:b/c+d", "x".repeat(100), "x".repeat(101), "개요", "sec a", "sec`a", "a)=b", ""]) {
+    const target = parse(`(${label})=
+`).children[0];
+    assert.equal(targetLabelError(label) === undefined, target?.type === "mystTarget" && target.label === label, JSON.stringify(label));
+  }
 });

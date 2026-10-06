@@ -17,7 +17,7 @@ import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import { labelError } from "@ieumdoc/core/label";
+import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
@@ -630,6 +630,73 @@ const ReadonlyTableCell = Node.create({
   },
 });
 
+// A `(label)=` section label: it names the heading after it for {ref} references.
+const LabelTarget = Node.create({
+  name: "labelTarget",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: false,
+  addAttributes() {
+    return blockAttrs({ label: hiddenAttr("") });
+  },
+  parseHTML() {
+    return [{ tag: "p[data-label-target]" }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return ["p", { ...HTMLAttributes, "data-label-target": "", "data-source-path": String(node.attrs.sourcePath ?? "") }, `Section label · ${String(node.attrs.label ?? "")}`];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(LabelTargetView);
+  },
+});
+
+/** Why `label` cannot name this section: the target label rules, or another target's label. */
+function sectionLabelError(doc: ProseMirrorNode, own: number, label: string): string | undefined {
+  const error = targetLabelError(label);
+  if (error) return error;
+  let taken = false;
+  doc.forEach((node, pos) => { if (pos !== own && typeof node.attrs.label === "string" && node.attrs.label && labelKey(node.attrs.label) === labelKey(label)) taken = true; });
+  return taken ? `Label "${label}" already names another target in this document.` : undefined;
+}
+
+function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  const label = String(node.attrs.label ?? "");
+  const anchor = useRef<HTMLParagraphElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [draft, setDraft] = useState(label);
+  const [error, setError] = useState("");
+  useEffect(() => { setDismissed(false); }, [selected]);
+  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
+  const close = () => { setEditing(false); setError(""); editor.commands.focus(); };
+  const apply = () => {
+    const position = getPos();
+    const invalid = typeof position === "number" ? sectionLabelError(editor.state.doc, position, draft) : undefined;
+    if (invalid) { setError(invalid); return; }
+    updateAttributes({ label: draft });
+    close();
+  };
+  return (
+    <NodeViewWrapper as="div" className="label-target" data-block="label-target" data-testid="label-target"
+      data-label={label} data-source-path={String(node.attrs.sourcePath ?? "")} data-selected={selected ? "true" : "false"} contentEditable={false}>
+      <p ref={anchor} className="label-target-text" title="Section label: {ref} references to it name the heading below">§ {label}</p>
+      {editor.isEditable && !editing ? (
+        <Button className="label-target-edit" size="sm" variant="subtle" aria-label="Edit section label" data-testid="label-target-edit"
+          onClick={() => { setDraft(label); setError(""); setEditing(true); }}>Edit</Button>
+      ) : null}
+      <BlockProperties anchor={anchor} kind="Section label" testId="label-target" open={editing || (selected && !dismissed)} editing={editing}
+        readOnly={!editor.isEditable} summary={[["Label", label]]} error={error}
+        onApply={apply} onCancel={close} onDismiss={() => setDismissed(true)}>
+        <label className="form-label" htmlFor={`label-target-${String(node.attrs.sourcePath)}`}>Label</label>
+        <Input ref={input} id={`label-target-${String(node.attrs.sourcePath)}`} data-testid="label-target-input" value={draft}
+          onChange={event => { setDraft(event.target.value); setError(""); }} />
+      </BlockProperties>
+    </NodeViewWrapper>
+  );
+}
+
 const UnsupportedBlock = Node.create({
   name: "unsupportedBlock",
   group: "block",
@@ -830,6 +897,7 @@ export function editorExtensions(
     TableRow,
     TableCell,
     ReadonlyTableCell,
+    LabelTarget,
     UnsupportedBlock,
     InlineMath,
     CrossReference,
