@@ -51,21 +51,26 @@ test("paragraphs with inline math are editable inline content", () => {
   ]);
 });
 
-test("inline math is written in its canonical role form", () => {
-  // `$...$` and {math} both parse to inline math; the canonical form is the role.
-  assert.equal(serialize(parse("The current is $i_d$ and **$v_{dc}$**.\n")),
-    "The current is {math}`i_d` and **{math}`v_{dc}`**.\n");
+test("inline math is written in MyST's dollar form where it reloads unchanged", () => {
+  // `$...$` and {math} both parse to inline math; the canonical form is `$...$`.
+  assert.equal(serialize(parse("The current is {math}`i_d` and **$v_{dc}$**.\n")),
+    "The current is $i_d$ and **$v_{dc}$**.\n");
+  assert.equal(serialize(parse("Gap {math}` x `, then {math}`x`5.\n")), "Gap $ x $, then $x$5.\n");
+  // Sources with a dollar or a trailing backslash, and math right after a line break, keep the role.
+  assert.equal(serialize(parse("{math}`a\\$b` {math}`a\\\\`\n")), "{math}`a\\$b` {math}`a\\\\`\n");
+  assert.equal(serialize(parse("A\n$x$ and B\\\n$y$\n")), "A\n{math}`x` and B\\\n{math}`y`\n");
 });
 
 test("inline math source can be changed, created and removed", () => {
   const source = "The current is $i_d$.\n";
-  assert.equal(write(source, [text("The current is "), math("i_q"), text(".")]), "The current is {math}`i_q`.\n");
+  assert.equal(write(source, [text("The current is "), math("i_q"), text(".")]), "The current is $i_q$.\n");
   assert.equal(write("Voltage v_dc here.\n", [text("Voltage "), math("v_{dc}"), text(" here.")]),
-    "Voltage {math}`v_{dc}` here.\n");
+    "Voltage $v_{dc}$ here.\n");
   assert.equal(write(source, [text("The current is i_d.")]), "The current is i\\_d.\n");
   // Sources with backticks, dollars and braces are kept literally.
+  assert.equal(write(source, [text("A "), math("`a` {d}")]), "A $`a` {d}$\n");
   assert.equal(write(source, [text("A "), math("a`b $c$ {d}")]), "A {math}``a`b $c$ {d}``\n");
-  assert.equal(write(source, [math("x")]), "{math}`x`\n");
+  assert.equal(write(source, [math("x")]), "$x$\n");
 });
 
 test("literal dollar signs in text are written escaped and reload as text, not inline math", () => {
@@ -74,7 +79,7 @@ test("literal dollar signs in text are written escaped and reload as text, not i
   assert.equal(write(source, [text("Cost $5 and $6.")]), "Cost \\$5 and \\$6.\n");
   assert.equal(write(source, [text("a\\$b $$")]), "a\\\\\\$b \\$\\$\n");
   assert.equal(write(source, [{ kind: "strong", children: [text("$a$")] }, math("x"), text("$ end")]),
-    "**\\$a\\$**{math}`x`\\$ end\n");
+    "**\\$a\\$**$x$\\$ end\n");
   // Every block that holds text: escaped dollars in headings, titles, cells and link text reload as written.
   const blocks = "# Price \\$5 and \\$6\n\n:::{note} Cost \\$5 and \\$6\nBody\n:::\n\n| \\$a\\$ |\n| ----- |\n| x     |\n\n[\\$a\\$](https://x.example)\n";
   assert.equal(serialize(parse(blocks)), blocks);
@@ -84,16 +89,16 @@ test("literal dollar signs in text are written escaped and reload as text, not i
 test("inline math keeps its meaning with bold, italic, links and breaks", () => {
   const source = "Plain.\n";
   assert.equal(write(source, [{ kind: "strong", children: [text("bold "), math("x")] }, text(" and "),
-    { kind: "emphasis", children: [math("y")] }]), "**bold {math}`x`** and *{math}`y`*\n");
-  assert.equal(write(source, [{ kind: "link", url: "u", children: [text("see "), math("z")] }]), "[see {math}`z`](u)\n");
-  assert.equal(write(source, [math("a"), { kind: "break" }, math("b")]), "{math}`a`\\\n{math}`b`\n");
+    { kind: "emphasis", children: [math("y")] }]), "**bold $x$** and *$y$*\n");
+  assert.equal(write(source, [{ kind: "link", url: "u", children: [text("see "), math("z")] }]), "[see $z$](u)\n");
+  assert.equal(write(source, [math("a"), { kind: "break" }, math("b")]), "$a$\\\n{math}`b`\n");
 });
 
 test("inline math counts as one offset for split and hard break", () => {
   const source = "Let $x$, then y.\n";
   // Offsets: "Let " = 4, math = 1, ", then y." = 9; offset 5 is right after the math.
-  assert.equal(serialize(insertHardBreak(parse(source), [0], 5)), "Let {math}`x`\\\n, then y.\n");
-  assert.equal(serialize(splitParagraph(parse(source), [0], 5)), "Let {math}`x`\n\n, then y.\n");
+  assert.equal(serialize(insertHardBreak(parse(source), [0], 5)), "Let $x$\\\n, then y.\n");
+  assert.equal(serialize(splitParagraph(parse(source), [0], 5)), "Let $x$\n\n, then y.\n");
   assert.throws(() => splitParagraph(parse(source), [0], 14), /offset/);
 });
 
@@ -116,9 +121,9 @@ test("inline math that cannot be preserved is rejected before any change", () =>
   const rejected: [InlineContent[], RegExp][] = [
     [[math("")], /non-empty single-line/],
     [[math("a\nb")], /non-empty single-line/],
-    // A leading or trailing backtick cannot be written in the role form.
-    [[text("A "), math("`x")], /cannot round-trip/],
-    [[text("A "), math("x`")], /cannot round-trip/],
+    // With a dollar, only the role form applies, and it cannot hold a leading or trailing backtick.
+    [[text("A "), math("`x$")], /cannot round-trip/],
+    [[text("A "), math("$x`")], /cannot round-trip/],
   ];
   for (const [content, reason] of rejected) {
     assert.throws(() => updateParagraphInlineContent(document, [0], content), reason, JSON.stringify(content));

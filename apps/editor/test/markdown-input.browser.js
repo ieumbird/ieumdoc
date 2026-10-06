@@ -131,7 +131,7 @@ async page => {
       await reloadedInline.locator('em').filter({hasText:'it'}).count() === 1 &&
       await reloadedInline.locator('code').filter({hasText:'code'}).count() === 1 &&
       (await reloadedInline.innerText()).includes('**bold**'),
-    inlineMathSaved: saved.includes('{math}`THD` and \\$5 and \\$6'),
+    inlineMathSaved: saved.includes('$THD$ and \\$5 and \\$6'),
     marksReloaded: await reloaded.locator('td strong').filter({hasText:'y'}).count() === 1 &&
       await reloaded.locator('h1 strong').filter({hasText:'z'}).count() === 1,
   };

@@ -69,7 +69,7 @@ async page => {
     'Intro paragraph.',
     '',
     ':::{warning}',
-    'After **bold** and *italic*, [manual](https://a.example), {math}`x`\\',
+    'After **bold** and *italic*, [manual](https://a.example), $x$\\',
     'after the break.',
     ':::',
     '',

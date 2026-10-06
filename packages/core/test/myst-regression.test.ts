@@ -12,8 +12,9 @@ const inlineSource = '# Inline contract\n\nPlain **strong** and *emphasis* with 
 
 // Captured from master b290d29 before changing MyST or applying the security patch.
 // These outputs are the existing write contract, not snapshots of the new versions.
-// One intentional change since: Canonical Input Safety v1 keeps straight quotes as
-// written, so the inline-contract quote line is no longer typographic.
+// Intentional changes since: Canonical Input Safety v1 keeps straight quotes as
+// written, so the inline-contract quote line is no longer typographic, and inline
+// math is written as `$...$` instead of the `{math}` role.
 for (const name of ["document", "technical-document", "inline-contract"]) {
   test(`MyST preserves the baseline canonical and semantic contract: ${name}`, () => {
     const source = name === "inline-contract" ? inlineSource

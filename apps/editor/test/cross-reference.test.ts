@@ -73,17 +73,17 @@ test("references can be inserted, retargeted and removed, and text around them e
 
   const retargeted = clone(base);
   blockAt(retargeted, REFERENCES).content![1] = { type: "crossReference", attrs: { role: "numref", label: "fig-a" } };
-  assert.match(save(retargeted), /^See \{numref\}`fig-a` and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \{math\}`x`\.$/m);
+  assert.match(save(retargeted), /^See \{numref\}`fig-a` and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \$x\$\.$/m);
 
   const removed = clone(base);
   blockAt(removed, REFERENCES).content![1] = { type: "text", text: "eq-a" };
-  assert.match(save(removed), /^See eq-a and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \{math\}`x`\.$/m);
+  assert.match(save(removed), /^See eq-a and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \$x\$\.$/m);
 
   const surrounding = clone(base);
   blockAt(surrounding, REFERENCES).content![0] = { type: "text", text: "Compare " };
   const markdown = save(surrounding);
-  assert.match(markdown, /^Compare \{eq\}`eq-a` and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \{math\}`x`\.$/m);
-  // Other blocks and labels are unchanged.
+  assert.match(markdown, /^Compare \{eq\}`eq-a` and \*\*\{numref\}`fig-a`\*\* or \[details\]\(#eq-a\) with \$x\$\.$/m);
+// Other blocks and labels are unchanged.
   assert.match(markdown, /```\{math\}\n:label: eq-a\n\na\n```/);
   assert.match(markdown, /:::\{figure\} \.\/d\.svg\n:name: fig-a\n:::/);
   assert.match(markdown, /^See \{eq\}`missing` here\.$/m);

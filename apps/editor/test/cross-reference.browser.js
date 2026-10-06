@@ -148,7 +148,7 @@ async page => {
   const preview = await sourceText();
   const expectedLines = [
     'The current is set by the {eq}`eq-b` and shown in the diagram. {numref}`fig-a`',
-    'Now See {eq}`eq-b` and [details](#eq-a) with **bold** and {math}`x`.',
+    'Now See {eq}`eq-b` and [details](#eq-a) with **bold** and $x$.',
     'See {numref}`missing-fig` for later and eq-a.',
     '```{math}\n:label: eq-a\n\na = b\n```',
     '```{math}\n:label: eq-c\n\nc = d\n```',

@@ -46,7 +46,7 @@ test("insert-block accepts Core inline JSON and rejects ambiguous input without 
     assert.equal(readFileSync(file, "utf8"), "# Title\n");
     const result = run(args);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(readFileSync(file, "utf8"), "# Title\n\n**Value** {math}`x`\n");
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\n**Value** $x$\n");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

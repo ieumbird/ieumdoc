@@ -82,20 +82,20 @@ test("unchanged inline math paragraphs send no edit", () => {
 
 test("inline math source can be changed, created from text and removed back to text", () => {
   const changed = edit(source, (state) => state.tr.setNodeAttribute(mathAt(state.doc, "i_d"), "value", "i_q"));
-  assert.match(changed, /^The current is \{math\}`i_q` and the voltage is \*\*\{math\}`v_\{dc\}`\*\*\.$/m);
+  assert.match(changed, /^The current is \$i_q\$ and the voltage is \*\*\$v_\{dc\}\$\*\*\.$/m);
 
   const created = edit("The voltage v_{dc} is high.\n", (state) => {
     const { from, to } = textRange(state.doc, "v_{dc}");
     return state.tr.replaceWith(from, to, state.schema.nodes.inlineMath.create({ value: "v_{dc}" }));
   });
-  assert.equal(created, "The voltage {math}`v_{dc}` is high.\n");
+  assert.equal(created, "The voltage $v_{dc}$ is high.\n");
 
   const removed = edit(source, (state) => {
     const position = mathAt(state.doc, "v_{dc}");
     const node = state.doc.nodeAt(position)!;
     return state.tr.replaceWith(position, position + node.nodeSize, state.schema.text("v_dc", node.marks));
   });
-  assert.match(removed, /^The current is \{math\}`i_d` and the voltage is \*\*v\\_dc\*\*\.$/m);
+  assert.match(removed, /^The current is \$i_d\$ and the voltage is \*\*v\\_dc\*\*\.$/m);
 
   // Everything else in the document is written as before.
   const rest = (markdown: string) => markdown.slice(markdown.indexOf("See {eq}"));
@@ -109,20 +109,20 @@ test("inline math keeps its meaning with bold, italic and links", () => {
     return state.tr.replaceWith(from, to, state.schema.nodes.inlineMath.create({ value: "x^2" }, null, marks));
   });
   // Equal runs: the adapter's tie-break (bold, italic, link) puts italic outermost.
-  assert.equal(saved, "Plain *[{math}`x^2`](https://a.example)* here.\n");
+  assert.equal(saved, "Plain *[$x^2$](https://a.example)* here.\n");
 });
 
 test("splitting a paragraph at a caret next to inline math saves both parts exactly", () => {
   // Core counts inline math as one offset position; the Host must use the same offsets.
   const cases: [string, (doc: ProseMirrorNode) => number, string][] = [
     ["The current $i_d$, then more.\n", (doc) => mathAt(doc, "i_d") + 1,
-      "The current {math}`i_d`\n\n, then more.\n"],
+      "The current $i_d$\n\n, then more.\n"],
     ["Value:$x$ end.\n", (doc) => mathAt(doc, "x"),
-      "Value:\n\n{math}`x` end.\n"],
+      "Value:\n\n$x$ end.\n"],
     ["**Bold $a$**, and [see $b$-now](u).\n", (doc) => mathAt(doc, "a") + 1,
-      "**Bold {math}`a`**\n\n, and [see {math}`b`-now](u).\n"],
+      "**Bold $a$**\n\n, and [see $b$-now](u).\n"],
     ["Go [see $b$-now](u).\n", (doc) => mathAt(doc, "b") + 1,
-      "Go [see {math}`b`](u)\n\n[-now](u).\n"],
+      "Go [see $b$](u)\n\n[-now](u).\n"],
   ];
   for (const [markdown, caret, expected] of cases) {
     // Like the Enter handler: split at the caret; both halves keep the paragraph's source path.
@@ -141,7 +141,7 @@ test("Host rejects inline math Core cannot preserve without writing", () => {
   try {
     const revision = documentRevision(markdown);
     const content = (value: string): InlineContent[] => [{ kind: "text", text: "See " }, { kind: "math", value }, { kind: "text", text: "." }];
-    for (const [value, reason] of [["`x", /cannot round-trip/], ["a\nb", /single-line/]] as const) {
+    for (const [value, reason] of [["`x$", /cannot round-trip/], ["a\nb", /single-line/]] as const) {
       assert.throws(() => saveDocumentFile(file, { revision, paragraphs: [{ path: [0], content: content(value) }] }), reason);
       assert.equal(readFileSync(file, "utf8"), markdown);
     }
