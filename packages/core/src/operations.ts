@@ -34,13 +34,14 @@ import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
+import { parseBlockSource } from "./myst/block-source.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
 } from "./myst/table.ts";
-import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
+import { appendSource, cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -982,6 +983,30 @@ export function removeBlock(document: MystDocument, index: number): MystDocument
     throw new Error(`removeBlock index out of range: ${index}`);
   }
   blocks.splice(index, 1);
+  return next;
+}
+
+/**
+ * Replace the top-level block at `index` with the one block its MyST `source` parses as,
+ * for content the typed operations cannot author. The source is parsed on its own and must
+ * be a complete block, it cannot give another target's label, and the whole document must
+ * still save as canonical Markdown. A block that Core can author projects as editable.
+ */
+export function replaceBlockSource(document: MystDocument, index: number, source: string): MystDocument {
+  if (!Number.isInteger(index) || index < 0 || index >= document.children.length) {
+    throw new Error(`replaceBlockSource index out of range: ${index}`);
+  }
+  const fragment = parseBlockSource(source);
+  const block = fragment.children[0];
+  const kept = targetIdentifiers(document.children[index]);
+  const others = targetIdentifiers({ type: "root", children: document.children.filter((_, other) => other !== index) });
+  const taken = [...targetIdentifiers(block)].find(identifier => others.has(identifier) && !kept.has(identifier));
+  if (taken) throw new Error(`label ${JSON.stringify(taken)} already names another target in this document`);
+  const next = cloneDocument(document);
+  next.children[index] = block;
+  // Before provenance moves its positions: a diagnostic line in the block is a line of `source`.
+  serializeFor(next, "block source cannot be saved");
+  appendSource(next, fragment);
   return next;
 }
 

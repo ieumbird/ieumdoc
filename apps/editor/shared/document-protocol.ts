@@ -1,6 +1,7 @@
 import type {
   AdmonitionVariant,
   CodeBlockContent,
+  EditableBlock,
   EditableDocument,
   FigureContent,
   InlineContent,
@@ -101,11 +102,19 @@ export type InsertEdit =
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent);
 
+/** New MyST source for a read-only snapshot block; Core replaces the block in place. */
+export type BlockSourceEdit = {
+  path: NodePath;
+  source: string;
+};
+
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
+  /** Applied first, so the other edits address the replaced blocks at the same locators. */
+  sources?: BlockSourceEdit[];
   order?: OrderItem[];
   headings?: HeadingEdit[];
   headingLevels?: HeadingLevelEdit[];
@@ -153,3 +162,12 @@ export type SaveResponse = Omit<DocumentFileResponse, "source">;
 export type SourceResponse = { markdown: string };
 
 export type DocumentErrorResponse = { error: string; target?: OrderItem };
+
+/** Apply one block source to the session's opening snapshot after its other applied sources. */
+export type BlockSourceRequest = BlockSourceEdit & {
+  base: string;
+  sources?: BlockSourceEdit[];
+};
+
+/** The replaced block as Core projects it, at its snapshot path. */
+export type BlockSourceResponse = { block: EditableBlock };

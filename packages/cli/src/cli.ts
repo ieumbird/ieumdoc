@@ -27,6 +27,7 @@ import {
   parse,
   removeBlock,
   removeSection,
+  replaceBlockSource,
   sectionMarker,
   sectionRange,
   blockTargets,
@@ -301,6 +302,18 @@ const COMMANDS: CommandSpec[] = [
     summary: "Remove a top-level block",
     usage: "ieumdoc remove-block <file> --at <index>",
     details: ["Remove a top-level block."],
+  },
+  {
+    name: "replace-block-source",
+    summary: "Replace a top-level block with its new MyST source through Core",
+    usage: "ieumdoc replace-block-source <file> --at <index> (--source <text> | --source-file <path>)",
+    details: [
+      "Replace one top-level block, typically read-only content, with the block its MyST source parses as.",
+      "The source must be exactly one complete block: an unclosed fence or directive is rejected.",
+      "It cannot give another target's label, and the whole document must still save as canonical Markdown.",
+      "inspect shows each read-only block's current source. Use --source-file for source that starts with --.",
+      ...PATH_NOTE,
+    ],
   },
   {
     name: "move-block",
@@ -756,6 +769,13 @@ function main(argv: string[]): number {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
     }
+    case "replace-block-source": {
+      const text = optionalFlag(flags, "--source");
+      const sourceFile = optionalFlag(flags, "--source-file");
+      if ((text === undefined) === (sourceFile === undefined)) throw new Error("replace-block-source requires exactly one of --source or --source-file");
+      save(file, replaceBlockSource(parse(readFile(file)), intFlag(flags, "--at"), text ?? readFile(sourceFile!)));
+      return 0;
+    }
     case "move-section": {
       save(file, moveSection(parse(readFile(file)), intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
@@ -872,6 +892,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
+  "replace-block-source": ["--at", "--source", "--source-file"],
   "move-block": ["--from", "--to"],
   "move-section": ["--from", "--to"],
   "remove-section": ["--at"],
@@ -956,6 +977,7 @@ function machineNodes(document: EditableDocument): MachineNode[] {
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: sectionRange(markers, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
+      ...(block.original ? { source: block.original.text } : {}),
     }, ...rest];
   });
 }
@@ -1026,11 +1048,13 @@ function formatInspect(document: EditableDocument): string {
   const headings = headingNumbers(document.blocks, document.headingNumbering);
   // A heading's section is its half-open top-level block range [start,end). Numbers are the
   // computed numbers of the block's first equation, figure or table; they are never written.
+  // A read-only block shows its current source, the input replace-block-source edits.
   return document.blocks.flatMap((block, index) => {
     const [first, ...rest] = formatBlock(block);
     const section = typeof markers[index] === "number" ? sectionRange(markers, index) : undefined;
     const numbered = Object.entries(numbers[index]).map(([kind, number]) => `${kind}:${number}`).join(",");
-    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}`, ...rest];
+    const source = block.original ? ` source=${quote(block.original.text)}` : "";
+    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}${source}`, ...rest];
   }).join("\n");
 }
 

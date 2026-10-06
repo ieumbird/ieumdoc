@@ -114,6 +114,7 @@ test("ieumdoc help exits successfully", () => {
       "insert-equation",
       "insert-figure",
       "remove-block",
+      "replace-block-source",
       "move-block",
       "move-section",
       "remove-section",
@@ -801,6 +802,34 @@ function corePipeline(source: string): string {
   return serialize(document);
 }
 
+test("replace-block-source edits a read-only block's source through Core and writes nothing on failure", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-block-source-"));
+  const file = path.join(dir, "document.md");
+  const sourceFile = path.join(dir, "block.md");
+  const original = "# Title\n\n![logo](./logo.png)\n\nBody.\n";
+  writeFileSync(file, original);
+  try {
+    const inspected = JSON.parse(run(["inspect", file, "--format", "json"]).stdout);
+    assert.equal(inspected.nodes[1].source, "![logo](./logo.png)");
+    for (const [args, reason] of [
+      [["--source", "```python\nprint(1)"], /not closed/],
+      [["--source", "One.\n\nTwo."], /exactly one block/],
+      [["--source", "Body.", "--source-file", sourceFile], /exactly one of --source or --source-file/],
+    ] as const) {
+      const failed = run(["replace-block-source", file, "--at", "1", ...args]);
+      assert.notEqual(failed.status, 0);
+      assert.match(failed.stderr, reason);
+      assert.equal(readFileSync(file, "utf8"), original);
+    }
+    writeFileSync(sourceFile, ":::{note} Logo\nThe **logo** moved.\n:::\n");
+    const replaced = run(["replace-block-source", file, "--at", "1", "--source-file", sourceFile]);
+    assert.equal(replaced.status, 0, replaced.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(saved, "# Title\n\n:::{note} Logo\nThe **logo** moved.\n:::\n\nBody.\n");
+    assert.equal(serialize(parse(saved)), saved);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 function run(args: string[]) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
@@ -1048,7 +1077,7 @@ test("CLI paragraph commands keep ordinary links and {eq} references, and leave 
     assert.equal(inspected.status, 0, inspected.stderr);
     assert.match(inspected.stdout, /^0 paragraph inlineEditable=true text="Go to the site now\."$/m);
     assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
-    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\."$/m);
+    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\." source="See \{ref\}`sec-a` there\."$/m);
     const split = run(["split-paragraph", file, "--path", "0", "--offset", "8"]);
     assert.equal(split.status, 0, split.stderr);
     // A reference is one offset unit.

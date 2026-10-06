@@ -19,6 +19,7 @@ import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
+  type BlockSourceApplier,
   type FigureValidator,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
@@ -61,12 +62,13 @@ type DocumentEditorProps = {
   onDirtyChange?: (dirty: boolean) => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
   validateFigure?: FigureValidator;
+  applyBlockSource?: BlockSourceApplier;
   /** The heading outline and the section being read, for navigation outside the editor. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, onOutlineChange },
+  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, applyBlockSource, onOutlineChange },
   ref,
 ) {
   const projection = toTiptapDocument(document);
@@ -121,7 +123,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError),
+    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource),
     content: projection,
     // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
     enableInputRules: [MARKDOWN_INPUT_RULES],

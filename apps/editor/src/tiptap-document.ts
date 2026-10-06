@@ -57,6 +57,31 @@ export function deletedPathsOf(document: TiptapJSON): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
+/** Editor document attribute: MyST source applied to read-only snapshot blocks, by snapshot path,
+ * with the block Core made of it. Part of the editor state, so Undo and Redo include it. */
+export const BLOCK_SOURCES_ATTR = "blockSources";
+
+export type AppliedBlockSources = Record<string, { source: string; block: EditableBlock }>;
+
+export function blockSourcesOf(document: TiptapJSON): AppliedBlockSources {
+  const value = document.attrs?.[BLOCK_SOURCES_ATTR];
+  return value && typeof value === "object" ? value as AppliedBlockSources : {};
+}
+
+/** The snapshot as the session's applied block sources replaced it, in place. */
+export function withBlockSources(document: EditableDocument, sources: AppliedBlockSources): EditableDocument {
+  return { ...document, blocks: document.blocks.map(block => sources[pathKey(block.path)]?.block ?? block) };
+}
+
+/** A Tiptap baseline with the applied block sources' blocks in place of their snapshot nodes. */
+export function withBlockSourceNodes(baseline: TiptapJSON, sources: AppliedBlockSources): TiptapJSON {
+  if (Object.keys(sources).length === 0) return baseline;
+  return { ...baseline, content: (baseline.content ?? []).map(node => {
+    const applied = sources[sourcePathOf(node)];
+    return applied ? toTiptapBlockNode(applied.block) : node;
+  }) };
+}
+
 const KNOWN_BLOCKS = new Set([
   "heading",
   "paragraph",
@@ -93,18 +118,23 @@ export function toTiptapDocument(document: EditableDocument): TiptapJSON {
     type: "doc",
     ...(document.headingNumbering ? { attrs: { headingNumbering: document.headingNumbering } } : {}),
     content: document.blocks.length > 0
-      ? document.blocks.map(block => {
-        const node = toTiptapBlock(block);
-        if (block.original) node.attrs = { ...node.attrs, original: block.original };
-        if (block.numbered) node.attrs = { ...node.attrs, numbered: block.numbered };
-        if (block.headingLevels) node.attrs = { ...node.attrs, headingLevels: block.headingLevels };
-        return node;
-      })
+      ? document.blocks.map(toTiptapBlockNode)
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],
   };
 }
 
-export function collectSupportedEdits(document: EditableDocument, next: TiptapJSON): SupportedEdits & Required<Pick<SupportedEdits, "headings" | "paragraphs">> {
+export function toTiptapBlockNode(block: EditableBlock): TiptapJSON {
+  const node = toTiptapBlock(block);
+  if (block.original) node.attrs = { ...node.attrs, original: block.original };
+  if (block.numbered) node.attrs = { ...node.attrs, numbered: block.numbered };
+  if (block.headingLevels) node.attrs = { ...node.attrs, headingLevels: block.headingLevels };
+  return node;
+}
+
+export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJSON): SupportedEdits & Required<Pick<SupportedEdits, "headings" | "paragraphs">> {
+  const sources = blockSourcesOf(next);
+  // Applied sources replace snapshot blocks in place; the other edits compare with the result.
+  const document = withBlockSources(snapshot, sources);
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
   const headingLevels: HeadingLevelEdit[] = [];
@@ -257,6 +287,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     throw new Error("unsupported heading numbering settings");
   }
   return {
+    ...(Object.keys(sources).length ? { sources: Object.entries(sources).map(([key, { source }]) => ({ path: key.split(",").map(Number), source })) } : {}),
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(reordered ? { order } : {}),
     headings,
@@ -298,7 +329,12 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 /** Compare the applied state that Save acknowledges, excluding editor-only placeholders.
  * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
-  return { type: "doc", ...(document.attrs?.headingNumbering ? { attrs: { headingNumbering: document.attrs.headingNumbering } } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
+  const sources = blockSourcesOf(document);
+  const attrs = {
+    ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
+    ...(Object.keys(sources).length ? { [BLOCK_SOURCES_ATTR]: sources } : {}),
+  };
+  return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {

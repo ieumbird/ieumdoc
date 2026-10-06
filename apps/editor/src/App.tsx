@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { EditableDocument, FigureContent } from "@ieumdoc/core";
+import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -7,8 +7,10 @@ import { NewDialog } from "./shell/NewDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
-import { collectSupportedEdits, isSessionPlaceholder, type TiptapJSON } from "./tiptap-document.ts";
+import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
 import type {
+  BlockSourceRequest,
+  BlockSourceResponse,
   DocumentFileResponse,
   SaveResponse,
   SourceResponse,
@@ -304,6 +306,7 @@ export function App() {
                 onHeadingNumberingChange={setHeadingNumbering}
                 onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}
+                applyBlockSource={(path, source, applied) => applyBlockSource(sessionBase.current?.source ?? "", path, source, applied)}
                 onStructuralReject={(reason) =>
                   setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")
                 }
@@ -419,6 +422,24 @@ async function validateFigure(figure: FigureContent): Promise<string | undefined
   const payload = (await response.json()) as { error?: string | null };
   if (!response.ok) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload.error ?? undefined;
+}
+
+/** Asks the Host to apply a block source through Core on the session's opening snapshot. */
+async function applyBlockSource(base: string, path: string, source: string, applied: AppliedBlockSources): Promise<EditableBlock> {
+  const request: BlockSourceRequest = {
+    base,
+    path: path.split(",").map(Number),
+    source,
+    sources: Object.entries(applied).filter(([key]) => key !== path).map(([key, edit]) => ({ path: key.split(",").map(Number), source: edit.source })),
+  };
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/block-source`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const payload = (await response.json()) as Partial<BlockSourceResponse> & Partial<DocumentErrorResponse>;
+  if (!response.ok || !payload.block) throw new Error(payload.error ?? `request failed (${response.status})`);
+  return payload.block;
 }
 
 function messageOf(cause: unknown): string {

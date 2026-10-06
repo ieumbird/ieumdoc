@@ -115,8 +115,9 @@ export type EditableBlock = (
       path: NodePath;
       text: string;
     }) & {
-      /** Opening-source context for visually unsupported content; never used to write. */
-      original?: { kind: string; text: string; line: number };
+      /** Source context for visually unsupported content; never used to write. `line` is its
+       * line in the opened file, absent for block source applied since (`replaceBlockSource`). */
+      original?: { kind: string; text: string; line?: number };
       /** The numbered targets the block holds, only where they differ from its kind's
        * default (see `blockTargets`). Numbers come from `targetNumbers`. */
       numbered?: NumberedTargets;

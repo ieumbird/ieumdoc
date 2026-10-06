@@ -11,25 +11,51 @@ export type MystDocument = GenericParent;
 
 export type MystNode = GenericNode;
 
-// Opening-source provenance for read-only projections, never a serialization input.
-// Keep it outside the semantic tree, and carry it through Core's immutable operations.
-const sources = new WeakMap<MystDocument, string>();
+// Source provenance for read-only projections, never a serialization input. Keep it
+// outside the semantic tree, and carry it through Core's immutable operations. Node
+// positions address `text`: the opening source, then block sources applied since, whose
+// lines come after the opening `lines` and are no line of the opened file.
+type Provenance = { text: string; lines: number };
+const sources = new WeakMap<MystDocument, Provenance>();
 export function rememberSource(document: MystDocument, source: string): void {
-  sources.set(document, source);
+  sources.set(document, { text: source, lines: lineCount(source) });
 }
 
-export function sourceExcerpt(document: MystDocument, node: MystNode): { text: string; line: number } | undefined {
-  const source = sources.get(document);
+/** The source a node was parsed from, and its line in the opened file when it has one. */
+export function sourceExcerpt(document: MystDocument, node: MystNode): { text: string; line?: number } | undefined {
+  const provenance = sources.get(document);
   const line = node.position?.start.line;
   const end = node.position?.end.line;
-  if (source === undefined || line === undefined || end === undefined) return undefined;
-  return { text: source.split(/\r?\n/).slice(line - 1, end).join("\n"), line };
+  if (provenance === undefined || line === undefined || end === undefined) return undefined;
+  const text = provenance.text.split(/\r?\n/).slice(line - 1, end).join("\n");
+  return line <= provenance.lines ? { text, line } : { text };
+}
+
+/** Make the nodes of a separately parsed fragment address its source within `document`'s provenance. */
+export function appendSource(document: MystDocument, fragment: MystDocument): void {
+  const provenance = sources.get(document) ?? { text: "", lines: 0 };
+  const lines = lineCount(provenance.text);
+  const offset = provenance.text.length + 1;
+  const shift = (node: MystNode) => {
+    for (const point of [node.position?.start, node.position?.end]) {
+      if (!point) continue;
+      point.line += lines;
+      if (point.offset !== undefined) point.offset += offset;
+    }
+    node.children?.forEach(shift);
+  };
+  fragment.children.forEach(shift);
+  sources.set(document, { text: `${provenance.text}\n${sources.get(fragment)?.text ?? ""}`, lines: provenance.lines });
+}
+
+function lineCount(text: string): number {
+  return text.split(/\r?\n/).length;
 }
 
 export function cloneDocument(document: MystDocument): MystDocument {
   const clone = structuredClone(document);
-  const source = sources.get(document);
-  if (source !== undefined) rememberSource(clone, source);
+  const provenance = sources.get(document);
+  if (provenance !== undefined) sources.set(clone, provenance);
   return clone;
 }
 

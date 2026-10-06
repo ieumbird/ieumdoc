@@ -26,6 +26,7 @@ import {
   insertParagraph,
   parse,
   removeBlock,
+  replaceBlockSource,
   serialize,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -49,6 +50,7 @@ import {
   updateParagraphInlineContent,
   validateFigure,
   validateStructure,
+  type Document,
   type EditableBlock,
   type EditableDocument,
   type FigureContent,
@@ -57,6 +59,9 @@ import {
 } from "@ieumdoc/core";
 
 import type {
+  BlockSourceEdit,
+  BlockSourceRequest,
+  BlockSourceResponse,
   OrderItem,
   SupportedEdits,
   SaveRequest,
@@ -221,6 +226,7 @@ export function saveCurrentDocument(
   }
   const base = sessionSource(source, request);
   const saved = saveEdits(base, {
+    sources: request.sources ?? [],
     headings: request.headings ?? [],
     headingLevels: request.headingLevels ?? [],
     paragraphs: request.paragraphs ?? [],
@@ -271,8 +277,8 @@ export function saveEdits(
   source: string,
   edits: SupportedEdits,
 ): { markdown: string; document: EditableDocument; writeError: string | null } {
-  const editable = loadEditableDocument(source);
-  let document = parse(source);
+  let document = applySources(parse(source), edits.sources ?? []);
+  const editable = getEditableDocument(document);
   for (const edit of edits.headings ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
     assertPath(edit.path, "heading");
@@ -636,6 +642,28 @@ export function saveEdits(
   return { markdown, ...readModel(markdown) };
 }
 
+/** Replace read-only opening blocks with applied MyST source, in place: their locators stay valid. */
+function applySources(opening: Document, sources: BlockSourceEdit[]): Document {
+  const blocks = getEditableDocument(opening).blocks;
+  let document = opening;
+  for (const edit of sources) {
+    assertPath(edit.path, "block source");
+    if (edit.path.length !== 1 || !blockAt({ blocks }, edit.path)?.original || typeof edit.source !== "string") {
+      throw new Error(`block source edit is not allowed at [${edit.path.join(",")}]`);
+    }
+    document = editAt({ path: edit.path, part: 0 }, () => replaceBlockSource(document, edit.path[0], edit.source));
+  }
+  return document;
+}
+
+/** The block an Editor Apply makes: the session's applied sources, then this one, on its opening snapshot. */
+export function applyBlockSource(request: BlockSourceRequest): BlockSourceResponse {
+  if (typeof request?.base !== "string") throw new Error("invalid session source");
+  const others = Array.isArray(request.sources) ? request.sources : [];
+  const document = applySources(parse(request.base), [...others, { path: request.path, source: request.source }]);
+  return { block: getEditableDocument(document).blocks[request.path[0]] };
+}
+
 export async function handleDocumentRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -655,6 +683,19 @@ export async function handleDocumentRequest(
     }
     try {
       sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
+    } catch (error) {
+      sendJson(res, 400, errorPayload(error));
+    }
+    return;
+  }
+  if (url === "/api/block-source") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, applyBlockSource(JSON.parse(await readBody(req)) as BlockSourceRequest));
     } catch (error) {
       sendJson(res, 400, errorPayload(error));
     }
@@ -715,6 +756,7 @@ function saveRequestOf(body: SaveRequest): SaveRequest {
   return {
     revision: body.revision,
     base: body.base,
+    sources: Array.isArray(body.sources) ? body.sources : [],
     headings: Array.isArray(body.headings) ? body.headings : [],
     headingLevels: Array.isArray(body.headingLevels) ? body.headingLevels : [],
     paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
