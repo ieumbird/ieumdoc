@@ -101,6 +101,7 @@ export const STABLE_SCENARIOS = [
   "cross-reference",
   "block-source-editing",
   "section-reference",
+  "folder-navigation",
 ];
 
 const require = createRequire(import.meta.url);
@@ -180,6 +181,9 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "label-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},
     {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected duplicate-label Source preview"},
+  ],
+  "folder-navigation": [
+    {status: 400, pathname: "/api/folder", minimum: 1, description: "a file chosen as the folder is rejected"},
   ],
 };
 

@@ -39,6 +39,7 @@ import {
   documentRevision,
   DocumentConflictError,
   handleDocumentRequest,
+  listFolder,
   loadDocumentFile,
   loadEditableDocument,
   previewDocumentFile,
@@ -715,6 +716,40 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
     assert.equal(readFileSync(existing, "utf8"), "Keep this content\n");
     assert.throws(() => createDocumentFile(path.join(dir, "invalid.txt")), /\.md file/);
     assert.throws(() => createDocumentFile(path.join(dir, "missing", "new.md")), /parent directory does not exist/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a chosen folder lists one level of sub-folders and Markdown files, and stays inside", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-folder-"));
+  const chosen = path.join(dir, "docs");
+  const outside = path.join(dir, "outside");
+  try {
+    for (const folder of [chosen, path.join(chosen, "guides"), path.join(chosen, ".git"), outside]) mkdirSync(folder);
+    for (const file of ["b.md", "a10.md", "a9.md", "UPPER.MD", "notes.txt", ".hidden.md", "guides/deep.md"]) {
+      writeFileSync(path.join(chosen, file), "x\n");
+    }
+    // Windows junctions do not require developer-mode symlink permission.
+    fs.symlinkSync(outside, path.join(chosen, "linked"), process.platform === "win32" ? "junction" : "dir");
+
+    const top = listFolder(chosen);
+    assert.equal(top.path, path.resolve(chosen));
+    assert.equal(top.parent, undefined);
+    assert.deepEqual(top.entries.map(entry => `${entry.kind}:${entry.name}`),
+      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
+    assert.equal(top.entries[1]?.path, path.join(path.resolve(chosen), "a9.md"));
+
+    const guides = listFolder(chosen, path.join(chosen, "guides"));
+    assert.equal(guides.parent, path.resolve(chosen));
+    assert.deepEqual(guides.entries.map(entry => entry.name), ["deep.md"]);
+
+    assert.throws(() => listFolder(chosen, dir), /outside the chosen folder/);
+    assert.throws(() => listFolder(chosen, path.join(chosen, "guides", "..", "..")), /outside the chosen folder/);
+    assert.throws(() => listFolder(chosen, path.join(chosen, "linked")), /symlink escapes/);
+    assert.throws(() => listFolder(path.join(chosen, "b.md")), /must point to a directory/);
+    assert.throws(() => listFolder(path.join(dir, "missing")), /does not exist/);
+    assert.throws(() => listFolder(""), /folder path is required/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

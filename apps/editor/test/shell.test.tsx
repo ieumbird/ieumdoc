@@ -19,10 +19,12 @@ test("document path splits for display without changing the address", () => {
   assert.deepEqual(splitDocumentPath("b.md"), { directory: "", name: "b.md" });
 });
 
-test("sidebar holds only product, Open and the current document, and collapses", () => {
+test("sidebar holds only product, Open, Open folder and the current document, and collapses", () => {
   const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
   assert.match(open, /IeumDoc/);
   assert.match(open, />Open…</);
+  assert.match(open, />Open folder…</);
+  assert.doesNotMatch(open, /data-testid="folder"/);
   assert.match(open, />New</);
   assert.match(open, /aria-current="page"/);
   assert.match(open, /title="C:\\docs\\guide.md"/);
@@ -31,6 +33,31 @@ test("sidebar holds only product, Open and the current document, and collapses",
   const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(collapsed, /Open…|guide\.md|IeumDoc/);
+});
+
+test("sidebar folder shows Up below the chosen folder and marks the open document", () => {
+  const folder = {
+    root: String.raw`C:\docs`,
+    path: String.raw`C:\docs\guides`,
+    parent: String.raw`C:\docs`,
+    entries: [
+      { name: "api", kind: "folder" as const, path: String.raw`C:\docs\guides\api` },
+      { name: "guide.md", kind: "document" as const, path: String.raw`C:\docs\guides\guide.md` },
+      { name: "other.md", kind: "document" as const, path: String.raw`C:\docs\guides\other.md` },
+    ],
+  };
+  const html = renderToStaticMarkup(
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpen={noop} onNew={noop} />,
+  );
+  assert.match(html, /title="C:\\docs\\guides">guides</);
+  assert.match(html, /aria-label="Up to docs"/);
+  assert.match(html, /aria-label="Close folder"/);
+  assert.equal(html.match(/aria-current="page"/g)?.length, 2, "the open document and its folder entry, not other.md");
+  const top = renderToStaticMarkup(
+    <Sidebar open documentPath={PATH} folder={{ root: String.raw`C:\empty`, path: String.raw`C:\empty`, entries: [] }} onToggle={noop} onOpen={noop} onNew={noop} />,
+  );
+  assert.doesNotMatch(top, /Up to/);
+  assert.match(top, /No folders or Markdown files/);
 });
 
 test("top bar shows filename while keeping the complete path in its title", () => {

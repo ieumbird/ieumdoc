@@ -87,6 +87,14 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg")], scenarios: ["cross-reference"] },
+  "folder-navigation": {
+    files: [
+      { name: "index.md", create: () => "# Index\n\nStart here.\n" },
+      { name: "notes.md", create: () => "# Notes\n\nNotes body.\n" },
+      { name: "guides/install.md", create: () => "# Install\n\nInstall body.\n" },
+    ],
+    scenarios: ["folder-navigation"],
+  },
 };
 
 /** Recreate every scratch directory under `tmpRoot` from its sources. Returns the directories. */
@@ -95,7 +103,10 @@ export function prepareBrowserFixtures(tmpRoot = path.join(REPOSITORY_ROOT, "tmp
     const dir = path.join(tmpRoot, name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
-    for (const file of files) writeFileSync(path.join(dir, file.name), file.create());
+    for (const file of files) {
+      mkdirSync(path.dirname(path.join(dir, file.name)), { recursive: true });
+      writeFileSync(path.join(dir, file.name), file.create());
+    }
     return dir;
   });
 }
