@@ -65,7 +65,7 @@ test("admonition body edits pass through Core and preserve inline semantics on r
     "# Title",
     "",
     ":::{warning}",
-    "After **bold** and *italic*, [manual](https://a.example), {math}`x`\\",
+    "After **bold** and *italic*, [manual](https://a.example), $x$\\",
     "next.",
     ":::",
     "",
@@ -116,7 +116,7 @@ test("unsupported admonitions remain read-only and a failed edit never writes th
   writeFileSync(file, source);
   try {
     const revision = documentRevision(source);
-    const invalid: InlineContent[] = [{ kind: "math", value: "`x" }];
+    const invalid: InlineContent[] = [{ kind: "math", value: "`x$" }];
     assert.throws(() => saveDocumentFile(file, { revision, admonitions: [{ path: [1], content: invalid }] }), /cannot round-trip/);
     assert.equal(readFileSync(file, "utf8"), source);
   } finally {

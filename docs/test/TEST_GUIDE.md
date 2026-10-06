@@ -999,13 +999,13 @@ pnpm exec playwright-cli -s=ieumdoc-links close
 
 ## Inline math authoring v1
 
-paragraph 안의 inline math(`$x$`, `{math}`x``)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `math`(LaTeX source)로 저장되고 canonical 형태는 `{math}`x``다(`$x$`도 저장하면 이 형태가 된다). display Equation block(`{math}` directive, `$$`)과 cross-reference는 바뀌지 않는다.
+paragraph 안의 inline math(`$x$`, `{math}`x``)가 있는 paragraph는 일반 paragraph처럼 수정한다. Core `InlineContent`의 `math`(LaTeX source)로 저장되고 canonical 형태는 `$x$`다(`{math}`x``도 저장하면 이 형태가 된다). source에 `$`가 있거나 backslash로 끝나는 경우, 줄바꿈 바로 뒤의 math는 `{math}`x`` role로 남는다. display Equation block(`{math}` directive, `$$`)과 cross-reference는 바뀌지 않는다.
 
 - inline math는 KaTeX로 보인다. 클릭하면 아래에 source 입력이 뜬다. `Apply`(또는 Enter)로 source를 바꾸고, `Remove`로 math를 source 텍스트로 되돌린다(굵게/기울임/link는 남는다). Esc는 취소다.
 - 텍스트를 선택하고 selection toolbar의 `Inline math`(Σ)를 누르면 선택한 텍스트가 source인 inline math가 된다. 줄바꿈이나 다른 inline math가 섞인 선택은 거부된다.
 - inline math가 선택된 상태의 Enter / Shift+Enter는 문단을 나누거나 math를 지우지 않는다. 글자를 입력하면 선택한 math를 대체한다(일반 선택 동작, Undo 가능).
 - 굵게/기울임/link 안의 inline math는 Save → Reload 후 같은 의미로 남는다.
-- source는 한 줄이어야 하고 비어 있으면 안 된다. 맨 앞/맨 끝이 backtick인 source처럼 canonical role로 그대로 쓸 수 없는 값은 `Save failed`로 거부되고 파일은 바뀌지 않는다.
+- source는 한 줄이어야 하고 비어 있으면 안 된다. `$`가 있으면서 맨 앞/맨 끝이 backtick인 source처럼 그대로 쓸 수 없는 값은 `Save failed`로 거부되고 파일은 바뀌지 않는다.
 - CLI의 paragraph offset에서 inline math는 hard break처럼 한 글자로 센다(`pnpm ieumdoc help split-paragraph`).
 
 브라우저 회귀(실제 파일을 쓰므로 무시되는 `tmp/`의 scratch 사본에서 실행한다. 사본은 `pnpm browser:prepare`가 만든다):

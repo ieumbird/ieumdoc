@@ -93,7 +93,7 @@ test("references coexist with bold, italic, ordinary links, inline math and hard
     ref("eq", "eq-b"),
   ];
   const markdown = write("Plain.\n", content);
-  assert.equal(markdown, "**Bold {eq}`eq-a`** *{numref}`fig-a`* and [details](#eq-a) with {math}`x`\\\n{eq}`eq-b`\n");
+  assert.equal(markdown, "**Bold {eq}`eq-a`** *{numref}`fig-a`* and [details](#eq-a) with $x$\\\n{eq}`eq-b`\n");
   // The ordinary fragment link and the semantic reference never convert into each other.
   const reparsed = parse(markdown);
   assert.equal(getNode(reparsed, [0, 4]).type, "link");

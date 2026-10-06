@@ -131,9 +131,9 @@ async page => {
   result.canonicalMarkdown = saved === [
     '# Math',
     '',
-    'The current is {math}`i_q` and the voltage is **v\\_{dc}**. Done.',
+    'The current is $i_q$ and the voltage is **v\\_{dc}**. Done.',
     '',
-    'Convert {math}`v_q` into math and see [the {math}`x` page](https://a.example).',
+    'Convert $v_q$ into math and see [the $x$ page](https://a.example).',
     '',
     'See {eq}`eq-a` here.',
     '',
@@ -150,7 +150,7 @@ async page => {
     await editor.locator('a[href="https://a.example"]').getByTestId('inline-math').count() === 1;
 
   // A source the canonical Markdown cannot write back fails at Save; the file is unchanged.
-  await editSource('v_q', '`v');
+  await editSource('v_q', '`v$');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Save failed', {exact:true}).waitFor();
   result.unpreservableRejected = await markdown() === saved;

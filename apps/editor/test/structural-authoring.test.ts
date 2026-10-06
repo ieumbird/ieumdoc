@@ -30,7 +30,7 @@ test("both boundary delete keys join a heading and prose with a line break into 
     assert.ok(tr);
     const joined = state.applyTransaction(tr).state;
     const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(joined)));
-    assert.equal(saved.markdown, "Heading**Bold** and {math}`x`\\\nnext.\n");
+    assert.equal(saved.markdown, "Heading**Bold** and $x$\\\nnext.\n");
     assert.equal(saved.document.blocks[0].block, "paragraph");
   }
   // Formatted prose without line breaks joins into the heading by the engine's own join.

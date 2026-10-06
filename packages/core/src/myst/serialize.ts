@@ -75,6 +75,11 @@ function prepareWriter(tree: MystDocument): string {
     if (node.children?.some(child => child.type === "text" && String(child.value).includes("$"))) {
       node.children = node.children.flatMap(child => child.type === "text" ? escapeDollars(child) : [child]);
     }
+    // myst-to-md writes inline math as the `{math}` role; write MyST's usual `$...$`.
+    if (node.children?.some(child => child.type === "inlineMath")) {
+      node.children = node.children.map((child, index, siblings) => isDollarMath(child, siblings[index - 1])
+        ? { type: "html", value: `$${child.value}$` } : child);
+    }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node));
     // Keep supported table directives as GFM tables. The upstream list-table writer
     // wraps cells in paragraphs and drops column alignment. The full guard still applies.
@@ -116,6 +121,15 @@ function prepareWriter(tree: MystDocument): string {
   visit(tree, 0);
   if (prefix) tree.children.shift();
   return prefix;
+}
+
+/** Whether inline math can be written as `$...$`. The value must not hold `$` or end in a
+ * backslash that would escape the closing `$`. The writer turns a line ending before an `html`
+ * node into a space, so math right after a line break keeps the role. */
+function isDollarMath(node: MystNode, previous: MystNode | undefined): boolean {
+  return node.type === "inlineMath" && typeof node.value === "string" && /^[^$\r\n]*[^$\r\n\\]$/.test(node.value) &&
+    Object.keys(node).every(key => key === "type" || key === "value" || key === "position") &&
+    previous?.type !== "break" && !(previous?.type === "text" && /[\r\n]$/.test(String(previous.value)));
 }
 
 function escapeDollars(text: MystNode): MystNode[] {
