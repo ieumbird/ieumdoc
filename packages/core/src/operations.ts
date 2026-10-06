@@ -38,7 +38,7 @@ import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
-  setTableCellContent, setTableColumnAlignNode, tableCellContent,
+  setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
 } from "./myst/table.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
@@ -433,13 +433,55 @@ export function updateTableCell(document: MystDocument, path: NodePath, cell: Ta
   if (path.length !== 3) {
     throw new Error("updateTableCell requires a top-level table cell path [table,row,cell]");
   }
-  if (getNode(document, [path[0]]).type !== "table" || tableCellContent(getNode(document, path)) === undefined) {
+  if (tableCellContent(tableCellAt(document, path)) === undefined) {
     throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
   }
   const content = tableCellInput(cell);
   const next = cloneDocument(document);
-  setTableCellContent(getNode(next, path), content);
+  setTableCellContent(tableCellAt(next, path)!, content);
   assertStableTable(next, path[0], TABLE_CELL_FAILURE);
+  return next;
+}
+
+/** A cell of a top-level table, plain or in a table directive, at [table, row, cell]. */
+function tableCellAt(document: MystDocument, path: NodePath): MystNode | undefined {
+  const [index, row, column] = path;
+  const table = tableOf(getNode(document, [index]));
+  if (!table) return undefined;
+  const cell = table.children?.[row]?.children?.[column];
+  if (!Number.isInteger(row) || !Number.isInteger(column) || !cell) throw new Error(`table cell path [${path.join(",")}] is out of range`);
+  return cell;
+}
+
+/** The caption of a top-level table block; empty when it has none. */
+function tableCaptionContent(node: MystNode): InlineContent[] {
+  const paragraph = tableCaptionParagraph(node);
+  return paragraph ? projectInlineContent(paragraph) ?? [] : [];
+}
+
+const TABLE_CAPTION_FAILURE = "table caption cannot be preserved through canonical round-trip";
+
+/**
+ * Set, change or remove (empty) the caption of a top-level table: supported inline content without
+ * line breaks. A caption or a label makes the table a `{table}` directive, which MyST numbers.
+ */
+export function updateTableCaption(document: MystDocument, path: NodePath, caption: TableCellInput): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) {
+    throw new Error("updateTableCaption requires a top-level table path [index]");
+  }
+  const current = getNode(document, path);
+  const table = tableOf(current);
+  if (!table) throw new Error(`updateTableCaption requires an editable table at [${path.join(",")}]`);
+  const paragraph = tableCaptionParagraph(current);
+  if (paragraph && projectInlineContent(paragraph) === undefined) {
+    throw new Error(`table caption at [${path.join(",")}] is not editable in this version`);
+  }
+  const content = tableCellInput(caption);
+  const next = cloneDocument(document);
+  const label = typeof current.label === "string" ? current.label : "";
+  next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, content, label,
+    typeof current.identifier === "string" ? current.identifier : undefined);
+  assertStableTable(next, path[0], TABLE_CAPTION_FAILURE);
   return next;
 }
 
@@ -465,10 +507,13 @@ function tableCellInput(cell: TableCellInput): InlineContent[] {
 function assertStableTable(document: MystDocument, index: number, failure: string): void {
   const markdown = serializeFor(document, failure);
   const reparsed = parse(markdown);
-  const cells = (table: MystNode | undefined) => (table?.children ?? []).map((row) => (row.children ?? []).map(tableCellContent));
+  const cells = (block: MystNode | undefined) => (tableOf(block)?.children ?? []).map((row) => (row.children ?? []).map(tableCellContent));
   const before = cells(document.children[index]);
   const after = cells(reparsed.children[index]);
-  if (serialize(reparsed) !== markdown || reparsed.children[index]?.type !== "table" || after.length !== before.length ||
+  const caption = (block: MystNode) => tableCaptionContent(block);
+  if (serialize(reparsed) !== markdown || !tableOf(reparsed.children[index]) ||
+      reparsed.children[index].type !== document.children[index].type ||
+      !sameInlineContent(caption(document.children[index]), caption(reparsed.children[index])) || after.length !== before.length ||
       before.some((row, rowIndex) => row.length !== after[rowIndex].length || row.some((content, column) => {
         const reloaded = after[rowIndex][column];
         return content !== undefined && (reloaded === undefined || !sameInlineContent(content, reloaded));
@@ -504,7 +549,7 @@ export function insertTableRow(document: MystDocument, path: NodePath, row: numb
     throw new Error(`table row index must be an integer from 1 to ${rows}: ${row}`);
   }
   const next = cloneDocument(document);
-  insertTableRowNode(getNode(next, path), row);
+  insertTableRowNode(tableAt(next, path, "insertTableRowNode"), row);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -516,7 +561,7 @@ export function insertTableColumn(document: MystDocument, path: NodePath, column
     throw new Error(`table column index must be an integer from 0 to ${columns}: ${column}`);
   }
   const next = cloneDocument(document);
-  insertTableColumnNode(getNode(next, path), column);
+  insertTableColumnNode(tableAt(next, path, "insertTableColumnNode"), column);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -526,7 +571,7 @@ export function removeTableRow(document: MystDocument, path: NodePath, row: numb
   const rows = tableAt(document, path, "removeTableRow").children?.length ?? 0;
   assertTableBodyRow(row, rows);
   const next = cloneDocument(document);
-  removeTableRowNode(getNode(next, path), row);
+  removeTableRowNode(tableAt(next, path, "removeTableRowNode"), row);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -537,7 +582,7 @@ export function removeTableColumn(document: MystDocument, path: NodePath, column
   if (columns <= 1) throw new Error("a table needs at least one column; remove the table instead");
   assertTableColumn(column, columns);
   const next = cloneDocument(document);
-  removeTableColumnNode(getNode(next, path), column);
+  removeTableColumnNode(tableAt(next, path, "removeTableColumnNode"), column);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -548,7 +593,7 @@ export function moveTableRow(document: MystDocument, path: NodePath, from: numbe
   assertTableBodyRow(from, rows);
   assertTableBodyRow(to, rows);
   const next = cloneDocument(document);
-  moveTableRowNode(getNode(next, path), from, to);
+  moveTableRowNode(tableAt(next, path, "moveTableRowNode"), from, to);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -559,7 +604,7 @@ export function moveTableColumn(document: MystDocument, path: NodePath, from: nu
   assertTableColumn(from, columns);
   assertTableColumn(to, columns);
   const next = cloneDocument(document);
-  moveTableColumnNode(getNode(next, path), from, to);
+  moveTableColumnNode(tableAt(next, path, "moveTableColumnNode"), from, to);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -572,7 +617,7 @@ export function updateTableColumnAlignment(document: MystDocument, path: NodePat
     throw new Error("table alignment must be left, center, right or null");
   }
   const next = cloneDocument(document);
-  setTableColumnAlignNode(getNode(next, path), column, align);
+  setTableColumnAlignNode(tableAt(next, path, "setTableColumnAlignNode"), column, align);
   assertStableTable(next, path[0], TABLE_FAILURE);
   return next;
 }
@@ -594,8 +639,8 @@ function tableAt(document: MystDocument, path: NodePath, operation: string): Mys
   if (path.length !== 1) {
     throw new Error(`${operation} requires a top-level table path [index]`);
   }
-  const table = getNode(document, path);
-  if (table.type !== "table") {
+  const table = tableOf(getNode(document, path));
+  if (!table) {
     throw new Error(`${operation} requires a table at [${path.join(",")}]`);
   }
   return table;
@@ -633,22 +678,16 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
  */
 export function updateLabel(document: MystDocument, path: NodePath, label: string): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateLabel requires a top-level Equation or Figure path [index]");
+    throw new Error("updateLabel requires a top-level Equation, Figure or Table path [index]");
   }
   const current = getNode(document, path);
-  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : undefined;
-  if (!kind) throw new Error(`updateLabel requires a top-level Equation or Figure at [${path.join(",")}]`);
+  const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : tableOf(current) ? "Table" : undefined;
+  if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure or Table at [${path.join(",")}]`);
   const error = labelError(label);
   if (error) throw new Error(error);
-  const next = cloneDocument(document);
-  const node = getNode(next, path);
-  // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
-  delete node.html_id;
-  if (label.length === 0) {
-    delete node.label;
-    delete node.identifier;
-  } else {
-    const identifier = labelIdentifier(label);
+  let identifier: string | undefined;
+  if (label.length > 0) {
+    identifier = labelIdentifier(label);
     if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
     try {
       assertReferenceableLabel(kind === "Equation" ? "eq" : "numref", label, identifier);
@@ -658,6 +697,20 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
     if (targetIdentifiers(document, current).has(identifier)) {
       throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
     }
+  }
+  const next = cloneDocument(document);
+  if (kind === "Table") {
+    const paragraph = tableCaptionParagraph(current);
+    if (paragraph && projectInlineContent(paragraph) === undefined) throw new Error("table caption is not editable in this version");
+    next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier);
+  }
+  const node = getNode(next, path);
+  // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
+  delete node.html_id;
+  if (label.length === 0) {
+    delete node.label;
+    delete node.identifier;
+  } else {
     node.label = label;
     node.identifier = identifier;
   }

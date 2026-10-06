@@ -263,3 +263,18 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
   table.content![2].content![0].attrs!.align = "center";
   assert.throws(() => collectSupportedEdits(document, projected), /uniform within each column/);
 });
+
+
+test("caption and label edits and newly captioned tables save through Core in the same session", () => {
+  const source = "| A |\n|---|\n| 1 |\n";
+  const document = loadEditableDocument(source);
+  const next = toTiptapDocument(document);
+  next.content![0].attrs!.caption = text("Values");
+  next.content![0].attrs!.label = "tbl-values";
+  const edits = collectSupportedEdits(document, next);
+  const saved = saveEdits(source, edits);
+  assert.match(saved.markdown, /:::\{table\} Values\n:name: tbl-values/);
+  assert.deepEqual(collectSupportedEdits(saved.document, toTiptapDocument(saved.document)), { headings: [], paragraphs: [] });
+  const inserted = saveEdits("", { order: [{ insert: 0 }], inserts: [{ block: "table", rows: [[text("A")], [text("1")]], caption: text("New"), label: "tbl-new" }] });
+  assert.match(inserted.markdown, /:::\{table\} New\n:name: tbl-new/);
+});

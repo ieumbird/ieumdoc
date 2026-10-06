@@ -3,6 +3,7 @@ import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
+import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 const LOSS = "Document contains semantic content that cannot be preserved in canonical Markdown";
@@ -75,6 +76,24 @@ function prepareWriter(tree: MystDocument): string {
       node.children = node.children.flatMap(child => child.type === "text" ? escapeDollars(child) : [child]);
     }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node));
+    // Keep supported table directives as GFM tables. The upstream list-table writer
+    // wraps cells in paragraphs and drops column alignment. The full guard still applies.
+    if (isTableDirective(node)) {
+      const render = (value: MystNode) => {
+        const file = new VFile();
+        writeMd(file, { type: "root", children: [value] } as never);
+        assertNoSerializationDiagnostics(file);
+        return String(file.result ?? "").trimEnd();
+      };
+      const caption = tableCaptionParagraph(node);
+      const body = render(tableOf(node)!);
+      const title = caption ? render(caption) : "";
+      if (/[\r\n]/.test(title)) throw new SemanticLossError("table caption must fit on one line");
+      const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
+      node.type = "html";
+      node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
+      delete node.children;
+    }
     // MyST lifts standalone images out of paragraphs. Restore the writer's flow
     // wrapper so adjacent text/images get a blank separator, not merged inline.
     if (["root", "blockquote", "listItem", "admonition"].includes(node.type)) {

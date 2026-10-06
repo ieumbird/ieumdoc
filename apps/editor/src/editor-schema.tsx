@@ -1,4 +1,4 @@
-import { Extension, Node, type Attribute, type Extensions } from "@tiptap/core";
+import { Extension, Node, generateHTML, type Attribute, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -12,6 +12,7 @@ import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ieumdoc/core";
+import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
@@ -27,6 +28,7 @@ import {
   NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
   paragraphContent,
+  tableCaption,
   TABLE_CELL_SOURCE_ATTR,
   type TiptapJSON,
 } from "./tiptap-document.ts";
@@ -392,7 +394,7 @@ const Table = Node.create({
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({});
+    return blockAttrs({ label: hiddenAttr(""), caption: { default: [], rendered: false } });
   },
   parseHTML() {
     return [{ tag: "div[data-table-block]" }];
@@ -412,6 +414,64 @@ const Table = Node.create({
     ];
   },
 });
+
+function tableNode(onDraftChange?: DraftListener) {
+  return Table.extend({
+    addNodeView() { return ReactNodeViewRenderer(props => <TableView {...props} onDraftChange={onDraftChange} />, { contentDOMElementTag: "tbody" }); },
+  });
+}
+
+function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+  const anchor = useRef<HTMLParagraphElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const number = useBlockNumber(editor, getPos, "table");
+  const kind = number === undefined ? "Table" : `Table ${number}`;
+  const label = String(node.attrs.label ?? "");
+  const caption = tableCaption(node.toJSON() as TiptapJSON);
+  const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
+  const [editing, setEditing] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [draft, setDraft] = useState({ label, caption: text });
+  const [error, setError] = useState("");
+  const sourcePath = String(node.attrs.sourcePath);
+  const dirty = editing && (draft.label !== label || draft.caption !== text);
+  useEffect(() => { onDraftChange?.(sourcePath, dirty); return () => onDraftChange?.(sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
+  useEffect(() => { setDismissed(false); }, [selected]);
+  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
+  const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
+  const close = () => { setEditing(false); editor.commands.focus(); };
+  const apply = () => {
+    const invalid = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? "Caption must be a single line without surrounding spaces." : undefined);
+    if (invalid) { setError(invalid); return; }
+    updateAttributes({ label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [], numbered: null });
+    close();
+  };
+  return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
+    data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
+    <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    <NodeViewContent<"table"> as="table" className="table" />
+    {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
+      dangerouslySetInnerHTML={{ __html: generateHTML(toTiptapContent(caption), editor.extensionManager.extensions) }} /> : null}
+    <OriginalContent node={node} />
+    {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="subtle" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
+    <BlockProperties anchor={anchor} kind={kind} testId="table" open={editing || (selected && !dismissed)} editing={editing}
+      readOnly={!editor.isEditable} summary={[["Label", label], ["Caption", text]]} error={error}
+      onApply={apply} onCancel={close} onDismiss={() => setDismissed(true)}>
+      <label className="form-label" htmlFor={`table-caption-${sourcePath}`}>Caption</label>
+      <Input ref={input} id={`table-caption-${sourcePath}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
+      <label className="form-label" htmlFor={`table-label-${sourcePath}`}>Label</label>
+      <Input id={`table-label-${sourcePath}`} data-testid="table-label" value={draft.label} onChange={event => setDraft({ ...draft, label: event.target.value })} />
+    </BlockProperties>
+  </NodeViewWrapper>;
+}
+
+function captionText(item: import("@ieumdoc/core").InlineContent): string {
+  if ("children" in item) return item.children.map(captionText).join("");
+  if (item.kind === "text") return item.text;
+  if ("value" in item) return item.value;
+  if ("label" in item) return item.label;
+  return "";
+}
 
 function cellAlignmentStyle(node: ProseMirrorNode): string {
   return ["left", "center", "right"].includes(node.attrs.align) ? `text-align: ${node.attrs.align}` : "";
@@ -667,7 +727,7 @@ export function editorExtensions(
     Divider,
     figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
-    Table,
+    tableNode(onFigureDraftChange),
     TableRow,
     TableCell,
     ReadonlyTableCell,

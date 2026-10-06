@@ -40,7 +40,7 @@ test("target numbers are the ones MyST gives display equations, figures and capt
 test("the read model records numbered targets only where a block differs from its kind's default", () => {
   const blocks = getEditableDocument(parse(source)).blocks;
   assert.deepEqual(blocks.flatMap((block, index) => block.numbered ? [[index, block.numbered]] : []), [
-    [3, {}], [6, { equation: 1 }], [7, { table: 1 }],
+    [3, {}], [6, { equation: 1 }],
   ]);
 });
 

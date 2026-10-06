@@ -45,6 +45,7 @@ import {
   updateFigure,
   updateLabel,
   updateTableCell,
+  updateTableCaption,
   updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
@@ -443,6 +444,12 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "update-table-caption",
+    summary: "Set or remove a table caption through Core",
+    usage: "ieumdoc update-table-caption <file> --path <table> (--text <text> | --content <json>)",
+    details: ["Set a single-line caption; empty text removes it. A caption or label makes a numbered table directive."],
+  },
+  {
     name: "update-table-cell",
     summary: "Replace the content of a Markdown table cell through Core",
     usage: "ieumdoc update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)",
@@ -480,10 +487,10 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-label",
-    summary: "Set, change, or remove an Equation or Figure label through Core",
+    summary: "Set, change, or remove an Equation, Figure or Table label through Core",
     usage: "ieumdoc update-label <file> --path <index> --label <label>",
     details: [
-      "Set the label (reference target name) of one top-level Equation or Figure. Use an empty --label to remove it.",
+      "Set the label (reference target name) of one top-level Equation, Figure or Table. Use an empty --label to remove it.",
       "The label must be one line without leading or trailing spaces, be referenceable, and not name another target in the document.",
       "References to the old label are not renamed.",
       ...PATH_NOTE,
@@ -723,6 +730,10 @@ function main(argv: string[]): number {
         align === "none" ? null : align as "left" | "center" | "right"));
       return 0;
     }
+    case "update-table-caption": {
+      save(file, updateTableCaption(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      return 0;
+    }
     case "update-table-cell": {
       save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
@@ -843,6 +854,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "move-table-column": ["--path", "--from", "--to"],
   "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
+  "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
   "move-block": ["--from", "--to"],
@@ -964,7 +976,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
   }
   if (block.block === "table") {
     return [
-      base,
+      { ...base, ...(block.label ? { label: block.label } : {}), ...(block.caption ? { caption: block.caption } : {}) },
       ...block.rows.flatMap((row) =>
         row.cells.map((cell) => ({
           path: [...cell.path],

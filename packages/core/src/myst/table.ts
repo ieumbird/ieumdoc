@@ -79,3 +79,51 @@ export function setTableColumnAlignNode(table: MystNode, index: number, align: "
     else delete target.align;
   }
 }
+
+const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "identifier", "position"]);
+const CAPTION_FIELDS = new Set(["type", "children", "position"]);
+
+/**
+ * A `{table}` directive Core can author: a Markdown table with a one-paragraph caption, a label,
+ * or both. Other table directives (options, legends, no caption and no label) stay read-only.
+ */
+export function isTableDirective(node: MystNode | undefined): boolean {
+  if (node?.type !== "container" || node.kind !== "table") return false;
+  if (!Object.keys(node).every((key) => TABLE_DIRECTIVE_FIELDS.has(key) || node[key] === undefined)) return false;
+  const children = node.children ?? [];
+  const caption = children[0]?.type === "caption" ? children[0] : undefined;
+  const rest = caption ? children.slice(1) : children;
+  if (rest.length !== 1 || rest[0].type !== "table") return false;
+  if (caption && !(Object.keys(caption).every((key) => CAPTION_FIELDS.has(key)) &&
+      caption.children?.length === 1 && caption.children[0].type === "paragraph" &&
+      Object.keys(caption.children[0]).every(key => CAPTION_FIELDS.has(key)))) return false;
+  return caption !== undefined || (typeof node.label === "string" && node.label.length > 0);
+}
+
+/** The Markdown table of a top-level block: a plain table, or the table of a table directive. */
+export function tableOf(node: MystNode | undefined): MystNode | undefined {
+  if (node?.type === "table") return node;
+  return isTableDirective(node) ? node!.children!.find((child) => child.type === "table") : undefined;
+}
+
+/** The caption paragraph of a table directive, if it has a caption. */
+export function tableCaptionParagraph(node: MystNode | undefined): MystNode | undefined {
+  return isTableDirective(node) && node!.children![0].type === "caption" ? node!.children![0].children![0] : undefined;
+}
+
+/**
+ * The top-level block for a table with this caption and label: a plain Markdown table when it has
+ * neither, otherwise a `{table}` directive holding the table.
+ */
+export function tableBlockNode(table: MystNode, caption: InlineContent[], label: string, identifier?: string): MystNode {
+  if (caption.length === 0 && label.length === 0) return table;
+  return {
+    type: "container",
+    kind: "table",
+    ...(label.length > 0 ? { label, identifier } : {}),
+    children: [
+      ...(caption.length > 0 ? [{ type: "caption", children: [{ type: "paragraph", children: inlineContentToNodes(caption) }] }] : []),
+      table,
+    ],
+  };
+}

@@ -80,7 +80,9 @@ test("legitimate canonicalizations are normalized explicitly", () => {
     ":::{csv-table} Cap\n:header: a, b\n1,2\n:::\n",
     ":::{table} Cap\n:label: tbl-y\n| a | b |\n|---|---|\n| 1 | 2 |\n:::\n",
   ]) {
-    assert.match(serialize(parse(source)), /^:::\{list-table\} Cap\n/);
+    const markdown = serialize(parse(source));
+    assert.match(markdown, /^:::\{table\} Cap\n/);
+    assert.equal(serialize(parse(markdown)), markdown);
   }
   // Equivalent mark nesting and text fragmentation carry the same meaning.
   const nested = (outer: string, inner: string): MystDocument => ({

@@ -3,7 +3,7 @@ import { figureCaptionContent } from "./figure.ts";
 import { supportedFigureContent } from "./myst/figure.ts";
 import { numberedTargets } from "./myst/numbering.ts";
 import { blockTargets, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
-import { tableCellContent } from "./myst/table.ts";
+import { tableCellContent, tableOf, tableCaptionParagraph } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
@@ -89,6 +89,8 @@ export type EditableBlock = (
       block: "table";
       path: NodePath;
       rows: EditableTableRow[];
+      label?: string;
+      caption?: InlineContent[];
     }
   | ({
       /** A List v1 structure; other lists are "unsupported" (read-only). */
@@ -200,7 +202,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
       label: nodeLabel(node),
     };
   }
-  if (node.type === "table") {
+  if (tableOf(node) && (!tableCaptionParagraph(node) || projectInlineContent(tableCaptionParagraph(node)!) !== undefined)) {
     return tableBlock(node, path);
   }
   const list = supportedListContent(node);
@@ -242,7 +244,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
 }
 
 function tableBlock(node: MystNode, path: NodePath): EditableBlock {
-  const rows = (node.children ?? []).map((row, rowIndex) => ({
+  const rows = (tableOf(node)!.children ?? []).map((row, rowIndex) => ({
     cells: (row.children ?? []).map((cell, cellIndex) => {
       const content = tableCellContent(cell);
       return {
@@ -260,6 +262,8 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
     block: "table",
     path,
     rows,
+    ...(nodeLabel(node) ? { label: nodeLabel(node) } : {}),
+    ...(tableCaptionParagraph(node) ? { caption: projectInlineContent(tableCaptionParagraph(node)!)! } : {}),
   };
 }
 

@@ -745,7 +745,7 @@ ol.list { list-style: decimal; }
   text-align: right;
 }
 
-:is(.figure, .equation):is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata {
+:is(.figure, .equation, .table-block):is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata {
   visibility: visible;
 }
 
@@ -1159,6 +1159,7 @@ ol.list { list-style: decimal; }
 }
 
 .figure-edit,
+.table-edit,
 .equation-edit {
   position: absolute;
   top: var(--space-1);
@@ -1168,12 +1169,12 @@ ol.list { list-style: decimal; }
   z-index: 1;
 }
 
-:is(.figure, .equation):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit) {
+:is(.figure, .equation, .table-block):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit, .table-edit) {
   opacity: 1;
   pointer-events: auto;
 }
 
-:is(.figure, .equation):is([data-selected="true"], [data-editing="true"]) {
+:is(.figure, .equation, .table-block):is([data-selected="true"], [data-editing="true"]) {
   outline: var(--border-width) solid var(--id-color-interaction);
   outline-offset: var(--space-1);
   border-radius: var(--id-radius-sm);
@@ -1182,6 +1183,7 @@ ol.list { list-style: decimal; }
 @media (hover: none) {
   .block-controls,
   .figure-edit,
+  .table-edit,
   .equation-edit {
     opacity: 1;
     pointer-events: auto;
@@ -1303,3 +1305,6 @@ ol.list { list-style: decimal; }
   overflow-wrap: anywhere;
   user-select: text;
 }
+
+.table-block { position: relative; }
+.table-block .caption p { display: inline; margin: 0; }

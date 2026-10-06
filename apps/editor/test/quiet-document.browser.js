@@ -56,10 +56,10 @@ async (page, { screenshots = false } = {}) => {
   await rest();
   const metadata=page.locator('.block-metadata');
   const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
-  check(metadataState.length===2&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
+  check(metadataState.length===await page.locator('[data-block="figure"], [data-block="equation"], [data-block="table"]').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
   check(await page.getByTestId('current-file').textContent()==='quiet-document.md','Filename must be the visible identity');
   check(await page.getByTestId('status').textContent()==='','Loaded document should have quiet idle status');
-  for(const kind of ['figure','equation']) {
+  for(const kind of ['figure','equation','table-block']) {
     const block=page.locator(`.${kind}`),meta=block.locator('.block-metadata');
     const before=await block.boundingBox();
     await block.hover();
