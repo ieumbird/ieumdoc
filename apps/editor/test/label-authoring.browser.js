@@ -166,7 +166,7 @@ async page => {
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {
-    throw new Error(`Label authoring failed: ${JSON.stringify({result, consoleErrors: problems})}`);
+    throw new Error(`Label authoring failed: ${JSON.stringify({result, removed, consoleErrors: problems})}`);
   }
   return {...result, consoleErrors: problems};
 }
