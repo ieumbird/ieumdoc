@@ -25,12 +25,12 @@ const WRITABLE: [string, string][] = [
   ["aligned table", "| a | b |\n|:--|--:|\n| 1 | 2 |\n"],
   ["standalone Markdown image", "![alt](./x.png)\n"],
   ["inline Markdown image", "Before ![alt](./x.png \"Title\") after.\n"],
+  ["task list", "- [ ] todo\n- [x] done\n"],
 ];
 
 const NOT_WRITABLE: [string, string, RegExp][] = [
   ["unclosed front matter", "---\ntitle: Example\n", /front matter/],
   ["{kbd} role", "Press {kbd}`Ctrl` now.\n", /keyboard/],
-  ["task list", "- [ ] todo\n- [x] done\n", /checked/],
   // Reference roles Core cannot write back fail before myst-to-md runs, as a plain Error.
   ["{term} reference", "See {term}`glossary term`.\n", /cannot be preserved through canonical Markdown/],
 ];
@@ -84,7 +84,7 @@ test("preflight follows the current snapshot through Core operations", () => {
   assert.equal(canonicalWriteError(unrelatedEdit), undefined);
   // Removal is an explicit Core operation, including repair of an unwritable document.
   assert.equal(canonicalWriteError(removeBlock(frontMatter, 0)), undefined);
-  const blocked = parse("- [ ] todo\n\nBody.\n");
-  assert.match(canonicalWriteError(blocked) ?? "", /checked/);
+  const blocked = parse("Press {kbd}`Ctrl` now.\n\nBody.\n");
+  assert.match(canonicalWriteError(blocked) ?? "", /keyboard/);
   assert.equal(canonicalWriteError(removeBlock(blocked, 0)), undefined);
 });

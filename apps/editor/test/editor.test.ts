@@ -856,16 +856,16 @@ test("Host reports canonical writeability with every document it opens, creates 
     const { port } = server.address() as AddressInfo;
     const writable = path.join(dir, "writable.md");
     writeFileSync(writable, "# Title\n\nBody.\n");
-    const blocked = path.join(dir, "task-list.md");
-    const source = "- [ ] todo\n\n# Heading\n\nBody.\n";
+    const blocked = path.join(dir, "keyboard.md");
+    const source = "Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n";
     writeFileSync(blocked, source);
     const before = readFileSync(blocked);
 
     assert.equal(loadDocumentFile(writable).writeError, null);
     // A document IeumDoc cannot write still opens, with its whole read model.
     const opened = loadDocumentFile(blocked);
-    assert.deepEqual(opened.document.blocks.map((block) => block.block), ["unsupported", "heading", "paragraph"]);
-    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*checked/);
+    assert.deepEqual(opened.document.blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
+    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*keyboard/);
     assert.equal(opened.writeError, canonicalWriteError(parse(source)));
     const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
     assert.equal(response.status, 200);

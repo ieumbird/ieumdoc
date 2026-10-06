@@ -1,6 +1,6 @@
 # Blocked
 
-- [ ] todo
+Press {kbd}`Ctrl` now.
 
 Editable after repair.
 

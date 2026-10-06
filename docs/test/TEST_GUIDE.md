@@ -510,7 +510,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - `replace-text`는 paragraph/heading 텍스트만 바꾼다. admonition은 `update-node-text --path`, caption은 `update-figure --path --caption` 또는 `--caption-content`, table cell은 `update-table-cell --path`를 쓴다.
 - `insert-block` / `remove-block` / `move-block`은 top-level만 다룬다.
 - `{eq}`/`{numref}`/`{ref}` reference는 같은 role로 저장되고, `(label)=` section target도 남는다. `[](#eq-current)` 같은 fragment link는 일반 link로 남는다. 대상 존재 여부는 검사하지 않는다. `{term}` 등 보존할 수 없는 reference가 있으면 `format`/Save가 실패한다.
-- Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, task list 체크박스(`- [ ]`), `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
+- Core canonical serialization은 보존할 수 없는 의미를 성공한 Markdown으로 저장하지 않는다. `format`/Save는 파일을 쓰기 전에 `Document contains semantic content that cannot be preserved in canonical Markdown: <이유>`로 실패하고 파일은 그대로다. 예: `{kbd}`, `{span}`, `{div}`, `{raw}` 등 MyST writer가 쓰지 못하는 node, 두 번째 subfigure, `{embed}` 대상, `{download}`의 download 표시, 단독 Markdown image(`{image}` directive로 쓰면 `align: center`가 새로 붙는다).
 - figure option `:label:` 은 canonical form에서 `:name:` 으로 쓰인다.
 - 닫힌 front matter는 시각 편집 없이 보존한다. 지원 본문을 편집하고 Save/Reload해도 메타데이터가 유지된다. 상세 범위는 [Document support v1](../design/document-support-v1.md)을 따른다.
 - 원본 `-` 리스트는 canonical form에서 `*   ` 가 된다.
@@ -819,7 +819,7 @@ Editor:
 Core가 top-level 글머리표·번호 목록을 만들고(`insertList`), 편집 가능한 목록의 종류·시작 번호·항목·중첩을 통째로 바꾼다(`updateList`). 모두 canonical Markdown으로 다시 읽어 같은 목록이 되는지 확인하고, 아니면 파일을 쓰지 않고 실패한다.
 
 - 편집 가능한 목록: 각 항목이 지원 inline(text, strong, emphasis, 일반 link, inline code, inline math, `{eq}`/`{numref}`)만 있는 문단 하나와, 선택적으로 중첩 목록 하나를 가진다. 여러 단계 중첩과 글머리표/번호 혼합이 가능하다.
-- 읽기 전용으로 남는 목록: task list(`- [ ]`), 한 항목에 문단이 여럿이거나 코드·표 등 다른 블록이 있는 목록, 지원하지 않는 inline이 있는 목록.
+- 읽기 전용으로 남는 목록: task list(`- [ ]`, 체크 상태는 Save·`format`에서 보존), 한 항목에 문단이 여럿이거나 코드·표 등 다른 블록이 있는 목록, 지원하지 않는 inline이 있는 목록.
 - 빈 항목은 저장되지 않는다(`empty list item cannot be saved`). 같은 종류의 목록이 바로 이어지면 다시 읽을 때 하나로 합쳐지므로 거부된다.
 - 목록을 만드는 Markdown 입력 단축(`- `, `1. `)은 아래 Markdown input shortcuts(#55)를 따른다.
 
@@ -1119,7 +1119,7 @@ printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md && pnpm ieumdoc
 
 보장하지 않는 것: 이미지 등 asset 파일의 존재, 아직 IeumDoc이 지원하지 않는 구문의 편집 가능 여부.
 
-저장할 수 없는 예(현재 canonical writer가 의미를 보존하지 못해 거부하는 것): 닫히지 않은 front matter, task list(`- [ ]`), `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
+저장할 수 없는 예(현재 canonical writer가 의미를 보존하지 못해 거부하는 것): 닫히지 않은 front matter, `{kbd}` 같은 writer가 쓰지 못하는 node, `{term}` 같은 보존할 수 없는 reference.
 
 ```bash
 printf -- '---\ntitle: Example\n---\n\n# Heading\n' > /tmp/fm.md
@@ -1141,7 +1141,7 @@ Editor:
 - 이때 Source는 저장 후보가 아닌 `Original Markdown · read-only`를 보여 준다. 원문을 복사하거나 외부 편집기/기존 CLI에서 문제를 고친 뒤 Reload한다. Host는 수정한 파일을 다시 parse하여 저장 가능 여부를 Core로 재판정한다.
 - 저장 가능한 편집 세션은 매 Save/Source 요청에서 현재 적용 내용을 Core로 검증한다. 실패하면 파일을 쓰지 않고 세션을 보존한다.
 
-브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch 문서의 front matter·정렬 표·일반/인라인 이미지가 본문·셀 편집 → Save → Reload 뒤 보존되는지 확인한다. task list가 있는 문서에서는 입력·Save 차단과 원문 열람을 확인한 뒤, 다른 Core-backed client가 문제 블록을 제거하고 Reload했을 때 편집·저장이 복구되는지 확인한다.
+브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch 문서의 front matter·정렬 표·일반/인라인 이미지가 본문·셀 편집 → Save → Reload 뒤 보존되는지 확인한다. `{kbd}`가 있는 문서에서는 입력·Save 차단과 원문 열람을 확인한 뒤, 다른 Core-backed client가 문제 블록을 제거하고 Reload했을 때 편집·저장이 복구되는지 확인한다.
 
 ## Editing session and Save (#40)
 

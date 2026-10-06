@@ -40,8 +40,6 @@ test("Layer 2: losses without any diagnostic are rejected by the semantic finger
     [":::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", "./b.png", /container > container: container became image/],
     // The embed target argument is dropped and reparses as a directive error.
     ["```{embed} #label\n```\n", "#label", /embed became mystDirectiveError/],
-    // Task list checkboxes are dropped, leaving plain bullets.
-    ["- [ ] task\n- [x] done\n", "[x]", /listItem: checked false became \(absent\)/],
   ];
   for (const [source, lost, reason] of cases) {
     const raw = rawMyst(source);
@@ -66,6 +64,8 @@ test("supported documents serialize unchanged, deterministically and idempotentl
     "| a | b |\n| --- | --- |\n| 1 | 2 |\n",
     ":::{note}\nBody\n:::\n\n:::{admonition} Title\n:class: tip\nBody\n:::\n",
     "*   one\n*   two\n\n1. first\n2. second\n",
+    // myst-to-md alone drops checkboxes; myst-parser reads them only in tight lists.
+    "- [ ] todo\n- [x] done\n\n1. [x] one\n   - [ ] nested\n   - plain\n2. two\n",
     "(sec-a)=\n\n## A\n\nSee {eq}`eq-a`, {numref}`Figure %s <fig-a>` and {ref}`sec-a`.\n",
   ]) {
     const canonical = serialize(parse(source));
