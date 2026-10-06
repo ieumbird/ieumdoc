@@ -17,9 +17,11 @@ function metadata(document: MystDocument) {
 }
 
 /** Project MyST's normalized heading settings, including starts and disabled levels. */
-export function getHeadingNumbering(document: MystDocument): HeadingNumbering | undefined {
+export function getHeadingNumbering(document: MystDocument, authoringEnabled?: boolean): HeadingNumbering | undefined {
   try {
-    const frontmatter = metadata(document).yaml.toJS() ?? {};
+    const yaml = metadata(document).yaml;
+    if (authoringEnabled !== undefined) setHeadingNumbering(yaml, authoringEnabled);
+    const frontmatter = yaml.toJS() ?? {};
     const numbering = frontmatter.numbering === undefined ? undefined : validateNumbering(frontmatter.numbering, { property: "numbering", messages: {} });
     const state = new ReferenceState("document.md", { frontmatter: { ...frontmatter, numbering }, vfile: new VFile() });
     const offset = state.offset - (state.numbering.title?.enabled ? 0 : 1);
@@ -39,6 +41,16 @@ export function updateHeadingNumbering(document: MystDocument, enabled: boolean)
   if (typeof enabled !== "boolean") throw new Error("heading numbering must be true or false");
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);
+  setHeadingNumbering(yaml, enabled);
+  const value = String(yaml).trimEnd();
+  if (node) node.value = value;
+  else next.children.unshift({ type: "code", lang: "yaml", value, [FRONT_MATTER_FIELD]: true });
+  serializeFor(next, "heading numbering cannot be preserved through canonical round-trip");
+  return next;
+}
+
+/** The same metadata change serves both a read-only preview and the persistent operation. */
+function setHeadingNumbering(yaml: Document, enabled: boolean) {
   if (!yaml.contents) yaml.contents = yaml.createNode({});
   const numbering = yaml.get("numbering", true);
   if (numbering !== undefined && !isMap(numbering)) {
@@ -52,9 +64,4 @@ export function updateHeadingNumbering(document: MystDocument, enabled: boolean)
   yaml.setIn(["numbering", "title"], false);
   // Explicit level overrides would otherwise defeat the requested default policy.
   for (let level = 1; level <= 6; level++) yaml.deleteIn(["numbering", `heading_${level}`]);
-  const value = String(yaml).trimEnd();
-  if (node) node.value = value;
-  else next.children.unshift({ type: "code", lang: "yaml", value, [FRONT_MATTER_FIELD]: true });
-  serializeFor(next, "heading numbering cannot be preserved through canonical round-trip");
-  return next;
 }

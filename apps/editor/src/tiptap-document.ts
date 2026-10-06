@@ -253,7 +253,7 @@ export function collectSupportedEdits(document: EditableDocument, next: TiptapJS
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
   const settings = next.attrs?.headingNumbering ?? null;
   const changedSettings = JSON.stringify(settings) !== JSON.stringify(document.headingNumbering ?? null);
-  if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(defaultHeadingNumbering(true))) {
+  if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(document.headingNumberingDefault ?? defaultHeadingNumbering(true))) {
     throw new Error("unsupported heading numbering settings");
   }
   return {

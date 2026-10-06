@@ -4,7 +4,7 @@ import { supportedFigureContent } from "./myst/figure.ts";
 import { numberedTargets } from "./myst/numbering.ts";
 import { getHeadingNumbering } from "./myst/heading-numbering.ts";
 import type { HeadingNumbering } from "./numbering.ts";
-import { blockTargets, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
+import { blockTargets, defaultHeadingNumbering, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
@@ -127,6 +127,8 @@ export type EditableBlock = (
 export type EditableDocument = {
   blocks: EditableBlock[];
   headingNumbering?: HeadingNumbering;
+  /** Enabling the default heading policy with this document's retained numbering metadata. */
+  headingNumberingDefault?: HeadingNumbering;
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
@@ -151,7 +153,9 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
     return block;
   });
   const headingNumbering = getHeadingNumbering(document);
-  return { blocks, ...(headingNumbering ? { headingNumbering } : {}) };
+  const policy = getHeadingNumbering(document, true);
+  const customPolicy = policy && JSON.stringify(policy) !== JSON.stringify(defaultHeadingNumbering(true));
+  return { blocks, ...(headingNumbering ? { headingNumbering } : {}), ...(customPolicy ? { headingNumberingDefault: policy } : {}) };
 }
 
 function contentKind(node: MystNode): string {

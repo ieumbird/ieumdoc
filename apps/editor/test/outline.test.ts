@@ -50,4 +50,12 @@ test("heading numbering follows the single document state and saves as Core meta
   const without = toTiptapDocument(saved.document);
   without.attrs!.headingNumbering = null;
   assert.equal(collectSupportedEdits(saved.document, without).headingNumbering, false);
+  // A retained document-wide prefix must agree before Save and after Reload.
+  const customSource = "---\nnumbering:\n  headings: false\n  enumerator: 'S.%s'\n---\n\n# Title\n\n## First\n";
+  const custom = loadEditableDocument(customSource);
+  const customJSON = toTiptapDocument(custom);
+  customJSON.attrs = { headingNumbering: custom.headingNumberingDefault ?? defaultHeadingNumbering(true)! };
+  const customDoc = schema.nodeFromJSON(customJSON);
+  const customSaved = saveEdits(customSource, collectSupportedEdits(custom, customDoc.toJSON() as TiptapJSON));
+  assert.deepEqual(documentOutline(customDoc), documentOutline(schema.nodeFromJSON(toTiptapDocument(customSaved.document))));
 });

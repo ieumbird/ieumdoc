@@ -157,7 +157,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     () => ({
       toggleHeadingNumbering() {
         if (!editor || !editor.isEditable) return;
-        editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", defaultHeadingNumbering(!editor.state.doc.attrs.headingNumbering)));
+        const settings = editor.state.doc.attrs.headingNumbering ? null : document.headingNumberingDefault ?? defaultHeadingNumbering(true);
+        editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
       },
       beginSave() {
         if (!editor) throw new Error("Editor is not ready");
@@ -199,7 +200,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return editorDocumentJSON(editor.state);
       },
     }),
-    [editor],
+    [editor, document.headingNumberingDefault],
   );
 
   useEffect(() => {
