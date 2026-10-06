@@ -1228,14 +1228,17 @@ Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stay
 
 설계는 [Filesystem Host Boundary의 Folder listing v1](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112)을 따른다.
 
-- sidebar `Open folder…`에 folder 경로를 입력하고 `Open`을 누른다. 열린 문서의 folder가 기본값이다. 문서는 바뀌지 않고, sidebar에 그 folder의 하위 folder와 `.md` 파일이 folder 먼저·이름순으로 보인다. `.`으로 시작하는 항목, 다른 파일, symlink는 보이지 않는다.
+- sidebar `Open folder…`는 앱 안의 폴더 탐색 대화상자를 연다. 열린 folder 또는 문서의 folder가 기본값이다. 경로 입력, 하위 폴더 클릭, Home·Documents·drive 시작점, Recent로 이동한다. Breadcrumb와 Up은 상위 이동이다. 이 탐색만으로는 sidebar와 문서가 바뀌지 않는다.
+- 경로 일부를 입력하면 하위 폴더가 걸러진다. Up/Down은 강조 위치를 바꾸고 Tab 또는 경로 끝의 Right는 그 폴더로 들어간다. 끝의 구분자에서 Backspace는 상위 이동이다. Enter 또는 `Open “이름”`은 강조된 항목이 아닌 입력 경로를 연다. Explorer에서 복사한 따옴표 경로와 한글 경로를 확인한다.
+- Open 후 문서는 바뀌지 않고, sidebar에 그 folder의 하위 folder와 `.md` 파일이 folder 먼저·이름순으로 보인다. `.`으로 시작하는 항목, 다른 파일, symlink는 보이지 않는다. Cancel/Escape는 입력과 탐색을 적용하지 않는다.
 - `.md` 파일 경로나 없는 경로를 입력하면 dialog 안에 이유가 나오고 목록은 그대로다.
 - 파일을 누르면 그 문서가 열리고 목록에서 현재 항목으로 표시된다. folder를 누르면 그 안으로 들어가고, 맨 위의 `↑ <상위 folder>`로 돌아온다. 고른 folder보다 위로는 가지 않는다.
 - 저장하지 않은 변경이 있을 때 다른 파일을 누르면 top bar 아래에 `Save or discard the current changes before opening another file.`가 보이고 현재 문서와 입력이 그대로다.
 - `New`로 보이는 folder에 문서를 만들면 목록에 나타난다. 그 밖의 외부 변경은 자동 반영하지 않는다. folder를 다시 누르면 새로 읽는다.
-- folder 이름 옆 `×`(Close folder)가 목록을 닫는다. 페이지를 새로고침하면 folder 선택은 사라진다(저장하지 않는다).
+- folder 이름 옆 `×`(Close folder)가 목록을 닫는다. 페이지를 새로고침하면 sidebar folder 선택은 사라진다. 성공적으로 연 경로는 Recent에 이 브라우저에서만 남는다. 실패·취소 경로는 추가하지 않는다. 대화상자를 다시 열면 폴더 목록을 새로 읽는다.
+- 1440px와 좁은 창에서 긴 경로·이름을 입력해도 대화상자가 창 안에 있고 Open/Cancel에 접근할 수 있는지 확인한다. 폭과 목록 높이는 `tokens.css`의 `--layout-folder-picker-width`, `--layout-folder-picker-list-height`로 조정한다.
 
-`pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, New 반영, Close folder를 확인한다.
+`pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 자동완성·키보드·breadcrumb/Up·취소, 늦은 응답의 무시, Recent의 새로고침 후 유지, 따옴표 경로, 좁은 창의 긴 이름, 없는 경로와 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, New 반영, Close folder를 확인한다. `--screenshots`는 같은 검증 중 수동 검토용 대화상자 화면을 `tmp/picker-capture/`에 남긴다.
 
 ## Document width (Standard / Wide)
 

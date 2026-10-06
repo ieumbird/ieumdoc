@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
@@ -19,7 +20,10 @@ import type {
   SaveResponse,
   SourceResponse,
   DocumentErrorResponse,
+  FolderBrowseResponse,
+  FolderCrumb,
   FolderEntry,
+  FolderPlacesResponse,
   FolderResponse,
 } from "../shared/document-protocol.ts";
 export type {
@@ -259,6 +263,19 @@ export async function handleDocumentRequest(
     }
     return;
   }
+  if (url === "/api/folder-browse" || url === "/api/folder-places") {
+    if (req.method !== "GET") {
+      res.statusCode = 405;
+      res.end();
+      return;
+    }
+    try {
+      sendJson(res, 200, url === "/api/folder-places" ? folderPlaces() : browseFolder(requestUrl.searchParams.get("path") ?? undefined));
+    } catch (error) {
+      sendJson(res, 400, errorPayload(error));
+    }
+    return;
+  }
   if (url === "/api/folder") {
     if (req.method !== "GET") {
       res.statusCode = 405;
@@ -348,16 +365,66 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
   const root = path.resolve(requestedRoot.trim());
   const folder = requestedPath?.trim() ? path.resolve(requestedPath.trim()) : root;
   if (!isInside(root, folder)) throw new Error("folder is outside the chosen folder");
+  return readFolder(folder, () => {
+    if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
+    return { root, path: folder, ...(path.relative(root, folder) === "" ? {} : { parent: path.dirname(folder) }) };
+  });
+}
+
+/**
+ * One level of any folder, for choosing which folder to open: the same entries as `listFolder`,
+ * and the folders from the filesystem root down to it. Only names are returned, never content.
+ */
+export function browseFolder(requestedPath: string | undefined): FolderBrowseResponse {
+  if (!requestedPath?.trim()) throw new Error("folder path is required");
+  const folder = path.resolve(requestedPath.trim());
+  return readFolder(folder, () => {
+    const crumbs: FolderCrumb[] = [];
+    for (let current = folder; ; current = path.dirname(current)) {
+      const root = path.dirname(current) === current;
+      crumbs.unshift({ name: root ? current.replace(/[\\/]+$/, "") || current : path.basename(current), path: current });
+      if (root) break;
+    }
+    return { path: folder, crumbs };
+  });
+}
+
+/** Where choosing a folder can start: the home and Documents folders, then each drive or `/`. */
+export function folderPlaces(): FolderPlacesResponse {
+  const home = os.homedir();
+  const documents = path.join(home, "Documents");
+  const drives = process.platform === "win32"
+    ? [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map(letter => `${letter}:\\`).filter(drive => fs.existsSync(drive))
+    : ["/"];
+  return {
+    places: [
+      { kind: "home", name: "Home", path: home },
+      ...(isDirectory(documents) ? [{ kind: "documents" as const, name: "Documents", path: documents }] : []),
+      ...drives.map(drive => ({ kind: "drive" as const, name: drive, path: drive })),
+    ],
+  };
+}
+
+function isDirectory(candidate: string): boolean {
+  try {
+    return statSync(candidate).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** Reads one level after `check` accepts the folder; filesystem failures become plain messages. */
+function readFolder<T>(folder: string, check: () => T): T & { entries: FolderEntry[] } {
   try {
     if (!statSync(folder).isDirectory()) throw new Error("folder path must point to a directory");
-    if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
+    const result = check();
     const entries = fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry): FolderEntry[] => {
       if (entry.name.startsWith(".")) return [];
       const kind = entry.isDirectory() ? "folder" : entry.isFile() && path.extname(entry.name).toLowerCase() === ".md" ? "document" : undefined;
       return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
     });
     entries.sort((a, b) => (a.kind === b.kind ? entryOrder.compare(a.name, b.name) : a.kind === "folder" ? -1 : 1));
-    return { root, path: folder, ...(path.relative(root, folder) === "" ? {} : { parent: path.dirname(folder) }), entries };
+    return { ...result, entries };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") throw new Error("folder does not exist");

@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
-import { readDocumentWidth, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
+import { readDocumentWidth, readRecentFolders, rememberRecentFolder, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
+import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
-import { splitDocumentPath } from "./shell/document-path.ts";
+import { splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
 import type {
@@ -17,6 +18,9 @@ import type {
   SaveResponse,
   SourceResponse,
   DocumentErrorResponse,
+  FolderBrowseResponse,
+  FolderPlace,
+  FolderPlacesResponse,
   FolderResponse,
   OrderItem,
   SupportedEdits,
@@ -45,6 +49,7 @@ export function App() {
   const [folderDialog, setFolderDialog] = useState(false);
   // The folder the user chose for this page session; never stored or watched.
   const [folder, setFolder] = useState<FolderResponse | null>(null);
+  const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [newDialog, setNewDialog] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
@@ -104,7 +109,7 @@ export function App() {
   }
 
   async function openFile(path: string): Promise<string> {
-    const requestedPath = path.trim();
+    const requestedPath = unquotePath(path);
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
     if (busy) return "Wait for the current operation to finish.";
@@ -114,12 +119,14 @@ export function App() {
     return load(requestedPath);
   }
 
-  /** Lists the folder the user typed; it becomes the sidebar folder on success. */
+  /** Lists the folder the user chose; it becomes the sidebar folder on success. */
   async function openFolder(path: string): Promise<string> {
-    const root = path.trim();
+    const root = unquotePath(path);
     if (!root) return "Enter a folder path.";
     try {
-      setFolder(await requestFolder(root));
+      const listed = await requestFolder(root);
+      setFolder(listed);
+      setRecentFolders(rememberRecentFolder(listed.root, recentFolders));
       return "";
     } catch (cause) {
       return messageOf(cause);
@@ -375,11 +382,12 @@ export function App() {
         onOpen={openFile}
         onClose={() => { if (!switching) setOpenDialog(false); }}
       />
-      <OpenDialog
-        folder
+      <FolderDialog
         open={folderDialog}
         initialPath={folder?.root ?? splitDocumentPath(openedPath).directory}
-        busy={false}
+        recent={recentFolders}
+        browse={browseHostFolder}
+        places={folderPlaces}
         onOpen={openFolder}
         onClose={() => setFolderDialog(false)}
       />
@@ -466,6 +474,22 @@ async function requestFolder(root: string, path?: string): Promise<FolderRespons
   const payload = (await response.json()) as Partial<FolderResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || !Array.isArray(payload.entries)) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload as FolderResponse;
+}
+
+/** Asks the Host for one level of any folder while choosing which folder to open. */
+async function browseHostFolder(path: string): Promise<FolderBrowseResponse> {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder-browse?${new URLSearchParams({ path })}`);
+  const payload = (await response.json()) as Partial<FolderBrowseResponse> & Partial<DocumentErrorResponse>;
+  if (!response.ok || !Array.isArray(payload.entries) || !Array.isArray(payload.crumbs)) throw new Error(payload.error ?? `request failed (${response.status})`);
+  return payload as FolderBrowseResponse;
+}
+
+/** Asks the Host where choosing a folder can start. */
+async function folderPlaces(): Promise<FolderPlace[]> {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder-places`);
+  const payload = (await response.json()) as Partial<FolderPlacesResponse> & Partial<DocumentErrorResponse>;
+  if (!response.ok || !Array.isArray(payload.places)) throw new Error(payload.error ?? `request failed (${response.status})`);
+  return payload.places;
 }
 
 /** Asks the Host for the canonical Markdown a Save request would write. */

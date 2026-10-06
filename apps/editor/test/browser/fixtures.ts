@@ -92,6 +92,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "index.md", create: () => "# Index\n\nStart here.\n" },
       { name: "notes.md", create: () => "# Notes\n\nNotes body.\n" },
       { name: "guides/install.md", create: () => "# Install\n\nInstall body.\n" },
+      { name: "자료/메모.md", create: () => "# 메모\n\n내용.\n" },
     ],
     scenarios: ["folder-navigation"],
   },

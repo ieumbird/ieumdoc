@@ -8,6 +8,9 @@
    * at 1440px); Wide is the user's Wide document preference and is capped by the window. */
   --layout-content-width: 58rem;
   --layout-content-width-wide: 80rem;
+  /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
+  --layout-folder-picker-width: 42rem;
+  --layout-folder-picker-list-height: 15rem;
 
   --id-color-canvas: var(--id-color-surface);
   --id-color-surface: #ffffff;

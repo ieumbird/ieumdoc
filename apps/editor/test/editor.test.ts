@@ -38,6 +38,8 @@ import {
   createDocumentFile,
   documentRevision,
   DocumentConflictError,
+  browseFolder,
+  folderPlaces,
   handleDocumentRequest,
   listFolder,
   loadDocumentFile,
@@ -739,6 +741,21 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     assert.deepEqual(top.entries.map(entry => `${entry.kind}:${entry.name}`),
       ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
     assert.equal(top.entries[1]?.path, path.join(path.resolve(chosen), "a9.md"));
+
+    // Choosing a folder can browse outside the eventual sidebar root, with Host-owned crumbs.
+    const browsed = browseFolder(chosen);
+    assert.deepEqual(browsed.entries, top.entries);
+    assert.equal(browsed.crumbs[0]?.path, path.parse(chosen).root);
+    assert.deepEqual(browsed.crumbs.at(-1), { name: "docs", path: chosen });
+    for (let index = 1; index < browsed.crumbs.length; index++) {
+      assert.equal(path.dirname(browsed.crumbs[index]!.path), browsed.crumbs[index - 1]!.path);
+    }
+    assert.ok(browseFolder(dir).entries.some(entry => entry.path === outside));
+    assert.throws(() => browseFolder(""), /folder path is required/);
+
+    const places = folderPlaces().places;
+    assert.ok(places.some(place => place.kind === "home" && fs.statSync(place.path).isDirectory()));
+    assert.ok(places.some(place => place.kind === "drive" && path.dirname(place.path) === place.path));
 
     const guides = listFolder(chosen, path.join(chosen, "guides"));
     assert.equal(guides.parent, path.resolve(chosen));
