@@ -102,7 +102,7 @@ test("labels that cannot be written, referenced or reloaded exactly fail closed"
   ] as const) {
     for (const index of [0, 1]) assert.throws(() => updateLabel(document, [index], label), reason, `${label} at ${index}`);
   }
-  assert.throws(() => updateLabel(parse("Text.\n"), [0], "p"), /requires a top-level Equation, Figure or Table/);
+  assert.throws(() => updateLabel(parse("Text.\n"), [0], "p"), /requires a top-level Equation, Figure, Table or target/);
   assert.throws(() => updateLabel(parse("- ```{math}\n  x\n  ```\n"), [0, 0, 0], "eq"), /top-level/);
   assert.equal(labelError("eq:1"), undefined);
   assert.equal(labelError("식-1"), undefined);

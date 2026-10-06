@@ -18,13 +18,14 @@ test("block source replaces one read-only block and reloads as authored content"
 });
 
 test("block source that stays read-only projects the applied source without an opened-file line", () => {
-  const document = replaceBlockSource(parse(SOURCE), 1, "![new logo](./new.png)\n");
+  const source = SOURCE.replace("Body text.", "![body](./body.png)");
+  const document = replaceBlockSource(parse(source), 1, "![new logo](./new.png)\n");
   const blocks = getEditableDocument(document).blocks;
   assert.deepEqual(blocks[1].original, { kind: "Markdown image", text: "![new logo](./new.png)" });
-  assert.deepEqual(blocks[2].original, { kind: "mystTarget", text: "(intro)=", line: 5 });
+  assert.deepEqual(blocks[4].original, { kind: "Markdown image", text: "![body](./body.png)", line: 9 });
   const again = replaceBlockSource(document, 1, "![third](./third.png)");
   assert.deepEqual(getEditableDocument(again).blocks[1].original, { kind: "Markdown image", text: "![third](./third.png)" });
-  assert.equal(serialize(again), SOURCE.replace("![logo](./logo.png)", "![third](./third.png)"));
+  assert.equal(serialize(again), source.replace("![logo](./logo.png)", "![third](./third.png)"));
 });
 
 test("block source is rejected unless it is one complete block the document can keep", () => {

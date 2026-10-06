@@ -483,6 +483,7 @@ pnpm ieumdoc insert-divider <file> --at <index>
 pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]
 pnpm ieumdoc remove-block <file> --at <index>
+pnpm ieumdoc insert-target <file> --at <index> --label <label>
 pnpm ieumdoc replace-block-source <file> --at <index> (--source <text> | --source-file <path>)
 pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc move-section <file> --from <heading index> --to <index>
@@ -518,7 +519,7 @@ index는 `check`가 출력하는 top-level 번호다.
 - merged cell 전용 시스템은 없다.
 - Visual Editor는 sidebar `Open…` dialog에 입력한 `.md` 경로 하나를 연다. 파일 탐색기는 없다. 그 문서는 Tiptap editor 하나다.
 - 화면에서 직접 저장할 수 있는 변경은 heading(줄바꿈 없는 지원 inline: 서식·link·inline code·inline math·reference)과 level, 단순 admonition(MyST 표준 종류) 본문과 종류, 문단 하나인 인용문, 구분선, text / strong / emphasis / 취소선 / 일반 link / inline code / inline math만 있는 paragraph다.
-- `{eq}`/`{numref}` 외의 cross-reference(`{ref}`, 표시 텍스트가 있는 형태 등), 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`는 아래 "Local cross-reference authoring v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가·삭제·이동하며 열 정렬을 바꿀 수 있다(아래 "Table authoring v1"). 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
+- 표시 텍스트가 있는 cross-reference(`{ref}`Text <x>`` 등), 그 밖의 role, 빈 텍스트 link(`[](#x)`), image를 감싼 link가 있는 paragraph와 admonition은 보이지만 읽기 전용이다(`{eq}`/`{numref}`/`{ref}`는 아래 "Local cross-reference authoring v1"과 "Section references v1"). 일반 link가 있는 paragraph는 수정할 수 있다(아래 "Inline link authoring v1"). Table은 지원되는 인라인 내용의 cell을 수정하고 행/열을 추가·삭제·이동하며 열 정렬을 바꿀 수 있다(아래 "Table authoring v1"). 지원되지 않는 인라인 요소가 있는 cell은 읽기 전용이다. 글머리표·번호 목록은 항목을 편집할 수 있다(아래 "List authoring v1"). task list와 복합 항목 목록은 읽기 전용이다. Equation은 Equation editor에서 LaTeX와 label을 수정할 수 있다. Figure는 image/alt/label과 일반 텍스트 caption을 Figure editor에서, 서식 있는 caption을 문서 안에서 수정한다(label은 아래 "Equation / Figure label authoring v1"). legend, 지원되지 않는 인라인 요소 등 표현할 수 없는 Figure 구조는 읽기 전용이다. CLI `update-node-text` 는 그대로다.
 - Enter는 paragraph와 heading을 나누고 heading 끝에서는 paragraph로 이어 쓴다. Backspace/Delete, 여러 블록 선택·클립보드·Undo/Redo를 지원한다. `+` / `/` insert menu, handle 메뉴의 문단↔제목 변환·Heading level 변경·삭제와 handle drag도 유지된다. 문단을 제목으로 바꾸면 서식·link·inline math·reference가 유지된다. 줄바꿈이 있는 문단은 제목으로 바꿀 수 없고 이유가 표시된다(#58). 자세한 경계는 아래 Continuous document editing을 따른다.
 - 빈 paragraph는 저장되지 않는다. 내용을 모두 지운 뒤 Save하면 실패해야 한다.
 - Editor가 연 뒤에 CLI가 같은 파일을 바꾸면 Save는 `Save conflict`로 거부된다. Editor의 저장하지 않은 입력은 자동으로 지워지지 않는다. 파일을 다시 읽으려면 페이지를 새로고침한다.
@@ -742,7 +743,7 @@ Host 실패는 Figure를 삽입하지 않는다. 파일 생성 뒤 삽입이 거
 
 ## Table cell editing v1
 
-Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가·삭제·이동과 열 정렬 변경은 아래 "Table authoring v1"을 본다. merged cell은 범위가 아니다.
+Core `updateTableCell`이 top-level Markdown(GFM) table의 cell 인라인 내용 전체를 바꾼다. 빈 cell과 문단에서 지원하는 서식·link·인라인 수식·교차 참조를 편집할 수 있다. 지원되지 않는 인라인 요소(예: 표시 텍스트가 있는 `{ref}`, `{sub}`)가 있는 cell은 읽기 전용이다. `{table}`, `{list-table}`, `{csv-table}` directive table은 지원하지 않는 block으로 남는다. 행/열 추가·삭제·이동과 열 정렬 변경은 아래 "Table authoring v1"을 본다. merged cell은 범위가 아니다.
 
 유효 조건(Core round-trip에서 확인한 조건이다):
 
@@ -888,7 +889,7 @@ Editor 전용 입력 상호작용이다(CLI parity 대상 아님). 각 단축은
 
 ## Formatted headings (#58, 제목)
 
-Core 제목 read model은 `content`(InlineContent)를 갖는다. 줄바꿈 없는 지원 inline(굵게·기울임·취소선·inline code·일반 link·inline math·`{eq}`/`{numref}`)만 있는 제목은 편집 가능하고, `{ref}` 등 지원하지 않는 inline이나 줄바꿈(Setext 제목 안의 `\`)이 있는 제목은 읽기 전용이다. `updateHeadingInlineContent`와 `insertHeading`(InlineContent 허용)은 canonical round-trip을 확인하고, 아니면 파일을 쓰지 않는다.
+Core 제목 read model은 `content`(InlineContent)를 갖는다. 줄바꿈 없는 지원 inline(굵게·기울임·취소선·inline code·일반 link·inline math·`{eq}`/`{numref}`/`{ref}`)만 있는 제목은 편집 가능하고, 표시 텍스트가 있는 reference 등 지원하지 않는 inline이나 줄바꿈(Setext 제목 안의 `\`)이 있는 제목은 읽기 전용이다. `updateHeadingInlineContent`와 `insertHeading`(InlineContent 허용)은 canonical round-trip을 확인하고, 아니면 파일을 쓰지 않는다.
 
 CLI:
 
@@ -1072,7 +1073,7 @@ pnpm exec playwright-cli -s=ieumdoc-label close
 
 현재 문서의 label이 있는 Equation(`{eq}`)과 Figure(`{numref}`)를 paragraph 안에서 참조한다. reference는 Core `InlineContent`의 `reference`(role + label)로 저장되고 canonical 형태는 `{eq}`label`` / `{numref}`label``다. `[text](#label)` 같은 일반 fragment link와는 서로 바뀌지 않는다.
 
-- 편집 대상은 표시 텍스트가 없는 `{eq}`label``, `{numref}`label``뿐이다. `{numref}`Figure %s <label>`` 같은 표시 텍스트, `{ref}`, link 안의 reference가 있는 paragraph는 계속 읽기 전용이다.
+- 편집 대상은 표시 텍스트가 없는 `{eq}`label``, `{numref}`label``, `{ref}`label``(아래 "Section references v1")뿐이다. `{numref}`Figure %s <label>`` 같은 표시 텍스트, link 안의 reference가 있는 paragraph는 계속 읽기 전용이다.
 - 삽입: 텍스트를 선택하고 selection toolbar의 `Cross-reference`(#)를 누르면 target을 고르는 작은 form이 열린다(선택한 텍스트와 같은 label이 있으면 미리 선택된다). caret 위치에서는 `/`를 입력하고 `Equation reference: …` / `Figure reference: …`를 고른다.
 - 해석되는 reference를 클릭하면 target 블록으로 이동해 선택한다. 해석되지 않는 reference를 클릭하거나, reference에 마우스를 올렸을 때 모서리에 나오는 연필 버튼(`Edit reference`)을 누르면 form이 열린다. form에서 target을 바꾸거나 `Remove`로 label 텍스트로 되돌릴 수 있다. 굵게/기울임은 reference에도 적용되고, link는 적용되지 않는다. split / merge / hard break에서 reference는 한 글자로 센다.
 - 번호(#88): MyST처럼 display equation, figure, 캡션이 있는 table에 문서 순서대로 번호가 붙는다(label이 없어도, `:enumerated: false`는 제외, admonition 안 수식처럼 중첩된 것도 센다). Editor는 수식 오른쪽에 `(n)`, 그림 캡션 앞에 `Figure n.`, 해석되는 reference에 `Eq. (n)` / `Fig. n`을 보여 준다. 블록을 추가·이동·삭제하면 즉시 다시 계산되고, 번호는 파일에 쓰지 않는다. `pnpm ieumdoc inspect`는 `numbers=equation:1`(JSON `numbers`)로 같은 번호를 보여 준다. front matter의 번호 설정은 아직 읽지 않는다.
@@ -1143,6 +1144,20 @@ Editor:
 - 저장 가능한 편집 세션은 매 Save/Source 요청에서 현재 적용 내용을 Core로 검증한다. 실패하면 파일을 쓰지 않고 세션을 보존한다.
 
 브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch 문서의 front matter·정렬 표·일반/인라인 이미지가 본문·셀 편집 → Save → Reload 뒤 보존되는지 확인한다. `{kbd}`가 있는 문서에서는 입력·Save 차단과 원문 열람을 확인한 뒤, 다른 Core-backed client가 문제 블록을 제거하고 Reload했을 때 편집·저장이 복구되는지 확인한다.
+
+## Section references v1
+
+설계는 [Section references v1](../design/section-references-v1.md)을 따른다.
+
+- 문단·제목·표 셀 등에서 `/`를 입력하고 `Section reference: <제목>`을 고르면 `{ref}` 참조가 들어간다. label이 없던 제목이면 같은 한 단계에서 제목 바로 위에 section label(`(sec-…)=`)이 생긴다. Undo 한 번이 둘 다 되돌린다.
+- 참조 chip은 `§ <제목 텍스트>`를 보여 주고, 누르면 그 제목으로 이동한다. 대상이 없으면 label을 보여 주고 미해결로 표시한다.
+- 제목 블록 메뉴의 `Add section label`은 참조 없이 label만 붙인다. 자동 label은 제목의 영문·숫자로 만든 `sec-<slug>`이고, 한글 제목처럼 쓸 글자가 없으면 `sec-1`, `sec-2`처럼 번호를 붙인다. MyST는 ASCII label만 `(label)=` target으로 읽기 때문이다.
+- label 줄의 Edit에서 이름을 바꿀 수 있다. 규칙에 맞지 않거나(한글 등) 다른 target과 겹치면 폼에 이유가 나온다. 이름을 바꿔도 기존 참조는 따라 바뀌지 않는다(다른 label과 같다). label을 없애려면 그 줄을 삭제한다.
+- Save → Reload 뒤 label 줄과 참조가 그대로이고 참조가 해결된다. 섹션 이동·삭제는 label을 함께 옮긴다.
+
+CLI: `pnpm ieumdoc insert-target <file> --at <제목 index> --label <label>`, 이름 변경은 `update-label --path <target index>`, 삭제는 `remove-block`. `inspect`는 `target label="…"`을 보여 준다. 참조는 `--content`의 `{"kind":"reference","role":"ref","label":"…"}`로 넣는다.
+
+`pnpm browser:test section-reference`는 scratch 파일에서 label 생성과 참조 삽입의 한 단계 Undo/Redo, 제목 이동, label 규칙 안내, 블록 메뉴 label, Save → Reload를 확인한다.
 
 ## Block source editing v1 (#102)
 

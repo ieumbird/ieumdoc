@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { isResolved, referenceCommandItems, referenceOfCommand, referenceTargets } from "../src/cross-reference.tsx";
-import { editorExtensions } from "../src/editor-schema.tsx";
+import { EditorState } from "@tiptap/pm/state";
+import { addSectionLabel, isResolved, newSectionLabel, referenceCommandItems, referenceOfCommand, referenceTargets } from "../src/cross-reference.tsx";
+import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { fromTiptapContent } from "../src/tiptap-inline.ts";
 import {
@@ -103,8 +104,8 @@ test("ordinary fragment links and semantic references never convert into each ot
     { type: "crossReference", attrs: { role: "eq", label: "eq-a" }, marks: [{ type: "link", attrs: { href: "#eq-a" } }] },
   ] }] }), /cannot be inside a link/);
   assert.throws(() => fromTiptapContent({ type: "doc", content: [{ type: "paragraph", content: [
-    { type: "crossReference", attrs: { role: "ref", label: "sec-a" } },
-  ] }] }), /eq or numref role/);
+    { type: "crossReference", attrs: { role: "cite", label: "sec-a" } },
+  ] }] }), /eq, numref or ref role/);
 });
 
 test("targets come from applied Equation and Figure labels; resolution follows MyST label keys", () => {
@@ -126,11 +127,14 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   const relabeled = clone(projection);
   blockAt(relabeled, "3").attrs!.label = "eq-b";
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
-  // Slash items insert a reference to each matching target.
-  assert.deepEqual(referenceCommandItems(targets, "fig").map((item) => item.label), ["Figure reference: fig-a"]);
-  assert.deepEqual(referenceCommandItems(targets, "ref").map((item) => referenceOfCommand(item.id)),
-    targets.map(({ role, label }) => ({ role, label })));
-  assert.deepEqual(referenceCommandItems(targets, "heading"), []);
+  // Slash items insert a reference to each matching target, then label and reference a heading.
+  assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Figure reference: fig-a"]);
+  // "ref" also matches the heading "Refs".
+  assert.deepEqual(referenceCommandItems(doc, "ref").map((item) => referenceOfCommand(item.id)),
+    [...targets.map(({ role, label }) => ({ role, label })), { heading: 0, title: "" }]);
+  // Unlabeled headings are listed only for a search that names sections or their words.
+  assert.equal(referenceCommandItems(doc, "").length, targets.length);
+  assert.deepEqual(referenceCommandItems(doc, "heading").map((item) => item.label), ["Section reference: Refs"]);
 });
 
 test("unresolved references save unchanged; Source preview shows unsaved reference edits and matches Save", () => {
@@ -163,7 +167,36 @@ test("unresolved references save unchanged; Source preview shows unsaved referen
 });
 
 test("references outside the v1 subset keep their paragraph read-only", () => {
-  for (const markdown of ["See {numref}`Figure %s <fig-a>`.", "See {ref}`sec-a`.", "[{eq}`eq-a`](https://x.example)"]) {
+  for (const markdown of ["See {numref}`Figure %s <fig-a>`.", "See {ref}`Section A <sec-a>`.", "[{eq}`eq-a`](https://x.example)"]) {
     assert.equal(toTiptapDocument(loadEditableDocument(`${markdown}\n`)).content![0].type, "readonlyParagraph", markdown);
   }
+});
+
+test("a section label and a {ref} to its heading save through Core, and renaming the label saves", () => {
+  const markdown = "# Title\n\n## Intro\n\nSee the intro.\n\n## 개요\n";
+  const editable = loadEditableDocument(markdown);
+  const baseline = toTiptapDocument(editable);
+  const schema = getSchema(editorExtensions());
+  let rejected = 0;
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline), plugins: [structureGuardPlugin(baseline, () => rejected++)] });
+  // MyST reads only ASCII target labels: a heading without an ASCII slug gets a numbered one.
+  assert.equal(newSectionLabel(state.doc, 1), "sec-intro");
+  assert.equal(newSectionLabel(state.doc, 3), "sec-1");
+  state = state.apply(addSectionLabel(state, 1));
+  assert.equal(newSectionLabel(state.doc, 2), "sec-intro-2");
+  const paragraph = state.doc.child(3);
+  let at = 0;
+  for (let index = 0; index < 3; index++) at += state.doc.child(index).nodeSize;
+  state = state.apply(state.tr.insert(at + paragraph.nodeSize - 1, schema.nodes.crossReference.create({ role: "ref", label: "sec-intro" })));
+  assert.deepEqual(referenceTargets(state.doc), [{ role: "ref", label: "sec-intro", title: "Intro" }]);
+  assert.equal(rejected, 0);
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state))).markdown;
+  assert.equal(saved, "# Title\n\n(sec-intro)=\n\n## Intro\n\nSee the intro.{ref}`sec-intro`\n\n## 개요\n");
+
+  const reopened = loadEditableDocument(saved);
+  const projection = toTiptapDocument(reopened);
+  blockAt(projection, "1").attrs!.label = "intro";
+  assert.equal(saveEdits(saved, collectSupportedEdits(reopened, projection)).markdown, saved.replace("(sec-intro)=", "(intro)="));
+  blockAt(projection, "1").attrs!.label = "";
+  assert.throws(() => collectSupportedEdits(reopened, projection), /section label cannot be empty/);
 });

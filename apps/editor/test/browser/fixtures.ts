@@ -46,6 +46,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "block-move": { files: technical, scenarios: ["block-move"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
+  "section-reference": {
+    files: [{ name: "sections.md", create: () => "# Guide\n\n## Install\n\nRun the installer.\n\n## Use\n\nSee the install section.\n\n## 개요\n\nKorean heading.\n" }],
+    scenarios: ["section-reference"],
+  },
   "block-source-editing": {
     files: [document("diagram.svg"), { name: "block-source.md", create: () =>
       "# Block source\n\n![Diagram](./diagram.svg)\n\n*   [ ] Draft\n*   [x] Review\n\nBody.\n" }],

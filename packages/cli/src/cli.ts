@@ -11,6 +11,7 @@ import {
   insertEquation,
   insertFigure,
   insertTable,
+  insertTarget,
   insertTableRow,
   insertTableColumn,
   moveTableColumn,
@@ -507,11 +508,22 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "insert-target",
+    summary: "Label the next block, typically a section heading, with a (label)= target",
+    usage: "ieumdoc insert-target <file> --at <index> --label <label>",
+    details: [
+      "Insert a (label)= target at a top-level index. Before a heading, {ref}`label` references name that section.",
+      "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters and must not name another target.",
+      "Rename a target with update-label and remove it with remove-block.",
+    ],
+  },
+  {
     name: "update-label",
-    summary: "Set, change, or remove an Equation, Figure or Table label through Core",
+    summary: "Set, change, or remove an Equation, Figure, Table or target label through Core",
     usage: "ieumdoc update-label <file> --path <index> --label <label>",
     details: [
       "Set the label (reference target name) of one top-level Equation, Figure or Table. Use an empty --label to remove it.",
+      "A (label)= target can be renamed but not emptied; remove it with remove-block.",
       "The label must be one line without leading or trailing spaces, be referenceable, and not name another target in the document.",
       "References to the old label are not renamed.",
       ...PATH_NOTE,
@@ -765,6 +777,10 @@ function main(argv: string[]): number {
       save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
     }
+    case "insert-target": {
+      save(file, insertTarget(parse(readFile(file)), intFlag(flags, "--at"), flag(flags, "--label")));
+      return 0;
+    }
     case "remove-block": {
       save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -892,6 +908,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
+  "insert-target": ["--at", "--label"],
   "replace-block-source": ["--at", "--source", "--source-file"],
   "move-block": ["--from", "--to"],
   "move-section": ["--from", "--to"],
@@ -1036,6 +1053,9 @@ function machineBlock(block: EditableBlock): MachineNode[] {
   if (block.block === "code") {
     return [{ ...base, language: block.language, code: block.code }];
   }
+  if (block.block === "target") {
+    return [{ ...base, label: block.label }];
+  }
   if (block.block === "list") {
     return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
   }
@@ -1099,6 +1119,9 @@ function formatBlock(block: EditableBlock): string[] {
   }
   if (block.block === "code") {
     return [`${path} code language=${quote(block.language)} code=${quote(block.code)}`];
+  }
+  if (block.block === "target") {
+    return [`${path} target label=${quote(block.label)}`];
   }
   return [`${path} unsupported text=${quote(block.text)}`];
 }

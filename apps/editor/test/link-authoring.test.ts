@@ -50,7 +50,7 @@ test("paragraphs with ordinary links project to editable paragraphs with link ma
   assert.deepEqual(paragraph.content?.find((node) => node.text === "docs")?.marks,
     [{ type: "bold" }, { type: "link", attrs: { href: "https://a.example/docs", title: null } }]);
   // {eq} references are editable since cross-reference authoring; see cross-reference.test.ts.
-  for (const readonly of ["See {ref}`sec-a` here.", "See [](#target) here.", "[a](x)[b](x)"]) {
+  for (const readonly of ["See {ref}`Section A <sec-a>` here.", "See [](#target) here.", "[a](x)[b](x)"]) {
     assert.equal(toTiptapDocument(loadEditableDocument(`${readonly}\n`)).content![0].type, "readonlyParagraph", readonly);
   }
 });

@@ -96,6 +96,7 @@ const KNOWN_BLOCKS = new Set([
   "bulletList",
   "orderedList",
   "codeBlock",
+  "labelTarget",
   "unsupportedBlock",
 ]);
 
@@ -241,6 +242,9 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       if (sameInline(content, block.content)) continue;
       if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
       quotes.push({ path: block.path, content });
+    } else if (block.block === "target") {
+      const label = targetLabel(node);
+      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
     } else if (block.block === "code") {
       const code = codeContent(node);
       if (code.language !== block.language || code.code !== block.code) codes.push({ path: block.path, code });
@@ -510,6 +514,9 @@ function toTiptapBlock(block: EditableBlock): TiptapJSON {
       })),
     };
   }
+  if (block.block === "target") {
+    return { type: "labelTarget", attrs: { sourcePath: pathKey(block.path), label: block.label } };
+  }
   return readonlyNode("unsupportedBlock", block.path, { text: block.text });
 }
 
@@ -644,7 +651,10 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "codeBlock") {
     return { block: "code", ...codeContent(node) };
   }
-  throw new Error("only paragraphs, headings, admonitions, quotes, dividers, equations, figures, tables, lists, and code blocks can be inserted");
+  if (node.type === "labelTarget") {
+    return { block: "target", label: targetLabel(node) };
+  }
+  throw new Error("only paragraphs, headings, admonitions, quotes, dividers, equations, figures, tables, lists, code blocks and section labels can be inserted");
 }
 
 export function figureContent(node: TiptapJSON): FigureContent {
@@ -762,6 +772,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     if (normalizeAttr(before.attrs?.sourcePath) !== normalizeAttr(after.attrs?.sourcePath) || (after.content ?? []).length > 0) {
       throw new Error("a divider cannot change");
     }
+    return;
+  }
+  if (beforeType === "labelTarget") {
+    targetLabel(after);
     return;
   }
   if (READONLY_BLOCKS.has(beforeType)) {
@@ -887,6 +901,13 @@ export function tableCaption(node: TiptapJSON): InlineContent[] {
   const caption = node.attrs?.caption ?? [];
   if (!Array.isArray(caption)) throw new Error("table caption must be InlineContent");
   return fromTiptapContent(toTiptapContent(caption as InlineContent[]));
+}
+
+/** A section label target always has a label; removing it removes the block. */
+function targetLabel(node: TiptapJSON): string {
+  const label = blockLabel(node);
+  if (label.length === 0) throw new Error("a section label cannot be empty; delete it instead");
+  return label;
 }
 
 function blockLabel(node: TiptapJSON): string {

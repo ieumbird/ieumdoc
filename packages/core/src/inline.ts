@@ -2,9 +2,10 @@ import { labelError } from "./label.ts";
 import { labelIdentifier } from "./myst/label.ts";
 import type { MystNode } from "./myst/tree.ts";
 
-/** Reference roles authored as inline content: {eq} for Equations and {numref} for Figures. */
-export type ReferenceRole = "eq" | "numref";
-const REFERENCE_ROLES = new Set<string>(["eq", "numref"]);
+/** Reference roles authored as inline content: {eq} for Equations, {numref} for Figures and
+ * Tables, and {ref} for sections, through the `(label)=` target before their heading. */
+export type ReferenceRole = "eq" | "numref" | "ref";
+const REFERENCE_ROLES = new Set<string>(["eq", "numref", "ref"]);
 
 export type InlineContent =
   | { kind: "break" }
@@ -43,8 +44,8 @@ export type InlineContent =
       children: InlineContent[];
     }
   | {
-      /** A local cross-reference to a labeled Equation ({eq}) or Figure ({numref}), written
-       * without custom text. The label is kept as written; it may name no target. */
+      /** A local cross-reference to a labeled Equation ({eq}), Figure or Table ({numref}), or
+       * section ({ref}), written without custom text. The label is kept as written; it may name no target. */
       kind: "reference";
       role: ReferenceRole;
       label: string;
@@ -102,8 +103,8 @@ function projectNode(node: MystNode): InlineContent | undefined {
       Object.keys(node).every((key) => key === "type" || key === "value" || key === "position")) {
     return { kind: "code", value: node.value };
   }
-  // Only `{eq}`label`` and `{numref}`label``: custom text (`Figure %s <label>`) and
-  // other roles such as {ref} stay unsupported.
+  // Only `{eq}`label``, `{numref}`label`` and `{ref}`label``: custom text (`Figure %s <label>`)
+  // and other roles stay unsupported.
   if (node.type === "crossReference" && typeof node.kind === "string" && REFERENCE_ROLES.has(node.kind) &&
       typeof node.label === "string" && node.label.length > 0 && node.identifier === labelIdentifier(node.label) &&
       Object.keys(node).every((key) => REFERENCE_FIELDS.has(key))) {

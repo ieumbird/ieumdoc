@@ -36,7 +36,7 @@ test("cells of supported inline content and empty cells are editable; other cell
     [{ text: "U", header: false, editable: true }, { text: "AC", header: false, editable: true }],
     [{ text: "P", header: false, editable: true }, { text: "DC", header: false, editable: true }],
   ]);
-  const mixed = parse("| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) | {ref}`intro` |\n");
+  const mixed = parse("| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) | {ref}`Intro <intro>` |\n");
   assert.deepEqual(cells(mixed, 0)[1].map((cell) => cell.editable), [true, true, true, true, false]);
   const block = getEditableDocument(mixed).blocks[0];
   assert.deepEqual(block.block === "table" && block.rows[1].cells.map((cell) => cell.content), [
@@ -116,7 +116,7 @@ test("updateTableCell fails closed without mutating the document", () => {
     assert.throws(() => updateTableCell(document, path, text), reason, `${path} ${JSON.stringify(text)}`);
   }
   assert.deepEqual(document, before);
-  const readonlyCell = parse("| A |\n| --- |\n| {ref}`b` |\n");
+  const readonlyCell = parse("| A |\n| --- |\n| {ref}`B <b>` |\n");
   assert.throws(() => updateTableCell(readonlyCell, [0, 1, 0], "b"), /not editable/);
   // Table directives are not Markdown tables and stay read-only.
   const directive = parse(":::{list-table}\n* - a\n:::\n");
@@ -209,11 +209,11 @@ test("aligned tables retain column semantics across cell edits and row/column in
 });
 
 test("table rows and columns can be removed and moved, keeping read-only cells and alignment", () => {
-  const source = "| A | B | C |\n| :-- | :-: | --: |\n| a1 | {ref}`intro` | c1 |\n| a2 | b2 | c2 |\n";
+  const source = "| A | B | C |\n| :-- | :-: | --: |\n| a1 | {ref}`Intro <intro>` | c1 |\n| a2 | b2 | c2 |\n";
   let document = moveTableRow(parse(source), [0], 2, 1);
   document = moveTableColumn(document, [0], 0, 2);
   let markdown = serialize(document);
-  assert.equal(markdown, "|       B      |  C | A  |\n| :----------: | -: | :- |\n|      b2      | c2 | a2 |\n| {ref}`intro` | c1 | a1 |\n");
+  assert.equal(markdown, "|           B          |  C | A  |\n| :------------------: | -: | :- |\n|          b2          | c2 | a2 |\n| {ref}`Intro <intro>` | c1 | a1 |\n");
   assert.equal(serialize(parse(markdown)), markdown);
   assert.deepEqual(cells(parse(markdown), 0)[2].map(cell => cell.editable), [false, true, true]);
   document = removeTableColumn(removeTableRow(document, [0], 2), [0], 1);

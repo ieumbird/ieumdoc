@@ -77,7 +77,7 @@ export type ListEdit = {
   list: ListContent;
 };
 
-/** An Equation or Figure label; an empty `to` removes it. */
+/** An Equation, Figure, Table or section target label; an empty `to` removes it (never a target's). */
 export type LabelEdit = {
   path: NodePath;
   from: string;
@@ -100,7 +100,9 @@ export type InsertEdit =
   | ({ block: "figure"; label?: string } & FigureContent)
   | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string }
   | { block: "list"; list: ListContent }
-  | ({ block: "code" } & CodeBlockContent);
+  | ({ block: "code" } & CodeBlockContent)
+  /** A `(label)=` target, labeling the block after it (a section heading in the Editor). */
+  | { block: "target"; label: string };
 
 /** New MyST source for a read-only snapshot block; Core replaces the block in place. */
 export type BlockSourceEdit = {

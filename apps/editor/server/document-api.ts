@@ -14,6 +14,7 @@ import {
   insertEquation,
   insertFigure,
   insertTable,
+  insertTarget,
   insertTableColumn,
   insertTableRow,
   moveTableColumn,
@@ -436,7 +437,7 @@ export function saveEdits(
   for (const edit of labels) {
     assertPath(edit.path, "label");
     const block = blockAt(editable, edit.path);
-    if (edit.path.length !== 1 || !(block?.block === "equation" || block?.block === "table" || (block?.block === "figure" && block.editable))) {
+    if (edit.path.length !== 1 || !(block?.block === "equation" || block?.block === "table" || block?.block === "target" || (block?.block === "figure" && block.editable))) {
       throw new Error(`label edit is not allowed at [${edit.path.join(",")}]`);
     }
     if (edit.from !== (block.label ?? "") || typeof edit.to !== "string") {
@@ -444,7 +445,9 @@ export function saveEdits(
     }
   }
   // Clear the changed labels first, so labels can move between blocks in one save.
+  // A section label target is its label and is only renamed.
   for (const edit of labels) {
+    if (blockAt(editable, edit.path)?.block === "target") continue;
     const target = { path: edit.path, part: 0 };
     document = editAt(target, () => updateLabel(document, edit.path, ""));
   }
@@ -541,8 +544,8 @@ export function saveEdits(
       }
       continue;
     }
-    // Core validates list and code block content itself when it is inserted.
-    if (insert.block === "list" || insert.block === "code" || insert.block === "divider") continue;
+    // Core validates list and code block content and target labels itself when it inserts them.
+    if (insert.block === "list" || insert.block === "code" || insert.block === "divider" || insert.block === "target") continue;
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
       throw new Error("invalid heading insertion");
     }
@@ -611,6 +614,8 @@ export function saveEdits(
       document = editAt(target, () => insertList(document, index, item.list));
     } else if (item.block === "code") {
       document = editAt(target, () => insertCodeBlock(document, index, { language: item.language, code: item.code }));
+    } else if (item.block === "target") {
+      document = editAt(target, () => insertTarget(document, index, typeof item.label === "string" ? item.label : ""));
     } else {
       document = editAt(target, () => insertFigure(document, index, figureContent(item)));
     }

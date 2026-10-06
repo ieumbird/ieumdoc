@@ -9,7 +9,7 @@ export type SectionMarker = number | "target" | null;
 /** Classifies a read-model block (Core's EditableBlock, or an editor block of the same shape). */
 export function sectionMarker(block: { block: string; level?: number; original?: { kind: string } }): SectionMarker {
   if (block.block === "heading" && typeof block.level === "number") return block.level;
-  return block.block === "unsupported" && block.original?.kind === "mystTarget" ? "target" : null;
+  return block.block === "target" || (block.block === "unsupported" && block.original?.kind === "mystTarget") ? "target" : null;
 }
 
 /**

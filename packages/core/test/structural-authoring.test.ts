@@ -101,7 +101,7 @@ test("public Core changes an H2 to H4 without changing its text or surrounding b
 test("public Core rejects invalid heading changes without mutating the source", () => {
   const source = "# Keep title\n\n## Stable heading\n\nUnchanged paragraph.\n";
   const document = parse(source);
-  const readonlyHeading = parse("## See {ref}`intro`\n");
+  const readonlyHeading = parse("## See {ref}`Intro <intro>`\n");
   const readonlyBefore = serialize(readonlyHeading);
   const before = serialize(document);
   const invalid = [
@@ -119,7 +119,7 @@ test("public Core rejects invalid heading changes without mutating the source", 
   assert.equal(serialize(readonlyHeading), readonlyBefore);
   const readonly = getEditableDocument(readonlyHeading).blocks[0];
   assert.deepEqual(readonly?.block === "heading" && [readonly.editable, readonly.content, readonly.original?.text],
-    [false, [], "## See {ref}`intro`"]);
+    [false, [], "## See {ref}`Intro <intro>`"]);
 });
 
 test("public Core converts a paragraph to a heading and back without losing inline content", () => {
@@ -205,7 +205,7 @@ test("public Core writes formatted headings and rejects line breaks or read-only
   const updated = getEditableDocument(parse(serialize(updateHeadingInlineContent(inserted, [1], edited)))).blocks[1];
   assert.deepEqual(updated?.block === "heading" && [updated.level, updated.content], [2, edited]);
 
-  const document = parse("## See {ref}`intro`\n\nIntro.\n\n## Plain\n");
+  const document = parse("## See {ref}`Intro <intro>`\n\nIntro.\n\n## Plain\n");
   const before = serialize(document);
   for (const operation of [
     () => updateHeadingInlineContent(document, [0], [{ kind: "text", text: "Flattened" }]),

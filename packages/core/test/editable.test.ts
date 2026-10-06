@@ -148,7 +148,7 @@ test("a heading with supported inline content is editable; line breaks and unsup
     { kind: "text", text: "Plain " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] },
     { kind: "text", text: " and " }, { kind: "math", value: "x" }, { kind: "text", text: " title" },
   ]);
-  for (const markdown of ["Two\\\nlines\n===\n", "# See {ref}`intro`\n"]) {
+  for (const markdown of ["Two\\\nlines\n===\n", "# See {ref}`Intro <intro>`\n"]) {
     const readonly = getEditableDocument(parse(markdown)).blocks[0];
     assert.deepEqual(readonly?.block === "heading" && [readonly.editable, readonly.content], [false, []], markdown);
   }

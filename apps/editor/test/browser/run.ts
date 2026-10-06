@@ -100,6 +100,7 @@ export const STABLE_SCENARIOS = [
   "label-authoring",
   "cross-reference",
   "block-source-editing",
+  "section-reference",
 ];
 
 const require = createRequire(import.meta.url);
