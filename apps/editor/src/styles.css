@@ -651,6 +651,7 @@ ol.list { list-style: decimal; }
 }
 
 .table-scroll { overflow-x: auto; }
+.table-block > .block-metadata { min-height: var(--size-control-compact); }
 .table-grid { position: relative; min-width: 100%; width: max-content; padding: 32px 32px 44px; box-sizing: border-box; }
 .table-tools { visibility: hidden; }
 .table-block:is(:hover, :focus-within, [data-selected="true"]) .table-tools,

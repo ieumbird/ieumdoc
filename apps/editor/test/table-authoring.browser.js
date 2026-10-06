@@ -55,6 +55,8 @@ async page => {
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
     await initial.getByRole('button', {name:'Column A actions', exact:true}).getAttribute('aria-pressed') === 'true';
+  result.toolsDoNotOverlapEdit = await initial.evaluate(block => block.querySelector('.table-edit').getBoundingClientRect().bottom <=
+    block.querySelector('.table-column-handle').getBoundingClientRect().top);
   await initial.getByRole('button', {name:'Append row', exact:true}).click();
   result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
     const editor = document.querySelector('.document-editor').editor;
