@@ -1,3 +1,4 @@
+import { ListOrdered, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -29,7 +30,11 @@ type TopBarProps = {
   reloadDisabled?: boolean;
 };
 
-/** Document identity on the left; document state and document-level actions on the right. */
+/**
+ * Document identity and its state on the left, so status changes never move the controls.
+ * On the right: the document setting, the view, then file actions. Only Save with unsaved
+ * changes takes the accent; every other control is a quiet ghost button.
+ */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
   onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled,
@@ -49,9 +54,11 @@ export function TopBar({
     disabled: viewDisabled || Boolean(sourceHint),
     "data-testid": "view-source",
   };
+  const saveVariant = unsaved ? "default" : "outline";
   const saveButton = (
     <Button
       type="button"
+      variant={saveVariant}
       onClick={onSave}
       disabled={saveDisabled}
       focusableWhenDisabled={Boolean(saveHint)}
@@ -60,16 +67,25 @@ export function TopBar({
   );
   return (
     <header className="top-bar">
-      <p className="document-path" data-testid="current-file" title={documentPath || undefined}>
-        {documentPath ? (
-          <span className="document-path-name">{name}</span>
-        ) : (
-          "No file opened"
-        )}
-      </p>
+      <div className="top-bar-identity">
+        <p className="document-path" data-testid="current-file" title={documentPath || undefined}>
+          {documentPath ? (
+            <span className="document-path-name">{name}</span>
+          ) : (
+            "No file opened"
+          )}
+        </p>
+        <p className="status" data-testid="status" data-operation={status} role="status">
+          {displayStatus}
+        </p>
+      </div>
       <div className="top-bar-actions">
-        {onToggleHeadingNumbering ? <Button type="button" size="sm" variant="ghost" aria-label="Number headings" title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>1. H</Button> : null}
-        {onReload ? <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled}>Reload</Button> : null}
+        {onToggleHeadingNumbering ? (
+          <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Number headings"
+            title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>
+            <ListOrdered aria-hidden="true" />
+          </Button>
+        ) : null}
         <div className="view-toggle" role="group" aria-label="Document view">
           <Button
             type="button"
@@ -92,16 +108,19 @@ export function TopBar({
             <Button {...sourceProps}>Source</Button>
           )}
         </div>
-        <p className="status" data-testid="status" data-operation={status} role="status">
-          {displayStatus}
-        </p>
+        {onReload ? (
+          <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled} title="Reload the file from disk">
+            <RotateCcw aria-hidden="true" />
+            Reload
+          </Button>
+        ) : null}
         {saveHint ? (
           <Tooltip>
             <TooltipTrigger render={saveButton}>Save</TooltipTrigger>
             <TooltipContent>{saveHint}</TooltipContent>
           </Tooltip>
         ) : (
-          <Button type="button" onClick={onSave} disabled={saveDisabled} data-testid="save"
+          <Button type="button" variant={saveVariant} onClick={onSave} disabled={saveDisabled} data-testid="save"
             title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
             Save
           </Button>

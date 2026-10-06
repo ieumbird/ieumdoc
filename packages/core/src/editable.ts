@@ -206,14 +206,14 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
       block: "admonition",
       path,
       variant: typeof node.kind === "string" && node.kind.length > 0 ? node.kind : "note",
-      text: toText(node),
+      text: readableText(node),
       content: content ?? [],
       editable: content !== undefined,
     };
   }
   if (node.type === "blockquote") {
     const content = supportedQuoteContent(node);
-    return { block: "quote", path, text: toText(node), content: content ?? [], editable: content !== undefined };
+    return { block: "quote", path, text: readableText(node), content: content ?? [], editable: content !== undefined };
   }
   if (isDivider(node)) {
     return { block: "divider", path };
@@ -247,8 +247,17 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   return {
     block: "unsupported",
     path,
-    text: toText(node),
+    text: readableText(node),
   };
+}
+
+const INLINE_CONTAINERS = new Set(["paragraph", "heading", "caption", "tableCell"]);
+
+/** Display text of unsupported content: inline text as MyST joins it, block children (list items,
+ * paragraphs) separated by a space so they never run together. */
+function readableText(node: MystNode): string {
+  if (INLINE_CONTAINERS.has(node.type) || !node.children?.length) return toText(node);
+  return node.children.map(readableText).filter(Boolean).join(" ");
 }
 
 function figureBlock(node: MystNode, path: NodePath): EditableBlock {

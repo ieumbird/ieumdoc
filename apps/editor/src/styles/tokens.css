@@ -8,7 +8,6 @@
   --id-color-surface-info: #f5f7fa;
   --id-color-surface-danger: #fff1f0;
   --id-color-surface-warning: #fff8ed;
-  --id-color-surface-admonition: #f2f6fa;
   --id-color-text: #29272b;
   --id-color-text-muted: #59565c;
   --id-color-text-subtle: #6a656c;
@@ -17,6 +16,8 @@
   /* Preserve the existing heritage red. */
   --id-color-accent: oklch(0.459 0.183 15.405);
   --id-color-accent-hover: oklch(0.399 0.16 15.405);
+  /* Two blue axes. Interaction: focus, selection, the current item and drag. Content (info):
+   * links, references and informational callouts. Chrome recedes in neutrals. */
   --id-color-interaction: #426782;
   --id-color-interaction-soft: #e9f0f5;
   --id-color-border: #dedbdd;
@@ -26,7 +27,6 @@
   --id-color-danger: #a12b32;
   --id-color-info: #365f85;
   --id-color-warning: #875717;
-  --id-color-admonition: #647b8f;
 
   --font-family-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
   --font-family-document: var(--font-family-sans);

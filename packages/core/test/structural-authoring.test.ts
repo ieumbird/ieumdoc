@@ -179,7 +179,7 @@ test("public Core inserts and edits one-paragraph quotes and dividers with stabl
 test("quotes with several paragraphs stay read-only and invalid quote writes change nothing", () => {
   const document = parse("> One.\n>\n> Two.\n\nPlain.\n");
   const quote = getEditableDocument(document).blocks[0];
-  assert.deepEqual(quote?.block === "quote" && [quote.editable, quote.text], [false, "One.Two."]);
+  assert.deepEqual(quote?.block === "quote" && [quote.editable, quote.text], [false, "One. Two."]);
   const before = serialize(document);
   for (const operation of [
     () => updateQuoteInlineContent(document, [0], [{ kind: "text", text: "Flattened." }]),

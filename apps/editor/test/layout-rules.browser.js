@@ -82,5 +82,16 @@ async page => {
   const keyboard=await editing();
   const caretColor=await page.evaluate(color=>{const probe=document.createElement('span');probe.style.color=color;document.body.append(probe);const value=getComputedStyle(probe).color;probe.remove();return value;},clicked.interaction);
   if(![clicked,cell,keyboard].every(noFrame)||clicked.caret!==caretColor)throw Error(`Editing frames the document: ${JSON.stringify({clicked,cell,keyboard,caretColor})}`);
+  // Chrome stays put: a status message appearing never moves the top bar controls.
+  await page.setViewportSize({width:1440,height:1000});
+  const controls=()=>page.locator('.top-bar-actions button').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
+  const clean=await controls();
+  await page.locator('.document-editor > .paragraph').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  await page.locator('[data-testid="status"]',{hasText:'Unsaved changes'}).waitFor();
+  const dirty=await controls();
+  await page.keyboard.press('Control+z');
+  if(JSON.stringify(clean)!==JSON.stringify(dirty))throw Error(`Status moved the top bar controls: ${JSON.stringify({clean,dirty})}`);
   return results;
 }

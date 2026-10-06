@@ -53,9 +53,11 @@ async page => {
   result.goesToHeading = true;
 
   // MyST reads only ASCII target labels; the form says so before anything is saved.
-  const label = page.getByTestId('label-target');
-  await label.hover();
-  await page.getByTestId('label-target-edit').click();
+  // A section label is hidden at rest and shows with its heading.
+  const edit = page.getByTestId('label-target-edit');
+  assert(await edit.evaluate(node => getComputedStyle(node.parentElement).opacity) === '0', 'Section label is visible at rest');
+  await editor.locator('h2').filter({hasText:/^Install$/}).hover();
+  await edit.click();
   await page.getByTestId('label-target-input').fill('설치');
   await page.getByTestId('label-target-apply').click();
   await page.getByTestId('label-target-properties').getByText(/ASCII/).waitFor();
