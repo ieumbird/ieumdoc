@@ -53,7 +53,7 @@ export function App() {
   const [writeError, setWriteError] = useState("");
   const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
   const draftNotice = equationDraftActive || figureDraftActive
-    ? "Save and Source include applied content only. Equation and Figure drafts remain unsaved until Apply."
+    ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");

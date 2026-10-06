@@ -1167,3 +1167,12 @@ Editor:
 - Core `insertParagraph`는 문자열 또는 `InlineContent[]`를 받는다. CLI `insert-block --content`로 rich 문단을 삽입하며 `--text`와 동시에 주면 쓰기 전에 거부한다.
 
 `pnpm browser:test continuous-editing`은 실제 시스템 clipboard, native keys, 저장을 사이에 둔 Undo/Redo, 수식 라벨의 복사 제한·이동, 블록 양끝 입력, Chromium 조합 입력의 Save/Reload를 검증한다. OS 한국어 IME는 별도로 직접 확인한다: 문단에서 한글을 조합·확정하고 Backspace·문단 경계 이동 뒤 Save → Reload해 누락·중복이 없는지 본다.
+
+
+## Table caption and label v1 (#94)
+
+Hover a table and choose Edit. Set Caption and Label, then Apply. Cancel must keep the previously applied grid and properties. Save → Reload must preserve the caption, label, cells and column alignment; subsequent cell and row/column changes must still save. A caption or label shows Table numbering. Type `/tbl` in a paragraph to choose a labeled Table reference; the chip shows Table n and clicking it navigates to the table. `pnpm browser:test table-authoring table-cell-editing` verifies the supported flow on scratch files. Additional directive options and legends remain read-only. See [Table caption v1](../design/table-caption-v1.md).
+
+## Heading numbering v1 (#96)
+
+Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stays a document title; H2-H6 display 1, 1.1 and deeper numbers in both the page and Outline. Undo/Redo restores the setting. Save → Reload keeps it, while Source shows only numbering metadata and the original heading text. Click again and save to disable numbers. Existing section move/delete commands recalculate the numbers. `pnpm browser:test outline` verifies the setting, page/Outline agreement and actual persistence. See [Heading numbering v1](../design/heading-numbering-v1.md).

@@ -113,7 +113,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const moveBlockedHint = (index: number) => {
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
     if (activeEquationDrafts.current.has(path)) return EQUATION_DRAFT_MOVE_HINT;
-    if (activeFigureDrafts.current.has(path)) return FIGURE_DRAFT_MOVE_HINT;
+    if (activeFigureDrafts.current.has(path)) return editor.state.doc.maybeChild(index)?.type.name === "table"
+      ? "Apply or Cancel the Table edit before moving it." : FIGURE_DRAFT_MOVE_HINT;
     return undefined;
   };
   const editor = useEditor({
