@@ -1,6 +1,6 @@
-# Editor Visual Language v1 — Quiet Document
+# Editor Visual Language — Quiet Document
 
-- Status: Implemented (2026-09-25); visual approval remains with the user.
+- Status: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
@@ -20,13 +20,13 @@
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
-| Callout | UI stack, 14/21px; standard admonition kinds use informational, caution and danger surfaces; plain variant title, explicit read-only restriction when applicable |
+| Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title, explicit read-only restriction when applicable |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 
 Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. No font package, binary or CDN dependency is added. This Windows browser uses installed Noto Sans KR for both scripts; the stack remains usable offline without Pretendard. Pretendard packaging is deferred beyond this polish and would require license/bundle review. Heading sizes/weights/line heights are unchanged; the former H1 negative tracking is removed.
 
-Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply. `--id-color-interaction` is `#426782`, with `--id-color-interaction-soft: #e9f0f5` for selection/pressed surfaces; focus, outlines, links and the drag indicator use this role. `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. Keyboard control focus uses a 2px solid ring; selection has an outline and controls, and errors retain explanatory text. Normal UI text targets 4.5:1 contrast; focus rings remain visible. Formula typography belongs to KaTeX, whose internals are not restyled. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
+Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply. `--id-color-interaction` is `#426782`, with `--id-color-interaction-soft: #e9f0f5` for selection surfaces; focus, selection outlines, the current table cell and the drag indicator use this role. Content links, references and informational callouts use `--id-color-info` (v2). `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. Keyboard control focus uses a 2px solid ring; selection has an outline and controls, and errors retain explanatory text. Normal UI text targets 4.5:1 contrast; focus rings remain visible. Formula typography belongs to KaTeX, whose internals are not restyled. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
 
 ## State rules
 
@@ -45,7 +45,38 @@ These are independent axes, not a state enum. Visual interactions never write do
 
 ## Filename and status
 
-TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
+TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. The status sits beside the filename (v2). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
+
+## v2 — Chrome recedes (2026-10-06)
+
+Features added after v1 (outline, table handles, heading numbering, block source editing, section labels) had started to compete with the document. v2 restates two rules, after [Linear's design refresh](https://linear.app/now/behind-the-latest-design-refresh): **controls do not compete for attention they have not earned**, and **structure is felt, not seen**.
+
+| Area | Rule |
+| --- | --- |
+| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
+| Sidebar | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
+| Color | Two blue axes only. Interaction (`interaction`, `interaction-soft`): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Chrome uses neutrals. `--id-color-admonition` and `--id-color-surface-admonition` were removed. |
+| References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
+| Callouts | Side bar and surface carry the kind; no full outline. |
+| Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
+| Read-only blocks | One indication: the source summary (`kind · Read-only content · line`). No separate label, no uppercase anywhere; `.block-kind` is plain 12px semibold metadata. Read-only text separates block children (`Draft Review`, not `DraftReview`). |
+
+Before/After at 1440px, same document and state (heading numbers on with unsaved changes; a section reference just inserted, then the heading hovered):
+
+| Before (`c9077b8`) | After |
+| --- | --- |
+| ![Before numbering](assets/visual-v2-before-numbering.png) | ![After numbering](assets/visual-v2-after-numbering.png) |
+| ![Before section label](assets/visual-v2-before-section.png) | ![After section label](assets/visual-v2-after-section.png) ![After hover](assets/visual-v2-after-section-hover.png) |
+
+### Reviewing a visual change
+
+A change to the Editor's look or a new visible control states which rule above (or in v1) it follows, or updates this document in the same PR. Compare the same states before and after:
+
+1. Check out the base in a second worktree and start its dev server on a free port (for example 5174).
+2. In each checkout, run `pnpm browser:test quiet-document --screenshots` against that checkout's own server; in the base worktree set `IEUMDOC_BROWSER_URL=http://127.0.0.1:5174`. Fixtures and captures belong to the checkout that runs the command.
+3. Compare the captures in each checkout's `tmp/visual-refinement/` and attach the representative pairs to the PR.
+
+This replaces a runtime old/new toggle such as Linear's dev toolbar: IeumDoc keeps one stylesheet, so the base checkout is the "old" side and nothing needs a second style set.
 
 ## Responsibility boundaries
 

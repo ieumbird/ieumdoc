@@ -8,7 +8,7 @@
 
 - Sidebar icons use a 16px slot and 8px label gap; action and current-file text starts align within 1px (button border).
 - Sidebar and TopBar share a 48px header row. At ≤704px the TopBar wraps and grows; the sidebar header remains 48px.
-- TopBar and MessageArea share a 20px inline inset.
+- TopBar and MessageArea share a 20px inline inset. TopBar status sits beside the filename; a status change moves no control (0px, measured).
 - The document column centers in the area remaining beside the sidebar. Its maximum width is 928px, with 16px outer insets.
 - Document owns the 80px starting gutter: 8px edge + 28px control + 4px gap + 28px control + 12px safety. Trailing inset is 80px, becoming 16px at ≤1024px.
 - All top-level block wrappers share the content axis. Block-internal content may inset or center. Controls overlay the gutter and never shift text.

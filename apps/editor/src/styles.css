@@ -136,12 +136,15 @@ button {
 }
 
 .sidebar-outline-item {
-  display: block;
+  display: -webkit-box;
   width: 100%;
   padding: var(--space-1) var(--space-3);
-  /* One 12px step per heading level below H1. */
-  padding-left: calc(var(--space-3) + var(--outline-depth, 0) * var(--space-3));
+  /* One 12px step per heading level below H1, at most three, so deep headings stay readable. */
+  padding-left: calc(var(--space-3) + min(var(--outline-depth, 0), 3) * var(--space-3));
   overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
   border: 0;
   border-radius: var(--id-radius-md);
   background: transparent;
@@ -150,8 +153,6 @@ button {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -164,8 +165,9 @@ button {
   outline-offset: -2px;
 }
 
+/* The same current-item treatment as the open file above it. */
 .sidebar-outline-item[aria-current="location"] {
-  background: var(--id-color-interaction-soft);
+  background: var(--id-color-surface-muted);
   color: var(--id-color-text);
   font-weight: var(--font-weight-semibold);
 }
@@ -200,6 +202,18 @@ button {
   padding: 0 var(--layout-ui-inset);
   border-bottom: var(--border-width) solid var(--id-color-border);
   background: var(--id-color-surface);
+}
+
+.top-bar-identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.top-bar-identity .status {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .document-path {
@@ -272,6 +286,7 @@ button {
 }
 
 .status:empty { display: none; }
+.top-bar-toggle[aria-pressed="true"] { background: var(--id-color-surface-muted); color: var(--id-color-text); }
 .status[data-operation="Saved"] { color: var(--id-color-text-subtle); }
 
 .ui-button,
@@ -460,10 +475,8 @@ h6.heading { font-size: var(--font-size-sm); }
   margin: 0 0 var(--space-2);
   color: var(--id-color-text-muted);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-meta);
-  text-transform: uppercase;
   font-family: var(--font-family-sans);
 }
 
@@ -564,7 +577,7 @@ ol.list { list-style: decimal; }
 .code-block .hljs-keyword,
 .code-block .hljs-selector-tag,
 .code-block .hljs-built_in {
-  color: var(--id-color-interaction);
+  color: var(--id-color-info);
 }
 
 .code-block .hljs-string,
@@ -576,7 +589,7 @@ ol.list { list-style: decimal; }
 .code-block .hljs-number,
 .code-block .hljs-literal,
 .code-block .hljs-type {
-  color: var(--id-color-info);
+  color: var(--id-color-danger);
 }
 
 .document-editor :not(pre) > code {
@@ -589,8 +602,7 @@ ol.list { list-style: decimal; }
 
 .admonition {
   padding: var(--space-3) var(--space-4);
-  border: var(--border-width) solid var(--id-color-border);
-  border-left: 3px solid var(--id-color-admonition);
+  border-left: 3px solid var(--id-color-info);
   border-radius: var(--id-radius-lg);
   background: var(--id-color-surface-info);
   font-family: var(--font-family-sans);
@@ -605,7 +617,7 @@ ol.list { list-style: decimal; }
 
 .admonition-note {
   border-left-color: var(--id-color-info);
-  background: var(--id-color-surface-admonition);
+  background: var(--id-color-surface-info);
 }
 
 .admonition-label {
@@ -817,41 +829,56 @@ ol.list { list-style: decimal; }
   color: var(--id-color-text-subtle);
 }
 
-/* A section label sits on its own line above the heading it names. */
+/* A section label is authoring metadata, like a Figure label. It takes no layout space (its
+ * margins collapse through), sits in the heading's top margin, and is hidden and inert at rest. */
 .label-target {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-4) 0 calc(-1 * var(--space-3));
-  color: var(--id-color-text-muted);
-  font-size: var(--font-size-sm);
+  height: 0;
 }
 
-.label-target-text {
+.label-target-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 100%;
   margin: 0;
+  overflow: hidden;
+  color: var(--id-color-text-subtle);
   font-family: var(--font-family-mono);
-  overflow-wrap: anywhere;
-}
-
-.label-target-edit {
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   opacity: 0;
   pointer-events: none;
 }
 
-.label-target:is(:hover, :focus-within, [data-selected="true"]) > .label-target-edit {
+.label-target-edit {
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--id-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.label-target-edit:hover { color: var(--id-color-text); text-decoration: underline; }
+.label-target-edit:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.document-editor > .node-labelTarget:has(+ :hover) .label-target-content,
+.label-target:is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) .label-target-content {
   opacity: 1;
   pointer-events: auto;
 }
 
-.label-target[data-selected="true"] {
-  outline: var(--border-width) solid var(--id-color-interaction);
-  outline-offset: var(--space-1);
-  border-radius: var(--id-radius-sm);
+.label-target[data-selected="true"] .label-target-edit {
+  background: var(--id-color-interaction-soft);
+  color: var(--id-color-text);
 }
 
 @media (hover: none) {
-  .label-target-edit {
+  .label-target-content {
     opacity: 1;
     pointer-events: auto;
   }
@@ -1096,25 +1123,26 @@ ol.list { list-style: decimal; }
 }
 
 .cross-reference-chip {
-  padding: 0 var(--space-1);
-  border: var(--border-width) solid var(--id-color-border-subtle);
   border-radius: var(--id-radius-sm);
-  background: var(--id-color-surface-info);
   color: var(--id-color-info);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .cross-reference[data-resolved="false"] .cross-reference-chip {
-  border-style: dashed;
-  border-color: var(--id-color-border-strong);
-  background: transparent;
   color: var(--id-color-text-subtle);
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
 }
 
-.cross-reference-chip:hover,
+.cross-reference-chip:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .cross-reference[data-selected="true"] .cross-reference-chip {
-  box-shadow: var(--focus-ring);
+  background: var(--id-color-interaction-soft);
+  box-shadow: 0 0 0 1px var(--id-color-interaction);
 }
 
 /* Clicking a resolved chip goes to its target; this corner button changes the reference. */
@@ -1183,7 +1211,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor a {
-  color: var(--id-color-interaction);
+  color: var(--id-color-info);
   text-decoration: underline;
   cursor: text;
 }
@@ -1348,8 +1376,8 @@ ol.list { list-style: decimal; }
 .original-content {
   margin-top: var(--space-2);
   font-family: var(--font-family-sans);
-  font-size: 12px;
-  line-height: 20px;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-label);
 }
 .original-content summary {
   cursor: pointer;

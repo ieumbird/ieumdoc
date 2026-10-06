@@ -678,14 +678,18 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
     updateAttributes({ label: draft });
     close();
   };
+  // Authoring metadata like a Figure label: it takes no space and shows with its heading.
   return (
     <NodeViewWrapper as="div" className="label-target" data-block="label-target" data-testid="label-target"
-      data-label={label} data-source-path={String(node.attrs.sourcePath ?? "")} data-selected={selected ? "true" : "false"} contentEditable={false}>
-      <p ref={anchor} className="label-target-text" title="Section label: {ref} references to it name the heading below">§ {label}</p>
-      {editor.isEditable && !editing ? (
-        <Button className="label-target-edit" size="sm" variant="subtle" aria-label="Edit section label" data-testid="label-target-edit"
-          onClick={() => { setDraft(label); setError(""); setEditing(true); }}>Edit</Button>
-      ) : null}
+      data-label={label} data-source-path={String(node.attrs.sourcePath ?? "")} data-selected={selected ? "true" : "false"}
+      data-editing={editing ? "true" : "false"} contentEditable={false}>
+      <p ref={anchor} className="label-target-content">
+        {editor.isEditable ? (
+          <button type="button" className="label-target-edit" aria-label={`Edit section label ${label}`} data-testid="label-target-edit"
+            title="Section label: {ref} references to it name the heading below"
+            onClick={() => { setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
+        ) : <span className="label-target-text">§ {label}</span>}
+      </p>
       <BlockProperties anchor={anchor} kind="Section label" testId="label-target" open={editing || (selected && !dismissed)} editing={editing}
         readOnly={!editor.isEditable} summary={[["Label", label]]} error={error}
         onApply={apply} onCancel={close} onDismiss={() => setDismissed(true)}>
@@ -1030,7 +1034,7 @@ function ReadonlyParagraphView({ node, editor, getPos }: ReactNodeViewProps) {
       data-readonly="true"
       contentEditable={false}
     >
-      <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
+      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}{String(node.attrs.text ?? "")}
       <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
@@ -1582,7 +1586,7 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
       data-readonly="true"
       contentEditable={false}
     >
-      <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
+      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}{String(node.attrs.text ?? "")}
       <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
