@@ -3,7 +3,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
-import { splitDocumentPath } from "../src/shell/document-path.ts";
+import { splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { OpenDialog } from "../src/shell/OpenDialog.tsx";
@@ -17,6 +17,9 @@ test("document path splits for display without changing the address", () => {
   assert.deepEqual(splitDocumentPath("C:\\docs\\guide.md"), { directory: "C:\\docs\\", name: "guide.md" });
   assert.deepEqual(splitDocumentPath("/tmp/a/b.md"), { directory: "/tmp/a/", name: "b.md" });
   assert.deepEqual(splitDocumentPath("b.md"), { directory: "", name: "b.md" });
+  assert.equal(unquotePath('  "C:\\문서\\가이드.md"  '), "C:\\문서\\가이드.md");
+  assert.equal(unquotePath(" /tmp/my docs/ "), "/tmp/my docs/");
+  assert.equal(unquotePath('"unfinished'), '"unfinished');
 });
 
 test("sidebar holds only product, Open, Open folder and the current document, and collapses", () => {

@@ -105,7 +105,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 
 ### Folder listing v1 (#112)
 
-사용자가 `Open folder…`에 folder 경로 하나를 명시적으로 입력하면 Host가 그 folder를 한 단계씩 list하고, Sidebar가 그 안에서 이동하며 문서를 연다. Workspace가 아니다. 선택한 folder는 Browser 페이지 상태에만 있고 Host, 파일, 설정에 저장하지 않는다.
+사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar가 그 안에서 이동하며 문서를 연다. Workspace가 아니다. 선택한 sidebar folder는 Browser 페이지 상태에만 있고 Host나 파일에 저장하지 않는다. 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억한다.
 
 - `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `parent`는 root보다 아래일 때만 있다.
 - 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
@@ -113,6 +113,13 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 기존 Open처럼 전환을 거부한다. 문서를 열거나 만들면 보이는 folder를 다시 list한다. watch는 없다.
 - `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
 - Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
+
+### Folder picker v1
+
+- [Folder picker](folder-picker-v1.md)는 앱 안에서 경로를 고른다. OS 선택창, upload, 별도 복사본은 없다. Open을 누르기 전의 탐색은 sidebar와 문서를 바꾸지 않는다.
+- `GET /api/folder-browse?path=<folder>`는 `{ path, crumbs, entries }`를 돌려준다. `crumbs`는 filesystem root부터 해당 folder까지의 `{ name, path }` 목록이며 Host가 계산한다. 항목 필터와 정렬은 Folder listing v1과 같다. 선택 전의 탐색은 sidebar의 `root` 제한을 사용하지 않는다.
+- `GET /api/folder-places`는 `{ places: [{ kind, name, path }] }`를 돌려준다. Home, 실제 존재하는 Documents, Windows drive roots 또는 `/`가 시작점이다. Host는 탐색 위치나 최근 목록을 저장하지 않는다.
+- Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하고, 새로고침 시 sidebar folder를 자동으로 복원하지 않는다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
 
 ## Current implementation mapping
 
@@ -125,6 +132,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - 문서 revision을 확인하여 외부 변경 후 stale save를 거부하는 현재 conflict 동작도 이 경계 안의 host/editor adapter 동작이다.
 - 상대 media는 열린 document directory를 기준으로 resolve하며 directory 밖 traversal을 거부한다.
 - `/api/folder`가 Folder listing v1을 구현한다(`listFolder`).
+- `/api/folder-browse`와 `/api/folder-places`가 경로 선택용 목록과 시작점을 제공한다(`browseFolder`, `folderPlaces`).
 
 이 매핑은 현재 개발 구현을 설명할 뿐이다. `apps/editor/server`를 production backend, permanent local server architecture 또는 workspace server로 정의하지 않는다.
 

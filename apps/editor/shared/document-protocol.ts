@@ -182,3 +182,13 @@ export type FolderEntry = { name: string; kind: "folder" | "document"; path: str
  * `parent` the folder above it, absent at the root.
  */
 export type FolderResponse = { root: string; path: string; parent?: string; entries: FolderEntry[] };
+
+/** A folder on the way from the filesystem root to a browsed folder. */
+export type FolderCrumb = { name: string; path: string };
+
+/** One level of any folder while choosing which folder to open; `crumbs` ends with `path`. */
+export type FolderBrowseResponse = { path: string; crumbs: FolderCrumb[]; entries: FolderEntry[] };
+
+export type FolderPlace = { kind: "home" | "documents" | "drive"; name: string; path: string };
+
+export type FolderPlacesResponse = { places: FolderPlace[] };

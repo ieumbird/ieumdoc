@@ -183,7 +183,8 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected duplicate-label Source preview"},
   ],
   "folder-navigation": [
-    {status: 400, pathname: "/api/folder", minimum: 1, description: "a file chosen as the folder is rejected"},
+    {status: 400, pathname: "/api/folder", minimum: 1, description: "a missing folder or file cannot be opened as a folder"},
+    {status: 400, pathname: "/api/folder-browse", minimum: 1, description: "a missing folder cannot be browsed"},
   ],
 };
 
@@ -245,8 +246,8 @@ function sourceDigest(): string {
 async function main(requested: string[]): Promise<number> {
   const screenshots = requested.includes("--screenshots");
   requested = requested.filter((name) => name !== "--screenshots");
-  if (screenshots && (requested.length !== 1 || requested[0] !== "quiet-document")) {
-    console.error("Use: pnpm browser:test quiet-document --screenshots");
+  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation"].includes(requested[0]!))) {
+    console.error("Use: pnpm browser:test quiet-document|folder-navigation --screenshots");
     return 2;
   }
   const unknown = requested.filter((name) => !existsSync(path.join(REPOSITORY_ROOT, "apps", "editor", "test", `${name}.browser.js`)));

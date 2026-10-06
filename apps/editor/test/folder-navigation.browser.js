@@ -1,6 +1,8 @@
 // Choose a folder, move through it in the sidebar and open its documents; unsaved work blocks switching.
-async page => {
+async (page, {screenshots = false} = {}) => {
   await page.unrouteAll();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await ready();
@@ -15,20 +17,142 @@ async page => {
   const item = name => section.getByRole('button', {name, exact:true});
   const current = async () => (await page.getByTestId('current-file').getAttribute('title')).split(sep).pop();
   const result = {};
+  const dialog = page.getByRole('dialog');
+  const field = page.getByTestId('folder-path');
+  const open = page.getByTestId('folder-open');
+  const option = name => dialog.getByRole('option', {name, exact:true});
+  const enterFolder = path => field.fill(path + sep);
+  const requestedFolder = url => decodeURIComponent((url.split('?path=')[1] ?? '').replace(/\+/g, ' '));
+
+  // Folder browsing never changes the sidebar or the open document until Open.
+  await page.getByRole('button', {name:'Open folder…'}).click();
+  const home = dialog.getByRole('button', {name:'Home', exact:true});
+  await home.waitFor();
+  const homePath = await home.getAttribute('title');
+  await home.click();
+  assert(await field.inputValue() === (homePath.endsWith(sep) ? homePath : homePath + sep), 'Home starts at the Host home folder');
+  result.startsFromHostPlace = true;
+  await enterFolder(folder);
+  await option('guides').waitFor();
+  await option('guides').click();
+  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await dialog.getByRole('button', {name:'Up', exact:true}).click();
+  await option('guides').waitFor();
+  await option('guides').click();
+  await dialog.getByRole('navigation', {name:'Folder location'}).getByRole('button', {name:'folder-navigation', exact:true}).click();
+  await option('guides').waitFor();
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  result.cancelKeepsDocument = await section.count() === 0 && await current() === 'technical-document.md';
+
+  await page.getByRole('button', {name:'Open folder…'}).click();
+  await field.fill([folder, 'g'].join(sep));
+  await option('guides').waitFor();
+  assert(await dialog.getByRole('option').count() === 1, 'Partial path must filter the folders');
+  await field.press('Tab');
+  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  assert(await field.inputValue() === [folder, 'guides', ''].join(sep), 'Tab completes into the folder');
+  await field.press('Backspace');
+  await option('guides').waitFor();
+  assert(await field.inputValue() === folder + sep, 'Backspace returns to the parent');
+  result.completesAndGoesUp = true;
+
+  // A late answer for a previous directory cannot replace the current list.
+  let release;
+  let markStarted;
+  const held = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { markStarted = resolve; });
+  const delayedPath = [folder, 'guides'].join(sep);
+  const handler = async route => {
+    const requested = requestedFolder(route.request().url()).replace(/[\\/]+$/, '');
+    if (requested !== delayedPath) return route.continue();
+    const response = await route.fetch();
+    markStarted();
+    await held;
+    await route.fulfill({response});
+  };
+  await page.route('**/api/folder-browse?*', handler);
+  try {
+    await enterFolder(delayedPath);
+    await started;
+    await enterFolder(folder);
+    await option('guides').waitFor();
+    const answered = page.waitForResponse(response => requestedFolder(response.url()) === delayedPath + sep);
+    release();
+    await answered;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    result.keepsNewerListing = await option('guides').count() === 1 && await field.inputValue() === folder + sep;
+  } finally {
+    release();
+    await page.unroute('**/api/folder-browse?*', handler);
+  }
+
+  // Highlight is completion focus; Enter always opens the typed path, not its highlighted child.
+  await field.press('ArrowDown');
+  assert(await dialog.getByRole('option', {selected:true}).count() === 1, 'ArrowDown highlights a folder');
+  await field.press('Enter');
+  await dialog.waitFor({state:'detached'});
+  await section.waitFor();
+  result.enterOpensTypedFolder = await section.getByTitle(folder, {exact:true}).count() === 1;
+  const refreshed = page.waitForResponse(response => response.url().includes('/api/folder-browse?') &&
+    requestedFolder(response.url()) === folder + sep);
+  await page.getByRole('button', {name:'Open folder…'}).click();
+  await refreshed;
+  await option('guides').waitFor();
+  await field.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  result.refreshesOnReopen = await section.getByTitle(folder, {exact:true}).count() === 1;
+  await page.getByRole('button', {name:'Close folder', exact:true}).click();
+  await page.reload();
+  await ready();
+  assert(await section.count() === 0, 'Reload does not restore a chosen sidebar folder');
+  await page.getByRole('button', {name:'Open folder…'}).click();
+  const recent = dialog.getByRole('region', {name:'Recent folders'});
+  await recent.getByRole('button', {name:folder, exact:true}).click();
+  await option('guides').waitFor();
+  result.remembersRecent = await field.inputValue() === folder + sep;
+  await field.fill([folder, '자'].join(sep));
+  await option('자료').waitFor();
+  await field.press('ArrowRight');
+  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  assert(await field.inputValue() === [folder, '자료', ''].join(sep), 'Right completes a Korean folder path');
+  await field.press('Backspace');
+  await option('guides').waitFor();
+  result.completesKoreanPath = true;
+
+  // The dialog remains inside both desktop and narrow viewports; Open/Cancel stay reachable.
+  await page.setViewportSize({width:1440, height:1000});
+  if (screenshots) await page.screenshot({path: 'tmp/picker-capture/04-final.png'});
+  await page.setViewportSize({width:375, height:812});
+  await field.fill(folder + sep + 'long-folder-name-'.repeat(12));
+  const bounds = await dialog.boundingBox();
+  const buttonBounds = await open.boundingBox();
+  assert(bounds.x >= 0 && bounds.x + bounds.width <= 375 && bounds.y >= 0 && bounds.y + bounds.height <= 812, 'Dialog fits the viewport');
+  assert(buttonBounds.x >= bounds.x && buttonBounds.x + buttonBounds.width <= bounds.x + bounds.width, 'Long Open label fits the dialog');
+  assert(await dialog.getByRole('button', {name:'Cancel', exact:true}).isVisible(), 'Cancel remains reachable');
+  if (screenshots) await page.screenshot({path: 'tmp/picker-capture/05-narrow.png'});
+  await page.setViewportSize({width:1280, height:720});
+  result.fitsViewport = true;
+
+  await enterFolder([folder, 'missing'].join(sep));
+  await page.getByTestId('folder-picker-meta').getByText('folder does not exist', {exact:true}).waitFor();
+  await open.click();
+  await dialog.getByRole('alert').getByText('folder does not exist', {exact:true}).waitFor();
+  result.keepsInvalidPath = await field.inputValue() === [folder, 'missing', ''].join(sep) && await section.count() === 0;
 
   // A file is not a folder: the dialog says so and nothing is listed.
-  await page.getByRole('button', {name:'Open folder…'}).click();
   await page.getByTestId('folder-path').fill([folder, 'index.md'].join(sep));
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await open.click();
   await page.getByRole('dialog').getByText('folder path must point to a directory').waitFor();
   result.rejectsFile = await section.count() === 0;
 
   // The chosen folder lists sub-folders first, then Markdown files, without opening any.
-  await page.getByTestId('folder-path').fill(folder);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await page.getByTestId('folder-path').fill(`"${folder}"`);
+  await open.click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await section.waitFor();
-  assert(JSON.stringify(await items()) === JSON.stringify(['guides', 'index.md', 'notes.md']), 'Folder listing: ' + JSON.stringify(await items()));
+  const hostItems = (await (await page.request.get(`${origin}/api/folder?root=${encodeURIComponent(folder)}`)).json()).entries.map(entry => entry.name);
+  assert(JSON.stringify(await items()) === JSON.stringify(hostItems), 'The sidebar keeps the Host listing order: ' + JSON.stringify(await items()));
   result.listsFolder = await current() === 'technical-document.md';
 
   await item('index.md').click();

@@ -30,7 +30,7 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/document" && url !== "/api/folder" && url !== "/api/document-source" && url !== "/api/block-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/block-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }
