@@ -139,7 +139,8 @@ async page => {
   // Numbering is a document setting and uses the same counters in the page and outline.
   const toggle = page.getByRole('button', {name:'Number headings', exact:true});
   await toggle.click();
-  await page.waitForFunction(() => document.querySelector('.document-editor h2')?.getAttribute('data-heading-number') === '1');
+  await page.waitForFunction(() => document.querySelector('.document-editor h2')?.getAttribute('data-heading-number') === '1' &&
+    document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
   result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
     (await texts())[1].startsWith('1 ');
   await editor.locator('h2').first().click();
