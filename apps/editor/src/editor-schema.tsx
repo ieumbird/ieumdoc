@@ -15,7 +15,7 @@ import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ie
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
-import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
+import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
@@ -996,79 +996,38 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
           Edit
         </Button>
       ) : null}
-      <Popover
+      <BlockProperties
+        anchor={anchor}
+        kind={numbered ?? "Figure"}
+        testId="figure"
         open={editing || (selected && !summaryDismissed)}
-        onOpenChange={(open) => { if (!open && !editing) setSummaryDismissed(true); }}
+        editing={editing}
+        readOnly={!editableFigure}
+        summary={properties}
+        error={error}
+        busy={validating}
+        onApply={() => void apply()}
+        onCancel={cancel}
+        onDismiss={() => setSummaryDismissed(true)}
       >
-        <PopoverContent
-          anchor={anchor}
-          side="bottom"
-          align="end"
-          sideOffset={12}
-          // Selection only annotates the block; keep focus (and so keyboard
-          // interaction, e.g. Delete) on the editor. Edit focuses the form itself.
-          initialFocus={false}
-          finalFocus={false}
-          aria-label="Figure properties"
-          data-testid="figure-properties"
-          className="figure-properties"
-        >
-          <p className="overlay-title">Figure{editableFigure ? "" : " · Read-only"}</p>
-          {editing ? (
-            <form
-              className="figure-editor"
-              data-testid="figure-editor"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void apply();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  cancel();
-                }
-              }}
-            >
-              {field("imageUrl", "Image", "figure-image-url")}
-              {field("imageAlt", "Alt text", "figure-alt")}
-              {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", "Caption", "figure-caption")
-                : <p className="block-popover-note">Edit the formatted caption directly below the image.</p>}
-              <label className="form-field">
-                <span>Label</span>
-                <Input
-                  data-testid="figure-label"
-                  disabled={validating}
-                  value={labelDraft}
-                  placeholder="None"
-                  onChange={(event) => {
-                    setLabelDraft(event.target.value);
-                    setError("");
-                  }}
-                />
-              </label>
-              {error ? <Notice tone="error">{error}</Notice> : null}
-              <div className="form-actions">
-                <Button type="submit" size="sm" disabled={validating} data-testid="figure-apply">Apply</Button>
-                <Button type="button" size="sm" variant="subtle" onClick={cancel} data-testid="figure-cancel">Cancel</Button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <dl>
-                {properties.map(([name, value]) => (
-                  <div key={name} className="figure-property">
-                    <dt>{name}</dt>
-                    <dd>{value || "—"}</dd>
-                  </div>
-                ))}
-              </dl>
-              {editableFigure ? null : (
-                <p className="block-popover-note">This Figure's structure is read-only in this version.</p>
-              )}
-            </>
-          )}
-        </PopoverContent>
-      </Popover>
+        {field("imageUrl", "Image", "figure-image-url")}
+        {field("imageAlt", "Alt text", "figure-alt")}
+        {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", "Caption", "figure-caption")
+          : <p className="block-popover-note">Edit the formatted caption directly below the image.</p>}
+        <label className="form-field">
+          <span>Label</span>
+          <Input
+            data-testid="figure-label"
+            disabled={validating}
+            value={labelDraft}
+            placeholder="None"
+            onChange={(event) => {
+              setLabelDraft(event.target.value);
+              setError("");
+            }}
+          />
+        </label>
+      </BlockProperties>
     </NodeViewWrapper>
   );
 }
@@ -1111,8 +1070,12 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
 function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
+  const kind = number === undefined ? "Equation" : `Equation (${number})`;
   const latex = String(node.attrs.latex ?? "");
+  const anchor = useRef<HTMLParagraphElement>(null);
+  const latexInput = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState(false);
+  const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
@@ -1125,14 +1088,10 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   }, [editing, latex, label]);
 
   useEffect(() => {
-    // Selecting an existing atom is navigation/clipboard intent. Only a new
-    // empty Equation enters its form automatically; Edit opens existing content.
-    if (view.editable && selected && !editing && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0) {
-      setDraft(latex);
-      setLabelDraft(label);
-      setError("");
-      setEditing(true);
-    }
+    // Selection shows the properties summary, as for a Figure. Only a new empty Equation
+    // enters its form automatically; Edit opens existing content.
+    setSummaryDismissed(false);
+    if (view.editable && selected && !editing && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0) beginEdit();
   }, [selected]);
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
@@ -1143,13 +1102,15 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     return () => onDraftChange?.(sourcePath, false);
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
-  const beginEdit = () => {
+  function beginEdit() {
     if (!view.editable) return;
     setDraft(latex);
     setLabelDraft(label);
     setError("");
     setEditing(true);
-  };
+    // After the panel renders and after an insert command refocuses the editor.
+    requestAnimationFrame(() => latexInput.current?.focus());
+  }
   const cancel = () => {
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
     if (isUnappliedNewEquation) removeUnappliedBlock(view, getPos, node, deleteNode);
@@ -1183,28 +1144,39 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
-      <p className="block-kind block-metadata">{[number === undefined ? "Equation" : `Equation (${number})`, label].filter(Boolean).join(" · ")}</p>
+      <p ref={anchor} className="block-kind block-metadata">{[kind, label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">
           Unapplied changes are not saved. Apply to include them, or Cancel.
         </p>
       ) : null}
-      {!editing ? (
-        <>
-          {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
-          <div className="equation-row">
-            <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
-            {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
-          </div>
-          <Button className="equation-edit" size="sm" variant="subtle" disabled={!view.editable} onClick={beginEdit}>
-            Edit
-          </Button>
-        </>
-      ) : (
-        <div className="equation-editor" data-testid="equation-editor">
+      {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
+      <div className="equation-row">
+        <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
+        {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
+      </div>
+      {view.editable && !editing ? (
+        <Button className="equation-edit" size="sm" variant="subtle" onClick={beginEdit}>
+          Edit
+        </Button>
+      ) : null}
+      <BlockProperties
+        anchor={anchor}
+        kind={kind}
+        testId="equation"
+        open={editing || (selected && !summaryDismissed)}
+        editing={editing}
+        summary={[["Label", label], ["LaTeX", latex]]}
+        error={error}
+        onApply={apply}
+        onCancel={cancel}
+        onDismiss={() => setSummaryDismissed(true)}
+      >
+        <label className="form-field">
+          <span>LaTeX</span>
           <textarea
+            ref={latexInput}
             aria-label="Equation LaTeX"
-            autoFocus
             className="equation-input"
             data-testid="equation-latex"
             value={draft}
@@ -1212,42 +1184,22 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
               setDraft(event.target.value);
               setError("");
             }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                cancel();
-              }
+          />
+        </label>
+        <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
+        <label className="form-field">
+          <span>Label</span>
+          <Input
+            data-testid="equation-label"
+            value={labelDraft}
+            placeholder="None"
+            onChange={(event) => {
+              setLabelDraft(event.target.value);
+              setError("");
             }}
           />
-          <label className="form-field">
-            <span>Label</span>
-            <Input
-              data-testid="equation-label"
-              value={labelDraft}
-              placeholder="None"
-              onChange={(event) => {
-                setLabelDraft(event.target.value);
-                setError("");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  cancel();
-                } else if (event.key === "Enter") {
-                  event.preventDefault();
-                  apply();
-                }
-              }}
-            />
-          </label>
-          <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
-          {error ? <Notice tone="error">{error}</Notice> : null}
-          <div className="form-actions">
-            <Button size="sm" onClick={apply} data-testid="equation-apply">Apply</Button>
-            <Button size="sm" variant="subtle" onClick={cancel} data-testid="equation-cancel">Cancel</Button>
-          </div>
-        </div>
-      )}
+        </label>
+      </BlockProperties>
     </NodeViewWrapper>
   );
 }

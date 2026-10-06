@@ -398,7 +398,8 @@ test("editor shell keeps application UI out of the document editor", () => {
   assert.equal(documentEditor.match(/runInsert\(/g)?.length, 3);
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   assert.match(schemaSource, /data-testid="equation-draft-status"/);
-  assert.match(schemaSource, /data-testid="figure-properties"/);
+  // Equations and Figures share one properties panel.
+  assert.equal(schemaSource.match(/<BlockProperties/g)?.length, 2);
 });
 
 test("heading section commands move past sibling sections and delete a section, saving what Core moveSection/removeSection write", () => {

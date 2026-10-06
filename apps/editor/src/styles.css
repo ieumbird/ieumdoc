@@ -749,19 +749,6 @@ ol.list { list-style: decimal; }
   visibility: visible;
 }
 
-.equation-editor {
-  display: grid;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: var(--border-width) solid var(--id-color-border);
-  border-radius: var(--id-radius-lg);
-  background: var(--id-color-surface-subtle);
-  text-align: left;
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-body);
-}
-
 .equation-input,
 .equation-preview {
   width: 100%;
@@ -1150,23 +1137,23 @@ ol.list { list-style: decimal; }
   min-height: var(--size-control-compact);
 }
 
-.figure-properties dl {
+.block-properties dl {
   display: grid;
   gap: var(--space-1);
   margin: 0;
 }
 
-.figure-property {
+.block-property {
   display: grid;
   grid-template-columns: 5rem minmax(0, 1fr);
   gap: var(--space-2);
 }
 
-.figure-property dt {
+.block-property dt {
   color: var(--id-color-text-muted);
 }
 
-.figure-property dd {
+.block-property dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -1201,7 +1188,8 @@ ol.list { list-style: decimal; }
   }
 }
 
-.figure-editor {
+/* Equation and Figure properties share one panel and form. */
+.block-properties-form {
   display: grid;
   gap: var(--space-3);
 }

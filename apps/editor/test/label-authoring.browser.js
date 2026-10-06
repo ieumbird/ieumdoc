@@ -33,7 +33,12 @@ async page => {
   const saveEnabled = page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])');
   const save = async () => {
     await saveEnabled.waitFor();
+    // A previous save can still show "Saved" until React handles this click. Wait
+    // for this request's acknowledgement before checking the status or disk.
+    const response = page.waitForResponse(response => response.request().method() === 'POST' &&
+      /\/api\/document(?:\?|$)/.test(response.url()));
     await page.getByRole('button', {name:'Save', exact:true}).click();
+    if ((await response).status() !== 200) throw new Error('Label save was rejected');
     await page.getByText('Saved', {exact:true}).waitFor();
   };
   const sourceText = async () => {
