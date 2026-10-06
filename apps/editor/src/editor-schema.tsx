@@ -5,6 +5,7 @@ import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { closeHistory } from "@tiptap/pm/history";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
@@ -23,6 +24,8 @@ import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-c
 import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
+  BLOCK_SOURCES_ATTR,
+  blockSourcesOf,
   DELETED_PATHS_ATTR,
   figureContent,
   isNewBlockPath,
@@ -32,6 +35,9 @@ import {
   paragraphContent,
   tableCaption,
   TABLE_CELL_SOURCE_ATTR,
+  toTiptapBlockNode,
+  withBlockSourceNodes,
+  type AppliedBlockSources,
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button, Notice } from "./ui/primitives.tsx";
@@ -44,6 +50,10 @@ export type EquationDraftListener = DraftListener;
 
 /** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
 export type FigureValidator = (figure: FigureContent) => Promise<string | undefined>;
+
+/** Core's block source replacement through the Host: the block a source makes at a snapshot path,
+ * after the session's other applied sources. Rejects with Core's reason. */
+export type BlockSourceApplier = (path: string, source: string, applied: AppliedBlockSources) => Promise<EditableBlock>;
 
 /** An open Equation form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
@@ -459,7 +469,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     </div></div>
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: generateHTML(toTiptapContent(caption), editor.extensionManager.extensions) }} /> : null}
-    <OriginalContent node={node} />
+    <OriginalContent node={node} editor={editor} getPos={getPos} />
     {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="subtle" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
     <BlockProperties anchor={anchor} kind={kind} testId="table" open={editing || (selected && !dismissed)} editing={editing}
       readOnly={!editor.isEditable} summary={[["Label", label], ["Caption", text]]} error={error}
@@ -486,16 +496,86 @@ function cellAlignmentStyle(node: ProseMirrorNode): string {
 
 function originalDOM(original: NonNullable<EditableBlock["original"]>): DOMOutputSpec {
   return ["details", { class: "original-content", contenteditable: "false" },
-    ["summary", {}, `${original.kind} · Read-only content · Original line ${original.line}`],
+    ["summary", {}, originalSummary(original)],
     ["pre", {}, original.text]];
 }
 
-function OriginalContent({ node }: { node: ProseMirrorNode }) {
+/** Replace the block at `position` with the block an applied source made, and record the source,
+ * as one undo step. */
+export function blockSourceTransaction(state: EditorState, position: number, path: string, source: string, block: EditableBlock): Transaction {
+  const current = state.doc.nodeAt(position)!;
+  return closeHistory(state.tr.replaceWith(position, position + current.nodeSize, state.schema.nodeFromJSON(toTiptapBlockNode(block)))
+    .setDocAttribute(BLOCK_SOURCES_ATTR, { ...blockSourcesOf({ attrs: state.doc.attrs }), [path]: { source, block } }));
+}
+
+function originalSummary(original: NonNullable<EditableBlock["original"]>): string {
+  return `${original.kind} · Read-only content · ${original.line === undefined ? "Applied source" : `Original line ${original.line}`}`;
+}
+
+/** A read-only block's source. Edit source applies a new source through Core in one undoable step. */
+function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "node" | "editor" | "getPos">) {
   const original = node.attrs.original as EditableBlock["original"];
-  return original ? <details className="original-content" contentEditable={false}>
-    <summary>{original.kind} · Read-only content · Original line {original.line}</summary>
-    <pre>{original.text}</pre>
-  </details> : null;
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const editing = draft !== null;
+  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
+  if (!original) return null;
+  const path = String(node.attrs.sourcePath ?? "");
+  const options = editor.extensionManager.extensions.find(extension => extension.name === "blockSourceEditing")?.options as BlockSourceOptions | undefined;
+  const applier = options?.apply;
+  // The draft starts from the block's source, so it must still be the block that source made.
+  const sources = blockSourcesOf({ attrs: editor.state.doc.attrs });
+  const baseline = options?.baseline && withBlockSourceNodes(options.baseline(), sources).content?.find(block => block.attrs?.sourcePath === path);
+  const unchanged = Boolean(baseline) && editor.schema.nodeFromJSON(baseline).eq(node);
+  const close = () => { setDraft(null); setError(""); editor.commands.focus(); };
+  const apply = async () => {
+    if (draft === null || !applier) return;
+    setBusy(true);
+    setError("");
+    try {
+      const block = await applier(path, draft, sources);
+      const position = getPos();
+      if (typeof position !== "number") return;
+      editor.view.dispatch(blockSourceTransaction(editor.state, position, path, draft, block));
+      // Typing right after Apply starts its own undo step.
+      editor.view.dispatch(closeHistory(editor.state.tr));
+      close();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <details className="original-content" contentEditable={false}>
+    <summary>{originalSummary(original)}</summary>
+    {editing ? (
+      <form className="block-properties-form" data-testid="block-source-editor"
+        onSubmit={(event) => { event.preventDefault(); void apply(); }}
+        onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); close(); } }}>
+        <label className="form-field">
+          <span>MyST source</span>
+          <textarea ref={input} className="equation-input" aria-label="Block MyST source" data-testid="block-source-input"
+            value={draft} onChange={(event) => { setDraft(event.target.value); setError(""); }} />
+        </label>
+        {error ? <Notice tone="error" data-testid="block-source-error">{error}</Notice> : null}
+        <div className="form-actions">
+          <Button type="submit" size="sm" disabled={busy} data-testid="block-source-apply">Apply</Button>
+          <Button type="button" size="sm" variant="subtle" onClick={close} data-testid="block-source-cancel">Cancel</Button>
+        </div>
+      </form>
+    ) : (
+      <>
+        <pre>{original.text}</pre>
+        {editor.isEditable && applier ? <>
+          <Button size="sm" variant="subtle" disabled={!unchanged} data-testid="block-source-edit"
+            onClick={() => { setDraft(original.text); setError(""); }}>Edit source</Button>
+          {unchanged ? null : <p className="block-popover-note">Undo this block's edits, or Save and Reload, to edit its source.</p>}
+        </> : null}
+      </>
+    )}
+  </details>;
 }
 
 const TableRow = Node.create({
@@ -684,11 +764,21 @@ const ParagraphMerge = Extension.create({
   },
 });
 
+type BlockSourceOptions = { apply?: BlockSourceApplier; baseline?: () => TiptapJSON };
+
+/** Applied block sources are editor document state; Apply asks Core through the Host. */
+const BlockSourceEditing = Extension.create<BlockSourceOptions>({
+  name: "blockSourceEditing",
+  addOptions() { return { apply: undefined, baseline: undefined }; },
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { [BLOCK_SOURCES_ATTR]: { default: null, rendered: false } } }]; },
+});
+
 export function editorExtensions(
   onEquationDraftChange?: EquationDraftListener,
   documentPath?: string,
   onFigureDraftChange?: DraftListener,
   validateFigure?: FigureValidator,
+  blockSource?: BlockSourceOptions,
 ): Extensions {
   return [
     StarterKit.configure({
@@ -744,6 +834,7 @@ export function editorExtensions(
     InlineMath,
     CrossReference,
     MarkdownInputRules,
+    BlockSourceEditing.configure(blockSource ?? {}),
   ];
 }
 
@@ -756,8 +847,10 @@ export function createEditorExtensions(
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
+  applyBlockSource?: BlockSourceApplier,
 ): Extensions {
-  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure),
+  const baselineOf = typeof baseline === "function" ? baseline : () => baseline;
+  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure, { apply: applyBlockSource, baseline: baselineOf }),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
@@ -801,6 +894,11 @@ function commandDeletions(transaction: Transaction, declared: string[]): string[
   return removed.length ? [...new Set([...declared, ...removed])] : declared;
 }
 
+/** The snapshot baseline with the document's applied block sources in place. */
+function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON), doc: ProseMirrorNode): TiptapJSON {
+  return withBlockSourceNodes(typeof baseline === "function" ? baseline() : baseline, blockSourcesOf({ attrs: doc.attrs }));
+}
+
 export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Plugin {
   return new Plugin<string[]>({
     key: structureGuardKey,
@@ -815,17 +913,18 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
       try {
-        const next = normalizeEngineDocument(typeof baseline === "function" ? baseline() : baseline, {
+        const base = sessionBaseline(baseline, transaction.doc);
+        const next = normalizeEngineDocument(base, {
           ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
         }, transaction.before.childCount !== transaction.doc.childCount);
-        if (isSupportedDocumentChange(typeof baseline === "function" ? baseline() : baseline, next)) return true;
+        if (isSupportedDocumentChange(base, next)) return true;
       } catch { /* Unrepresentable input keeps the previous document. */ }
       onReject();
       return false;
     },
     appendTransaction(transactions, old, state) {
       if (!transactions.some(tr => tr.docChanged)) return null;
-      const normalized = normalizeEngineDocument(typeof baseline === "function" ? baseline() : baseline, state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
+      const normalized = normalizeEngineDocument(sessionBaseline(baseline, state.doc), state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
       const tr = state.tr;
       state.doc.forEach((node, pos, index) => {
         const attrs = normalized.content![index].attrs!;
@@ -836,7 +935,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
   });
 }
 
-function ReadonlyHeadingView({ node }: ReactNodeViewProps) {
+function ReadonlyHeadingView({ node, editor, getPos }: ReactNodeViewProps) {
   const Heading = headingTag(node.attrs.level);
   return (
     <NodeViewWrapper
@@ -848,12 +947,12 @@ function ReadonlyHeadingView({ node }: ReactNodeViewProps) {
       contentEditable={false}
     >
       <Heading className="heading">{String(node.attrs.text ?? "")}</Heading>
-      <OriginalContent node={node} />
+      <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }
 
-function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
+function ReadonlyParagraphView({ node, editor, getPos }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
       as="div"
@@ -864,12 +963,12 @@ function ReadonlyParagraphView({ node }: ReactNodeViewProps) {
       contentEditable={false}
     >
       <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
-      <OriginalContent node={node} />
+      <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }
 
-function AdmonitionView({ node }: ReactNodeViewProps) {
+function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
   const variant = String(node.attrs.variant ?? "note");
   const editable = node.attrs.editable === true;
   const label = isAdmonitionVariant(variant) ? ADMONITION_LABELS[variant] : variant;
@@ -887,7 +986,7 @@ function AdmonitionView({ node }: ReactNodeViewProps) {
       {editable
         ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
         : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}
-      <OriginalContent node={node} />
+      <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }
@@ -1062,7 +1161,7 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
       {editableFigure
         ? <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
         : <figcaption className="caption" data-number={numbered}>{String(node.attrs.caption ?? "")}</figcaption>}
-      <OriginalContent node={node} />
+      <OriginalContent node={node} editor={editor} getPos={getPos} />
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
           Edit
@@ -1405,7 +1504,7 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
   );
 }
 
-function UnsupportedView({ node }: ReactNodeViewProps) {
+function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
       as="div"
@@ -1416,7 +1515,7 @@ function UnsupportedView({ node }: ReactNodeViewProps) {
       contentEditable={false}
     >
       <span className="block-kind">Read-only</span> {String(node.attrs.text ?? "")}
-      <OriginalContent node={node} />
+      <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }

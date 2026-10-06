@@ -99,6 +99,7 @@ export const STABLE_SCENARIOS = [
   "source-view-pending",
   "label-authoring",
   "cross-reference",
+  "block-source-editing",
 ];
 
 const require = createRequire(import.meta.url);
@@ -171,6 +172,9 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   ],
   "admonition-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
+  ],
+  "block-source-editing": [
+    {status: 400, pathname: "/api/block-source", minimum: 1, description: "rejected unclosed block source"},
   ],
   "label-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},

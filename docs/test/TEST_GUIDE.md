@@ -483,6 +483,7 @@ pnpm ieumdoc insert-divider <file> --at <index>
 pnpm ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>
 pnpm ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]
 pnpm ieumdoc remove-block <file> --at <index>
+pnpm ieumdoc replace-block-source <file> --at <index> (--source <text> | --source-file <path>)
 pnpm ieumdoc move-block <file> --from <index> --to <index>
 pnpm ieumdoc move-section <file> --from <heading index> --to <index>
 pnpm ieumdoc remove-section <file> --at <heading index>
@@ -1142,6 +1143,29 @@ Editor:
 - 저장 가능한 편집 세션은 매 Save/Source 요청에서 현재 적용 내용을 Core로 검증한다. 실패하면 파일을 쓰지 않고 세션을 보존한다.
 
 브라우저 회귀: `pnpm browser:test writeability-preflight`는 scratch 문서의 front matter·정렬 표·일반/인라인 이미지가 본문·셀 편집 → Save → Reload 뒤 보존되는지 확인한다. `{kbd}`가 있는 문서에서는 입력·Save 차단과 원문 열람을 확인한 뒤, 다른 Core-backed client가 문제 블록을 제거하고 Reload했을 때 편집·저장이 복구되는지 확인한다.
+
+## Block source editing v1 (#102)
+
+설계는 [Block source editing v1](../design/block-source-editing-v1.md)을 따른다.
+
+- 저장 가능한 문서에서 읽기 전용 블록(일반 이미지, task list, front matter, 지원하지 않는 inline이 있는 문단·표 등)의 원문을 펼치면 Edit source가 있다. 원문을 고쳐 Apply하면 그 블록만 바뀐다.
+- 결과가 지원 형태면 바로 편집 가능한 블록이 된다(예: 이미지 원문을 `The **logo**.`로 바꾸면 서식 있는 문단). 아니면 읽기 전용으로 남고 원문 요약이 `Applied source`로 바뀐다.
+- 닫히지 않은 code fence·directive, 블록 0개나 여러 개, 다른 target의 label, 문서 처음이 아닌 front matter 등은 폼 안에 이유를 보여 주고 문서를 바꾸지 않는다.
+- Apply는 Undo/Redo 한 단계다. Save → Reload 뒤에도 고친 내용이 남고 다른 블록은 그대로다.
+- 일부가 편집 가능한 블록(읽기 전용 cell이 있는 표)을 화면에서 고쳤다면 Edit source는 비활성화된다. 원문 초안이 그 편집을 담지 않기 때문이다. Undo하거나 Save → Reload한 뒤 쓴다.
+- 문서 전체가 읽기 전용인 경우는 여전히 외부 편집기나 CLI로 고친 뒤 Reload한다.
+
+CLI는 같은 Core 동작을 쓴다. `inspect`가 읽기 전용 블록의 현재 `source`를 보여 주고, 실패하면 파일을 쓰지 않는다. `--`로 시작하는 원문은 `--source-file`로 넘긴다.
+
+```bash
+printf '# Title\n\n![logo](./logo.png)\n\nBody.\n' > /tmp/bs.md
+pnpm ieumdoc inspect /tmp/bs.md                                   # 1 unsupported text="" source="![logo](./logo.png)"
+pnpm ieumdoc replace-block-source /tmp/bs.md --at 1 --source '```py'; echo "exit=$?"   # not closed, exit=1, 파일 그대로
+pnpm ieumdoc replace-block-source /tmp/bs.md --at 1 --source 'The **logo**.'
+pnpm ieumdoc inspect /tmp/bs.md                                   # 1 paragraph inlineEditable=true text="The logo."
+```
+
+`pnpm browser:test block-source-editing`은 scratch 파일에서 거부 이유, Apply, Undo/Redo, 적용 뒤 시각 편집, 읽기 전용으로 남는 결과, Save → Reload를 확인한다.
 
 ## Editing session and Save (#40)
 

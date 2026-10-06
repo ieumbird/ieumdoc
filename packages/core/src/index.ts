@@ -79,6 +79,7 @@ export const updateList = fence(operations.updateList);
 export const insertCodeBlock = fence(operations.insertCodeBlock);
 export const updateCodeBlock = fence(operations.updateCodeBlock);
 export const removeBlock = fence(operations.removeBlock);
+export const replaceBlockSource = fence(operations.replaceBlockSource);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);
 export const convertBlock = fence(operations.convertBlock);

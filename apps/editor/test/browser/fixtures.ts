@@ -46,6 +46,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "block-move": { files: technical, scenarios: ["block-move"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
+  "block-source-editing": {
+    files: [document("diagram.svg"), { name: "block-source.md", create: () =>
+      "# Block source\n\n![Diagram](./diagram.svg)\n\n*   [ ] Draft\n*   [x] Review\n\nBody.\n" }],
+    scenarios: ["block-source-editing"],
+  },
   "writeability-preflight": {
     files: [fixture("front-matter.md"), fixture("preserved-markdown.md"), fixture("blocked-markdown.md"), document("diagram.svg")],
     scenarios: ["writeability-preflight"],
