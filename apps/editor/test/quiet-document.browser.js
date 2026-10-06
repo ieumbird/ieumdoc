@@ -257,7 +257,7 @@ async (page, { screenshots = false } = {}) => {
     await rest();
     const local=await page.evaluate(()=>{
       const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing ${s}`);return n;};
-      const math=required('.equation-math'),content=required('.equation-content'),table=required('.table-block');
+      const math=required('.equation-math'),content=required('.equation-content'),table=required('.table-scroll');
       const text=required('.document-path-name'),path=required('.document-path');
       return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:text.getBoundingClientRect().width>100,pathTitle:path.title};
     });
