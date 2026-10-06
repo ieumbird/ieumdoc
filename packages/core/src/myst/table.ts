@@ -95,7 +95,8 @@ export function isTableDirective(node: MystNode | undefined): boolean {
   const rest = caption ? children.slice(1) : children;
   if (rest.length !== 1 || rest[0].type !== "table") return false;
   if (caption && !(Object.keys(caption).every((key) => CAPTION_FIELDS.has(key)) &&
-      caption.children?.length === 1 && caption.children[0].type === "paragraph")) return false;
+      caption.children?.length === 1 && caption.children[0].type === "paragraph" &&
+      Object.keys(caption.children[0]).every(key => CAPTION_FIELDS.has(key)))) return false;
   return caption !== undefined || (typeof node.label === "string" && node.label.length > 0);
 }
 
