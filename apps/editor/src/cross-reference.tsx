@@ -97,12 +97,12 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
 }
 
 /** Slash menu items that insert a reference to each target matching the query. */
-export function referenceCommandItems(targets: ReferenceTarget[], query: string): { id: string; label: string }[] {
+export function referenceCommandItems(targets: ReferenceTarget[], query: string): { id: string; label: string; group: string }[] {
   const needle = query.toLowerCase();
   return targets
     .filter((target) => needle.length === 0 || ["reference", "ref", (target.kind === "table" ? "table" : KIND[target.role].toLowerCase()), target.label.toLowerCase()]
       .some((word) => word.startsWith(needle)))
-    .map((target) => ({ id: referenceCommandId(target), label: `${target.kind === "table" ? "Table" : KIND[target.role]} reference: ${target.label}` }));
+    .map((target) => ({ id: referenceCommandId(target), label: `${target.kind === "table" ? "Table" : KIND[target.role]} reference: ${target.label}`, group: "References" }));
 }
 
 export function referenceCommandId(target: ReferenceTarget): string {

@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, useStat
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
+  blockCommandGroup,
   filterInsertCommands,
   formattableSelection,
   INSERT_COMMANDS,
@@ -9,7 +10,8 @@ import {
   type SlashRange,
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
-import { CommandMenu } from "./CommandMenu.tsx";
+import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
+import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, referenceTargets, ReferenceForm } from "./cross-reference.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -26,6 +28,11 @@ import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline,
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
+
+/** An insert command or reference item as the insert menu shows it: grouped, with its icon. */
+function insertMenuItem(item: { id: string; label: string; group: string; hint?: string }): CommandMenuItem {
+  return { id: item.id, label: item.label, group: item.group, hint: item.hint, icon: insertCommandIcon(item.id) };
+}
 
 const EQUATION_DRAFT_MOVE_HINT = "Apply or Cancel the Equation edit before moving it.";
 const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it.";
@@ -290,7 +297,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(referenceTargets(editor.state.doc), slash.query)]
+    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(referenceTargets(editor.state.doc), slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {
@@ -386,7 +393,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CommandMenu
           key={`insert-${blockMenu.index}`}
           label="Insert block"
-          items={INSERT_COMMANDS}
+          items={filterInsertCommands("").map(insertMenuItem)}
           focusOnOpen
           style={blockMenuStyle}
           onSelect={id => runInsert(id, blockMenu.index)}
@@ -400,6 +407,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           items={BLOCK_COMMANDS.filter(command => command.applies?.(editor.state, blockMenu.index) ?? true).map(command => ({
             id: command.id,
             label: command.label,
+            group: blockCommandGroup(command.id),
             disabled: !command.enabled(editor.state, blockMenu.index),
           }))}
           focusOnOpen

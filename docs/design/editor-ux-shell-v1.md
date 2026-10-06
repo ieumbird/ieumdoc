@@ -19,7 +19,7 @@ Open uses the existing local path dialog. New creates through the existing API i
 ## Writing interactions
 
 - Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible.
-- `+` and `/` share supported insert commands (Paragraph, Heading 1–6, Note, Warning, Quote, Divider, lists, Code block, Equation, Figure, Table); slash also offers actual Equation/Figure reference targets. Slash keeps editor focus. Gutter-opened menus focus their first item.
+- `+` and `/` share supported insert commands, grouped by dividers with an icon and the Markdown shortcut that makes the same block: Text (Paragraph, Heading 1–3; Heading 4–6 only when the query matches), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers actual Equation/Figure reference targets. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item.
 - Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; handle drag reorders through the existing editor operation. Unsupported structures remain protected.
 - Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Inline code, Link, Inline Math and Cross-reference.

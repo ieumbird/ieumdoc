@@ -14,6 +14,12 @@ export type SlashRange = { from: number; to: number };
 export type InsertCommand = {
   id: string;
   label: string;
+  /** Menu group: what kind of content the command inserts. */
+  group: string;
+  /** The Markdown input shortcut that makes the same block, shown beside the label. */
+  hint?: string;
+  /** Rarely used: listed only when a slash query matches it, so the full menu stays short. */
+  onlyWhenSearched?: boolean;
   keywords: string[];
   run(state: EditorState, index: number, slash?: SlashRange): Transaction;
 };
@@ -38,72 +44,91 @@ export const INSERT_COMMANDS: InsertCommand[] = [
   {
     id: "paragraph",
     label: "Paragraph",
+    group: "Text",
     keywords: ["text", "p"],
     run: insertParagraphAfter,
   },
   ...Array.from({ length: 6 }, (_, index): InsertCommand => ({
     id: `heading-${index + 1}`,
     label: `Heading ${index + 1}`,
+    group: "Text",
+    hint: "#".repeat(index + 1),
+    ...(index >= 3 ? { onlyWhenSearched: true } : {}),
     keywords: ["heading", `h${index + 1}`],
     run: (state, block, slash) => insertHeadingAfter(state, block, index + 1, slash),
   })),
   {
-    id: "note",
-    label: "Note",
-    keywords: ["note", "admonition"],
-    run: (state, index, slash) => insertAdmonitionAfter(state, index, "note", slash),
-  },
-  {
-    id: "warning",
-    label: "Warning",
-    keywords: ["warning", "admonition"],
-    run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
-  },
-  {
-    id: "quote",
-    label: "Quote",
-    keywords: ["quote", "blockquote", "citation"],
-    run: insertQuoteAfter,
-  },
-  {
-    id: "divider",
-    label: "Divider",
-    keywords: ["divider", "hr", "rule", "separator", "line"],
-    run: insertDividerAfter,
-  },
-  {
     id: "bulleted-list",
     label: "Bulleted list",
+    group: "Lists",
+    hint: "-",
     keywords: ["list", "bullet", "ul"],
     run: (state, index, slash) => insertListAfter(state, index, false, slash),
   },
   {
     id: "numbered-list",
     label: "Numbered list",
+    group: "Lists",
+    hint: "1.",
     keywords: ["list", "numbered", "ordered", "ol"],
     run: (state, index, slash) => insertListAfter(state, index, true, slash),
   },
   {
+    id: "note",
+    label: "Note",
+    group: "Blocks",
+    keywords: ["note", "admonition"],
+    run: (state, index, slash) => insertAdmonitionAfter(state, index, "note", slash),
+  },
+  {
+    id: "warning",
+    label: "Warning",
+    group: "Blocks",
+    keywords: ["warning", "admonition"],
+    run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
+  },
+  {
+    id: "quote",
+    label: "Quote",
+    group: "Blocks",
+    hint: ">",
+    keywords: ["quote", "blockquote", "citation"],
+    run: insertQuoteAfter,
+  },
+  {
+    id: "divider",
+    label: "Divider",
+    group: "Blocks",
+    hint: "---",
+    keywords: ["divider", "hr", "rule", "separator", "line"],
+    run: insertDividerAfter,
+  },
+  {
     id: "code-block",
     label: "Code block",
+    group: "Technical",
+    hint: "```",
     keywords: ["code", "pre", "snippet"],
     run: insertCodeBlockAfter,
   },
   {
     id: "equation",
     label: "Equation",
+    group: "Technical",
     keywords: ["equation", "math", "latex"],
     run: insertEquationAfter,
   },
   {
     id: "figure",
     label: "Figure",
+    group: "Technical",
     keywords: ["figure", "image", "picture"],
     run: insertFigureAfter,
   },
   {
     id: "table",
     label: "Table",
+    group: "Technical",
     keywords: ["table", "grid"],
     run: insertTableAfter,
   },
@@ -257,9 +282,16 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
   },
 ];
 
+/** Block menu group of a block command, by what it acts on. */
+export function blockCommandGroup(id: string): string {
+  if (id.startsWith("table-")) return "Table";
+  if (id.startsWith("section-")) return "Section";
+  return id === "delete" ? "Block" : "Turn into";
+}
+
 export function filterInsertCommands(query: string): InsertCommand[] {
   const needle = query.trim().toLowerCase();
-  if (!needle) return INSERT_COMMANDS;
+  if (!needle) return INSERT_COMMANDS.filter(command => !command.onlyWhenSearched);
   return INSERT_COMMANDS.filter(command =>
     [command.label, ...command.keywords].some(word => word.toLowerCase().startsWith(needle)));
 }
