@@ -1,5 +1,10 @@
 # Quiet Document v1 — visual review
 
+- Status: Historical
+- Last verified: 2026-10-08 (status and authority links only; captures and measurements retained).
+- Scope: historical visual review, not a current design contract.
+- Current authority: [Visual Language (v2)](editor-visual-language-v1.md) and [Layout Rules](editor-layout-rules-v1.md).
+
 - Baseline: `aaf6a5a` (latest `origin/master` at start; includes PR #27 / #28).
 - Branch: `feat/editor-visual-refinement-v1`.
 - Actual implementation model: `openai/gpt-6-astra`; session reasoning effort: `xhigh`.

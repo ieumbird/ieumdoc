@@ -28,7 +28,13 @@
 
 ## Repository map
 
+- `docs/README.md` — central documentation index, including each document's status and authority.
 - `docs/adr/` — accepted architectural decisions and their rationale.
+- `docs/design/` — current implemented behavior contracts; the explicitly Historical visual review is evidence only.
+- `docs/reviews/` — historical reviews and spike evidence, not current requirements.
+- `docs/contributing/` — contributor guidance and documentation governance.
+- `.github/` — CI and contribution templates.
+- `patches/` — pinned local dependency patches with documented removal conditions.
 - `packages/core/` — IeumDoc의 headless document engine. 문서의 parse, semantic operations, structural validation, canonical serialization을 소유한다.
 - `packages/core/src/myst/` — MyST integration boundary. MyST-specific parsing/serialization logic은 이 경계 안에 둔다.
 - `packages/core/test/` — Core의 document semantics와 canonical round-trip 계약을 검증한다.
@@ -40,21 +46,29 @@
 - `.githooks/` — optional shared Git hooks, including commit-msg AI provenance checks.
 - `README.md` — 제품 목적과 장기적인 아키텍처 방향.
 
+## Documentation authority and lifecycle
+
+- 적용 순서는 이 문서의 repository-wide 제약 → Accepted ADR → Implemented design contract → 코드·테스트의 실행 근거 → historical review/spike → README 개요다. 충돌 시 실제 동작과 Accepted decision을 대조해 버그인지 문서 drift인지 판정한다. 코드를 무조건 정답으로 삼지 않는다.
+- current behavior를 변경하면 관련 design document도 같은 PR에서 갱신한다.
+- review/spike를 current contract처럼 사용하지 않는다. 당시 근거는 보존하고 현재 authority로 연결한다.
+- stale link와 conflicting contract를 발견하면 숨기지 않고 수정한다.
+- 모든 유지되는 `docs/**/*.md` 문서는 [docs index](docs/README.md)에 직접 연결되어야 한다.
+- 상태·metadata·충돌 처리의 상세 규칙은 [Documentation governance](docs/contributing/documentation-governance.md)를 따른다.
+
 ## Verification
 
-- 변경한 동작에 필요한 검증과 필수 CI 검사를 수행한다. 무관한 테스트 확장·리팩터링은 하지 않는다.
+- 변경한 동작에 필요한 검증과 필수 CI 검사를 수행한다. 무관한 테스트 확장·리팩터링은 하지 않는다. 변경 유형별 최소 검증은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따르며, 문서만 바꾸면 `pnpm docs:check`와 `git diff --check`를 실행한다.
 - 테스트 추가 전 기존 보호 범위와 새로 잡을 결함을 확인한다. 기존 테스트 보완을 우선하며, 고유한 보호 가치가 없으면 추가하지 않는다.
 - 사용자 동작·공개 계약을 검증하고, 변수명·우연한 마크업 형태·임의의 개수를 고정하지 않는다. 명시적인 의존성 경계는 검증한다.
 - 의미 규칙은 Core에서, CLI·브라우저는 각 인터페이스의 고유한 위험과 통합 동작을 검증한다. 같은 결함을 잡는 사례를 계층마다 반복하지 않는다.
 - 동일 실행 결과로 필요한 검사를 함께 수행한다. 자동 판정에 쓰이지 않는 촬영·촬영 전용 순회는 수동 검토로 분리한다.
 
-## Browser automation on Windows
+## Browser automation
 
-이 PC는 Windows 로그온 실패 10회/10분에 계정을 잠근다. 설치형 Chrome은 새 프로필로 시작할 때마다 계정 암호가 비어 있는지 빈 암호 로그온으로 검사하고, 그 결과를 프로필에 캐시한다. 그래서 새 프로필로 Chrome을 반복 실행하면 실행마다 로그온 실패가 쌓여 계정이 잠긴다.
-
-- 브라우저 검증은 `pnpm browser:test`를 사용한다. runner는 재사용 프로필(`playwright-cli open --persistent`)로 Chrome을 연다.
-- `playwright-cli`를 직접 쓸 때도 `open --persistent`로 연다. 기본 `open`(매번 새 임시 프로필), Playwright `launch()`, 임시 `--user-data-dir`로 설치형 Chrome을 반복 실행하지 않는다.
-- 디버깅으로 브라우저를 다시 열 때는 기존 session을 재사용한다. 짧은 간격으로 새 브라우저를 여러 번 띄우지 않는다.
+- 브라우저 검증은 `pnpm browser:test`를 사용한다.
+- Windows에서는 재사용 persistent browser profile을 사용한다. `playwright-cli` 직접 실행도 `open --persistent`를 사용하고 디버깅은 기존 session을 재사용한다.
+- 설치형 Chrome을 임시 profile, 임시 `--user-data-dir`, 반복 `launch()`로 짧은 간격에 새로 실행하지 않는다.
+- 원인, 실행 간 storage 정리와 상세 규칙은 [Windows browser automation](docs/contributing/windows-browser-automation.md)을 따른다.
 
 ## Process cleanup
 

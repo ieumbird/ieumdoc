@@ -1,7 +1,12 @@
 # Continuous document editing v1
 
-Issue #41 extends interaction among the existing supported blocks. ProseMirror
-owns selection, replacement, clipboard slices and history. Core still owns all
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
+
+## Continuous editing
+
+ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
 
 - Enter splits prose and headings, exits a heading at its end, and creates space
@@ -35,19 +40,16 @@ Core `insertParagraph` accepts InlineContent directly (CLI `insert-block --conte
 so rich content is never staged as flattened text. Core `insertTable` accepts optional
 column alignment, also exposed by CLI `insert-table --align`. Text-block conversions
 and selection replacement compose existing Core operations, already available
-headlessly. Issue #54 adds block-menu Paragraph/Heading conversion; it saves like
+headlessly. Block-menu Paragraph/Heading conversion saves like
 other engine conversions, and Core `convertBlock` (CLI `convert-block`) is the same
 conversion for headless callers. Headings hold inline content without line breaks
 (#58), so a paragraph with line breaks is refused with a visible reason instead of
 losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
 `update-heading`). Cursor navigation and session identity repair require no CLI command.
 
-Verification covers engine transactions, real clipboard and keyboard input,
-composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
-Automated composition events exercise the browser input lifecycle, not an OS IME.
+## Table cells and Figure captions
 
-Issue #58 extends table cells and Figure captions to the supported InlineContent
-contract. Core updateTableCell/insertTable accept text or inline content (CLI
+Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
 update-table-cell --content and insert-table --cells); cells reject line breaks.
 Core updateFigure/insertFigure accept text or inline captions (CLI --caption-content).
 A Figure's caption is inline content in the single ProseMirror document, editable
@@ -56,7 +58,9 @@ retain Apply/Cancel; the legacy plain-caption field remains available for plain
 captions. Metadata Apply keeps rich caption content. Legends and unsupported
 inline elements stay read-only with original source and a visible reason.
 
-Issue #75 adds table structure edits within what a GFM pipe table expresses. Core
+## Table structure
+
+Table structure edits stay within what a GFM pipe table expresses. Core
 removes and moves body rows and columns and sets or clears column alignment (CLI
 remove-table-row/-column, move-table-row/-column, update-table-alignment); the header
 row stays first and a table keeps one column. The block menu applies them to the
@@ -66,7 +70,9 @@ maps the edited grid to the snapshot. The Host then removes, moves, adds and ali
 through the same Core operations. Read-only cells move verbatim with their row or
 column. Cell merge has no GFM form and is not supported.
 
-Issue #76 adds section moves and deletion. A section is computed from the current
+## Sections
+
+A section can be moved or deleted. It is computed from the current
 top-level blocks: a heading, the label targets directly before it, and the blocks up to
 the next heading of the same or a higher level. It has no identity or Markdown syntax
 of its own (ADR-0003). One Core rule (`@ieumdoc/core/section`) serves Core `moveSection`/
@@ -76,7 +82,9 @@ sibling section, or deletes it, in one engine transaction. Save reuses the exist
 block order and deletion path, and the result matches the Core operation. Heading
 levels never change. Read-only blocks and targets move or are removed verbatim.
 
-Issue #60 normalizes external clipboard HTML (web pages, Notion, Word) before the
+## External clipboard
+
+External clipboard HTML (web pages, Notion, Word) is normalized before the
 engine parses it (`transformPastedHTML`, `apps/editor/src/external-html.ts`). It
 rewrites semantic HTML into the editor's own block markup, so ProseMirror still
 parses, fits and replaces the selection in one transaction (one Undo), and Save
@@ -114,3 +122,13 @@ a clipboard PNG file still takes the #59 asset path first.
 
 The result uses existing blocks and InlineContent only, so no Core operation or CLI
 command is added; pasting is an editor input interaction.
+
+## Verification
+
+Verification covers engine transactions, real clipboard and keyboard input,
+composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
+Automated composition events exercise the browser input lifecycle, not an OS IME.
+
+## History
+
+The implemented slices were tracked in #41 (continuous editing), #54 (block conversion), #58 (rich headings/cells/captions), #75 (table structure), #76 (sections), and #60 (external clipboard). These issue references record provenance; the behavior above is the current contract.

@@ -1,5 +1,9 @@
 # Document support and preservation v1
 
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: Core read, visual authoring and canonical write boundaries; [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
+
 Issue: #42. Readability, visual authoring, and canonical writeability are separate capabilities.
 
 ## Contract

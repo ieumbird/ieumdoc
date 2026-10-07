@@ -1,12 +1,14 @@
 # Filesystem Host Boundary v1
 
-- Status: Draft
+- Status: Implemented
+- Last verified: 2026-10-08 (development adapter and tests, not a production-host validation).
+- Authority: implemented development-host boundary; production host remains undecided. [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
 ## Purpose
 
-IeumDoc의 persistent SSOT는 사용자의 로컬 filesystem에 있는 사람이 읽을 수 있는 plain-text `.md` 파일이다. 이 문서는 Open, Save, New Document 및 향후 Open Folder가 그 파일에 접근하는 경계를 정한다.
+IeumDoc의 persistent SSOT는 사용자의 로컬 filesystem에 있는 사람이 읽을 수 있는 plain-text `.md` 파일이다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
 
 이 경계의 핵심은 filesystem을 Browser Editor가 직접 소유하지 않고, 교체 가능한 Host가 소유한다는 것이다. 현재의 localhost HTTP adapter는 이 경계의 한 구현일 뿐이며 최종 backend architecture로 확정하지 않는다.
 
@@ -30,7 +32,8 @@ Browser Editor는 Host를 통해 다음을 요청한다.
 - file write
 - file create
 - 사용자가 고른 folder의 한 단계 listing (아래 Folder listing v1)
-- 향후 filesystem watch
+
+filesystem watch는 현재 제공하지 않으며 향후 검토 대상이다.
 
 Host는 요청된 document locator를 실제 filesystem 동작으로 연결한다. Locator는 interface/host layer의 값이며 Core의 semantic document model에 포함하지 않는다.
 
@@ -54,7 +57,7 @@ Browser -> file upload -> remote service -> edit -> download
 
 - OS filesystem에 대한 read, write, create
 - document locator를 실제 path 또는 native file handle로 해석하는 일
-- 사용자가 고른 folder의 listing과 향후 filesystem watch
+- 사용자가 고른 folder의 listing (filesystem watch는 미구현)
 - filesystem error를 Browser에 전달할 수 있는 host-level 결과와 오류
 - path normalization, traversal 방지, 허용된 filesystem 범위, overwrite protection 등 filesystem security 검증
 - 열린 `.md` 파일 directory를 기준으로 한 상대 media resolution
@@ -152,7 +155,7 @@ Host는 Browser에서 전달된 locator와 filesystem operation을 신뢰 경계
 
 ## Relationship to New Document
 
-이 경계는 다음 New Document creation v1의 기반이다.
+현재 New Document creation은 이 개발 Host 경계로 구현되어 있다.
 
 ```text
 사용자 path
@@ -164,14 +167,14 @@ Host
 new `.md` file
 ```
 
-New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전달하는 수준으로 시작한다. 예상되는 최소 정책은 다음과 같다.
+New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전달한다. 현재 정책은 다음과 같다.
 
 - `.md` 파일만 생성
 - parent directory가 이미 존재해야 함
 - 기존 파일 overwrite 금지
 - 생성 성공 후 해당 파일을 current document로 open
 
-New Document 기능 자체와 그 UI/adapter 구현은 이 문서의 작업 범위가 아니다.
+`createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create하며, [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder)는 표시 중인 folder를 destination으로 사용한다. 제품 Host나 installer의 결정은 포함하지 않는다.
 
 ## Non-goals
 

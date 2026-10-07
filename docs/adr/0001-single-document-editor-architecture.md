@@ -1,6 +1,8 @@
 # ADR-0001: 단일 문서 편집 상태 기반 Typed Block Editor
 
 - Status: Accepted
+- Last verified: 2026-10-08 (current implementation and decision scope reviewed; original decision date retained).
+- Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0003](0003-document-addressing-identity-boundary.md)
 - Decision date: 2026-09-22
 
 ## Context
@@ -71,7 +73,7 @@ Tiptap이 모든 UX를 자동으로 해결한다고 가정하지 않는다. 단�
 ### A: Per-block Editor
 
 - 검토 commit: `4d25f459f97973de59de496736f52de6947133cd`
-- 보고서: `apps/editor/PER_BLOCK_SPIKE.md`
+- 보고서: [archived Per-block spike](https://github.com/ieumbird/ieumdoc/blob/4d25f459f97973de59de496736f52de6947133cd/apps/editor/PER_BLOCK_SPIKE.md) (현재 tree에는 없음)
 - 보존 태그: `archive/editor-per-block-spike`
 - 실제 브라우저 관찰: paragraph별 selection과 undo/redo가 분리되었고, 블록 간 focus 이동에는 별도 routing이 필요했다. prose를 equation 너머까지 drag한 경우 하나의 의미 있는 cross-block selection을 만들지 못했다. 구조 변경은 editor를 다시 만들며 local history를 잃었다.
 - 소스 및 자동 테스트 확인: focus registry, 지연 focus, paragraph split/merge, draft flush 후 구조 변경, Core operation 및 canonical round-trip 검증이 추가되었다.
@@ -80,7 +82,7 @@ Tiptap이 모든 UX를 자동으로 해결한다고 가정하지 않는다. 단�
 ### B: Single Document Editor
 
 - 검토 commit: `5c0ad21c9145a3ef4bc014197991628b34208dd3`
-- 보고서: `docs/spikes/editor-single.md`
+- 보고서: [archived Single Editor spike](https://github.com/ieumbird/ieumdoc/blob/5c0ad21c9145a3ef4bc014197991628b34208dd3/docs/spikes/editor-single.md) (현재 tree에는 없음)
 - 보존 태그: `archive/editor-single-spike`
 - 소스 및 자동 테스트 확인: 하나의 `useEditor`가 Heading, Paragraph, Equation을 포함하는 문서를 소유했고, Equation은 typed atomic node로 표현되었다. Editor 내부 양방향 adapter는 지원하지 않는 block과 mark를 거부했으며, Core와 저장 bridge에는 Tiptap/ProseMirror 타입을 노출하지 않았다. semantic save와 canonical reparse도 자동 검증했다.
 - 실제 브라우저 관찰: 주요 키보드·마우스 interaction 결과는 기록되지 않았다.

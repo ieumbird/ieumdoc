@@ -1,5 +1,12 @@
 # MyST dependency alignment and security remediation v1
 
+- Status: Historical
+- Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
+- Scope: Historical security review with current follow-up tracked in [issue #11](https://github.com/ieumbird/ieumdoc/issues/11). No permanent assurance of current security.
+- Current authority: [Document support](../design/document-support-v1.md) for the current parse/write contract; the patch removal condition below remains applicable.
+
+Current Core explicitly disables smartquotes in [parse.ts](../../packages/core/src/myst/parse.ts); the reachability row and advisory counts below belong to the original audit, not a fresh audit. The existing [canonical input safety addendum](#addendum-canonical-input-safety-v1) records that change. Dependency upgrades and removal of the pinned patch remain tracked in issue #11.
+
 Checked 2026-09-23 against master `b290d29` (after PR #8).
 The persistent SSOT remains plain-text Markdown. No Core operation, parser
 configuration, serializer policy, CLI mutation, or Editor behavior is changed.

@@ -1,6 +1,10 @@
 # Block source editing v1
 
-Issue #102. MyST directives and roles are an open set, so read-only blocks remain however far visual authoring grows. A read-only block's MyST source can now be edited in IeumDoc and applied through Core. This changes the "No raw Markdown editing or repair API" decision in [Document support v1](document-support-v1.md) for single blocks only. It does not need a new ADR: the change is a Core semantic operation that passes the existing validation and canonical write contract (ADR-0002), and the Editor keeps its single document state (ADR-0001).
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: Core block replacement and its Editor/CLI adapters; [Document support](document-support-v1.md).
+
+A read-only block's MyST source can be edited in IeumDoc and applied through Core. MyST directives and roles are an open set, so read-only blocks remain however far visual authoring grows. Introduced in #102, this single-block operation is part of the current [Document support contract](document-support-v1.md); whole-document Source remains read-only. It does not need a new ADR: the change is a Core semantic operation that passes the existing validation and canonical write contract (ADR-0002), and the Editor keeps its single document state (ADR-0001).
 
 ## Core
 

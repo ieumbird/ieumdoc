@@ -1,5 +1,9 @@
 # Table caption and label v1
 
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
+
 Issue #94. Core owns `updateTableCaption` and table `updateLabel`. Plain tables become MyST `{table}` directives when caption or label is present, and return to plain Markdown when both are removed. Canonical writing uses the existing Markdown writer for the caption and GFM grid, then verifies the complete semantic round-trip. Cell paths remain logical `[block,row,column]` regardless of the directive wrapper.
 
 Editor uses the existing single document state and shared properties panel. Hover a table and choose Edit; Caption and Label apply together. Cancel keeps the applied table, and pending form changes participate in the existing unsaved-state guard. Caption and label make a numbered Table target, including `{numref}` insertion and click navigation. Caption edits reset snapshot numbering defaults so removing both properties immediately removes the number. Grid children and row positions are unchanged.

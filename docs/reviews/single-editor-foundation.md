@@ -1,10 +1,19 @@
 # Single Editor Foundation architecture review
 
+- Status: Historical
+- Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
+- Scope: Historical architecture review; results and debt below describe the reviewed baseline only.
+- Current authority: [ADR-0001](../adr/0001-single-document-editor-architecture.md) and [current design contracts](../README.md#current-implemented-contracts).
+
 - Reviewed baseline: `bc5dae2ef1faf745627a890a5a582882f1eeb29f` (`origin/master`, fetched 2026-09-22).
 - History: foundation `4700785`, stale save `e101d57`, CLI help/inspect `c495687`, inspect labels `bc5dae2`.
 - Decision: **PASS WITH FIXES** for this reviewed foundation and the fixes described below, including the follow-up guard coverage for `replaceText` and `insertParagraph`.
 - Authority: Accepted ADR-0001 and AGENTS.md. A/B selection is not reopened.
 - `feat/paragraph-semantics-v1` is not in the reviewed master and was not merged or reviewed here.
+
+## Current follow-through
+
+The CLI now accepts rich paragraph insertion through `insert-block --content`, but the dedicated existing-paragraph inline replacement command described below is still absent. It remains outside this documentation change. Save no longer remounts the editor: [Editing session and Save](../design/editing-session-save-v1.md) preserves selection/history, and [Continuous editing](../design/document-editing-v1.md) describes the implemented structural interactions. The debt and recommendations below remain the original historical record, not a current backlog.
 
 ## Responsibility boundaries
 

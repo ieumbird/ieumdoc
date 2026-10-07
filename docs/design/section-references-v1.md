@@ -1,5 +1,9 @@
 # Section references v1
 
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: In-document MyST heading labels and references, not cross-document identity; [ADR-0003](../adr/0003-document-addressing-identity-boundary.md).
+
 Equations, Figures and Tables could be referenced; sections could not. A `{ref}` reference or a `(label)=` target kept its paragraph or block read-only, so authors had to write both by hand. Section references close that gap with MyST's own syntax.
 
 ## Representation
@@ -18,7 +22,7 @@ Core's section rule already counts targets before a heading as part of that sect
 
 ## Editor
 
-- A target shows as a `§ label` line above its heading. Its Edit form renames it and reports rule or duplicate errors before Save. Deleting the line removes the label.
+- A target's `§ label` metadata (source syntax: `(label)=`) is hidden at rest and appears with its heading on hover, focus or selection ([Visual Language v2](editor-visual-language-v1.md)). Clicking it opens Edit, which reports rule or duplicate errors before Save. Deleting the target removes the label.
 - The slash menu lists labeled sections and unlabeled headings. Picking an unlabeled heading inserts a `sec-<slug>` target and the reference in one transaction, so one Undo step removes both. The slug uses the heading's ASCII letters and digits; otherwise the label is a numbered `sec-n`.
 - A heading's block menu adds a label without a reference.
 - A reference chip shows `§` and the heading text, as MyST renders `{ref}`, and goes to the heading.

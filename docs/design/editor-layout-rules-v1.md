@@ -1,8 +1,9 @@
 # Editor Layout Rules v1
 
-- Status: Implemented, updated 2026-09-25.
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
 - Scope: Editor shell, document, block tools and control geometry.
-- [Visual Language v1](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
+- [Visual Language (current v2)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 ## Alignment and ownership
 
@@ -18,7 +19,7 @@
 
 - Standard controls/inputs: 32px; compact controls/actions: 28px; icons: 16px. Measure actual rendered height after transitions complete.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. Document starts 48px below header (32px at ≤1024px).
-- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language v1.
+- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v2).
 - Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.
 

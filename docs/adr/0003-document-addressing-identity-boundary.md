@@ -1,6 +1,8 @@
 # ADR-0003: Document Addressing & Identity Boundary
 
 - Status: Accepted
+- Last verified: 2026-10-08 (current implementation and decision scope reviewed; original decision date retained).
+- Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md)
 - Decision date: 2026-09-23
 
 ## Context
@@ -40,6 +42,8 @@ snapshot locator와 persistent identity를 분리하면 현재 parsed tree와 Ed
 - identity를 문서에 저장하는 위치, 형식 또는 migration 전략
 - transaction mapping, collaboration, conflict resolution 또는 session architecture
 - ADR-0001에서 결정한 Editor state, typed block 및 NodeView 구조
+
+현재 문서 안의 MyST label/reference는 [Section references](../design/section-references-v1.md)의 구현 계약을 따른다. 이는 snapshot locator를 identity로 바꾸거나 cross-document identity를 결정하지 않는다.
 
 ## Revisit Conditions
 

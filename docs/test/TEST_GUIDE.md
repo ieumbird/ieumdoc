@@ -1,5 +1,7 @@
 # IeumDoc Test Guide
 
+[검증 진입점](README.md) · [준비](#준비) · [자동 검증](#자동-검증) · [Browser regression](#browser-regression) · [CI](#ci) · [사람이 직접 볼 것](#사람이-직접-볼-것)
+
 동작의 판정은 자동 테스트가 한다. 이 문서는 자동 검증을 실행하는 방법과, 자동화가 판정하지 않아 사람이 직접 봐야 하는 항목만 둔다.
 
 기능별 계약은 다음에서 찾는다.
@@ -22,10 +24,13 @@ Windows에서 전역 pnpm shim이 실패하면 같은 버전의 `corepack pnpm`�
 ## 자동 검증
 
 ```bash
+pnpm docs:check
 pnpm typecheck
 pnpm test                                  # Core, CLI, Editor
 pnpm --filter @ieumdoc/editor build
 ```
+
+`pnpm test`가 Core, CLI, Editor suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
 
 ### Browser regression
 
@@ -41,13 +46,13 @@ pnpm browser:prepare                       # scratch 사본만 다시 만든다(
 
 - 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행한다. 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)이 바뀌면 실패한다. 어떤 사본을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
 - stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다.
-- 브라우저는 재사용 프로필(`open --persistent`)로 연다. 새 프로필 Chrome을 반복 실행하면 Windows 계정이 잠길 수 있다(AGENTS.md "Browser automation on Windows").
+- 브라우저는 재사용 프로필(`open --persistent`)로 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
 - 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `IEUMDOC_BROWSER_URL`을 지정한다.
 - 처음 한 번 필요하면 `pnpm exec playwright-cli install-browser chromium`을 실행한다.
 
 ### CI
 
-`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. 품질 job(typecheck, 테스트, build)과 browser `--shard=1/2`, `--shard=2/2`가 병렬로 돌고, 최종 check는 모두 성공했을 때만 통과한다.
+`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build)과 browser `--shard=1/2`, `--shard=2/2`가 병렬로 돌고, 최종 check는 모두 성공했을 때만 통과한다.
 
 ## 사람이 직접 볼 것
 
