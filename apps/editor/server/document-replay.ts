@@ -526,5 +526,5 @@ function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
     : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : inlineText(item.children))).join("");
+    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
 }

@@ -919,6 +919,16 @@ ol.list { list-style: decimal; }
   color: var(--id-color-text-subtle);
 }
 
+/* A footnote reference is a superscript reference chip; its definition shows the same number. */
+.footnote-reference sup,
+.footnote-number {
+  line-height: 0;
+}
+
+.footnote-number {
+  margin-right: var(--space-1);
+}
+
 /* A section label is authoring metadata, like a Figure label. It takes no layout space (its
  * margins collapse through), sits in the heading's top margin, and is hidden and inert at rest. */
 .label-target {

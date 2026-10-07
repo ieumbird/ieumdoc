@@ -745,6 +745,7 @@ function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
     if (item.kind === "math") return [`math ${item.value} ${marks.join(",")}`];
     if (item.kind === "code") return item.value.split("").map((char) => `${char} ${[...marks, "code"].sort().join(",")}`);
     if (item.kind === "reference") return [`reference ${item.role} ${item.label} ${marks.join(",")}`];
+    if (item.kind === "footnote") return [`footnote ${item.label} ${marks.join(",")}`];
     return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
   });
 }
@@ -752,7 +753,7 @@ function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
 function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
     : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : inlineText(item.children))).join("");
+    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
 }
 
 function normalizeAttr(value: unknown): string {

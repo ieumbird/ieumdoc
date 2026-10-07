@@ -1137,7 +1137,7 @@ function formatListItems(list: ListContent, depth: number): string[] {
 function inlineText(content: InlineContent[]): string {
   return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
     : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : inlineText(item.children))).join("");
+    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
 }
 
 function formatPath(path: NodePath): string {

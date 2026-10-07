@@ -6,7 +6,7 @@ import { NodeSelection, Plugin, TextSelection, type EditorState, type Transactio
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference"]);
 const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
@@ -224,6 +224,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           node.type.name === "equation" ? `$$\n${node.attrs.latex}\n$$` :
           node.type.name === "inlineMath" ? `$${node.attrs.value}$` :
           node.type.name === "crossReference" ? `{${node.attrs.role}}\`${node.attrs.label}\`` :
+          node.type.name === "footnoteReference" ? `[^${node.attrs.label}]` :
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
           copy: (view, event) => {

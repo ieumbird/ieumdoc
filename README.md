@@ -96,6 +96,8 @@ Paste a clipboard PNG or drop one local PNG into the Editor to insert a Figure. 
 
 Headings can be referenced: type `/` and pick a section to insert a `{ref}` reference, which labels the heading with a `(label)=` target if needed; the chip shows the heading text and goes to it. The CLI adds `insert-target`. See [Section references v1](docs/design/section-references-v1.md).
 
+Footnotes (`[^label]`) show as numbered chips that go to their definition, and paragraphs with footnotes stay editable. Definitions stay where they are written and are edited through their source. Save refuses a footnote MyST would drop, such as a definition with no remaining reference. See [Footnotes v1](docs/design/footnotes-v1.md).
+
 A read-only block's MyST source can be edited and applied in place: the result becomes an editable block when IeumDoc supports it, and Apply is one Undo step. The CLI does the same with `replace-block-source`, and `inspect` shows each read-only block's source. See [Block source editing v1](docs/design/block-source-editing-v1.md).
 
 Formatted content copied from web pages, Notion or Word pastes as the supported blocks. Formatting IeumDoc cannot keep is removed with a notice; structure it cannot represent, such as merged table cells or embeds, is refused with the reason. See [Continuous document editing](docs/design/document-editing-v1.md).

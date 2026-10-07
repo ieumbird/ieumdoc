@@ -61,11 +61,12 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "text" || item.kind === "code" || item.kind === "break" || item.kind === "math" || item.kind === "reference") {
+    if (item.kind === "text" || item.kind === "code" || item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote") {
       if (item.kind === "text" && item.text.length === 0) continue;
       const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" }
         : item.kind === "math" ? { type: "inlineMath", attrs: { value: item.value } }
         : item.kind === "reference" ? { type: "crossReference", attrs: { role: item.role, label: item.label } }
+        : item.kind === "footnote" ? { type: "footnoteReference", attrs: { label: item.label } }
         : item.kind === "code" ? { type: "text", text: item.value }
         : { type: "text", text: item.text };
       const applied: TiptapMark[] = [];
@@ -99,12 +100,16 @@ const STRIKE: Mark = { key: "strike", wrap: (children) => ({ kind: "delete", chi
 
 function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath" &&
-      node.type !== "crossReference")) {
+      node.type !== "crossReference" && node.type !== "footnoteReference")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
   }
   if (node.type === "crossReference" && (!["eq", "numref", "ref"].includes(String(node.attrs?.role)) ||
       typeof node.attrs?.label !== "string" || node.attrs.label.length === 0 || node.content !== undefined)) {
     throw new Error(`cross-reference at paragraph child ${index} requires an eq, numref or ref role and a label`);
+  }
+  if (node.type === "footnoteReference" && (typeof node.attrs?.label !== "string" || node.attrs.label.length === 0 ||
+      node.content !== undefined)) {
+    throw new Error(`footnote reference at paragraph child ${index} requires a label`);
   }
   if (node.type === "inlineMath" && (typeof node.attrs?.value !== "string" || node.attrs.value.length === 0 ||
       node.content !== undefined)) {
@@ -139,8 +144,8 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
       code = true;
       continue;
     }
-    if (node.type === "crossReference" && mark.type === "link") {
-      throw new Error(`a cross-reference cannot be inside a link at paragraph child ${index}`);
+    if ((node.type === "crossReference" || node.type === "footnoteReference") && mark.type === "link") {
+      throw new Error(`a ${node.type === "crossReference" ? "cross-reference" : "footnote reference"} cannot be inside a link at paragraph child ${index}`);
     }
     marks.push(mark.type === "bold" ? BOLD : mark.type === "italic" ? ITALIC : mark.type === "strike" ? STRIKE : linkMark(mark, index));
   }
@@ -151,6 +156,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   const item: InlineContent = node.type === "hardBreak" ? { kind: "break" }
     : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
     : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as ReferenceRole, label: String(node.attrs!.label) }
+    : node.type === "footnoteReference" ? { kind: "footnote", label: String(node.attrs!.label) }
     : code ? { kind: "code", value: node.text! }
     : { kind: "text", text: node.text! };
   const order = [BOLD.key, ITALIC.key, STRIKE.key];

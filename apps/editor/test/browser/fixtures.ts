@@ -87,6 +87,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg")], scenarios: ["cross-reference"] },
+  "footnotes": {
+    files: [{ name: "footnotes.md", create: () =>
+      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n" }],
+    scenarios: ["footnotes"],
+  },
   "folder-navigation": {
     files: [
       { name: "index.md", create: () => "# Index\n\nStart here.\n" },

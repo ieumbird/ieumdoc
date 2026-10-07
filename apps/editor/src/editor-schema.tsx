@@ -1,4 +1,4 @@
-import { Extension, Node, generateHTML, type Attribute, type Extensions } from "@tiptap/core";
+import { Extension, Node, generateHTML, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
+import { FootnoteReference, useFootnoteNumber } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   BLOCK_SOURCES_ATTR,
@@ -93,14 +94,14 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
   // `numbered`: the snapshot's numbered targets where they differ from the block kind's default.
-  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, headingLevels: { default: null, rendered: false }, ...attrs };
+  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, headingLevels: { default: null, rendered: false }, footnotes: { default: null, rendered: false }, ...attrs };
 }
 
 // A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
 const SourcedHeading = Node.create({
   name: "heading",
   group: "block",
-  content: "(text | inlineMath | crossReference)*",
+  content: "(text | inlineMath | crossReference | footnoteReference)*",
   defining: true,
   addAttributes() {
     return blockAttrs({ level: hiddenAttr(1) });
@@ -322,7 +323,7 @@ const Divider = Node.create({
 const Figure = Node.create({
   name: "figure",
   group: "block",
-  content: "(text | hardBreak | inlineMath | crossReference)*",
+  content: "(text | hardBreak | inlineMath | crossReference | footnoteReference)*",
   isolating: true,
   selectable: true,
   draggable: false,
@@ -593,7 +594,7 @@ const TableRow = Node.create({
 // A cell holds inline content without line breaks, like a heading.
 const TableCell = Node.create({
   name: "tableCell",
-  content: "(text | inlineMath | crossReference)*",
+  content: "(text | inlineMath | crossReference | footnoteReference)*",
   isolating: true,
   addAttributes() {
     return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_SOURCE_ATTR]: { default: "", rendered: false } };
@@ -708,7 +709,8 @@ const UnsupportedBlock = Node.create({
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ text: hiddenAttr("") });
+    // `footnote`: the label of the footnote a definition block defines.
+    return blockAttrs({ text: hiddenAttr(""), footnote: hiddenAttr("") });
   },
   parseHTML() {
     return [{ tag: "p[data-unsupported-block]" }];
@@ -905,6 +907,7 @@ export function editorExtensions(
     UnsupportedBlock,
     InlineMath,
     CrossReference,
+    FootnoteReference,
     MarkdownInputRules,
     BlockSourceEditing.configure(blockSource ?? {}),
   ];
@@ -1577,6 +1580,7 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
 }
 
 function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
+  const footnote = String(node.attrs.footnote ?? "");
   return (
     <NodeViewWrapper
       as="div"
@@ -1586,12 +1590,18 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
       data-readonly="true"
       contentEditable={false}
     >
-      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}{String(node.attrs.text ?? "")}
+      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}
+      {footnote ? <FootnoteNumber editor={editor} label={footnote} /> : null}{String(node.attrs.text ?? "")}
       <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }
 
+/** A footnote definition's computed number, as MyST lists it. */
+function FootnoteNumber({ editor, label }: { editor: Editor; label: string }) {
+  const number = useFootnoteNumber(editor, label);
+  return <sup className="footnote-number" data-testid="footnote-number">{number ?? `[^${label}]`}</sup>;
+}
 
 const DocumentNumbering = Extension.create({
   name: "documentNumbering",

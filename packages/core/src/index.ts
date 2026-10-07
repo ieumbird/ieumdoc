@@ -31,7 +31,7 @@ export { figureContentError } from "./figure.ts";
 export { labelError, labelKey, targetLabelError } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
-export { headingNumbers, defaultHeadingNumbering, type HeadingNumbering } from "./numbering.ts";
+export { footnoteNumbers, headingNumbers, defaultHeadingNumbering, type HeadingNumbering } from "./numbering.ts";
 export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
 
 type Opaque<T> = T extends MystDocument ? Document : T;

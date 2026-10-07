@@ -4,6 +4,7 @@ import {
   liftMystDirectivesAndRolesTransform,
 } from "myst-transforms";
 import { VFile } from "vfile";
+import { locateFootnotes } from "./footnote.ts";
 import { rememberSource, type MystDocument } from "./tree.ts";
 
 /**
@@ -13,9 +14,10 @@ import { rememberSource, type MystDocument } from "./tree.ts";
  *   (markdown-it `typographer` + `smartquotes`) would turn `Don't` into `Don’t`,
  *   so it is off, and a typed straight quote reloads exactly as written;
  * - a leading UTF-8 byte order mark is an encoding signature, not content;
- * - front matter is marked so canonical write preserves its metadata role.
+ * - front matter is marked so canonical write preserves its metadata role;
+ * - footnote definitions get their own source lines, and those the parse dropped are recorded.
  */
-const OPTIONS = { extensions: { smartquotes: false } };
+export const OPTIONS = { extensions: { smartquotes: false } };
 
 /**
  * Marks the code block MyST makes from front matter. The fingerprint treats every
@@ -30,6 +32,7 @@ export function parse(source: string): MystDocument {
   markFrontMatter(document, text);
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
+  locateFootnotes(document, text, OPTIONS);
   rememberSource(document, text);
   return document;
 }

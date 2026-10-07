@@ -9,7 +9,7 @@ import type { MystNode } from "./tree.ts";
 export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
   if (!content || !semanticUnits(content).some((unit) =>
-    unit.kind === "math" || unit.kind === "reference" || unit.kind === "code" ||
+    unit.kind === "math" || unit.kind === "reference" || unit.kind === "footnote" || unit.kind === "code" ||
     (unit.kind === "text" && unit.text.trim().length > 0))) {
     throw new Error("persistent paragraph must contain non-empty text");
   }
@@ -19,11 +19,12 @@ export function assertPersistentParagraph(node: MystNode): void {
   if (new TextDecoder().decode(new TextEncoder().encode(markdown)) !== markdown) {
     throw new Error("paragraph edit cannot persist an unpaired UTF-16 surrogate");
   }
-  const reparsed = parse(markdown);
-  const projected = reparsed.children.length === 1 && reparsed.children[0].type === "paragraph"
-    ? projectInlineContent(reparsed.children[0]) : undefined;
+  // Footnote definitions after the paragraph complete its references (see `serializeFor`).
+  const reparsed = parse(markdown).children.filter((block) => block.type !== "footnoteDefinition");
+  const projected = reparsed.length === 1 && reparsed[0].type === "paragraph"
+    ? projectInlineContent(reparsed[0]) : undefined;
   if (!projected || JSON.stringify(semanticUnits(content)) !== JSON.stringify(semanticUnits(projected)) ||
-      serialize(reparsed) !== markdown) {
+      serialize(parse(markdown)) !== markdown) {
     throw new Error(failure);
   }
 }
@@ -38,6 +39,7 @@ function semanticUnits(content: InlineContent[], marks: string[] = []): { kind: 
     if (item.kind === "math") return [{ kind: "math", text: item.value, marks }];
     if (item.kind === "code") return item.value.split("").map((text) => ({ kind: "code", text, marks }));
     if (item.kind === "reference") return [{ kind: "reference", text: `${item.role} ${item.label}`, marks }];
+    if (item.kind === "footnote") return [{ kind: "footnote", text: item.label, marks }];
     // split("") deliberately counts UTF-16 units, not Unicode code points.
     return (item.kind === "text" ? item.text.split("") : ["\n"])
       .map((text) => ({ kind: item.kind, text, marks }));

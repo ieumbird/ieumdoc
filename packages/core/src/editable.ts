@@ -15,6 +15,7 @@ import { supportedListContent } from "./myst/list.ts";
 import { isDivider, supportedQuoteContent } from "./myst/quote.ts";
 import { supportedTargetLabel } from "./myst/reference.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
+import { footnoteReferences } from "./myst/footnote.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
@@ -121,6 +122,8 @@ export type EditableBlock = (
       block: "unsupported";
       path: NodePath;
       text: string;
+      /** The label of the footnote this block defines, for a footnote definition. */
+      footnote?: string;
     }) & {
       /** Source context for visually unsupported content; never used to write. `line` is its
        * line in the opened file, absent for block source applied since (`replaceBlockSource`). */
@@ -130,6 +133,8 @@ export type EditableBlock = (
       numbered?: NumberedTargets;
       /** Nested headings in preserved blocks, in document order; they advance heading counters. */
       headingLevels?: number[];
+      /** Footnote reference labels in read-only content, in document order; they advance footnote numbers. */
+      footnotes?: string[];
     };
 
 export type EditableDocument = {
@@ -147,6 +152,8 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
       (block.block === "table" && block.rows.some(row => row.cells.some(cell => !cell.editable)));
     const source = readonly ? sourceExcerpt(document, node) : undefined;
     if (source) block.original = { kind: contentKind(node), ...source };
+    const footnotes = readonly ? footnoteReferences(node) : [];
+    if (footnotes.length) block.footnotes = footnotes;
     const defaults = blockTargets(block);
     if (NUMBERED_KINDS.some((kind) => (numbered[index][kind] ?? 0) !== (defaults[kind] ?? 0))) block.numbered = numbered[index];
     if (block.block !== "heading") {
@@ -248,6 +255,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
     block: "unsupported",
     path,
     text: readableText(node),
+    ...(node.type === "footnoteDefinition" && typeof node.label === "string" ? { footnote: node.label } : {}),
   };
 }
 

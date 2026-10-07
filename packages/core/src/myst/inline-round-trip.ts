@@ -17,9 +17,11 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
   const failure = `${node.type} edit cannot round-trip losslessly through canonical Markdown`;
   const markdown = serializeFor({ type: "root", children: [node] }, failure);
   const reparsed = parse(markdown);
-  const block = reparsed.children[0];
+  // Footnote definitions after the block complete its references (see `serializeFor`).
+  const blocks = reparsed.children.filter((child) => child.type !== "footnoteDefinition");
+  const block = blocks[0];
   const projected = block && projectInlineContent(block);
-  if (reparsed.children.length !== 1 || block?.type !== node.type ||
+  if (blocks.length !== 1 || block?.type !== node.type ||
       (node.type === "heading" && block.depth !== node.depth) || !projected ||
       JSON.stringify(markedText(content)) !== JSON.stringify(markedText(projected)) ||
       serialize(reparsed) !== markdown) {
@@ -36,6 +38,7 @@ function markedText(content: InlineContent[], marks: string[] = []): [string, st
     if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].join(",")]];
     if (item.kind === "code") return item.value.split("").map((text) => [text, [...marks, "code"].sort().join(",")]);
     if (item.kind === "reference") return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].join(",")]];
+    if (item.kind === "footnote") return [[`footnote ${item.label}`, [...marks, "footnote"].join(",")]];
     return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
 }
