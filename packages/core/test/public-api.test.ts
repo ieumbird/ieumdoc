@@ -41,3 +41,19 @@ test("MyST packages are imported only inside Core's MyST boundary", () => {
     /from\s+["']myst-/.test(readFileSync(new URL(file, root), "utf8")));
   assert.deepEqual(outside, []);
 });
+
+// Core is headless: no Node/filesystem, Host, Editor or CLI code, only its own source and declared dependencies.
+test("Core source imports only its own modules and declared dependencies", () => {
+  const root = new URL("../src/", import.meta.url);
+  const { dependencies } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as
+    { dependencies: Record<string, string> };
+  const files = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts"));
+  const outside = files.flatMap((file) =>
+    [...readFileSync(new URL(file, root), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)]
+      .map(([, specifier]) => specifier)
+      .filter((specifier) => specifier.startsWith(".")
+        ? !new URL(specifier, new URL(file, root)).href.startsWith(root.href)
+        : !Object.hasOwn(dependencies, specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/")))
+      .map((specifier) => `${file}: ${specifier}`));
+  assert.deepEqual(outside, []);
+});
