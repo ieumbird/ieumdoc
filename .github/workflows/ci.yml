@@ -10,10 +10,49 @@ permissions:
   contents: read
 
 jobs:
-  quality-and-browser:
-    name: Core, CLI, Editor, and browser regressions
+  quality:
+    name: Core, CLI, and Editor quality
     runs-on: ubuntu-latest
     timeout-minutes: 35
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run Core, CLI, and Editor tests
+        run: pnpm test
+
+      - name: Build Editor for production
+        run: pnpm --filter @ieumdoc/editor build
+
+  browser:
+    name: Editor browser regressions (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/2
 
     steps:
       - name: Check out repository
@@ -39,15 +78,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Run Core, CLI, and Editor tests
-        run: pnpm test
-
-      - name: Build Editor for production
-        run: pnpm --filter @ieumdoc/editor build
 
       - name: Install pinned Chromium and Linux dependencies
         run: pnpm exec playwright-cli install-browser chromium --with-deps
@@ -122,13 +152,31 @@ jobs:
             exit 1
           fi
 
-          pnpm browser:test
+          pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
 
       - name: Upload Editor dev server log on failure
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: editor-browser-ci-logs
+          name: editor-browser-ci-logs-${{ matrix.shard }}
           path: ${{ runner.temp }}/editor-vite.log
           if-no-files-found: ignore
           retention-days: 7
+
+  quality-and-browser:
+    name: Core, CLI, Editor, and browser regressions
+    needs: [quality, browser]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all checks to pass
+        shell: bash
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" ]]; then
+            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT"
+            exit 1
+          fi

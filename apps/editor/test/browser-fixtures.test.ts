@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { parse, serialize } from "@ieumdoc/core";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SCRATCH_DIRS, SOURCE_DIRS } from "./browser/fixtures.ts";
+import { selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
 
 const testDir = path.join(REPOSITORY_ROOT, "apps", "editor", "test");
 const documentDir = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
@@ -28,6 +29,8 @@ function withTmp(run: (tmp: string) => void): void {
 
 test("every scratch directory a browser scenario opens is prepared", () => {
   const scenarios = readdirSync(testDir).filter((name) => name.endsWith(".browser.js"));
+  assert.deepEqual([...STABLE_SCENARIOS].sort(), scenarios.map(name => name.replace(".browser.js", "")).sort(),
+    "the stable suite covers every browser scenario exactly once");
   const prepared = Object.values(SCRATCH_DIRS).flatMap((dir) => dir.scenarios);
   for (const scenario of scenarios) {
     const source = readFileSync(path.join(testDir, scenario), "utf8");
@@ -38,6 +41,35 @@ test("every scratch directory a browser scenario opens is prepared", () => {
     }
   }
   for (const name of prepared) assert.ok(scenarios.includes(`${name}.browser.js`), name);
+});
+
+test("browser shards cover the full stable suite once, with balanced nonempty groups", () => {
+  for (const count of [1, 2, 3]) {
+    const groups = Array.from({ length: count }, (_, index) => selectBrowserScenarios([`--shard=${index + 1}/${count}`]).scenarios);
+    assert.deepEqual(groups.flat().sort(), [...STABLE_SCENARIOS].sort(), "no missing or duplicate scenarios");
+    const lengths = groups.map(group => group.length);
+    assert.ok(Math.min(...lengths) > 0);
+    assert.ok(Math.max(...lengths) - Math.min(...lengths) <= 1);
+  }
+});
+
+test("invalid or ambiguous browser shards cannot silently run an incomplete suite", () => {
+  for (const shard of ["--shard", "--shard=", "--shard=0/2", "--shard=1/0", "--shard=-1/2", "--shard=3/2",
+    "--shard=1.5/2", "--shard=1/2/3", "--shard=1/9007199254740992", `--shard=1/${STABLE_SCENARIOS.length + 1}`]) {
+    assert.throws(() => selectBrowserScenarios([shard]), /shard/i, shard);
+  }
+  for (const args of [["--shard=1/2", "--shard=2/2"], ["--shard=1/2", "source-view"], ["--shard=1/2", "--screenshots"]]) {
+    assert.throws(() => selectBrowserScenarios(args), /shard/i);
+  }
+});
+
+test("unsharded browser selection retains the full suite, named runs and visual review", () => {
+  assert.deepEqual(selectBrowserScenarios([]), { scenarios: STABLE_SCENARIOS, screenshots: false });
+  assert.deepEqual(selectBrowserScenarios(["source-view", "folder-navigation"]),
+    { scenarios: ["source-view", "folder-navigation"], screenshots: false });
+  assert.deepEqual(selectBrowserScenarios(["folder-navigation", "--screenshots"]),
+    { scenarios: ["folder-navigation"], screenshots: true });
+  assert.throws(() => selectBrowserScenarios(["--screenshots"]), /Use:/);
 });
 
 test("prepared scratch files start as copies of their sources, with the derived assets", () => withTmp((tmp) => {

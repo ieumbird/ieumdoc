@@ -4,6 +4,7 @@
  *
  *   pnpm browser:test                      all stable scenarios
  *   pnpm browser:test source-view ...      only the named scenarios (any *.browser.js)
+ *   pnpm browser:test --shard=1/2          one partition of the stable suite
  *   pnpm browser:test quiet-document --screenshots   manual visual review captures
  */
 import { spawnSync } from "node:child_process";
@@ -12,6 +13,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
+import { selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
 
 const URL = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5173";
 const SESSION = "ieumdoc-browser-regression";
@@ -63,46 +65,6 @@ const BROWSER_STATE_DIAGNOSTIC = `async page => page.evaluate(() => {
     editorTextLength: editor?.innerText.length ?? 0,
   };
 })`;
-
-/** Scenarios in apps/editor/test/*.browser.js that pass reliably: currently all of them. */
-export const STABLE_SCENARIOS = [
-  "continuous-editing",
-  "editor-shell",
-  "layout-rules",
-  "quiet-document",
-  "new-document",
-  "open-files",
-  "save-during-edit",
-  "save-session",
-  "equation-insertion",
-  "equation-save-during-edit",
-  "reference-save-reload",
-  "quote-save-reload",
-  "writeability-preflight",
-  "block-move",
-  "figure-authoring",
-  "image-assets",
-  "external-html-paste",
-  "figure-draft-race",
-  "table-cell-editing",
-  "table-authoring",
-  "link-authoring",
-  "inline-math-authoring",
-  "inline-math-split",
-  "admonition-authoring",
-  "structural-block-authoring",
-  "markdown-input",
-  "basic-blocks",
-  "outline",
-  "list-authoring",
-  "source-view",
-  "source-view-pending",
-  "label-authoring",
-  "cross-reference",
-  "block-source-editing",
-  "section-reference",
-  "folder-navigation",
-];
 
 const require = createRequire(import.meta.url);
 const cliPackage = require.resolve("@playwright/cli/package.json");
@@ -244,14 +206,16 @@ function sourceDigest(): string {
   return hash.digest("hex");
 }
 
-async function main(requested: string[]): Promise<number> {
-  const screenshots = requested.includes("--screenshots");
-  requested = requested.filter((name) => name !== "--screenshots");
-  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation"].includes(requested[0]!))) {
-    console.error("Use: pnpm browser:test quiet-document|folder-navigation --screenshots");
+async function main(args: string[]): Promise<number> {
+  let selection: ReturnType<typeof selectBrowserScenarios>;
+  try {
+    selection = selectBrowserScenarios(args);
+  } catch (cause) {
+    console.error(cause instanceof Error ? cause.message : String(cause));
     return 2;
   }
-  const unknown = requested.filter((name) => !existsSync(path.join(REPOSITORY_ROOT, "apps", "editor", "test", `${name}.browser.js`)));
+  const { scenarios, screenshots, shard } = selection;
+  const unknown = scenarios.filter((name) => !existsSync(path.join(REPOSITORY_ROOT, "apps", "editor", "test", `${name}.browser.js`)));
   if (unknown.length > 0) {
     console.error(`Unknown scenario: ${unknown.join(", ")}\nStable: ${STABLE_SCENARIOS.join(", ")}`);
     return 2;
@@ -262,7 +226,7 @@ async function main(requested: string[]): Promise<number> {
     console.error(`The Editor dev server is not reachable at ${URL}. Start it first with: pnpm editor`);
     return 2;
   }
-  const scenarios = requested.length > 0 ? requested : STABLE_SCENARIOS;
+  if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios`);
   const before = sourceDigest();
   playwright(["open", URL], false);
   const failures: string[] = [];
