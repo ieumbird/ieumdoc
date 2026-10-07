@@ -1,7 +1,7 @@
 # VS Code Host spike v1
 
 - Date: 2026-10-07
-- Baseline: `6b37465` (master). Spike code: branch `spike/vscode-custom-editor`, `spikes/vscode-host/`.
+- Baseline: `6b37465` (master). 보존 태그: `archive/vscode-host-spike` (`spikes/vscode-host/`, 실험 브랜치 `spike/vscode-custom-editor`). 제품 구현 또는 release가 아니다.
 - Environment: VS Code 1.140.0, Windows 11, isolated reused profile (`spikes/vscode-host/.run/`).
 - Question: VS Code 확장을 IeumDoc의 주 배포 Host로 삼을 때, IeumDoc의 저장 세션 모델이 VS Code 문서 모델과 맞물리는가. Markdown formatter/linter가 IeumDoc canonical 출력을 간섭하는가.
 - Status: 판정 입력. 배포 Host 결정이나 ADR이 아니다.
@@ -50,15 +50,27 @@
 
 - Host 호출 경계: `App.tsx`의 fetch 7개, `image-assets.ts` 2개, media URL(`editor-schema.tsx`의 `/document/…`)을 Host client 하나로 모은다. webview media는 `asWebviewUri`와 문서 directory의 `localResourceRoots`가 필요하다. 이 spike에서 Figure 이미지는 표시되지 않았다.
 - 저장 진입점 하나: VS Code에서는 Save가 VS Code save(`saveCustomDocument`)를 거쳐야 탭 상태가 맞는다. 현재 Editor는 Ctrl+S를 직접 처리하므로 VS Code의 Ctrl+S와 두 번 실행된다. spike는 status line 관찰과 버튼 클릭으로 연결했고 product protocol이 아니다.
+- 미저장 상태는 Editor가 Host에 명시적으로 알려야 한다. spike의 첫 연결은 status가 "Unsaved changes"일 때만 미저장으로 보아, Core가 거부한 Save("Save failed")를 VS Code에 성공으로 보고하고 탭의 dirty를 지웠다. 그 상태로 닫으면 확인 없이 편집이 사라진다. "Save failed"와 "Save conflict"도 미저장으로 보도록 고친 뒤, 설치한 `.vsix`에서 실패한 Save는 dirty를 유지하고 정상 Save는 디스크에 쓰는 것을 확인했다.
 - Revert: webview를 다시 렌더링해 새 세션으로 연다. `location.reload()`는 빈 webview가 되었다.
 - VS Code 안에서 불필요한 shell: Open, Open folder, New와 folder sidebar는 VS Code Explorer와 겹친다. editor group을 둘로 나눈 좁은 폭에서는 sidebar가 본문 폭을 차지해 제목이 한 글자씩 줄바꿈되었다.
 - Hot exit backup(`backupCustomDocument`), Save As, 여러 editor가 같은 문서를 여는 경우는 확인하지 않았다.
 
 ## Reproduce
 
+`archive/vscode-host-spike`를 checkout하고 `pnpm install --frozen-lockfile` 뒤에 실행한다.
+
 ```bash
 cd spikes/vscode-host
 node build.mjs
+npx @vscode/vsce@3 package --no-dependencies --allow-missing-repository --skip-license -o ieumdoc-vscode-spike.vsix
+code --install-extension ieumdoc-vscode-spike.vsix
+```
+
+설치 후 `.md` 파일에서 "Reopen Editor With…" → "IeumDoc spike: file-owned (recommended)"를 고른다. "TextDocument (comparison)"은 위 표의 비교 대상이며 미저장 편집을 잃을 수 있다. 두 editor 모두 `priority: "option"`이라 기본 열기 동작은 바뀌지 않는다. 제거는 `code --uninstall-extension ieumdoc-spike.ieumdoc-vscode-spike`. Figure 이미지, Open/Folder/New는 동작하지 않는다.
+
+자동 시나리오:
+
+```bash
 SPIKE_PROVIDER=custom SPIKE_EOL=crlf SPIKE_FORMATTER=emphasis node drive.mjs
 SPIKE_PROVIDER=text   SPIKE_EOL=crlf SPIKE_FORMATTER=emphasis node drive.mjs
 ```

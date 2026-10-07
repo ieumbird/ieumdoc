@@ -243,6 +243,9 @@ const SHIM = `
   let hostSave = false;
   let inflightSave;
   const status = () => document.querySelector('[data-testid="status"]')?.textContent ?? "";
+  // A failed or conflicting Save keeps the edits unsaved; reporting it clean would let VS Code close without asking.
+  const UNSAVED = new Set(["Unsaved changes", "Save failed", "Save conflict"]);
+  const unsaved = () => UNSAVED.has(status());
   window.addEventListener("message", async (event) => {
     const message = event.data;
     if (message?.type === "response") {
@@ -252,7 +255,7 @@ const SHIM = `
       if (inflightSave) {
         const reply = await inflightSave;
         vscode.postMessage({ type: "saved", ok: reply.status === 200, error: reply.body?.error });
-      } else if (status() === "Unsaved changes") {
+      } else if (unsaved()) {
         hostSave = true;
         document.querySelector('[data-testid="save"]').click();
       } else {
@@ -262,7 +265,7 @@ const SHIM = `
   });
   let dirty = false;
   new MutationObserver(() => {
-    const now = status() === "Unsaved changes";
+    const now = unsaved();
     if (now !== dirty) vscode.postMessage({ type: "dirty", dirty: (dirty = now) });
   }).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
   const realFetch = window.fetch.bind(window);

@@ -21,7 +21,7 @@
     "customEditors": [
       {
         "viewType": "ieumdoc.markdown",
-        "displayName": "IeumDoc",
+        "displayName": "IeumDoc spike: TextDocument (comparison)",
         "selector": [
           {
             "filenamePattern": "*.md"
@@ -31,7 +31,7 @@
       },
       {
         "viewType": "ieumdoc.markdownFile",
-        "displayName": "IeumDoc (file-owned)",
+        "displayName": "IeumDoc spike: file-owned (recommended)",
         "selector": [
           {
             "filenamePattern": "*.md"

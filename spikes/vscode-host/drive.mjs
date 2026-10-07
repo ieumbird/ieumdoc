@@ -1,6 +1,6 @@
 // Spike driver: one VS Code launch in an isolated, reused profile; records what each scenario does.
 // SPIKE_EOL=lf|crlf picks the fixture line endings; SPIKE_FORMAT=on|off toggles markdown format-on-save.
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +23,8 @@ const run = path.join(here, ".run");
 const workspace = path.join(run, "workspace");
 const doc = path.join(workspace, "doc.md");
 const logFile = path.join(run, `events-${variant}.jsonl`);
+mkdirSync(path.join(run, "user-data/User"), { recursive: true });
+mkdirSync(workspace, { recursive: true });
 const original = readFileSync(path.join(repo, "apps/editor/document/technical-document.md"), "utf8").replace(/\r?\n/g, eol);
 writeFileSync(doc, original);
 copyFileSync(path.join(repo, "apps/editor/document/diagram.svg"), path.join(workspace, "diagram.svg"));
