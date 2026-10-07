@@ -1,5 +1,9 @@
 # Table interaction v1
 
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with table commands and regression coverage).
+- Related: [Continuous editing](document-editing-v1.md), [Table caption and label](table-caption-v1.md).
+
 - Scope: active-cell outline, matching row/column handles, append buttons and a contextual menu on existing Markdown tables.
 - Reuse the Editor table commands and Core save operations. Handles and selection indicators are UI only; they never enter Markdown or document attributes.
 - Row/column handles address a specific row/column independently of caret focus. The first row remains the header; the last column cannot be deleted.

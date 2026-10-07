@@ -1,10 +1,15 @@
 # Desktop shell spike v1
 
+- Status: Historical
+- Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
+- Scope: Historical spike evidence; not a product-host or distribution decision.
+- Current authority: [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
+
 - Date: 2026-10-07
 - Baseline: `7779f61` (master). 보존 태그: `archive/desktop-shell-spike` (`spikes/desktop-shell/`, 실험 브랜치 `spike/desktop-shell`). 제품 구현 또는 release가 아니다.
 - Environment: Windows 11, Electron 44.5.1, electron-builder 26.15.3 (`portable` target, x64).
 - Question: 현재 Vite Editor와 local Host를 새 애플리케이션 아키텍처가 아니라 얇은 Electron shell로 감싸, 설치 없이 실행되는 exe 하나로 배포할 수 있는가. 포트를 열지 않고 기존 Host 경계를 그대로 쓸 수 있는가.
-- Status: 판정 입력. 배포 Host 결정이나 ADR이 아니다. [VS Code host spike](vscode-host-spike-v1.md)와 함께 본다.
+- Original disposition: 판정 입력. 배포 Host 결정이나 ADR이 아니다. [VS Code host spike](vscode-host-spike-v1.md)와 함께 본다.
 
 ## Shape
 

@@ -1,6 +1,7 @@
 # Folder picker v1
 
-- Status: implemented and verified locally on Windows, 2026-10-07.
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
@@ -28,21 +29,6 @@ No native picker, upload/copy, recursive tree, search, watcher, workspace, new p
 service or file-picker UI. The existing file-path dialog remains. No CLI parity command:
 choosing a folder is interface/Host navigation, not a document semantic operation.
 
-## Completion and verification
-
-Extend the existing Host listing test for browsing/crumbs and the existing folder browser
-regression for keyboard navigation, cancellation, recent-folder reload, quoted paths,
-errors and the sidebar/document flow. Exercise delayed responses in that same regression
-and inspect the dialog at 1440px and a narrow viewport. Preserve source fixtures.
-
-Required checks: `pnpm typecheck`, `pnpm test`, `pnpm --filter @ieumdoc/editor build`,
-`pnpm browser:test` and `git diff --check`. Update the Host boundary, shell description and
-manual test guide, then close this work's verification server and browser sessions.
-
-Local verification passed: 441 Core/CLI/Editor tests, all 36 browser regressions,
-typecheck, production build and diff whitespace checks. The folder regression also
-produced 1440px and 375px captures for visual review. Source fixtures remained unchanged.
-
 ## New document in the displayed folder
 
 - The sidebar folder heading has a `+` (New file in folder) beside Close folder.
@@ -56,7 +42,14 @@ produced 1440px and 375px captures for visual review. Source fixtures remained u
 - No directory creation, workspace state or new Core/CLI operation is needed:
   this change supplies a destination to the existing document-creation flow.
 
-Completion: extend the existing folder browser regression for root/sub-folder
-creation, cancellation, rejected names, existing-file protection and unsaved work.
-Confirm Save → Reload against the real scratch file, and the folder actions/dialog
-at a narrow viewport. Run the required checks above and clean up owned processes.
+Folder creation coverage includes root/sub-folder creation, cancellation, rejected names, existing-file protection, unsaved work, real-file Save → Reload and narrow-layout reachability.
+
+## Verification and historical evidence
+
+The Host listing test covers browsing/crumbs. The folder browser regression covers keyboard navigation, cancellation, recent-folder reload, quoted paths, errors, delayed responses and the sidebar/document flow. Preserve source fixtures when running these checks.
+
+Future changes follow the [verification matrix](../../CONTRIBUTING.md#verification-matrix) and required CI. Keep the Host boundary, shell description and manual guide aligned, and close owned verification processes.
+
+Historical local verification (2026-10-07) passed: 441 Core/CLI/Editor tests, all 36 browser regressions,
+typecheck, production build and diff whitespace checks. The folder regression also
+produced 1440px and 375px captures for visual review. Source fixtures remained unchanged.

@@ -1,5 +1,9 @@
 # Footnotes v1
 
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Scope: Existing footnote references, source-edited definitions and fail-closed writes; [Block source editing](block-source-editing-v1.md).
+
 Issue #119. A footnote reference (`[^label]`) made its whole paragraph read-only, and a definition's source showed a neighbouring block. Footnotes v1 makes paragraphs with footnotes editable. Definitions stay where they are written. Text that MyST would drop is never saved.
 
 ## How MyST reads footnotes

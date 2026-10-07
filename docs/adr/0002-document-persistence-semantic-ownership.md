@@ -1,6 +1,8 @@
 # ADR-0002: Document Persistence & Semantic Ownership
 
 - Status: Accepted
+- Last verified: 2026-10-08 (current implementation and decision scope reviewed; original decision date retained).
+- Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0003](0003-document-addressing-identity-boundary.md)
 - Decision date: 2026-09-23
 
 ## Context

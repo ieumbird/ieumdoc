@@ -1,13 +1,16 @@
 # Editor Visual Language — Quiet Document
 
-- Status: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
+- Status: Implemented
+- Last verified: 2026-10-08 (presentation code and regression coverage reviewed; no new visual approval).
+- Current contract: v2. Historical filename retained for link stability.
+- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
 
 **Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent cards and tools.
 
-[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, automatic numbers/references, autosave or technical claims. Existing heritage red remains the primary-action accent; focus and selection use a separate blue-gray interaction role. No new fonts are downloaded or packaged.
+[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and selection use a separate blue-gray interaction role. No new fonts are downloaded or packaged.
 
 ## Surfaces and typography
 

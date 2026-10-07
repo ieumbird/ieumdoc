@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
-- Status: Implemented for #40, 2026-09-28.
+- Status: Implemented
+- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
 ## Save acknowledgement

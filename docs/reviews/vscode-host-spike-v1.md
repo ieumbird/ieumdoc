@@ -1,10 +1,17 @@
 # VS Code Host spike v1
 
+- Status: Historical
+- Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
+- Scope: Historical spike evidence; not a product-host decision.
+- Current authority: [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md) and [Document support](../design/document-support-v1.md).
+
 - Date: 2026-10-07
 - Baseline: `6b37465` (master). 보존 태그: `archive/vscode-host-spike` (`spikes/vscode-host/`, 실험 브랜치 `spike/vscode-custom-editor`). 제품 구현 또는 release가 아니다.
 - Environment: VS Code 1.140.0, Windows 11, isolated reused profile (`spikes/vscode-host/.run/`).
 - Question: VS Code 확장을 IeumDoc의 주 배포 Host로 삼을 때, IeumDoc의 저장 세션 모델이 VS Code 문서 모델과 맞물리는가. Markdown formatter/linter가 IeumDoc canonical 출력을 간섭하는가.
-- Status: 판정 입력. 배포 Host 결정이나 ADR이 아니다.
+- Original disposition: 판정 입력. 배포 Host 결정이나 ADR이 아니다.
+
+현재 [Document support](../design/document-support-v1.md)는 canonical LF를 명시한다(PR #125). 아래 실험 당시의 “EOL 계약은 별도 결정”이라는 관찰은 역사 기록이며 현재 미결정 항목이 아니다.
 
 ## Result
 

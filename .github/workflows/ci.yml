@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Documentation checks
+        run: |
+          pnpm exec tsx --test scripts/check-docs.test.ts
+          pnpm docs:check
+
       - name: Typecheck
         run: pnpm typecheck
 
