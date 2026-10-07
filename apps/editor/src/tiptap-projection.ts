@@ -61,6 +61,7 @@ export function toTiptapBlockNode(block: EditableBlock): TiptapJSON {
   if (block.original) node.attrs = { ...node.attrs, original: block.original };
   if (block.numbered) node.attrs = { ...node.attrs, numbered: block.numbered };
   if (block.headingLevels) node.attrs = { ...node.attrs, headingLevels: block.headingLevels };
+  if (block.footnotes) node.attrs = { ...node.attrs, footnotes: block.footnotes };
   return node;
 }
 
@@ -160,7 +161,7 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
   if (block.block === "target") {
     return { type: "labelTarget", attrs: { sourcePath: pathKey(block.path), label: block.label } };
   }
-  return readonlyNode("unsupportedBlock", block.path, { text: block.text });
+  return readonlyNode("unsupportedBlock", block.path, { text: block.text, ...(block.footnote ? { footnote: block.footnote } : {}) });
 }
 
 function listNode(list: ListContent): TiptapJSON {

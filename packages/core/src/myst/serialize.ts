@@ -1,6 +1,7 @@
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
+import { completeFootnotes, footnoteWriteError } from "./footnote.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
 import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
@@ -15,10 +16,11 @@ export class SemanticLossError extends Error {
   }
 }
 
-/** Serialize for an operation's own round-trip check, reporting a loss as that operation's failure. */
+/** Serialize for an operation's own round-trip check, reporting a loss as that operation's failure.
+ * Its footnotes are completed: they are the document's write rule, not the operation's. */
 export function serializeFor(document: MystDocument, failure: string): string {
   try {
-    return serialize(document);
+    return serialize(completeFootnotes(document));
   } catch (error) {
     if (error instanceof SemanticLossError) throw new Error(`${failure} (${error.detail})`, { cause: error });
     throw error;
@@ -31,6 +33,9 @@ export function serializeFor(document: MystDocument, failure: string): string {
  * 2. the reparsed Markdown must keep the original semantic fingerprint.
  */
 export function serialize(document: MystDocument): string {
+  // The fingerprint would also catch these, but not name the footnote.
+  const footnotes = footnoteWriteError(document);
+  if (footnotes) throw new SemanticLossError(footnotes);
   const expected = semanticFingerprint(document);
   const tree = cloneDocument(document);
   prepareReferences(tree);

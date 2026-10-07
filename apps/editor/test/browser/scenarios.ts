@@ -36,6 +36,7 @@ export const STABLE_SCENARIOS = [
   "block-source-editing",
   "section-reference",
   "folder-navigation",
+  "footnotes",
 ];
 
 /** Select before starting a server probe or browser; an invalid/empty shard must fail. */

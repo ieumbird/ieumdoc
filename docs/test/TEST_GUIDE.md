@@ -1192,6 +1192,28 @@ pnpm ieumdoc inspect /tmp/bs.md                                   # 1 paragraph 
 
 `pnpm browser:test block-source-editing`은 scratch 파일에서 거부 이유, Apply, Undo/Redo, 적용 뒤 시각 편집, 읽기 전용으로 남는 결과, Save → Reload를 확인한다.
 
+## Footnotes v1 (#119)
+
+설계는 [Footnotes v1](../design/footnotes-v1.md)을 따른다.
+
+- 각주 참조(`[^label]`)가 있는 문단·제목·표 셀은 편집할 수 있다. 참조는 위 첨자 번호 chip으로 보인다. 번호는 MyST처럼 처음 참조된 순서다.
+- chip을 누르면 그 각주의 정의 블록이 선택되고 화면에 보인다. 정의 블록도 같은 번호를 보여 준다. 정의가 없는 참조는 label을 보여 주고 미해결로 표시한다.
+- 정의 블록의 원문은 자기 원문(여러 줄 정의 포함)과 원래 줄 번호를 보여 준다. 그대로 Apply하면 문서가 바뀌지 않고, 고쳐서 Apply하면 그 정의만 바뀐다. label을 바꾸면 남은 참조에 정의가 없어지므로 Apply가 이유와 함께 거부된다.
+- 각주가 있는 문단을 고치고 Save → Reload해도 `[^label]`과 정의가 그대로다. 정의는 문서 끝으로 옮겨지지 않고 쓰인 자리에 남는다.
+- chip을 선택하고 Backspace로 지우면 사라진다. 그 각주의 마지막 참조였다면 Save가 `[^label] has no reference` 이유로 실패하고 파일을 쓰지 않는다. 정의 블록도 지운 뒤 저장한다.
+- 참조되지 않거나 같은 label로 두 번 정의된 각주가 있는 파일은 MyST가 그 정의를 버리므로 쓸 수 없다. 처음부터 읽기 전용으로 열리고 이유를 보여 준다.
+
+CLI는 같은 Core 동작을 쓴다.
+
+```bash
+printf '# T\n\nText[^n] more.\n\n[^n]: The note.\n' > /tmp/fn.md
+pnpm ieumdoc inspect /tmp/fn.md     # 1 paragraph inlineEditable=true text="Text[^n] more."  /  2 unsupported ... source="[^n]: The note."
+printf 'A[^a].\n\n[^a]: x\n\n[^o]: orphan\n' > /tmp/orphan.md
+pnpm ieumdoc format /tmp/orphan.md; echo "exit=$?"   # [^o] has no reference, exit=1, 파일 그대로
+```
+
+`pnpm browser:test footnotes`는 scratch 파일에서 chip 번호와 정의 이동, 정의 원문의 그대로 Apply, 각주 문단 편집의 Save → Reload, 마지막 참조 삭제 뒤 저장 거부를 확인한다.
+
 ## Editing session and Save (#40)
 
 설계와 책임 경계는 [Editing session and Save v1](../design/editing-session-save-v1.md)을 따른다.

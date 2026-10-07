@@ -49,6 +49,12 @@ export type InlineContent =
       kind: "reference";
       role: ReferenceRole;
       label: string;
+    }
+  | {
+      /** A footnote reference `[^label]`. MyST numbers footnotes in first-reference order; the
+       * definition is its own block. The label is kept as written and matched exactly. */
+      kind: "footnote";
+      label: string;
     };
 
 /** The mark an item applies to its content, for comparing rendered semantics:
@@ -61,6 +67,7 @@ export function inlineMarkKey(item: InlineContent): string | undefined {
 
 const LINK_FIELDS = new Set(["type", "url", "title", "children", "position"]);
 const REFERENCE_FIELDS = new Set(["type", "kind", "identifier", "label", "position"]);
+const FOOTNOTE_FIELDS = new Set(["type", "identifier", "label", "position"]);
 
 export function projectInlineContent(node: MystNode): InlineContent[] | undefined {
   return projectNodes(node.children ?? []);
@@ -70,12 +77,13 @@ export function inlineContentToNodes(content: InlineContent[]): MystNode[] {
   return content.map(inlineToNode);
 }
 
-/** Readable text: inline math appears as its `$source$`, a reference as its role. */
+/** Readable text: inline math appears as its `$source$`, a reference as its role, a footnote as `[^label]`. */
 export function inlineContentText(content: InlineContent[]): string {
   return content
     .map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
       : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\``
       : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
+      : item.kind === "footnote" ? `[^${item.label}]`
       : inlineContentText(item.children)))
     .join("");
 }
@@ -110,6 +118,10 @@ function projectNode(node: MystNode): InlineContent | undefined {
       Object.keys(node).every((key) => REFERENCE_FIELDS.has(key))) {
     return { kind: "reference", role: node.kind as ReferenceRole, label: node.label };
   }
+  if (node.type === "footnoteReference" && typeof node.label === "string" && !footnoteLabelError(node.label) &&
+      node.identifier === labelIdentifier(node.label) && Object.keys(node).every((key) => FOOTNOTE_FIELDS.has(key))) {
+    return { kind: "footnote", label: node.label };
+  }
   if (node.type === "strong" || node.type === "emphasis" || node.type === "delete") {
     const children = projectNodes(node.children ?? []);
     if (!children) return undefined;
@@ -133,7 +145,13 @@ function containsLink(content: InlineContent[]): boolean {
 }
 
 function containsReference(content: InlineContent[]): boolean {
-  return content.some((item) => item.kind === "reference" || ("children" in item && containsReference(item.children)));
+  return content.some((item) => item.kind === "reference" || item.kind === "footnote" ||
+    ("children" in item && containsReference(item.children)));
+}
+
+/** Why `label` cannot be a footnote label as MyST reads `[^label]`, or undefined. */
+function footnoteLabelError(label: string): string | undefined {
+  return /^[^\s\]]+$/.test(label) && labelIdentifier(label) ? undefined : "footnote label must be non-empty and contain no whitespace or ]";
 }
 
 function inlineToNode(item: InlineContent): MystNode {
@@ -143,6 +161,7 @@ function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "reference") {
     return { type: "crossReference", kind: item.role, identifier: labelIdentifier(item.label), label: item.label };
   }
+  if (item.kind === "footnote") return { type: "footnoteReference", identifier: labelIdentifier(item.label), label: item.label };
   if (item.kind === "text") {
     return { type: "text", value: item.text };
   }
@@ -203,7 +222,7 @@ export function assertInlineContent(content: InlineContent[]): void {
         throw new Error("links cannot contain links");
       }
       if (containsReference(item.children)) {
-        throw new Error("links cannot contain references");
+        throw new Error("links cannot contain references or footnotes");
       }
       continue;
     }
@@ -214,17 +233,22 @@ export function assertInlineContent(content: InlineContent[]): void {
       if (!labelIdentifier(item.label)) throw new Error("reference label must name a target");
       continue;
     }
+    if (item.kind === "footnote") {
+      const error = typeof item.label === "string" ? footnoteLabelError(item.label) : "footnote label must be a string";
+      if (error) throw new Error(error);
+      continue;
+    }
     throw new Error("unsupported InlineContent kind");
   }
 }
 
-/** Rendered offsets use JavaScript UTF-16 code units; a break, inline math and a reference each have length one,
+/** Rendered offsets use JavaScript UTF-16 code units; a break, inline math, a reference and a footnote each have length one,
  * inline code counts its characters.
  * Marks contribute only their children. No grapheme segmentation is performed. */
 export function inlineContentLength(content: InlineContent[]): number {
   return content.reduce((length, item) => length + (item.kind === "text" ? item.text.length
     : item.kind === "code" ? item.value.length
-    : item.kind === "break" || item.kind === "math" || item.kind === "reference" ? 1
+    : item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote" ? 1
     : inlineContentLength(item.children)), 0);
 }
 
@@ -294,6 +318,7 @@ export function sameInlineContent(left: InlineContent[], right: InlineContent[])
     if (item.kind === "reference") {
       return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
     }
+    if (item.kind === "footnote") return [[`footnote ${item.label}`, [...marks, "footnote"].sort().join(",")]];
     return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
   return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));

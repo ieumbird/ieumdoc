@@ -35,6 +35,7 @@ import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parseBlockSource } from "./myst/block-source.ts";
+import { footnoteWriteError } from "./myst/footnote.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
@@ -1023,7 +1024,9 @@ export function replaceBlockSource(document: MystDocument, index: number, source
   if (!Number.isInteger(index) || index < 0 || index >= document.children.length) {
     throw new Error(`replaceBlockSource index out of range: ${index}`);
   }
-  const fragment = parseBlockSource(source);
+  const footnotes = document.children.flatMap((node, other) =>
+    other !== index && node.type === "footnoteDefinition" ? [String(node.label)] : []);
+  const fragment = parseBlockSource(source, footnotes);
   const block = fragment.children[0];
   const kept = targetIdentifiers(document.children[index]);
   const others = targetIdentifiers({ type: "root", children: document.children.filter((_, other) => other !== index) });
@@ -1031,6 +1034,9 @@ export function replaceBlockSource(document: MystDocument, index: number, source
   if (taken) throw new Error(`label ${JSON.stringify(taken)} already names another target in this document`);
   const next = cloneDocument(document);
   next.children[index] = block;
+  // The block can define or reference footnotes, so the document's footnotes must stay complete.
+  const footnoteError = footnoteWriteError(next);
+  if (footnoteError) throw new Error(`block source cannot be saved (${footnoteError})`);
   // Before provenance moves its positions: a diagnostic line in the block is a line of `source`.
   serializeFor(next, "block source cannot be saved");
   appendSource(next, fragment);

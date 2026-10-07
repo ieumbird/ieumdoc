@@ -76,3 +76,11 @@ export function targetNumbers(blocks: NumberedTargets[]): NumberedTargets[] {
     return first;
   });
 }
+
+/** Footnote numbers by label: MyST numbers footnotes 1, 2, ... in the order their first
+ * reference is read, and definitions follow the body. */
+export function footnoteNumbers(references: Iterable<string>): Map<string, number> {
+  const numbers = new Map<string, number>();
+  for (const label of references) if (!numbers.has(label)) numbers.set(label, numbers.size + 1);
+  return numbers;
+}
