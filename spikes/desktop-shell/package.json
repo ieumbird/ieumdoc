@@ -1,0 +1,39 @@
+{
+  "name": "ieumdoc-desktop-spike",
+  "productName": "IeumDoc Spike",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spike: the Vite Editor and local Host in a thin Electron shell, as one portable exe.",
+  "main": "dist/main.cjs",
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "dev.ieumdoc.spike",
+    "productName": "IeumDoc Spike",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "app/**",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "IeumDoc-Spike-portable.exe"
+    }
+  }
+}
