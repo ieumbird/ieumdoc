@@ -123,10 +123,17 @@ button {
 }
 
 .sidebar-folder-header .sidebar-section-label {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-folder-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
 }
 
 .sidebar-folder-list {

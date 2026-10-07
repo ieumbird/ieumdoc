@@ -16,6 +16,11 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 
 Open uses the existing local path dialog. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
+The folder heading's `+` opens New with the displayed folder as the destination,
+including a browsed sub-folder. It asks for a filename, adds `.md` if omitted and
+uses the existing creation checks; success opens the document and refreshes the list.
+The app-level New action retains its full-path input. See [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder).
+
 ## Writing interactions
 
 - Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible.

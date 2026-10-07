@@ -42,3 +42,21 @@ manual test guide, then close this work's verification server and browser sessio
 Local verification passed: 441 Core/CLI/Editor tests, all 36 browser regressions,
 typecheck, production build and diff whitespace checks. The folder regression also
 produced 1440px and 375px captures for visual review. Source fixtures remained unchanged.
+
+## New document in the displayed folder
+
+- The sidebar folder heading has a `+` (New file in folder) beside Close folder.
+  Its destination is the displayed folder, including a browsed sub-folder.
+- The existing New dialog shows that destination and accepts a single filename.
+  An omitted `.md` suffix is added; separators and `.`/`..` are rejected so this
+  entry point cannot choose another directory. Top-level New keeps its full-path input.
+- Creation uses the existing Host API and Core's canonical empty Markdown. Success
+  opens the document and refreshes the folder listing. Existing files, pending
+  operations and unsaved work keep their existing protections. Cancel/Escape writes nothing.
+- No directory creation, workspace state or new Core/CLI operation is needed:
+  this change supplies a destination to the existing document-creation flow.
+
+Completion: extend the existing folder browser regression for root/sub-folder
+creation, cancellation, rejected names, existing-file protection and unsaved work.
+Confirm Save → Reload against the real scratch file, and the folder actions/dialog
+at a narrow viewport. Run the required checks above and clean up owned processes.

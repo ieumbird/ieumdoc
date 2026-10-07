@@ -183,6 +183,7 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected duplicate-label Source preview"},
   ],
   "folder-navigation": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "folder New refuses to overwrite an existing document"},
     {status: 400, pathname: "/api/folder", minimum: 1, description: "a missing folder or file cannot be opened as a folder"},
     {status: 400, pathname: "/api/folder-browse", minimum: 1, description: "a missing folder cannot be browsed"},
   ],

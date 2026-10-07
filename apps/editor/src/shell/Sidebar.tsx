@@ -1,5 +1,5 @@
 import { useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
-import { ArrowUp, FilePlus2, FileText, Folder, FolderOpen, FolderTree, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { ArrowUp, FilePlus2, FileText, Folder, FolderOpen, FolderTree, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import type { FolderResponse } from "../../shared/document-protocol.ts";
 import type { OutlineItem, OutlineStore } from "../outline.ts";
@@ -13,7 +13,7 @@ type SidebarProps = {
   onSelectHeading?(item: OutlineItem): void;
   onToggle(): void;
   onOpen(): void;
-  onNew(): void;
+  onNew(directory?: string): void;
   /** The folder the user chose, listed one level at a time. */
   folder?: FolderResponse;
   onOpenFolder?(): void;
@@ -53,7 +53,7 @@ export function Sidebar({
               <FolderTree aria-hidden="true" />
               Open folder…
             </Button>
-            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onNew}>
+            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={() => onNew()}>
               <FilePlus2 aria-hidden="true" />
               New
             </Button>
@@ -72,6 +72,7 @@ export function Sidebar({
               documentPath={documentPath}
               onBrowse={path => onBrowseFolder?.(path)}
               onOpenDocument={path => onOpenDocument?.(path)}
+              onNew={() => onNew(folder.path)}
               onClose={() => onCloseFolder?.()}
             />
           ) : null}
@@ -87,20 +88,26 @@ type FolderListProps = {
   documentPath: string;
   onBrowse(path: string): void;
   onOpenDocument(path: string): void;
+  onNew(): void;
   onClose(): void;
 };
 
 /** One level of the chosen folder: Up while below it, then sub-folders and Markdown files. */
-function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onClose }: FolderListProps) {
+function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onNew, onClose }: FolderListProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   return (
     <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
       <div className="sidebar-folder-header">
         <p className="sidebar-section-label" id="sidebar-folder-label" title={folder.path}>{name(folder.path)}</p>
-        <Button variant="ghost" size="icon-xs" aria-label="Close folder" onClick={onClose}>
-          <X />
-        </Button>
+        <div className="sidebar-folder-actions">
+          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title={`New file in ${folder.path}`} onClick={onNew}>
+            <Plus />
+          </Button>
+          <Button variant="ghost" size="icon-xs" aria-label="Close folder" onClick={onClose}>
+            <X />
+          </Button>
+        </div>
       </div>
       <ul className="sidebar-folder-list">
         {folder.parent ? (

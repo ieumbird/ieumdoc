@@ -17,6 +17,10 @@ async (page, {screenshots = false} = {}) => {
   const item = name => section.getByRole('button', {name, exact:true});
   const current = async () => (await page.getByTestId('current-file').getAttribute('title')).split(sep).pop();
   const result = {};
+  let createRequests = 0;
+  page.on('request', request => {
+    if (request.method() === 'PUT' && request.url().split('?')[0] === `${origin}/api/document`) createRequests++;
+  });
   const dialog = page.getByRole('dialog');
   const field = page.getByTestId('folder-path');
   const open = page.getByTestId('folder-open');
@@ -179,18 +183,96 @@ async (page, {screenshots = false} = {}) => {
   await page.getByTestId('error').getByText(/Save or discard the current changes/).waitFor();
   result.keepsUnsavedWork = await current() === 'install.md' &&
     (await page.locator('.document-editor > .paragraph').first().innerText()).endsWith('Draft.');
+  await item('New file in folder').click();
+  await page.getByTestId('new-file-name').fill('blocked');
+  await dialog.getByRole('button', {name:'Create', exact:true}).click();
+  await page.getByTestId('new-error').getByText(/Save or discard the current changes/).waitFor();
+  assert(createRequests === 0 && await current() === 'install.md', 'Folder New preserves unsaved work without creating a file');
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  result.folderNewKeepsUnsavedWork = true;
   await page.getByRole('button', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
 
-  // A document created inside the folder shows up without a watch.
-  await page.getByRole('button', {name:'New', exact:true}).click();
-  await page.getByTestId('new-file-path').fill([folder, 'added.md'].join(sep));
-  await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-  await page.getByRole('dialog').waitFor({state:'detached'});
+  // Folder New accepts a leaf name in the displayed folder, including at a narrow viewport.
+  await page.setViewportSize({width:375, height:812});
+  await item('New file in folder').click();
+  const filename = page.getByTestId('new-file-name');
+  assert(await page.getByTestId('new-file-directory').innerText() === folder, 'Root folder is the creation destination');
+  await filename.fill('cancelled');
+  await filename.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  await item('New file in folder').click();
+  assert(await filename.inputValue() === '', 'Reopening clears the cancelled name');
+  await filename.fill('cancelled-again');
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  assert(createRequests === 0 && await current() === 'install.md', 'Cancel and Escape do not create or switch documents');
+  result.folderNewCancels = true;
+
+  await item('New file in folder').click();
+  for (const invalid of ['.', '..', '../outside.md', 'guides/nested.md', 'guides\\nested.md']) {
+    await filename.fill(invalid);
+    await filename.press('Enter');
+    await page.getByTestId('new-error').getByText('Enter a file name without a directory path.', {exact:true}).waitFor();
+  }
+  assert(createRequests === 0, 'Rejected names never reach file creation');
+  result.folderNewRejectsPaths = true;
+  await filename.fill('added');
+  await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+  const newBounds = await dialog.boundingBox();
+  const createBounds = await dialog.getByRole('button', {name:'Create', exact:true}).boundingBox();
+  assert(newBounds.x >= 0 && newBounds.x + newBounds.width <= 375 && newBounds.y >= 0 && newBounds.y + newBounds.height <= 812, 'New dialog fits the narrow viewport');
+  assert(createBounds.x >= newBounds.x && createBounds.x + createBounds.width <= newBounds.x + newBounds.width, 'Create remains reachable');
+  if (screenshots) await page.screenshot({path:'tmp/picker-capture/06-new-file.png'});
+  await filename.press('Enter');
+  await dialog.waitFor({state:'detached'});
   await item('added.md').waitFor();
   result.listsCreated = await item('added.md').getAttribute('aria-current') === 'page';
+  assert(await page.getByTestId('current-file').getAttribute('title') === [folder, 'added.md'].join(sep), 'Omitted extension creates a Markdown file in the chosen folder');
+  await page.setViewportSize({width:1280, height:720});
+
+  const existingPath = [folder, 'index.md'].join(sep);
+  const read = async path => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path)}`)).json();
+  const beforeExisting = await read(existingPath);
+  await item('New file in folder').click();
+  await filename.fill('index.md');
+  await filename.press('Enter');
+  await page.getByTestId('new-error').getByText('file already exists', {exact:true}).waitFor();
+  assert((await read(existingPath)).revision === beforeExisting.revision && await current() === 'added.md', 'Existing file and current document survive a rejected creation');
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  result.folderNewKeepsExistingFile = true;
+
+  // Creating in a browsed Korean sub-folder does not fall back to the chosen root.
+  await item('자료').click();
+  await item('메모.md').waitFor();
+  await item('New file in folder').click();
+  const subFolder = [folder, '자료'].join(sep);
+  assert(await page.getByTestId('new-file-directory').innerText() === subFolder, 'Browsed sub-folder is the creation destination');
+  await filename.fill('추가.md');
+  await filename.press('Enter');
+  await dialog.waitFor({state:'detached'});
+  await item('추가.md').waitFor();
+  const createdPath = [subFolder, '추가.md'].join(sep);
+  assert(await page.getByTestId('current-file').getAttribute('title') === createdPath, 'The supplied .md extension is preserved');
+  const editor = page.locator('[data-testid="document-editor"] [contenteditable="true"]');
+  await editor.click();
+  await page.keyboard.type('Created in the displayed folder.');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await ready();
+  assert(await current() === '추가.md' && (await editor.innerText()).includes('Created in the displayed folder.') &&
+    (await read(createdPath)).source.includes('Created in the displayed folder.'), 'Save and Reload preserve the actual new file');
+  result.createsInSubFolderAndPersists = true;
+
+  // Top-level New still takes an arbitrary full file path after folder-based creation.
+  await page.getByRole('button', {name:'New', exact:true}).click();
+  assert(await page.getByTestId('new-file-path').inputValue() === '' && await page.getByTestId('new-file-directory').count() === 0, 'Top-level New resets the folder destination');
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  result.retainsFullPathNew = true;
 
   await page.getByRole('button', {name:'Close folder', exact:true}).click();
   result.closes = await section.count() === 0;

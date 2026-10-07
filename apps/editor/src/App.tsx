@@ -51,6 +51,7 @@ export function App() {
   const [folder, setFolder] = useState<FolderResponse | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [newDialog, setNewDialog] = useState(false);
+  const [newDirectory, setNewDirectory] = useState("");
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
@@ -304,7 +305,7 @@ export function App() {
         onSelectHeading={revealHeading}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
-        onNew={() => setNewDialog(true)}
+        onNew={(directory = "") => { setNewDirectory(directory); setNewDialog(true); }}
         folder={folder ?? undefined}
         onOpenFolder={() => setFolderDialog(true)}
         onBrowseFolder={(path) => void browseFolder(path)}
@@ -393,6 +394,7 @@ export function App() {
       />
       <NewDialog
         open={newDialog}
+        directory={newDirectory}
         busy={busy}
         onCreate={createFile}
         onClose={() => { if (!switching) setNewDialog(false); }}
