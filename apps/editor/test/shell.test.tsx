@@ -73,7 +73,7 @@ test("top bar shows filename while keeping the complete path in its title", () =
   assert.match(html, />guide\.md</);
   assert.doesNotMatch(html, /aria-disabled="true"/);
   // The disabled Save button keeps focus/hover so its Tooltip is reachable; the tooltip's
-  // own text only mounts in a browser (see docs/test/TEST_GUIDE.md's Editor UX Shell v1 section).
+  // own text only mounts in a browser (editor-shell.browser.js).
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
       <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="No document is open." onSave={noop} />

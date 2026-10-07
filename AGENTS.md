@@ -36,7 +36,7 @@
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
 - `docs/design/editor-layout-rules-v1.md` — Editor UI 변경 시 정렬, 간격 및 control 치수 기준으로 참고한다.
 - `docs/design/editor-visual-language-v1.md` — Editor typography, surface, 상태 및 overlay 표현 기준.
-- `docs/test/` — 사람이 현재 구현을 직접 검증하기 위한 절차.
+- `docs/test/` — 자동 검증 실행 방법과 자동화가 판정하지 않는 수동 확인 항목.
 - `.githooks/` — optional shared Git hooks, including commit-msg AI provenance checks.
 - `README.md` — 제품 목적과 장기적인 아키텍처 방향.
 

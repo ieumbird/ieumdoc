@@ -151,7 +151,7 @@ possible Markdown input; no intentional semantic or canonical-output change was 
 ## Addendum: Canonical Input Safety v1
 
 Core parse now calls `mystParse` with `extensions.smartquotes: false` so typed straight
-quotes are kept as written (see `docs/test/TEST_GUIDE.md`, "Canonical Input Safety v1").
+quotes are kept as written (see [Document support v1](../design/document-support-v1.md)).
 Typographic substitution had made every edit containing `'` or `"` fail the canonical
 round-trip check. The reachability evidence above ("Smartquotes therefore runs for CLI
 and local Host parsing") no longer holds: Core does not reach the smartquotes rule. This

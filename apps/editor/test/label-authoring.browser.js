@@ -2,7 +2,7 @@
 // Adds, changes and removes Equation and Figure labels, labels new blocks, checks Source View and
 // Save/Reload against a real file, and checks that duplicate and invalid labels never write.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
-// (see docs/test/TEST_GUIDE.md, "Equation / Figure label authoring v1"). The scenario writes that copy only.
+// (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
 async page => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });

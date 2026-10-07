@@ -1,7 +1,7 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/figure-authoring.browser.js.
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
-// (see docs/test/TEST_GUIDE.md, "Figure authoring v1"). The scenario writes that copy only.
+// (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
 async page => {
   const problems = [];
   const onConsole = message => {
