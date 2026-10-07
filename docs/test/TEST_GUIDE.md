@@ -1234,11 +1234,12 @@ Click `1. H` in the top bar (Number headings) to enable section numbers. H1 stay
 - `.md` 파일 경로나 없는 경로를 입력하면 dialog 안에 이유가 나오고 목록은 그대로다.
 - 파일을 누르면 그 문서가 열리고 목록에서 현재 항목으로 표시된다. folder를 누르면 그 안으로 들어가고, 맨 위의 `↑ <상위 folder>`로 돌아온다. 고른 folder보다 위로는 가지 않는다.
 - 저장하지 않은 변경이 있을 때 다른 파일을 누르면 top bar 아래에 `Save or discard the current changes before opening another file.`가 보이고 현재 문서와 입력이 그대로다.
-- `New`로 보이는 folder에 문서를 만들면 목록에 나타난다. 그 밖의 외부 변경은 자동 반영하지 않는다. folder를 다시 누르면 새로 읽는다.
+- folder 이름 옆 `+`(New file in folder)는 현재 표시 중인 folder를 생성 위치로 표시하고 파일 이름만 입력받는다. 하위 folder에 들어간 뒤에도 그 위치에 생성한다. `.md`를 생략하면 붙이며, 경로 구분자와 `.`/`..`는 거부한다. Enter 또는 Create로 만든 파일은 즉시 열리고 목록에 나타난다. 기존 파일은 덮어쓰지 않으며, 미저장 작업이 있으면 생성하지 않는다. Cancel/Escape는 파일을 쓰지 않는다. 상단 `New`는 기존 전체 경로 입력을 유지한다.
+- 생성한 문서를 편집·Save → Reload하여 내용이 유지되는지 확인한다. 외부 변경은 자동 반영하지 않는다. folder를 다시 누르면 새로 읽는다.
 - folder 이름 옆 `×`(Close folder)가 목록을 닫는다. 페이지를 새로고침하면 sidebar folder 선택은 사라진다. 성공적으로 연 경로는 Recent에 이 브라우저에서만 남는다. 실패·취소 경로는 추가하지 않는다. 대화상자를 다시 열면 폴더 목록을 새로 읽는다.
 - 1440px와 좁은 창에서 긴 경로·이름을 입력해도 대화상자가 창 안에 있고 Open/Cancel에 접근할 수 있는지 확인한다. 폭과 목록 높이는 `tokens.css`의 `--layout-folder-picker-width`, `--layout-folder-picker-list-height`로 조정한다.
 
-`pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 자동완성·키보드·breadcrumb/Up·취소, 늦은 응답의 무시, Recent의 새로고침 후 유지, 따옴표 경로, 좁은 창의 긴 이름, 없는 경로와 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, New 반영, Close folder를 확인한다. `--screenshots`는 같은 검증 중 수동 검토용 대화상자 화면을 `tmp/picker-capture/`에 남긴다.
+`pnpm browser:test folder-navigation`은 scratch `tmp/folder-navigation`에서 자동완성·키보드·breadcrumb/Up·취소, 늦은 응답의 무시, Recent의 새로고침 후 유지, 따옴표 경로, 좁은 창의 긴 이름, 없는 경로와 파일 경로 거부, 목록 순서, 문서 열기와 현재 표시, 하위 folder 이동과 Up, 미저장 변경의 전환 거부, folder `+`의 생성·취소·경로 거부·기존 파일 보호·하위 folder Save → Reload, 상단 New 유지, Close folder를 확인한다. `--screenshots`는 같은 검증 중 수동 검토용 대화상자 화면을 `tmp/picker-capture/`에 남긴다.
 
 ## Document width (Standard / Wide)
 
