@@ -261,17 +261,27 @@ pnpm ieumdoc check tmp/technical-document.md
 pnpm editor            # 다른 터미널에서 dev server(http://127.0.0.1:5173)를 띄운다
 pnpm browser:test      # stable 시나리오 전체: 시나리오마다 scratch를 새로 만들고 실행한다
 pnpm browser:test admonition-authoring inline-math-split   # 이름을 준 시나리오만(stable 목록 밖의 것도 가능)
+pnpm browser:test --shard=1/2   # stable 목록을 두 그룹으로 나눈 첫 번째 그룹
+pnpm browser:test --shard=2/2   # 두 번째 그룹(로컬에서는 첫 실행이 끝난 뒤 실행)
 pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-code를 실행할 때)
 ```
 
 - `pnpm browser:prepare`는 `tmp/` 아래의 browser scratch 디렉터리만 지우고 원본에서 다시 만든다. 몇 번 실행해도 같은 초기 상태가 된다. 어떤 디렉터리에 어떤 파일을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
 - `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. 재사용 page가 browser state를 다음 시나리오에 넘기지 않도록 매번 viewport(1280×720), pointer, scroll, focus를 초기화한다. page mock cleanup 이후에도 유지되는 context route가 scratch 밖의 실제 쓰기를 차단한다(시작 시 403 probe). 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
-- stable 목록은 `apps/editor/test/browser/run.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다.
+- stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다. `--shard=<번호>/<그룹 수>`는 이 목록을 순서대로 번갈아 나누며, 전체 그룹을 합치면 누락·중복 없이 각 시나리오를 한 번씩 실행한다. 분할 옵션은 이름 지정이나 `--screenshots`와 함께 쓰지 않는다. 잘못된 번호, 중복 옵션, 빈 그룹을 만드는 그룹 수는 서버나 browser를 시작하기 전에 거부한다.
 - 아래 각 기능 절의 수동 명령도 `pnpm browser:prepare` 뒤에 그대로 쓸 수 있다.
 
 ### CI 및 로컬 재현
 
-`.github/workflows/ci.yml`은 모든 pull request에서 Node.js `24.21.0` / pnpm `12.5.1`로 typecheck, Core / CLI / Editor 테스트, Editor production build와 `pnpm browser:test`를 실행한다. Chromium은 저장소가 고정한 `@playwright/cli`에서 설치하고 Linux 의존성은 매 실행에 확인한다. Browser 바이너리 cache key는 `pnpm-lock.yaml`을 사용한다. CI server는 `127.0.0.1:5173`에서 `/api/document`가 응답할 때까지 기다린 뒤 테스트하며, 종료 시 browser session과 Vite process group을 정리한다. 실패 scenario의 Error/Result/Page/Events 출력과 실패 직후 browser state를 step log에 남기고 Vite log를 artifact로 올린다.
+`.github/workflows/ci.yml`은 모든 pull request와 master push에서 Node.js `24.21.0` / pnpm `12.5.1`로 다음 검사를 실행한다.
+
+- 품질 job: typecheck, Core / CLI / Editor 테스트, Editor production build.
+- Browser matrix: 별도 runner 두 개에서 `pnpm browser:test --shard=1/2`, `--shard=2/2`를 동시에 실행한다. 품질 job이나 build 산출물을 기다리지 않는다. 각 runner의 checkout, scratch 파일, browser session과 Vite server는 독립적이다. 그룹 하나가 실패해도 다른 그룹의 검사는 계속한다.
+- 최종 `Core, CLI, Editor, and browser regressions` check: 품질과 모든 browser 그룹이 성공했을 때만 통과한다. 실패·취소·skip은 성공으로 처리하지 않는다.
+
+Chromium은 저장소가 고정한 `@playwright/cli`에서 설치하고 Linux 의존성은 매 실행에 확인한다. Browser 바이너리 cache key는 `pnpm-lock.yaml`을 사용한다. CI server는 `127.0.0.1:5173`에서 `/api/document`가 응답할 때까지 기다린 뒤 테스트하며, 종료 시 browser session과 Vite process group을 정리한다. 실패 scenario의 Error/Result/Page/Events 출력과 실패 직후 browser state를 step log에 남기고 Vite log를 그룹별 artifact로 올린다. 동일 checkout에서 여러 `browser:test`를 동시에 실행하면 session과 scratch 초기화가 충돌하므로, 로컬 두 그룹은 차례로 실행한다.
+
+병렬화 범위는 CI 배치와 runner의 시나리오 선택이다. 제품 코드, Core/CLI semantics, 검사 기준과 fixture 보호 규칙은 변경하지 않는다. 완료 조건은 분할의 누락·중복·오류 입력 검증, 기존 필수 검사와 실제 PR matrix CI 통과, 모든 검증 프로세스 정리다. 비교 기준은 PR #116의 10분 11초(단위 테스트 3분 27초, browser 6분 7초)이며, warm cache와 runner 가용 시 4~5분을 목표로 실제 PR 실행 시간을 확인한다.
 
 로컬에서는 필요하면 `pnpm exec playwright-cli install-browser chromium`을 한 번 실행한 뒤, 기존과 같이 별도 터미널에서 `pnpm editor`, 다른 터미널에서 `pnpm browser:test`를 실행한다. 로컬과 CI는 같은 stable scenario runner와 명령을 사용한다. CI에서만 Chromium의 Linux system dependencies를 설치하며, Vite의 고정 port `5173`은 로컬에서도 비어 있어야 한다.
 
