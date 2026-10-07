@@ -1,7 +1,7 @@
 # Desktop shell spike v1
 
 - Date: 2026-10-07
-- Baseline: `7779f61` (master). Spike code: `spikes/desktop-shell/` (실험 브랜치 `spike/desktop-shell`). 제품 구현 또는 release가 아니다.
+- Baseline: `7779f61` (master). 보존 태그: `archive/desktop-shell-spike` (`spikes/desktop-shell/`, 실험 브랜치 `spike/desktop-shell`). 제품 구현 또는 release가 아니다.
 - Environment: Windows 11, Electron 44.5.1, electron-builder 26.15.3 (`portable` target, x64).
 - Question: 현재 Vite Editor와 local Host를 새 애플리케이션 아키텍처가 아니라 얇은 Electron shell로 감싸, 설치 없이 실행되는 exe 하나로 배포할 수 있는가. 포트를 열지 않고 기존 Host 경계를 그대로 쓸 수 있는가.
 - Status: 판정 입력. 배포 Host 결정이나 ADR이 아니다. [VS Code host spike](vscode-host-spike-v1.md)와 함께 본다.
@@ -69,6 +69,8 @@ Playwright로 실행할 때 보이는 `127.0.0.1` listening socket 2개는 자�
 - npm install에서 Electron postinstall이 실행되지 않아 `node node_modules/electron/install.js`를 직접 실행했다.
 
 ## Reproduce
+
+`archive/desktop-shell-spike`를 checkout하고 `pnpm install --frozen-lockfile` 뒤에 실행한다.
 
 ```bash
 cd spikes/desktop-shell
