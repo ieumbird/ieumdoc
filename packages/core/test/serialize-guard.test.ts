@@ -74,6 +74,28 @@ test("supported documents serialize unchanged, deterministically and idempotentl
   }
 });
 
+test("canonical Markdown uses LF for LF, CRLF and mixed input and remains idempotent", () => {
+  for (const source of [
+    "# Title\n\nParagraph.\n",
+    "# Title\r\n\r\nParagraph.\r\n",
+    "# Title\r\n\nParagraph.\r",
+    "# Title\r\rParagraph.\r\n\n",
+  ]) {
+    const output = serialize(parse(source));
+    assert.equal(output.includes("\r"), false);
+    assert.equal(output, "# Title\n\nParagraph.\n");
+    assert.equal(serialize(parse(output)), output);
+  }
+});
+
+test("canonical LF output keeps preserved front matter and its meaningful trailing lines", () => {
+  const source = "---\r\ntitle: Example\nabstract: |+\r\n  Keep trailing lines.\r\n\r\n---\r\n\nBody.\r\n";
+  const output = serialize(parse(source));
+  assert.equal(output.includes("\r"), false);
+  assert.equal(output, "---\ntitle: Example\nabstract: |+\n  Keep trailing lines.\n\n---\n\nBody.\n");
+  assert.equal(serialize(parse(output)), output);
+});
+
 test("legitimate canonicalizations are normalized explicitly", () => {
   // csv-table and table directives are written as list-table; cells gain a paragraph wrapper.
   for (const source of [

@@ -48,7 +48,8 @@ export function serialize(document: MystDocument): string {
     throw new SemanticLossError("serializer failed", { cause: error });
   }
   assertNoSerializationDiagnostics(file);
-  const markdown = `${frontMatter}${String(file.result ?? "").trimEnd()}\n`;
+  // Normalize the complete output, including preserved source, before semantic verification.
+  const markdown = `${frontMatter}${String(file.result ?? "").trimEnd()}\n`.replace(/\r\n?/g, "\n");
   const difference = semanticDifference(expected, semanticFingerprint(parse(markdown)));
   if (difference) throw new SemanticLossError(difference);
   return markdown;
