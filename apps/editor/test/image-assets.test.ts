@@ -192,6 +192,18 @@ test("rollback restores a different inode replaced after validation instead of d
   assert.equal(fs.readdirSync(assets).some(name => name.endsWith(".tmp")), false);
 });
 
+test("rollback quarantines into a fresh name instead of replacing a placeholder", t => {
+  // Windows refuses to replace a just-created file while a scanner holds it (#111).
+  const { root, doc } = fixture(t);
+  const created = createImageAsset(doc, "image/png", PNG, key);
+  const original = fs.renameSync;
+  const replaced: boolean[] = [];
+  t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => { replaced.push(fs.existsSync(to)); original(from, to); });
+  rollbackImageAsset({ documentPath: doc, ...created }, key);
+  assert.deepEqual(replaced, [false]);
+  assert.equal(fs.existsSync(path.resolve(root, created.path)), false);
+});
+
 test("rollback does not adopt a quarantine file replaced just after byte validation", t => {
   const { root, doc, assets } = fixture(t);
   const created = createImageAsset(doc, "image/png", PNG, key);

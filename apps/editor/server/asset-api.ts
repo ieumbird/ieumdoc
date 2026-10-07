@@ -174,14 +174,14 @@ export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer): 
   }
   // Rename isolates the inode before deletion. If another process replaced the
   // original between validation and rename, retain and exclusively restore it.
+  // The quarantine name is unguessable and never created beforehand: on Windows,
+  // renaming over a just-created placeholder fails with EPERM while a scanner holds it.
   const directoryId = fs.statSync(assetDirectory(scope.root, false));
   const quarantine = path.join(scope.root, "assets", `.rollback-${randomUUID()}.tmp`);
-  const fd = fs.openSync(quarantine, "wx", 0o600);
-  const reservation = fs.fstatSync(fd);
-  fs.closeSync(fd);
   let moved = false;
   try {
-    assertOwnedFile(quarantine, reservation);
+    try { fs.lstatSync(quarantine); throw new AssetError("Rollback quarantine name is in use; rollback refused."); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     fs.renameSync(file, quarantine); moved = true;
     const verified = inspectAsset(quarantine);
     if (verified.identity !== receipt.identity) throw new AssetError("Asset file changed before rollback deletion.");
@@ -196,7 +196,7 @@ export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer): 
       } catch (restoreError) {
         throw new AssetError(`Rollback failed; retained asset may be at assets/${path.basename(quarantine)}: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
       }
-    } else unlinkOwnedFile(quarantine, reservation, scope.root, directoryId);
+    }
     throw error;
   }
 }
