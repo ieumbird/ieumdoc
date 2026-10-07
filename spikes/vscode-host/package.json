@@ -1,0 +1,44 @@
+{
+  "name": "ieumdoc-vscode-spike",
+  "displayName": "IeumDoc (VS Code host spike)",
+  "publisher": "ieumdoc-spike",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "ieumdocSpike.openBoth",
+        "title": "IeumDoc Spike: Open Both"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "ieumdoc.markdown",
+        "displayName": "IeumDoc",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          }
+        ],
+        "priority": "option"
+      },
+      {
+        "viewType": "ieumdoc.markdownFile",
+        "displayName": "IeumDoc (file-owned)",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          }
+        ],
+        "priority": "option"
+      }
+    ]
+  }
+}
