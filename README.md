@@ -108,7 +108,7 @@ pnpm --filter @ieumdoc/editor dev
 
 Open `http://localhost:5173`. The working file is `apps/editor/document/technical-document.md`.
 
-사람이 따라 하는 절차는 [docs/test/TEST_GUIDE.md](docs/test/TEST_GUIDE.md)에 있다.
+검증 실행 방법과 사람이 직접 확인할 항목은 [docs/test/TEST_GUIDE.md](docs/test/TEST_GUIDE.md)에 있다.
 
 ## Issues
 

@@ -3,7 +3,7 @@
 // and that clicking a reference goes to its target, retargets and removes
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
-// directory; prepare it first (see docs/test/TEST_GUIDE.md, "Local cross-reference authoring v1").
+// directory; prepare it first (see docs/test/TEST_GUIDE.md).
 async page => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
