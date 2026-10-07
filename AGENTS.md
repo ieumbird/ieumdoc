@@ -48,6 +48,14 @@
 - 의미 규칙은 Core에서, CLI·브라우저는 각 인터페이스의 고유한 위험과 통합 동작을 검증한다. 같은 결함을 잡는 사례를 계층마다 반복하지 않는다.
 - 동일 실행 결과로 필요한 검사를 함께 수행한다. 자동 판정에 쓰이지 않는 촬영·촬영 전용 순회는 수동 검토로 분리한다.
 
+## Browser automation on Windows
+
+이 PC는 Windows 로그온 실패 10회/10분에 계정을 잠근다. 설치형 Chrome은 새 프로필로 시작할 때마다 계정 암호가 비어 있는지 빈 암호 로그온으로 검사하고, 그 결과를 프로필에 캐시한다. 그래서 새 프로필로 Chrome을 반복 실행하면 실행마다 로그온 실패가 쌓여 계정이 잠긴다.
+
+- 브라우저 검증은 `pnpm browser:test`를 사용한다. runner는 재사용 프로필(`playwright-cli open --persistent`)로 Chrome을 연다.
+- `playwright-cli`를 직접 쓸 때도 `open --persistent`로 연다. 기본 `open`(매번 새 임시 프로필), Playwright `launch()`, 임시 `--user-data-dir`로 설치형 Chrome을 반복 실행하지 않는다.
+- 디버깅으로 브라우저를 다시 열 때는 기존 session을 재사용한다. 짧은 간격으로 새 브라우저를 여러 번 띄우지 않는다.
+
 ## Process cleanup
 
 작업 완료를 보고하기 전에 이번 작업에서 직접 시작한 임시 프로세스와 세션을 종료한다.

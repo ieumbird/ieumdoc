@@ -267,6 +267,7 @@ pnpm browser:prepare   # scratch 사본만 다시 만든다(수동으로 run-cod
 ```
 
 - `pnpm browser:prepare`는 `tmp/` 아래의 browser scratch 디렉터리만 지우고 원본에서 다시 만든다. 몇 번 실행해도 같은 초기 상태가 된다. 어떤 디렉터리에 어떤 파일을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
+- 브라우저는 재사용 프로필(`open --persistent`)로 연다. Windows에서 새 프로필의 Chrome은 실행마다 빈 암호 로그온 검사로 실패 로그온을 남겨 계정을 잠글 수 있다(AGENTS.md "Browser automation on Windows"). 실행 시작 시 cookie와 localStorage/sessionStorage를 비워 이전 실행의 상태를 넘기지 않는다.
 - `pnpm browser:test`는 `@playwright/cli` session 하나(`ieumdoc-browser-regression`)를 열어 시나리오를 차례로 `run-code`로 실행하고 닫는다. 재사용 page가 browser state를 다음 시나리오에 넘기지 않도록 매번 viewport(1280×720), pointer, scroll, focus를 초기화한다. page mock cleanup 이후에도 유지되는 context route가 scratch 밖의 실제 쓰기를 차단한다(시작 시 403 probe). 실행 뒤 원본 fixture가 바뀌었으면 실패하고, 끝나면 scratch를 다시 깨끗하게 만든다. dev server는 직접 띄운다.
 - stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다. 현재 모든 `*.browser.js` 시나리오가 들어 있다. `--shard=<번호>/<그룹 수>`는 이 목록을 순서대로 번갈아 나누며, 전체 그룹을 합치면 누락·중복 없이 각 시나리오를 한 번씩 실행한다. 분할 옵션은 이름 지정이나 `--screenshots`와 함께 쓰지 않는다. 잘못된 번호, 중복 옵션, 빈 그룹을 만드는 그룹 수는 서버나 browser를 시작하기 전에 거부한다.
 - 아래 각 기능 절의 수동 명령도 `pnpm browser:prepare` 뒤에 그대로 쓸 수 있다.
