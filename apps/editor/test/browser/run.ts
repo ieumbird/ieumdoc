@@ -231,12 +231,19 @@ async function main(args: string[]): Promise<number> {
   }
   if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios`);
   const before = sourceDigest();
-  playwright(["open", URL], false);
+  // A reused profile, never a fresh one per run: on Windows, Chrome checks whether the account
+  // password is blank by trying a Windows logon with an empty password, and caches the answer
+  // in its profile. A fresh profile repeats the failed logon on every run and locks the account.
+  playwright(["open", "--persistent", URL], false);
   const failures: string[] = [];
   try {
     // Page routes are removed in scenario cleanup. A failed delayed-save scenario must
     // never fall through to writing the default source fixture after its mock is removed.
     const guard = playwright(["run-code", `async page => {
+      // The profile is reused, so start each run from the Editor's empty browser storage.
+      await page.context().clearCookies();
+      await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+      await page.reload();
       await page.context().route('**/api/document**', async route => {
         if (route.request().method() === 'GET') return route.continue();
         const file = String(route.request().postDataJSON()?.path ?? '').replaceAll('\\\\', '/');
