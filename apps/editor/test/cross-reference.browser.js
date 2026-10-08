@@ -131,7 +131,8 @@ async page => {
   result.removedToText = await chip(paragraph(2), 'Eq. eq-a').count() === 0 && (await paragraph(2).innerText()).includes('later and eq-a.');
 
   // F. Text around references stays editable.
-  await paragraph(1).click();
+  // Click the start of the first line: the middle of a wrapped paragraph may be a reference chip.
+  await paragraph(1).click({position:{x:1, y:4}});
   await page.keyboard.press('Home');
   await page.keyboard.type('Now ');
 

@@ -14,6 +14,8 @@
   /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
   --layout-sidebar-width: 15rem;
   --layout-sidebar-width-narrow: 11rem;
+  /* Document panel (outline) beside the document; in the narrow layout it overlays at this width. */
+  --layout-document-panel-width: 16rem;
 
   --id-color-canvas: var(--id-color-surface);
   --id-color-surface: #ffffff;

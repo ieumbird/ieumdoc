@@ -59,6 +59,10 @@ async page => {
         const token=name=>{const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();if(!v.endsWith('rem'))throw Error(`Unexpected ${name}: ${v}`);return parseFloat(v)*parseFloat(getComputedStyle(document.documentElement).fontSize);};
         const sidebarWidth=rect('.sidebar').width;
         const expectedSidebar=collapsed?token('--layout-sidebar-rail-width'):token(innerWidth<=1024?'--layout-sidebar-width-narrow':'--layout-sidebar-width');
+        // The document panel starts open beside a wide document and closed in the narrow layout.
+        const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
+        const panelWidth=panel?Math.min(panel.right,innerWidth+1)-panel.left:0;
+        const expectedPanel=innerWidth<=1024?0:token('--layout-document-panel-width');
         const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
         const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
         const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
@@ -66,15 +70,51 @@ async page => {
         const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
         if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
         const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
-        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,labels,sidebarWidth,expectedSidebar,body,headings,caption,table,shellOverflow};
+        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
       },{collapsed,width});
-      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||Math.max(...result.icons.map(i=>i.x))-Math.min(...result.icons.map(i=>i.x))>1||result.icons.some(i=>i.w!==16||i.h!==16)));
+      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||Math.max(...result.icons.map(i=>i.x))-Math.min(...result.icons.map(i=>i.x))>1||result.icons.some(i=>i.w!==16||i.h!==16)));
       // Below 704px the TopBar intentionally wraps; the sidebar header remains 48px.
       if(fail||result.sidebarHeader!==48||(width>704&&result.header!==48)||(width<=704&&result.header<=48))throw Error(JSON.stringify(result));
       results.push({...result,hoverShift:after-before});
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
+  // Opened in the narrow layout, the document panel overlays at its own width: the document keeps its
+  // width and the page does not scroll sideways. Escape closes it and returns focus to the TopBar toggle.
+  const outlineToggle=page.getByRole('button',{name:'Outline',exact:true});
+  const shell=()=>page.evaluate(()=>{
+    const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
+    const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
+    const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,token,overflow:document.documentElement.scrollWidth>innerWidth};
+  });
+  for(const width of [1024,768]) {
+    await page.setViewportSize({width,height:1000});
+    await page.locator('.document-panel').waitFor({state:'detached'});
+    const closed=await shell();
+    await outlineToggle.click();
+    await page.getByTestId('outline').waitFor();
+    const open=await shell();
+    if(open.main!==closed.main||open.column!==closed.column||Math.abs(open.panelRight-width)>0.5||Math.abs(open.panelRight-open.panelLeft-open.token)>0.5||open.overflow||await outlineToggle.getAttribute('aria-pressed')!=='true')
+      throw Error(`Narrow document panel: ${JSON.stringify({width,closed,open})}`);
+    await page.getByTestId('outline').getByRole('button').first().focus();
+    await page.keyboard.press('Escape');
+    await page.locator('.document-panel').waitFor({state:'detached'});
+    if(!await outlineToggle.evaluate(n=>n===document.activeElement)||await outlineToggle.getAttribute('aria-pressed')!=='false')throw Error('Escape did not return focus to the Outline button');
+    results.push({panel:{width,closed,open}});
+  }
+  // Beside a wide document the panel is docked: hiding it widens the area the document centers in.
+  await page.setViewportSize({width:1440,height:1000});
+  await page.getByTestId('outline').waitFor();
+  const docked=await shell();
+  await page.getByRole('button',{name:'Hide outline',exact:true}).click();
+  await page.locator('.document-panel').waitFor({state:'detached'});
+  const hidden=await shell();
+  const hiddenFocus=await outlineToggle.evaluate(n=>n===document.activeElement);
+  await outlineToggle.click();
+  await page.getByTestId('outline').waitFor();
+  if(Math.abs(hidden.main-docked.main-docked.token)>0.5||Math.abs(docked.panelRight-docked.panelLeft-docked.token)>0.5||!hiddenFocus)
+    throw Error(`Docked document panel: ${JSON.stringify({docked,hidden,hiddenFocus})}`);
   // Editing shows the interaction-colored caret, not a frame around the whole document, whether
   // focus comes from a click or the keyboard.
   const editing=async()=>page.locator('.document-editor').evaluate(n=>{

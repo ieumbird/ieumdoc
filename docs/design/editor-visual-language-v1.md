@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (sidebar chrome cleanup: presentation code and regression coverage reviewed; no new visual approval).
+- Last verified: 2026-10-08 (document panel: presentation code and regression coverage reviewed; no new visual approval).
 - Current contract: v2. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -16,9 +16,9 @@
 
 | Role | Actual values / treatment |
 | --- | --- |
-| Shell | `#f7f7f6` sidebar, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail |
+| Shell | `#f7f7f6` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (overlay with the overlay shadow at ≤1024px) |
 | Document | White continuous page without a card border or radius; 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open |
-| Narrow document | At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps; sidebar remains user controlled. |
+| Narrow document | At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px; the Document panel starts closed and overlays when opened. At ≤704px header wraps; sidebar remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
@@ -56,8 +56,8 @@ Features added after v1 (outline, table handles, heading numbering, block source
 
 | Area | Rule |
 | --- | --- |
-| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source, then the Wide document icon toggle), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
-| Sidebar | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. The folder heading is the sidebar's identity: 14px semibold text color with a folder icon, above muted entries; its actions are compact ghost icons. Without a folder, Open folder… is an outlined button and Open file… a ghost button: neither takes the accent. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
+| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source, then the Wide document and Outline icon toggles), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
+| Sidebar and Document panel | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. The panel title (Outline) uses the folder heading's type; the panel has no tabs. The folder heading is the sidebar's identity: 14px semibold text color with a folder icon, above muted entries; its actions are compact ghost icons. Without a folder, Open folder… is an outlined button and Open file… a ghost button: neither takes the accent. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
 | Color | Two blue axes only. Interaction (`interaction`, `interaction-soft`): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Chrome uses neutrals. `--id-color-admonition` and `--id-color-surface-admonition` were removed. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
 | Callouts | Side bar and surface carry the kind; no full outline. |
@@ -89,6 +89,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The TopBar Wide document toggle chooses between them.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 176px). The collapsed rail is fixed.
+- Document panel entry: `--layout-document-panel-width` (256px), docked or overlaid.
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
 
 ## Responsibility boundaries
@@ -107,6 +108,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 | Figure | Summary keeps editor focus and can dismiss outside; editing autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
 | Open / New | Existing Base UI modal focus boundary, Escape dismissal and focus restoration. |
+| Document panel (≤1024px overlay) | Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog. |
 
 ## Evidence and verification
