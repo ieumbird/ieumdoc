@@ -21,7 +21,7 @@ async page => {
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh structural authoring fixture');
 
   const openScratch = async () => {
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(file);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.waitForFunction(() =>

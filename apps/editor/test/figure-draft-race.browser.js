@@ -8,7 +8,7 @@ async page => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const filePath = [root, 'tmp', 'figure-authoring', 'technical-document.md'].join(separator);
   const openScratch = async () => {
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

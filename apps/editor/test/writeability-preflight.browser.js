@@ -11,7 +11,7 @@ async page => {
   const path = name => [root, 'tmp', 'writeability-preflight', name].join(sep);
   const read = async name => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path(name))}`)).json());
   const open = async name => {
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(path(name));
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await ready();

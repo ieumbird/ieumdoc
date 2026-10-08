@@ -14,7 +14,7 @@ async page => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'outline', 'outline.md'].join(separator);
 
-  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByRole('button', {name:'Open file…'}).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.waitForFunction(() =>
@@ -154,7 +154,7 @@ async page => {
   await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
   const numbered = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   result.headingNumberingSaved = numbered.source.includes('headings: true') && !numbered.source.includes('## 1');
-  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByRole('button', {name:'Open file…'}).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

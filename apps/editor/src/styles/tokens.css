@@ -11,6 +11,9 @@
   /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
+  /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
+  --layout-sidebar-width: 15rem;
+  --layout-sidebar-width-narrow: 11rem;
 
   --id-color-canvas: var(--id-color-surface);
   --id-color-surface: #ffffff;
@@ -82,7 +85,6 @@
   --layout-document-inline-padding: var(--layout-document-gutter);
   --layout-document-gutter: calc(var(--space-2) + var(--size-control-compact) * 2 + var(--layout-gutter-gap) + var(--layout-gutter-safety));
   --layout-gutter-safety: var(--space-3);
-  --layout-sidebar-width: 13rem;
   --layout-sidebar-rail-width: 3rem;
   --layout-header-row: 3rem;
   --layout-ui-inset: var(--space-5);

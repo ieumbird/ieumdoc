@@ -11,7 +11,7 @@ async page => {
   const file = [root, 'tmp', 'block-source-editing', 'block-source.md'].join(sep);
   const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByRole('button', {name:'Open file…'}).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await ready();

@@ -22,7 +22,7 @@ async page => {
     result.noLegacyUi = await page.locator('.file-picker, .format-bar, [data-testid="equation-draft-notice"]').count() === 0;
     result.appUiOutsideDocument = await article.locator('[data-testid="file-path"], [data-testid="status"], [data-testid="message-area"]').count() === 0;
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    result.sidebarCollapses = await page.getByRole('button',{name:'Open…'}).count() === 0;
+    result.sidebarCollapses = await page.getByRole('button',{name:'Open file…'}).count() === 0;
     await page.getByRole('button',{name:'Expand sidebar'}).click();
     result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 

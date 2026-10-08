@@ -15,6 +15,10 @@ async (page, {screenshots = false} = {}) => {
   const section = page.getByTestId('folder');
   const items = () => section.locator('.sidebar-folder-item').allInnerTexts();
   const item = name => section.getByRole('button', {name, exact:true});
+  const folderMenu = async name => {
+    await item('More actions').click();
+    await page.getByRole('menuitem', {name, exact:true}).click();
+  };
   const current = async () => (await page.getByTestId('current-file').getAttribute('title')).split(sep).pop();
   const result = {};
   let createRequests = 0;
@@ -100,13 +104,13 @@ async (page, {screenshots = false} = {}) => {
   result.enterOpensTypedFolder = await section.getByTitle(folder, {exact:true}).count() === 1;
   const refreshed = page.waitForResponse(response => response.url().includes('/api/folder-browse?') &&
     requestedFolder(response.url()) === folder + sep);
-  await page.getByRole('button', {name:'Open folder…'}).click();
+  await folderMenu('Open folder…');
   await refreshed;
   await option('guides').waitFor();
   await field.press('Escape');
   await dialog.waitFor({state:'detached'});
   result.refreshesOnReopen = await section.getByTitle(folder, {exact:true}).count() === 1;
-  await page.getByRole('button', {name:'Close folder', exact:true}).click();
+  await folderMenu('Close folder');
   await page.reload();
   await ready();
   assert(await section.count() === 0, 'Reload does not restore a chosen sidebar folder');
@@ -267,15 +271,22 @@ async (page, {screenshots = false} = {}) => {
     (await read(createdPath)).source.includes('Created in the displayed folder.'), 'Save and Reload preserve the actual new file');
   result.createsInSubFolderAndPersists = true;
 
-  // Top-level New still takes an arbitrary full file path after folder-based creation.
-  await page.getByRole('button', {name:'New', exact:true}).click();
-  assert(await page.getByTestId('new-file-path').inputValue() === '' && await page.getByTestId('new-file-directory').count() === 0, 'Top-level New resets the folder destination');
+  // With a folder shown, Open file is in the folder's menu, which the keyboard opens and leaves.
+  await folderMenu('Open file…');
+  await page.getByTestId('file-path').waitFor();
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   await dialog.waitFor({state:'detached'});
-  result.retainsFullPathNew = true;
+  result.opensFileFromMenu = await current() === '추가.md';
+  const more = section.getByRole('button', {name:'More actions', exact:true});
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor({state:'hidden'});
+  result.menuKeyboard = await more.evaluate(node => node === document.activeElement) && await section.count() === 1;
 
-  await page.getByRole('button', {name:'Close folder', exact:true}).click();
-  result.closes = await section.count() === 0;
+  await folderMenu('Close folder');
+  result.closes = await section.count() === 0 && await current() === '추가.md';
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
   return result;
 }

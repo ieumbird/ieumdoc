@@ -1,7 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-08 (folder New entry point compared with current code and regression coverage).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
@@ -31,11 +31,12 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 
 ## New document in the displayed folder
 
-- The sidebar folder heading has a `+` (New file in folder) beside Close folder.
+- The sidebar folder heading has a `+` (New file in folder) beside its `⋯` menu (Open file…, Open folder…, Close folder).
   Its destination is the displayed folder, including a browsed sub-folder.
 - The existing New dialog shows that destination and accepts a single filename.
   An omitted `.md` suffix is added; separators and `.`/`..` are rejected so this
-  entry point cannot choose another directory. Top-level New keeps its full-path input.
+  entry point cannot choose another directory. It is the only New entry point; the former
+  top-level full-path New was removed with the [sidebar chrome cleanup](editor-ux-shell-v1.md#structure).
 - Creation uses the existing Host API and Core's canonical empty Markdown. Success
   opens the document and refreshes the folder listing. Existing files, pending
   operations and unsaved work keep their existing protections. Cancel/Escape writes nothing.

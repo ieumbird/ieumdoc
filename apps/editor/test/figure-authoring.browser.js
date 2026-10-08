@@ -47,7 +47,7 @@ async page => {
   const openScratch = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -280,9 +280,14 @@ async page => {
       (await semantic())[0].imageAlt === 'Rich caption image' && (await semantic())[0].label === 'fig-control';
 
     // Canceling a never-applied Figure that is the only block restores the empty-document paragraph.
-    const emptyPath = filePath.replace('technical-document.md', `empty-${Date.now()}.md`);
-    await page.getByRole('button', {name:'New', exact:true}).click();
-    await page.getByTestId('new-file-path').fill(emptyPath);
+    const emptyName = `empty-${Date.now()}.md`;
+    const emptyPath = filePath.replace('technical-document.md', emptyName);
+    await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await page.getByTestId('folder-path').fill(filePath.slice(0, -'technical-document.md'.length));
+    await page.getByTestId('folder-open').click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByTestId('new-file-name').fill(emptyName);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     await page.locator('[data-testid="document-editor"] [contenteditable="true"]').click();
