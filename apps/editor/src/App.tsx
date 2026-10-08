@@ -44,6 +44,7 @@ function writeBlockedMessage(reason: string): string {
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
+  const newFileButton = useRef<HTMLButtonElement>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
   const sessionBase = useRef<SessionSaveRequest["base"]>(undefined);
@@ -322,6 +323,7 @@ export function App() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
+        newButtonRef={newFileButton}
         open={sidebarOpen}
         documentPath={openedPath}
         onToggle={() => setSidebarOpen((value) => !value)}
@@ -443,6 +445,8 @@ export function App() {
         directory={newDirectory}
         busy={busy}
         onCreate={createFile}
+        createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
+        returnFocus={newFileButton}
         onClose={() => { if (!switching) setNewDialog(false); }}
       />
       <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>

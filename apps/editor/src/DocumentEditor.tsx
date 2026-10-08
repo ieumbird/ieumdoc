@@ -15,6 +15,7 @@ import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { Placeholder } from "@tiptap/extensions/placeholder";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
@@ -41,6 +42,8 @@ const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
+  /** Let the New dialog hand focus to the newly mounted editor through Base UI. */
+  getFocusTarget(): HTMLElement | null;
   toggleHeadingNumbering(): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
@@ -126,7 +129,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
-    extensions: createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource),
+    extensions: [
+      ...createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource),
+      Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
+    ],
     content: projection,
     // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
     enableInputRules: [MARKDOWN_INPUT_RULES],
@@ -142,6 +148,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       },
     },
   });
+
+  const empty = !readOnly && editor?.isEmpty && editor.state.doc.childCount === 1 &&
+    editor.state.doc.firstChild?.type.name === "paragraph";
+  const focusEnd = (clientY: number): boolean => {
+    if (!editor?.isEditable || clientY <= editor.view.dom.getBoundingClientRect().bottom) return false;
+    editor.view.dispatch(documentEnd(editor.state));
+    editor.view.focus();
+    return true;
+  };
 
   useEffect(() => {
     if (!editor) return;
@@ -160,6 +175,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useImperativeHandle(
     ref,
     () => ({
+      getFocusTarget() { return editor?.isEditable ? editor.view.dom : null; },
       toggleHeadingNumbering() {
         if (!editor || !editor.isEditable) return;
         const settings = editor.state.doc.attrs.headingNumbering ? null : document.headingNumberingDefault ?? defaultHeadingNumbering(true);
@@ -198,12 +214,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         revealed.current = { index: item.index, scrollY: window.scrollY };
         scheduleOutline.current();
       },
-      focusEnd(clientY) {
-        if (!editor?.isEditable || !host.current || clientY <= host.current.getBoundingClientRect().bottom) return false;
-        editor.view.dispatch(documentEnd(editor.state));
-        editor.view.focus();
-        return true;
-      },
+      focusEnd,
       getDocument() {
         if (!editor) {
           throw new Error("Editor is not ready");
@@ -354,7 +365,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const blockMenuStyle: CSSProperties | undefined = blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
   return (
-    <article className="document" data-testid="document-editor" ref={host}>
+    <article className={`document${empty ? " document--empty" : ""}`} data-testid="document-editor" ref={host}
+      onMouseDown={(event) => {
+        // The paper extends below the editor content, including in a brand-new document.
+        if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
+      }}>
       <EditorContent editor={editor} />
       {!readOnly ? <BlockHandles
         editor={editor}

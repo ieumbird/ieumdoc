@@ -1,14 +1,14 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (shell refinement: presentation code and regression coverage reviewed; no new visual approval).
+- Last verified: 2026-10-08 (empty-document surface and starting interaction: `new-document`, `layout-rules` and `quiet-document`; same-state captures compared).
 - Current contract: v2. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
 
-**Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent cards and tools.
+**Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
 [Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and selection use a separate blue-gray interaction role. No new fonts are downloaded or packaged.
 
@@ -17,7 +17,7 @@
 | Role | Actual values / treatment |
 | --- | --- |
 | Shell | `#f7f7f6` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
-| Document | White continuous page without a card border or radius; 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open |
+| Document | White continuous writing surface on the `surface-subtle` canvas, with a 1px inset `border-subtle` edge and no radius or raised shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
 | Narrow document | Below 1280px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps; sidebar remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
@@ -35,7 +35,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 
 | Axis | Expression |
 | --- | --- |
-| Rest | No paragraph input box, persistent gutter or Edit button. No invisible pointer targets. Figure/Equation authoring metadata is hidden, inert text with its space reserved to avoid layout movement; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
+| Rest | No paragraph input box or persistent Edit button. Gutter tools are hidden except the first `+` in an empty editable document; its drag handle stays hidden. No invisible pointer targets. Figure/Equation authoring metadata is hidden, inert text with its space reserved to avoid layout movement; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
 | Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. |
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Selected | Figure outline and a dismissible properties summary; summary does not steal editor focus. |
@@ -45,6 +45,22 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | No hover device | Gutter and Edit remain visible. |
 
 These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel removes only a never-applied new Figure, as before.
+
+## Empty document start (#133)
+
+A single empty editable paragraph shows `Start writing, or type / to add a block.` at the actual text axis, in the document font and subtle text color. The first `+` stays visible even without hover or focus. Tiptap's Placeholder supplies a decoration; the hint is not content, is not selectable and never appears in Markdown, Source, Save or dirty comparison. Typing hides it; undo to the empty paragraph restores it. Read-only content and non-empty documents do not receive this starting state.
+
+After New succeeds, Base UI's closing focus handoff targets the newly mounted editor, so typing starts immediately. Cancel/Escape, including after rejected creation, returns focus to the New button. Opening or reloading an existing file does not invoke the New handoff. The white space below the actual editor content still places the caret at the end through the existing engine operation.
+
+The paper boundary is permanent and neutral, not a document focus ring. Top/bottom paper padding is 32px (16px at ≤1024px), inside the 16px canvas gap; the body and gutter keep their existing axes. These are display and focus changes only; Core, CLI and saved document meaning are unchanged.
+
+Same-state comparison, base `e46b0ec` and #133 (2026-10-08). Empty captures exercise the real New UI with an empty Host response supplied by the capture script; persistence is separately checked with real scratch files by `new-document`. The populated pair uses `pnpm browser:test quiet-document --screenshots` in each checkout. Captures are review evidence, not automated visual approval.
+
+| State | Before | After |
+| --- | --- | --- |
+| Empty, 1440px | ![Empty document before](assets/empty-start-before-empty-1440.png) | ![Empty document after](assets/empty-start-after-empty-1440.png) |
+| Empty, 768px | ![Narrow empty document before](assets/empty-start-before-empty-768.png) | ![Narrow empty document after](assets/empty-start-after-empty-768.png) |
+| Content, 1440px | ![Populated document before](assets/empty-start-before-content-1440.png) | ![Populated document after](assets/empty-start-after-content-1440.png) |
 
 ## Filename and status
 
@@ -88,6 +104,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - They live at the top of `styles/tokens.css` under **Adjustable values**, each with a comment saying what it controls. Changing one value there changes the Editor; tests read the variable instead of pinning its number.
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The TopBar Wide document toggle chooses between them.
+- Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px). The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 176px). The collapsed rail is fixed.
 - Document panel entry: `--layout-document-panel-width` (256px), docked or overlaid.
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
@@ -107,7 +124,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 | Link / inline math / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
 | Figure | Summary keeps editor focus and can dismiss outside; editing autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
-| Open / New | Existing Base UI modal focus boundary, Escape dismissal and focus restoration. |
+| Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. Open retains its existing focus restoration. |
 | Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog. |
 

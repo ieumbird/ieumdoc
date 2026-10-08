@@ -415,7 +415,7 @@ button {
   width: 100%;
   max-width: var(--layout-content-width);
   margin: 0 auto;
-  padding: var(--space-12) var(--layout-content-gutter) var(--space-16);
+  padding: var(--layout-content-gutter);
 }
 
 /* The Wide document preference changes only the column's maximum width. */
@@ -539,9 +539,11 @@ button {
 
 .document {
   position: relative;
+  min-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--layout-content-gutter) * 2);
   padding: var(--layout-document-block-padding) var(--layout-document-inline-padding);
   padding-left: var(--layout-document-gutter);
   background: var(--id-color-surface);
+  box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle);
 }
 
 .document-editor {
@@ -556,6 +558,16 @@ button {
 
 .document-editor ::selection {
   background: var(--id-color-interaction-soft);
+}
+
+/* A decoration, never document text. Keep its first line aligned with the real caret. */
+.document--empty .document-editor > p:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  max-width: 100%;
+  color: var(--id-color-text-subtle);
+  pointer-events: none;
 }
 
 .heading {
@@ -1063,6 +1075,16 @@ ol.list { list-style: decimal; }
   pointer-events: auto;
 }
 
+/* An empty document must expose its first action before the user discovers hover. */
+.document--empty .block-controls:first-child {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.document--empty .block-handle {
+  visibility: hidden;
+}
+
 .block-insert,
 .block-handle {
   width: var(--size-control-compact);
@@ -1484,8 +1506,10 @@ ol.list { list-style: decimal; }
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */
 @media (max-width: 64rem) {
   .app-shell { --layout-sidebar-width: var(--layout-sidebar-width-narrow); }
-  .document { --layout-document-inline-padding: var(--space-4); }
-  .document-column { padding-top: var(--space-8); }
+  .document {
+    --layout-document-inline-padding: var(--space-4);
+    --layout-document-block-padding: var(--layout-document-block-padding-narrow);
+  }
 }
 
 @media (max-width: 44rem) {
