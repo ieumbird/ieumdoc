@@ -69,6 +69,13 @@ async (page, { screenshots = false } = {}) => {
   } finally {
     await fontSession.detach();
   }
+  // Inline math takes --math-inline-size of its text instead of KaTeX's own 1.21em.
+  const inlineMath=await page.locator('.document-editor .inline-math-rendered .katex').first().evaluate(n=>{
+    const token=getComputedStyle(document.documentElement).getPropertyValue('--math-inline-size').trim();
+    if(!token.endsWith('em'))throw Error(`Unexpected --math-inline-size: ${token}`);
+    return {token,actual:parseFloat(getComputedStyle(n).fontSize),expected:parseFloat(token)*parseFloat(getComputedStyle(n.parentElement).fontSize)};
+  });
+  check(Math.abs(inlineMath.actual-inlineMath.expected)<0.1,`Inline math size must follow its token: ${JSON.stringify(inlineMath)}`);
   const initial=await json();
   await rest();
   const metadata=page.locator('.block-metadata');
@@ -230,7 +237,7 @@ async (page, { screenshots = false } = {}) => {
 
   // Inline overlays at the right edge, including resize and scroll while open.
   await page.setViewportSize({width:768,height:700});
-  await page.locator('.inline-math-rendered').first().click();
+  await page.locator('.inline-math-rendered .katex-html').first().click();
   await bounds(page.getByTestId('inline-math-form'),'Inline math 768');
   await page.setViewportSize({width:704,height:650});
   await page.mouse.wheel(0,120);

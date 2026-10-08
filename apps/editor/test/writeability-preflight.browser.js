@@ -77,7 +77,7 @@ async page => {
   assert(await page.locator('.block-gutter').count() === 0, 'Read-only document exposes structural controls');
   // Like a Figure, a read-only Equation offers no Edit.
   assert(await page.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).count() === 0, 'Equation edit bypasses read-only');
-  await page.getByTestId('inline-math').locator('.inline-math-rendered').click();
+  await page.getByTestId('inline-math').locator('.inline-math-rendered .katex-html').click();
   assert(await page.getByTestId('inline-math-form').count() === 0, 'Inline math edit bypasses read-only');
   await save.dispatchEvent('click');
   assert((await read('blocked-markdown.md')).source === before.source, 'Blocked file changed');

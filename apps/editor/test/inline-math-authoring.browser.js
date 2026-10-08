@@ -40,7 +40,8 @@ async page => {
   const mathNamed = async value => {
     const index = (await sources()).indexOf(value);
     if (index < 0) throw new Error(`inline math not found: ${value}`);
-    return editor.getByTestId('inline-math').nth(index).locator('.inline-math-rendered');
+    // The visible formula: KaTeX's visually hidden 1px MathML box would be the click point.
+    return editor.getByTestId('inline-math').nth(index).locator('.inline-math-rendered .katex-html');
   };
   // Select text through the editor's own selection (the state a mouse selection produces).
   const select = async text => {
