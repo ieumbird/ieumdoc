@@ -48,6 +48,43 @@ test("strikethrough is editable inline content written as the {del} role", () =>
   assert.deepEqual(block.content, content);
 });
 
+test("subscript and superscript are editable inline content written as the {sub} and {sup} roles", () => {
+  const paragraph = getEditableDocument(parse("H{sub}`2`O and x{sup}`*n*+1`.\n")).blocks[0];
+  assert.ok(paragraph.block === "paragraph" && paragraph.editable);
+  assert.deepEqual(paragraph.content, [
+    { kind: "text", text: "H" }, { kind: "subscript", children: [{ kind: "text", text: "2" }] },
+    { kind: "text", text: "O and x" },
+    { kind: "superscript", children: [{ kind: "emphasis", children: [{ kind: "text", text: "n" }] }, { kind: "text", text: "+1" }] },
+    { kind: "text", text: "." },
+  ]);
+
+  const content: InlineContent[] = [
+    { kind: "text", text: "m" }, { kind: "superscript", children: [{ kind: "text", text: "2" }] },
+    { kind: "text", text: " " },
+    { kind: "link", url: "https://example.com", children: [{ kind: "text", text: "Acme" }, { kind: "superscript", children: [{ kind: "text", text: "TM" }] }] },
+    { kind: "text", text: " " }, { kind: "strong", children: [{ kind: "subscript", children: [{ kind: "math", value: "x" }] }] },
+  ];
+  const saved = serialize(insertParagraph(parse("# Title\n"), 1, content));
+  assert.ok(saved.includes("m{sup}`2`"), saved);
+  const block = getEditableDocument(parse(saved)).blocks[1];
+  assert.ok(block.block === "paragraph");
+  assert.deepEqual(block.content, content);
+});
+
+test("subscript and superscript never nest and hold no references, footnotes or role options", () => {
+  const nested: InlineContent[] = [{ kind: "subscript", children: [{ kind: "strong", children: [{ kind: "superscript", children: [{ kind: "text", text: "x" }] }] }] }];
+  assert.throws(() => insertParagraph(parse("# Title\n"), 1, nested), /cannot be nested/);
+  for (const inner of [{ kind: "footnote", label: "n" }, { kind: "reference", role: "eq", label: "eq-a" }] as InlineContent[]) {
+    assert.throws(() => insertParagraph(parse("# Title\n"), 1, [{ kind: "superscript", children: [inner] }]), /references or footnotes/);
+  }
+
+  // Written that way they stay read-only with their source, never flattened.
+  const document = parse("{sub}``a{sup}`b` ``\n\nA{sup}`[^n]`\n\n{sub class=\"x\"}`k`\n\n[^n]: Note.\n");
+  const paragraphs = getEditableDocument(document).blocks.filter((block) => block.block === "paragraph");
+  assert.equal(paragraphs.length, 3);
+  assert.ok(paragraphs.every((block) => !block.editable));
+});
+
 const FORMATTED_TEXT ="The converter regulates the DC-link voltage and phase current.";
 const FORMATTED_INLINE: InlineContent[] = [
   { kind: "text", text: "The converter regulates the " },

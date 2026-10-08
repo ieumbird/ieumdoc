@@ -2,6 +2,8 @@ import { Extension, Node, generateHTML, type Attribute, type Editor, type Extens
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { Subscript } from "@tiptap/extension-subscript";
+import { Superscript } from "@tiptap/extension-superscript";
 import { common, createLowlight } from "lowlight";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
@@ -208,6 +210,10 @@ const InlineCode = Code.extend({
     return [];
   },
 });
+
+// Subscript and superscript replace each other, as Core never nests them (Mod-, and Mod-.).
+const SubscriptMark = Subscript.extend({ excludes: "subscript superscript" });
+const SuperscriptMark = Superscript.extend({ excludes: "subscript superscript" });
 
 const ReadonlyHeading = Node.create({
   name: "readonlyHeading",
@@ -890,6 +896,8 @@ export function editorExtensions(
     ReadonlyParagraph,
     SourcedCodeBlock,
     InlineCode,
+    SubscriptMark,
+    SuperscriptMark,
     SourcedBulletList,
     SourcedOrderedList,
     SimpleListItem,

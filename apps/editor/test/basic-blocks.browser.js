@@ -1,6 +1,7 @@
 // Run with pnpm browser:test basic-blocks.
 // Changes an admonition's kind from the block menu, edits a quote with Shift+Enter and leaves it
-// with Enter, applies strikethrough from the toolbar, creates a quote, a divider and
+// with Enter, applies strikethrough and superscript from the toolbar, switches superscript and
+// subscript with their keyboard shortcuts, creates a quote, a divider and
 // strikethrough with Markdown shortcuts, inserts H5 and a divider from the slash menu, then saves
 // a scratch Markdown file and reloads it.
 async page => {
@@ -68,6 +69,20 @@ async page => {
   await page.getByRole('button', {name:'Strikethrough'}).click();
   await editor.locator('s').filter({hasText:'Strike'}).waitFor({state:'visible'});
 
+  // Superscript from the toolbar; the keyboard shortcuts toggle it into subscript and back,
+  // never nesting one in the other.
+  await select('Strike me.', 7, 9);
+  await page.getByRole('button', {name:'Superscript'}).click();
+  await editor.locator('sup').filter({hasText:'me'}).waitFor({state:'visible'});
+  await page.keyboard.press('Control+Comma');
+  await editor.locator('sub').filter({hasText:'me'}).waitFor({state:'visible'});
+  const scriptsExclusive = await editor.locator('sup').count() === 0;
+  await page.keyboard.press('Control+Period');
+  await editor.locator('sup').filter({hasText:'me'}).waitFor({state:'visible'});
+  await select('Strike me.', 9, 10);
+  await page.keyboard.press('Control+Comma');
+  await editor.locator('sub').filter({hasText:'.'}).waitFor({state:'visible'});
+
   // Shortcuts: a quote, a divider and strikethrough.
   await select('Shortcut here', -1, -1);
   await page.keyboard.press('Enter');
@@ -108,13 +123,17 @@ async page => {
     quoteEdited,
     twoDividers,
     dangerSaved: saved.includes(':::{danger}\nKind me.\n:::'),
-    strikeSavedAsDel: saved.includes('{del}`Strike` me.') && saved.includes('Text {del}`gone` kept'),
+    strikeSavedAsDel: saved.includes('{del}`Strike` ') && saved.includes('Text {del}`gone` kept'),
+    scriptsExclusive,
+    scriptsSavedAsRoles: saved.includes('{del}`Strike` {sup}`me`{sub}`.`'),
     headingFiveSaved: saved.includes('##### Deep heading'),
     dangerReloaded: await reloaded.locator('aside[data-block="admonition"][data-variant="danger"]').count() === 1,
     quotesReloaded: await reloaded.locator('blockquote[data-block="quote"]').count() === 2 &&
       (await reloaded.locator('blockquote').first().innerText()).includes('Line two'),
     dividersReloaded: await reloaded.locator('[data-block="divider"] hr').count() === 2,
     strikeReloaded: await reloaded.locator('s').count() === 2,
+    scriptsReloaded: await reloaded.locator('sup').filter({hasText:'me'}).count() === 1 &&
+      await reloaded.locator('sub').filter({hasText:'.'}).count() === 1,
     textAfterBlocksReloaded: await reloaded.locator('p[data-block="paragraph"]').filter({hasText:'After quote.'}).count() === 1 &&
       await reloaded.locator('p[data-block="paragraph"]').filter({hasText:'End.'}).count() === 1,
   };

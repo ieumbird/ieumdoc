@@ -167,7 +167,7 @@ test("updateFigure rejects non-Figure and invalid paths", () => {
 
 test("updateFigure fails closed for unsupported Figure structures", () => {
   for (const markdown of [
-    ":::{figure} ./a.png\n{sub}`V`\n:::\n",
+    ":::{figure} ./a.png\n{u}`V`\n:::\n",
     ":::{figure} ./a.png\nCaption\n\nLegend paragraph\n:::\n",
     ":::{figure} ./a.png\n% comment\n:::\n",
   ]) {

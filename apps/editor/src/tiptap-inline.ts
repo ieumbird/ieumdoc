@@ -19,6 +19,7 @@ type Marks = {
   bold: boolean;
   italic: boolean;
   strike?: boolean;
+  script?: "subscript" | "superscript";
   link?: LinkTarget;
 };
 
@@ -74,6 +75,7 @@ function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
       if (marks.bold) applied.push({ type: "bold" });
       if (marks.italic) applied.push({ type: "italic" });
       if (marks.strike) applied.push({ type: "strike" });
+      if (marks.script) applied.push({ type: marks.script });
       if (marks.link) applied.push({ type: "link", attrs: { href: marks.link.url, title: marks.link.title ?? null } });
       if (applied.length > 0) node.marks = applied;
       nodes.push(node);
@@ -83,6 +85,8 @@ function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
       nodes.push(...toTiptapInline(item.children, { ...marks, italic: true }));
     } else if (item.kind === "delete") {
       nodes.push(...toTiptapInline(item.children, { ...marks, strike: true }));
+    } else if (item.kind === "subscript" || item.kind === "superscript") {
+      nodes.push(...toTiptapInline(item.children, { ...marks, script: item.kind }));
     } else if (item.kind === "link") {
       nodes.push(...toTiptapInline(item.children, { ...marks, link: { url: item.url, title: item.title } }));
     }
@@ -97,6 +101,9 @@ type Leaf = { item: InlineContent; marks: Mark[] };
 const BOLD: Mark = { key: "bold", wrap: (children) => ({ kind: "strong", children }) };
 const ITALIC: Mark = { key: "italic", wrap: (children) => ({ kind: "emphasis", children }) };
 const STRIKE: Mark = { key: "strike", wrap: (children) => ({ kind: "delete", children }) };
+const SUBSCRIPT: Mark = { key: "subscript", wrap: (children) => ({ kind: "subscript", children }) };
+const SUPERSCRIPT: Mark = { key: "superscript", wrap: (children) => ({ kind: "superscript", children }) };
+const SIMPLE_MARKS: Record<string, Mark> = { bold: BOLD, italic: ITALIC, strike: STRIKE, subscript: SUBSCRIPT, superscript: SUPERSCRIPT };
 
 function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath" &&
@@ -131,7 +138,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
     if (!isTiptapJSON(mark) || typeof mark.type !== "string") {
       throw new Error(`unsupported Tiptap mark at paragraph child ${index}`);
     }
-    if (mark.type !== "bold" && mark.type !== "italic" && mark.type !== "strike" && mark.type !== "link" && mark.type !== "code") {
+    if (!Object.hasOwn(SIMPLE_MARKS, mark.type) && mark.type !== "link" && mark.type !== "code") {
       throw new Error(`unsupported Tiptap mark "${mark.type}" at paragraph child ${index}`);
     }
     if (seen.has(mark.type)) {
@@ -147,7 +154,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
     if ((node.type === "crossReference" || node.type === "footnoteReference") && mark.type === "link") {
       throw new Error(`a ${node.type === "crossReference" ? "cross-reference" : "footnote reference"} cannot be inside a link at paragraph child ${index}`);
     }
-    marks.push(mark.type === "bold" ? BOLD : mark.type === "italic" ? ITALIC : mark.type === "strike" ? STRIKE : linkMark(mark, index));
+    marks.push(mark.type === "link" ? linkMark(mark, index) : SIMPLE_MARKS[mark.type]);
   }
 
   if (node.type === "hardBreak" && (node.text !== undefined || node.content !== undefined)) {
@@ -159,7 +166,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
     : node.type === "footnoteReference" ? { kind: "footnote", label: String(node.attrs!.label) }
     : code ? { kind: "code", value: node.text! }
     : { kind: "text", text: node.text! };
-  const order = [BOLD.key, ITALIC.key, STRIKE.key];
+  const order = Object.keys(SIMPLE_MARKS);
   return { item, marks: marks.sort((a, b) => rank(a, order) - rank(b, order)) };
 }
 

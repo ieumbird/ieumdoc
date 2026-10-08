@@ -21,7 +21,7 @@ import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } f
 const fixture = fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url));
 const source = readFileSync(fixture, "utf8");
 const TABLE = 12;
-const mixed = "| Name | Note |\n| --- | --- |\n| U | {sub}`bold` |\n| P |  |\n";
+const mixed = "| Name | Note |\n| --- | --- |\n| U | {u}`bold` |\n| P |  |\n";
 
 function tableOf(projection: TiptapJSON): TiptapJSON {
   return projection.content!.find((block) => block.type === "table")!;

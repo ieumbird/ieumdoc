@@ -127,7 +127,7 @@ test("Source preview shows unsaved label edits; rejected labels fail closed befo
 });
 
 test("a read-only Figure keeps its label", () => {
-  const readonlySource = ":::{figure} ./a.png\n:name: fig-a\n\n{sub}`V`\n:::\n";
+  const readonlySource = ":::{figure} ./a.png\n:name: fig-a\n\n{u}`V`\n:::\n";
   const editable = loadEditableDocument(readonlySource);
   const next = toTiptapDocument(editable);
   next.content![0].attrs!.label = "fig-b";

@@ -21,7 +21,6 @@ const SEMANTIC = "abbr,acronym,cite,data,dfn,kbd,q,samp,time,var";
 const NOTICES = {
   styles: "unsupported visual styles were removed",
   semantic: "unsupported semantic formatting became plain text",
-  scripts: "superscript and subscript became plain text",
   images: "images were not pasted (paste a PNG file to add a Figure)",
   links: "unsupported links became plain text",
   header: "table headers now use the first row only",
@@ -101,20 +100,19 @@ export function normalizeExternalHTML(html: string): ExternalHTML {
 /** Records visible formatting and inline semantics that have no IeumDoc meaning. Classes, ids and layout styles are not reported. */
 function visualFormatting(body: HTMLElement, notices: Set<Notice>): void {
   if (body.querySelector(SEMANTIC)) notices.add("semantic");
-  if (body.querySelector("sub,sup")) notices.add("scripts");
   if (body.querySelector("u,ins,mark,font,small,big,center,ol[type]:not([type='1']),[align]:not(td,th)")) notices.add("styles");
   for (const { style } of body.querySelectorAll<HTMLElement>("[style]")) {
-    if (/super|sub/.test(style.verticalAlign)) notices.add("scripts");
     if (["color", "background-color", "font-family", "font-size"].some(name =>
         !/^(|inherit|initial|unset|transparent|currentcolor|normal|medium)$/i.test(style.getPropertyValue(name).trim())) ||
         /underline|overline/.test(style.textDecorationLine) || /center|right|justify|end/.test(style.textAlign)) notices.add("styles");
   }
 }
 
-/** The style declarations the engine's bold, italic and strikethrough parse rules read. */
+/** The style declarations the engine's bold, italic, strikethrough and sub/superscript parse rules read. */
 function markStyle({ style }: HTMLElement): string {
   return [style.fontWeight && `font-weight: ${style.fontWeight}`, style.fontStyle && `font-style: ${style.fontStyle}`,
-    style.textDecorationLine?.includes("line-through") && "text-decoration: line-through"].filter(Boolean).join("; ");
+    style.textDecorationLine?.includes("line-through") && "text-decoration: line-through",
+    /^(sub|super)$/.test(style.verticalAlign) && `vertical-align: ${style.verticalAlign}`].filter(Boolean).join("; ");
 }
 
 /**

@@ -9,7 +9,7 @@ import type { MystNode } from "./tree.ts";
  */
 const SOURCE_FIELDS = new Set(["position"]);
 
-const MARKS = new Set(["strong", "emphasis", "delete"]);
+const MARKS = new Set(["strong", "emphasis", "delete", "subscript", "superscript"]);
 // Fingerprint-only field; the parenthesized name cannot collide with a MyST field.
 const MARKS_FIELD = "(marks)";
 

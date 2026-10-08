@@ -406,7 +406,7 @@ test("editor shell keeps application UI out of the document editor", () => {
 
 test("heading section commands move past sibling sections and delete a section, saving what Core moveSection/removeSection write", () => {
   // 0 # One · 1 (sec-a)= · 2 ## A · 3 read-only paragraph · 4 ### A.1 · 5 ## B · 6 Body B · 7 # Two
-  const markdown = "# One\n\n(sec-a)=\n## A\n\nRead {sub}`only`.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n";
+  const markdown = "# One\n\n(sec-a)=\n## A\n\nRead {u}`only`.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n";
   const editable = loadEditableDocument(markdown);
   const baseline = toTiptapDocument(editable);
   let rejected = 0;

@@ -4,7 +4,7 @@ import { sectionRange, type SectionMarker } from "../src/section.ts";
 import { getEditableDocument, moveSection, parse, removeSection, serialize } from "./core-internal.ts";
 
 // 0 Preamble · 1 # One · 2 Intro · 3 (sec-a)= · 4 ## A · 5 Body A · 6 ### A.1 · 7 Deep · 8 ## B · 9 Body B · 10 # Two · 11 End
-const source = "Preamble.\n\n# One\n\nIntro.\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\nDeep {sub}`x`.\n\n## B\n\nBody B.\n\n# Two\n\nEnd.\n";
+const source = "Preamble.\n\n# One\n\nIntro.\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\nDeep {u}`x`.\n\n## B\n\nBody B.\n\n# Two\n\nEnd.\n";
 const texts = (markdown: string) => getEditableDocument(parse(markdown)).blocks.map(block => "text" in block ? block.text : block.block);
 
 test("a section runs from its heading's label targets to the next heading of the same or a higher level", () => {
@@ -23,7 +23,7 @@ test("moveSection moves a heading with its targets, content and subsections, kee
   const document = parse(source);
   // Section A (targets, A.1 included) moves after B, to the start of section Two.
   const after = serialize(moveSection(document, 4, 10));
-  assert.equal(after, "Preamble.\n\n# One\n\nIntro.\n\n## B\n\nBody B.\n\n(sec-a)=\n\n## A\n\nBody A.\n\n### A.1\n\nDeep {sub}`x`.\n\n# Two\n\nEnd.\n");
+  assert.equal(after, "Preamble.\n\n# One\n\nIntro.\n\n## B\n\nBody B.\n\n(sec-a)=\n\n## A\n\nBody A.\n\n### A.1\n\nDeep {u}`x`.\n\n# Two\n\nEnd.\n");
   assert.equal(serialize(parse(after)), after);
   // Section Two moves before One; the document end and section starts are the only targets.
   assert.deepEqual(texts(serialize(moveSection(document, 10, 1))).slice(0, 3), ["Preamble.", "Two", "End."]);
