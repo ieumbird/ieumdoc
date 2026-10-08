@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (document panel: presentation code and regression coverage reviewed; no new visual approval).
+- Last verified: 2026-10-08 (sidebar folder tree: presentation code and regression coverage reviewed; no new visual approval).
 - Current contract: v2. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -57,7 +57,7 @@ Features added after v1 (outline, table handles, heading numbering, block source
 | Area | Rule |
 | --- | --- |
 | TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source, then the Wide document and Outline icon toggles), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
-| Sidebar and Document panel | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. The panel title (Outline) uses the folder heading's type; the panel has no tabs. The folder heading is the sidebar's identity: 14px semibold text color with a folder icon, above muted entries; its actions are compact ghost icons. Without a folder, Open folder… is an outlined button and Open file… a ghost button: neither takes the accent. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
+| Sidebar and Document panel | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. The panel title (Outline) uses the folder heading's type; the panel has no tabs. The folder heading is the sidebar's identity: 14px semibold text color with a folder icon, above muted tree entries whose chevrons use the subtle text color and whose folders show an open icon while expanded; its actions are compact ghost icons. Without a folder, Open folder… is an outlined button and Open file… a ghost button: neither takes the accent. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
 | Color | Two blue axes only. Interaction (`interaction`, `interaction-soft`): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Chrome uses neutrals. `--id-color-admonition` and `--id-color-surface-admonition` were removed. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
 | Callouts | Side bar and surface carry the kind; no full outline. |

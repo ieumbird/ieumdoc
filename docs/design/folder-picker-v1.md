@@ -1,7 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (folder New entry point compared with current code and regression coverage).
+- Last verified: 2026-10-08 (folder New destination in the sidebar tree compared with current code and regression coverage).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
@@ -25,20 +25,23 @@
 
 ## Exclusions
 
-No native picker, upload/copy, recursive tree, search, watcher, workspace, new persistence
-service or file-picker UI. The existing file-path dialog remains. No CLI parity command:
+No native picker, upload/copy, tree inside the dialog, search, watcher, workspace, new persistence
+service or file-picker UI. (The chosen folder is shown as a lazily listed tree in the sidebar; see
+[Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112).) The existing file-path dialog remains. No CLI parity command:
 choosing a folder is interface/Host navigation, not a document semantic operation.
 
-## New document in the displayed folder
+## New document in a sidebar folder
 
 - The sidebar folder heading has a `+` (New file in folder) beside its `⋯` menu (Open file…, Open folder…, Close folder).
-  Its destination is the displayed folder, including a browsed sub-folder.
+  Its destination is the tree folder last expanded or collapsed; otherwise the open document's
+  folder when it is inside the chosen folder; otherwise the chosen folder. Opening a document
+  resets it to that document's folder. The `+` title names the destination.
 - The existing New dialog shows that destination and accepts a single filename.
   An omitted `.md` suffix is added; separators and `.`/`..` are rejected so this
   entry point cannot choose another directory. It is the only New entry point; the former
   top-level full-path New was removed with the [sidebar chrome cleanup](editor-ux-shell-v1.md#structure).
 - Creation uses the existing Host API and Core's canonical empty Markdown. Success
-  opens the document and refreshes the folder listing. Existing files, pending
+  opens the document and lists its folder again, so it appears in the tree. Existing files, pending
   operations and unsaved work keep their existing protections. Cancel/Escape writes nothing.
 - No directory creation, workspace state or new Core/CLI operation is needed:
   this change supplies a destination to the existing document-creation flow.

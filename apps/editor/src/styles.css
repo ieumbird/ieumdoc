@@ -137,7 +137,7 @@ button {
   gap: var(--space-1);
 }
 
-.sidebar-folder-list {
+.sidebar-tree {
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -145,47 +145,57 @@ button {
   list-style: none;
 }
 
-.sidebar-folder-item {
+/* Chevron, icon and name. One 12px step per level, at most five, so deep names keep some width;
+ * a name that still does not fit ellipsizes and the full path stays in `title`. */
+.sidebar-tree-item {
   display: grid;
-  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
+  grid-template-columns: var(--size-icon-slot) var(--size-icon-slot) minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--space-2);
-  width: 100%;
+  column-gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
-  border: 0;
+  padding-left: calc(var(--space-3) + min(var(--tree-depth, 0), 5) * var(--space-3));
   border-radius: var(--id-radius-md);
-  background: transparent;
   color: var(--id-color-text-muted);
-  font: inherit;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
-  text-align: left;
   cursor: pointer;
+  user-select: none;
 }
 
-.sidebar-folder-item svg {
+.sidebar-tree-item svg {
   width: var(--size-icon-slot);
   height: var(--size-icon-slot);
 }
 
-.sidebar-folder-item span {
+.sidebar-tree-chevron {
+  display: flex;
+  color: var(--id-color-text-subtle);
+}
+
+.sidebar-tree-item[aria-expanded="true"] .sidebar-tree-chevron svg {
+  transform: rotate(90deg);
+}
+
+/* The icon and its name keep the sidebar's 8px label gap. */
+.sidebar-tree-name {
   min-width: 0;
+  margin-left: var(--space-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sidebar-folder-item:hover {
+.sidebar-tree-item:hover {
   background: var(--id-color-surface-muted);
 }
 
-.sidebar-folder-item:focus-visible {
+.sidebar-tree-item:focus-visible {
   outline: 2px solid var(--id-color-border-focus);
   outline-offset: -2px;
 }
 
 /* The same current-item treatment as the section being read in the outline. */
-.sidebar-folder-item[aria-current="page"] {
+.sidebar-tree-item[aria-current="page"] {
   background: var(--id-color-surface-muted);
   color: var(--id-color-text);
   font-weight: var(--font-weight-semibold);

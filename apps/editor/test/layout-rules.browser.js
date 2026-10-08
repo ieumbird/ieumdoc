@@ -17,7 +17,7 @@ async page => {
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)));
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
-  await page.getByTestId('folder').getByRole('button',{name:'quiet-document.md',exact:true}).waitFor();
+  await page.getByTestId('folder').getByRole('treeitem',{name:'quiet-document.md',exact:true}).waitFor();
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
   const results=[];
   for(const width of [1440,1025,1024,768,705,704]) {
@@ -48,10 +48,11 @@ async page => {
         for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
           if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
         }
-        // The folder heading and its entries share one icon slot and one text start.
-        const icons=collapsed?null:[...document.querySelectorAll('.sidebar-folder-name svg,.sidebar-folder-item svg')].map(n=>n.getBoundingClientRect());
+        // Every sidebar icon is 16px; top-level tree entries share one icon start and one text start.
+        const icons=collapsed?null:[...document.querySelectorAll('.sidebar-folder-name svg,.sidebar-tree-item svg')].map(n=>n.getBoundingClientRect());
+        const rowIcons=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-icon')].map(n=>n.getBoundingClientRect().x);
         if(icons&&icons.length<2)throw Error('Missing expanded sidebar icons');
-        const labels=collapsed?null:[...document.querySelectorAll('.sidebar-folder-name span,.sidebar-folder-item span')].map(n=>{
+        const labels=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-name')].map(n=>{
           if(!n.textContent.trim())throw Error('Missing sidebar label');
           return n.getBoundingClientRect().left;
         });
@@ -70,9 +71,9 @@ async page => {
         const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
         if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
         const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
-        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
+        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
       },{collapsed,width});
-      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||Math.max(...result.icons.map(i=>i.x))-Math.min(...result.icons.map(i=>i.x))>1||result.icons.some(i=>i.w!==16||i.h!==16)));
+      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
       // Below 704px the TopBar intentionally wraps; the sidebar header remains 48px.
       if(fail||result.sidebarHeader!==48||(width>704&&result.header!==48)||(width<=704&&result.header<=48))throw Error(JSON.stringify(result));
       results.push({...result,hoverShift:after-before});

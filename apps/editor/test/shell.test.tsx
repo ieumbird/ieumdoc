@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { FolderEntry } from "../shared/document-protocol.ts";
 import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { createOutlineStore } from "../src/outline.ts";
@@ -39,32 +40,44 @@ test("sidebar without a folder offers Open folder and Open file, and collapses",
   assert.doesNotMatch(collapsed, /Open file…|Open folder…|IeumDoc/);
 });
 
-test("sidebar folder names the displayed folder, keeps Up below the chosen one and marks the open document once", () => {
+test("sidebar folder is a tree under the chosen folder that marks the open document once", () => {
+  const listing = (path: string, entries: FolderEntry[]) => ({ root: String.raw`C:\docs`, path, entries });
+  const root = listing(String.raw`C:\docs`, [
+    { name: "guides", kind: "folder", path: String.raw`C:\docs\guides` },
+    { name: "specs", kind: "folder", path: String.raw`C:\docs\specs` },
+    { name: "guide.md", kind: "document", path: String.raw`C:\docs\guide.md` },
+  ]);
+  const guides = listing(String.raw`C:\docs\guides`, [
+    { name: "guide.md", kind: "document", path: String.raw`C:\docs\guides\guide.md` },
+  ]);
   const folder = {
     root: String.raw`C:\docs`,
-    path: String.raw`C:\docs\guides`,
-    parent: String.raw`C:\docs`,
-    entries: [
-      { name: "api", kind: "folder" as const, path: String.raw`C:\docs\guides\api` },
-      { name: "guide.md", kind: "document" as const, path: String.raw`C:\docs\guides\guide.md` },
-      { name: "other.md", kind: "document" as const, path: String.raw`C:\docs\guides\other.md` },
-    ],
+    nodes: new Map([[root.path, root], [guides.path, guides]]),
+    expanded: new Set([guides.path]),
+    pending: new Map(),
   };
   const html = renderToStaticMarkup(
     <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
   );
-  assert.match(html, /title="C:\\docs\\guides"/);
-  assert.match(html, />guides</);
-  assert.match(html, /aria-label="Up to docs"/);
-  assert.match(html, /aria-label="New file in folder"/);
+  assert.match(html, /title="C:\\docs"/);
+  assert.match(html, />docs</);
+  assert.match(html, /role="tree"/);
+  assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="1")(?=[^>]*aria-expanded="true")[^>]*title="C:\\docs\\guides"/);
+  assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="2")(?=[^>]*aria-current="page")[^>]*title="C:\\docs\\guides\\guide.md"/);
+  assert.match(html, /<li\b(?=[^>]*aria-expanded="false")[^>]*title="C:\\docs\\specs"/);
+  assert.equal(html.match(/aria-current="page"/g)?.length, 1, "the open document, not the other guide.md");
+  // One tab stop, on the open document.
+  assert.equal(html.match(/<li\b(?=[^>]*role="treeitem")(?=[^>]*tabindex="0")/g)?.length, 1);
+  assert.doesNotMatch(html, /Up to/);
+  assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file in C:\\docs\\guides")[^>]*>/);
   // Open file, Open folder and Close folder are behind one menu instead of a row of buttons.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
-  assert.equal(html.match(/aria-current="page"/g)?.length, 1, "the open document's folder entry, not other.md");
+  const empty = listing(String.raw`C:\docs`, []);
   const top = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} folder={{ root: String.raw`C:\empty`, path: String.raw`C:\empty`, entries: [] }} onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
+    <Sidebar open documentPath={PATH} folder={{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }}
+      onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
   );
-  assert.doesNotMatch(top, /Up to/);
   assert.match(top, /No folders or Markdown files/);
 });
 

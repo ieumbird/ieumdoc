@@ -1,8 +1,9 @@
-import { ArrowUp, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
-import type { FolderResponse } from "../../shared/document-protocol.ts";
 import { splitDocumentPath } from "./document-path.ts";
+import { folderChain, treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
   open: boolean;
@@ -10,11 +11,11 @@ type SidebarProps = {
   onToggle(): void;
   onOpen(): void;
   onOpenFolder(): void;
-  /** Creates a document in the displayed folder. */
+  /** Creates a document in a folder of the tree. */
   onNew?(directory: string): void;
-  /** The folder the user chose, listed one level at a time. */
-  folder?: FolderResponse;
-  onBrowseFolder?(path: string): void;
+  /** The folder the user chose, as a tree of the folders listed so far. */
+  folder?: FolderTreeState;
+  onToggleFolder?(path: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(): void;
 };
@@ -22,7 +23,7 @@ type SidebarProps = {
 /** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
 export function Sidebar({
   open, documentPath, onToggle, onOpen, onOpenFolder, onNew,
-  folder, onBrowseFolder, onOpenDocument, onCloseFolder,
+  folder, onToggleFolder, onOpenDocument, onCloseFolder,
 }: SidebarProps) {
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
@@ -39,12 +40,12 @@ export function Sidebar({
         </Button>
       </div>
       {!open ? null : folder ? (
-        <FolderList
-          folder={folder}
+        <FolderTree
+          tree={folder}
           documentPath={documentPath}
-          onBrowse={path => onBrowseFolder?.(path)}
+          onToggleFolder={path => onToggleFolder?.(path)}
           onOpenDocument={path => onOpenDocument?.(path)}
-          onNew={() => onNew?.(folder.path)}
+          onNew={directory => onNew?.(directory)}
           onOpen={onOpen}
           onOpenFolder={onOpenFolder}
           onClose={() => onCloseFolder?.()}
@@ -66,31 +67,58 @@ export function Sidebar({
   );
 }
 
-type FolderListProps = {
-  folder: FolderResponse;
+type FolderTreeProps = {
+  tree: FolderTreeState;
   documentPath: string;
-  onBrowse(path: string): void;
+  onToggleFolder(path: string): void;
   onOpenDocument(path: string): void;
-  onNew(): void;
+  onNew(directory: string): void;
   onOpen(): void;
   onOpenFolder(): void;
   onClose(): void;
 };
 
-/** One level of the chosen folder: Up while below it, then sub-folders and Markdown files. */
-function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onNew, onOpen, onOpenFolder, onClose }: FolderListProps) {
+/** The chosen folder as a tree: folders expand in place, documents open. */
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
+  const items = visibleTreeItems(tree);
+  const rows = useRef(new Map<string, HTMLLIElement>());
+  const [focused, setFocused] = useState<string>();
+  // The folder last expanded or collapsed receives New; otherwise the open document's folder.
+  const [activeFolder, setActiveFolder] = useState<string>();
+  useEffect(() => setActiveFolder(undefined), [documentPath, tree.root]);
+  const target = activeFolder ?? folderChain(tree.root, documentPath).at(-1) ?? tree.root;
+  // One tab stop: the item last focused, else the open document, else the first item.
+  const tabStop = [focused, documentPath].find(path => items.some(item => item.entry.path === path)) ?? items[0]?.entry.path;
+
+  const activate = (item: TreeItem) => {
+    if (item.entry.kind === "folder") {
+      setActiveFolder(item.entry.path);
+      onToggleFolder(item.entry.path);
+    } else {
+      onOpenDocument(item.entry.path);
+    }
+  };
+  const keyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    const index = items.findIndex(item => item.entry.path === focused);
+    const result = treeKey(items, index, event.key, tree.expanded);
+    if (!result) return;
+    event.preventDefault();
+    if ("focus" in result) rows.current.get(result.focus)?.focus();
+    else if ("expand" in result || "collapse" in result) activate(items[index]!);
+    else activate(result.activate);
+  };
+
   return (
     <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
       <div className="sidebar-folder-header">
-        {/* The displayed folder, which is the chosen folder or one browsed inside it. */}
-        <p className="sidebar-folder-name" id="sidebar-folder-label" title={folder.path}>
+        <p className="sidebar-folder-name" id="sidebar-folder-label" title={tree.root}>
           <FolderOpen aria-hidden="true" />
-          <span>{name(folder.path)}</span>
+          <span>{name(tree.root)}</span>
         </p>
         <div className="sidebar-folder-actions">
-          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title={`New file in ${folder.path}`} onClick={onNew}>
+          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title={`New file in ${target}`} onClick={() => onNew(target)}>
             <Plus />
           </Button>
           <DropdownMenu>
@@ -115,37 +143,37 @@ function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onNew, onO
           </DropdownMenu>
         </div>
       </div>
-      <ul className="sidebar-folder-list">
-        {folder.parent ? (
-          <li>
-            <button
-              type="button"
-              className="sidebar-folder-item"
-              title={folder.parent}
-              aria-label={`Up to ${name(folder.parent)}`}
-              onClick={() => onBrowse(folder.parent!)}
-            >
-              <ArrowUp aria-hidden="true" />
-              <span>{name(folder.parent)}</span>
-            </button>
-          </li>
-        ) : null}
-        {folder.entries.map(entry => (
-          <li key={entry.path}>
-            <button
-              type="button"
-              className="sidebar-folder-item"
+      <ul className="sidebar-tree" role="tree" aria-labelledby="sidebar-folder-label" onKeyDown={keyDown}>
+        {items.map(item => {
+          const { entry } = item;
+          const folder = entry.kind === "folder";
+          const expanded = folder && tree.expanded.has(entry.path);
+          const Icon = !folder ? FileText : expanded ? FolderOpen : Folder;
+          return (
+            <li
+              key={entry.path}
+              ref={row => { if (row) rows.current.set(entry.path, row); else rows.current.delete(entry.path); }}
+              role="treeitem"
+              className="sidebar-tree-item"
+              style={{ "--tree-depth": item.depth } as CSSProperties}
+              tabIndex={entry.path === tabStop ? 0 : -1}
               title={entry.path}
-              aria-current={entry.kind === "document" && entry.path === documentPath ? "page" : undefined}
-              onClick={() => (entry.kind === "folder" ? onBrowse(entry.path) : onOpenDocument(entry.path))}
+              aria-level={item.depth + 1}
+              aria-posinset={item.position}
+              aria-setsize={item.size}
+              aria-expanded={folder ? expanded : undefined}
+              aria-current={!folder && entry.path === documentPath ? "page" : undefined}
+              onFocus={() => setFocused(entry.path)}
+              onClick={() => activate(item)}
             >
-              {entry.kind === "folder" ? <Folder aria-hidden="true" /> : <FileText aria-hidden="true" />}
-              <span>{entry.name}</span>
-            </button>
-          </li>
-        ))}
+              <span className="sidebar-tree-chevron" aria-hidden="true">{folder ? <ChevronRight /> : null}</span>
+              <Icon className="sidebar-tree-icon" aria-hidden="true" />
+              <span className="sidebar-tree-name">{entry.name}</span>
+            </li>
+          );
+        })}
       </ul>
-      {folder.entries.length === 0 ? <p className="sidebar-folder-empty">No folders or Markdown files</p> : null}
+      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">No folders or Markdown files</p> : null}
     </section>
   );
 }
