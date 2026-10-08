@@ -268,7 +268,10 @@ button {
   scroll-margin-top: calc(var(--layout-header-row) + var(--space-8));
 }
 
+/* The document column fills the remaining height, so the area below the document is clickable. */
 .app-main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -357,6 +360,7 @@ button {
 }
 
 .document-column {
+  flex: 1 0 auto;
   width: 100%;
   max-width: var(--layout-content-width);
   margin: 0 auto;

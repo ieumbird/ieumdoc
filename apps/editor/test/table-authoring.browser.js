@@ -2,7 +2,8 @@
 // Creates a table from the insert menu and adds a row and a column to an existing table from its
 // block menu, types into the new cells, saves, then adds another row after that save and saves
 // again. The file must hold exactly what was typed, and reopening shows it. The reopened table's
-// rows and columns are then moved, realigned and removed from the block menu, and saved again. Scratch files live
+// rows and columns are then moved, realigned and removed from the block menu, and saved again. Finally, the caret
+// leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
 async page => {
   await page.unrouteAll();
@@ -239,6 +240,28 @@ async page => {
   result.deleteTable = await tables.count() === 1;
   await page.keyboard.press('Control+z');
   result.undoTableDeletion = await tables.count() === 2 && await tables.last().getByTestId('table-caption').innerText() === 'Port values';
+
+  // The document still ends with this table, which has no line below it. ArrowDown from its last row and
+  // a click below the document both reach one empty paragraph after it; empty, it changes nothing to save.
+  const caret = () => page.evaluate(() => {
+    const {state} = document.querySelector('.document-editor').editor;
+    return `${state.selection.$from.parent.type.name} ${state.selection.$from.index(0) + 1}/${state.doc.childCount}`;
+  });
+  const caretIn = text => page.waitForFunction(text =>
+    document.querySelector('.document-editor').editor.state.selection.$from.parent.textContent === text, text);
+  const status = await page.getByTestId('status').innerText();
+  await tables.last().locator('td', {hasText:/^P$/}).click();
+  await caretIn('P');
+  await page.keyboard.press('ArrowDown');
+  result.arrowLeavesFinalTable = await caret() === 'paragraph 5/5';
+  await tables.last().locator('td', {hasText:/^U$/}).click();
+  await caretIn('U');
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  const column = await page.locator('.document-column').boundingBox();
+  await page.mouse.click(column.x + column.width / 2, Math.min(column.y + column.height, 720) - 8);
+  result.clickBelowReachesEnd = await caret() === 'paragraph 5/5' &&
+    await page.evaluate(() => document.querySelector('.document-editor').editor.view.hasFocus()) &&
+    await page.getByTestId('status').innerText() === status;
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);

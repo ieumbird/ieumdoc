@@ -17,6 +17,10 @@ persistent changes and canonical semantic validation.
 - Tab/Shift+Tab move between editable table cells, skipping read-only cells;
   leaving the first/last cell enters surrounding prose (creating a paragraph at
   a document edge). Enter leaves a table, a Figure caption or a simple admonition.
+- The document end stays reachable. ArrowDown on the last line of a final table
+  row, list, quote, admonition or caption moves to a paragraph after it. A click in
+  the empty area below the document puts the caret at the end of a final
+  paragraph. After any other final block, both create an empty paragraph there.
 - Selecting an existing Equation leaves keyboard focus in the document; Edit
   opens its source form. A newly inserted empty Equation still opens its form
   automatically. NodeView selection alone must not steal navigation focus.
@@ -45,7 +49,7 @@ other engine conversions, and Core `convertBlock` (CLI `convert-block`) is the s
 conversion for headless callers. Headings hold inline content without line breaks
 (#58), so a paragraph with line breaks is refused with a visible reason instead of
 losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
-`update-heading`). Cursor navigation and session identity repair require no CLI command.
+`update-heading`). Cursor navigation, including reaching the document end, and session identity repair require no CLI command.
 
 ## Table cells and Figure captions
 

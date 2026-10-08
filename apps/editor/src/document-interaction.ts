@@ -3,6 +3,7 @@ import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
@@ -71,6 +72,24 @@ function paragraphBeside(state: EditorState, after: boolean): Transaction {
   return tr.setSelection(TextSelection.create(tr.doc, pos + 1)).scrollIntoView();
 }
 
+/** The caret goes to the end of a final paragraph. After any other final block, it goes to a new empty paragraph. */
+export function documentEnd(state: EditorState): Transaction {
+  const end = state.doc.content.size;
+  if (state.doc.lastChild?.type.name === "paragraph") return state.tr.setSelection(TextSelection.create(state.doc, end - 1)).scrollIntoView();
+  const tr = state.tr.insert(end, state.schema.nodes.paragraph.create({ sourcePath: freshBlockPath() }));
+  return tr.setSelection(TextSelection.create(tr.doc, end + 1)).scrollIntoView();
+}
+
+/** Whether the caret is on the last line of a nested block (table row, list, quote, caption) that ends the document. */
+function atNestedDocumentEnd(view: EditorView): boolean {
+  const { state } = view, { selection } = state, { $from } = selection;
+  if (!selection.empty || $from.depth < 2 || $from.after(1) !== state.doc.content.size) return false;
+  const lastLine = $from.node(1).type.name === "table"
+    ? $from.index(1) === $from.node(1).childCount - 1
+    : !TextSelection.findFrom(state.doc.resolve($from.after()), 1, true);
+  return lastLine && view.endOfTextblock("down");
+}
+
 function tableTab(state: EditorState, backward: boolean): Transaction | null {
   const { $from } = state.selection;
   if ($from.depth < 3 || $from.node(1).type.name !== "table") return null;
@@ -131,6 +150,12 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         },
         Tab: () => tab(false),
         "Shift-Tab": () => tab(true),
+        // A final table, list, quote or caption has no line below it to move to.
+        ArrowDown: () => {
+          const { view } = this.editor;
+          if (!atNestedDocumentEnd(view)) return false;
+          view.dispatch(documentEnd(view.state)); return true;
+        },
         Enter: () => {
           const { state, view } = this.editor;
           if (view.composing) return false;
