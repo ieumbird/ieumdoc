@@ -71,6 +71,8 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
     editor.on("transaction", update);
     const resize = new ResizeObserver(update);
     resize.observe(host);
+    // A minimum-height paper can stay fixed while fonts, images or NodeViews resize the content.
+    resize.observe(editor.view.dom);
     host.addEventListener("mousemove", hover);
     // Capture before ProseMirror's native content drag/drop handler.
     host.addEventListener("dragover", over, true);
