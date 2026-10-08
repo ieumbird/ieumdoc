@@ -255,6 +255,7 @@ async (page, {screenshots = false} = {}) => {
   result.keepsUnsavedWork = await current() === 'install.md' &&
     (await page.locator('.document-editor > .paragraph').first().innerText()).endsWith('Draft.');
   await item('New file in folder').click();
+  assert(await page.getByTestId('new-file-directory').inputValue() === guidesPath, 'New starts in the open document\'s folder');
   await page.getByTestId('new-file-name').fill('blocked');
   await dialog.getByRole('button', {name:'Create', exact:true}).click();
   await page.getByTestId('new-error').getByText(/Save or discard the current changes/).waitFor();
@@ -266,15 +267,15 @@ async (page, {screenshots = false} = {}) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
 
-  // New creates in the folder last expanded or collapsed, else in the open document's folder.
-  // Opening index.md makes that the chosen folder itself, including at a narrow viewport.
+  // New starts in the open document's folder; with index.md that is the chosen folder itself,
+  // including at a narrow viewport.
   await row('index.md').click();
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('index.md'));
   await ready();
   await page.setViewportSize({width:375, height:812});
   await item('New file in folder').click();
   const filename = page.getByTestId('new-file-name');
-  assert(await page.getByTestId('new-file-directory').innerText() === folder, 'Root folder is the creation destination');
+  assert(await page.getByTestId('new-file-directory').inputValue() === folder, 'Root folder is the creation destination');
   await filename.fill('cancelled');
   await filename.press('Escape');
   await dialog.waitFor({state:'detached'});
@@ -319,12 +320,16 @@ async (page, {screenshots = false} = {}) => {
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   result.folderNewKeepsExistingFile = true;
 
-  // Creating in an expanded Korean sub-folder does not fall back to the chosen root.
-  await row('자료').click();
-  await row('메모.md').waitFor();
+  // The destination is chosen in the dialog, never from what was expanded: toggling a folder
+  // leaves the default at the open document's folder, and a collapsed sub-folder can be chosen.
+  await row('guides').click();
+  assert(await row('자료').getAttribute('aria-expanded') === 'false', 'The Korean sub-folder is collapsed');
   await item('New file in folder').click();
+  const destination = page.getByTestId('new-file-directory');
+  assert(await destination.inputValue() === folder, 'Toggling a folder does not change the destination');
   const subFolder = [folder, '자료'].join(sep);
-  assert(await page.getByTestId('new-file-directory').innerText() === subFolder, 'The expanded sub-folder is the creation destination');
+  await destination.selectOption(subFolder);
+  assert(await destination.locator('option:checked').innerText() === ['folder-navigation', '자료'].join(sep), 'The destination is named from the chosen folder');
   await filename.fill('추가.md');
   await filename.press('Enter');
   await dialog.waitFor({state:'detached'});

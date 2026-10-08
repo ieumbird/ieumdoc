@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (sidebar folder tree: presentation code and regression coverage reviewed; no new visual approval).
+- Last verified: 2026-10-08 (shell refinement: presentation code and regression coverage reviewed; no new visual approval).
 - Current contract: v2. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -16,9 +16,9 @@
 
 | Role | Actual values / treatment |
 | --- | --- |
-| Shell | `#f7f7f6` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (overlay with the overlay shadow at ≤1024px) |
+| Shell | `#f7f7f6` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
 | Document | White continuous page without a card border or radius; 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open |
-| Narrow document | At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px; the Document panel starts closed and overlays when opened. At ≤704px header wraps; sidebar remains user controlled. |
+| Narrow document | Below 1280px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps; sidebar remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
@@ -108,7 +108,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 | Figure | Summary keeps editor focus and can dismiss outside; editing autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
 | Open / New | Existing Base UI modal focus boundary, Escape dismissal and focus restoration. |
-| Document panel (≤1024px overlay) | Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
+| Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog. |
 
 ## Evidence and verification

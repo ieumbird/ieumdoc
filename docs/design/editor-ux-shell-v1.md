@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (folder tree compared with current code and regression coverage).
+- Last verified: 2026-10-08 (shell refinement: panel docking width, overlay placement and New destination compared with current code and regression coverage).
 - Scope: existing Editor interactions. [Visual Language (current v2)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
@@ -13,17 +13,19 @@ The shell has three responsibilities: the Sidebar on the left is filesystem/docu
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | IeumDoc, then the chosen folder (#112) or, without one, a compact choice of Open folder… (primary) and Open file…. User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the chosen folder (icon and name, full path in `title`) with `+` (New file in folder) and a `⋯` menu: Open file…, Open folder…, Close folder. Below it the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. The folders above the open document expand by themselves when it is inside the chosen folder; a document elsewhere adds nothing to the tree. Expanded folders are page state only and are not restored on reload. The tree takes the remaining height and scrolls by itself; the open document uses the neutral current treatment there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. The open document is not listed separately: the TopBar names it. |
-| Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. Beside a document wider than 1024px the panel is docked and starts open; at ≤1024px it starts closed and, opened, overlays the document instead of narrowing it, and Escape closes it. Crossing 1024px starts the panel in that layout's default. Open/closed is page state only. |
+| Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, Reload and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
 | TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Outline, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
 Open file… uses the existing local path dialog. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
-The folder heading's `+` opens New in the folder last expanded or collapsed, otherwise
-the open document's folder inside the chosen folder, otherwise the chosen folder; its
-title and the dialog name that destination. It asks for a filename, adds `.md` if omitted and
-uses the existing creation checks; success opens the document and lists its folder again.
+The folder heading's `+` opens New. Its Location field shows the destination and lists the
+chosen folder and every sub-folder the tree has listed, named from the chosen folder
+(`docs`, `docs\guides`); it starts at the open document's folder when that is inside the
+chosen folder, otherwise at the chosen folder. Expanding or collapsing folders never changes it.
+New asks for a filename, adds `.md` if omitted and uses the existing creation checks; success
+opens the document and lists its folder again.
 It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
 
 Behavior change (sidebar chrome cleanup): the sidebar no longer has the Open…, Open folder…

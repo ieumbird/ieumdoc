@@ -5,11 +5,11 @@ import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
-import { NewDialog } from "./shell/NewDialog.tsx";
+import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
-import { useFolderTree } from "./shell/folder-tree.ts";
+import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
 import { splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
@@ -31,8 +31,9 @@ import type {
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
-// The narrow layout of styles.css: at or below it the outline panel starts closed and overlays.
-const NARROW_LAYOUT = "(max-width: 64rem)";
+// Below the docking width of styles.css the Document panel starts closed and overlays the
+// document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
+const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 
 const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
 
@@ -49,10 +50,12 @@ export function App() {
   const [openedPath, setOpenedPath] = useState("");
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [narrowLayout, setNarrowLayout] = useState(() => globalThis.matchMedia?.(NARROW_LAYOUT).matches ?? false);
-  // Page state only: open beside a wide document, closed (and overlaying when opened) when narrow.
-  const [panelOpen, setPanelOpen] = useState(!narrowLayout);
+  const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
+  // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
+  const [panelOpen, setPanelOpen] = useState(!panelOverlay);
   const outlineToggle = useRef<HTMLButtonElement>(null);
+  const shell = useRef<HTMLDivElement>(null);
+  const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [openDialog, setOpenDialog] = useState(false);
   const [folderDialog, setFolderDialog] = useState(false);
@@ -87,11 +90,21 @@ export function App() {
     void load();
   }, []);
 
-  // Crossing the narrow width starts the panel in that layout's default.
+  // The overlaid Document panel starts below the sticky header, whose height changes when the
+  // TopBar wraps or a message appears; it never covers Save, Reload or the Outline toggle.
   useEffect(() => {
-    const query = matchMedia(NARROW_LAYOUT);
+    const element = header.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => shell.current?.style.setProperty("--app-header-height", `${element.offsetHeight}px`));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  // Crossing the docking width starts the panel in that layout's default.
+  useEffect(() => {
+    const query = matchMedia(PANEL_OVERLAY_LAYOUT);
     const change = () => {
-      setNarrowLayout(query.matches);
+      setPanelOverlay(query.matches);
       setPanelOpen(!query.matches);
     };
     query.addEventListener("change", change);
@@ -307,21 +320,26 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
         onOpenFolder={() => setFolderDialog(true)}
-        onNew={(directory) => { setNewDirectory(directory); setNewDialog(true); }}
+        onNew={() => {
+          if (!folderTree.state) return;
+          // New starts in the open document's folder when it is inside the chosen one.
+          setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
+          setNewDialog(true);
+        }}
         folder={folderTree.state ?? undefined}
         onToggleFolder={folderTree.toggle}
         onOpenDocument={(path) => void openFolderDocument(path)}
         onCloseFolder={folderTree.close}
       />
       <div className="app-main">
-        <div className="app-header">
+        <div className="app-header" ref={header}>
           <TopBar
             documentPath={openedPath}
             status={assetPending ? "Adding image…" : status}
@@ -393,7 +411,7 @@ export function App() {
       </div>
       {panelOpen ? (
         <DocumentPanel
-          overlay={narrowLayout}
+          overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
           onSelectHeading={revealHeading}
           onClose={() => {
@@ -421,6 +439,7 @@ export function App() {
       />
       <NewDialog
         open={newDialog}
+        destinations={folderTree.state ? newDestinations(folderTree.state) : []}
         directory={newDirectory}
         busy={busy}
         onCreate={createFile}
@@ -494,6 +513,15 @@ async function requestDocument(
     source: payload.source,
     writeError: typeof payload.writeError === "string" ? payload.writeError : "",
   };
+}
+
+/** Folders New can create in, named from the chosen folder down: `docs`, `docs\guides`. */
+function newDestinations(tree: FolderTreeState): NewDestination[] {
+  const separator = tree.root.includes("\\") ? "\\" : "/";
+  const name = splitDocumentPath(tree.root).name || tree.root;
+  const prefix = tree.root.endsWith(separator) ? tree.root : tree.root + separator;
+  const base = name.endsWith(separator) ? name : name + separator;
+  return knownFolders(tree).map(path => ({ path, label: path === tree.root ? name : base + path.slice(prefix.length) }));
 }
 
 /** Asks the Host for one level of a folder inside the folder the user chose. */

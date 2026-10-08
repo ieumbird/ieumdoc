@@ -224,12 +224,17 @@ button {
   background: var(--id-color-surface-subtle);
 }
 
-/* Opened in the narrow layout, the panel covers the document instead of narrowing it. */
+/* Opened below the docking width, the panel covers the document instead of narrowing it. It
+ * starts below the sticky header (measured by the App), so Save, Reload and the Outline toggle
+ * stay visible and usable. */
 .document-panel--overlay {
   position: fixed;
+  top: var(--app-header-height, var(--layout-header-row));
   right: 0;
   z-index: 4;
   width: min(var(--layout-document-panel-width), 100vw);
+  height: calc(100vh - var(--app-header-height, var(--layout-header-row)));
+  border-top: var(--border-width) solid var(--id-color-border);
   box-shadow: var(--shadow-overlay);
 }
 
@@ -1469,13 +1474,16 @@ ol.list { list-style: decimal; }
 
 .inline-math-form { padding: var(--space-3); }
 
+/* The Document panel docks only where the document keeps a readable width beside both panels
+ * (1280 - 240 - 256 = 784px). Below it the panel never narrows the document; opened, it overlays.
+ * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
+@media (width < 80rem) {
+  .app-shell { --shell-panel: 0px; }
+}
+
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */
 @media (max-width: 64rem) {
-  .app-shell {
-    --layout-sidebar-width: var(--layout-sidebar-width-narrow);
-    /* The document panel never narrows the document here; opened, it overlays. */
-    --shell-panel: 0px;
-  }
+  .app-shell { --layout-sidebar-width: var(--layout-sidebar-width-narrow); }
   .document { --layout-document-inline-padding: var(--space-4); }
   .document-column { padding-top: var(--space-8); }
 }

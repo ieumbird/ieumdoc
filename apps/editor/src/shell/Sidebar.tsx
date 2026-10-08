@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
-import { folderChain, treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
+import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
   open: boolean;
@@ -11,8 +11,8 @@ type SidebarProps = {
   onToggle(): void;
   onOpen(): void;
   onOpenFolder(): void;
-  /** Creates a document in a folder of the tree. */
-  onNew?(directory: string): void;
+  /** Opens New, which shows and lets the user choose the destination folder. */
+  onNew?(): void;
   /** The folder the user chose, as a tree of the folders listed so far. */
   folder?: FolderTreeState;
   onToggleFolder?(path: string): void;
@@ -45,7 +45,7 @@ export function Sidebar({
           documentPath={documentPath}
           onToggleFolder={path => onToggleFolder?.(path)}
           onOpenDocument={path => onOpenDocument?.(path)}
-          onNew={directory => onNew?.(directory)}
+          onNew={() => onNew?.()}
           onOpen={onOpen}
           onOpenFolder={onOpenFolder}
           onClose={() => onCloseFolder?.()}
@@ -72,7 +72,7 @@ type FolderTreeProps = {
   documentPath: string;
   onToggleFolder(path: string): void;
   onOpenDocument(path: string): void;
-  onNew(directory: string): void;
+  onNew(): void;
   onOpen(): void;
   onOpenFolder(): void;
   onClose(): void;
@@ -85,20 +85,12 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
   const [focused, setFocused] = useState<string>();
-  // The folder last expanded or collapsed receives New; otherwise the open document's folder.
-  const [activeFolder, setActiveFolder] = useState<string>();
-  useEffect(() => setActiveFolder(undefined), [documentPath, tree.root]);
-  const target = activeFolder ?? folderChain(tree.root, documentPath).at(-1) ?? tree.root;
   // One tab stop: the item last focused, else the open document, else the first item.
   const tabStop = [focused, documentPath].find(path => items.some(item => item.entry.path === path)) ?? items[0]?.entry.path;
 
   const activate = (item: TreeItem) => {
-    if (item.entry.kind === "folder") {
-      setActiveFolder(item.entry.path);
-      onToggleFolder(item.entry.path);
-    } else {
-      onOpenDocument(item.entry.path);
-    }
+    if (item.entry.kind === "folder") onToggleFolder(item.entry.path);
+    else onOpenDocument(item.entry.path);
   };
   const keyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     const index = items.findIndex(item => item.entry.path === focused);
@@ -118,7 +110,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           <span>{name(tree.root)}</span>
         </p>
         <div className="sidebar-folder-actions">
-          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title={`New file in ${target}`} onClick={() => onNew(target)}>
+          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
             <Plus />
           </Button>
           <DropdownMenu>

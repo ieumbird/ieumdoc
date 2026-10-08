@@ -78,6 +78,17 @@ export function visibleTreeItems(state: FolderTreeState): TreeItem[] {
   return items;
 }
 
+/** Every folder the tree knows, in tree order: the chosen folder, then each listed sub-folder. */
+export function knownFolders(state: FolderTreeState): string[] {
+  const folders: string[] = [];
+  const visit = (path: string) => {
+    folders.push(path);
+    for (const entry of state.nodes.get(path)?.entries ?? []) if (entry.kind === "folder") visit(entry.path);
+  };
+  visit(state.root);
+  return folders;
+}
+
 /**
  * The folders from the chosen folder down to the one containing `documentPath`, chosen folder
  * first; empty when the document is not inside it. Paths are Host-resolved, so they compare as text.

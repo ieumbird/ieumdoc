@@ -69,7 +69,8 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   // One tab stop, on the open document.
   assert.equal(html.match(/<li\b(?=[^>]*role="treeitem")(?=[^>]*tabindex="0")/g)?.length, 1);
   assert.doesNotMatch(html, /Up to/);
-  assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file in C:\\docs\\guides")[^>]*>/);
+  // New names no folder here: its dialog shows and chooses the destination.
+  assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file…")[^>]*>/);
   // Open file, Open folder and Close folder are behind one menu instead of a row of buttons.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
@@ -200,7 +201,7 @@ test("Open dialog renders nothing while closed", () => {
 });
 
 test("New dialog renders nothing while closed", () => {
-  const html = renderToStaticMarkup(<NewDialog open={false} busy={false} directory={String.raw`C:\docs`} onCreate={async () => ""} onClose={noop} />);
+  const html = renderToStaticMarkup(<NewDialog open={false} busy={false} destinations={[{ path: String.raw`C:\docs`, label: "docs" }]} directory={String.raw`C:\docs`} onCreate={async () => ""} onClose={noop} />);
   assert.equal(html, "");
 });
 

@@ -1,7 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (folder New destination in the sidebar tree compared with current code and regression coverage).
+- Last verified: 2026-10-08 (New Location field compared with current code and regression coverage).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
@@ -33,10 +33,12 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 ## New document in a sidebar folder
 
 - The sidebar folder heading has a `+` (New file in folder) beside its `⋯` menu (Open file…, Open folder…, Close folder).
-  Its destination is the tree folder last expanded or collapsed; otherwise the open document's
-  folder when it is inside the chosen folder; otherwise the chosen folder. Opening a document
-  resets it to that document's folder. The `+` title names the destination.
-- The existing New dialog shows that destination and accepts a single filename.
+- The New dialog's Location field shows and chooses the destination: the chosen folder and
+  every sub-folder listed in the tree so far, expanded or not, named from the chosen folder.
+  It starts at the open document's folder when that is inside the chosen folder, otherwise at
+  the chosen folder. No hidden state chooses it: expanding or collapsing folders does not.
+  A folder deeper than the tree has listed appears once its parent is expanded.
+- The dialog accepts a single filename.
   An omitted `.md` suffix is added; separators and `.`/`..` are rejected so this
   entry point cannot choose another directory. It is the only New entry point; the former
   top-level full-path New was removed with the [sidebar chrome cleanup](editor-ux-shell-v1.md#structure).
