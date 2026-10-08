@@ -182,7 +182,9 @@ async (page, {screenshots = false} = {}) => {
   folderRequests.length = 0;
   await row('guides').click();
   await row('install.md').waitFor();
-  assert(JSON.stringify(await items()) === JSON.stringify(['자료', 'guides', 'install.md', 'index.md', 'notes.md']), 'Expanded tree: ' + JSON.stringify(await items()));
+  // The Host's name order depends on the platform; guides' own entry follows it.
+  const expandedTree = hostItems.flatMap(name => (name === 'guides' ? [name, 'install.md'] : [name]));
+  assert(JSON.stringify(await items()) === JSON.stringify(expandedTree), 'Expanded tree: ' + JSON.stringify(await items()));
   assert(JSON.stringify(folderRequests) === JSON.stringify([guidesPath]), 'Expanding lists only that folder: ' + JSON.stringify(folderRequests));
   result.expandsInPlace = await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-level') === '2' &&
     await row(/^Up to/).count() === 0;
@@ -202,10 +204,12 @@ async (page, {screenshots = false} = {}) => {
   await page.keyboard.press('ArrowRight');
   assert(await focusedRow() === 'install.md', 'Right on an expanded folder moves to its first entry');
   await page.keyboard.press('End');
-  assert(await focusedRow() === 'notes.md', 'End moves to the last visible item');
+  assert(await focusedRow() === expandedTree.at(-1), 'End moves to the last visible item');
   await page.keyboard.press('Home');
+  assert(await focusedRow() === expandedTree[0], 'Home moves to the first visible item');
   await page.keyboard.press('ArrowDown');
-  assert(await focusedRow() === 'guides', 'Home and Down move through visible items');
+  assert(await focusedRow() === expandedTree[1], 'Down moves to the next visible item');
+  await row('guides').focus();
   await page.keyboard.press('Enter');
   await row('install.md').waitFor({state:'detached'});
   result.treeKeyboard = await current() === 'install.md' && await focusedRow() === 'guides';
