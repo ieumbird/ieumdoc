@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -14,16 +14,21 @@ type NewDialogProps = {
   directory: string;
   /** Resolves to an error message, or "" once the document is created and open. */
   onCreate(path: string): Promise<string>;
+  /** Successful creation hands focus to the new document after the modal closes. */
+  createdFocusTarget?: () => HTMLElement | null;
+  returnFocus?: RefObject<HTMLElement | null>;
   onClose(): void;
 };
 
-export function NewDialog({ open, busy, destinations, directory, onCreate, onClose }: NewDialogProps) {
+export function NewDialog({ open, busy, destinations, directory, onCreate, createdFocusTarget, returnFocus, onClose }: NewDialogProps) {
   const [name, setName] = useState("");
   const [destination, setDestination] = useState(directory);
   const [error, setError] = useState("");
+  const created = useRef(false);
 
   useEffect(() => {
     if (open) {
+      created.current = false;
       setName("");
       setDestination(directory);
       setError("");
@@ -32,7 +37,7 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, onClo
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent showCloseButton={false}>
+      <DialogContent showCloseButton={false} finalFocus={() => created.current ? createdFocusTarget?.() ?? true : returnFocus?.current ?? true}>
         <form
           className="grid gap-3"
           onSubmit={async (event) => {
@@ -49,7 +54,10 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, onClo
               (filename.toLowerCase().endsWith(".md") ? filename : `${filename}.md`);
             const message = await onCreate(requestedPath);
             setError(message);
-            if (!message) onClose();
+            if (!message) {
+              created.current = true;
+              onClose();
+            }
           }}
         >
           <DialogHeader>

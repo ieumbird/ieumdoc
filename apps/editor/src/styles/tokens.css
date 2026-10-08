@@ -8,6 +8,9 @@
    * at 1440px); Wide is the user's Wide document preference and is capped by the window. */
   --layout-content-width: 58rem;
   --layout-content-width-wide: 80rem;
+  /* White document's top/bottom padding; the outer canvas gap uses --layout-content-gutter. */
+  --layout-document-block-padding: var(--space-8);
+  --layout-document-block-padding-narrow: var(--space-4);
   /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
@@ -17,7 +20,7 @@
   /* Document panel (outline) beside the document; in the narrow layout it overlays at this width. */
   --layout-document-panel-width: 16rem;
 
-  --id-color-canvas: var(--id-color-surface);
+  --id-color-canvas: var(--id-color-surface-subtle);
   --id-color-surface: #ffffff;
   --id-color-surface-subtle: #f7f7f6;
   --id-color-surface-muted: #efeeed;
@@ -83,7 +86,6 @@
   --shadow-overlay: 0 8px 28px rgb(35 27 31 / 12%), 0 2px 6px rgb(35 27 31 / 5%);
 
   --layout-content-gutter: var(--space-4);
-  --layout-document-block-padding: 0px;
   --layout-document-inline-padding: var(--layout-document-gutter);
   --layout-document-gutter: calc(var(--space-2) + var(--size-control-compact) * 2 + var(--layout-gutter-gap) + var(--layout-gutter-safety));
   --layout-gutter-safety: var(--space-3);

@@ -72,7 +72,9 @@ async page => {
     await page.getByTestId('figure-editor').waitFor({state:'detached'});
   };
   const insertAfterParagraph = async name => {
-    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).hover();
+    // After Apply, the equation summary can flip over the paragraph's centre when it scrolls.
+    // Approach the gutter from the paragraph's exposed start, outside that floating panel.
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).hover({position:{x:4,y:4}});
     await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
   };

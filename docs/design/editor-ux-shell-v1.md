@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (shell refinement: panel docking width, overlay placement and New destination compared with current code and regression coverage).
+- Last verified: 2026-10-08 (empty-document start, New success/cancel focus and real-file Save → Reload exercised by browser regression).
 - Scope: existing Editor interactions. [Visual Language (current v2)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
@@ -16,7 +16,7 @@ The shell has three responsibilities: the Sidebar on the left is filesystem/docu
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, Reload and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
 | TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Outline, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
-| Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
+| Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
 Open file… uses the existing local path dialog. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
@@ -25,7 +25,9 @@ chosen folder and every sub-folder the tree has listed, named from the chosen fo
 (`docs`, `docs\guides`); it starts at the open document's folder when that is inside the
 chosen folder, otherwise at the chosen folder. Expanding or collapsing folders never changes it.
 New asks for a filename, adds `.md` if omitted and uses the existing creation checks; success
-opens the document and lists its folder again.
+opens the document and lists its folder again. When the modal closes after successful creation,
+focus moves to the first paragraph for immediate typing. Cancel/Escape, including after a
+rejected creation, returns focus to the New button.
 It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
 
 Behavior change (sidebar chrome cleanup): the sidebar no longer has the Open…, Open folder…
@@ -36,7 +38,7 @@ Host's creation API and checks are unchanged.
 
 ## Writing interactions
 
-- Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible.
+- Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible. A single empty editable paragraph is the starting-state exception: its `+` is always visible, its drag handle hidden, and a non-persistent hint says `Start writing, or type / to add a block.` Typing hides the hint; undo restores it. Clicking the paper below the content continues writing through the existing editor operation.
 - `+` and `/` share supported insert commands, grouped by dividers with an icon and the Markdown shortcut that makes the same block: Text (Paragraph, Heading 1–3; Heading 4–6 only when the query matches), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers actual Equation/Figure/Table targets and section references. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item.
 - Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; handle drag reorders through the existing editor operation. Unsupported structures remain protected.

@@ -1,123 +1,125 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/new-document.browser.js.
-// Exercises folder New -> empty Save -> type -> Save -> Reload with the real Editor projection and save flow.
-// Host responses are mocked so this scenario does not leave a test file in the repository.
+// Real scratch file: New -> immediate typing -> undo/empty Save -> writing -> Save/Reload.
+// pnpm browser:test new-document
 async page => {
   await page.unrouteAll();
-  await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-
   const origin = page.url().split('/').slice(0, 3).join('/');
-  const initial = await (await page.request.get(`${origin}/api/document`)).json();
-  const folder = 'C:\\tmp';
-  const newPath = 'C:\\tmp\\ieumdoc-browser-new.md';
-  const empty = {path:newPath, document:{blocks:[]}, revision:'empty-revision'};
-  let stored = clone(empty);
-  const requests = [];
-
-  // The folder New creates in; its listing is not what this scenario checks.
-  await page.route('**/api/folder-browse?*', route => route.fulfill({json:{path:'C:\\', crumbs:[], entries:[]}}));
-  await page.route('**/api/folder?*', route => route.fulfill({json:{root:folder, path:folder, entries:[]}}));
-  await page.route('**/api/document**', async route => {
-    const request = route.request();
-    if (request.method() === 'GET') {
-      const requestedPath = queryPath(request.url());
-      return route.fulfill({json: requestedPath && requestedPath !== newPath ? initial : stored});
-    }
-
-    const body = request.postDataJSON();
-    requests.push({method:request.method(), body});
-    if (request.method() === 'PUT') {
-      if (body.path !== newPath) throw new Error('New request used the wrong path');
-      stored = clone(empty);
-      return route.fulfill({status:201, json:stored});
-    }
-    if (request.method() !== 'POST') return route.continue();
-
-    if (!body.inserts?.length) {
-      stored = clone(empty);
-      return route.fulfill({json:stored});
-    }
-    const firstInsert = body.inserts[0];
-    const text = firstInsert.block === 'paragraph'
-      ? firstInsert.content.map(item => item.text ?? '').join('')
-      : firstInsert.text;
-    if (!text) throw new Error('New document text was not sent through inserts');
-    stored = {
-      path:newPath,
-      document:{blocks:[{
-        block:'paragraph',
-        path:[0],
-        text,
-        editable:true,
-        content:[{kind:'text', text}],
-      }]},
-      revision:'saved-revision',
-    };
-    return route.fulfill({json:stored});
+  const loaded = await (await page.request.get(`${origin}/api/document`)).json();
+  const sep = loaded.path.includes('\\') ? '\\' : '/';
+  const root = loaded.path.split(sep).slice(0, -4).join(sep);
+  const folder = [root, 'tmp', 'new-document'].join(sep);
+  const file = [folder, 'new-document.md'].join(sep);
+  const check = (value, message) => { if (!value) throw Error(message); };
+  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const read = async () => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
+  const editor = page.locator('.document-editor');
+  const focused = () => editor.evaluate(element => element === document.activeElement);
+  const hint = () => editor.locator('> p').first().evaluate(element => {
+    const content = getComputedStyle(element, '::before').content;
+    return content !== 'none' && content !== 'normal' && content !== '""';
   });
+  const idle = async () => {
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.mouse.move(0, 0);
+  };
+  const create = page.getByRole('button', {name:'New file in folder', exact:true});
 
-  try {
-    await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open folder…', exact:true}).click();
-    await page.getByTestId('folder-path').fill(folder);
-    await page.getByTestId('folder-open').click();
-    await page.getByRole('dialog').waitFor({state:'detached'});
-    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
-    await page.getByTestId('new-file-name').fill('ieumdoc-browser-new');
-    await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(newPath)) {
-      throw new Error('Created document was not opened');
-    }
+  await page.reload();
+  await ready();
+  await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+  await page.getByTestId('folder-path').fill(folder);
+  await page.getByTestId('folder-open').click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await create.click();
+  await page.getByTestId('new-file-name').fill('new-document');
+  await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await ready();
+  check(await page.getByTestId('current-file').getAttribute('title') === file, 'New did not open the created file');
+  check(await focused(), 'New must focus the first paragraph without an editor click');
+  check(await hint(), 'An empty document needs a writing hint');
+  const created = await read();
 
-    const editor = page.locator('[data-testid="document-editor"] [contenteditable="true"]');
-    await editor.click();
+  // No programmatic focus/click before typing: this failed on the original blank screen.
+  await page.keyboard.type('Immediate typing');
+  check((await editor.innerText()).trim() === 'Immediate typing', 'New did not accept immediate typing');
+  check(!await hint(), 'The hint remained over typed content');
+  await page.keyboard.press('Control+z');
+  check((await editor.innerText()).trim() === '' && await hint(), 'Undo did not restore the empty hint');
+  check((await page.getByTestId('status').innerText()).trim() === '', 'The hint dirtied an empty document');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).waitFor();
+  const empty = await read();
+  check(empty.source === created.source && empty.source.trim() === '' && empty.document.blocks.length === 0,
+    'An empty Save changed the canonical empty file or wrote placeholder content');
+  await page.getByRole('button', {name:'Source', exact:true}).click();
+  check((await page.locator('.source-view-text').innerText()).trim() === '', 'The hint leaked into Source');
+  await page.getByRole('button', {name:'Visual', exact:true}).click();
 
-    await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.getByText('Saved', {exact:true}).waitFor();
-    if (await editor.count() !== 1) throw new Error('Empty save removed the editor paragraph');
-
-    // Save remounts the clean editor; focus its new instance before typing.
-    await editor.click();
-    await page.keyboard.type('Browser-created paragraph');
-    if (!(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
-      throw new Error('Empty document was not editable');
-    }
-
-    const beforeNew = requests.length;
-    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
-    await page.getByTestId('new-file-name').fill('ieumdoc-other.md');
-    await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.getByText('Save or discard the current changes before creating another file.', {exact:true}).waitFor();
-    await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
-    if (requests.length !== beforeNew || await page.getByTestId('current-file').getAttribute('title') !== newPath ||
-        !(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
-      throw new Error('New discarded unsaved work or created another file');
-    }
-
-    await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.getByText('Saved', {exact:true}).waitFor();
-    const saveRequest = requests.find(request => request.method === 'POST' && request.body.inserts?.length);
-    if (!saveRequest?.body.inserts?.length) throw new Error('Save did not use Core insert edits');
-
-    await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    if (!(await page.getByRole('article').innerText()).includes('Browser-created paragraph')) {
-      throw new Error('Saved paragraph was not present after reload');
-    }
-    return {created:true, typed:true, newPreservesUnsavedWork:true, saved:true, reloaded:true};
-  } finally {
-    await page.unrouteAll();
+  // Width/alignment and Wide preferences are covered by layout-rules. Here the empty surface
+  // must still fill the viewport and remain distinguishable, including in the narrow layout.
+  for (const width of [1440, 768]) {
+    await page.setViewportSize({width, height:900});
+    await idle();
+    const surface = await page.evaluate(() => {
+      const paper = document.querySelector('.document');
+      const bounds = paper.getBoundingClientRect();
+      const header = document.querySelector('.app-header').getBoundingClientRect();
+      const column = getComputedStyle(document.querySelector('.document-column'));
+      const style = getComputedStyle(paper);
+      return {height:bounds.height, minimum:innerHeight-header.height-parseFloat(column.paddingTop)-parseFloat(column.paddingBottom),
+        paper:style.backgroundColor, canvas:getComputedStyle(document.documentElement).backgroundColor,
+        frame:style.boxShadow, overflow:document.documentElement.scrollWidth>innerWidth};
+    });
+    check(surface.height >= surface.minimum-1 && surface.paper !== surface.canvas && surface.frame !== 'none' && !surface.overflow,
+      `Empty document surface at ${width}: ${JSON.stringify(surface)}`);
+    check(await hint(), 'The empty hint disappeared on blur/resize');
   }
 
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
+  const insert = page.getByRole('button', {name:'Insert block after paragraph block 1', exact:true});
+  check(await insert.evaluate(element => getComputedStyle(element.parentElement).opacity === '1' &&
+    getComputedStyle(element).pointerEvents !== 'none'), 'The first insert action is hidden at rest');
+  await insert.click();
+  await page.getByRole('menuitem', {name:'Heading 1', exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  // Clicking well below the one-line editor must still put the caret in the document.
+  const paper = await page.locator('.document').boundingBox();
+  await page.mouse.click(paper.x + paper.width/2, paper.y + paper.height - 40);
+  check(await focused(), 'The empty paper below the text did not focus the editor');
+  await page.keyboard.type('/');
+  await page.getByRole('menuitem', {name:'Heading 1', exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Backspace');
+  check(await hint(), 'Dismissing and deleting the slash did not restore the hint');
+  await page.keyboard.type('Browser-created paragraph');
 
-  function queryPath(url) {
-    const query = url.split('?')[1] || '';
-    const value = query.split('&').find(part => part.startsWith('path='));
-    return value ? decodeURIComponent(value.slice('path='.length)) : '';
-  }
+  // Retain unsaved-work protection and normal focus return after a failed New.
+  await create.click();
+  await page.getByTestId('new-file-name').fill('another-document');
+  await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
+  await page.getByText('Save or discard the current changes before creating another file.', {exact:true}).waitFor();
+  await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await create.evaluate(element => element === document.activeElement), 'Failed New did not restore its opening control');
+  check(await page.getByTestId('current-file').getAttribute('title') === file &&
+    (await editor.innerText()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).waitFor();
+  const written = await read();
+  check(written.source.trim() === 'Browser-created paragraph', 'Save did not write only the entered text');
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await ready();
+  check((await editor.innerText()).trim() === 'Browser-created paragraph' && !await hint(), 'Reload lost the saved text or showed the hint');
+
+  // A later cancelled creation must not repeat the successful creation's focus handoff.
+  await create.click();
+  await page.getByTestId('new-file-name').fill('cancelled');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await create.evaluate(element => element === document.activeElement), 'Cancelled New stole editor focus');
+  const listing = await (await page.request.get(`${origin}/api/folder?root=${encodeURIComponent(folder)}`)).json();
+  check(listing.entries.every(entry => entry.kind === 'document' && entry.path === file) && listing.entries.length === 1,
+    'Failed or cancelled New created a file');
+  return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
+    blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true};
 }

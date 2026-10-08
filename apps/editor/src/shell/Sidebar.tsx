@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
@@ -13,6 +13,7 @@ type SidebarProps = {
   onOpenFolder(): void;
   /** Opens New, which shows and lets the user choose the destination folder. */
   onNew?(): void;
+  newButtonRef?: RefObject<HTMLButtonElement | null>;
   /** The folder the user chose, as a tree of the folders listed so far. */
   folder?: FolderTreeState;
   onToggleFolder?(path: string): void;
@@ -22,7 +23,7 @@ type SidebarProps = {
 
 /** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
 export function Sidebar({
-  open, documentPath, onToggle, onOpen, onOpenFolder, onNew,
+  open, documentPath, onToggle, onOpen, onOpenFolder, onNew, newButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder,
 }: SidebarProps) {
   return (
@@ -41,6 +42,7 @@ export function Sidebar({
       </div>
       {!open ? null : folder ? (
         <FolderTree
+          newButtonRef={newButtonRef}
           tree={folder}
           documentPath={documentPath}
           onToggleFolder={path => onToggleFolder?.(path)}
@@ -73,13 +75,14 @@ type FolderTreeProps = {
   onToggleFolder(path: string): void;
   onOpenDocument(path: string): void;
   onNew(): void;
+  newButtonRef?: RefObject<HTMLButtonElement | null>;
   onOpen(): void;
   onOpenFolder(): void;
   onClose(): void;
 };
 
 /** The chosen folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const items = visibleTreeItems(tree);
@@ -110,7 +113,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           <span>{name(tree.root)}</span>
         </p>
         <div className="sidebar-folder-actions">
-          <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
+          <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
             <Plus />
           </Button>
           <DropdownMenu>

@@ -35,6 +35,9 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       const rects = rectangles();
       const top = host.getBoundingClientRect().top;
       setBlocks(rects.map((rect, index) => ({top: rect.top - top, height: rect.height, name: editor.state.doc.child(index).type.name.replace(/^readonly/, "").replace(/Block$/, "").toLowerCase()})));
+    };
+    const transaction = () => {
+      update();
       setActive(editor.state.selection.$from.index(0));
     };
     const hover = (event: MouseEvent) => {
@@ -68,17 +71,20 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       if (dropped) editor.view.focus();
       dropped = false;
     };
-    editor.on("transaction", update);
+    editor.on("transaction", transaction);
+    // Layout changes must not replace the hovered block with the selected one.
     const resize = new ResizeObserver(update);
     resize.observe(host);
+    // A minimum-height paper can stay fixed while fonts, images or NodeViews resize the content.
+    resize.observe(editor.view.dom);
     host.addEventListener("mousemove", hover);
     // Capture before ProseMirror's native content drag/drop handler.
     host.addEventListener("dragover", over, true);
     host.addEventListener("drop", drop, true);
     host.addEventListener("dragend", finish);
-    update();
+    transaction();
     return () => {
-      editor.off("transaction", update);
+      editor.off("transaction", transaction);
       resize.disconnect();
       host.removeEventListener("mousemove", hover);
       host.removeEventListener("dragover", over, true);
