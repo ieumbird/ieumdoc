@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (development adapter and tests, not a production-host validation).
+- Last verified: 2026-10-08 (development adapter and tests, including the sidebar folder tree; not a production-host validation).
 - Authority: implemented development-host boundary; production host remains undecided. [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -108,12 +108,20 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 
 ### Folder listing v1 (#112)
 
-사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar가 그 안에서 이동하며 문서를 연다. Workspace가 아니다. 선택한 sidebar folder는 Browser 페이지 상태에만 있고 Host나 파일에 저장하지 않는다. 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억한다.
+사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. Workspace가 아니다. 선택한 sidebar folder는 Browser 페이지 상태에만 있고 Host나 파일에 저장하지 않는다. 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억한다.
 
-- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `parent`는 root보다 아래일 때만 있다.
+- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
+
+| 범위 | 지원 |
+| --- | --- |
+| Hierarchical tree UI | 지원. Sidebar가 펼친 folder들의 listing을 page state에 모아 tree로 그린다. |
+| Lazy one-level Host listing | 지원. folder를 펼칠 때 그 folder 하나만 위 API로 list한다. |
+| Recursive scan | 지원하지 않음. Host도 Editor도 하위 folder를 미리 읽지 않는다. |
+| Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때만 반영된다. |
+| Workspace persistence | 지원하지 않음. 선택한 folder와 펼친 상태는 새로고침 후 복원하지 않는다. |
 - 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
-- 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 기존 Open처럼 전환을 거부한다. 문서를 열거나 만들면 보이는 folder를 다시 list한다. watch는 없다.
+- 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 기존 Open처럼 전환을 거부한다. 문서를 열거나 만들면 그 문서 위의 folder들(선택한 folder 안일 때)을 펼치고 다시 list하므로 새 문서가 바로 보인다. IeumDoc 밖의 변경은 watch하지 않는다. 늦게 도착한 listing은 같은 folder의 더 새 요청을 덮지 않고, 그 사이 접힌 folder를 다시 펼치지 않는다.
 - `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
 - Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
 
@@ -174,12 +182,12 @@ New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전
 - 기존 파일 overwrite 금지
 - 생성 성공 후 해당 파일을 current document로 open
 
-`createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create한다. Editor의 유일한 New 진입점은 [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder)이며 표시 중인 folder를 destination으로 사용한다. Host API는 여전히 임의의 기존 parent directory 아래 경로를 받으며 위 정책으로 검사한다. 제품 Host나 installer의 결정은 포함하지 않는다.
+`createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create한다. Editor의 유일한 New 진입점은 [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder)이며 표시 중인 folder를 destination으로 사용한다. Host API는 여전히 임의의 기존 parent directory 아래 경로를 받으며 위 정책으로 검사한다. 제품 Host나 installer의 결정은 포함하지 않는다.
 
 ## Non-goals
 
 - workspace root 또는 project concept. Folder listing v1의 folder는 페이지 상태일 뿐 workspace가 아니다.
-- Git repository detection, recent workspace, 재귀 file tree, 검색 또는 index
+- Git repository detection, recent workspace, 재귀 filesystem scan, 검색 또는 index (Sidebar의 lazy tree UI는 위 Folder listing v1 범위다)
 - `.ieumdoc/`, workspace config, 여러 문서 동시 열기 또는 문서 간 탐색 기록
 - 특정 HTTP API, localhost server 또는 production backend architecture
 - browser file upload 또는 Browser File System Access API를 기본 architecture로 채택하는 결정

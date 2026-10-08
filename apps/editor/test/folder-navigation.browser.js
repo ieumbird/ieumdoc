@@ -1,4 +1,4 @@
-// Choose a folder, move through it in the sidebar and open its documents; unsaved work blocks switching.
+// Choose a folder, expand it as a tree in the sidebar and open its documents; unsaved work blocks switching.
 async (page, {screenshots = false} = {}) => {
   await page.unrouteAll();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -13,8 +13,10 @@ async (page, {screenshots = false} = {}) => {
   const folder = [root, 'tmp', 'folder-navigation'].join(sep);
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const section = page.getByTestId('folder');
-  const items = () => section.locator('.sidebar-folder-item').allInnerTexts();
+  const items = () => section.locator('.sidebar-tree-item').allInnerTexts();
   const item = name => section.getByRole('button', {name, exact:true});
+  const row = name => section.getByRole('treeitem', {name, exact:true});
+  const focusedRow = () => page.evaluate(() => document.activeElement?.querySelector('.sidebar-tree-name')?.textContent);
   const folderMenu = async name => {
     await item('More actions').click();
     await page.getByRole('menuitem', {name, exact:true}).click();
@@ -22,8 +24,10 @@ async (page, {screenshots = false} = {}) => {
   const current = async () => (await page.getByTestId('current-file').getAttribute('title')).split(sep).pop();
   const result = {};
   let createRequests = 0;
+  const folderRequests = [];
   page.on('request', request => {
     if (request.method() === 'PUT' && request.url().split('?')[0] === `${origin}/api/document`) createRequests++;
+    if (request.url().startsWith(`${origin}/api/folder?`)) folderRequests.push(queryPath(request.url()));
   });
   const dialog = page.getByRole('dialog');
   const field = page.getByTestId('folder-path');
@@ -31,6 +35,11 @@ async (page, {screenshots = false} = {}) => {
   const option = name => dialog.getByRole('option', {name, exact:true});
   const enterFolder = path => field.fill(path + sep);
   const requestedFolder = url => decodeURIComponent((url.split('?path=')[1] ?? '').replace(/\+/g, ' '));
+  // The `path` query parameter of a Host request (the scenario runs without the URL global).
+  const queryPath = url => {
+    const part = (url.split('?')[1] ?? '').split('&').find(item => item.startsWith('path='));
+    return part === undefined ? null : decodeURIComponent(part.slice('path='.length).replace(/\+/g, ' '));
+  };
 
   // Folder browsing never changes the sidebar or the open document until Open.
   await page.getByRole('button', {name:'Open folder…'}).click();
@@ -163,27 +172,85 @@ async (page, {screenshots = false} = {}) => {
   assert(JSON.stringify(await items()) === JSON.stringify(hostItems), 'The sidebar keeps the Host listing order: ' + JSON.stringify(await items()));
   result.listsFolder = await current() === 'technical-document.md';
 
-  await item('index.md').click();
+  await row('index.md').click();
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('index.md'));
   await ready();
-  result.opensDocument = await item('index.md').getAttribute('aria-current') === 'page';
+  result.opensDocument = await row('index.md').getAttribute('aria-current') === 'page';
 
-  // Into a sub-folder and back up; the chosen folder is the top.
-  await item('guides').click();
-  await item('install.md').waitFor();
-  assert(JSON.stringify(await items()) === JSON.stringify(['folder-navigation', 'install.md']), 'Sub-folder listing: ' + JSON.stringify(await items()));
-  await item('install.md').click();
+  // A folder expands in place and only it is listed; its entries sit one level deeper.
+  const guidesPath = [folder, 'guides'].join(sep);
+  folderRequests.length = 0;
+  await row('guides').click();
+  await row('install.md').waitFor();
+  // The Host's name order depends on the platform; guides' own entry follows it.
+  const expandedTree = hostItems.flatMap(name => (name === 'guides' ? [name, 'install.md'] : [name]));
+  assert(JSON.stringify(await items()) === JSON.stringify(expandedTree), 'Expanded tree: ' + JSON.stringify(await items()));
+  assert(JSON.stringify(folderRequests) === JSON.stringify([guidesPath]), 'Expanding lists only that folder: ' + JSON.stringify(folderRequests));
+  result.expandsInPlace = await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-level') === '2' &&
+    await row(/^Up to/).count() === 0;
+  await row('install.md').click();
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('install.md'));
   await ready();
-  await item('Up to folder-navigation').click();
-  await item('notes.md').waitFor();
-  result.browsesWithin = await item(/^Up to/).count() === 0;
+
+  // Keyboard: Left goes to the parent and then collapses; Right expands and then enters;
+  // Home, End and the arrows move through visible items; Enter toggles a folder.
+  await row('install.md').focus();
+  await page.keyboard.press('ArrowLeft');
+  assert(await focusedRow() === 'guides', 'Left moves to the parent folder');
+  await page.keyboard.press('ArrowLeft');
+  await row('install.md').waitFor({state:'detached'});
+  await page.keyboard.press('ArrowRight');
+  await row('install.md').waitFor();
+  await page.keyboard.press('ArrowRight');
+  assert(await focusedRow() === 'install.md', 'Right on an expanded folder moves to its first entry');
+  await page.keyboard.press('End');
+  assert(await focusedRow() === expandedTree.at(-1), 'End moves to the last visible item');
+  await page.keyboard.press('Home');
+  assert(await focusedRow() === expandedTree[0], 'Home moves to the first visible item');
+  await page.keyboard.press('ArrowDown');
+  assert(await focusedRow() === expandedTree[1], 'Down moves to the next visible item');
+  await row('guides').focus();
+  await page.keyboard.press('Enter');
+  await row('install.md').waitFor({state:'detached'});
+  result.treeKeyboard = await current() === 'install.md' && await focusedRow() === 'guides';
+
+  // A listing that answers after its folder was collapsed again neither reopens it nor moves focus.
+  let releaseListing;
+  let markListing;
+  const heldListing = new Promise(resolve => { releaseListing = resolve; });
+  const listingStarted = new Promise(resolve => { markListing = resolve; });
+  const heldPath = [folder, '자료'].join(sep);
+  const holdListing = async route => {
+    if (queryPath(route.request().url()) !== heldPath) return route.continue();
+    const response = await route.fetch();
+    markListing();
+    await heldListing;
+    await route.fulfill({response});
+  };
+  await page.route('**/api/folder?*', holdListing);
+  try {
+    await row('자료').click();
+    await listingStarted;
+    await row('자료').click();
+    await row('guides').click();
+    await row('install.md').waitFor();
+    const answered = page.waitForResponse(response => response.url().startsWith(`${origin}/api/folder?`) &&
+      queryPath(response.url()) === heldPath);
+    releaseListing();
+    await answered;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    result.lateListingKeepsTree = await row('자료').getAttribute('aria-expanded') === 'false' && await row('메모.md').count() === 0 &&
+      await focusedRow() === 'guides';
+  } finally {
+    releaseListing();
+    await page.unroute('**/api/folder?*', holdListing);
+  }
 
   // Unsaved work stays: another document does not open until it is saved or discarded.
   await page.locator('.document-editor > .paragraph').first().click();
   await page.keyboard.press('End');
   await page.keyboard.type(' Draft.');
-  await item('notes.md').click();
+  await row('notes.md').click();
   await page.getByTestId('error').getByText(/Save or discard the current changes/).waitFor();
   result.keepsUnsavedWork = await current() === 'install.md' &&
     (await page.locator('.document-editor > .paragraph').first().innerText()).endsWith('Draft.');
@@ -199,7 +266,11 @@ async (page, {screenshots = false} = {}) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
 
-  // Folder New accepts a leaf name in the displayed folder, including at a narrow viewport.
+  // New creates in the folder last expanded or collapsed, else in the open document's folder.
+  // Opening index.md makes that the chosen folder itself, including at a narrow viewport.
+  await row('index.md').click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('index.md'));
+  await ready();
   await page.setViewportSize({width:375, height:812});
   await item('New file in folder').click();
   const filename = page.getByTestId('new-file-name');
@@ -212,7 +283,7 @@ async (page, {screenshots = false} = {}) => {
   await filename.fill('cancelled-again');
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   await dialog.waitFor({state:'detached'});
-  assert(createRequests === 0 && await current() === 'install.md', 'Cancel and Escape do not create or switch documents');
+  assert(createRequests === 0 && await current() === 'index.md', 'Cancel and Escape do not create or switch documents');
   result.folderNewCancels = true;
 
   await item('New file in folder').click();
@@ -232,8 +303,8 @@ async (page, {screenshots = false} = {}) => {
   if (screenshots) await page.screenshot({path:'tmp/picker-capture/06-new-file.png'});
   await filename.press('Enter');
   await dialog.waitFor({state:'detached'});
-  await item('added.md').waitFor();
-  result.listsCreated = await item('added.md').getAttribute('aria-current') === 'page';
+  await row('added.md').waitFor();
+  result.listsCreated = await row('added.md').getAttribute('aria-current') === 'page';
   assert(await page.getByTestId('current-file').getAttribute('title') === [folder, 'added.md'].join(sep), 'Omitted extension creates a Markdown file in the chosen folder');
   await page.setViewportSize({width:1280, height:720});
 
@@ -248,16 +319,16 @@ async (page, {screenshots = false} = {}) => {
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   result.folderNewKeepsExistingFile = true;
 
-  // Creating in a browsed Korean sub-folder does not fall back to the chosen root.
-  await item('자료').click();
-  await item('메모.md').waitFor();
+  // Creating in an expanded Korean sub-folder does not fall back to the chosen root.
+  await row('자료').click();
+  await row('메모.md').waitFor();
   await item('New file in folder').click();
   const subFolder = [folder, '자료'].join(sep);
-  assert(await page.getByTestId('new-file-directory').innerText() === subFolder, 'Browsed sub-folder is the creation destination');
+  assert(await page.getByTestId('new-file-directory').innerText() === subFolder, 'The expanded sub-folder is the creation destination');
   await filename.fill('추가.md');
   await filename.press('Enter');
   await dialog.waitFor({state:'detached'});
-  await item('추가.md').waitFor();
+  await row('추가.md').waitFor();
   const createdPath = [subFolder, '추가.md'].join(sep);
   assert(await page.getByTestId('current-file').getAttribute('title') === createdPath, 'The supplied .md extension is preserved');
   const editor = page.locator('[data-testid="document-editor"] [contenteditable="true"]');
@@ -287,6 +358,16 @@ async (page, {screenshots = false} = {}) => {
 
   await folderMenu('Close folder');
   result.closes = await section.count() === 0 && await current() === '추가.md';
+
+  // Choosing the folder again opens it down to the open document; nothing else is expanded.
+  await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+  await field.fill(folder);
+  await open.click();
+  await dialog.waitFor({state:'detached'});
+  await row('추가.md').waitFor();
+  result.revealsOpenDocument = await row('자료').getAttribute('aria-expanded') === 'true' &&
+    await row('추가.md').getAttribute('aria-current') === 'page' && await row('guides').getAttribute('aria-expanded') === 'false';
+  await folderMenu('Close folder');
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
   return result;
 }

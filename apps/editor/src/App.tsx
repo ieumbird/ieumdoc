@@ -9,6 +9,7 @@ import { NewDialog } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
+import { useFolderTree } from "./shell/folder-tree.ts";
 import { splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
@@ -55,8 +56,6 @@ export function App() {
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [openDialog, setOpenDialog] = useState(false);
   const [folderDialog, setFolderDialog] = useState(false);
-  // The folder the user chose for this page session; never stored or watched.
-  const [folder, setFolder] = useState<FolderResponse | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [newDialog, setNewDialog] = useState(false);
   const [newDirectory, setNewDirectory] = useState("");
@@ -64,6 +63,8 @@ export function App() {
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // The folder the user chose for this page session, as a lazily listed tree; never stored or watched.
+  const folderTree = useFolderTree(requestFolder, setError);
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [equationDraftActive, setEquationDraftActive] = useState(false);
   const [figureDraftActive, setFigureDraftActive] = useState(false);
@@ -145,21 +146,11 @@ export function App() {
     if (!root) return "Enter a folder path.";
     try {
       const listed = await requestFolder(root);
-      setFolder(listed);
+      folderTree.open(listed, openedPath);
       setRecentFolders(rememberRecentFolder(listed.root, recentFolders));
       return "";
     } catch (cause) {
       return messageOf(cause);
-    }
-  }
-
-  /** Lists another folder inside the chosen one. Failures keep the current listing. */
-  async function browseFolder(path: string): Promise<void> {
-    if (!folder) return;
-    try {
-      setFolder(await requestFolder(folder.root, path));
-    } catch (cause) {
-      setError(messageOf(cause));
     }
   }
 
@@ -169,9 +160,9 @@ export function App() {
     if (message) setError(message);
   }
 
-  // Opening or creating a document lists the shown folder again; there is no watch.
+  // Opening or creating a document lists its folders again; there is no watch.
   useEffect(() => {
-    if (folder && openedPath) void browseFolder(folder.path);
+    if (openedPath) folderTree.reveal(openedPath);
   }, [openedPath]);
 
   async function save(): Promise<void> {
@@ -324,10 +315,10 @@ export function App() {
         onOpen={() => setOpenDialog(true)}
         onOpenFolder={() => setFolderDialog(true)}
         onNew={(directory) => { setNewDirectory(directory); setNewDialog(true); }}
-        folder={folder ?? undefined}
-        onBrowseFolder={(path) => void browseFolder(path)}
+        folder={folderTree.state ?? undefined}
+        onToggleFolder={folderTree.toggle}
         onOpenDocument={(path) => void openFolderDocument(path)}
-        onCloseFolder={() => setFolder(null)}
+        onCloseFolder={folderTree.close}
       />
       <div className="app-main">
         <div className="app-header">
@@ -421,7 +412,7 @@ export function App() {
       />
       <FolderDialog
         open={folderDialog}
-        initialPath={folder?.root ?? splitDocumentPath(openedPath).directory}
+        initialPath={folderTree.state?.root ?? splitDocumentPath(openedPath).directory}
         recent={recentFolders}
         browse={browseHostFolder}
         places={folderPlaces}
