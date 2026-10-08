@@ -291,6 +291,38 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
   }
 });
 
+test("CLI inserts footnotes and edits their definitions in a real file and rejects unsafe requests without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-footnote-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "# Title\n\nA claim.\n");
+  try {
+    for (const args of [
+      ["insert-footnote", file, "--path", "1", "--offset", "7", "--text", "Source."],
+      ["update-footnote", file, "--path", "2", "--content", JSON.stringify([{ kind: "text", text: "See " }, { kind: "math", value: "x" }, { kind: "text", text: "." }])],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, `${args.join(" ")}\n${result.stderr}`);
+    }
+    assert.equal(readFileSync(file, "utf8"), "# Title\n\nA claim[^1].\n\n[^1]: See $x$.\n");
+    assert.match(run(["inspect", file]).stdout, /^2 footnote label="1" inlineEditable=true text="See \$x\$\."$/m);
+
+    const unchanged = readFileSync(file);
+    for (const args of [
+      ["insert-footnote", file, "--path", "1", "--offset", "99", "--text", "x"],
+      ["insert-footnote", file, "--path", "2", "--offset", "0", "--text", "x"],
+      ["insert-footnote", file, "--path", "1", "--offset", "0", "--text", " "],
+      ["update-footnote", file, "--path", "1", "--text", "Not a definition."],
+      ["update-footnote", file, "--path", "2", "--content", JSON.stringify([{ kind: "footnote", label: "1" }])],
+    ]) {
+      const failed = run(args);
+      assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
+      assert.deepEqual(readFileSync(file), unchanged, args.join(" "));
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI writes formatted headings and rejects line breaks and read-only headings without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
   const file = path.join(dir, "document.md");

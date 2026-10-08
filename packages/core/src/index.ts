@@ -31,7 +31,7 @@ export { figureContentError } from "./figure.ts";
 export { labelError, labelKey, targetLabelError } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
-export { footnoteNumbers, headingNumbers, defaultHeadingNumbering, type HeadingNumbering } from "./numbering.ts";
+export { footnoteNumbers, nextFootnoteLabel, headingNumbers, defaultHeadingNumbering, type HeadingNumbering } from "./numbering.ts";
 export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
 
 type Opaque<T> = T extends MystDocument ? Document : T;
@@ -94,6 +94,9 @@ export const updateAdmonitionVariant = fence(operations.updateAdmonitionVariant)
 export const insertQuote = fence(operations.insertQuote);
 export const updateQuoteInlineContent = fence(operations.updateQuoteInlineContent);
 export const insertDivider = fence(operations.insertDivider);
+export const insertFootnote = fence(operations.insertFootnote);
+export const insertFootnoteDefinition = fence(operations.insertFootnoteDefinition);
+export const updateFootnoteDefinition = fence(operations.updateFootnoteDefinition);
 export const updateLabel = fence(operations.updateLabel);
 export const insertTarget = fence(operations.insertTarget);
 export const validateFigure = operations.validateFigure;

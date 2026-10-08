@@ -22,7 +22,7 @@
 | [Block source editing](design/block-source-editing-v1.md) | Implemented | 현재 계약. Core를 통한 단일 read-only block source 교체. |
 | [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 개발 Host의 현재 계약. 파일·asset·folder 접근; 제품 Host는 미정. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file. |
-| [Footnotes](design/footnotes-v1.md) | Implemented | 현재 계약. 기존 reference 편집, definition source 편집과 유실 방지. |
+| [Footnotes](design/footnotes-v1.md) | Implemented | 현재 계약(v2). 각주 삽입, 한 문단 definition의 문서 내 편집, 그 밖의 definition source 편집과 유실 방지. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |
 | [Section references](design/section-references-v1.md) | Implemented | 현재 계약. 문서 안의 MyST heading label과 reference. |
 | [Table caption and label](design/table-caption-v1.md) | Implemented | 현재 계약. table caption/label과 reference target. |

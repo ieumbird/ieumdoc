@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
-import { FootnoteReference, useFootnoteNumber } from "./footnote.tsx";
+import { FootnoteReference, revealReference, useFootnoteNumber } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   BLOCK_SOURCES_ATTR,
@@ -301,6 +301,45 @@ const Quote = Node.create({
     }, ["p", { class: "quote-body" }, 0]];
   },
 });
+
+// Footnotes v2: a definition holding one paragraph of inline content, edited like a quote. It
+// holds no footnote references; other definitions are read-only (unsupported) blocks.
+const FootnoteDefinition = Node.create({
+  name: "footnoteDefinition",
+  group: "block",
+  content: "(text | hardBreak | inlineMath | crossReference)*",
+  isolating: true,
+  defining: true,
+  addAttributes() {
+    return blockAttrs({ label: hiddenAttr("") });
+  },
+  parseHTML() {
+    return [{ tag: "div[data-footnote-definition]", contentElement: "p" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["div", { ...HTMLAttributes, "data-footnote-definition": "" }, ["p", 0]];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(FootnoteDefinitionView);
+  },
+});
+
+function FootnoteDefinitionView({ node, editor }: ReactNodeViewProps) {
+  const label = String(node.attrs.label ?? "");
+  return (
+    <NodeViewWrapper
+      as="div"
+      className="footnote-definition"
+      data-block="footnote"
+      data-testid="footnote-definition"
+      data-label={label}
+      data-source-path={String(node.attrs.sourcePath ?? "")}
+    >
+      <FootnoteNumber editor={editor} label={label} />
+      <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
+    </NodeViewWrapper>
+  );
+}
 
 /** A Markdown thematic break. */
 const Divider = Node.create({
@@ -768,7 +807,7 @@ const ParagraphHardBreak = Extension.create({
       const { state } = this.editor;
       const parent = state.selection.$from.parent;
       const editableInlineParent = parent.type.name === "paragraph" ||
-        parent.type.name === "quote" || (parent.type.name === "admonition" && parent.attrs.editable === true);
+        parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || (parent.type.name === "admonition" && parent.attrs.editable === true);
       // A selected inline math node is not replaced by a break.
       if (!editableInlineParent || state.selection instanceof NodeSelection) return true;
       // A break ends inline code; code is text only.
@@ -904,6 +943,7 @@ export function editorExtensions(
     ListKeymap,
     Admonition,
     Quote,
+    FootnoteDefinition,
     Divider,
     figureNode(documentPath, onFigureDraftChange, validateFigure),
     equationNode(onEquationDraftChange),
@@ -1605,10 +1645,16 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
   );
 }
 
-/** A footnote definition's computed number, as MyST lists it. */
+/** A footnote definition's computed number, as MyST lists it. Clicking it goes back to the first reference. */
 function FootnoteNumber({ editor, label }: { editor: Editor; label: string }) {
   const number = useFootnoteNumber(editor, label);
-  return <sup className="footnote-number" data-testid="footnote-number">{number ?? `[^${label}]`}</sup>;
+  return (
+    <sup className="footnote-number" data-testid="footnote-number" contentEditable={false}
+      title="Go to the reference" aria-label={`Footnote ${number ?? label}. Go to the reference.`}
+      onMouseDown={(event) => event.preventDefault()} onClick={() => revealReference(editor, label)}>
+      {number ?? `[^${label}]`}
+    </sup>
+  );
 }
 
 const DocumentNumbering = Extension.create({

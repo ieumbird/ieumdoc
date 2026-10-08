@@ -13,6 +13,7 @@ import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
+import { FOOTNOTE_COMMAND, footnoteCommandItems, insertFootnote } from "./footnote.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
@@ -24,7 +25,7 @@ import {
   type FigureValidator,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
-import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
+import { appliedDocument, freshBlockPath, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline, type OutlineItem } from "./outline.ts";
 import { documentEnd } from "./document-interaction.ts";
@@ -298,6 +299,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       insertReference(editor, slash, reference);
       return;
     }
+    if (id === FOOTNOTE_COMMAND && slash) {
+      setBlockMenu(null);
+      insertFootnote(editor, slash, freshBlockPath());
+      return;
+    }
     const command = INSERT_COMMANDS.find(command => command.id === id);
     if (!command) return;
     setBlockMenu(null);
@@ -321,7 +327,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
+    ? [...filterInsertCommands(slash.query), ...footnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {

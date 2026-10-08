@@ -84,3 +84,12 @@ export function footnoteNumbers(references: Iterable<string>): Map<string, numbe
   for (const label of references) if (!numbers.has(label)) numbers.set(label, numbers.size + 1);
   return numbers;
 }
+
+/** The label a new footnote takes: the smallest positive number no footnote in `labels` uses.
+ * Labels match exactly, as in MyST; the shown number still follows reference order. */
+export function nextFootnoteLabel(labels: Iterable<string>): string {
+  const used = new Set(labels);
+  let number = 1;
+  while (used.has(String(number))) number++;
+  return String(number);
+}

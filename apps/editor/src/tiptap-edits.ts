@@ -29,6 +29,7 @@ import type {
   CodeEdit,
   LabelEdit,
   QuoteEdit,
+  FootnoteEdit,
   InsertEdit,
   OrderItem,
   SupportedEdits,
@@ -54,6 +55,7 @@ const KNOWN_BLOCKS = new Set([
   "readonlyParagraph",
   "admonition",
   "quote",
+  "footnoteDefinition",
   "divider",
   "figure",
   "equation",
@@ -91,6 +93,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const tableCaptions: NonNullable<SupportedEdits["tableCaptions"]> = [];
   const admonitions: AdmonitionEdit[] = [];
   const quotes: QuoteEdit[] = [];
+  const footnotes: FootnoteEdit[] = [];
   const lists: ListEdit[] = [];
   const codes: CodeEdit[] = [];
   const labels: LabelEdit[] = [];
@@ -120,6 +123,9 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
         }
         if (insert.block === "quote" && inlineText(insert.content).trim().length === 0) {
           throw saveError(node, "quote cannot be empty");
+        }
+        if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
+          throw saveError(node, EMPTY_FOOTNOTE);
         }
         if (insert.block === "equation" && insert.latex.length === 0) {
           throw saveError(node, "empty equation LaTeX cannot be saved");
@@ -186,6 +192,11 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       if (sameInline(content, block.content)) continue;
       if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
       quotes.push({ path: block.path, content });
+    } else if (block.block === "footnote" && block.editable) {
+      const content = paragraphInline(node);
+      if (sameInline(content, block.content)) continue;
+      if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE);
+      footnotes.push({ path: block.path, content });
     } else if (block.block === "target") {
       const label = targetLabel(node);
       if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
@@ -248,6 +259,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     ...(tableCaptions.length ? { tableCaptions } : {}),
     ...(admonitions.length ? { admonitions } : {}),
     ...(quotes.length ? { quotes } : {}),
+    ...(footnotes.length ? { footnotes } : {}),
     ...(lists.length ? { lists } : {}),
     ...(codes.length ? { codes } : {}),
     ...(labels.length ? { labels } : {}),
@@ -400,6 +412,14 @@ function codeContent(node: TiptapJSON): CodeBlockContent {
   return { language, code };
 }
 
+const EMPTY_FOOTNOTE = "footnote definition cannot be empty. Enter its text or delete the footnote.";
+
+function footnoteLabel(node: TiptapJSON): string {
+  const label = node.attrs?.label;
+  if (typeof label !== "string" || label.length === 0) throw new Error("a footnote definition needs a label");
+  return label;
+}
+
 const EMPTY_LIST_ITEM = "empty list item cannot be saved. Enter text or remove the item.";
 
 function hasEmptyListItem(list: ListContent): boolean {
@@ -431,6 +451,9 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   }
   if (node.type === "quote") {
     return { block: "quote", content: paragraphInline(node) };
+  }
+  if (node.type === "footnoteDefinition") {
+    return { block: "footnote", label: footnoteLabel(node), content: paragraphInline(node) };
   }
   if (node.type === "divider") {
     if ((node.content ?? []).length > 0) throw new Error("a divider has no content");
@@ -470,7 +493,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   if (node.type === "labelTarget") {
     return { block: "target", label: targetLabel(node) };
   }
-  throw new Error("only paragraphs, headings, admonitions, quotes, dividers, equations, figures, tables, lists, code blocks and section labels can be inserted");
+  throw new Error("only paragraphs, headings, admonitions, quotes, footnote definitions, dividers, equations, figures, tables, lists, code blocks and section labels can be inserted");
 }
 
 export function figureContent(node: TiptapJSON): FigureContent {
@@ -581,6 +604,12 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     return;
   }
   if (beforeType === "quote") {
+    paragraphInline(after);
+    return;
+  }
+  if (beforeType === "footnoteDefinition") {
+    // The label is the footnote's identity; its references name it.
+    if (footnoteLabel(after) !== footnoteLabel(before)) throw new Error("a footnote label cannot change");
     paragraphInline(after);
     return;
   }

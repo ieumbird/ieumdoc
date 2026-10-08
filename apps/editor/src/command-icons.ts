@@ -1,4 +1,5 @@
 import {
+  Asterisk,
   Code,
   Hash,
   Heading1,
@@ -38,6 +39,7 @@ const INSERT_ICONS: Record<string, LucideIcon> = {
   equation: Sigma,
   figure: Image,
   table: Table,
+  footnote: Asterisk,
 };
 
 /** The icon the insert menu shows for an insert command or a reference item. */

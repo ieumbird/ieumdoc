@@ -24,6 +24,7 @@
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
 | Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title, explicit read-only restriction when applicable |
+| Footnote definition | Body type; its number hangs before the first line in a 16px left inset and goes back to the first reference. A read-only definition keeps the read-only source presentation. |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 

@@ -13,6 +13,7 @@ import {
   inlineContentText,
   inlineContentToNodes,
   projectInlineContent,
+  footnoteLabelError,
   type InlineContent,
 } from "./inline.ts";
 
@@ -35,7 +36,10 @@ import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parseBlockSource } from "./myst/block-source.ts";
-import { footnoteWriteError } from "./myst/footnote.ts";
+import {
+  completeFootnotes, createFootnoteDefinition, footnoteLabels, footnoteReferences, footnoteWriteError, supportedFootnoteContent,
+} from "./myst/footnote.ts";
+import { nextFootnoteLabel } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
@@ -113,7 +117,8 @@ function sectionMarkers(document: MystDocument) {
 const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
 
 function assertCanonicalBlockBoundaries(document: MystDocument): void {
-  const expectedBlocks = getEditableDocument(document).blocks;
+  // `serializeFor` completes the footnotes, adding definitions for references that have none yet.
+  const expectedBlocks = getEditableDocument(completeFootnotes(document)).blocks;
   const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
@@ -273,6 +278,91 @@ function assertQuoteRoundTrip(document: MystDocument, index: number, content: In
     throw new Error(QUOTE_FAILURE);
   }
   assertCanonicalBlockBoundaries(document);
+}
+
+const FOOTNOTE_FAILURE = "footnote definition cannot round-trip losslessly through canonical Markdown";
+
+/**
+ * Insert a new footnote: a reference at `offset` (Core inline offsets) in the paragraph, heading,
+ * quote or simple admonition at `[index]`, or the table cell at `[table,row,cell]`, and its
+ * definition at the end of the document. The label is the next unused number.
+ */
+export function insertFootnote(document: MystDocument, path: NodePath, offset: number, content: InlineContent[]): MystDocument {
+  const target = footnoteTarget(document, path);
+  if (!target) throw new Error(`a footnote cannot be inserted at [${path.join(",")}]`);
+  if (!Number.isInteger(offset) || offset < 0 || offset > inlineContentLength(target.content)) {
+    throw new Error(`footnote offset out of range: ${offset}`);
+  }
+  const label = nextFootnoteLabel(footnoteLabels(document));
+  const [left, right] = splitInlineContent(target.content, offset);
+  const next = target.update(document, path, concatenateInlineContent(left, [{ kind: "footnote", label }], right));
+  return insertFootnoteDefinition(next, next.children.length, label, content);
+}
+
+type InlineUpdate = (document: MystDocument, path: NodePath, content: InlineContent[]) => MystDocument;
+
+/** The editable inline content a footnote reference can be inserted in, and its update. */
+function footnoteTarget(document: MystDocument, path: NodePath): { content: InlineContent[]; update: InlineUpdate } | undefined {
+  const block = getEditableDocument(document).blocks[path[0]];
+  if (path.length === 3 && block?.block === "table") {
+    const cell = block.rows[path[1]]?.cells[path[2]];
+    return cell?.editable ? { content: cell.content, update: updateTableCell } : undefined;
+  }
+  if (path.length !== 1 || !block || !("editable" in block) || !block.editable) return undefined;
+  if (block.block === "paragraph") return { content: block.content, update: updateParagraphInlineContent };
+  if (block.block === "heading") return { content: block.content, update: updateHeadingInlineContent };
+  if (block.block === "quote") return { content: block.content, update: updateQuoteInlineContent };
+  if (block.block === "admonition") return { content: block.content, update: updateAdmonitionInlineContent };
+  return undefined;
+}
+
+/** Insert the definition of footnote `label`: one paragraph of supported inline content. */
+export function insertFootnoteDefinition(document: MystDocument, index: number, label: string, content: InlineContent[]): MystDocument {
+  const error = typeof label === "string" ? footnoteLabelError(label) : "footnote label must be a string";
+  if (error) throw new Error(error);
+  if (document.children.some(node => node.type === "footnoteDefinition" && node.label === label)) {
+    throw new Error(`footnote [^${label}] is already defined`);
+  }
+  const normalized = footnoteContent(content);
+  const next = insertBlock(document, index, createFootnoteDefinition(label, normalized));
+  assertFootnoteRoundTrip(next, index, label, normalized);
+  return next;
+}
+
+/** Replace the paragraph of a Footnotes v2 definition; its label stays. */
+export function updateFootnoteDefinition(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
+  if (path.length !== 1) throw new Error("footnote edits require a top-level path");
+  const node = getNode(document, path);
+  if (!supportedFootnoteContent(node)) throw new Error(`footnote edit is not supported at [${path.join(",")}]`);
+  const label = String(node.label);
+  const normalized = footnoteContent(content);
+  const next = cloneDocument(document);
+  next.children[path[0]] = createFootnoteDefinition(label, normalized);
+  assertFootnoteRoundTrip(next, path[0], label, normalized);
+  return next;
+}
+
+function footnoteContent(content: InlineContent[]): InlineContent[] {
+  assertInlineContent(content);
+  if (inlineContentText(content).trim().length === 0) throw new Error("footnote definition must contain non-empty text");
+  const hasFootnote = (items: InlineContent[]): boolean =>
+    items.some(item => item.kind === "footnote" || ("children" in item && hasFootnote(item.children)));
+  if (hasFootnote(content)) throw new Error("a footnote definition cannot contain footnote references");
+  return concatenateInlineContent(content);
+}
+
+function assertFootnoteRoundTrip(document: MystDocument, index: number, label: string, content: InlineContent[]): void {
+  // MyST keeps only referenced definitions; check one that has no reference yet with one after it.
+  const check = footnoteReferences(document).includes(label) ? document : insertBlock(document, document.children.length,
+    { type: "paragraph", children: [{ type: "footnoteReference", identifier: labelIdentifier(label), label }] });
+  const markdown = serializeFor(check, FOOTNOTE_FAILURE);
+  const reparsed = parse(markdown);
+  const definition = reparsed.children[index];
+  const projected = definition && supportedFootnoteContent(definition);
+  if (!projected || definition.label !== label || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
+    throw new Error(FOOTNOTE_FAILURE);
+  }
+  assertCanonicalBlockBoundaries(check);
 }
 
 /** Insert a top-level divider (a Markdown thematic break). */

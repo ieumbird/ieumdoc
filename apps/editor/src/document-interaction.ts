@@ -163,7 +163,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           if (selection instanceof NodeSelection && selection.node.isBlock) {
             view.dispatch(paragraphBeside(state, true)); return true;
           }
-          if (selection.$from.depth > 0 && ["table", "admonition", "quote", "figure"].includes(selection.$from.node(1).type.name)) {
+          if (selection.$from.depth > 0 && ["table", "admonition", "quote", "footnoteDefinition", "figure"].includes(selection.$from.node(1).type.name)) {
             if (!selection.empty) return false;
             view.dispatch(paragraphBeside(state, true)); return true;
           }

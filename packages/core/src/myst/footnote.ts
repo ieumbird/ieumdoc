@@ -1,4 +1,5 @@
 import { createTokenizer } from "myst-parser";
+import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import { labelIdentifier } from "./label.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
@@ -112,6 +113,32 @@ export function footnoteReferences(node: MystNode): string[] {
   };
   visit(node);
   return labels;
+}
+
+const DEFINITION_FIELDS = new Set(["type", "identifier", "label", "children", "position"]);
+const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
+
+/**
+ * Footnotes v2: the content of a definition holding one paragraph of supported inline content
+ * without footnote references. Other definitions are read-only and edited as block source.
+ */
+export function supportedFootnoteContent(node: MystNode): InlineContent[] | undefined {
+  if (node.type !== "footnoteDefinition" || typeof node.label !== "string" || node.identifier !== labelIdentifier(node.label) ||
+      !Object.keys(node).every(key => DEFINITION_FIELDS.has(key))) return undefined;
+  const [paragraph, ...rest] = node.children ?? [];
+  if (rest.length > 0 || paragraph?.type !== "paragraph" || !Object.keys(paragraph).every(key => PARAGRAPH_FIELDS.has(key))) return undefined;
+  const content = projectInlineContent(paragraph);
+  return content && footnoteReferences(paragraph).length === 0 ? content : undefined;
+}
+
+export function createFootnoteDefinition(label: string, content: InlineContent[]): MystNode {
+  return { type: "footnoteDefinition", identifier: labelIdentifier(label), label,
+    children: [{ type: "paragraph", children: inlineContentToNodes(content) }] };
+}
+
+/** Labels of the document's footnote definitions and references. */
+export function footnoteLabels(document: MystDocument): string[] {
+  return [...footnoteDefinitions(document), ...footnoteReferences(document)];
 }
 
 function footnoteDefinitions(document: MystDocument): string[] {
