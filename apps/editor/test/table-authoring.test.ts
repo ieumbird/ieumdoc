@@ -26,7 +26,7 @@ import {
 import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
 
 const text = (value: string) => [{ kind: "text" as const, text: value }];
-const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | {sub}`bold` |\n| P |  |\n";
+const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | {u}`bold` |\n| P |  |\n";
 const TABLE = 1;
 
 function editorState(source: string) {
@@ -83,7 +83,7 @@ test("handle targets reuse commands outside the table, preserving read-only cell
   state = apply(state, moveTableColumn(state, TABLE, -1, { row: 1, column: 1 }));
   assert.deepEqual(grid(state), [["Note", "Name"], ["(bold)", "U"], ["", "P"]]);
   const saved = saveEdits(mixed, collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON));
-  assert.match(saved.markdown, /\{sub\}`bold`/);
+  assert.match(saved.markdown, /\{u\}`bold`/);
   assert.deepEqual(rejected, []);
   assert.equal(BLOCK_COMMANDS.find(command => command.id === "table-row-delete")!.enabled(state, TABLE, { row: 0, column: 0 }), false);
   assert.throws(() => addTableRowBelow(state, TABLE, { row: 99, column: 0 }), /invalid table cell target/);
@@ -125,7 +125,7 @@ test("a new table has a header row and two body rows of three columns, and saves
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
   assert.deepEqual(edits.inserts, [{ block: "table", rows: [[text("Port"), [], []], [text("U"), [], []], [[], [], []]] }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note        |\n| ---- | ----------- |\n| U    | {sub}`bold` |\n| P    |             |\n");
+  assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note      |\n| ---- | --------- |\n| U    | {u}`bold` |\n| P    |           |\n");
   assert.equal(saved.document.blocks[1]?.block, "table");
 });
 
@@ -173,7 +173,7 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
     cells: [{ row: 2, column: 0, content: text("I") }, { row: 2, column: 1, content: text("x") }],
   }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note        |   |\n| ---- | - | ----------- | - |\n| U    |   | {sub}`bold` |   |\n| I    | x |             |   |\n| QP   |   |             |   |\n|      |   |             |   |\n");
+  assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note      |   |\n| ---- | - | --------- | - |\n| U    |   | {u}`bold` |   |\n| I    | x |           |   |\n| QP   |   |           |   |\n|      |   |           |   |\n");
   const table = saved.document.blocks[TABLE];
   assert.ok(table?.block === "table");
   assert.deepEqual(table.rows.map(row => row.cells.map(cell => cell.editable)), [
@@ -242,7 +242,7 @@ test("rows and columns move and are removed at the caret, columns are realigned,
   // The read-only cell moved with its row and column; its source is unchanged.
   let edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
   assert.deepEqual(edits.tables, [{ path: [TABLE], rows: [0, 1], columns: [1, 0], align: [null, "center"], cells: [] }]);
-  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Note        | Name |\n| ----------- | :--: |\n| {sub}`bold` |   U  |\n");
+  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Note      | Name |\n| --------- | :--: |\n| {u}`bold` |   U  |\n");
   // Removing a column takes its cells, read-only ones included.
   state = apply(state, removeTableColumn(caretIn(state, 0, 0), TABLE));
   edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);

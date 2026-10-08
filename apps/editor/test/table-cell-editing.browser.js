@@ -117,7 +117,7 @@ async page => {
   await page.keyboard.press('ControlOrMeta+b');
   result.boldRemoved = await cell('bold').locator('strong').count() === 0;
   await save();
-  result.formattingRemovedOnDisk = (await markdown(mixed, 'mixed-table.md')).includes('| U    | bold | {sub}`V` |');
+  result.formattingRemovedOnDisk = (await markdown(mixed, 'mixed-table.md')).includes('| U    | bold | {u}`V` |');
   result.consoleErrors = problems;
   const failed = Object.entries(result).filter(([key, value]) => key !== 'consoleErrors' && value !== true);
   if (failed.length > 0 || problems.length > 0) throw new Error(`Table cell editing failed: ${JSON.stringify(result)}`);

@@ -69,7 +69,7 @@ test("Figure projection carries editable properties and its label", () => {
   const figure = blockAt(toTiptapDocument(loadEditableDocument(source)), FIGURE);
   assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: ORIGINAL.imageAlt, editable: true });
   assert.deepEqual(figure.content, [{ type: "text", text: ORIGINAL.caption }]);
-  const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n{sub}`V`\n:::\n"));
+  const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n{u}`V`\n:::\n"));
   assert.equal(readonly.content?.[0]?.attrs?.editable, false);
 });
 
@@ -94,7 +94,7 @@ test("image, alt text, caption and label are the editable Figure attributes", ()
     assert.throws(() => assertSupportedDocumentChange(baseline, identity), /figure identity|block deletion is not allowed/);
   }
 
-  const readonlySource = ":::{figure} ./a.png\n{sub}`V`\n:::\n";
+  const readonlySource = ":::{figure} ./a.png\n{u}`V`\n:::\n";
   const readonly = toTiptapDocument(loadEditableDocument(readonlySource));
   const flattened = clone(readonly);
   flattened.content![0].attrs!.caption = "flattened";
@@ -127,7 +127,7 @@ test("Figure validity is enforced before Save and by the Core write path", () =>
   ]) {
     assert.throws(() => commitDocumentSave(() => source, () => writes++, { revision: documentRevision(source), figures }));
   }
-  const readonlySource = ":::{figure} ./a.png\n{sub}`V`\n:::\n";
+  const readonlySource = ":::{figure} ./a.png\n{u}`V`\n:::\n";
   assert.throws(() => commitDocumentSave(() => readonlySource, () => writes++, {
     revision: documentRevision(readonlySource),
     figures: [{ path: [0], from: { imageUrl: "./a.png", imageAlt: "", caption: "V" }, to: CHANGED }],

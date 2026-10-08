@@ -263,6 +263,17 @@ test("Tiptap strike marks are Core strikethrough, alone and with other marks", (
   assert.deepEqual(fromTiptapContent(tiptap), content);
 });
 
+test("Tiptap subscript and superscript marks are Core subscript and superscript", () => {
+  const content: InlineContent[] = [
+    { kind: "text", text: "H" }, { kind: "subscript", children: [{ kind: "text", text: "2" }] }, { kind: "text", text: "O " },
+    { kind: "strong", children: [{ kind: "text", text: "x" }, { kind: "superscript", children: [{ kind: "text", text: "n" }] }] },
+  ];
+  const tiptap = toTiptapContent(content);
+  assert.deepEqual(tiptap.content?.[0]?.content?.[1]?.marks, [{ type: "subscript" }]);
+  assert.deepEqual(tiptap.content?.[0]?.content?.[4]?.marks, [{ type: "bold" }, { type: "superscript" }]);
+  assert.deepEqual(fromTiptapContent(tiptap), content);
+});
+
 test("Tiptap adapter accepts inline code, alone and inside other marks", () => {
   const content = fromTiptapContent({
     type: "doc",

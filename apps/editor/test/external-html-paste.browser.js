@@ -99,10 +99,11 @@ async page => {
       `<table class=MsoTableGrid border=1><tr><td width=200 valign=top><p class=MsoNormal><b>Name</b><o:p></o:p></p></td><td><p class=MsoNormal>Size</p></td></tr><tr><td><p class=MsoNormal>A</p></td><td><p class=MsoNormal>1</p></td></tr></table><!--EndFragment--></body></html>`,
       '# Word heading\n\n*   First\n\n    *   Second\n\n| **Name** | Size |\n| -------- | ---- |\n| A        | 1    |\n\nOmega.\n',
       'Pasted with normalization: unsupported visual styles were removed; table headers now use the first row only.'],
-    // A fragment link stays an ordinary link, never a cross-reference.
-    styled: ['<p><span style="font-family:Georgia;color:rgb(200,0,0)">Styled</span> x<sup>2</sup> <a href="javascript:alert(1)">unsafe</a> <a href="#local">local</a></p>',
-      'Styled x2 unsafe [local](#local)Omega.\n',
-      'Pasted with normalization: superscript and subscript became plain text; unsupported visual styles were removed; unsupported links became plain text.'],
+    // A fragment link stays an ordinary link, never a cross-reference. Sub/superscript tags
+    // and Word's vertical-align spans are kept.
+    styled: ['<p><span style="font-family:Georgia;color:rgb(200,0,0)">Styled</span> x<sup>2</sup> H<span style="vertical-align:sub">2</span>O <a href="javascript:alert(1)">unsafe</a> <a href="#local">local</a></p>',
+      'Styled x{sup}`2` H{sub}`2`O unsafe [local](#local)Omega.\n',
+      'Pasted with normalization: unsupported visual styles were removed; unsupported links became plain text.'],
     // The visible text survives; the expansion and machine-readable date do not, so they are reported.
     metadata: ['<p><abbr title="Alternating Current">AC</abbr> since <time datetime="2026-10-02">today</time></p>',
       'AC since todayOmega.\n', 'Pasted with normalization: unsupported semantic formatting became plain text.'],

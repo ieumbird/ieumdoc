@@ -51,6 +51,12 @@ conversion for headless callers. Headings hold inline content without line break
 losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
 `update-heading`). Cursor navigation, including reaching the document end, and session identity repair require no CLI command.
 
+Subscript and superscript are InlineContent marks (`subscript`, `superscript`) written as
+the MyST `{sub}` and `{sup}` roles, for text notation such as H{sub}`2`O or m{sup}`2`;
+mathematical meaning belongs in inline math. They never nest in each other and hold no
+references or footnotes. Source that does, or a role with `class`/`label` options, stays
+read-only. Headless callers use the existing `--content` JSON, so no CLI command is added.
+
 ## Table cells and Figure captions
 
 Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
@@ -98,13 +104,14 @@ a clipboard PNG file still takes the #59 asset path first.
 - Kept: paragraphs, H1–H6, bullet/numbered lists within List v1, single-paragraph
   quotes, `<pre>` code (whitespace kept, a `language-*` class as the language, one
   trailing newline dropped), dividers, rectangular tables of single-line cells, and
-  bold/italic/strikethrough, inline code and links as the engine's mark rules read
+  bold/italic/strikethrough, subscript/superscript (`sub`/`sup` tags and
+  `vertical-align` styles), inline code and links as the engine's mark rules read
   them. Only http(s), mailto, tel, ftp, relative and `#` targets stay links; a `#`
   target is an ordinary link, never a cross-reference. Column alignment comes only
   from a uniform HTML `align` attribute, never from CSS.
 - Dropped silently: wrappers, classes, ids, data and vendor attributes, layout
   styles and blank paragraphs. Dropped with a notice: visual styles (font, size,
-  color, underline, alignment), sub/superscript, other link targets, images and
+  color, underline, alignment), other link targets, images and
   drawings (no download), table captions (kept as a paragraph before the table) and
   header cells outside the first row (the first row becomes the header row).
   Unsupported inline semantics are never dropped silently: `kbd`, `samp`, `var`,

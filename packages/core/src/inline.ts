@@ -37,6 +37,12 @@ export type InlineContent =
       children: InlineContent[];
     }
   | {
+      /** Subscript or superscript text, written as the MyST `{sub}` or `{sup}` role. Math belongs in
+       * inline math; these never nest in each other and hold no references or footnotes. */
+      kind: "subscript" | "superscript";
+      children: InlineContent[];
+    }
+  | {
       /** An ordinary Markdown link. Semantic cross-references are not links. */
       kind: "link";
       url: string;
@@ -60,7 +66,7 @@ export type InlineContent =
 /** The mark an item applies to its content, for comparing rendered semantics:
  * strong/emphasis nesting is irrelevant, a link's target is part of the mark. */
 export function inlineMarkKey(item: InlineContent): string | undefined {
-  if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") return item.kind;
+  if (MARK_KINDS.has(item.kind)) return item.kind;
   if (item.kind === "link") return `link ${JSON.stringify([item.url, item.title ?? null])}`;
   return undefined;
 }
@@ -68,6 +74,9 @@ export function inlineMarkKey(item: InlineContent): string | undefined {
 const LINK_FIELDS = new Set(["type", "url", "title", "children", "position"]);
 const REFERENCE_FIELDS = new Set(["type", "kind", "identifier", "label", "position"]);
 const FOOTNOTE_FIELDS = new Set(["type", "identifier", "label", "position"]);
+// A `class` or `label` role option has no InlineContent form.
+const SCRIPT_FIELDS = new Set(["type", "children", "position"]);
+const SCRIPT_KINDS = new Set(["subscript", "superscript"]);
 
 export function projectInlineContent(node: MystNode): InlineContent[] | undefined {
   return projectNodes(node.children ?? []);
@@ -127,6 +136,11 @@ function projectNode(node: MystNode): InlineContent | undefined {
     if (!children) return undefined;
     return { kind: node.type, children };
   }
+  if ((node.type === "subscript" || node.type === "superscript") && Object.keys(node).every((key) => SCRIPT_FIELDS.has(key))) {
+    const children = projectNodes(node.children ?? []);
+    if (!children || scriptContentError(children)) return undefined;
+    return { kind: node.type, children };
+  }
   // Only plain links with visible text: `[](#x)`, `{download}` (static) and links
   // around images or other nodes stay unsupported.
   if (node.type === "link" && typeof node.url === "string" && node.url.length > 0 &&
@@ -149,6 +163,18 @@ function containsReference(content: InlineContent[]): boolean {
     ("children" in item && containsReference(item.children)));
 }
 
+function containsScript(content: InlineContent[]): boolean {
+  return content.some((item) => SCRIPT_KINDS.has(item.kind) || ("children" in item && containsScript(item.children)));
+}
+
+/** Why `children` cannot be subscript or superscript text, or undefined. A footnote already
+ * renders raised, and a script inside the other has no plain-text meaning. */
+function scriptContentError(children: InlineContent[]): string | undefined {
+  if (containsReference(children)) return "subscript and superscript cannot contain references or footnotes";
+  if (containsScript(children)) return "subscript and superscript cannot be nested";
+  return undefined;
+}
+
 /** Why `label` cannot be a footnote label as MyST reads `[^label]`, or undefined. */
 function footnoteLabelError(label: string): string | undefined {
   return /^[^\s\]]+$/.test(label) && labelIdentifier(label) ? undefined : "footnote label must be non-empty and contain no whitespace or ]";
@@ -165,7 +191,7 @@ function inlineToNode(item: InlineContent): MystNode {
   if (item.kind === "text") {
     return { type: "text", value: item.text };
   }
-  if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") {
+  if (MARK_KINDS.has(item.kind) && "children" in item) {
     return { type: item.kind, children: item.children.map(inlineToNode) };
   }
   if (item.kind === "link") {
@@ -205,6 +231,12 @@ export function assertInlineContent(content: InlineContent[]): void {
     }
     if (item.kind === "strong" || item.kind === "emphasis" || item.kind === "delete") {
       assertInlineContent(item.children);
+      continue;
+    }
+    if (item.kind === "subscript" || item.kind === "superscript") {
+      assertInlineContent(item.children);
+      const error = scriptContentError(item.children);
+      if (error) throw new Error(error);
       continue;
     }
     if (item.kind === "link") {
@@ -278,7 +310,7 @@ export function splitInlineContent(content: InlineContent[], offset: number): [I
 
 /** Coalesce adjacent equal marks, and adjacent inline code, so Markdown delimiters cannot collide.
  * Adjacent links stay separate: `[a](x)[b](x)` is two links. */
-const MARK_KINDS = new Set(["strong", "emphasis", "delete"]);
+const MARK_KINDS = new Set(["strong", "emphasis", "delete", "subscript", "superscript"]);
 
 export function concatenateInlineContent(...parts: InlineContent[][]): InlineContent[] {
   const result: InlineContent[] = [];

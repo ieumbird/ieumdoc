@@ -1,3 +1,3 @@
 | Name | Note | Unit |
 | --- | --- | --- |
-| U | **bold** | {sub}`V` |
+| U | **bold** | {u}`V` |
