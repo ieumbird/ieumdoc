@@ -24,7 +24,7 @@ async page => {
   const before = await read();
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
-  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByRole('button', {name:'Open file…'}).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

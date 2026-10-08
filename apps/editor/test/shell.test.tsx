@@ -22,23 +22,22 @@ test("document path splits for display without changing the address", () => {
   assert.equal(unquotePath('"unfinished'), '"unfinished');
 });
 
-test("sidebar holds only product, Open, Open folder and the current document, and collapses", () => {
-  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
+test("sidebar without a folder offers Open folder and Open file, and collapses", () => {
+  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} onOpenFolder={noop} />);
   assert.match(open, /IeumDoc/);
-  assert.match(open, />Open…</);
   assert.match(open, />Open folder…</);
+  assert.match(open, />Open file…</);
   assert.doesNotMatch(open, /data-testid="folder"/);
-  assert.match(open, />New</);
-  assert.match(open, /aria-current="page"/);
-  assert.match(open, /title="C:\\docs\\guide.md"/);
-  assert.match(open, />guide\.md</);
+  // No app-level full-path New and no second listing of the open document; TopBar names it.
+  assert.doesNotMatch(open, />New</);
+  assert.doesNotMatch(open, /guide\.md|aria-current/);
   assert.match(open, /aria-label="Collapse sidebar"/);
-  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onNew={noop} />);
+  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onOpenFolder={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
-  assert.doesNotMatch(collapsed, /Open…|guide\.md|IeumDoc/);
+  assert.doesNotMatch(collapsed, /Open file…|Open folder…|IeumDoc/);
 });
 
-test("sidebar folder shows Up below the chosen folder and marks the open document", () => {
+test("sidebar folder names the displayed folder, keeps Up below the chosen one and marks the open document once", () => {
   const folder = {
     root: String.raw`C:\docs`,
     path: String.raw`C:\docs\guides`,
@@ -50,14 +49,18 @@ test("sidebar folder shows Up below the chosen folder and marks the open documen
     ],
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpen={noop} onNew={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
   );
-  assert.match(html, /title="C:\\docs\\guides">guides</);
+  assert.match(html, /title="C:\\docs\\guides"/);
+  assert.match(html, />guides</);
   assert.match(html, /aria-label="Up to docs"/);
-  assert.match(html, /aria-label="Close folder"/);
-  assert.equal(html.match(/aria-current="page"/g)?.length, 2, "the open document and its folder entry, not other.md");
+  assert.match(html, /aria-label="New file in folder"/);
+  // Open file, Open folder and Close folder are behind one menu instead of a row of buttons.
+  assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
+  assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
+  assert.equal(html.match(/aria-current="page"/g)?.length, 1, "the open document's folder entry, not other.md");
   const top = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} folder={{ root: String.raw`C:\empty`, path: String.raw`C:\empty`, entries: [] }} onToggle={noop} onOpen={noop} onNew={noop} />,
+    <Sidebar open documentPath={PATH} folder={{ root: String.raw`C:\empty`, path: String.raw`C:\empty`, entries: [] }} onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
   );
   assert.doesNotMatch(top, /Up to/);
   assert.match(top, /No folders or Markdown files/);
@@ -161,7 +164,7 @@ test("Open dialog renders nothing while closed", () => {
 });
 
 test("New dialog renders nothing while closed", () => {
-  const html = renderToStaticMarkup(<NewDialog open={false} busy={false} onCreate={async () => ""} onClose={noop} />);
+  const html = renderToStaticMarkup(<NewDialog open={false} busy={false} directory={String.raw`C:\docs`} onCreate={async () => ""} onClose={noop} />);
   assert.equal(html, "");
 });
 

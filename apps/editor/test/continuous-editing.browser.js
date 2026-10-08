@@ -9,7 +9,7 @@ async page => {
   const separator = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'continuous-editing', 'continuous-editing.md'].join(separator);
-  await page.getByRole('button', { name: 'Open…' }).click();
+  await page.getByRole('button', { name: 'Open file…' }).click();
   await page.getByTestId('file-path').fill(file);
   await page.getByRole('dialog').getByRole('button', { name: 'Open', exact: true }).click();
   await page.locator('.document-editor h2').filter({hasText:'Heading'}).waitFor();
@@ -153,7 +153,7 @@ async page => {
 
   // Engine gap cursors must make both document edges around a sole atom reachable.
   const openSibling = async name => {
-    await page.getByRole('button', { name: 'Open…' }).click();
+    await page.getByRole('button', { name: 'Open file…' }).click();
     await page.getByTestId('file-path').fill(file.replace('continuous-editing.md', name));
     await page.getByRole('dialog').getByRole('button', { name: 'Open', exact: true }).click();
     await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.endsWith(name), name);

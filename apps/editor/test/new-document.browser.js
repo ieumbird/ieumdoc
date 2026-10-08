@@ -1,5 +1,5 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/new-document.browser.js.
-// Exercises New -> empty Save -> type -> Save -> Reload with the real Editor projection and save flow.
+// Exercises folder New -> empty Save -> type -> Save -> Reload with the real Editor projection and save flow.
 // Host responses are mocked so this scenario does not leave a test file in the repository.
 async page => {
   await page.unrouteAll();
@@ -8,11 +8,15 @@ async page => {
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
+  const folder = 'C:\\tmp';
   const newPath = 'C:\\tmp\\ieumdoc-browser-new.md';
   const empty = {path:newPath, document:{blocks:[]}, revision:'empty-revision'};
   let stored = clone(empty);
   const requests = [];
 
+  // The folder New creates in; its listing is not what this scenario checks.
+  await page.route('**/api/folder-browse?*', route => route.fulfill({json:{path:'C:\\', crumbs:[], entries:[]}}));
+  await page.route('**/api/folder?*', route => route.fulfill({json:{root:folder, path:folder, entries:[]}}));
   await page.route('**/api/document**', async route => {
     const request = route.request();
     if (request.method() === 'GET') {
@@ -55,8 +59,12 @@ async page => {
   try {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'New', exact:true}).click();
-    await page.getByTestId('new-file-path').fill(newPath);
+    await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await page.getByTestId('folder-path').fill(folder);
+    await page.getByTestId('folder-open').click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByTestId('new-file-name').fill('ieumdoc-browser-new');
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(newPath)) {
@@ -78,8 +86,8 @@ async page => {
     }
 
     const beforeNew = requests.length;
-    await page.getByRole('button', {name:'New', exact:true}).click();
-    await page.getByTestId('new-file-path').fill('C:\\tmp\\ieumdoc-other.md');
+    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByTestId('new-file-name').fill('ieumdoc-other.md');
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.getByText('Save or discard the current changes before creating another file.', {exact:true}).waitFor();
     await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
@@ -100,7 +108,7 @@ async page => {
     }
     return {created:true, typed:true, newPreservesUnsavedWork:true, saved:true, reloaded:true};
   } finally {
-    await page.unroute('**/api/document**');
+    await page.unrouteAll();
   }
 
   function clone(value) {

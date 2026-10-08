@@ -117,7 +117,7 @@ async page => {
   }
 
   async function openPath(page, path) {
-    await page.getByRole('button',{name:'Open…',exact:true}).click();
+    await page.getByRole('button',{name:'Open file…',exact:true}).click();
     await page.getByTestId('file-path').fill(path);
     await page.getByRole('dialog').getByRole('button',{name:'Open',exact:true}).click();
   }

@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-08 (sidebar chrome cleanup compared with current code and regression coverage).
 - Scope: existing Editor interactions. [Visual Language (current v2)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
@@ -10,17 +10,23 @@ The document is the primary surface. One Tiptap/ProseMirror document state owns 
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc, Open, Open folder, New, current document, the chosen folder (#112) and the heading outline (#61). User-controlled collapse/expand; no workspace or placeholder navigation. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes at most two fifths of the height and scrolls by itself; the open document uses the neutral current treatment and Close folder removes the list. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. |
+| Sidebar | IeumDoc, then the chosen folder (#112) or, without one, a compact choice of Open folder… (primary) and Open file…, then the heading outline (#61). User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the displayed folder (icon and name, full path in `title`) with `+` (New file in folder) and a `⋯` menu: Open file…, Open folder…, Close folder. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes at most two fifths of the height and scrolls by itself; the open document uses the neutral current treatment there and Close folder removes the list. The open document is not listed separately: the TopBar names it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. |
 | TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
-Open uses the existing local path dialog. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). New creates through the existing API in an existing parent directory. Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+Open file… uses the existing local path dialog. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 The folder heading's `+` opens New with the displayed folder as the destination,
 including a browsed sub-folder. It asks for a filename, adds `.md` if omitted and
 uses the existing creation checks; success opens the document and refreshes the list.
-The app-level New action retains its full-path input. See [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder).
+It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder).
+
+Behavior change (sidebar chrome cleanup): the sidebar no longer has the Open…, Open folder…
+and New button row or the separate current-document row. The app-level New, which took a full
+file path in any existing directory, is removed rather than moved: a document is created by
+opening its folder and using the folder's `+`. Open file… keeps arbitrary `.md` paths, and the
+Host's creation API and checks are unchanged.
 
 ## Writing interactions
 

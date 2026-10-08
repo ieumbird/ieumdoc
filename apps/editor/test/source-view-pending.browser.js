@@ -1,5 +1,5 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view-pending.browser.js.
-// Holds a Source preview for document A in flight, tries Open and New for other documents, and
+// Holds a Source preview for document A in flight, tries Open and folder New for other documents, and
 // checks that neither switches the document, so the late preview can only show A's Markdown.
 // Uses the scratch files prepared for source-view.browser.js (see docs/test/TEST_GUIDE.md);
 // the scenario writes nothing.
@@ -25,10 +25,20 @@ async page => {
   }
   if (await exists(created, 'created-during-preview.md')) throw new Error(`Remove ${created} first`);
 
-  await page.getByRole('button', {name:'Open…'}).click();
+  await page.getByRole('button', {name:'Open file…'}).click();
   await page.getByTestId('file-path').fill(documentA);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  // New creates in the displayed sidebar folder, so the scratch folder is opened first.
+  await page.getByRole('button', {name:'Open folder…'}).click();
+  await page.getByTestId('folder-path').fill(dir);
+  await page.getByTestId('folder-open').click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await page.getByTestId('folder').waitFor();
+  const openFile = async () => {
+    await page.getByRole('button', {name:'More actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Open file…', exact:true}).click();
+  };
 
   let release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -42,7 +52,7 @@ async page => {
   const currentFile = () => page.getByTestId('current-file').getAttribute('title');
   // Submits the form directly as well, so the App guard is exercised even if the controls are disabled.
   const trySubmit = async (open, input, submit, path) => {
-    await page.getByRole('button', {name:open, exact:true}).click();
+    await open();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     const controlsDisabled = await dialog.getByTestId(input).isDisabled() &&
@@ -65,8 +75,9 @@ async page => {
   try {
     await page.getByTestId('view-source').click();
     await requested;
-    result.openBlockedWhilePending = await trySubmit('Open…', 'file-path', 'Open', documentB);
-    result.newBlockedWhilePending = await trySubmit('New', 'new-file-path', 'Create', created);
+    result.openBlockedWhilePending = await trySubmit(openFile, 'file-path', 'Open', documentB);
+    result.newBlockedWhilePending = await trySubmit(() => page.getByRole('button', {name:'New file in folder', exact:true}).click(),
+      'new-file-name', 'Create', 'created-during-preview');
     result.newFileNotCreated = !await exists(created, 'created-during-preview.md');
   } finally {
     release();
@@ -78,7 +89,7 @@ async page => {
   await page.unroute('**/api/document-source');
 
   // Once the preview is done, Open works again and returns to Visual.
-  await page.getByRole('button', {name:'Open…'}).click();
+  await openFile();
   await page.getByTestId('file-path').fill(documentB);
   await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

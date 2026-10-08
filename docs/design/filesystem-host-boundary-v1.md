@@ -174,7 +174,7 @@ New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전
 - 기존 파일 overwrite 금지
 - 생성 성공 후 해당 파일을 current document로 open
 
-`createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create하며, [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder)는 표시 중인 folder를 destination으로 사용한다. 제품 Host나 installer의 결정은 포함하지 않는다.
+`createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create한다. Editor의 유일한 New 진입점은 [Folder New](folder-picker-v1.md#new-document-in-the-displayed-folder)이며 표시 중인 folder를 destination으로 사용한다. Host API는 여전히 임의의 기존 parent directory 아래 경로를 받으며 위 정책으로 검사한다. 제품 Host나 installer의 결정은 포함하지 않는다.
 
 ## Non-goals
 

@@ -305,9 +305,9 @@ export function App() {
         onSelectHeading={revealHeading}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
-        onNew={(directory = "") => { setNewDirectory(directory); setNewDialog(true); }}
-        folder={folder ?? undefined}
         onOpenFolder={() => setFolderDialog(true)}
+        onNew={(directory) => { setNewDirectory(directory); setNewDialog(true); }}
+        folder={folder ?? undefined}
         onBrowseFolder={(path) => void browseFolder(path)}
         onOpenDocument={(path) => void openFolderDocument(path)}
         onCloseFolder={() => setFolder(null)}

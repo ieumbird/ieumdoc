@@ -66,43 +66,19 @@ button {
   line-height: var(--line-height-label);
 }
 
-.sidebar-documents {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sidebar-actions {
+/* Without a chosen folder, the sidebar offers to choose one; a single file opens as before. */
+.sidebar-empty {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
-.sidebar-document {
-  display: grid;
-  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  overflow: hidden;
-  border-radius: var(--id-radius-md);
-  background: var(--id-color-surface-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-label);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-document-icon {
-  width: var(--size-icon-slot);
-  height: var(--size-icon-slot);
-}
-
-.sidebar-document-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sidebar-empty-text {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-3);
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
 }
 
 /* The chosen folder takes at most two fifths of the sidebar and scrolls by itself. */
@@ -122,9 +98,28 @@ button {
   gap: var(--space-2);
 }
 
-.sidebar-folder-header .sidebar-section-label {
+/* The displayed folder's identity: its icon and name share the list's icon slot and text start. */
+.sidebar-folder-name {
+  display: grid;
   flex: 1;
+  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
   min-width: 0;
+  margin: 0;
+  padding-left: var(--space-3);
+  color: var(--id-color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-label);
+}
+
+.sidebar-folder-name svg {
+  width: var(--size-icon-slot);
+  height: var(--size-icon-slot);
+}
+
+.sidebar-folder-name span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -183,7 +178,7 @@ button {
   outline-offset: -2px;
 }
 
-/* The same current-item treatment as the open file and the outline. */
+/* The same current-item treatment as the section being read in the outline. */
 .sidebar-folder-item[aria-current="page"] {
   background: var(--id-color-surface-muted);
   color: var(--id-color-text);
@@ -250,7 +245,7 @@ button {
   outline-offset: -2px;
 }
 
-/* The same current-item treatment as the open file above it. */
+/* The same current-item treatment as the open file in the folder. */
 .sidebar-outline-item[aria-current="location"] {
   background: var(--id-color-surface-muted);
   color: var(--id-color-text);
@@ -1425,7 +1420,7 @@ ol.list { list-style: decimal; }
 
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */
 @media (max-width: 64rem) {
-  .app-shell { --layout-sidebar-width: 11rem; }
+  .app-shell { --layout-sidebar-width: var(--layout-sidebar-width-narrow); }
   .document { --layout-document-inline-padding: var(--space-4); }
   .document-column { padding-top: var(--space-8); }
 }

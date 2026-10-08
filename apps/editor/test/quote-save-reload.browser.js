@@ -23,7 +23,7 @@ async page => {
     throw new Error('Scratch document is not a fresh quotes.md copy');
   }
   const open = async () => {
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(filePath);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

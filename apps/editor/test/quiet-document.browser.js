@@ -12,7 +12,7 @@ async (page, { screenshots = false } = {}) => {
   const open = async name => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(scratch(name));
     await page.getByRole('dialog').getByRole('button', {name:'Open',exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -269,7 +269,7 @@ async (page, { screenshots = false } = {}) => {
     await shot(`${width}-long-content`);
     results.push({width,...local});
   }
-  for(const [button,label] of [['Open…','Open'],['New','New']]) {
+  for(const [button,label] of [['Open file…','Open']]) {
     await page.getByRole('button',{name:button,exact:true}).click();
     await bounds(page.getByRole('dialog'),`${label} dialog`);
     await shot(`768-${label.toLowerCase()}-dialog`);

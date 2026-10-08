@@ -18,7 +18,7 @@ async page => {
     await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
   };
   const open = async path => {
-    await page.getByRole('button', {name:'Open…'}).click();
+    await page.getByRole('button', {name:'Open file…'}).click();
     await page.getByTestId('file-path').fill(path);
     await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
     await page.getByRole('dialog').waitFor({state:'detached'});

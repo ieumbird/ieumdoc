@@ -1,6 +1,7 @@
 import { useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
-import { ArrowUp, FilePlus2, FileText, Folder, FolderOpen, FolderTree, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { ArrowUp, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import type { FolderResponse } from "../../shared/document-protocol.ts";
 import type { OutlineItem, OutlineStore } from "../outline.ts";
 import { splitDocumentPath } from "./document-path.ts";
@@ -13,21 +14,21 @@ type SidebarProps = {
   onSelectHeading?(item: OutlineItem): void;
   onToggle(): void;
   onOpen(): void;
-  onNew(directory?: string): void;
+  onOpenFolder(): void;
+  /** Creates a document in the displayed folder. */
+  onNew?(directory: string): void;
   /** The folder the user chose, listed one level at a time. */
   folder?: FolderResponse;
-  onOpenFolder?(): void;
   onBrowseFolder?(path: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(): void;
 };
 
-/** App-level entry points, the folder the user chose and the open document's outline. */
+/** The folder the user chose (or a way to choose one) and the open document's outline. */
 export function Sidebar({
-  open, documentPath, outline, onSelectHeading, onToggle, onOpen, onNew,
-  folder, onOpenFolder, onBrowseFolder, onOpenDocument, onCloseFolder,
+  open, documentPath, outline, onSelectHeading, onToggle, onOpen, onOpenFolder, onNew,
+  folder, onBrowseFolder, onOpenDocument, onCloseFolder,
 }: SidebarProps) {
-  const { name } = splitDocumentPath(documentPath);
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
       <div className="sidebar-header">
@@ -44,38 +45,30 @@ export function Sidebar({
       </div>
       {open ? (
         <>
-          <div className="sidebar-actions">
-            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onOpen}>
-              <FolderOpen aria-hidden="true" />
-              Open…
-            </Button>
-            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={() => onOpenFolder?.()}>
-              <FolderTree aria-hidden="true" />
-              Open folder…
-            </Button>
-            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={() => onNew()}>
-              <FilePlus2 aria-hidden="true" />
-              New
-            </Button>
-          </div>
-          {documentPath ? (
-            <ul className="sidebar-documents" aria-label="Open documents">
-              <li className="sidebar-document" aria-current="page" title={documentPath}>
-                <FileText className="sidebar-document-icon" aria-hidden="true" />
-                <span className="sidebar-document-name">{name}</span>
-              </li>
-            </ul>
-          ) : null}
           {folder ? (
             <FolderList
               folder={folder}
               documentPath={documentPath}
               onBrowse={path => onBrowseFolder?.(path)}
               onOpenDocument={path => onOpenDocument?.(path)}
-              onNew={() => onNew(folder.path)}
+              onNew={() => onNew?.(folder.path)}
+              onOpen={onOpen}
+              onOpenFolder={onOpenFolder}
               onClose={() => onCloseFolder?.()}
             />
-          ) : null}
+          ) : (
+            <section className="sidebar-empty" aria-label="Files" data-testid="sidebar-empty">
+              <p className="sidebar-empty-text">Open a folder to browse and create its Markdown files.</p>
+              <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={onOpenFolder}>
+                <FolderOpen aria-hidden="true" />
+                Open folder…
+              </Button>
+              <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onOpen}>
+                <FileText aria-hidden="true" />
+                Open file…
+              </Button>
+            </section>
+          )}
           {documentPath && outline ? <Outline outline={outline} onSelect={item => onSelectHeading?.(item)} /> : null}
         </>
       ) : null}
@@ -89,24 +82,47 @@ type FolderListProps = {
   onBrowse(path: string): void;
   onOpenDocument(path: string): void;
   onNew(): void;
+  onOpen(): void;
+  onOpenFolder(): void;
   onClose(): void;
 };
 
 /** One level of the chosen folder: Up while below it, then sub-folders and Markdown files. */
-function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onNew, onClose }: FolderListProps) {
+function FolderList({ folder, documentPath, onBrowse, onOpenDocument, onNew, onOpen, onOpenFolder, onClose }: FolderListProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   return (
     <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
       <div className="sidebar-folder-header">
-        <p className="sidebar-section-label" id="sidebar-folder-label" title={folder.path}>{name(folder.path)}</p>
+        {/* The displayed folder, which is the chosen folder or one browsed inside it. */}
+        <p className="sidebar-folder-name" id="sidebar-folder-label" title={folder.path}>
+          <FolderOpen aria-hidden="true" />
+          <span>{name(folder.path)}</span>
+        </p>
         <div className="sidebar-folder-actions">
           <Button variant="ghost" size="icon-xs" aria-label="New file in folder" title={`New file in ${folder.path}`} onClick={onNew}>
             <Plus />
           </Button>
-          <Button variant="ghost" size="icon-xs" aria-label="Close folder" onClick={onClose}>
-            <X />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="More actions" />}>
+              <Ellipsis />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onOpen}>
+                <FileText aria-hidden="true" />
+                Open file…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenFolder}>
+                <FolderOpen aria-hidden="true" />
+                Open folder…
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onClose}>
+                <X aria-hidden="true" />
+                Close folder
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <ul className="sidebar-folder-list">
