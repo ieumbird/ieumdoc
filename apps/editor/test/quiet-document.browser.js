@@ -52,6 +52,23 @@ async (page, { screenshots = false } = {}) => {
     results.push({label,...result});
   };
   await open('quiet-document.md');
+  // A CSS family list also passes when a system fallback is used. Inspect the actual
+  // glyph fonts so a missing font import/asset cannot silently pass on developer PCs.
+  const fontSession = await page.context().newCDPSession(page);
+  try {
+    await fontSession.send('DOM.enable');
+    await fontSession.send('CSS.enable');
+    const {root} = await fontSession.send('DOM.getDocument');
+    for (const selector of ['.document-editor h1', '.document-editor .paragraph', '[data-testid="save"]']) {
+      const {nodeId} = await fontSession.send('DOM.querySelector', {nodeId:root.nodeId, selector});
+      const {fonts} = await fontSession.send('CSS.getPlatformFontsForNode', {nodeId});
+      check(fonts.length > 0 && fonts.every(font => font.isCustomFont && font.familyName.includes('Pretendard')),
+        `${selector}: bundled Pretendard glyphs required: ${JSON.stringify(fonts)}`);
+      results.push({selector, fonts});
+    }
+  } finally {
+    await fontSession.detach();
+  }
   const initial=await json();
   await rest();
   const metadata=page.locator('.block-metadata');

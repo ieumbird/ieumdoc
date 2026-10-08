@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "katex/dist/katex.min.css";
 import "./index.css";
 import "./styles.css";
