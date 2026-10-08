@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (`visual-states`, `layout-rules`, `quiet-document` and `folder-navigation`; actual same-state captures and CDP glyph fonts).
+- Last verified: 2026-10-09 (`layout-rules`, `quiet-document`, `visual-states`, `folder-navigation`; bundled Pretendard glyphs and same-state responsive captures).
 - Current contract: v3. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -10,7 +10,7 @@
 
 **Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
-[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and current items use a separate blue interaction role. No new fonts are downloaded or packaged.
+[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and current items use a separate blue interaction role. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
 ## Surfaces and typography
 
@@ -27,7 +27,9 @@
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 
-Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. No font package, binary or CDN dependency is added. CDP `CSS.getPlatformFontsForNode` on the 2026-10-08 Windows captures reports installed Noto Sans KR for Latin and Korean UI/body glyphs, including its bold/semibold faces. This is an environment observation, not a guarantee for other machines or a claim that Pretendard is bundled. Heading sizes/weights/line heights are unchanged; the former H1 negative tracking is removed.
+Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. The Editor pins the official `pretendard` package to `1.3.9` and imports its variable dynamic-subset CSS. Vite resolves the relative WOFF2 URLs into app-hosted assets. All upstream subsets remain available for newly entered text; only needed ranges are requested. The upstream `font-display: swap` and weight range are retained, so a system fallback can appear while a font loads or for unsupported characters. No CSS size adjustment or new typography dimensions are introduced.
+
+The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography.
 
 Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply and existing primary actions. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product brand accent, and `muted` remains a quiet background rather than a universal interaction state.
 
