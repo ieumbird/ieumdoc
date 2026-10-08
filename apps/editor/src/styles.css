@@ -17,15 +17,22 @@ button {
   font-family: inherit;
 }
 
-/* Application shell: sidebar | top bar + messages + document column. */
+/* Application shell: sidebar | top bar + messages + document column | document panel. */
 .app-shell {
+  --shell-sidebar: var(--layout-sidebar-width);
+  --shell-panel: var(--layout-document-panel-width);
   display: grid;
-  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) var(--shell-panel);
   min-height: 100vh;
 }
 
 .app-shell--collapsed {
-  grid-template-columns: var(--layout-sidebar-rail-width) minmax(0, 1fr);
+  --shell-sidebar: var(--layout-sidebar-rail-width);
+}
+
+/* A closed document panel takes no width; the TopBar Outline toggle opens it. */
+.app-shell--panel-closed {
+  --shell-panel: 0px;
 }
 
 .sidebar {
@@ -81,14 +88,13 @@ button {
   line-height: var(--line-height-meta);
 }
 
-/* The chosen folder takes at most two fifths of the sidebar and scrolls by itself. */
+/* The chosen folder takes the remaining sidebar height and scrolls by itself. */
 .sidebar-folder {
   display: flex;
-  flex: 0 1 auto;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-1);
   min-height: 0;
-  max-height: 40%;
 }
 
 .sidebar-folder-header {
@@ -185,17 +191,8 @@ button {
   font-weight: var(--font-weight-semibold);
 }
 
-/* The outline takes the remaining sidebar height and scrolls by itself. */
-.sidebar-outline {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: 0;
-}
-
-.sidebar-section-label,
-.sidebar-outline-empty {
+.sidebar-folder-empty,
+.document-outline-empty {
   margin: 0;
   padding: 0 var(--space-3);
   color: var(--id-color-text-subtle);
@@ -203,11 +200,55 @@ button {
   line-height: var(--line-height-meta);
 }
 
-.sidebar-section-label {
-  font-weight: var(--font-weight-semibold);
+/* The document panel mirrors the sidebar on the right: sticky and scrolling by itself. */
+.document-panel {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100vh;
+  min-width: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  border-left: var(--border-width) solid var(--id-color-border);
+  background: var(--id-color-surface-subtle);
 }
 
-.sidebar-outline-list {
+/* Opened in the narrow layout, the panel covers the document instead of narrowing it. */
+.document-panel--overlay {
+  position: fixed;
+  right: 0;
+  z-index: 4;
+  width: min(var(--layout-document-panel-width), 100vw);
+  box-shadow: var(--shadow-overlay);
+}
+
+.document-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--layout-header-row);
+}
+
+.document-panel-title {
+  margin: 0;
+  padding-left: var(--space-3);
+  color: var(--id-color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-label);
+}
+
+/* The outline takes the panel's remaining height and scrolls by itself. */
+.document-outline {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.document-outline-list {
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -215,7 +256,7 @@ button {
   list-style: none;
 }
 
-.sidebar-outline-item {
+.document-outline-item {
   display: -webkit-box;
   width: 100%;
   padding: var(--space-1) var(--space-3);
@@ -236,23 +277,23 @@ button {
   cursor: pointer;
 }
 
-.sidebar-outline-item:hover {
+.document-outline-item:hover {
   background: var(--id-color-surface-muted);
 }
 
-.sidebar-outline-item:focus-visible {
+.document-outline-item:focus-visible {
   outline: 2px solid var(--id-color-border-focus);
   outline-offset: -2px;
 }
 
 /* The same current-item treatment as the open file in the folder. */
-.sidebar-outline-item[aria-current="location"] {
+.document-outline-item[aria-current="location"] {
   background: var(--id-color-surface-muted);
   color: var(--id-color-text);
   font-weight: var(--font-weight-semibold);
 }
 
-.sidebar-outline-untitled {
+.document-outline-untitled {
   color: var(--id-color-text-subtle);
   font-style: italic;
 }
@@ -1420,7 +1461,11 @@ ol.list { list-style: decimal; }
 
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */
 @media (max-width: 64rem) {
-  .app-shell { --layout-sidebar-width: var(--layout-sidebar-width-narrow); }
+  .app-shell {
+    --layout-sidebar-width: var(--layout-sidebar-width-narrow);
+    /* The document panel never narrows the document here; opened, it overlays. */
+    --shell-panel: 0px;
+  }
   .document { --layout-document-inline-padding: var(--space-4); }
   .document-column { padding-top: var(--space-8); }
 }

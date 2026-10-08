@@ -1,17 +1,20 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (sidebar chrome cleanup compared with current code and regression coverage).
+- Last verified: 2026-10-08 (document panel compared with current code and regression coverage).
 - Scope: existing Editor interactions. [Visual Language (current v2)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
 
 The document is the primary surface. One Tiptap/ProseMirror document state owns selection, history and editing; typed blocks use NodeViews and overlays.
 
+The shell has three responsibilities: the Sidebar on the left is filesystem/document navigation (which document), the document column in the center is authoring (what is edited), and the Document panel on the right is navigation inside the open document (where in it).
+
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc, then the chosen folder (#112) or, without one, a compact choice of Open folder… (primary) and Open file…, then the heading outline (#61). User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the displayed folder (icon and name, full path in `title`) with `+` (New file in folder) and a `⋯` menu: Open file…, Open folder…, Close folder. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes at most two fifths of the height and scrolls by itself; the open document uses the neutral current treatment there and Close folder removes the list. The open document is not listed separately: the TopBar names it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. |
-| TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Sticky while document scrolls. |
+| Sidebar | IeumDoc, then the chosen folder (#112) or, without one, a compact choice of Open folder… (primary) and Open file…. User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the displayed folder (icon and name, full path in `title`) with `+` (New file in folder) and a `⋯` menu: Open file…, Open folder…, Close folder. The folder lists one level (Up while below the chosen folder, sub-folders, then `.md` files), takes the remaining height and scrolls by itself; the open document uses the neutral current treatment there and Close folder removes the list. The open document is not listed separately: the TopBar names it. |
+| Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. Beside a document wider than 1024px the panel is docked and starts open; at ≤1024px it starts closed and, opened, overlays the document instead of narrowing it, and Escape closes it. Crossing 1024px starts the panel in that layout's default. Open/closed is page state only. |
+| TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Outline, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous reading column. Block tools occupy its gutter. No fixed formatting toolbar. |
 
@@ -41,6 +44,6 @@ Host's creation API and checks are unchanged.
 
 ## Boundaries
 
-No workspace, recursive tree, search, accounts, autosave, right-hand inspector, new block semantics, overlay framework or persistence architecture is introduced. New UI primitives enter through `components/ui`; native legacy controls continue to share product styles safely.
+No workspace, recursive tree, search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. New UI primitives enter through `components/ui`; native legacy controls continue to share product styles safely.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual visual evidence: [review record](editor-visual-refinement-v1-review.md).

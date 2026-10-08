@@ -1,5 +1,5 @@
 // Run with pnpm browser:test outline.
-// Navigates a long scratch document from the sidebar outline with the mouse and the keyboard,
+// Navigates a long scratch document from the document panel outline with the mouse and the keyboard,
 // follows the current section while scrolling, and checks that heading edits update the outline
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
@@ -37,6 +37,9 @@ async page => {
   const expected = ['Outline guide', 'Section 1', 'Section 2', 'Detail 2', 'Section 3', 'Section 4', 'Detail 4', 'Section 5', 'Section 6', 'Detail 6'];
   await page.waitForFunction(count => document.querySelectorAll('[data-testid="outline"] button').length === count, expected.length);
   const listsHeadings = JSON.stringify(await texts()) === JSON.stringify(expected);
+  // The outline is document navigation on the right; the sidebar holds files only.
+  const inDocumentPanel = await page.getByTestId('document-panel').getByTestId('outline').count() === 1 &&
+    await page.getByTestId('sidebar').getByTestId('outline').count() === 0;
   const indentsByLevel = await items.nth(3).evaluate(element => getComputedStyle(element).paddingLeft) !==
     await items.nth(2).evaluate(element => getComputedStyle(element).paddingLeft);
 
@@ -134,7 +137,7 @@ async page => {
   const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'Saved' &&
     JSON.stringify(disk.document.blocks.filter(block => block.block === 'heading').map(block => block.text)) === JSON.stringify(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
 
-  const result = { listsHeadings, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual,
+  const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual,
     sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
   // Numbering is a document setting and uses the same counters in the page and outline.
   const toggle = page.getByRole('button', {name:'Number headings', exact:true});

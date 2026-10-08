@@ -3,6 +3,8 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
+import { createOutlineStore } from "../src/outline.ts";
+import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
@@ -64,6 +66,27 @@ test("sidebar folder names the displayed folder, keeps Up below the chosen one a
   );
   assert.doesNotMatch(top, /Up to/);
   assert.match(top, /No folders or Markdown files/);
+});
+
+test("document panel holds only the outline, and the TopBar Outline toggle shows whether it is open", () => {
+  const outline = createOutlineStore();
+  outline.set({ items: [{ index: 0, pos: 0, level: 1, text: "Intro" }, { index: 2, pos: 9, level: 2, text: "Detail" }], current: 1 });
+  const panel = renderToStaticMarkup(<DocumentPanel overlay={false} outline={outline} onSelectHeading={noop} onClose={noop} />);
+  assert.match(panel, />Outline</);
+  assert.match(panel, /aria-label="Hide outline"/);
+  assert.match(panel, /data-testid="outline"/);
+  assert.match(panel, /aria-current="location"[^>]*>Detail</);
+  // Outline only: no tabs or other document tools.
+  assert.doesNotMatch(panel, /role="tab/);
+  for (const open of [true, false]) {
+    const html = renderToStaticMarkup(
+      <TooltipProvider>
+        <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop}
+          outline={open} onToggleOutline={noop} />
+      </TooltipProvider>,
+    );
+    assert.match(html, new RegExp(`<button\\b(?=[^>]*aria-label="Outline")(?=[^>]*aria-pressed="${open}")[^>]*>`));
+  }
 });
 
 test("top bar shows filename while keeping the complete path in its title", () => {

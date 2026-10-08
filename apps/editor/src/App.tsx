@@ -3,6 +3,7 @@ import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/co
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
+import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
@@ -29,6 +30,9 @@ import type {
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
+// The narrow layout of styles.css: at or below it the outline panel starts closed and overlays.
+const NARROW_LAYOUT = "(max-width: 64rem)";
+
 const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
 
 /** Shown for the whole session of a document Core cannot write as canonical Markdown. */
@@ -44,6 +48,10 @@ export function App() {
   const [openedPath, setOpenedPath] = useState("");
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [narrowLayout, setNarrowLayout] = useState(() => globalThis.matchMedia?.(NARROW_LAYOUT).matches ?? false);
+  // Page state only: open beside a wide document, closed (and overlaying when opened) when narrow.
+  const [panelOpen, setPanelOpen] = useState(!narrowLayout);
+  const outlineToggle = useRef<HTMLButtonElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [openDialog, setOpenDialog] = useState(false);
   const [folderDialog, setFolderDialog] = useState(false);
@@ -61,7 +69,7 @@ export function App() {
   const [figureDraftActive, setFigureDraftActive] = useState(false);
   const [assetPending, setAssetPending] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
-  // Outline changes on scrolling re-render the sidebar only, never the App and its editor.
+  // Outline changes on scrolling re-render the outline only, never the App and its editor.
   const outlineStore = useRef(createOutlineStore()).current;
   // Unwritable snapshots are read-only. Reload checks the repaired file through Core;
   // writable sessions are validated again on every Save/Source request.
@@ -76,6 +84,17 @@ export function App() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  // Crossing the narrow width starts the panel in that layout's default.
+  useEffect(() => {
+    const query = matchMedia(NARROW_LAYOUT);
+    const change = () => {
+      setNarrowLayout(query.matches);
+      setPanelOpen(!query.matches);
+    };
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
   }, []);
 
   // A pending Source preview belongs to the open document, so it blocks document switches too.
@@ -297,12 +316,10 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
-        outline={document ? outlineStore : undefined}
-        onSelectHeading={revealHeading}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpen={() => setOpenDialog(true)}
         onOpenFolder={() => setFolderDialog(true)}
@@ -333,6 +350,9 @@ export function App() {
             reloadDisabled={!document || busy}
             wide={documentWidth === "wide"}
             onToggleWide={toggleDocumentWidth}
+            outline={panelOpen}
+            onToggleOutline={() => setPanelOpen((value) => !value)}
+            outlineToggleRef={outlineToggle}
           />
           <MessageArea
             error={error}
@@ -380,6 +400,18 @@ export function App() {
           ) : null}
         </main>
       </div>
+      {panelOpen ? (
+        <DocumentPanel
+          overlay={narrowLayout}
+          outline={document ? outlineStore : undefined}
+          onSelectHeading={revealHeading}
+          onClose={() => {
+            setPanelOpen(false);
+            // The panel's own controls go away; its toggle keeps the focus.
+            outlineToggle.current?.focus();
+          }}
+        />
+      ) : null}
       <OpenDialog
         open={openDialog}
         initialPath={openedPath}
