@@ -72,23 +72,10 @@ async page => {
     await page.getByTestId('figure-editor').waitFor({state:'detached'});
   };
   const insertAfterParagraph = async name => {
-    await page.evaluate(() => {
-      const editor = document.querySelector('.document-editor').editor;
-      window.__labelDebug = [];
-      const sample = kind => {
-        const button = document.querySelector('[aria-label="Insert block after paragraph block 9"]');
-        window.__labelDebug.push({kind, time:performance.now(), scroll:scrollY, selected:editor.state.selection.$from.index(0), active:[...document.querySelectorAll('.block-controls')].findIndex(n=>n.classList.contains('visible')), button:button?.getBoundingClientRect().toJSON(), pointer:button && getComputedStyle(button).pointerEvents});
-      };
-      editor.on('transaction', ({transaction}) => sample(`transaction:doc=${transaction.docChanged};selection=${transaction.selectionSet};meta=${Object.keys(transaction.meta)}`));
-      document.querySelector('.document').addEventListener('mousemove', event => sample(`mouse:${event.clientX},${event.clientY}`));
-      sample('begin');
-    });
-    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).hover();
-    try {
-      await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
-    } catch(error) {
-      throw new Error(`${error.message}\nDEBUG ${JSON.stringify(await page.evaluate(() => window.__labelDebug))}`);
-    }
+    // After Apply, the equation summary can flip over the paragraph's centre when it scrolls.
+    // Approach the gutter from the paragraph's exposed start, outside that floating panel.
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).hover({position:{x:4,y:4}});
+    await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
   };
   const reference = 'See [](#fig-control) and {eq}`eq-current`.';
