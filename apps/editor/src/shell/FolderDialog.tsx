@@ -137,28 +137,32 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
           <DialogTitle>Open folder</DialogTitle>
           <DialogDescription>Choose a folder to list in the sidebar.</DialogDescription>
         </DialogHeader>
-        <div className="folder-picker-field">
-          <Folder aria-hidden="true" />
-          <input
-            ref={field}
-            id="folder-path"
-            data-testid="folder-path"
-            className="folder-picker-input"
-            role="combobox"
-            aria-label="Folder path"
-            aria-expanded={folders.length > 0}
-            aria-controls="folder-picker-list"
-            aria-activedescendant={highlight >= 0 ? `folder-option-${highlight}` : undefined}
-            aria-autocomplete="list"
-            value={input}
-            onChange={event => { setInput(event.target.value); setHighlight(-1); setError(""); }}
-            onKeyDown={keyDown}
-            placeholder="Folder path"
-            spellCheck={false}
-            autoComplete="off"
-            disabled={pending}
-            autoFocus
-          />
+        <div className="form-field">
+          <label className="form-label" htmlFor="folder-path">Folder path</label>
+          <div className="folder-picker-field">
+            <Folder aria-hidden="true" />
+            <input
+              ref={field}
+              id="folder-path"
+              data-testid="folder-path"
+              className="folder-picker-input"
+              role="combobox"
+              aria-label="Folder path"
+              aria-describedby={error ? "open-folder-error" : undefined}
+              aria-expanded={folders.length > 0}
+              aria-controls="folder-picker-list"
+              aria-activedescendant={highlight >= 0 ? `folder-option-${highlight}` : undefined}
+              aria-autocomplete="list"
+              value={input}
+              onChange={event => { setInput(event.target.value); setHighlight(-1); setError(""); }}
+              onKeyDown={keyDown}
+              placeholder="Folder path"
+              spellCheck={false}
+              autoComplete="off"
+              disabled={pending}
+              autoFocus
+            />
+          </div>
         </div>
         <div className="folder-picker-location">
           <nav aria-label="Folder location" className="folder-picker-crumbs">
@@ -229,7 +233,7 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
             </div>
           </section>
         ) : null}
-        {error ? <p className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
+        {error ? <p id="open-folder-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
         <div className="folder-picker-footer">
           <p>Documents open and save in their original location.</p>
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onClose}>Cancel</Button>

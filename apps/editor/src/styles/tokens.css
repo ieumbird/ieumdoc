@@ -22,14 +22,20 @@
 
   --id-color-canvas: var(--id-color-surface-subtle);
   --id-color-surface: #ffffff;
-  --id-color-surface-subtle: #f7f7f6;
-  --id-color-surface-muted: #efeeed;
+  --id-color-surface-subtle: #f6f7f9;
+  --id-color-surface-muted: #eef0f4;
+  /* Hover is visible on both the paper and panels. Open/pressed controls stay neutral. */
+  --id-color-surface-hover: #eaedf2;
+  --id-color-surface-pressed: #e3e7ee;
+  --id-color-surface-selected: #e9f0ff;
+  --id-color-surface-selected-hover: #e1eaff;
   --id-color-surface-info: #f5f7fa;
   --id-color-surface-danger: #fff1f0;
   --id-color-surface-warning: #fff8ed;
-  --id-color-text: #29272b;
-  --id-color-text-muted: #59565c;
-  --id-color-text-subtle: #6a656c;
+  --id-color-text: #20242c;
+  --id-color-text-muted: #545c68;
+  --id-color-text-subtle: #606874;
+  --id-color-text-selected: #2449a6;
   --id-color-text-readonly: var(--id-color-text-muted);
   --id-color-text-on-accent: #ffffff;
   /* Preserve the existing heritage red. */
@@ -37,11 +43,13 @@
   --id-color-accent-hover: oklch(0.399 0.16 15.405);
   /* Two blue axes. Interaction: focus, selection, the current item and drag. Content (info):
    * links, references and informational callouts. Chrome recedes in neutrals. */
-  --id-color-interaction: #426782;
-  --id-color-interaction-soft: #e9f0f5;
-  --id-color-border: #dedbdd;
-  --id-color-border-subtle: #ece9eb;
-  --id-color-border-strong: #c7c2c6;
+  --id-color-interaction: #315fd4;
+  --id-color-interaction-soft: var(--id-color-surface-selected);
+  --id-color-border: #d9dde4;
+  --id-color-border-subtle: #e7eaf0;
+  --id-color-border-strong: #bbc2cd;
+  /* Recognizable fields and persistent control states; >=3:1 even on pressed surfaces. */
+  --id-color-border-control: #7b8390;
   --id-color-border-focus: var(--id-color-interaction);
   --id-color-danger: #a12b32;
   --id-color-info: #365f85;
@@ -83,7 +91,7 @@
   --id-radius-xl: 0.75rem;
   --border-width: 1px;
   --focus-ring: 0 0 0 2px var(--id-color-interaction);
-  --shadow-overlay: 0 8px 28px rgb(35 27 31 / 12%), 0 2px 6px rgb(35 27 31 / 5%);
+  --shadow-overlay: 0 8px 24px rgb(32 36 44 / 10%), 0 2px 6px rgb(32 36 44 / 6%);
 
   --layout-content-gutter: var(--space-4);
   --layout-document-inline-padding: var(--layout-document-gutter);
@@ -97,4 +105,6 @@
   --size-icon-slot: 1rem;
   --layout-gutter-gap: var(--space-1);
   --size-drop-indicator: 2px;
+  /* Non-color cue shared by current navigation and the active menu/list choice. */
+  --size-current-marker: 3px;
 }

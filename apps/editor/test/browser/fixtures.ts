@@ -41,7 +41,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "quiet-document": {
     files: [fixture("quiet-document.md"), fixture("quiet-document-long.md"), document("diagram.svg"),
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
-    scenarios: ["layout-rules", "quiet-document"],
+    scenarios: ["layout-rules", "quiet-document", "visual-states"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
   "block-move": { files: technical, scenarios: ["block-move"] },

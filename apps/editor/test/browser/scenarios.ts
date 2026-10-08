@@ -4,6 +4,7 @@ export const STABLE_SCENARIOS = [
   "editor-shell",
   "layout-rules",
   "quiet-document",
+  "visual-states",
   "new-document",
   "open-files",
   "save-during-edit",

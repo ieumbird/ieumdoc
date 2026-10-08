@@ -41,7 +41,8 @@ type TopBarProps = {
 /**
  * Document identity and its state on the left, so status changes never move the controls.
  * On the right: the document setting, the view (mode, width, then the outline panel), then file actions. Only Save with unsaved
- * changes takes the accent; every other control is a quiet ghost button.
+ * changes takes the accent. Spaced groups separate settings, view and file actions; persistent
+ * view/toggle states have neutral faces and boundaries independent of keyboard focus.
  */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
@@ -90,62 +91,68 @@ export function TopBar({
       </div>
       <div className="top-bar-actions">
         {onToggleHeadingNumbering ? (
-          <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Number headings"
-            title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>
-            <ListOrdered aria-hidden="true" />
-          </Button>
+          <div className="top-bar-group" role="group" aria-label="Document settings">
+            <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Number headings"
+              title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>
+              <ListOrdered aria-hidden="true" />
+            </Button>
+          </div>
         ) : null}
-        <div className="view-toggle" role="group" aria-label="Document view">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="view-toggle-option"
-            aria-pressed={view === "visual"}
-            onClick={() => onViewChange("visual")}
-            disabled={viewDisabled}
-            data-testid="view-visual"
-          >
-            Visual
-          </Button>
-          {sourceHint ? (
+        <div className="top-bar-group" role="group" aria-label="View controls">
+          <div className="view-toggle" role="group" aria-label="Document view">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="view-toggle-option"
+              aria-pressed={view === "visual"}
+              onClick={() => onViewChange("visual")}
+              disabled={viewDisabled}
+              data-testid="view-visual"
+            >
+              Visual
+            </Button>
+            {sourceHint ? (
+              <Tooltip>
+                <TooltipTrigger render={<Button {...sourceProps} focusableWhenDisabled />}>Source</TooltipTrigger>
+                <TooltipContent>{sourceHint}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button {...sourceProps}>Source</Button>
+            )}
+          </div>
+          {onToggleWide ? (
+            <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Wide document"
+              title="Wide document (this browser only)" aria-pressed={wide} onClick={onToggleWide}>
+              <UnfoldHorizontal aria-hidden="true" />
+            </Button>
+          ) : null}
+          {onToggleOutline ? (
+            <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Outline"
+              title="Outline" aria-pressed={outline} onClick={onToggleOutline}>
+              <PanelRight aria-hidden="true" />
+            </Button>
+          ) : null}
+        </div>
+        <div className="top-bar-group" role="group" aria-label="File actions">
+          {onReload ? (
+            <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled} title="Reload the file from disk">
+              <RotateCcw aria-hidden="true" />
+              Reload
+            </Button>
+          ) : null}
+          {saveHint ? (
             <Tooltip>
-              <TooltipTrigger render={<Button {...sourceProps} focusableWhenDisabled />}>Source</TooltipTrigger>
-              <TooltipContent>{sourceHint}</TooltipContent>
+              <TooltipTrigger render={saveButton}>Save</TooltipTrigger>
+              <TooltipContent>{saveHint}</TooltipContent>
             </Tooltip>
           ) : (
-            <Button {...sourceProps}>Source</Button>
+            <Button type="button" variant={saveVariant} onClick={onSave} disabled={saveDisabled} data-testid="save"
+              title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
+              Save
+            </Button>
           )}
         </div>
-        {onToggleWide ? (
-          <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Wide document"
-            title="Wide document (this browser only)" aria-pressed={wide} onClick={onToggleWide}>
-            <UnfoldHorizontal aria-hidden="true" />
-          </Button>
-        ) : null}
-        {onToggleOutline ? (
-          <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Outline"
-            title="Outline" aria-pressed={outline} onClick={onToggleOutline}>
-            <PanelRight aria-hidden="true" />
-          </Button>
-        ) : null}
-        {onReload ? (
-          <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled} title="Reload the file from disk">
-            <RotateCcw aria-hidden="true" />
-            Reload
-          </Button>
-        ) : null}
-        {saveHint ? (
-          <Tooltip>
-            <TooltipTrigger render={saveButton}>Save</TooltipTrigger>
-            <TooltipContent>{saveHint}</TooltipContent>
-          </Tooltip>
-        ) : (
-          <Button type="button" variant={saveVariant} onClick={onSave} disabled={saveDisabled} data-testid="save"
-            title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
-            Save
-          </Button>
-        )}
       </div>
     </header>
   );

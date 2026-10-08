@@ -62,6 +62,14 @@ async page => {
   const message = await warning.innerText();
   assert(message.includes('Read-only:') && message.includes('Line 3') && message.includes('keyboard') && message.includes('then Reload'), 'Missing location, reason or recovery path');
   assert(await editor.getAttribute('contenteditable') === 'false', 'Blocked document accepts typing');
+  const disabledSave = await save.evaluate(button => {
+    const paper = document.querySelector('.document');
+    if (!paper) throw Error('Missing document surface');
+    const style = getComputedStyle(button);
+    return {background:style.backgroundColor, paper:getComputedStyle(paper).backgroundColor, opacity:Number(style.opacity)};
+  });
+  assert(disabledSave.background !== disabledSave.paper || disabledSave.opacity < 1,
+    'Focusable aria-disabled Save must look unavailable, while retaining its explanatory tooltip');
   await page.getByText('Editable after repair.', {exact:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' MUST NOT APPEAR');
