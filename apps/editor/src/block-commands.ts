@@ -851,7 +851,7 @@ export function formattableSelection(state: EditorState): { from: number; to: nu
   const { $from, $to } = selection;
   const parent = $from.parent;
   const editableInlineParent = parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true);
   if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }

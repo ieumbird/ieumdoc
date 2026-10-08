@@ -41,6 +41,8 @@ import {
   insertQuote,
   updateQuoteInlineContent,
   insertDivider,
+  insertFootnote,
+  updateFootnoteDefinition,
   convertBlock,
   updateHeadingInlineContent,
   updateEquationLatex,
@@ -237,6 +239,31 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Replace the paragraph of one editable top-level Quote.",
       "Quotes with several paragraphs or other blocks inside are read-only.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "insert-footnote",
+    summary: "Insert a footnote reference and its definition",
+    usage: "ieumdoc insert-footnote <file> --path <indexes> --offset <number> (--text <text> | --content <json>)",
+    details: [
+      "Insert a footnote reference at --offset in one editable top-level Paragraph, Heading, Quote or",
+      "simple admonition, or a table cell (--path table,row,cell), and its definition at the end of the",
+      "document. The label is the next unused number; shown numbers follow reference order.",
+      "--text or --content is the definition.",
+      "Offset is measured in UTF-16 code units over rendered content; inline math and footnotes count as one.",
+      "Offset may be 0 or the content length.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
+    name: "update-footnote",
+    summary: "Replace the text of a footnote definition",
+    usage: "ieumdoc update-footnote <file> --path <index> (--text <text> | --content <json>)",
+    details: [
+      "Replace the paragraph of one editable footnote definition, keeping its label.",
+      "Definitions with several paragraphs or footnote references inside are read-only;",
+      "use replace-block-source for them.",
       ...PATH_NOTE,
     ],
   },
@@ -650,6 +677,14 @@ function main(argv: string[]): number {
       save(file, updateQuoteInlineContent(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
       return 0;
     }
+    case "insert-footnote": {
+      save(file, insertFootnote(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags)));
+      return 0;
+    }
+    case "update-footnote": {
+      save(file, updateFootnoteDefinition(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      return 0;
+    }
     case "insert-divider": {
       save(file, insertDivider(parse(readFile(file)), intFlag(flags, "--at")));
       return 0;
@@ -886,6 +921,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-admonition-variant": ["--path", "--variant"],
   "insert-quote": ["--at", "--text", "--content"],
   "update-quote": ["--path", "--text", "--content"],
+  "insert-footnote": ["--path", "--offset", "--text", "--content"],
+  "update-footnote": ["--path", "--text", "--content"],
   "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
@@ -1047,6 +1084,9 @@ function machineBlock(block: EditableBlock): MachineNode[] {
   if (block.block === "quote") {
     return [{ ...base, editable: block.editable, text: block.text }];
   }
+  if (block.block === "footnote") {
+    return [{ ...base, label: block.label, editable: block.editable, text: block.text }];
+  }
   if (block.block === "divider") {
     return [base];
   }
@@ -1113,6 +1153,9 @@ function formatBlock(block: EditableBlock): string[] {
   }
   if (block.block === "quote") {
     return [`${path} quote inlineEditable=${block.editable} text=${quote(block.text)}`];
+  }
+  if (block.block === "footnote") {
+    return [`${path} footnote label=${quote(block.label)} inlineEditable=${block.editable} text=${quote(block.text)}`];
   }
   if (block.block === "divider") {
     return [`${path} divider`];

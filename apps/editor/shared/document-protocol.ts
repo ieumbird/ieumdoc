@@ -90,11 +90,18 @@ export type QuoteEdit = {
   content: InlineContent[];
 };
 
+/** The new paragraph content of an editable footnote definition; its label stays. */
+export type FootnoteEdit = {
+  path: NodePath;
+  content: InlineContent[];
+};
+
 export type InsertEdit =
   | { block: "paragraph"; content: InlineContent[] }
   | { block: "heading"; level: number; content: InlineContent[] }
   | { block: "admonition"; variant: AdmonitionVariant; content: InlineContent[] }
   | { block: "quote"; content: InlineContent[] }
+  | { block: "footnote"; label: string; content: InlineContent[] }
   | { block: "divider" }
   | { block: "equation"; latex: string; label?: string }
   | ({ block: "figure"; label?: string } & FigureContent)
@@ -128,6 +135,7 @@ export type SupportedEdits = {
   tableCaptions?: { path: NodePath; content: InlineContent[] }[];
   admonitions?: AdmonitionEdit[];
   quotes?: QuoteEdit[];
+  footnotes?: FootnoteEdit[];
   lists?: ListEdit[];
   codes?: CodeEdit[];
   labels?: LabelEdit[];

@@ -35,6 +35,8 @@ import {
   updateAdmonitionVariant,
   insertQuote,
   updateQuoteInlineContent,
+  insertFootnoteDefinition,
+  updateFootnoteDefinition,
   insertDivider,
   updateFigure,
   updateLabel,
@@ -146,6 +148,15 @@ export function saveEdits(
       throw new Error(`quote edit is not allowed at [${quote.path.join(",")}]`);
     }
     document = editAt(target, () => updateQuoteInlineContent(document, quote.path, quote.content));
+  }
+  for (const footnote of edits.footnotes ?? []) {
+    const target = { path: [footnote.path[0]], part: 0 };
+    assertPath(footnote.path, "footnote");
+    const block = blockAt(editable, footnote.path);
+    if (block?.block !== "footnote" || !block.editable) {
+      throw new Error(`footnote edit is not allowed at [${footnote.path.join(",")}]`);
+    }
+    document = editAt(target, () => updateFootnoteDefinition(document, footnote.path, footnote.content));
   }
   for (const edit of edits.lists ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
@@ -303,6 +314,7 @@ export function saveEdits(
     ...(edits.figures ?? []).map(edit => edit.path),
     ...(edits.admonitions ?? []).map(edit => edit.path),
     ...(edits.quotes ?? []).map(edit => edit.path),
+    ...(edits.footnotes ?? []).map(edit => edit.path),
     ...(edits.lists ?? []).map(edit => edit.path),
     ...(edits.codes ?? []).map(edit => edit.path),
     ...(edits.tables ?? []).map(edit => edit.path),
@@ -358,6 +370,8 @@ export function saveEdits(
       }
       continue;
     }
+    // Core validates the label and the content when it inserts the definition.
+    if (insert.block === "footnote") continue;
     // Core validates list and code block content and target labels itself when it inserts them.
     if (insert.block === "list" || insert.block === "code" || insert.block === "divider" || insert.block === "target") continue;
     if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
@@ -417,6 +431,8 @@ export function saveEdits(
       document = editAt(target, () => insertAdmonition(document, index, item.variant, item.content));
     } else if (item.block === "quote") {
       document = editAt(target, () => insertQuote(document, index, item.content));
+    } else if (item.block === "footnote") {
+      document = editAt(target, () => insertFootnoteDefinition(document, index, item.label, item.content));
     } else if (item.block === "divider") {
       document = editAt(target, () => insertDivider(document, index));
     } else if (item.block === "equation") {

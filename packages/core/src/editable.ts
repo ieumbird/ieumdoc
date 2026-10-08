@@ -15,7 +15,7 @@ import { supportedListContent } from "./myst/list.ts";
 import { isDivider, supportedQuoteContent } from "./myst/quote.ts";
 import { supportedTargetLabel } from "./myst/reference.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
-import { footnoteReferences } from "./myst/footnote.ts";
+import { footnoteReferences, supportedFootnoteContent } from "./myst/footnote.ts";
 import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
@@ -75,6 +75,16 @@ export type EditableBlock = (
       editable: boolean;
     }
   | {
+      /** A footnote definition. Footnotes v2 edits one paragraph of supported inline content
+       * without footnote references; other definitions are read-only. */
+      block: "footnote";
+      path: NodePath;
+      label: string;
+      text: string;
+      content: InlineContent[];
+      editable: boolean;
+    }
+  | {
       /** A plain thematic break (`---`). */
       block: "divider";
       path: NodePath;
@@ -122,8 +132,6 @@ export type EditableBlock = (
       block: "unsupported";
       path: NodePath;
       text: string;
-      /** The label of the footnote this block defines, for a footnote definition. */
-      footnote?: string;
     }) & {
       /** Source context for visually unsupported content; never used to write. `line` is its
        * line in the opened file, absent for block source applied since (`replaceBlockSource`). */
@@ -222,6 +230,11 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
     const content = supportedQuoteContent(node);
     return { block: "quote", path, text: readableText(node), content: content ?? [], editable: content !== undefined };
   }
+  if (node.type === "footnoteDefinition" && typeof node.label === "string") {
+    const content = supportedFootnoteContent(node);
+    return { block: "footnote", path, label: node.label, text: content ? inlineContentText(content) : readableText(node),
+      content: content ?? [], editable: content !== undefined };
+  }
   if (isDivider(node)) {
     return { block: "divider", path };
   }
@@ -251,12 +264,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (target !== undefined) {
     return { block: "target", path, label: target };
   }
-  return {
-    block: "unsupported",
-    path,
-    text: readableText(node),
-    ...(node.type === "footnoteDefinition" && typeof node.label === "string" ? { footnote: node.label } : {}),
-  };
+  return { block: "unsupported", path, text: readableText(node) };
 }
 
 const INLINE_CONTAINERS = new Set(["paragraph", "heading", "caption", "tableCell"]);

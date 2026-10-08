@@ -17,6 +17,7 @@ export type {
   CodeEdit,
   LabelEdit,
   QuoteEdit,
+  FootnoteEdit,
   InsertEdit,
   OrderItem,
   SupportedEdits,

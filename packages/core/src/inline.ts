@@ -176,7 +176,7 @@ function scriptContentError(children: InlineContent[]): string | undefined {
 }
 
 /** Why `label` cannot be a footnote label as MyST reads `[^label]`, or undefined. */
-function footnoteLabelError(label: string): string | undefined {
+export function footnoteLabelError(label: string): string | undefined {
   return /^[^\s\]]+$/.test(label) && labelIdentifier(label) ? undefined : "footnote label must be non-empty and contain no whitespace or ]";
 }
 

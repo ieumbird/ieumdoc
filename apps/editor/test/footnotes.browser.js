@@ -1,6 +1,8 @@
-// Footnotes (#119): numbered reference chips go to their definitions, a paragraph with footnotes
-// is edited and saved with every definition where it is written, a definition's own source
-// applies unchanged, and removing a footnote's last reference is refused with the reason.
+// Footnotes (#119, #140): numbered reference chips go to their definitions, a paragraph with
+// footnotes is edited and saved with every definition where it is written, a read-only
+// definition's own source applies unchanged, a one-paragraph definition is edited in place, `/`
+// Footnote inserts a reference and a definition whose number goes back to it, and removing a
+// footnote's last reference is refused with the reason.
 async page => {
   await page.unrouteAll();
   await page.reload();
@@ -41,7 +43,7 @@ async page => {
   // The definition's source is its own; applying it unchanged changes nothing.
   const definition = page.locator('.original-content').filter({hasText:'[^a]: Defined later,'});
   await definition.locator('summary').click();
-  assert(await definition.locator('pre').textContent() === '[^a]: Defined later,\n    on two lines.', 'Definition source');
+  assert(await definition.locator('pre').textContent() === '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.', 'Definition source');
   await definition.getByTestId('block-source-edit').click();
   await definition.getByTestId('block-source-apply').click();
   await definition.getByTestId('block-source-input').waitFor({state:'detached'});
@@ -63,6 +65,47 @@ async page => {
   assert(JSON.stringify(await texts(chips)) === '["1","2"]', 'Reloaded chips');
   result.editSaveReload = true;
 
+  // A chip goes into its editable definition, which is edited in place.
+  const caretIn = label => page.waitForFunction(label => {
+    const {selection} = document.querySelector('.document-editor').editor.state;
+    return selection.empty && selection.$from.parent.type.name === 'footnoteDefinition' && selection.$from.parent.attrs.label === label;
+  }, label);
+  await editor.locator('[data-testid="footnote-reference"][data-label="b"] sup').click();
+  await caretIn('b');
+  await page.keyboard.type(' More.');
+  result.chipGoesIntoEditableDefinition = true;
+
+  // `/` Footnote: the reference follows the word, and the new definition at the end takes the caret.
+  await editor.locator('p.paragraph', {hasText:'Middle paragraph.'}).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' /footnote');
+  await page.getByRole('menuitem', {name:'Footnote', exact:true}).waitFor();
+  await page.keyboard.press('Enter');
+  await caretIn('1');
+  const created = editor.locator('[data-testid="footnote-definition"][data-label="1"]');
+  // One Undo removes the reference and its definition together; Redo restores both.
+  await page.keyboard.press('Control+z');
+  assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await created.count() === 0, 'Undo left part of the footnote');
+  await page.keyboard.press('Control+Shift+z');
+  await created.locator('p').click();
+  await caretIn('1');
+  await page.keyboard.type('New note.');
+  assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', `Chips after insertion: ${await texts(chips)}`);
+  assert((await created.getByTestId('footnote-number').innerText()).trim() === '3', 'New definition number');
+  await created.getByTestId('footnote-number').click();
+  const back = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.node?.attrs.label);
+  assert(back === '1', `Number went back to ${back}`);
+  result.slashInsertsFootnote = true;
+  await page.locator('.top-bar [data-testid="save"]').click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  const inserted = await read();
+  const expected = saved.replace('[^b]: Defined first.', '[^b]: Defined first. More.').replace('Middle paragraph.', 'Middle paragraph.[^1]') + '\n[^1]: New note.\n';
+  assert(inserted === expected, 'Saved Markdown differs: ' + JSON.stringify({expected, inserted}));
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await ready();
+  assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', 'Reloaded chips after insertion');
+  result.insertedSaveReload = true;
+
   // Removing the only reference to [^b] would make MyST drop its definition.
   await editor.locator('p.paragraph', {hasText:'First claim'}).click({position:{x:4, y:8}});
   await page.keyboard.press('Home');
@@ -72,11 +115,11 @@ async page => {
   await page.keyboard.press('ArrowRight');
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.node?.type.name === 'footnoteReference');
   await page.keyboard.press('Backspace');
-  assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a"]', 'Chip not removed');
+  assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
   await page.locator('.top-bar [data-testid="save"]').click();
   await page.getByText('Save failed', {exact:true}).waitFor();
   assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing');
-  assert(await read() === saved, 'Refused save wrote the file');
+  assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
   return result;
 }

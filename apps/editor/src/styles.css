@@ -1014,6 +1014,25 @@ ol.list { list-style: decimal; }
 
 .footnote-number {
   margin-right: var(--space-1);
+  cursor: pointer;
+}
+
+/* An editable definition: its text, with its number hanging before the first line like a note. */
+.footnote-definition {
+  position: relative;
+  margin: var(--space-4) 0;
+  padding-left: var(--space-4);
+}
+
+.footnote-definition > .footnote-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  line-height: normal;
+}
+
+.footnote-definition-body {
+  margin: 0;
 }
 
 /* A section label is authoring metadata, like a Figure label. It takes no layout space (its

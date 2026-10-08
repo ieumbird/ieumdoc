@@ -90,7 +90,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg")], scenarios: ["cross-reference"] },
   "footnotes": {
     files: [{ name: "footnotes.md", create: () =>
-      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n" }],
+      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" }],
     scenarios: ["footnotes"],
   },
   "folder-navigation": {

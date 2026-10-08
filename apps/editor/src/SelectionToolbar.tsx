@@ -122,7 +122,7 @@ function toggleMark(editor: Editor, mark: "bold" | "italic" | "strike" | "subscr
 function editableInlineContext(editor: Editor): boolean {
   const parent = editor.state.selection.$from.parent;
   return parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true);
 }
 
 /** The paragraph text range a link form edits, and the link already there, if any. */

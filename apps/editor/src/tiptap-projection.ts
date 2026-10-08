@@ -109,6 +109,12 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
       ? { type: "quote", attrs: { sourcePath: pathKey(block.path) }, content: paragraphContent(block.content) }
       : readonlyNode("unsupportedBlock", block.path, { text: block.text });
   }
+  if (block.block === "footnote") {
+    // Footnotes v2 definitions hold one paragraph; others are read-only like any unsupported block.
+    return block.editable
+      ? { type: "footnoteDefinition", attrs: { sourcePath: pathKey(block.path), label: block.label }, content: paragraphContent(block.content) }
+      : readonlyNode("unsupportedBlock", block.path, { text: block.text, footnote: block.label });
+  }
   if (block.block === "divider") {
     return { type: "divider", attrs: { sourcePath: pathKey(block.path) } };
   }
@@ -161,7 +167,7 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
   if (block.block === "target") {
     return { type: "labelTarget", attrs: { sourcePath: pathKey(block.path), label: block.label } };
   }
-  return readonlyNode("unsupportedBlock", block.path, { text: block.text, ...(block.footnote ? { footnote: block.footnote } : {}) });
+  return readonlyNode("unsupportedBlock", block.path, { text: block.text });
 }
 
 function listNode(list: ListContent): TiptapJSON {
