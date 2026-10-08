@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FolderEntry, FolderResponse } from "../shared/document-protocol.ts";
-import { folderChain, folderTreeReducer, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
+import { folderChain, folderTreeReducer, knownFolders, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
 
 const ROOT = "/r";
 const folder = (path: string): FolderEntry => ({ name: path.split("/").pop()!, kind: "folder", path });
@@ -63,6 +63,14 @@ test("a failed listing collapses its folder; a stale failure does not", () => {
   assert.equal(folderTreeReducer(state, { type: "loadFailure", root: ROOT, path: "/r/a", request: 1 }), state);
   state = folderTreeReducer(state, { type: "loadFailure", root: ROOT, path: "/r/a", request: 2 })!;
   assert.equal(state.expanded.has("/r/a"), false);
+});
+
+test("known folders are the chosen folder and every listed sub-folder, in tree order, expanded or not", () => {
+  let state = opened();
+  state = folderTreeReducer(state, { type: "loadStart", root: ROOT, path: "/r/a", request: 1 })!;
+  state = folderTreeReducer(state, { type: "loadSuccess", root: ROOT, path: "/r/a", request: 1, listing: listing("/r/a", [folder("/r/a/deep"), doc("/r/a/x.md")]) })!;
+  assert.equal(state.expanded.has("/r/a"), false);
+  assert.deepEqual(knownFolders(state), ["/r", "/r/a", "/r/a/deep", "/r/b"]);
 });
 
 test("the folders above a document are found only inside the chosen folder", () => {

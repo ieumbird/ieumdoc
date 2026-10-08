@@ -20,7 +20,7 @@ async page => {
   await page.getByTestId('folder').getByRole('treeitem',{name:'quiet-document.md',exact:true}).waitFor();
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
   const results=[];
-  for(const width of [1440,1025,1024,768,705,704]) {
+  for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
     await page.setViewportSize({width,height:1000});
     for(const collapsed of [false,true]) {
       if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
@@ -60,10 +60,11 @@ async page => {
         const token=name=>{const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();if(!v.endsWith('rem'))throw Error(`Unexpected ${name}: ${v}`);return parseFloat(v)*parseFloat(getComputedStyle(document.documentElement).fontSize);};
         const sidebarWidth=rect('.sidebar').width;
         const expectedSidebar=collapsed?token('--layout-sidebar-rail-width'):token(innerWidth<=1024?'--layout-sidebar-width-narrow':'--layout-sidebar-width');
-        // The document panel starts open beside a wide document and closed in the narrow layout.
+        // The document panel starts open (docked) from the 1280px docking width and closed below it,
+        // independently of the 1024px narrow sidebar.
         const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
         const panelWidth=panel?Math.min(panel.right,innerWidth+1)-panel.left:0;
-        const expectedPanel=innerWidth<=1024?0:token('--layout-document-panel-width');
+        const expectedPanel=innerWidth<1280?0:token('--layout-document-panel-width');
         const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
         const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
         const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
@@ -80,23 +81,28 @@ async page => {
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
-  // Opened in the narrow layout, the document panel overlays at its own width: the document keeps its
-  // width and the page does not scroll sideways. Escape closes it and returns focus to the TopBar toggle.
+  // Opened below the docking width, the document panel overlays at its own width below the sticky
+  // header: the document keeps its width, the page does not scroll sideways, and Save, Reload and the
+  // Outline toggle stay uncovered, also when the TopBar wraps. Escape closes it and returns focus.
   const outlineToggle=page.getByRole('button',{name:'Outline',exact:true});
   const shell=()=>page.evaluate(()=>{
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
     const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
     const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
-    return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,token,overflow:document.documentElement.scrollWidth>innerWidth};
+    const uncovered=['[data-testid="save"]','.top-bar-actions button[title="Reload the file from disk"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{
+      const r=rect(s);const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return document.querySelector(s).contains(hit);
+    });
+    return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
   });
-  for(const width of [1024,768]) {
+  for(const width of [1279,1024,768,704]) {
     await page.setViewportSize({width,height:1000});
     await page.locator('.document-panel').waitFor({state:'detached'});
     const closed=await shell();
     await outlineToggle.click();
     await page.getByTestId('outline').waitFor();
     const open=await shell();
-    if(open.main!==closed.main||open.column!==closed.column||Math.abs(open.panelRight-width)>0.5||Math.abs(open.panelRight-open.panelLeft-open.token)>0.5||open.overflow||await outlineToggle.getAttribute('aria-pressed')!=='true')
+    if(open.main!==closed.main||open.column!==closed.column||Math.abs(open.panelRight-width)>0.5||Math.abs(open.panelRight-open.panelLeft-open.token)>0.5||open.overflow||await outlineToggle.getAttribute('aria-pressed')!=='true'||
+      Math.abs(open.panelTop-open.headerBottom)>0.5||Math.abs(open.panelBottom-1000)>0.5||!open.uncovered)
       throw Error(`Narrow document panel: ${JSON.stringify({width,closed,open})}`);
     await page.getByTestId('outline').getByRole('button').first().focus();
     await page.keyboard.press('Escape');
