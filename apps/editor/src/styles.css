@@ -1300,6 +1300,11 @@ ol.list { list-style: decimal; }
   cursor: pointer;
 }
 
+/* KaTeX lays out a formula in em from the one size on .katex, so this scales it whole. */
+.inline-math-rendered .katex {
+  font-size: var(--math-inline-size);
+}
+
 .inline-math-rendered:hover,
 .inline-math[data-selected="true"] .inline-math-rendered {
   background: var(--id-color-surface-muted);

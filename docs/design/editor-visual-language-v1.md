@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-09 (`layout-rules`, `quiet-document`, `visual-states`, `folder-navigation`; bundled Pretendard glyphs and same-state responsive captures).
+- Last verified: 2026-10-09 (`layout-rules`, `quiet-document`, `visual-states`, `folder-navigation`; bundled Pretendard glyphs, inline math size and same-state responsive captures).
 - Current contract: v3. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -29,7 +29,7 @@
 
 Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. The Editor pins the official `pretendard` package to `1.3.9` and imports its variable dynamic-subset CSS. Vite resolves the relative WOFF2 URLs into app-hosted assets. All upstream subsets remain available for newly entered text; only needed ranges are requested. The upstream `font-display: swap` and weight range are retained, so a system fallback can appear while a font loads or for unsupported characters. No CSS size adjustment or new typography dimensions are introduced.
 
-The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography.
+The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography; inline math is sized by `--math-inline-size` ([verification](../reviews/inline-math-size-2026-10-09.md)).
 
 Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply and existing primary actions. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product brand accent, and `muted` remains a quiet background rather than a universal interaction state.
 
@@ -44,7 +44,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | `border-control` | `#7b8390`: fields, outlined buttons, neutral active segments/toggles. At least 3:1 against their adjacent white/panel/pressed faces |
 | `interaction`, `interaction-soft` | `#315fd4` indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
 
-Keyboard control focus uses a separate 2px ring; a current marker, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
+Keyboard control focus uses a separate 2px ring; a current marker, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
 
 ## State rules
 
@@ -125,6 +125,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px). The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 176px). The collapsed rail is fixed.
 - Document panel entry: `--layout-document-panel-width` (256px), docked or overlaid.
+- Inline math entry: `--math-inline-size` (1.1em of its text). KaTeX's own 1.21em reads larger than Pretendard body text and, with integral or sum limits, makes a line taller.
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
 
 ## Responsibility boundaries
