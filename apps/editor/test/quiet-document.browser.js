@@ -123,6 +123,11 @@ async (page, { screenshots = false } = {}) => {
   check(await json()===initial,'Visual interactions or canceled drafts changed document JSON');
   check(await page.getByTestId('status').textContent()==='','Canceled drafts left a false dirty status');
 
+  // Cancel switches Save from the accent action back to its clean state. Measure the
+  // static face after the existing color transition, not an interpolated frame.
+  await page.getByTestId('save').evaluate(async n => {
+    await Promise.all(n.getAnimations().map(animation => animation.finished));
+  });
   const contrast=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
     const context=canvas.getContext('2d');

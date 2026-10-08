@@ -11,15 +11,16 @@
   --popover-foreground: var(--id-color-text);
   --primary: var(--id-color-accent);
   --primary-foreground: var(--id-color-text-on-accent);
-  --secondary: var(--id-color-surface-muted);
+  --secondary: var(--id-color-surface);
   --secondary-foreground: var(--id-color-text);
   --muted: var(--id-color-surface-subtle);
   --muted-foreground: var(--id-color-text-muted);
-  --accent: var(--id-color-surface-muted);
+  /* shadcn accent is an interaction surface, not the product's heritage-red brand accent. */
+  --accent: var(--id-color-surface-hover);
   --accent-foreground: var(--id-color-text);
   --destructive: var(--id-color-danger);
   --border: var(--id-color-border);
-  --input: var(--id-color-border-strong);
+  --input: var(--id-color-border-control);
   --ring: var(--id-color-border-focus);
 }
 

@@ -25,6 +25,8 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, creat
   const [destination, setDestination] = useState(directory);
   const [error, setError] = useState("");
   const created = useRef(false);
+  const filename = name.trim();
+  const invalidName = !filename || filename === "." || filename === ".." || /[\\/]/.test(filename);
 
   useEffect(() => {
     if (open) {
@@ -43,8 +45,7 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, creat
           onSubmit={async (event) => {
             event.preventDefault();
             if (busy) return;
-            const filename = name.trim();
-            if (!filename || filename === "." || filename === ".." || /[\\/]/.test(filename)) {
+            if (invalidName) {
               setError("Enter a file name without a directory path.");
               return;
             }
@@ -64,11 +65,11 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, creat
             <DialogTitle>New Markdown file</DialogTitle>
             <DialogDescription>Name your Markdown file. The .md extension is added if omitted.</DialogDescription>
           </DialogHeader>
-          <label className="grid gap-1 text-sm text-muted-foreground">
-            Location
+          <label className="form-field">
+            <span>Location</span>
             {/* The destination is always shown and chosen here, never inferred from the tree. */}
             <select
-              className="h-[var(--size-control)] w-full min-w-0 rounded-lg border border-input bg-transparent px-[var(--space-3)] text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="h-[var(--size-control)] w-full min-w-0 rounded-md border border-input bg-background px-[var(--space-3)] text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               data-testid="new-file-directory"
               title={destination}
               value={destination}
@@ -81,12 +82,14 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, creat
               {destinations.map(option => <option key={option.path} value={option.path}>{option.label}</option>)}
             </select>
           </label>
-          <label className="grid gap-1 text-sm text-muted-foreground">
-            Name
+          <label className="form-field">
+            <span>Name</span>
             <Input
               id="new-file-name"
               data-testid="new-file-name"
               aria-label="New Markdown file name"
+              aria-invalid={error && invalidName ? true : undefined}
+              aria-describedby={error ? "new-file-error" : undefined}
               className="text-foreground"
               value={name}
               onChange={(event) => {
@@ -98,7 +101,7 @@ export function NewDialog({ open, busy, destinations, directory, onCreate, creat
               autoFocus
             />
           </label>
-          {error ? <p className="text-sm text-destructive" role="alert" data-testid="new-error">{error}</p> : null}
+          {error ? <p id="new-file-error" className="text-sm text-destructive" role="alert" data-testid="new-error">{error}</p> : null}
           <DialogFooter>
             <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" disabled={busy || !name.trim()}>Create</Button>

@@ -40,20 +40,24 @@ export function OpenDialog({ open, initialPath, busy, onOpen, onClose }: OpenDia
           <DialogHeader>
             <DialogTitle>Open Markdown file</DialogTitle>
           </DialogHeader>
-          <Input
-            id="file-path"
-            data-testid="file-path"
-            aria-label="Markdown file path"
-            value={path}
-            onChange={(event) => {
-              setPath(event.target.value);
-              setError("");
-            }}
-            placeholder="path/to/document.md"
-            disabled={busy}
-            autoFocus
-          />
-          {error ? <p className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
+          <label className="form-field" htmlFor="file-path">
+            <span>Markdown file path</span>
+            <Input
+              id="file-path"
+              data-testid="file-path"
+              aria-label="Markdown file path"
+              aria-describedby={error ? "open-file-error" : undefined}
+              value={path}
+              onChange={(event) => {
+                setPath(event.target.value);
+                setError("");
+              }}
+              placeholder="path/to/document.md"
+              disabled={busy}
+              autoFocus
+            />
+          </label>
+          {error ? <p id="open-file-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
           <DialogFooter>
             <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" disabled={busy || !path.trim()}>Open</Button>

@@ -1,8 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-08 (empty-document surface and starting interaction: `new-document`, `layout-rules` and `quiet-document`; same-state captures compared).
-- Current contract: v2. Historical filename retained for link stability.
+- Last verified: 2026-10-08 (`visual-states`, `layout-rules`, `quiet-document` and `folder-navigation`; actual same-state captures and CDP glyph fonts).
+- Current contract: v3. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
@@ -10,13 +10,13 @@
 
 **Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
-[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and selection use a separate blue-gray interaction role. No new fonts are downloaded or packaged.
+[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and current items use a separate blue interaction role. No new fonts are downloaded or packaged.
 
 ## Surfaces and typography
 
 | Role | Actual values / treatment |
 | --- | --- |
-| Shell | `#f7f7f6` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
+| Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (176px at ≤1024px), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
 | Document | White continuous writing surface on the `surface-subtle` canvas, with a 1px inset `border-subtle` edge and no radius or raised shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
 | Narrow document | Below 1280px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps; sidebar remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
@@ -27,9 +27,22 @@
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 
-Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. No font package, binary or CDN dependency is added. This Windows browser uses installed Noto Sans KR for both scripts; the stack remains usable offline without Pretendard. Pretendard packaging is deferred beyond this polish and would require license/bundle review. Heading sizes/weights/line heights are unchanged; the former H1 negative tracking is removed.
+Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. No font package, binary or CDN dependency is added. CDP `CSS.getPlatformFontsForNode` on the 2026-10-08 Windows captures reports installed Noto Sans KR for Latin and Korean UI/body glyphs, including its bold/semibold faces. This is an environment observation, not a guarantee for other machines or a claim that Pretendard is bundled. Heading sizes/weights/line heights are unchanged; the former H1 negative tracking is removed.
 
-Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply. `--id-color-interaction` is `#426782`, with `--id-color-interaction-soft: #e9f0f5` for selection surfaces; focus, selection outlines, the current table cell and the drag indicator use this role. Content links, references and informational callouts use `--id-color-info` (v2). `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. Keyboard control focus uses a 2px solid ring; selection has an outline and controls, and errors retain explanatory text. Normal UI text targets 4.5:1 contrast; focus rings remain visible. Formula typography belongs to KaTeX, whose internals are not restyled. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
+Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply and existing primary actions. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product brand accent, and `muted` remains a quiet background rather than a universal interaction state.
+
+| Product role (prefix `--id-color-`) | Value / responsibility |
+| --- | --- |
+| `surface`, `surface-subtle` | White paper/dialogs and `#f6f7f9` panels |
+| `surface-hover` | `#eaedf2`, visible on both panels and white paper |
+| `surface-selected`, `surface-selected-hover`, `text-selected` | `#e9f0ff`, `#e1eaff`, `#2449a6`: current navigation and active command choice |
+| `surface-pressed` | `#e3e7ee`: neutral persistent toggle/menu-open face, accompanied by a control boundary |
+| `text`, `text-muted`, `text-subtle` | `#20242c`, `#545c68`, `#606874`: main text, secondary labels, metadata; subtle remains readable on hover surfaces |
+| `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
+| `border-control` | `#7b8390`: fields, outlined buttons, neutral active segments/toggles. At least 3:1 against their adjacent white/panel/pressed faces |
+| `interaction`, `interaction-soft` | `#315fd4` indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
+
+Keyboard control focus uses a separate 2px ring; a current marker, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
 
 ## State rules
 
@@ -42,6 +55,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
 | Read-only | Existing restriction is visible; source view stays read-only. |
+| Disabled control | Native disabled controls retain dimming. Focusable `aria-disabled` controls use a muted face, secondary text and structural boundary, preserving their tooltip, focus ring and Base UI activation guard. |
 | No hover device | Gutter and Edit remain visible. |
 
 These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel removes only a never-applied new Figure, as before.
@@ -66,21 +80,23 @@ Same-state comparison, base `e46b0ec` and #133 (2026-10-08). Empty captures exer
 
 TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. The status sits beside the filename (v2). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
 
-## v2 — Chrome recedes (2026-10-06)
+## Shell and control rules — v3 (2026-10-08)
 
-Features added after v1 (outline, table handles, heading numbering, block source editing, section labels) had started to compete with the document. v2 restates two rules, after [Linear's design refresh](https://linear.app/now/behind-the-latest-design-refresh): **controls do not compete for attention they have not earned**, and **structure is felt, not seen**.
+v2 reduced persistent chrome. v3 keeps that document-first layout while distinguishing roles and simultaneous states: current location, hovered alternative, pressed/open control and keyboard focus. It changes static presentation only; it adds no motion or interaction engine.
 
 | Area | Rule |
 | --- | --- |
-| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering, an icon toggle with tooltip), view (Visual/Source, then the Wide document and Outline icon toggles), file actions (Reload, Save). Every control except Save is a ghost button. Save is outlined when there is nothing to save and takes the accent only with unsaved changes. |
-| Sidebar and Document panel | One "current" treatment, neutral: `surface-muted`, text color, semibold, for both the open file and the section being read. The panel title (Outline) uses the folder heading's type; the panel has no tabs. The folder heading is the sidebar's identity: 14px semibold text color with a folder icon, above muted tree entries whose chevrons use the subtle text color and whose folders show an open icon while expanded; its actions are compact ghost icons. Without a folder, Open folder… is an outlined button and Open file… a ghost button: neither takes the accent. Outline indentation stops after three levels and items wrap to two lines instead of ellipsizing. |
-| Color | Two blue axes only. Interaction (`interaction`, `interaction-soft`): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Chrome uses neutrals. `--id-color-admonition` and `--id-color-surface-admonition` were removed. |
+| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering), view (Visual/Source, Wide document, Outline), file actions (Reload, Save), with 12px between groups and 4px within them. Save is outlined when clean and takes the accent with unsaved changes. Visual/Source is one neutral segmented control with a white active face, dark text and control boundary; Wide/Outline/numbering use the neutral pressed face and boundary when on. Hover preserves these states. |
+| Sidebar and Document panel | One current rule for both the open file and section being read: selected surface, selected text and a 3px vertical interaction marker. Hover uses the neutral hover surface; current+hover uses selected-hover and keeps the marker. An independent inset focus ring is not clipped by the scrolling lists. Current does not change font metrics or text placement. The folder and Outline headings remain 14px semibold; ordinary rows remain 14px regular. Folder icons/chevrons, wrapping/indent limits and compact ghost actions retain their behavior. Without a folder, Open folder… stays outlined and Open file… stays ghost. |
+| Controls | Base UI and native controls share 6px radii, 32px standard/28px compact targets and 16px icon slots. Ghost rest is transparent; hover is visible on a panel as well as white paper. Menu open and pressed states use the neutral pressed face plus control boundary. Secondary/Cancel uses a white outlined face, with neutral hover. Refs, events, selection preservation and existing motion are retained. |
+| Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Open/New/Folder retain and associate their error messages. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The document is never raised into a card. |
+| Color | Interaction (`interaction`, selected roles): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Most chrome and independent toggle faces stay neutral. Brand and danger meanings remain unchanged. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
 | Callouts | Side bar and surface carry the kind; no full outline. |
 | Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
 | Read-only blocks | One indication: the source summary (`kind · Read-only content · line`). No separate label, no uppercase anywhere; `.block-kind` is plain 12px semibold metadata. Read-only text separates block children (`Draft Review`, not `DraftReview`). |
 
-Before/After at 1440px, same document and state (heading numbers on with unsaved changes; a section reference just inserted, then the heading hovered):
+Historical v2 Before/After at 1440px, same document and state (heading numbers on with unsaved changes; a section reference just inserted, then the heading hovered). These are not current v3 captures:
 
 | Before (`c9077b8`) | After |
 | --- | --- |
@@ -91,11 +107,11 @@ Before/After at 1440px, same document and state (heading numbers on with unsaved
 
 A change to the Editor's look or a new visible control states which rule above (or in v1) it follows, or updates this document in the same PR. Compare the same states before and after:
 
-1. Check out the base in a second worktree and start its dev server on a free port (for example 5174).
+1. Capture the clean base before editing and preserve its files separately, or check out the base in a second worktree and start its dev server on a free port (for example 5174).
 2. In each checkout, run `pnpm browser:test quiet-document --screenshots` against that checkout's own server; in the base worktree set `IEUMDOC_BROWSER_URL=http://127.0.0.1:5174`. Fixtures and captures belong to the checkout that runs the command.
 3. Compare the captures in each checkout's `tmp/visual-refinement/` and attach the representative pairs to the PR.
 
-This replaces a runtime old/new toggle such as Linear's dev toolbar: IeumDoc keeps one stylesheet, so the base checkout is the "old" side and nothing needs a second style set.
+IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
 ## Adjustable values and preferences
 
@@ -129,6 +145,8 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog. |
 
 ## Evidence and verification
+
+[Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) records the current refinement's baseline, measurements and limits.
 
 [Review record and actual Before/After](editor-visual-refinement-v1-review.md). `quiet-document-reference.png` is the mockup; `quiet-document-before-*` / `quiet-document-after-*` are original v1 Editor captures, and `quiet-document-final-*` are the final polish captures.
 

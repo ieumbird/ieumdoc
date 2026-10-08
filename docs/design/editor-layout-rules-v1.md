@@ -3,13 +3,14 @@
 - Status: Implemented
 - Last verified: 2026-10-08 (`layout-rules` and `new-document`: existing axes, widths and overlays plus the empty writing surface).
 - Scope: Editor shell, document, block tools and control geometry.
-- [Visual Language (current v2)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
+- [Visual Language (current v3)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 ## Alignment and ownership
 
 - Sidebar icons use a 16px slot and 8px label gap. A tree row is a 16px chevron slot (empty for documents), 4px, the icon and the name; top-level rows share one icon start and one text start within 1px. Each level indents 12px, at most five levels; deeper names keep that indent and ellipsize, with the full path in `title`.
 - Sidebar, TopBar and the docked Document panel share a 48px header row. At ≤704px the TopBar wraps and grows; the sidebar and panel headers remain 48px.
 - TopBar and MessageArea share a 20px inline inset. TopBar status sits beside the filename; a status change moves no control (0px, measured).
+- TopBar settings, view and file actions keep their order, separated by 12px between groups and 4px within groups. Visual/Source shares a segmented container. Current file/heading markers and focus rings are outside layout; font metrics and text positions do not change between rest, hover, current and focus.
 - The document column centers in the area remaining between the sidebar and the Document panel. Its maximum width is `--layout-content-width` (928px), or `--layout-content-width-wide` (1280px) with the Wide document preference, with 16px outer insets; it never exceeds the available area. Both values are [adjustable values](editor-visual-language-v1.md#adjustable-values-and-preferences). Wide changes only the column width: the content axis, 80px gutter and block rules stay the same.
 - Document owns the 80px starting gutter: 8px edge + 28px control + 4px gap + 28px control + 12px safety. Trailing inset is 80px, becoming 16px at ≤1024px.
 - The white document surface fills at least the viewport below the measured sticky header, less two outer insets. The column's 16px canvas gap surrounds it; an inset 1px edge changes no width. Long documents grow naturally. The blank paper below the actual editor content remains clickable to continue writing.
@@ -21,7 +22,7 @@
 
 - Standard controls/inputs: 32px; compact controls/actions: 28px; icons: 16px. Measure actual rendered height after transitions complete.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
-- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v2).
+- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v3).
 - Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.
 

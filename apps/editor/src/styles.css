@@ -148,6 +148,7 @@ button {
 /* Chevron, icon and name. One 12px step per level, at most five, so deep names keep some width;
  * a name that still does not fit ellipsizes and the full path stays in `title`. */
 .sidebar-tree-item {
+  position: relative;
   display: grid;
   grid-template-columns: var(--size-icon-slot) var(--size-icon-slot) minmax(0, 1fr);
   align-items: center;
@@ -183,22 +184,6 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.sidebar-tree-item:hover {
-  background: var(--id-color-surface-muted);
-}
-
-.sidebar-tree-item:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: -2px;
-}
-
-/* The same current-item treatment as the section being read in the outline. */
-.sidebar-tree-item[aria-current="page"] {
-  background: var(--id-color-surface-muted);
-  color: var(--id-color-text);
-  font-weight: var(--font-weight-semibold);
 }
 
 .sidebar-folder-empty,
@@ -272,6 +257,7 @@ button {
 }
 
 .document-outline-item {
+  position: relative;
   display: -webkit-box;
   width: 100%;
   padding: var(--space-1) var(--space-3);
@@ -292,24 +278,44 @@ button {
   cursor: pointer;
 }
 
+/* File and heading navigation share independent hover/current/focus axes. The marker is out
+ * of flow; current never changes font metrics, row height or the text's starting position. */
+.sidebar-tree-item:hover,
 .document-outline-item:hover {
-  background: var(--id-color-surface-muted);
+  background: var(--id-color-surface-hover);
 }
 
+.sidebar-tree-item:focus-visible,
 .document-outline-item:focus-visible {
   outline: 2px solid var(--id-color-border-focus);
   outline-offset: -2px;
 }
 
-/* The same current-item treatment as the open file in the folder. */
+.sidebar-tree-item[aria-current="page"],
 .document-outline-item[aria-current="location"] {
-  background: var(--id-color-surface-muted);
-  color: var(--id-color-text);
-  font-weight: var(--font-weight-semibold);
+  background: var(--id-color-surface-selected);
+  color: var(--id-color-text-selected);
+}
+
+.sidebar-tree-item[aria-current="page"]:hover,
+.document-outline-item[aria-current="location"]:hover {
+  background: var(--id-color-surface-selected-hover);
+}
+
+.sidebar-tree-item[aria-current="page"]::before,
+.document-outline-item[aria-current="location"]::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--space-2);
+  left: var(--space-1);
+  width: var(--size-current-marker);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-interaction);
+  pointer-events: none;
 }
 
 .document-outline-untitled {
-  color: var(--id-color-text-subtle);
+  color: inherit;
   font-style: italic;
 }
 
@@ -379,7 +385,14 @@ button {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+/* Spacing distinguishes document settings, view and file actions without adding toolbar chrome. */
+.top-bar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 /* Application messages: full width under the top bar, never inside the document. */
@@ -431,7 +444,11 @@ button {
 }
 
 .status:empty { display: none; }
-.top-bar-toggle[aria-pressed="true"] { background: var(--id-color-surface-muted); color: var(--id-color-text); }
+.top-bar-toggle[aria-pressed="true"] {
+  background: var(--id-color-surface-pressed);
+  border-color: var(--id-color-border-control);
+  color: var(--id-color-text);
+}
 .status[data-operation="Saved"] { color: var(--id-color-text-subtle); }
 
 .ui-button,
@@ -473,14 +490,14 @@ button {
 }
 
 .ui-button--subtle {
-  background: var(--id-color-surface-muted);
+  border-color: var(--id-color-border-control);
+  background: var(--id-color-surface);
   color: var(--id-color-text);
 }
 
 .ui-button--subtle:hover,
 .ui-icon-button:hover {
-  background: var(--id-color-surface-subtle);
-  border-color: var(--id-color-border);
+  background: var(--id-color-surface-hover);
 }
 
 .ui-icon-button {
@@ -492,15 +509,15 @@ button {
   min-width: var(--size-control);
   min-height: var(--size-control);
   padding: 0;
-  background: var(--id-color-surface-muted);
+  background: transparent;
   color: var(--id-color-text);
   font-weight: var(--font-weight-bold);
 }
 
-.ui-icon-button[aria-pressed="true"] {
-  border-color: var(--id-color-interaction);
-  background: var(--id-color-interaction-soft);
-  color: var(--id-color-interaction);
+.ui-icon-button:is([aria-pressed="true"], [aria-expanded="true"]) {
+  border-color: var(--id-color-border-control);
+  background: var(--id-color-surface-pressed);
+  color: var(--id-color-text);
 }
 
 .ui-button:focus-visible,
@@ -826,9 +843,9 @@ ol.list { list-style: decimal; }
 .table-block:is(:hover, :focus-within, [data-selected="true"]) .table-tools,
 .table-tools[data-menu-open="true"], .table-tools[data-active="true"] { visibility: visible; }
 .table-tools button { height: 28px; border: 0; border-radius: var(--id-radius-sm); background: var(--id-color-surface-subtle); color: var(--id-color-text-muted); font: inherit; font-size: var(--font-size-xs); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.table-tools button:hover { background: var(--id-color-surface-muted); }
+.table-tools button:hover { background: var(--id-color-surface-hover); }
 .table-tools svg { pointer-events: none; }
-.table-tools button[aria-pressed="true"] { background: var(--id-color-interaction-soft); color: var(--id-color-interaction); }
+.table-tools button:is([aria-pressed="true"], [aria-expanded="true"]) { background: var(--id-color-surface-pressed); color: var(--id-color-text); box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-control); }
 .table-tools button:focus-visible { outline: 2px solid var(--id-color-interaction); outline-offset: 1px; }
 .table-tools button:disabled { opacity: .5; cursor: default; }
 .table-column-handle { position: absolute; top: 0; }
@@ -937,8 +954,9 @@ ol.list { list-style: decimal; }
   visibility: visible;
 }
 
+/* Error previews keep the Notice's semantic surface, text and border. */
 .equation-input,
-.equation-preview {
+.equation-preview:not(.ui-notice--error) {
   width: 100%;
   box-sizing: border-box;
   padding: var(--space-3);
@@ -950,12 +968,14 @@ ol.list { list-style: decimal; }
 }
 
 .equation-input {
+  border-color: var(--id-color-border-control);
   min-height: 5rem;
   resize: vertical;
   font-family: var(--font-family-mono);
 }
 
 .equation-input:focus {
+  border-color: var(--id-color-border-focus);
   outline: none;
   box-shadow: var(--focus-ring);
 }
@@ -1101,9 +1121,9 @@ ol.list { list-style: decimal; }
   cursor: grab;
 }
 
-.block-insert:hover,
-.block-handle:hover {
-  background: var(--id-color-surface-muted);
+.block-insert:hover:not([aria-expanded="true"]),
+.block-handle:hover:not([aria-expanded="true"]) {
+  background: var(--id-color-surface-hover);
 }
 
 .block-handle:active {
@@ -1214,11 +1234,23 @@ ol.list { list-style: decimal; }
   font-size: var(--font-size-xs);
 }
 
-.command-menu-item:hover,
-.command-menu-item:focus-visible,
+.command-menu-item:hover {
+  background: var(--id-color-surface-hover);
+}
+
 .command-menu-item.active {
-  outline: none;
-  background: var(--id-color-surface-muted);
+  background: var(--id-color-surface-selected);
+  color: var(--id-color-text-selected);
+  box-shadow: inset var(--size-current-marker) 0 var(--id-color-interaction);
+}
+
+.command-menu-item.active:hover {
+  background: var(--id-color-surface-selected-hover);
+}
+
+.command-menu-item:focus-visible {
+  outline: 2px solid var(--id-color-border-focus);
+  outline-offset: -2px;
 }
 
 .command-menu-item:disabled {
@@ -1368,7 +1400,7 @@ ol.list { list-style: decimal; }
   min-width: 0;
   height: var(--size-control);
   padding: 0 var(--space-2);
-  border: var(--border-width) solid var(--id-color-border);
+  border: var(--border-width) solid var(--id-color-border-control);
   border-radius: var(--id-radius-md);
   background: var(--id-color-surface);
   color: var(--id-color-text);
@@ -1466,20 +1498,23 @@ ol.list { list-style: decimal; }
 }
 
 .form-field > span {
-  color: var(--id-color-text-muted);
+  color: var(--id-color-text);
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
 }
 
 .form-label {
   flex-basis: 100%;
-  color: var(--id-color-text-muted);
+  color: var(--id-color-text);
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
 }
 
 .block-popover-note {
   margin: var(--space-2) 0 0;
   color: var(--id-color-text-subtle);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
 }
 
 .draft-status {
@@ -1527,7 +1562,7 @@ ol.list { list-style: decimal; }
 /* Visual | Source: two views of one document, not actions. */
 .view-toggle {
   display: inline-flex;
-  gap: var(--space-1);
+  gap: 0;
   padding: 1px;
   border: var(--border-width) solid var(--id-color-border);
   border-radius: var(--id-radius-lg);
@@ -1541,7 +1576,7 @@ ol.list { list-style: decimal; }
 
 .view-toggle .view-toggle-option[aria-pressed="true"] {
   background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border);
+  border-color: var(--id-color-border-control);
   color: var(--id-color-text);
 }
 
@@ -1595,7 +1630,7 @@ ol.list { list-style: decimal; }
   gap: var(--space-2);
   height: var(--size-control);
   padding: 0 var(--space-3);
-  border: var(--border-width) solid var(--id-color-border);
+  border: var(--border-width) solid var(--id-color-border-control);
   border-radius: var(--id-radius-md);
   background: var(--id-color-surface);
 }
@@ -1657,7 +1692,7 @@ ol.list { list-style: decimal; }
 .folder-picker-location > button { flex: none; }
 
 .folder-picker-crumb:hover {
-  background: var(--id-color-surface-muted);
+  background: var(--id-color-surface-hover);
   color: var(--id-color-text);
 }
 
@@ -1713,7 +1748,7 @@ ol.list { list-style: decimal; }
 }
 
 .folder-picker-option:hover {
-  background: var(--id-color-surface-muted);
+  background: var(--id-color-surface-hover);
 }
 
 .folder-picker-option:focus-visible {
@@ -1723,7 +1758,13 @@ ol.list { list-style: decimal; }
 
 /* The keyboard's place in the list uses the interaction axis, like any selection. */
 .folder-picker-option[aria-selected="true"] {
-  background: var(--id-color-interaction-soft);
+  background: var(--id-color-surface-selected);
+  color: var(--id-color-text-selected);
+  box-shadow: inset var(--size-current-marker) 0 var(--id-color-interaction);
+}
+
+.folder-picker-option[aria-selected="true"]:hover {
+  background: var(--id-color-surface-selected-hover);
 }
 
 .folder-picker-meta,
