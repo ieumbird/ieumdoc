@@ -98,12 +98,12 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 
 ### Asset Host Contract v1 (#59)
 
-- Browser의 clipboard/drop 이미지 바이트를 local Host가 검증하고 열린 Markdown 문서의 `assets/image-<UUID>.png`에 저장한다. 응답 경로는 `./assets/image-<UUID>.png`이며 원본 filename은 사용하지 않는다. 문서와 `assets/`를 함께 이동하면 경로가 유지된다.
-- v1은 PNG만 지원한다. MIME과 PNG signature/chunk envelope를 확인하며, 빈 파일과 과도한 크기를 거부한다. 크기 상한의 코드 기준은 `apps/editor/shared/asset-policy.ts`다. SVG, 원격 다운로드, 변환·최적화는 포함하지 않는다.
-- `POST /api/asset?path=<document locator>`는 `image/png` binary body를 받는다. 응답은 상대 `path`와 opaque `rollbackToken`이다. 저장 protocol과 binary upload를 합치지 않는다.
+- Browser의 clipboard/drop 이미지 바이트를 local Host가 검증하고 열린 Markdown 문서의 `assets/image-<UUID>.<ext>`에 저장한다. 응답 경로는 `./assets/image-<UUID>.<ext>`이며 원본 filename은 사용하지 않는다. `<ext>`는 MIME이 정한다: PNG `png`, JPEG `jpg`, GIF `gif`, WebP `webp`. 문서와 `assets/`를 함께 이동하면 경로가 유지된다.
+- PNG, JPEG, GIF, WebP를 지원한다. MIME과 그 형식의 완성된 container를 확인한다: PNG는 signature·IHDR·IEND까지의 chunk envelope, JPEG는 SOI·frame header·scan 뒤의 EOI(EOI 뒤 camera 부가 data는 유지), GIF는 header·block·trailer, WebP는 file 길이와 맞는 RIFF chunk와 image data. 내용이 MIME과 다르거나 잘린 파일, 빈 파일과 과도한 크기를 거부한다. 형식 목록과 크기 상한의 코드 기준은 `apps/editor/shared/asset-policy.ts`다. 이미지를 decode·변환·최적화하지 않는다. SVG는 script를 담을 수 있는 active content라 sanitizer 없이 저장하지 않는다. 원격 다운로드도 포함하지 않는다. 문서에 이미 있는 상대 media는 확장자에 맞는 `Content-Type`과 `nosniff`로 제공한다.
+- `POST /api/asset?path=<document locator>`는 지원 형식의 MIME을 `Content-Type`으로 한 binary body를 받는다. 응답은 상대 `path`와 opaque `rollbackToken`이다. 저장 protocol과 binary upload를 합치지 않는다.
 - Host는 document directory의 real path를 경계로 사용한다. `assets/` 자체의 symlink, 경계 밖 document symlink, traversal·absolute·비정상 asset path를 거부한다. 완성된 temporary sibling을 exclusive hard link로 공개한 뒤 temp를 제거하여 partial 파일과 기존 파일 overwrite를 막는다. 이 filesystem 동작을 지원하지 않으면 실패를 표시한다.
 - Host write 실패는 Editor를 변경하지 않는다. 성공한 경로로 기존 Figure insert 경로를 사용하며, 삽입이 거부되거나 요청 중 Editor가 사라지면 `DELETE /api/asset`로 rollback한다. 서명된 receipt는 생성 inode와 업로드 바이트에 묶는다. 삭제 전에 임시 이름으로 옮겨 같은 fd에서 identity/content를 검증하고, 다른 파일로 바뀌었으면 overwrite 없이 원위치로 복구한다. rollback/복구 실패는 남은 경로와 함께 명시한다. temp cleanup도 directory/file identity를 확인하며, 외부 directory 교체로 소유권을 확인할 수 없으면 삭제를 거부하고 잔여 temp 경로를 오류로 표시한다. Host는 session이나 asset 목록을 저장하지 않으며 receipt 서명 key는 dev server 수명에 한정한다.
-- 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 PNG 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
+- 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
 ### Folder listing v1 (#112)

@@ -134,7 +134,7 @@ async page => {
     'a Word list skips a nesting level or goes above its first item':
       `<p class=MsoListParagraph style='mso-list:l0 level1 lfo1'><span style='mso-list:Ignore'>·</span>Top</p>` +
       `<p class=MsoListParagraph style='mso-list:l0 level3 lfo1'><span style='mso-list:Ignore'>§</span>Deep</p>`,
-    'images can be added only as PNG files': '<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>',
+    'images can be added only as image files': '<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>',
   };
   for (const [reason, html] of Object.entries(refused)) {
     await select('Omega.', true);

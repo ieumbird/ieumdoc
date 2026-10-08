@@ -57,6 +57,10 @@ export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Y
 
 const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
 
+const MEDIA_TYPES: Record<string, string> = {
+  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
+};
+
 export class DocumentConflictError extends Error {
   constructor() {
     super(DOCUMENT_CONFLICT_MESSAGE);
@@ -480,7 +484,7 @@ function serveMedia(assetPath: string, res: ServerResponse, documentPath?: strin
   try {
     const data = readFileSync(file);
     res.statusCode = 200;
-    res.setHeader("Content-Type", path.extname(file).toLowerCase() === ".svg" ? "image/svg+xml" : path.extname(file).toLowerCase() === ".png" ? "image/png" : "application/octet-stream");
+    res.setHeader("Content-Type", MEDIA_TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.end(data);
   } catch {

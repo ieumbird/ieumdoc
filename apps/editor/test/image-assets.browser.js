@@ -24,10 +24,10 @@ async page => {
     if (position === undefined) throw new Error(`Missing ${text}`);
     editor.commands.setTextSelection(position); editor.view.focus();
   }, text);
-  const blobScript = async () => {
+  const blobScript = async (type = 'image/png') => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 8;
     canvas.getContext('2d').fillRect(0, 0, 8, 8);
-    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    return new Promise(resolve => canvas.toBlob(resolve, type));
   };
   const blobSource = blobScript.toString();
   const media = relative => `${origin}/document/${relative.slice(2)}?path=${encodeURIComponent(file)}`;
@@ -61,17 +61,21 @@ async page => {
   result.nativePasteAndUndo = true;
 
   // Real File drop uses the pointer's block rather than the unrelated current selection.
+  // A dropped photo is a JPEG; the Host keeps its format and serves it as one.
   await select('typed Alpha.');
   const beta = page.locator('.document-editor > p').filter({hasText:'Beta.'});
   const box = await beta.boundingBox();
   await page.locator('.document-editor').evaluate(async (el, args) => {
-    const png = await (new Function(`return (${args.source})()`))();
-    const data = new DataTransfer(); data.items.add(new File([png], 'drop.png', {type:'image/png'}));
+    const jpeg = await (new Function(`return (${args.source})('image/jpeg')`))();
+    const data = new DataTransfer(); data.items.add(new File([jpeg], 'photo.jpg', {type:'image/jpeg'}));
     el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
   }, {source:blobSource, x:box.x + 25, y:box.y + box.height / 2});
-  await page.waitForFunction(() => document.querySelectorAll('[data-block="figure"]').length === 2); await waitIdle();
+  await page.waitForFunction(() => document.querySelectorAll('[data-block="figure"]').length === 2); await waitIdle(); await loaded();
   const dropped = (await documentJSON()).content;
-  assert(dropped[dropped.findIndex(node => node.content?.[0]?.text === 'Beta.') + 1]?.type === 'figure', 'Drop lands after the pointer block');
+  const droppedFigure = dropped[dropped.findIndex(node => node.content?.[0]?.text === 'Beta.') + 1];
+  assert(droppedFigure?.type === 'figure', 'Drop lands after the pointer block');
+  assert(/^\.\/assets\/image-[a-f0-9-]+\.jpg$/.test(droppedFigure.attrs.imageUrl), 'JPEG keeps its extension');
+  assert((await page.request.get(media(droppedFigure.attrs.imageUrl))).headers()['content-type'] === 'image/jpeg', 'Host serves the saved JPEG');
   result.fileDrop = true;
 
   await select('typed Alpha.');
