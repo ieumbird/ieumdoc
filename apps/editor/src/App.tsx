@@ -343,7 +343,11 @@ export function App() {
             onNoticeExpired={() => setNotice("")}
           />
         </div>
-        <main className="document-column">
+        <main className="document-column" onMouseDown={(event) => {
+          // The empty area below the document places the caret at its end.
+          if (event.button === 0 && event.target === event.currentTarget && view === "visual" &&
+            editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
+        }}>
           {view === "source" ? (
             <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
               {writeError ? <p className="block-kind">Original Markdown · read-only</p> : null}

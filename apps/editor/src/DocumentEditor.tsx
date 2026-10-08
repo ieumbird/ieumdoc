@@ -26,6 +26,7 @@ import {
 import { appliedDocument, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline, type OutlineItem } from "./outline.ts";
+import { documentEnd } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
@@ -46,6 +47,8 @@ export type DocumentEditorHandle = {
   hasUnsavedChanges(): boolean;
   /** Move the caret to an outline heading and scroll it to the top of the document view. */
   revealHeading(item: OutlineItem): void;
+  /** A click below the document places the caret at its end; returns whether it did. */
+  focusEnd(clientY: number): boolean;
 };
 
 
@@ -194,6 +197,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (element instanceof HTMLElement) element.scrollIntoView({ block: "start" });
         revealed.current = { index: item.index, scrollY: window.scrollY };
         scheduleOutline.current();
+      },
+      focusEnd(clientY) {
+        if (!editor?.isEditable || !host.current || clientY <= host.current.getBoundingClientRect().bottom) return false;
+        editor.view.dispatch(documentEnd(editor.state));
+        editor.view.focus();
+        return true;
       },
       getDocument() {
         if (!editor) {

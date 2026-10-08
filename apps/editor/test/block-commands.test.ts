@@ -388,7 +388,7 @@ test("applied state ignores a new empty paragraph but detects subsequent typing"
 test("editor shell keeps application UI out of the document editor", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   assert.doesNotMatch(app, /file-picker|format-bar|equation-draft-notice/);
-  assert.match(app, /<Sidebar[\s\S]*<TopBar[\s\S]*<MessageArea[\s\S]*<main className="document-column">[\s\S]*<OpenDialog/);
+  assert.match(app, /<Sidebar[\s\S]*<TopBar[\s\S]*<MessageArea[\s\S]*<main className="document-column"[\s\S]*<OpenDialog/);
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
   assert.doesNotMatch(documentEditor, /format-bar|toggleBold|toggleItalic/);
   // `+` and `/` open the same menu component over the same insert commands.
