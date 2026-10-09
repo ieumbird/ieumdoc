@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (development adapter and tests, including the sidebar folder tree; not a production-host validation).
+- Last verified: 2026-10-10 (development adapter and tests, including the sidebar folder tree and the File commit shared with the CLI; not a production-host validation).
 - Authority: implemented development-host boundary; production host remains undecided. [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -106,6 +106,23 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
+### File commit v1
+
+Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같은 Node 함수 `commitFile`(`packages/file-commit`)로 교체한다. 호출자는 Core validation과 canonical serialization을 마친 UTF-8 / LF Markdown과 baseline revision을 넘긴다. Core는 이 경로나 filesystem을 알지 않는다.
+
+- Revision은 파일을 UTF-8 text로 읽은 내용의 SHA-256이다(`textRevision`). CLI는 Core operation을 적용하기 전에 읽은 원본에서 revision을 얻는다. Editor는 열기 또는 직전 Save로 받은 revision을 보낸다. 저장 직전에 다시 읽은 내용을 baseline으로 삼지 않으며, 숨은 cache나 lock 파일을 두지 않는다.
+- 순서: symlink를 real path로 해석 → revision 확인 → 쓰기 권한 확인 → 같은 directory에 고유한 temporary sibling(`.<name>.<UUID>.tmp`)을 exclusive create하여 완성된 내용 기록 → 원본 permission bits 적용 → revision 재확인 → rename으로 교체.
+- 실패하면 원본은 그대로이고 temporary sibling은 삭제한다. Revision 불일치는 `FileChangedError`다. CLI는 그 메시지와 exit 1을, Editor Host는 기존 conflict 메시지와 HTTP 409를 반환한다. Core가 거부한 문서는 이 단계에 도달하지 않는다.
+- Symlink는 link로 남고 대상이 교체된다. Permission bits는 umask와 무관하게 원본 값을 유지한다. 쓰기 권한이 없는 파일은 rename이 가능하더라도 거부한다. 이는 이전 CLI의 in-place write와 같은 결과다. POSIX에서 read-only 파일을 교체하던 Editor Host도 이제 거부한다.
+- 새 문서는 이 경로가 아니라 위 New Document 정책의 exclusive create를 사용한다.
+
+보장하지 않는 것:
+
+- 마지막 revision 확인과 rename 사이에 끼어든 외부 write는 감지하지 못한다(TOCTOU). OS 수준의 atomic compare-and-swap이 아니다.
+- Process 간 lock, fsync/전원 차단 시 영속성, 자동 merge, filesystem watch는 없다. 강제 종료된 process는 temporary sibling을 남길 수 있다.
+- Rename은 새 파일로 교체하므로 owner/group, hard link, Windows의 명시적 ACL과 extended attribute를 유지하지 않는다. 다른 process가 파일을 공유 삭제 없이 열어 두면 Windows에서 rename이 실패할 수 있으며, 이때도 원본은 유지된다.
+- Revision은 decode한 text 기준이므로 invalid UTF-8 byte끼리의 차이는 구별하지 못할 수 있다.
+
 ### Folder listing v1 (#112)
 
 사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. Workspace가 아니다. 선택한 sidebar folder는 Browser 페이지 상태에만 있고 Host나 파일에 저장하지 않는다. 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억한다.
@@ -136,7 +153,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 
 현재 `apps/editor/server`는 **local filesystem host boundary의 현재 dev implementation**이다.
 
-- `apps/editor/server/document-api.ts`가 요청된 `.md` path를 resolve하고 Node filesystem API로 read/write한다.
+- `apps/editor/server/document-api.ts`가 요청된 `.md` path를 resolve하고 Node filesystem API로 read/create한다. 기존 파일 교체는 CLI와 공유하는 [File commit v1](#file-commit-v1)을 사용한다.
 - 현재 Browser와 adapter 사이의 transport는 `/api/document`를 경유하는 localhost HTTP다.
 - `apps/editor/shared/document-protocol.ts`가 Browser와 Host의 저장 요청·응답 타입을 공유한다. 이 파일은 Core 공개 타입을 사용하는 데이터 계약이며, 파일 접근·검증·저장 실행은 포함하지 않는다.
 - adapter는 Core의 parse, semantic save operation, validation 및 serialization을 호출하고, 파일 I/O 자체는 adapter가 수행한다.

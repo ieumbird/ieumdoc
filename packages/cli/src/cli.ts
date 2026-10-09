@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import {
   canonicalWriteError,
   getEditableDocument,
@@ -65,6 +65,7 @@ import {
   type InlineContent,
   type ListContent,
 } from "@ieumdoc/core";
+import { commitFile, textRevision } from "@ieumdoc/file-commit";
 
 type CommandSpec = {
   name: string;
@@ -600,11 +601,11 @@ function main(argv: string[]): number {
     case "insert-hard-break":
     case "split-paragraph": {
       const operation = command === "insert-hard-break" ? insertHardBreak : splitParagraph;
-      save(file, operation(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--offset")));
+      edit(file, (document) => operation(document, pathFlag(flags), intFlag(flags, "--offset")));
       return 0;
     }
     case "merge-paragraph": {
-      save(file, mergeParagraphWithPrevious(parse(readFile(file)), pathFlag(flags)));
+      edit(file, (document) => mergeParagraphWithPrevious(document, pathFlag(flags)));
       return 0;
     }
     case "check": {
@@ -636,23 +637,23 @@ function main(argv: string[]): number {
       return 0;
     }
     case "format": {
-      save(file, parse(readFile(file)));
+      edit(file, (document) => document);
       return 0;
     }
     case "replace-text": {
-      save(file, replaceText(parse(readFile(file)), flag(flags, "--from"), flag(flags, "--to")));
+      edit(file, (document) => replaceText(document, flag(flags, "--from"), flag(flags, "--to")));
       return 0;
     }
     case "insert-block": {
       const text = optionalFlag(flags, "--text");
       const content = optionalFlag(flags, "--content");
       if ((text === undefined) === (content === undefined)) throw new Error("insert-block requires exactly one of --text or --content");
-      save(file, insertParagraph(parse(readFile(file)), intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content")));
+      edit(file, (document) => insertParagraph(document, intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content")));
       return 0;
     }
     case "insert-heading": {
-      save(file, insertHeading(
-        parse(readFile(file)),
+      edit(file, (document) => insertHeading(
+        document,
         intFlag(flags, "--at"),
         intFlag(flags, "--level"),
         textOrContent(flags),
@@ -660,42 +661,42 @@ function main(argv: string[]): number {
       return 0;
     }
     case "update-heading": {
-      save(file, updateHeadingInlineContent(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      edit(file, (document) => updateHeadingInlineContent(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "insert-admonition": {
-      save(file, insertAdmonition(parse(readFile(file)), intFlag(flags, "--at"), variantFlag(flags), [
+      edit(file, (document) => insertAdmonition(document, intFlag(flags, "--at"), variantFlag(flags), [
         { kind: "text", text: flag(flags, "--text") },
       ]));
       return 0;
     }
     case "insert-quote": {
-      save(file, insertQuote(parse(readFile(file)), intFlag(flags, "--at"), textOrContent(flags)));
+      edit(file, (document) => insertQuote(document, intFlag(flags, "--at"), textOrContent(flags)));
       return 0;
     }
     case "update-quote": {
-      save(file, updateQuoteInlineContent(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      edit(file, (document) => updateQuoteInlineContent(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "insert-footnote": {
-      save(file, insertFootnote(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags)));
+      edit(file, (document) => insertFootnote(document, pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags)));
       return 0;
     }
     case "update-footnote": {
-      save(file, updateFootnoteDefinition(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      edit(file, (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "insert-divider": {
-      save(file, insertDivider(parse(readFile(file)), intFlag(flags, "--at")));
+      edit(file, (document) => insertDivider(document, intFlag(flags, "--at")));
       return 0;
     }
     case "update-admonition-variant": {
-      save(file, updateAdmonitionVariant(parse(readFile(file)), pathFlag(flags), variantFlag(flags)));
+      edit(file, (document) => updateAdmonitionVariant(document, pathFlag(flags), variantFlag(flags)));
       return 0;
     }
     case "update-heading-level": {
-      save(file, updateHeadingLevel(
-        parse(readFile(file)),
+      edit(file, (document) => updateHeadingLevel(
+        document,
         pathFlag(flags),
         intFlag(flags, "--from"),
         intFlag(flags, "--to"),
@@ -708,20 +709,20 @@ function main(argv: string[]): number {
       if ((to === "heading") !== flags.includes("--level")) {
         throw new Error("--level is required with --to heading and not allowed with --to paragraph");
       }
-      save(file, convertBlock(parse(readFile(file)), pathFlag(flags),
+      edit(file, (document) => convertBlock(document, pathFlag(flags),
         to === "heading" ? { block: "heading", level: intFlag(flags, "--level") } : { block: "paragraph" }));
       return 0;
     }
     case "insert-equation": {
-      save(file, insertEquation(
-        parse(readFile(file)),
+      edit(file, (document) => insertEquation(
+        document,
         intFlag(flags, "--at"),
         flag(flags, "--latex"),
       ));
       return 0;
     }
     case "insert-figure": {
-      save(file, insertFigure(parse(readFile(file)), intFlag(flags, "--at"), {
+      edit(file, (document) => insertFigure(document, intFlag(flags, "--at"), {
         imageUrl: flag(flags, "--image"),
         imageAlt: optionalFlag(flags, "--alt") ?? "",
         caption: captionInput(flags) ?? "",
@@ -737,23 +738,23 @@ function main(argv: string[]): number {
       if (Object.values(changes).every((value) => value === undefined)) {
         throw new Error("update-figure requires --image, --alt, --caption, or --caption-content");
       }
-      save(file, updateFigure(parse(readFile(file)), pathFlag(flags), changes));
+      edit(file, (document) => updateFigure(document, pathFlag(flags), changes));
       return 0;
     }
     case "insert-table": {
-      save(file, insertTable(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align")));
+      edit(file, (document) => insertTable(document, intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align")));
       return 0;
     }
     case "insert-list": {
-      save(file, insertList(parse(readFile(file)), intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list")));
+      edit(file, (document) => insertList(document, intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list")));
       return 0;
     }
     case "update-list": {
-      save(file, updateList(parse(readFile(file)), pathFlag(flags), jsonFlag<ListContent>(flags, "--list")));
+      edit(file, (document) => updateList(document, pathFlag(flags), jsonFlag<ListContent>(flags, "--list")));
       return 0;
     }
     case "insert-code-block": {
-      save(file, insertCodeBlock(parse(readFile(file)), intFlag(flags, "--at"), {
+      edit(file, (document) => insertCodeBlock(document, intFlag(flags, "--at"), {
         language: optionalFlag(flags, "--language") ?? "",
         code: flag(flags, "--code"),
       }));
@@ -764,86 +765,86 @@ function main(argv: string[]): number {
       if (changes.language === undefined && changes.code === undefined) {
         throw new Error("update-code-block requires --language or --code");
       }
-      save(file, updateCodeBlock(parse(readFile(file)), pathFlag(flags), changes));
+      edit(file, (document) => updateCodeBlock(document, pathFlag(flags), changes));
       return 0;
     }
     case "insert-table-row": {
-      save(file, insertTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      edit(file, (document) => insertTableRow(document, pathFlag(flags), intFlag(flags, "--at")));
       return 0;
     }
     case "insert-table-column": {
-      save(file, insertTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      edit(file, (document) => insertTableColumn(document, pathFlag(flags), intFlag(flags, "--at")));
       return 0;
     }
     case "remove-table-row": {
-      save(file, removeTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      edit(file, (document) => removeTableRow(document, pathFlag(flags), intFlag(flags, "--at")));
       return 0;
     }
     case "remove-table-column": {
-      save(file, removeTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--at")));
+      edit(file, (document) => removeTableColumn(document, pathFlag(flags), intFlag(flags, "--at")));
       return 0;
     }
     case "move-table-row": {
-      save(file, moveTableRow(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      edit(file, (document) => moveTableRow(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
     }
     case "move-table-column": {
-      save(file, moveTableColumn(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      edit(file, (document) => moveTableColumn(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
     }
     case "update-table-alignment": {
       const align = flag(flags, "--align");
       if (!["left", "center", "right", "none"].includes(align)) throw new Error("--align must be left, center, right or none");
-      save(file, updateTableColumnAlignment(parse(readFile(file)), pathFlag(flags), intFlag(flags, "--column"),
+      edit(file, (document) => updateTableColumnAlignment(document, pathFlag(flags), intFlag(flags, "--column"),
         align === "none" ? null : align as "left" | "center" | "right"));
       return 0;
     }
     case "update-heading-numbering": {
       const enabled = flag(flags, "--enabled");
       if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
-      save(file, updateHeadingNumbering(parse(readFile(file)), enabled === "true"));
+      edit(file, (document) => updateHeadingNumbering(document, enabled === "true"));
       return 0;
     }
     case "update-table-caption": {
-      save(file, updateTableCaption(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      edit(file, (document) => updateTableCaption(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "update-table-cell": {
-      save(file, updateTableCell(parse(readFile(file)), pathFlag(flags), textOrContent(flags)));
+      edit(file, (document) => updateTableCell(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
     case "insert-target": {
-      save(file, insertTarget(parse(readFile(file)), intFlag(flags, "--at"), flag(flags, "--label")));
+      edit(file, (document) => insertTarget(document, intFlag(flags, "--at"), flag(flags, "--label")));
       return 0;
     }
     case "remove-block": {
-      save(file, removeBlock(parse(readFile(file)), intFlag(flags, "--at")));
+      edit(file, (document) => removeBlock(document, intFlag(flags, "--at")));
       return 0;
     }
     case "replace-block-source": {
       const text = optionalFlag(flags, "--source");
       const sourceFile = optionalFlag(flags, "--source-file");
       if ((text === undefined) === (sourceFile === undefined)) throw new Error("replace-block-source requires exactly one of --source or --source-file");
-      save(file, replaceBlockSource(parse(readFile(file)), intFlag(flags, "--at"), text ?? readFile(sourceFile!)));
+      edit(file, (document) => replaceBlockSource(document, intFlag(flags, "--at"), text ?? readFile(sourceFile!)));
       return 0;
     }
     case "move-section": {
-      save(file, moveSection(parse(readFile(file)), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      edit(file, (document) => moveSection(document, intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
     }
     case "remove-section": {
-      save(file, removeSection(parse(readFile(file)), intFlag(flags, "--at")));
+      edit(file, (document) => removeSection(document, intFlag(flags, "--at")));
       return 0;
     }
     case "move-block": {
-      save(file, moveBlock(parse(readFile(file)), intFlag(flags, "--from"), intFlag(flags, "--to")));
+      edit(file, (document) => moveBlock(document, intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
     }
     case "update-node-text": {
-      save(
+      edit(
         file,
-        updateNodeTextAtPath(
-          parse(readFile(file)),
+        (document) => updateNodeTextAtPath(
+          document,
           pathFlag(flags),
           flag(flags, "--from"),
           flag(flags, "--to"),
@@ -852,10 +853,10 @@ function main(argv: string[]): number {
       return 0;
     }
     case "update-equation-latex": {
-      save(
+      edit(
         file,
-        updateEquationLatex(
-          parse(readFile(file)),
+        (document) => updateEquationLatex(
+          document,
           pathFlag(flags),
           flag(flags, "--from"),
           flag(flags, "--to"),
@@ -864,7 +865,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "update-label": {
-      save(file, updateLabel(parse(readFile(file)), pathFlag(flags), flag(flags, "--label")));
+      edit(file, (document) => updateLabel(document, pathFlag(flags), flag(flags, "--label")));
       return 0;
     }
     default:
@@ -1195,9 +1196,13 @@ function readFile(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-function save(path: string, document: Document): void {
+/** Apply one Core operation and write the result only over the file as it was read. */
+function edit(path: string, change: (document: Document) => Document): void {
+  // The revision comes from the source the change was made to, never from a later read.
+  const source = readFile(path);
+  const document = change(parse(source));
   validateStructure(document);
-  writeFileSync(path, serialize(document));
+  commitFile(path, serialize(document), textRevision(source));
 }
 
 function summarize(document: Document): string {

@@ -26,11 +26,11 @@ Windows에서 전역 pnpm shim이 실패하면 같은 버전의 `corepack pnpm`�
 ```bash
 pnpm docs:check
 pnpm typecheck
-pnpm test                                  # Core, CLI, Editor
+pnpm test                                  # Core, File commit, CLI, Editor
 pnpm --filter @ieumdoc/editor build
 ```
 
-`pnpm test`가 Core, CLI, Editor suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
+`pnpm test`가 Core, File commit, CLI, Editor suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
 
 ### Browser regression
 

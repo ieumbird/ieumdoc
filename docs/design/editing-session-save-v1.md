@@ -1,7 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-10 (contract compared with current code and regression coverage, including the File commit shared with the CLI).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
 ## Save acknowledgement
@@ -16,7 +16,7 @@ The Host stores no sessions. This request contract is a local adapter detail, no
 
 - Empty newly inserted editor paragraphs and never-applied Equation/Figure placeholders stay in the session but are omitted from canonical output. Filtering is shared by Save collection and dirty comparison. An emptied opening-snapshot paragraph, an empty heading or an invalid table still reports a save error.
 - Equation/Figure Apply changes the main editor document. Unapplied form values survive Save and Source switching; neither operation applies them implicitly. Block notices and a standing message explain that only applied content is included. A remaining draft prevents the `Saved` display.
-- Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict or partial-write failure preserves the original. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
+- Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
 
 ## Switching and recovery

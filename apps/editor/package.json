@@ -13,6 +13,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@ieumdoc/core": "workspace:*",
+    "@ieumdoc/file-commit": "workspace:*",
     "@tiptap/core": "3.31.3",
     "@tiptap/extension-code": "3.31.3",
     "@tiptap/extension-code-block-lowlight": "3.31.3",

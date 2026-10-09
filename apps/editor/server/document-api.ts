@@ -1,10 +1,10 @@
-import { createHash, randomUUID } from "node:crypto";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
+import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import {
   applyBlockSource,
   readModel,
@@ -83,9 +83,7 @@ export function resolveDocumentPath(requestedPath?: string): string {
   return resolved;
 }
 
-export function documentRevision(source: string): string {
-  return createHash("sha256").update(source, "utf8").digest("hex");
-}
+export const documentRevision = textRevision;
 
 export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath);
@@ -131,17 +129,14 @@ export function saveDocumentFile(
   return { ...saved, source: saved.markdown, path: filePath };
 }
 
-/** Finish writing beside the destination before replacing it; a failed write keeps the original. */
+/** The shared file commit; a failed write keeps the original. */
 function replaceDocumentFile(filePath: string, markdown: string, revision: string | undefined): void {
-  // Preserve a symlink itself by replacing its resolved target.
-  const target = fs.realpathSync(filePath);
-  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
+  if (revision === undefined) throw new DocumentConflictError();
   try {
-    fs.writeFileSync(temporary, markdown, { encoding: "utf8", flag: "wx", mode: statSync(target).mode });
-    if (documentRevision(readFileSync(target, "utf8")) !== revision) throw new DocumentConflictError();
-    fs.renameSync(temporary, target);
-  } finally {
-    fs.rmSync(temporary, { force: true });
+    commitFile(filePath, markdown, revision);
+  } catch (error) {
+    if (error instanceof FileChangedError) throw new DocumentConflictError();
+    throw error;
   }
 }
 
