@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-09 (contract compared with current code and regression coverage; caret keys after focus with the `focus-caret` browser regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Continuous editing
@@ -39,6 +39,11 @@ persistent changes and canonical semantic validation.
   incomplete semantic fields retain existing Save validation and draft recovery.
 - Ordinary typing and composition use the engine's DOM input handling. No custom
   IME, cursor, selection, history or clipboard engine is introduced.
+- A caret key pressed right after the editor regains focus moves the caret as at any
+  other time; Control+End reaches the document end and Control+Home its start. The engine
+  still restores its own caret when focus arrives without a key (Tab, or a DOM `focus()`
+  after which the browser resets the caret), also when only a modifier is pressed. A pinned
+  `prosemirror-view` patch provides this ([cause and removal condition](../reviews/prosemirror-focus-caret-2026-10-09.md)).
 
 Core `insertParagraph` accepts InlineContent directly (CLI `insert-block --content`)
 so rich content is never staged as flattened text. Core `insertTable` accepts optional

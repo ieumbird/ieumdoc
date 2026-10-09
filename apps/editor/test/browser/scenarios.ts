@@ -38,6 +38,7 @@ export const STABLE_SCENARIOS = [
   "section-reference",
   "folder-navigation",
   "footnotes",
+  "focus-caret",
 ];
 
 /** Select before starting a server probe or browser; an invalid/empty shard must fail. */
