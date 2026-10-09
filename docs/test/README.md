@@ -15,7 +15,7 @@ pnpm --filter @ieumdoc/editor build
 git diff --check
 ```
 
-`pnpm test`는 Core, CLI, Editor suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다.
+`pnpm test`는 Core, File commit, CLI, Editor suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다.
 
 ## Browser regression
 

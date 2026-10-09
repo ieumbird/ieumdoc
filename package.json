@@ -8,8 +8,8 @@
   },
   "scripts": {
     "docs:check": "tsx scripts/check-docs.ts",
-    "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test",
-    "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck",
+    "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/file-commit test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test",
+    "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/file-commit typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck",
     "ieumdoc": "tsx packages/cli/src/cli.ts",
     "editor": "pnpm --filter @ieumdoc/editor dev",
     "browser:prepare": "tsx apps/editor/test/browser/prepare.ts",

@@ -185,6 +185,9 @@ importers:
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@ieumdoc/file-commit':
+        specifier: workspace:*
+        version: link:../../packages/file-commit
       '@tiptap/core':
         specifier: 3.31.3
         version: 3.31.3(@tiptap/pm@3.31.3)
@@ -279,6 +282,9 @@ importers:
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../core
+      '@ieumdoc/file-commit':
+        specifier: workspace:*
+        version: link:../file-commit
     devDependencies:
       '@types/node':
         specifier: ^24.5.2
@@ -313,6 +319,18 @@ importers:
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.5.2
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/file-commit:
     devDependencies:
       '@types/node':
         specifier: ^24.5.2

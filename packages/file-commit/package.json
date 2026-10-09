@@ -1,19 +1,15 @@
 {
-  "name": "@ieumdoc/cli",
+  "name": "@ieumdoc/file-commit",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "ieumdoc": "./src/cli.ts"
+  "exports": {
+    ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "tsx --test test/cli.test.ts",
+    "test": "tsx --test test/file-commit.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
-  },
-  "dependencies": {
-    "@ieumdoc/core": "workspace:*",
-    "@ieumdoc/file-commit": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",

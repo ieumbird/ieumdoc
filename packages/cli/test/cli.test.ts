@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   getEditableDocument,
   inspectDocument,
@@ -47,6 +47,28 @@ test("insert-block accepts Core inline JSON and rejects ambiguous input without 
     const result = run(args);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(readFileSync(file, "utf8"), "# Title\n\n**Value** $x$\n");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("CLI refuses to replace a file changed after it was read and keeps those bytes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-changed-"));
+  const file = path.join(dir, "document.md");
+  const external = Buffer.from("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n", "utf8");
+  writeFileSync(file, "# Title\n");
+  try {
+    const args = ["insert-block", file, "--at", "1", "--text", INSERTED];
+    const changed = run(args, ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
+      ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
+    });
+    assert.equal(changed.status, 1, changed.stderr);
+    assert.match(changed.stderr, /changed after it was read; nothing was written/);
+    assert.deepEqual(readFileSync(file), external);
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+
+    const saved = run(args);
+    assert.equal(saved.status, 0, saved.stderr);
+    assert.equal(readFileSync(file, "utf8"), serialize(insertParagraph(parse(external.toString("utf8")), 1, INSERTED)));
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -885,11 +907,12 @@ test("insert-target and update-label label a section that {ref} references name"
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-function run(args: string[]) {
+function run(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
-  return spawnSync(process.execPath, [tsxCli, cli, ...args], {
+  return spawnSync(process.execPath, [tsxCli, ...nodeArgs, cli, ...args], {
     encoding: "utf8",
+    env,
   });
 }
 
