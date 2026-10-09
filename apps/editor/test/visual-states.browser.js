@@ -7,7 +7,10 @@ async page => {
   const root = loaded.path.split(sep).slice(0, -4).join(sep);
   const folder = [root, 'tmp', 'quiet-document'].join(sep);
   const settle = async () => { await page.waitForTimeout(200); };
-  const state = locator => locator.evaluate(n => {
+  const state = locator => locator.evaluate(async n => {
+    // Compare settled states: CSS transitions advance per frame, so a fixed wait can still read a blend.
+    for (let running; (running = n.getAnimations().filter(a => a instanceof CSSTransition)).length;)
+      await Promise.allSettled(running.map(a => a.finished));
     const c = getComputedStyle(n), marker = getComputedStyle(n, '::before'), r = n.getBoundingClientRect();
     return { background: c.backgroundColor, color: c.color, border: c.borderColor, radius: c.borderRadius, opacity: c.opacity,
       outline: c.outlineStyle, outlineColor: c.outlineColor, outlineOffset: c.outlineOffset, ring: c.boxShadow,
