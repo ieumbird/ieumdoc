@@ -21,7 +21,7 @@ const SEMANTIC = "abbr,acronym,cite,data,dfn,kbd,q,samp,time,var";
 const NOTICES = {
   styles: "unsupported visual styles were removed",
   semantic: "unsupported semantic formatting became plain text",
-  images: "images were not pasted (paste a PNG file to add a Figure)",
+  images: "images were not pasted (paste an image file to add a Figure)",
   links: "unsupported links became plain text",
   header: "table headers now use the first row only",
   caption: "table captions became paragraphs",
@@ -55,7 +55,7 @@ export function normalizeExternalHTML(html: string): ExternalHTML {
       if (!block.textContent?.trim() && !block.querySelector("hr,pre,table") && !block.closest("pre")) block.remove();
     }
     if (!body.textContent?.trim() && !body.querySelector("hr")) {
-      throw new Rejected(notices.has("images") ? "images can be added only as PNG files" : "the clipboard holds no supported content");
+      throw new Rejected(notices.has("images") ? "images can be added only as image files" : "the clipboard holds no supported content");
     }
     lists(body);
     for (const heading of body.querySelectorAll("h1,h2,h3,h4,h5,h6")) {

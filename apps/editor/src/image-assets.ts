@@ -2,7 +2,7 @@ import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
-import { ASSET_MIME, MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
+import { ASSET_FORMATS, isAssetMime, MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import type { AssetResponse } from "../shared/asset-protocol.ts";
 import { insertFigureAfter } from "./block-commands.ts";
 import { isInternalClipboard } from "./document-interaction.ts";
@@ -22,7 +22,7 @@ const browserHost: AssetHost = {
       });
       body = await response.json() as AssetResponse & { error?: string };
     } catch {
-      throw new Error("Asset response was interrupted. No Figure was inserted; an unreferenced PNG may remain in assets/.");
+      throw new Error("Asset response was interrupted. No Figure was inserted; an unreferenced image may remain in assets/.");
     }
     if (!response.ok) throw new Error(body.error ?? "Image could not be saved.");
     if (typeof body.path !== "string" || typeof body.rollbackToken !== "string") throw new Error("Host returned an invalid asset response. The image may remain on disk; no Figure was inserted.");
@@ -90,7 +90,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
     if (!view.editable) { options.reject("This document is read-only. No image was added."); return true; }
     if (uploading) { options.reject("Wait for the current image to finish before adding another."); return true; }
     const file = input[0];
-    if (input.length !== 1 || file.type !== ASSET_MIME) { options.reject("Add one PNG image at a time. No image was added."); return true; }
+    if (input.length !== 1 || !isAssetMime(file.type)) { options.reject(`Add one ${ASSET_FORMATS} image at a time. No image was added.`); return true; }
     if (file.size === 0 || file.size > MAX_ASSET_BYTES) { options.reject(`Image must be non-empty and at most ${MAX_ASSET_BYTES / 1024 / 1024} MiB. No image was added.`); return true; }
     void upload(view, file, position);
     return true;

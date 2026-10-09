@@ -4,6 +4,7 @@ import { splitBlockAs } from "@tiptap/pm/commands";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { ASSET_FORMATS } from "../shared/asset-policy.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
@@ -281,7 +282,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           pasted = undefined;
           external = false;
           if (error) return fail(error);
-          if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail("Add one PNG image at a time. Your selection and clipboard are kept.");
+          if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail(`Add one ${ASSET_FORMATS} image at a time. Your selection and clipboard are kept.`);
           if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
           const target = view.state.selection.$from.parent.type.name;
           if (target === "heading" || target === "tableCell") {

@@ -18,6 +18,11 @@ import { resolveMediaPath } from "../server/document-api.ts";
 
 // A complete 1x1 PNG, rather than a filename/signature-only pseudo image.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
+// A 1x1 grey baseline JPEG: one quantization table, one-code DC/AC tables, one scan byte.
+const JPEG = Buffer.from(`ffd8ffdb004300${"01".repeat(64)}ffc0000b080001000101011100` +
+  `ffc400140001${"00".repeat(15)}00ffc400141001${"00".repeat(15)}00ffda0008010100003f003fffd9`, "hex");
+const GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+const WEBP = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
 const key = randomBytes(32);
 function fixture(t: test.TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-asset-"));
@@ -48,11 +53,25 @@ test("PNG assets have portable paths, unique names, and request-scoped rollback"
   assert.equal(fs.readFileSync(doc, "utf8"), "# Images\n\nKeep this text.\n");
 });
 
+test("JPEG, GIF and WebP assets keep their format's extension and roll back like PNG", t => {
+  const { root, doc, assets } = fixture(t);
+  for (const [mime, bytes, extension] of [["image/jpeg", JPEG, "jpg"], ["image/gif", GIF, "gif"], ["image/webp", WEBP, "webp"]] as const) {
+    const created = createImageAsset(doc, mime, bytes, key);
+    assert.match(created.path, new RegExp(`^\\./assets/image-[a-f0-9-]+\\.${extension}$`));
+    assert.deepEqual(fs.readFileSync(path.resolve(root, created.path)), bytes);
+    rollbackImageAsset({ documentPath: doc, ...created }, key);
+  }
+  // Bytes after a JPEG's end marker are kept, as some cameras append data there.
+  createImageAsset(doc, "image/jpeg", Buffer.concat([JPEG, Buffer.from("trailer")]), key);
+  assert.equal(fs.readdirSync(assets).length, 1);
+});
+
 test("invalid MIME, empty, truncated, fake and oversized images create no assets", t => {
   const { doc, assets } = fixture(t);
   for (const [mime, bytes] of [
-    ["image/svg+xml", PNG], ["image/jpeg", PNG], ["image/png;bad=1", PNG],
+    ["image/svg+xml", Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>")], ["image/jpeg", PNG], ["image/png", GIF], ["image/png;bad=1", PNG],
     ["image/png", Buffer.alloc(0)], ["image/png", PNG.subarray(0, 32)],
+    ["image/jpeg", JPEG.subarray(0, -2)], ["image/gif", GIF.subarray(0, -1)], ["image/webp", WEBP.subarray(0, -1)],
     ["image/png", Buffer.from("not an image")], ["image/png", Buffer.alloc(10 * 1024 * 1024 + 1)],
   ] as const) {
     assert.throws(() => createImageAsset(doc, mime, bytes, key));
@@ -331,6 +350,10 @@ test("image paste inserts a Core-backed Figure as one independent Undo event", a
   assert.equal(e.view.state.doc.childCount, 2);
   assert.equal(e.view.state.doc.firstChild!.textContent, "typed Alpha.");
   // Filesystem Undo/GC is deliberately not tied to engine history.
+  assert.equal(fs.readdirSync(assets).length, 1);
+  // A type the Host does not store is refused before any request.
+  assert.equal(e.paste("", new File(["<svg/>"], "drawing.svg", { type: "image/svg+xml" })), true);
+  assert.match(errors.join(" "), /one PNG, JPEG, GIF or WebP image/);
   assert.equal(fs.readdirSync(assets).length, 1);
 });
 
