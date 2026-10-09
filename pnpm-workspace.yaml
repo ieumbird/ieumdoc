@@ -16,3 +16,6 @@ minimumReleaseAgeExclude:
 # Rationale and removal condition: docs/reviews/myst-security-alignment-v1.md
 patchedDependencies:
   markdown-it@13.0.2: patches/markdown-it@13.0.2.patch
+  # A caret key right after focus is not undone by ProseMirror's focus restore (#144).
+  # Cause, applied version and removal condition: docs/reviews/prosemirror-focus-caret-2026-10-09.md
+  prosemirror-view@1.42.4: patches/prosemirror-view@1.42.4.patch

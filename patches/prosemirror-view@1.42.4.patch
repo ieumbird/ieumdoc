@@ -1,0 +1,119 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index c6dc574fc427b11448e5ec6f800356d903ef2e51..c77e9097dd457f0295a4167588d1c928fafffeb8 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -2947,6 +2947,8 @@ var InputState = _createClass(function InputState() {
+   this.lastIOSEnter = 0;
+   this.lastIOSEnterFallbackTimeout = -1;
+   this.lastFocus = 0;
++  this.selectionKeys = 0;
++  this.selectionKeysAtFocus = 0;
+   this.lastTouch = 0;
+   this.lastChromeDelete = 0;
+   this.composing = false;
+@@ -3017,6 +3019,7 @@ editHandlers.keydown = function (view, _event) {
+   if (inOrNearComposition(view)) return;
+   view.input.lastKeyCode = event.keyCode;
+   view.input.lastKeyCodeTime = Date.now();
++  if (!modifierKeyCodes.includes(event.keyCode)) view.input.selectionKeys++;
+   if (android && chrome && event.keyCode == 13) return;
+   if (event.keyCode != 229) view.domObserver.forceFlush();
+   if (ios && event.keyCode == 13 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+@@ -3373,6 +3376,12 @@ handlers.touchmove = function (view) {
+ handlers.contextmenu = function (view) {
+   return forceDOMFlush(view);
+ };
++// IeumDoc patch: keys other than a modifier alone, counted so that the focus restores below do
++// not overwrite a selection a key made after focus (e.g. Ctrl+End read late on a busy renderer).
++var modifierKeyCodes = [16, 17, 18, 20, 91, 92, 93, 224, 225];
++function keyedSinceFocus(view) {
++  return view.input.selectionKeys != view.input.selectionKeysAtFocus;
++}
+ function inOrNearComposition(view, event) {
+   if (view.composing) return true;
+   if (safari && Math.abs(Date.now() - view.input.compositionEndedAt) < 500) {
+@@ -3662,13 +3671,14 @@ function handleDrop(view, event, dragging) {
+ }
+ handlers.focus = function (view) {
+   view.input.lastFocus = Date.now();
++  view.input.selectionKeysAtFocus = view.input.selectionKeys;
+   if (!view.focused) {
+     view.domObserver.stop();
+     view.dom.classList.add("ProseMirror-focused");
+     view.domObserver.start();
+     view.focused = true;
+     setTimeout(function () {
+-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange())) selectionToDOM(view);
++      if (view.docView && view.hasFocus() && !keyedSinceFocus(view) && !view.domObserver.currentSelection.eq(view.domSelectionRange())) selectionToDOM(view);
+     }, 20);
+   }
+ };
+@@ -4561,7 +4571,7 @@ var DOMObserver = function () {
+         }
+       }
+       var readSel = null;
+-      if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 && selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) && readSel.eq(prosemirrorState.Selection.near(view.state.doc.resolve(0), 1))) {
++      if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) && Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 && selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) && readSel.eq(prosemirrorState.Selection.near(view.state.doc.resolve(0), 1))) {
+         view.input.lastFocus = 0;
+         selectionToDOM(view);
+         this.currentSelection.set(sel);
+diff --git a/dist/index.js b/dist/index.js
+index 18d421a500137fe92f48d9f3895703257df6f7d0..e55bf3f2a44399ae31197b4830a95a271543bbfd 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -3113,6 +3113,8 @@ class InputState {
+         this.lastIOSEnter = 0;
+         this.lastIOSEnterFallbackTimeout = -1;
+         this.lastFocus = 0;
++        this.selectionKeys = 0;
++        this.selectionKeysAtFocus = 0;
+         this.lastTouch = 0;
+         this.lastChromeDelete = 0;
+         this.composing = false;
+@@ -3194,6 +3196,8 @@ editHandlers.keydown = (view, _event) => {
+         return;
+     view.input.lastKeyCode = event.keyCode;
+     view.input.lastKeyCodeTime = Date.now();
++    if (!modifierKeyCodes.includes(event.keyCode))
++        view.input.selectionKeys++;
+     // Suppress enter key events on Chrome Android, because those tend
+     // to be part of a confused sequence of composition events fired,
+     // and handling them eagerly tends to corrupt the input.
+@@ -3545,6 +3549,12 @@ handlers.touchmove = view => {
+     setSelectionOrigin(view, "pointer");
+ };
+ handlers.contextmenu = view => forceDOMFlush(view);
++// IeumDoc patch: keys other than a modifier alone, counted so that the focus restores below do
++// not overwrite a selection a key made after focus (e.g. Ctrl+End read late on a busy renderer).
++const modifierKeyCodes = [16, 17, 18, 20, 91, 92, 93, 224, 225];
++function keyedSinceFocus(view) {
++    return view.input.selectionKeys != view.input.selectionKeysAtFocus;
++}
+ function inOrNearComposition(view, event) {
+     if (view.composing)
+         return true;
+@@ -3904,13 +3914,14 @@ function handleDrop(view, event, dragging) {
+ }
+ handlers.focus = view => {
+     view.input.lastFocus = Date.now();
++    view.input.selectionKeysAtFocus = view.input.selectionKeys;
+     if (!view.focused) {
+         view.domObserver.stop();
+         view.dom.classList.add("ProseMirror-focused");
+         view.domObserver.start();
+         view.focused = true;
+         setTimeout(() => {
+-            if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
++            if (view.docView && view.hasFocus() && !keyedSinceFocus(view) && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
+                 selectionToDOM(view);
+         }, 20);
+     }
+@@ -4858,7 +4869,7 @@ class DOMObserver {
+         // If it looks like the browser has reset the selection to the
+         // start of the document after focus, restore the selection from
+         // the state
+-        if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 &&
++        if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) &&
+             Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 &&
+             selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) &&
+             readSel.eq(Selection.near(view.state.doc.resolve(0), 1))) {

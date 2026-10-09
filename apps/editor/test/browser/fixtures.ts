@@ -93,6 +93,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" }],
     scenarios: ["footnotes"],
   },
+  "focus-caret": {
+    files: [{ name: "focus.md", create: () => "# Focus\n\nFirst paragraph.\n\nLast paragraph.\n" }],
+    scenarios: ["focus-caret"],
+  },
   "folder-navigation": {
     files: [
       { name: "index.md", create: () => "# Index\n\nStart here.\n" },
