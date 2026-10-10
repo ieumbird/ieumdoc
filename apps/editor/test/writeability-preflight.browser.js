@@ -49,6 +49,16 @@ async page => {
   assert(await editor.innerText().then(t => t.includes('Editable body. Saved.') && t.includes('alpha edited')), 'Typing was rejected: ' + await editor.innerText() + ' | ' + await page.locator('.app-header').innerText());
   await save.click();
   await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  // A clean Save is quiet but available; an unavailable Save below must not share its face.
+  const face = () => save.evaluate(async button => {
+    for (let running; (running = button.getAnimations().filter(a => a instanceof CSSTransition)).length;)
+      await Promise.allSettled(running.map(a => a.finished));
+    const style = getComputedStyle(button);
+    return {background:style.backgroundColor, color:style.color, border:style.borderColor, opacity:style.opacity};
+  });
+  await page.mouse.move(0, 0);
+  const cleanSave = await face();
+  assert(!await save.isDisabled() && await save.getAttribute('aria-disabled') !== 'true', 'Clean Save must stay available');
   const saved = await read('preserved-markdown.md');
   assert(saved.source.startsWith("---\ntitle: Example\n# Preserve YAML spelling and comments\nauthors:\n  - name: 'Kim'\n---\n"), 'Front matter changed');
   assert(saved.source.includes('![Diagram alt](./diagram.svg "Diagram title")') && saved.source.includes('Inline ![Inline alt](./diagram.svg) image.'), 'Image meaning changed');
@@ -70,6 +80,14 @@ async page => {
   });
   assert(disabledSave.background !== disabledSave.paper || disabledSave.opacity < 1,
     'Focusable aria-disabled Save must look unavailable, while retaining its explanatory tooltip');
+  await page.mouse.move(0, 0);
+  const unavailableSave = await face();
+  // A faint boundary alone does not tell them apart; the face or the label color must differ.
+  assert(unavailableSave.background !== cleanSave.background || unavailableSave.color !== cleanSave.color,
+    `Unavailable Save looks like a clean Save: ${JSON.stringify({cleanSave, unavailableSave})}`);
+  await save.hover();
+  assert(JSON.stringify(await face()) === JSON.stringify(unavailableSave), 'Unavailable Save reacts to hover like an available action');
+  await page.mouse.move(0, 0);
   await page.getByText('Editable after repair.', {exact:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' MUST NOT APPEAR');
