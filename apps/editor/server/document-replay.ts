@@ -88,7 +88,7 @@ export function readModel(source: string): { document: EditableDocument; writeEr
 export function saveEdits(
   source: string,
   edits: SupportedEdits,
-): { markdown: string; document: EditableDocument; writeError: string | null } {
+): { markdown: string } {
   let document = applySources(parse(source), edits.sources ?? []);
   const editable = getEditableDocument(document);
   for (const edit of edits.headings ?? []) {
@@ -469,11 +469,12 @@ export function saveEdits(
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
   validateStructure(document);
   const markdown = serialize(document);
-  return { markdown, ...readModel(markdown) };
+  return { markdown };
 }
 
 /** Replace read-only opening blocks with applied MyST source, in place: their locators stay valid. */
 function applySources(opening: Document, sources: BlockSourceEdit[]): Document {
+  if (sources.length === 0) return opening;
   const blocks = getEditableDocument(opening).blocks;
   let document = opening;
   for (const edit of sources) {

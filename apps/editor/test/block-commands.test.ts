@@ -324,7 +324,7 @@ test("inserted and deleted blocks save through Core insertParagraph and removeBl
   assert.equal(saved.markdown, "AB\n\n**New**\\\nline\n\nCD\n\nTail\n");
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   const withoutPaths = (nodes: TiptapJSON[]) => nodes.map(node => ({ ...node, attrs: { ...node.attrs, sourcePath: "" } }));
-  assert.deepEqual(withoutPaths(toTiptapDocument(saved.document).content!), withoutPaths(next.content!));
+  assert.deepEqual(withoutPaths(toTiptapDocument(loadEditableDocument(saved.markdown)).content!), withoutPaths(next.content!));
 });
 
 test("new paragraphs and headings split and merge while empty editor paragraphs stay transient", () => {

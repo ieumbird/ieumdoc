@@ -33,7 +33,7 @@ test("both boundary delete keys join a heading and prose with a line break into 
     const joined = state.applyTransaction(tr).state;
     const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(joined)));
     assert.equal(saved.markdown, "Heading**Bold** and $x$\\\nnext.\n");
-    assert.equal(saved.document.blocks[0].block, "paragraph");
+    assert.equal(loadEditableDocument(saved.markdown).blocks[0].block, "paragraph");
   }
   // Formatted prose without line breaks joins into the heading by the engine's own join.
   const formatted = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("## Heading\n\n**Bold** and $x$.\n")));
@@ -203,7 +203,7 @@ test("Markdown block shortcuts replace the typed prefix and save as the equivale
   assert.equal(state.doc.child(5).type.name, "paragraph");
 
   const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state)));
-  const blocks = saved.document.blocks;
+  const blocks = loadEditableDocument(saved.markdown).blocks;
   assert.deepEqual(blocks.map(block => block.block), ["heading", "list", "list", "code", "heading", "paragraph"]);
   assert.deepEqual(blocks[1]?.block === "list" && blocks[1].items.map(item => item.content), [
     [{ kind: "text", text: "First item " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] }],
@@ -262,7 +262,7 @@ test("quotes and dividers from commands and shortcuts save as Core quotes and di
   apply(tr);
 
   const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state)));
-  assert.deepEqual(saved.document.blocks.map(block => block.block === "quote" ? `quote ${block.text}` : block.block), [
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map(block => block.block === "quote" ? `quote ${block.text}` : block.block), [
     "heading", "quote Edited Existing quote.", "quote New quote.", "divider", "quote Quote me",
   ]);
 });
@@ -278,5 +278,6 @@ test("a formatted heading opens editable, takes marks and saves its inline conte
   assert.deepEqual(edits.headings?.[0]?.path, [0]);
   const saved = saveEdits(markdown, edits);
   assert.match(saved.markdown, /^## Limits of \*\*phase\*\* \*current\*$/m);
-  assert.equal(saved.document.blocks[0]?.block === "heading" && saved.document.blocks[0].editable, true);
+  const savedBlock = loadEditableDocument(saved.markdown).blocks[0];
+  assert.equal(savedBlock?.block === "heading" && savedBlock.editable, true);
 });

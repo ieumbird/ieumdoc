@@ -127,7 +127,7 @@ test("a new table has a header row and two body rows of three columns, and saves
   assert.deepEqual(edits.inserts, [{ block: "table", rows: [[text("Port"), [], []], [text("U"), [], []], [[], [], []]] }]);
   const saved = saveEdits(mixed, edits);
   assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note      |\n| ---- | --------- |\n| U    | {u}`bold` |\n| P    |           |\n");
-  assert.equal(saved.document.blocks[1]?.block, "table");
+  assert.equal(loadEditableDocument(saved.markdown).blocks[1]?.block, "table");
 });
 
 test("a table inserted from a transient empty paragraph replaces it", () => {
@@ -175,7 +175,7 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
   }]);
   const saved = saveEdits(mixed, edits);
   assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note      |   |\n| ---- | - | --------- | - |\n| U    |   | {u}`bold` |   |\n| I    | x |           |   |\n| QP   |   |           |   |\n|      |   |           |   |\n");
-  const table = saved.document.blocks[TABLE];
+  const table = loadEditableDocument(saved.markdown).blocks[TABLE];
   assert.ok(table?.block === "table");
   assert.deepEqual(table.rows.map(row => row.cells.map(cell => cell.editable)), [
     [true, true, true, true], [true, true, false, true], [true, true, true, true], [true, true, true, true], [true, true, true, true],
@@ -276,7 +276,7 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
   const projected = state.doc.toJSON() as TiptapJSON;
   const table = projected.content![TABLE];
   for (const row of table.content!) assert.deepEqual(row.content!.map(cell => cell.attrs?.align), ["left", "", "right"]);
-  const saved = saveEdits(source, collectSupportedEdits(document, projected)).document.blocks[TABLE];
+  const saved = loadEditableDocument(saveEdits(source, collectSupportedEdits(document, projected)).markdown).blocks[TABLE];
   assert.ok(saved.block === "table");
   for (const row of saved.rows) assert.deepEqual(row.cells.map(cell => cell.align ?? ""), ["left", "", "right"]);
   // Alignment belongs to a column: one cell cannot silently claim its own.
@@ -294,7 +294,7 @@ test("caption and label edits and newly captioned tables save through Core in th
   const edits = collectSupportedEdits(document, next);
   const saved = saveEdits(source, edits);
   assert.match(saved.markdown, /:::\{table\} Values\n:name: tbl-values/);
-  assert.deepEqual(collectSupportedEdits(saved.document, toTiptapDocument(saved.document)), { headings: [], paragraphs: [] });
+  assert.deepEqual(collectSupportedEdits(loadEditableDocument(saved.markdown), toTiptapDocument(loadEditableDocument(saved.markdown))), { headings: [], paragraphs: [] });
   const inserted = saveEdits("", { order: [{ insert: 0 }], inserts: [{ block: "table", rows: [[text("A")], [text("1")]], caption: text("New"), label: "tbl-new" }] });
   assert.match(inserted.markdown, /:::\{table\} New\n:name: tbl-new/);
 });

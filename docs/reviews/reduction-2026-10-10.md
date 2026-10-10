@@ -13,8 +13,8 @@
 | --- | --- | --- | --- |
 | C01 | TopBar의 sourceHint는 shell 정적 테스트만 소비; App은 미전달 | viewDisabled/Save hint 유지; Source와 pending Figure browser | 구현(단위 1) |
 | C02 | convenience loader는 테스트 전용; 실제 Open/New는 loadDocumentFile → readModel | HTTP/file 테스트는 API, replay 테스트는 replay, 타입은 shared 직접 import | 구현(단위 1) |
-| C03 | Save/Source/session replay는 markdown만 소비; App은 acknowledgement의 revision 사용 | 최종 canonical write와 중간 operation의 차이, conflict/history/delayed Save 검증 | 구현 예정 |
-| C04 | App만 HTTP Save/Source 정식 소비; pure file helper에는 별도 테스트 호출자 | HTTP session 필수 검사, 누락/잘못된 값 거부; 내부 helper 재사용 보존 | 구현 예정 |
+| C03 | Save/Source/session replay는 markdown만 소비; App은 acknowledgement의 revision 사용 | 최종 canonical write와 중간 operation의 차이, conflict/history/delayed Save 검증 | 구현(단위 2) |
+| C04 | App만 HTTP Save/Source 정식 소비; pure file helper에는 별도 테스트 호출자 | HTTP session 필수 검사, 누락/잘못된 값 거부; 내부 helper 재사용 보존 | 구현(단위 2) |
 | C05 | legacy Button/IconButton 6개 소비 파일; Base UI button은 shell 소비 | type/ref/aria/disabled/event/selection, toolbar와 NodeView browser | 구현 예정 |
 | C06 | cn helper는 generator alias 소비; CSS/exports/local unused를 개별 확인 | generator 경로 일치, 동적 hljs/admonition 클래스·asset 유지 | 구현 중 |
 | C07 | Equation/Figure/Table/section label summary와 dismiss 상태 | 명시 Edit, Apply/Cancel/Escape, read-only source, touch/keyboard | 구현 예정 |
@@ -45,4 +45,12 @@ Frozen install, typecheck, test, production build 통과. Core 210, File commit 
 
 ### 단위 1 검증
 
-`pnpm typecheck`, Core 210/210, Editor 225/225, editor build, docs:check, diff --check 통과. CLI의 미사용 heading-number 계산만 제거했고 추가 CLI suite는 실행 중이다. cn 재수출은 generator의 실제 filesystem alias이므로 유지하며 6 UI consumer를 그 경로로 연결했다. Notice, 공개 Core operation, CLI bin, dependency patch는 유지한다.
+`pnpm typecheck`, Core 210/210, Editor 225/225, editor build, docs:check, diff --check 통과. CLI의 미사용 heading-number 계산만 제거했고 추가 CLI 46/46도 통과했다. cn 재수출은 generator의 실제 filesystem alias이므로 유지하며 6 UI consumer를 그 경로로 연결했다. Notice, 공개 Core operation, CLI bin, dependency patch는 유지한다.
+
+### 단위 2 검증과 측정
+
+응답 축소(`35af134`)와 replay 후처리 제거(`0cb8507`)는 별도 commit이다. Save acknowledgement는 revision만 반환하고 App은 read model을 요구하지 않는다. 최종 Core canonicalSerialize/figureWriteError/fingerprint/reparse 및 validateStructure는 유지; Open/New canonicalWriteError도 유지한다. 제거된 최종 readModel의 preflight는 별도 write gate가 아닌 반환 데이터였다. HTTP에서 path/revision/base.source를 요구하며 pure file helper의 disk-snapshot 재사용은 보존한다.
+
+같은 technical-document fixture, 고정 path와 64자리 revision의 JSON 응답: 3,325 → 79 bytes. 임시 Host 함수 계측(각 1 replay)에서 editable projection 3 → 1회, Markdown 동일. 코드 계측 사본은 실행 후 삭제했다. Windows Node 24.21, no-edit replay, warmup 5 + 측정 20회: baseline 총 204.988ms, 변경 후 총 111.085ms. 동시 검증 프로세스가 있었던 단일 측정이므로 일반화된 개선율이나 latency 보장은 하지 않는다.
+
+Editor 225/225, typecheck 통과. targeted browser 7개(save-session, save-during-edit, equation-save-during-edit, pending-figure, source-view, source-view-pending, writeability-preflight) 통과. 누락/잘못된 HTTP session fields는 Save와 Source 양쪽에서 400 및 원본 보존을 확인했다. valid stale revision은 409, conflict 이후 Source는 계속 복사 가능하다. pending Figure label swap 및 caption/label 변경 조합은 최종 canonical 계약으로 검증한다.

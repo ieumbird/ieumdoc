@@ -30,7 +30,8 @@ test("a new footnote and an edited definition save through Core in place and at 
   const saved = saveEdits(source, collectSupportedEdits(editable, next));
   assert.equal(saved.markdown,
     "# Notes\n\nA claim[^a] and another[^b]. More[^1].\n\n[^a]: **Edited** note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\n[^1]: New note.\n");
-  assert.equal(saved.document.blocks[4].block === "footnote" && saved.document.blocks[4].editable, true);
+  const savedBlock = loadEditableDocument(saved.markdown).blocks[4];
+  assert.equal(savedBlock.block === "footnote" && savedBlock.editable, true);
 });
 
 test("an empty definition and a changed label are refused before Save", () => {

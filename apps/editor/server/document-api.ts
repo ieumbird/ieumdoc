@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
+import { parse, serialize } from "@ieumdoc/core";
 import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import {
   applyBlockSource,
@@ -16,6 +16,7 @@ import {
 import type {
   BlockSourceRequest,
   SaveRequest,
+  SupportedEdits,
   DocumentFileResponse,
   SaveResponse,
   SourceResponse,
@@ -26,6 +27,9 @@ import type {
   FolderPlacesResponse,
   FolderResponse,
 } from "../shared/document-protocol.ts";
+
+/** Internal file helpers may replay directly against a supplied disk snapshot. HTTP always requires a session. */
+type FileSaveRequest = SupportedEdits & { revision?: string; base?: SaveRequest["base"] };
 
 function errorPayload(error: unknown): DocumentErrorResponse {
   return { error: error instanceof Error ? error.message : String(error),
@@ -97,15 +101,15 @@ export function createDocumentFile(requestedPath?: string): DocumentFileResponse
 
 export function saveDocumentFile(
   requestedPath: string | undefined,
-  request: SaveRequest,
-): DocumentFileResponse & { markdown: string } {
+  request: FileSaveRequest,
+): SaveResponse & { path: string; markdown: string } {
   const filePath = resolveDocumentPath(requestedPath);
   const saved = commitDocumentSave(
     () => readFileSync(filePath, "utf8"),
     (markdown) => replaceDocumentFile(filePath, markdown, request.revision),
     request,
   );
-  return { ...saved, source: saved.markdown, path: filePath };
+  return { ...saved, path: filePath };
 }
 
 /** The shared file commit; a failed write keeps the original. */
@@ -123,7 +127,7 @@ function replaceDocumentFile(filePath: string, markdown: string, revision: strin
  * The canonical Markdown this save request would write, through the same Core
  * save path. The file is only read, never written.
  */
-export function previewDocumentFile(requestedPath: string | undefined, request: SaveRequest): SourceResponse {
+export function previewDocumentFile(requestedPath: string | undefined, request: FileSaveRequest): SourceResponse {
   const filePath = resolveDocumentPath(requestedPath);
   if (request.base) {
     // A preview describes this session, even after an external conflict. Validate its
@@ -137,39 +141,17 @@ export function previewDocumentFile(requestedPath: string | undefined, request: 
 
 export function saveCurrentDocument(
   source: string,
-  request: SaveRequest,
-): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
+  request: FileSaveRequest,
+): { markdown: string; revision: string } {
   if (request.revision !== documentRevision(source)) {
     throw new DocumentConflictError();
   }
   const base = sessionSource(source, request);
-  const saved = saveEdits(base, {
-    sources: request.sources ?? [],
-    headings: request.headings ?? [],
-    headingLevels: request.headingLevels ?? [],
-    paragraphs: request.paragraphs ?? [],
-    equations: request.equations ?? [],
-    figures: request.figures ?? [],
-    cells: request.cells ?? [],
-    ...(request.headingNumbering === undefined ? {} : { headingNumbering: request.headingNumbering }),
-    tables: request.tables ?? [],
-    tableCaptions: request.tableCaptions ?? [],
-    admonitions: request.admonitions ?? [],
-    quotes: request.quotes ?? [],
-    footnotes: request.footnotes ?? [],
-    lists: request.lists ?? [],
-    codes: request.codes ?? [],
-    labels: request.labels ?? [],
-    splits: request.splits ?? [],
-    merges: request.merges ?? [],
-    inserts: request.inserts ?? [],
-    deletes: request.deletes ?? [],
-    order: request.order,
-  });
+  const saved = saveEdits(base, request);
   return { ...saved, revision: documentRevision(saved.markdown) };
 }
 
-function sessionSource(source: string, request: SaveRequest): string {
+function sessionSource(source: string, request: FileSaveRequest): string {
   if (request.base === undefined) return source;
   const base = request.base;
   if (!base || typeof base.source !== "string") throw new Error("invalid session source");
@@ -184,8 +166,8 @@ function sessionSource(source: string, request: SaveRequest): string {
 export function commitDocumentSave(
   readSource: () => string,
   writeSource: (markdown: string) => void,
-  request: SaveRequest,
-): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
+  request: FileSaveRequest,
+): { markdown: string; revision: string } {
   const source = readSource();
   const saved = saveCurrentDocument(source, request);
   writeSource(saved.markdown);
@@ -236,8 +218,8 @@ export async function handleDocumentRequest(
       return;
     }
     try {
-      const body = JSON.parse(await readBody(req)) as SaveRequest;
-      sendJson(res, 200, previewDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body)));
+      const request = saveRequestOf(JSON.parse(await readBody(req)));
+      sendJson(res, 200, previewDocumentFile(request.path, request));
     } catch (error) {
       sendJson(res, error instanceof DocumentConflictError ? 409 : 400, errorPayload(error));
     }
@@ -286,10 +268,10 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const body = JSON.parse(await readBody(req)) as SaveRequest;
+      const request = saveRequestOf(JSON.parse(await readBody(req)));
       try {
-        const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
-        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError } satisfies SaveResponse);
+        const saved = saveDocumentFile(request.path, request);
+        sendJson(res, 200, { revision: saved.revision } satisfies SaveResponse);
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });
@@ -306,32 +288,27 @@ export async function handleDocumentRequest(
   }
 }
 
-function saveRequestOf(body: SaveRequest): SaveRequest {
-  return {
-    revision: body.revision,
-    base: body.base,
-    sources: Array.isArray(body.sources) ? body.sources : [],
-    headings: Array.isArray(body.headings) ? body.headings : [],
-    headingLevels: Array.isArray(body.headingLevels) ? body.headingLevels : [],
-    paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [],
-    equations: Array.isArray(body.equations) ? body.equations : [],
-    figures: Array.isArray(body.figures) ? body.figures : [],
-    cells: Array.isArray(body.cells) ? body.cells : [],
-    ...(body.headingNumbering === undefined ? {} : { headingNumbering: body.headingNumbering }),
-    tables: Array.isArray(body.tables) ? body.tables : [],
-    tableCaptions: Array.isArray(body.tableCaptions) ? body.tableCaptions : [],
-    admonitions: Array.isArray(body.admonitions) ? body.admonitions : [],
-    quotes: Array.isArray(body.quotes) ? body.quotes : [],
-    footnotes: Array.isArray(body.footnotes) ? body.footnotes : [],
-    lists: Array.isArray(body.lists) ? body.lists : [],
-    codes: Array.isArray(body.codes) ? body.codes : [],
-    labels: Array.isArray(body.labels) ? body.labels : [],
-    splits: Array.isArray(body.splits) ? body.splits : [],
-    merges: Array.isArray(body.merges) ? body.merges : [],
-    inserts: Array.isArray(body.inserts) ? body.inserts : [],
-    deletes: Array.isArray(body.deletes) ? body.deletes : [],
-    order: body.order,
-  };
+function saveRequestOf(value: unknown): SaveRequest {
+  if (!isObject(value) || typeof value.path !== "string" || !value.path.trim()) throw new Error("document path is required");
+  if (typeof value.revision !== "string" || !/^[a-f0-9]{64}$/.test(value.revision)) throw new Error("invalid document revision");
+  if (!isObject(value.base) || typeof value.base.source !== "string") throw new Error("invalid session source");
+  const savedEdits = value.base.savedEdits === undefined ? undefined : supportedEditsOf(value.base.savedEdits);
+  return { ...supportedEditsOf(value), path: value.path, revision: value.revision,
+    base: { source: value.base.source, ...(savedEdits === undefined ? {} : { savedEdits }) } };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function supportedEditsOf(value: unknown): SupportedEdits {
+  if (!isObject(value)) throw new Error("invalid session edits");
+  for (const key of ["sources", "headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
+    "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order"] as const) {
+    if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);
+  }
+  if (value.headingNumbering !== undefined && typeof value.headingNumbering !== "boolean") throw new Error("invalid heading numbering");
+  return value as SupportedEdits;
 }
 
 const entryOrder = new Intl.Collator(undefined, { numeric: true });

@@ -147,7 +147,7 @@ async page => {
   await paragraph().click(); await page.keyboard.press('End'); await page.keyboard.type(' Local');
   const external = await read(file);
   const target = external.document.blocks.find(block => block.block === 'paragraph');
-  const response = await page.request.post(`${origin}/api/document`, {data:{path:file, revision:external.revision,
+  const response = await page.request.post(`${origin}/api/document`, {data:{path:file, revision:external.revision, base:{source:external.source},
     paragraphs:[{path:target.path, content:[{kind:'text', text:'External.'}]}]}});
   check('externalWrite', response.ok());
   await page.getByTestId('save').click(); await page.getByText('Save conflict', {exact:true}).waitFor();

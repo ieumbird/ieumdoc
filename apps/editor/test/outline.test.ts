@@ -47,10 +47,10 @@ test("heading numbering follows the single document state and saves as Core meta
   assert.equal(edits.headingNumbering, true);
   const saved = saveEdits(source, edits);
   assert.match(saved.markdown, /headings: true/);
-  assert.deepEqual(collectSupportedEdits(saved.document, toTiptapDocument(saved.document)), { headings: [], paragraphs: [] });
-  const without = toTiptapDocument(saved.document);
+  assert.deepEqual(collectSupportedEdits(loadEditableDocument(saved.markdown), toTiptapDocument(loadEditableDocument(saved.markdown))), { headings: [], paragraphs: [] });
+  const without = toTiptapDocument(loadEditableDocument(saved.markdown));
   without.attrs!.headingNumbering = null;
-  assert.equal(collectSupportedEdits(saved.document, without).headingNumbering, false);
+  assert.equal(collectSupportedEdits(loadEditableDocument(saved.markdown), without).headingNumbering, false);
   // A retained document-wide prefix must agree before Save and after Reload.
   const customSource = "---\nnumbering:\n  headings: false\n  enumerator: 'S.%s'\n---\n\n# Title\n\n## First\n";
   const custom = loadEditableDocument(customSource);
@@ -58,5 +58,5 @@ test("heading numbering follows the single document state and saves as Core meta
   customJSON.attrs = { headingNumbering: custom.headingNumberingDefault ?? defaultHeadingNumbering(true)! };
   const customDoc = schema.nodeFromJSON(customJSON);
   const customSaved = saveEdits(customSource, collectSupportedEdits(custom, customDoc.toJSON() as TiptapJSON));
-  assert.deepEqual(documentOutline(customDoc), documentOutline(schema.nodeFromJSON(toTiptapDocument(customSaved.document))));
+  assert.deepEqual(documentOutline(customDoc), documentOutline(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(customSaved.markdown)))));
 });

@@ -114,7 +114,7 @@ test("Host Save writes edited header and body cells and keeps everything else", 
   const beforeTable = (markdown: string) => markdown.slice(0, markdown.indexOf("\n| "));
   assert.ok(beforeTable(saved.markdown).includes("{eq}`eq-current`"));
   assert.equal(beforeTable(saved.markdown), beforeTable(saveEdits(source, {}).markdown));
-  const table = saved.document.blocks[TABLE];
+  const table = loadEditableDocument(saved.markdown).blocks[TABLE];
   assert.equal(table?.block, "table");
   if (table?.block === "table") {
     assert.deepEqual(table.rows.map((row) => row.cells.map((cell) => [cell.text, cell.header, cell.editable])), [

@@ -146,12 +146,11 @@ export type SupportedEdits = {
 };
 
 export type SaveRequest = SupportedEdits & {
-  /** Optional document locator; the Host retains its default-file behavior. */
-  path?: string;
-  revision?: string;
+  path: string;
+  revision: string;
   /** Session locators address this opening source, including across Save and engine history.
    * The previous accepted edits must reproduce the current disk before new edits can write. */
-  base?: { source: string; savedEdits?: SupportedEdits };
+  base: { source: string; savedEdits?: SupportedEdits };
 };
 
 export type DocumentFileResponse = {
@@ -163,11 +162,8 @@ export type DocumentFileResponse = {
   writeError: string | null;
 };
 
-/** The Editor always submits the acknowledged revision; the Host still checks it at runtime. */
-export type SessionSaveRequest = SaveRequest & Required<Pick<SaveRequest, "revision">>;
-
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
-export type SaveResponse = Omit<DocumentFileResponse, "source">;
+export type SaveResponse = Pick<DocumentFileResponse, "revision">;
 
 export type SourceResponse = { markdown: string };
 

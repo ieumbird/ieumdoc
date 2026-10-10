@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { getSchema } from "@tiptap/core";
 import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
-import { parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
+import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -143,7 +143,7 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   assert.deepEqual(edits.figures, [{ path: [6], from: ORIGINAL, to: CHANGED }]);
   assert.ok(edits.order);
   const saved = saveEdits(source, edits);
-  assert.deepEqual(figureOf(saved.document, 0), { label: "fig-control", ...CHANGED });
+  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
   assert.match(saved.markdown, /^:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
@@ -152,7 +152,7 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   const cleared = toTiptapDocument(editable);
   setFigure(blockAt(cleared, FIGURE), { ...ORIGINAL, imageAlt: "", caption: "" });
   const clearedSave = saveEdits(source, collectSupportedEdits(editable, cleared));
-  assert.deepEqual(figureOf(clearedSave.document, 6), { label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: "", caption: "" });
+  assert.deepEqual(figureOf(loadEditableDocument(clearedSave.markdown), 6), { label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: "", caption: "" });
 });
 
 test("new Figure inserts save and reload through Core semantics", () => {
@@ -164,7 +164,7 @@ test("new Figure inserts save and reload through Core semantics", () => {
   assert.deepEqual(edits.inserts, [{ block: "figure", ...figure }]);
   const saved = saveEdits("Intro\n", edits);
   assert.equal(saved.markdown, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
-  assert.deepEqual(figureOf(saved.document, 1), { label: "", ...figure });
+  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
 
   // An unapplied transient Figure (as the insert command makes it) remains in the session, outside the applied save.
@@ -196,15 +196,15 @@ test("Figure delete and reorder keep other blocks and Core semantics", () => {
   const edits = collectSupportedEdits(editable, deleted);
   assert.deepEqual(edits.deletes, [[6]]);
   const saved = saveEdits(source, edits);
-  assert.equal(saved.document.blocks.some((block) => block.block === "figure"), false);
-  assert.equal(saved.document.blocks.length, editable.blocks.length - 1);
+  assert.equal(loadEditableDocument(saved.markdown).blocks.some((block) => block.block === "figure"), false);
+  assert.equal(loadEditableDocument(saved.markdown).blocks.length, editable.blocks.length - 1);
 
   const inserted = toTiptapDocument(editable);
   const figure = { imageUrl: "./plot.svg", imageAlt: "", caption: "Plot." };
   inserted.content!.splice(1, 0, setFigure({ type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true } }, figure));
   const withInsert = saveEdits(source, collectSupportedEdits(editable, inserted));
-  assert.deepEqual(figureOf(withInsert.document, 1), { label: "", ...figure });
-  assert.deepEqual(figureOf(withInsert.document, 7), { label: "fig-control", ...ORIGINAL });
+  assert.deepEqual(figureOf(loadEditableDocument(withInsert.markdown), 1), { label: "", ...figure });
+  assert.deepEqual(figureOf(loadEditableDocument(withInsert.markdown), 7), { label: "fig-control", ...ORIGINAL });
 });
 
 test("Figure draft state distinguishes applied content from unapplied input", () => {
@@ -387,6 +387,19 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
   ] });
   assert.equal(swapped.markdown, ":::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
   assert.throws(() => saveEdits(labelOnlySource, { labels: [{ path: [0], from: "fig-a", to: "" }] }), /needs an image, a caption or a label/);
+  // Caption and label edits can temporarily leave an empty pending Figure between operations.
+  for (const [opening, from, to, beforeLabel, afterLabel] of [
+    [":::{figure}\n:name: fig-a\n:::\n", "", "Caption", "fig-a", ""],
+    [":::{figure}\n\nCaption\n:::\n", "Caption", "", "", "fig-a"],
+  ] as const) {
+    const result = saveEdits(opening, {
+      figures: [{ path: [0], from: { imageUrl: "", imageAlt: "", caption: from }, to: { imageUrl: "", imageAlt: "", caption: to } }],
+      labels: [{ path: [0], from: beforeLabel, to: afterLabel }],
+    });
+    assert.equal(canonicalWriteError(parse(result.markdown)), undefined);
+    assert.deepEqual(figureOf(loadEditableDocument(result.markdown), 0), { label: afterLabel, imageUrl: "", imageAlt: "", caption: to });
+  }
+
 });
 
 test("a Figure inserted with an image file is applied at once and saved", () => {
