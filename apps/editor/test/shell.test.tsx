@@ -150,7 +150,7 @@ test("an unwritable document shows Cannot save in place of the idle states", () 
   }
 });
 
-test("top bar exposes the active document view and blocks unavailable Source", () => {
+test("top bar exposes the active document view and disables both views during unavailable work", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
       <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
@@ -163,11 +163,12 @@ test("top bar exposes the active document view and blocks unavailable Source", (
   assert.match(html, />Source</);
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Ready" saveDisabled onSave={noop} view="visual" onViewChange={noop}
-        sourceHint="Apply or Cancel the Figure edit before viewing Source." />
+      <TopBar documentPath={PATH} status="Loading…" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
     </TooltipProvider>,
   );
-  assert.match(blocked, /<button\b(?=[^>]*data-testid="view-source")(?=[^>]*aria-disabled="true")[^>]*>/);
+  for (const view of ["visual", "source"]) {
+    assert.match(blocked, new RegExp(`<button\\b(?=[^>]*data-testid="view-${view}")(?=[^>]*disabled)[^>]*>`));
+  }
 });
 
 test("message area separates dismissible errors from expiring notices", () => {

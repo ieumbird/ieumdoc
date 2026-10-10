@@ -21,7 +21,6 @@ import {
   parse,
   removeBlock,
   serialize,
-  type Document,
   type InlineContent,
 } from "@ieumdoc/core";
 import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
@@ -33,24 +32,9 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import {
-  commitDocumentSave,
-  createDocumentFile,
-  documentRevision,
-  DocumentConflictError,
-  browseFolder,
-  folderPlaces,
-  handleDocumentRequest,
-  listFolder,
-  loadDocumentFile,
-  loadEditableDocument,
-  previewDocumentFile,
-  resolveMediaPath,
-  resolveDocumentPath,
-  saveCurrentDocument,
-  saveDocumentFile,
-  saveEdits,
-} from "../server/document-api.ts";
+import { commitDocumentSave, createDocumentFile, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = fileURLToPath(
@@ -67,8 +51,8 @@ const PRESERVED_INDEXES = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
 
 const source = readFileSync(fixture, "utf8");
 
-test("Editor uses the Core read model", () => {
-  const document = loadEditableDocument(source);
+test("Host file loading exposes the Core read model", () => {
+  const document = loadDocumentFile(fixture).document;
   assert.deepEqual(document, getEditableDocument(parse(source)));
   assert.equal(
     document.blocks.some((block) => block.block === "paragraph" && block.editable && block.text === PARAGRAPH_FROM),

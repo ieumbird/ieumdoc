@@ -28,7 +28,9 @@ import {
   toTiptapDocument,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, documentRevision, loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { commitDocumentSave, documentRevision } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const schema = getSchema(editorExtensions());

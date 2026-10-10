@@ -6,13 +6,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
-import {
-  loadDocumentFile,
-  loadEditableDocument,
-  previewDocumentFile,
-  saveDocumentFile,
-  saveEdits,
-} from "../server/document-api.ts";
+import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const source = readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),

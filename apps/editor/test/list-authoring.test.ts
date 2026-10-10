@@ -10,7 +10,8 @@ import { parse, serialize, type InlineContent } from "@ieumdoc/core";
 import { insertListAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile } from "../server/document-api.ts";
+import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
 
 const text = (value: string): InlineContent[] => [{ kind: "text", text: value }];
 

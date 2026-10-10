@@ -6,7 +6,6 @@ import {
   assertInlineContent,
   sameInlineContent,
   inlineContentLength,
-  inlineMarkKey,
   splitInlineContent,
   concatenateInlineContent,
   insertInlineBreak,

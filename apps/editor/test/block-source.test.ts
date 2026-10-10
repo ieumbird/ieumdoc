@@ -5,7 +5,8 @@ import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState, type Transaction } from "@tiptap/pm/state";
 import { blockSourceTransaction, editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
-import { applyBlockSource, loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { applyBlockSource, saveEdits } from "../server/document-replay.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
 
 const markdown = "# Title\n\n![logo](./logo.png)\n\nBody.\n";
 

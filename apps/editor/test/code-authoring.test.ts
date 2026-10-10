@@ -9,7 +9,8 @@ import { parse, serialize } from "@ieumdoc/core";
 import { insertCodeBlockAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile } from "../server/document-api.ts";
+import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
 
 function editorState(markdown: string) {
   const editable = loadEditableDocument(markdown);

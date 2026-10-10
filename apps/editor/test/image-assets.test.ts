@@ -12,7 +12,8 @@ import type { EditorView } from "@tiptap/pm/view";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { imageAssetsPlugin } from "../src/image-assets.ts";
 import { collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
-import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 import { createImageAsset, handleAssetRequest, rollbackImageAsset } from "../server/asset-api.ts";
 import { resolveMediaPath } from "../server/document-api.ts";
 

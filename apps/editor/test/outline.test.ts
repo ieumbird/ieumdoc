@@ -5,7 +5,8 @@ import { editorExtensions } from "../src/editor-schema.tsx";
 import { currentOutlineItem, documentOutline } from "../src/outline.ts";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { collectSupportedEdits, type TiptapJSON, toTiptapDocument } from "../src/tiptap-document.ts";
-import { saveEdits, loadEditableDocument } from "../server/document-api.ts";
+import { saveEdits } from "../server/document-replay.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
 
 test("the outline lists top-level headings in order, read-only headings included", () => {
   const markdown = "# Title\n\nIntro.\n\n## Plain section\n\n### **Formatted** section\n\n> ## Not a top-level heading\n\n## Last\n";

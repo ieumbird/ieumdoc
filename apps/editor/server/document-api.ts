@@ -26,27 +26,6 @@ import type {
   FolderPlacesResponse,
   FolderResponse,
 } from "../shared/document-protocol.ts";
-export type {
-  HeadingEdit,
-  HeadingLevelEdit,
-  ParagraphEdit,
-  EquationEdit,
-  FigureEdit,
-  AdmonitionEdit,
-  TableCellEdit,
-  TableShapeEdit,
-  ListEdit,
-  CodeEdit,
-  LabelEdit,
-  QuoteEdit,
-  FootnoteEdit,
-  InsertEdit,
-  OrderItem,
-  SupportedEdits,
-  SaveRequest,
-  DocumentFileResponse,
-} from "../shared/document-protocol.ts";
-export { applyBlockSource, loadEditableDocument, saveEdits, validateFigureRequest } from "./document-replay.ts";
 
 function errorPayload(error: unknown): DocumentErrorResponse {
   return { error: error instanceof Error ? error.message : String(error),

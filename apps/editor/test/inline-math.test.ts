@@ -9,7 +9,9 @@ import { EditorState } from "@tiptap/pm/state";
 import type { InlineContent } from "@ieumdoc/core";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } from "../server/document-api.ts";
+import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const source = [
   "The current is $i_d$ and the voltage is **$v_{dc}$**.",
