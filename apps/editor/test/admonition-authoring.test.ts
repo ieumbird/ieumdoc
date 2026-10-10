@@ -94,7 +94,8 @@ test("an admonition kind change and a body edit save together and keep the inlin
   assert.equal(edits.admonitions?.[0]?.variant, "danger");
   const saved = saveEdits(source, edits);
   assert.ok(saved.markdown.includes(":::{danger}\nNow **bold** and *italic*"), saved.markdown);
-  assert.equal(saved.document.blocks[1]?.block === "admonition" && saved.document.blocks[1].editable, true);
+  const savedBlock = loadEditableDocument(saved.markdown).blocks[1];
+  assert.equal(savedBlock?.block === "admonition" && savedBlock.editable, true);
 });
 
 test("unsupported admonitions remain read-only and a failed edit never writes the file", () => {

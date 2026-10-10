@@ -56,13 +56,13 @@ test("Equation and Figure labels change through Save; content and every other li
 
   const removed = saveEdits(source, collectSupportedEdits(...Object.values(relabel({ [EQUATION]: "", [FIGURE]: "" })) as [EditableDocument, TiptapJSON]));
   assert.equal(removed.markdown, canonical.replace(":name: fig-control\n", "").replace(":label: eq-current\n\n", ""));
-  assert.deepEqual(labels(removed.document).map((block) => block[1]), ["", ""]);
+  assert.deepEqual(labels(loadEditableDocument(removed.markdown)).map((block) => block[1]), ["", ""]);
 });
 
 test("labels can move between blocks in one Save, but duplicates are rejected", () => {
   const swapped = relabel({ [EQUATION]: "fig-control", [FIGURE]: "eq-current" });
   const saved = saveEdits(source, collectSupportedEdits(swapped.editable, swapped.next));
-  assert.deepEqual(labels(saved.document).map((block) => block[1]), ["eq-current", "fig-control"]);
+  assert.deepEqual(labels(loadEditableDocument(saved.markdown)).map((block) => block[1]), ["eq-current", "fig-control"]);
 
   const duplicate = relabel({ [EQUATION]: "FIG-Control" });
   assert.throws(() => saveEdits(source, collectSupportedEdits(duplicate.editable, duplicate.next)), /already names another target/);

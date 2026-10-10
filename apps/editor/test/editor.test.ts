@@ -425,8 +425,8 @@ test("an empty split sibling becomes a new heading insertion without converting 
   const edits = collectSupportedEdits(editable, heading);
   assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, content: [{ kind: "text", text: "Inserted heading" }] }]);
   const saved = saveEdits(markdown, edits);
-  assert.deepEqual(saved.document.blocks.map((block) => block.block), ["paragraph", "heading"]);
-  assert.deepEqual(saved.document.blocks[1], {
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map((block) => block.block), ["paragraph", "heading"]);
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks[1], {
     block: "heading",
     path: [1],
     level: 2,
@@ -523,9 +523,10 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
     });
     assert.equal(readFileSync(fileA, "utf8"), "Document A changed\n");
     assert.equal(readFileSync(fileB, "utf8"), "Document B\n");
-    assert.equal(savedA.document.blocks[0]?.block, "paragraph");
-    if (savedA.document.blocks[0]?.block !== "paragraph") return;
-    assert.equal(savedA.document.blocks[0].text, "Document A changed");
+    const savedParagraph = loadEditableDocument(savedA.markdown).blocks[0];
+    assert.equal(savedParagraph?.block, "paragraph");
+    if (savedParagraph?.block !== "paragraph") return;
+    assert.equal(savedParagraph.text, "Document A changed");
 
     writeFileSync(fileA, "Document A external\n");
     assert.throws(
@@ -614,7 +615,7 @@ test("new heading inserts save and reload through Core semantics", () => {
   assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, content: [{ kind: "text", text: "Details" }] }]);
   const saved = saveEdits("Intro\n", edits);
   assert.equal(saved.markdown, "Intro\n\n## Details\n");
-  assert.deepEqual(saved.document.blocks[1], {
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks[1], {
     block: "heading",
     path: [1],
     level: 2,
@@ -649,10 +650,11 @@ test("new Equation inserts save and reload through Core semantics", () => {
   assert.deepEqual(edits.inserts, [{ block: "equation", latex: "x^2 + 1" }]);
   const saved = saveEdits("Intro\n", edits);
   assert.equal(saved.markdown, "Intro\n\n```{math}\nx^2 + 1\n```\n");
-  assert.deepEqual(saved.document.blocks.map(block => block.block), ["paragraph", "equation"]);
-  assert.equal(saved.document.blocks[1]?.block, "equation");
-  if (saved.document.blocks[1]?.block === "equation") {
-    assert.equal(saved.document.blocks[1].latex, "x^2 + 1");
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map(block => block.block), ["paragraph", "equation"]);
+  assert.equal(loadEditableDocument(saved.markdown).blocks[1]?.block, "equation");
+  const equation = loadEditableDocument(saved.markdown).blocks[1];
+  if (equation?.block === "equation") {
+    assert.equal(equation.latex, "x^2 + 1");
   }
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 
@@ -698,7 +700,7 @@ test("new Markdown files use Core's canonical empty document and can be edited a
       order: [{ insert: 0 }],
     });
     assert.equal(readFileSync(file, "utf8"), "A new document\n");
-    assert.equal(saved.document.blocks[0]?.block, "paragraph");
+    assert.equal(loadEditableDocument(saved.markdown).blocks[0]?.block, "paragraph");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1453,8 +1455,8 @@ test("schema-normalized nested marks survive the complete save and reload path",
     const editable = loadEditableDocument(source);
     const projected = normalizedDocument(toTiptapDocument(editable));
     const saved = saveEdits(source, collectSupportedEdits(editable, projected));
-    assert.deepEqual(saved.document, loadEditableDocument(saved.markdown));
-    const reloaded = normalizedDocument(toTiptapDocument(saved.document));
+    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
+    const reloaded = normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown)));
     assert.deepEqual(reloaded, projected);
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
@@ -1493,7 +1495,7 @@ test("typed straight quotes save through the Editor adapter and Host and reload 
   assert.equal(written, saved.markdown);
   assert.equal(written, "# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n");
   const reloaded = loadEditableDocument(written);
-  assert.deepEqual(reloaded, saved.document);
+  assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   assert.deepEqual(normalizedDocument(toTiptapDocument(reloaded)), projected);
 });
 
@@ -1543,7 +1545,7 @@ test("hard breaks and marks survive editable projection, save and reload", () =>
       { ...first, text: "B" },
     ];
     const saved = saveEdits(source, collectSupportedEdits(editable, projected));
-    assert.deepEqual(normalizedDocument(toTiptapDocument(saved.document)), projected);
+    assert.deepEqual(normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown))), projected);
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
     assert.deepEqual(toTiptapContent(fromTiptapContent({type: "doc", content: [{type: "paragraph", content: projected.content![0].content}]})).content?.[0].content, projected.content![0].content);
     const reloaded = loadEditableDocument(saved.markdown);
@@ -1594,7 +1596,7 @@ test("paragraph split saves final edited parts through Core and preserves other 
     const edits = collectSupportedEdits(editable, projection);
     assert.deepEqual(edits.splits, [{path: [8], parts: parts.map(part => fromTiptapContent(toTiptapContent(part)))}]);
     const saved = saveEdits(source, edits);
-    assert.deepEqual(normalizedDocument(toTiptapDocument(saved.document)).content!.slice(8,10).map(node => node.content), parts.map(part => toTiptapContent(part).content![0].content));
+    assert.deepEqual(normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown))).content!.slice(8,10).map(node => node.content), parts.map(part => toTiptapContent(part).content![0].content));
     // Blocks outside the split keep their canonical Markdown.
     const before = removeBlock(parse(source), 8);
     const after = removeBlock(removeBlock(parse(saved.markdown), 9), 8);
@@ -1644,7 +1646,7 @@ test("paragraph merges retain marks, breaks, post-merge edits and surrounding se
     const edits = collectSupportedEdits(editable, projection);
     assert.equal(edits.merges?.length, 1);
     const saved = saveEdits(source, edits);
-    const actual = normalizedDocument(toTiptapDocument(saved.document)).content![1].content;
+    const actual = normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown))).content![1].content;
     const expected = normalizedDocument({...projection, content: [projection.content![1]]}).content![0].content;
     assert.deepEqual(actual, expected);
     // Blocks outside the merge keep their canonical Markdown.
@@ -1702,7 +1704,7 @@ test("all top-level blocks reorder through Core without changing semantic conten
     const saved = saveEdits(source, collectSupportedEdits(editable, next));
     assert.equal(saved.markdown, serialize(moveBlock(parse(source), from, 0)));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
-    assert.deepEqual(toTiptapDocument(saved.document).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})),
+    assert.deepEqual(toTiptapDocument(loadEditableDocument(saved.markdown)).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})),
       next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})));
   }
 });
@@ -1715,8 +1717,8 @@ test("reorder and subsequent marked text and break edits survive save and reload
   paragraph.content!.push({type:"hardBreak", marks:[{type:"italic"}]}, {type:"text", text:"extra", marks:[{type:"italic"}]});
   next.content!.unshift(paragraph);
   const saved = saveEdits(markdown, collectSupportedEdits(editable, next));
-  assert.deepEqual(saved.document.blocks.map(block => block.block), ["paragraph","heading","paragraph"]);
-  const first = saved.document.blocks[0];
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map(block => block.block), ["paragraph","heading","paragraph"]);
+  const first = loadEditableDocument(saved.markdown).blocks[0];
   assert.equal(first.block === "paragraph" && first.text, "CD\nextra");
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 });

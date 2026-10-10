@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
+import { parse, serialize } from "@ieumdoc/core";
 import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import {
   applyBlockSource,
@@ -98,14 +98,14 @@ export function createDocumentFile(requestedPath?: string): DocumentFileResponse
 export function saveDocumentFile(
   requestedPath: string | undefined,
   request: SaveRequest,
-): DocumentFileResponse & { markdown: string } {
+): SaveResponse & { path: string; markdown: string } {
   const filePath = resolveDocumentPath(requestedPath);
   const saved = commitDocumentSave(
     () => readFileSync(filePath, "utf8"),
     (markdown) => replaceDocumentFile(filePath, markdown, request.revision),
     request,
   );
-  return { ...saved, source: saved.markdown, path: filePath };
+  return { ...saved, path: filePath };
 }
 
 /** The shared file commit; a failed write keeps the original. */
@@ -138,7 +138,7 @@ export function previewDocumentFile(requestedPath: string | undefined, request: 
 export function saveCurrentDocument(
   source: string,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
+): { markdown: string; revision: string } {
   if (request.revision !== documentRevision(source)) {
     throw new DocumentConflictError();
   }
@@ -185,7 +185,7 @@ export function commitDocumentSave(
   readSource: () => string,
   writeSource: (markdown: string) => void,
   request: SaveRequest,
-): { markdown: string; document: EditableDocument; writeError: string | null; revision: string } {
+): { markdown: string; revision: string } {
   const source = readSource();
   const saved = saveCurrentDocument(source, request);
   writeSource(saved.markdown);
