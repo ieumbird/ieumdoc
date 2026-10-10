@@ -220,8 +220,7 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   assert.equal(isUnappliedFigureDraft(true, { ...empty, caption: "Caption" }, { ...empty, caption: "Caption" }, true), false);
 
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
-  assert.match(documentEditor, /activeFigureDrafts\.current\.size > 0/);
+  // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   // Cancel removes only a never-applied transient Figure; Apply writes the validated draft.
   assert.match(schemaSource, /const neverApplied = node\.attrs\.applied === false;/);

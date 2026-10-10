@@ -49,8 +49,8 @@ import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { TableCellFocus, TableTools } from "./table-tools.tsx";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
-export type DraftListener = (key: string, active: boolean) => void;
-export type EquationDraftListener = DraftListener;
+export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Source";
+export type DraftListener = (kind: DraftKind, path: string, active: boolean) => void;
 
 /** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
 /** Core's persistent validation of a Figure Apply: its properties and its label. */
@@ -416,7 +416,7 @@ const Equation = Node.create({
   },
 });
 
-function equationNode(onDraftChange?: EquationDraftListener) {
+function equationNode(onDraftChange?: DraftListener) {
   return Equation.extend({
     addNodeView() {
       return ReactNodeViewRenderer(createEquationNodeView(onDraftChange));
@@ -438,7 +438,7 @@ function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListen
   };
 }
 
-function createEquationNodeView(onDraftChange?: EquationDraftListener) {
+function createEquationNodeView(onDraftChange?: DraftListener) {
   return function EquationDraftNodeView(props: ReactNodeViewProps) {
     return <EquationView {...props} onDraftChange={onDraftChange} />;
   };
@@ -500,7 +500,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const [error, setError] = useState("");
   const sourcePath = String(node.attrs.sourcePath);
   const dirty = editing && (draft.label !== label || draft.caption !== text);
-  useEffect(() => { onDraftChange?.(sourcePath, dirty); return () => onDraftChange?.(sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
+  useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
   useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
   const close = () => { setEditing(false); editor.commands.focus(); };
@@ -569,23 +569,49 @@ function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "nod
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
+  const openedNode = useRef<ProseMirrorNode | null>(null);
+  const validation = useRef(0);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const editing = draft !== null;
+  const path = String(node.attrs.sourcePath ?? "");
+  const options = blockSourceOptions(editor);
+  const onDraftChange = options?.onDraftChange;
+  const dirty = busy || (editing && draft !== original?.text);
+  useEffect(() => {
+    onDraftChange?.("Source", path, dirty);
+    return () => onDraftChange?.("Source", path, false);
+  }, [path, dirty, onDraftChange]);
+  useEffect(() => () => { validation.current++; }, []);
   useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   if (!original) return null;
-  const path = String(node.attrs.sourcePath ?? "");
-  const options = editor.extensionManager.extensions.find(extension => extension.name === "blockSourceEditing")?.options as BlockSourceOptions | undefined;
   const applier = options?.apply;
   // The draft starts from the block's source, so it must still be the block that source made.
   const sources = blockSourcesOf({ attrs: editor.state.doc.attrs });
   const baseline = options?.baseline && withBlockSourceNodes(options.baseline(), sources).content?.find(block => block.attrs?.sourcePath === path);
   const unchanged = Boolean(baseline) && editor.schema.nodeFromJSON(baseline).eq(node);
-  const close = () => { setDraft(null); setError(""); editor.commands.focus(); };
+  const close = () => { validation.current++; setBusy(false); setDraft(null); setError(""); editor.commands.focus(); };
+  const replacementError = () => {
+    const position = editor.isDestroyed ? undefined : getPos();
+    const current = typeof position === "number" ? editor.state.doc.nodeAt(position) : null;
+    if (!current || !openedNode.current?.eq(current)) return "This block changed. Undo its edits, or Cancel and reopen source editing.";
+    if (options?.hasOtherDraft?.("Source", path)) return "Apply or Cancel this block's other property edit before applying its source.";
+    return undefined;
+  };
   const apply = async () => {
-    if (draft === null || !applier) return;
+    if (draft === null || !applier || busy) return;
+    const invalid = replacementError();
+    if (invalid) { setError(invalid); return; }
+    const request = ++validation.current;
     setBusy(true);
     setError("");
     try {
       const block = await applier(path, draft, sources);
+      if (request !== validation.current) return;
+      const changed = replacementError() ?? (draftRef.current !== draft ||
+        JSON.stringify(blockSourcesOf({ attrs: editor.state.doc.attrs })) !== JSON.stringify(sources)
+        ? "Source changed during validation. Apply again." : undefined);
+      if (changed) { setError(changed); return; }
       const position = getPos();
       if (typeof position !== "number") return;
       editor.view.dispatch(blockSourceTransaction(editor.state, position, path, draft, block));
@@ -593,9 +619,9 @@ function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "nod
       editor.view.dispatch(closeHistory(editor.state.tr));
       close();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      if (request === validation.current) setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setBusy(false);
+      if (request === validation.current) setBusy(false);
     }
   };
   return <details className="original-content" contentEditable={false}>
@@ -620,7 +646,7 @@ function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "nod
         <pre>{original.text}</pre>
         {editor.isEditable && applier ? <>
           <Button size="sm" variant="outline" disabled={!unchanged} data-testid="block-source-edit"
-            onClick={() => { setDraft(original.text); setError(""); }}>Edit source</Button>
+            onClick={() => { openedNode.current = node; setDraft(original.text); setError(""); }}>Edit source</Button>
           {unchanged ? null : <p className="block-popover-note">Undo this block's edits, or Save and Reload, to edit its source.</p>}
         </> : null}
       </>
@@ -717,6 +743,13 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
   const [error, setError] = useState("");
+  const path = String(node.attrs.sourcePath ?? "");
+  const onDraftChange = blockSourceOptions(editor)?.onDraftChange;
+  const dirty = editing && draft !== label;
+  useEffect(() => {
+    onDraftChange?.("Section label", path, dirty);
+    return () => onDraftChange?.("Section label", path, false);
+  }, [path, dirty, onDraftChange]);
   useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   const close = () => { setEditing(false); setError(""); editor.commands.focus(); };
   const apply = () => {
@@ -884,7 +917,16 @@ const ParagraphMerge = Extension.create({
   },
 });
 
-type BlockSourceOptions = { apply?: BlockSourceApplier; baseline?: () => TiptapJSON };
+type BlockSourceOptions = {
+  apply?: BlockSourceApplier;
+  baseline?: () => TiptapJSON;
+  onDraftChange?: DraftListener;
+  hasOtherDraft?: (kind: DraftKind, path: string) => boolean;
+};
+
+function blockSourceOptions(editor: Editor): BlockSourceOptions | undefined {
+  return editor.extensionManager.extensions.find(extension => extension.name === "blockSourceEditing")?.options;
+}
 
 /** Applied block sources are editor document state; Apply asks Core through the Host. */
 const BlockSourceEditing = Extension.create<BlockSourceOptions>({
@@ -894,9 +936,8 @@ const BlockSourceEditing = Extension.create<BlockSourceOptions>({
 });
 
 export function editorExtensions(
-  onEquationDraftChange?: EquationDraftListener,
+  onDraftChange?: DraftListener,
   documentPath?: string,
-  onFigureDraftChange?: DraftListener,
   validateFigure?: FigureValidator,
   blockSource?: BlockSourceOptions,
 ): Extensions {
@@ -947,9 +988,9 @@ export function editorExtensions(
     Quote,
     FootnoteDefinition,
     Divider,
-    figureNode(documentPath, onFigureDraftChange, validateFigure),
-    equationNode(onEquationDraftChange),
-    tableNode(onFigureDraftChange),
+    figureNode(documentPath, onDraftChange, validateFigure),
+    equationNode(onDraftChange),
+    tableNode(onDraftChange),
     TableRow,
     TableCell,
     ReadonlyTableCell,
@@ -959,23 +1000,23 @@ export function editorExtensions(
     CrossReference,
     FootnoteReference,
     MarkdownInputRules,
-    BlockSourceEditing.configure(blockSource ?? {}),
+    BlockSourceEditing.configure({ ...blockSource, onDraftChange }),
   ];
 }
 
 export function createEditorExtensions(
   baseline: TiptapJSON | (() => TiptapJSON),
   onReject: (reason?: string) => void,
-  onEquationDraftChange?: EquationDraftListener,
+  onDraftChange?: DraftListener,
   documentPath?: string,
-  onFigureDraftChange?: DraftListener,
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
   applyBlockSource?: BlockSourceApplier,
+  hasOtherDraft?: BlockSourceOptions["hasOtherDraft"],
 ): Extensions {
   const baselineOf = typeof baseline === "function" ? baseline : () => baseline;
-  return [...editorExtensions(onEquationDraftChange, documentPath, onFigureDraftChange, validateFigure, { apply: applyBlockSource, baseline: baselineOf }),
+  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft }),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
@@ -1164,8 +1205,8 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   }, [editableFigure, neverApplied]);
 
   useEffect(() => {
-    onDraftChange?.(sourcePath, hasUnappliedDraft);
-    return () => onDraftChange?.(sourcePath, false);
+    onDraftChange?.("Figure", sourcePath, hasUnappliedDraft);
+    return () => onDraftChange?.("Figure", sourcePath, false);
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {
@@ -1358,7 +1399,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
-function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: EquationDraftListener }) {
+function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
   const kind = number === undefined ? "Equation" : `Equation (${number})`;
@@ -1387,8 +1428,8 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath) ||
     (editing && labelDraft !== label);
   useEffect(() => {
-    onDraftChange?.(sourcePath, hasUnappliedDraft);
-    return () => onDraftChange?.(sourcePath, false);
+    onDraftChange?.("Equation", sourcePath, hasUnappliedDraft);
+    return () => onDraftChange?.("Equation", sourcePath, false);
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {

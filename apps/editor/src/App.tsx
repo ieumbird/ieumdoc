@@ -70,8 +70,7 @@ export function App() {
   // The folder the user chose for this page session, as a lazily listed tree; never stored or watched.
   const folderTree = useFolderTree(requestFolder, setError);
   const [editorGeneration, setEditorGeneration] = useState(0);
-  const [equationDraftActive, setEquationDraftActive] = useState(false);
-  const [figureDraftActive, setFigureDraftActive] = useState(false);
+  const [draftActive, setDraftActive] = useState(false);
   const [assetPending, setAssetPending] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   // Outline changes on scrolling re-render the outline only, never the App and its editor.
@@ -80,8 +79,8 @@ export function App() {
   // writable sessions are validated again on every Save/Source request.
   const [writeError, setWriteError] = useState("");
   const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
-  const draftNotice = equationDraftActive || figureDraftActive
-    ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
+  const draftNotice = draftActive
+    ? "Save and Source include applied content only. Block property and source drafts remain unsaved until Apply."
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
@@ -130,8 +129,7 @@ export function App() {
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
-      setEquationDraftActive(false);
-      setFigureDraftActive(false);
+      setDraftActive(false);
       setView("visual");
       setStatus("Ready");
       return "";
@@ -246,8 +244,7 @@ export function App() {
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
-      setEquationDraftActive(false);
-      setFigureDraftActive(false);
+      setDraftActive(false);
       setView("visual");
       setStatus("Ready");
       return "";
@@ -344,7 +341,7 @@ export function App() {
           <TopBar
             documentPath={openedPath}
             status={assetPending ? "Adding image…" : status}
-            unsaved={documentDirty || equationDraftActive || figureDraftActive}
+            unsaved={documentDirty || draftActive}
             writable={!writeError}
             view={view}
             viewDisabled={!document || busy}
@@ -393,8 +390,7 @@ export function App() {
                 document={document}
                 readOnly={Boolean(writeError)}
                 documentPath={openedPath}
-                onEquationDraftChange={setEquationDraftActive}
-                onFigureDraftChange={setFigureDraftActive}
+                onDraftChange={setDraftActive}
                 onAssetPendingChange={setAssetPending}
                 onAssetError={setError}
                 onDirtyChange={setDocumentDirty}

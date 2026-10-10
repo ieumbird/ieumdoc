@@ -21,6 +21,8 @@ A supported result projects as an editable block; anything else stays read-only.
 
 A read-only block (an unsupported block, a block with `editable: false`, or a table with a read-only cell) offers Edit source next to its source. Apply sends the source to the local Host, which runs Core on the session's opening snapshot and returns the block's projection, or the reason it was refused. A refusal leaves the document unchanged and shows the reason in the form. Editable blocks do not offer source editing; they are authored visually.
 
+An unapplied source survives selection changes and is covered by the session's work-loss guard. Source Apply refuses while this block has another property draft, after its opening node changed, or if the node/applied sources/input changed during validation. Refusal retains both applied content and the source draft; Cancel or unmount invalidates the outstanding response. Undo of the block's edits restores its eligibility. This is a replacement guard, not durable draft storage.
+
 An applied source replaces the node in one transaction and records `{ source, block }` under the block's snapshot path in a document attribute. Undo and Redo therefore restore both in one step. Save sends each recorded source as a `sources` edit. The Host applies them to the opening snapshot first, so the block keeps its locator, and then validates and applies the session's other edits against the replaced blocks. A block that became editable can be edited further in the same session.
 
 ## Scope
