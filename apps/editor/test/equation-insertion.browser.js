@@ -29,6 +29,14 @@ async page => {
     return route.fulfill({json:saved});
   });
 
+  // Where closing the form leaves keyboard focus: the editor and the top-level block of its selection.
+  const editorFocus = () => page.evaluate(() => {
+    const {editor} = document.querySelector('.document-editor');
+    const {selection} = editor.state;
+    const block = selection.node ?? selection.$from.node(1);
+    return editor.view.hasFocus() && {block: block?.type.name, path: block?.attrs.sourcePath, caret: selection.empty && selection.$from.parent.isTextblock};
+  });
+
   try {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -51,6 +59,8 @@ async page => {
       await page.getByTestId('status').innerText() === 'Unsaved changes';
     await page.getByTestId('equation-cancel').click();
     const cancelRemoved = await page.locator('[data-block="equation"]').count() === baselineEquationCount;
+    // A caret where the Equation was, never a selection of the next block.
+    const cancelReturnsCaret = (await editorFocus()).caret === true;
 
     await page.locator('.document-editor > .heading').first().hover();
     await insertButton.hover();
@@ -60,12 +70,18 @@ async page => {
     const saveAvailableBeforeApply = await page.getByTestId("save").isEnabled();
     await page.getByTestId('equation-apply').click();
     const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
+    const newPath = await newEquation.getAttribute('data-source-path');
+    const applyReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
     await page.getByTestId('equation-cancel').click();
     const appliedCancelKeepsBlock = await newEquation.count() === 1;
     const appliedCancelRestoresLatex = await newEquation.locator('[data-testid="equation-preview"]').count() === 1;
+    await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-latex').press('Escape');
+    await page.getByTestId('equation-editor').waitFor({state:'detached'});
+    const escapeReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
@@ -84,6 +100,9 @@ async page => {
       noEmptyParagraphAfterSlash,
       placeholderSaveKeepsDraft,
       cancelRemoved,
+      cancelReturnsCaret,
+      applyReturnsFocus,
+      escapeReturnsFocus,
       saveAvailableBeforeApply,
       appliedCancelKeepsBlock,
       appliedCancelRestoresLatex,

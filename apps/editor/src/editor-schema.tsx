@@ -1,4 +1,4 @@
-import { Extension, Node, generateHTML, type Attribute, type Editor, type Extensions } from "@tiptap/core";
+import { Extension, Node, getHTMLFromFragment, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -6,7 +6,7 @@ import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
 import { codeHighlightingPlugin, lowlight } from "./code-highlight.ts";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
@@ -508,9 +508,8 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const sourcePath = String(node.attrs.sourcePath);
   const dirty = editing && (draft.label !== label || draft.caption !== text);
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
-  const close = () => { setEditing(false); editor.commands.focus(); };
+  const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
     const invalid = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? "Caption must be a single line without surrounding spaces." : undefined);
     if (invalid) { setError(invalid); return; }
@@ -525,10 +524,11 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} onEdit={begin} hidden={editing} />
     </div></div>
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
-      dangerouslySetInnerHTML={{ __html: generateHTML(toTiptapContent(caption), editor.extensionManager.extensions) }} /> : null}
+      // The editor's own schema: rebuilding one from its resolved extensions duplicates them.
+      dangerouslySetInnerHTML={{ __html: getHTMLFromFragment(editor.schema.nodeFromJSON(toTiptapContent(caption)).content, editor.schema) }} /> : null}
     <OriginalContent node={node} editor={editor} getPos={getPos} />
     {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="outline" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
-    <BlockProperties anchor={anchor} kind={kind} testId="table" open={editing}
+    <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-caption-${sourcePath}`}>Caption</label>
@@ -757,8 +757,7 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
     onDraftChange?.("Section label", path, dirty);
     return () => onDraftChange?.("Section label", path, false);
   }, [path, dirty, onDraftChange]);
-  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
-  const close = () => { setEditing(false); setError(""); editor.commands.focus(); };
+  const close = () => { setEditing(false); setError(""); focusBlock(editor.view, getPos); };
   const apply = () => {
     const position = getPos();
     const invalid = typeof position === "number" ? sectionLabelError(editor.state.doc, position, draft) : undefined;
@@ -778,7 +777,7 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
             onClick={() => { setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
         ) : <span className="label-target-text">§ {label}</span>}
       </p>
-      <BlockProperties anchor={anchor} kind="Section label" testId="label-target" open={editing}
+      <BlockProperties anchor={anchor} initialFocus={input} kind="Section label" testId="label-target" open={editing}
         error={error}
         onApply={apply} onCancel={close}>
         <label className="form-label" htmlFor={`label-target-${String(node.attrs.sourcePath)}`}>Label</label>
@@ -1236,6 +1235,8 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     setLabelDraft(label);
     setError("");
     setEditing(false);
+    if (neverApplied) view.focus();
+    else focusBlock(view, getPos);
   };
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
   // Whether the label is referenceable and unique in the document is checked by Core on Save.
@@ -1278,9 +1279,13 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     const { caption, ...attributes } = candidate;
     const replacement = latest.type.create({ ...latest.attrs, ...attributes, label: nextLabel, applied: true },
       view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content);
+    // Validation may finish after the user has moved on; only focus left in this form returns.
+    const active = document.activeElement;
+    const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
     // One undo step: undo returns the form's previous value (for a new Figure, its transient state).
     view.dispatch(closeHistory(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement)));
     setEditing(false);
+    if (returnFocus) focusBlock(view, getPos);
   };
   const field = (key: keyof FigureContent, name: string, testId: string) => (
     <label className="form-field">
@@ -1371,6 +1376,21 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   );
 }
 
+/**
+ * Closing a block's properties returns keyboard focus to the editor at that block. A selection
+ * already inside the block is kept; otherwise the block is selected, so focus does not move the
+ * view to an unrelated earlier caret. Selection changes add no history and leave the document.
+ */
+function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps["getPos"]): void {
+  const position = getPos();
+  const node = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
+  const { from, to } = view.state.selection;
+  if (node && typeof position === "number" && (from < position || to > position + node.nodeSize)) {
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)));
+  }
+  view.focus();
+}
+
 /** Remove a transient block that never held a persistent value, keeping one editor block. */
 function removeUnappliedBlock(
   view: ReactNodeViewProps["view"],
@@ -1381,17 +1401,21 @@ function removeUnappliedBlock(
   const position = getPos();
   if (view.state.doc.childCount === 1) {
     if (typeof position === "number") {
-      view.dispatch(view.state.tr
+      const tr = view.state.tr
         .setNodeMarkup(position, view.state.schema.nodes.paragraph, {
           sourcePath: `${NEW_BLOCK_PREFIX}empty`,
         })
-        .setMeta(BLOCK_COMMAND_META, true));
+        .setMeta(BLOCK_COMMAND_META, true);
+      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, position + 1)));
     }
   } else if (typeof position === "number") {
-    view.dispatch(view.state.tr
+    const tr = view.state.tr
       .delete(position, position + node.nodeSize)
-      .setMeta(BLOCK_COMMAND_META, true)
-      .scrollIntoView());
+      .setMeta(BLOCK_COMMAND_META, true);
+    // The caret returns to the text before the removed block, never selecting the next block.
+    const $position = tr.doc.resolve(position);
+    const caret = TextSelection.findFrom($position, -1, true) ?? TextSelection.findFrom($position, 1, true);
+    view.dispatch((caret ? tr.setSelection(caret) : tr).scrollIntoView());
   } else {
     deleteNode();
   }
@@ -1458,6 +1482,8 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     setLabelDraft(label);
     setError("");
     setEditing(false);
+    if (isUnappliedNewEquation) view.focus();
+    else focusBlock(view, getPos);
   };
   // Whether the label is referenceable and unique in the document is checked by Core on Save.
   const apply = () => {
@@ -1473,6 +1499,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     updateAttributes({ latex: draft, label: labelDraft });
     setError("");
     setEditing(false);
+    focusBlock(view, getPos);
   };
 
   return (

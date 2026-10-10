@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { ArrowUp, ChevronRight, FileText, Folder, HardDrive, House } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
@@ -14,6 +14,8 @@ type FolderDialogProps = {
   places(): Promise<FolderPlace[]>;
   /** Resolves to an error message, or "" once the folder is open. */
   onOpen(path: string): Promise<string>;
+  /** The control that opened the dialog, which gets focus back when it closes. */
+  returnFocus?: RefObject<HTMLElement | null>;
   onClose(): void;
 };
 
@@ -32,7 +34,7 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * the list shows the folder up to its last separator, filtered by what follows it; Open opens
  * exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, initialPath, recent, browse, places, onOpen, onClose }: FolderDialogProps) {
+export function FolderDialog({ open, initialPath, recent, browse, places, onOpen, returnFocus, onClose }: FolderDialogProps) {
   const [input, setInput] = useState("");
   const [listing, setListing] = useState<Listing>({ directory: "" });
   const [highlight, setHighlight] = useState(-1);
@@ -132,7 +134,8 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
       partial ? "" : `${documents} Markdown ${documents === 1 ? "file" : "files"} here`].filter(Boolean).join(" · ");
   return (
     <Dialog open={open} onOpenChange={next => { if (!next && !pending) onClose(); }}>
-      <DialogContent className="folder-picker sm:max-w-[var(--layout-folder-picker-width)]" showCloseButton={!pending}>
+      <DialogContent className="folder-picker sm:max-w-[var(--layout-folder-picker-width)]" showCloseButton={!pending}
+        finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
           <DialogTitle>Open folder</DialogTitle>
           <DialogDescription>Choose a folder to list in the sidebar.</DialogDescription>

@@ -5,9 +5,11 @@ import { Notice } from "./ui/primitives.tsx";
 
 /** Explicit block editing. Selection and outside interaction never apply or discard input. */
 export function BlockProperties({
-  anchor, kind, testId, open, error, busy, onApply, onCancel, children,
+  anchor, initialFocus, kind, testId, open, error, busy, onApply, onCancel, children,
 }: {
   anchor: RefObject<HTMLElement | null>;
+  /** The field Edit focuses. Views that focus their own field after insertion omit it. */
+  initialFocus?: RefObject<HTMLElement | null>;
   kind: string;
   testId: string;
   open: boolean;
@@ -24,7 +26,7 @@ export function BlockProperties({
         side="bottom"
         align="end"
         sideOffset={12}
-        initialFocus={false}
+        initialFocus={initialFocus ?? false}
         finalFocus={false}
         aria-label={`${kind} properties`}
         data-testid={`${testId}-properties`}

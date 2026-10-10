@@ -15,6 +15,7 @@ import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
 import { FOOTNOTE_COMMAND, footnoteCommandItems, insertFootnote } from "./footnote.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
+import { Extension } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
@@ -95,6 +96,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [slashActive, setSlashActive] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
+  const toolbar = useRef<HTMLDivElement>(null);
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   // The selected paragraph text a new cross-reference will replace.
   const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
@@ -123,6 +125,18 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     extensions: [
       ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft),
       Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
+      // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
+      Extension.create({
+        name: "selectionToolbarFocus",
+        priority: 50,
+        addKeyboardShortcuts: () => ({
+          Tab: () => {
+            const first = toolbar.current?.querySelector("button");
+            first?.focus();
+            return Boolean(first);
+          },
+        }),
+      }),
     ],
     content: projection,
     // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
@@ -268,7 +282,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useEffect(() => {
     if (!editor) return;
     const focus = () => setFocused(true);
-    const blur = () => setFocused(false);
+    // Focus moving into the formatting toolbar keeps it for the selection.
+    const blur = ({ event }: { event: FocusEvent }) => setFocused(toolbar.current?.contains(event.relatedTarget as Node | null) ?? false);
     editor.on("focus", focus);
     editor.on("blur", blur);
     return () => {
@@ -394,8 +409,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           editor={editor}
           style={toolbarStyle}
           onReject={onStructuralReject}
-          onEditLink={() => setLinkDraft(linkDraftOf(editor))}
+          toolbarRef={toolbar}
+          onLeave={() => setFocused(false)}
+          // The form takes focus; opened from the toolbar by keyboard, the editor had none.
+          onEditLink={() => {
+            setFocused(editor.view.hasFocus());
+            setLinkDraft(linkDraftOf(editor));
+          }}
           onEditReference={() => {
+            setFocused(editor.view.hasFocus());
             const { from, to } = editor.state.selection;
             setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n") });
           }}
