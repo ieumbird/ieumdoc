@@ -84,6 +84,19 @@ async page => {
   const activeMarker = await marker(page.getByTestId('view-visual')), inactiveMarker = await marker(page.getByTestId('view-source'));
   check(activeMarker.content === '""' && activeMarker.color === pressedMarker.color && inactiveMarker.content === 'none',
     'View tab lacks the active marker');
+  // Tabs never grow a face: hovering the inactive tab darkens it over a marker distinct from active.
+  const inactiveRest = await state(page.getByTestId('view-source'));
+  await page.getByTestId('view-source').hover(); await settle();
+  const inactiveHover = await state(page.getByTestId('view-source')), inactiveHoverMarker = await marker(page.getByTestId('view-source'));
+  check(inactiveHover.background === inactiveRest.background && inactiveHover.color !== inactiveRest.color &&
+    inactiveHoverMarker.color !== activeMarker.color, 'Inactive view tab hover needs restrained feedback distinct from active');
+  await page.getByTestId('view-visual').hover(); await settle();
+  check(JSON.stringify(await marker(page.getByTestId('view-visual'))) === JSON.stringify(activeMarker), 'Hover hides the active view marker');
+  await page.mouse.move(0,0); await settle();
+  // A clean Save is an ordinary available ghost action, like Reload beside it.
+  const cleanSave = await state(page.getByTestId('save')), reloadRest = await state(page.getByRole('button', {name:'Reload', exact:true}));
+  check(!await page.getByTestId('save').isDisabled() && cleanSave.background === reloadRest.background && cleanSave.color === reloadRest.color &&
+    cleanSave.opacity === '1', 'Clean Save must look like an available ghost action');
 
   await ghost.click();
   const input = page.getByTestId('new-file-name');

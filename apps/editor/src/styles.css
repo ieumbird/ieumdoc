@@ -444,17 +444,15 @@ button {
 }
 
 .status:empty { display: none; }
-/* An on toggle speaks the current-item language: selected face and text, plus the interaction
- * marker as its non-color indicator. The active view tab carries the same marker alone. */
+/* TopBar state axes stay separate: hover is a neutral face (none on view tabs), keyboard focus is
+ * the ring, and "on"/active is the interaction marker. An on toggle also takes the selected icon
+ * color, but no selected face, so the face never means two things. */
 .top-bar-toggle[aria-pressed="true"] {
   position: relative;
-  background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
 }
-.top-bar-toggle[aria-pressed="true"]:hover {
-  background: var(--id-color-surface-selected-hover);
-}
-:is(.top-bar-toggle, .view-toggle-option)[aria-pressed="true"]::after {
+:is(.top-bar-toggle, .view-toggle-option)[aria-pressed="true"]::after,
+.view-toggle .view-toggle-option:not([aria-pressed="true"], [aria-disabled="true"]):enabled:hover::after {
   content: "";
   position: absolute;
   inset-inline: var(--space-2);
@@ -465,19 +463,11 @@ button {
   pointer-events: none;
 }
 
-/* Save is quiet while clean and takes the accent only with unsaved changes. While saving it keeps
- * its width and accessible name: the label turns transparent under a spinner. */
-.top-bar-save[data-save-state="clean"] {
-  background: var(--id-color-surface-subtle);
-  color: var(--id-color-text-muted);
-}
-.top-bar-save[data-save-state="clean"]:hover {
-  background: var(--id-color-surface-hover);
-  color: var(--id-color-text);
-}
+/* Save is an ordinary ghost action while clean (an unavailable Save keeps the disabled face) and
+ * takes the accent only with unsaved changes. While saving it keeps its width and accessible
+ * name: the label turns transparent under a spinner. */
 .top-bar-save[data-save-state="saving"] {
   position: relative;
-  background: var(--id-color-surface-subtle);
   color: transparent;
   opacity: 1;
 }
@@ -1622,7 +1612,8 @@ ol.list { list-style: decimal; }
 }
 
 /* Visual | Source: two views of one document, not actions. */
-/* Visual/Source are view tabs, not a boxed control: the active tab has dark text and the marker. */
+/* Visual/Source are view tabs, not a boxed control: the active tab has dark text and the marker.
+ * Hovering an inactive tab darkens its text over a neutral marker preview, never a face. */
 .view-toggle {
   display: inline-flex;
   gap: 0;
@@ -1633,12 +1624,17 @@ ol.list { list-style: decimal; }
   color: var(--id-color-text-muted);
 }
 
-.view-toggle .view-toggle-option[aria-pressed="true"] {
+.view-toggle .view-toggle-option:hover {
+  background: transparent;
+}
+
+.view-toggle .view-toggle-option:is([aria-pressed="true"], :not([aria-disabled="true"]):enabled:hover) {
   color: var(--id-color-text);
 }
 
-.view-toggle .view-toggle-option[aria-pressed="true"]:hover {
-  background: transparent;
+/* Same selector as the shared marker rule, later, so only its color differs. */
+.view-toggle .view-toggle-option:not([aria-pressed="true"], [aria-disabled="true"]):enabled:hover::after {
+  background: var(--id-color-border);
 }
 
 .source-view {

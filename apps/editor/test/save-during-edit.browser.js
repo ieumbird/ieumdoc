@@ -26,7 +26,20 @@ async page => {
     return route.fulfill({status:409,json:{error:'External change'}});
   });
   try {
-    await page.getByRole('button',{name:'Save',exact:true}).click();
+    const saveButton = page.getByTestId('save');
+    const cleanBox = await saveButton.boundingBox();
+    await saveButton.click();
+    // In flight, Save keeps its place, size and name; a spinner replaces the visible label.
+    await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor({state:'attached'});
+    const saving = await saveButton.evaluate(async n => {
+      for (let running; (running = n.getAnimations().filter(a => a instanceof CSSTransition)).length;)
+        await Promise.allSettled(running.map(a => a.finished));
+      return {busy:n.getAttribute('aria-busy'), spinner:!!n.querySelector('svg'),
+        label:getComputedStyle(n).color, name:n.textContent.trim()};
+    });
+    if (JSON.stringify(await saveButton.boundingBox()) !== JSON.stringify(cleanBox) || saving.busy !== 'true' || !saving.spinner ||
+      saving.label !== 'rgba(0, 0, 0, 0)' || saving.name !== 'Save' || await page.getByRole('button',{name:'Save',exact:true}).count() !== 1)
+      throw new Error(`Saving Save changed geometry or lost its name/progress: ${JSON.stringify(saving)}`);
     await page.getByText('The current reference is calculated from the active power command.',{exact:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' PENDING_INPUT');
@@ -46,5 +59,9 @@ async page => {
     const editorCount = await page.locator('[data-testid="document-editor"] [contenteditable="true"]').count();
     if(!retained || !conflictRetained || editorCount !== 1) throw new Error('Save or single editor invariant failed');
     return {before,after,retained,conflictRetained,editorCount,nextRevision:requests[1].revision};
-  } finally { await page.unroute('**/api/document'); }
+  } finally {
+    // A failed check must not strand the held save: release it into its mocked response first.
+    release();
+    await page.unroute('**/api/document');
+  }
 }

@@ -2,8 +2,8 @@
 
 - Status: Implemented
 - Last verified: 2026-10-10 (`layout-rules`, `quiet-document`, `visual-states`, `folder-navigation`, full stable browser suite; bundled Pretendard glyphs, inline math size and same-state responsive captures).
-- Current contract: v4. Historical filename retained for link stability.
-- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10. Visual approval remains with the user.
+- Current contract: v4.1. Historical filename retained for link stability.
+- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
@@ -38,7 +38,7 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | --- | --- |
 | `surface`, `surface-subtle` | White paper/dialogs and `#f6f7f9` panels |
 | `surface-hover` | `#eaedf2`, visible on both panels and white paper |
-| `surface-selected`, `surface-selected-hover`, `text-selected` | `#e9f0ff`, `#e1eaff`, `#2449a6`: current navigation, active command choice and TopBar toggles that are on |
+| `surface-selected`, `surface-selected-hover`, `text-selected` | `#e9f0ff`, `#e1eaff`, `#2449a6`: current navigation and active command choice; `text-selected` also colors TopBar toggle icons that are on |
 | `surface-pressed` | `#e3e7ee`: neutral persistent menu-open/pressed face outside the TopBar, accompanied by a control boundary |
 | `text`, `text-muted`, `text-subtle` | `#20242c`, `#545c68`, `#606874`: main text, secondary labels, metadata; subtle remains readable on hover surfaces |
 | `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
@@ -83,23 +83,29 @@ Same-state comparison, base `e46b0ec` and #133 (2026-10-08). Empty captures exer
 
 TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. The status sits beside the filename (v2). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
 
-## Shell and control rules — v3 (2026-10-08), v4 (2026-10-10)
+## Shell and control rules — v3 (2026-10-08), v4 and v4.1 (2026-10-10)
 
-v2 reduced persistent chrome. v3 keeps that document-first layout while distinguishing roles and simultaneous states: current location, hovered alternative, pressed/open control and keyboard focus. It changes static presentation only; it adds no motion or interaction engine. v4 gives TopBar controls role-specific forms: view tabs, current-item toggles and a Save that is quiet until there is something to save; the only motion it adds is the saving spinner, which respects reduced motion.
+v2 reduced persistent chrome. v3 keeps that document-first layout while distinguishing roles and simultaneous states: current location, hovered alternative, pressed/open control and keyboard focus. It changes static presentation only; it adds no motion or interaction engine. v4 gives TopBar controls role-specific forms: view tabs, current-item toggles and a Save that is quiet until there is something to save; the only motion it adds is the saving spinner, which respects reduced motion. v4.1 keeps one meaning per TopBar state axis: a neutral face is hover only, the focus ring is keyboard focus only, and the interaction marker is on/active only.
 
 | Area | Rule |
 | --- | --- |
-| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering), view (Visual/Source, Wide document, Outline), file actions (Reload, Save), with 12px between groups and 4px within them. Save has a quiet `surface-subtle` face with muted text when clean and takes the accent with unsaved changes; while saving it keeps its width and accessible name, showing a spinner over a transparent label. The status beside the filename alone reports `Saved`. Visual/Source are borderless view tabs: the active tab has dark text and a horizontal interaction marker at its bottom (the current-marker size), the inactive tab muted text. Wide/Outline/numbering, when on, use the current-item rule: selected face, selected icon color and the same marker. No TopBar control uses the control boundary for state. Hover preserves these states. |
+| TopBar | Left: filename, then status. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: document setting (heading numbering), view (Visual/Source, Wide document, Outline), file actions (Reload, Save), with 12px between groups and 4px within them. A clean Save is an ordinary available ghost action, like Reload: no face at rest, the neutral hover face, the focus ring. It takes the accent with unsaved changes. An unavailable Save keeps the disabled face (muted face, muted text, structural boundary) and does not react to hover; its tooltip remains. While saving, Save keeps its place, width and accessible name, showing a spinner over a transparent label. The status beside the filename alone reports `Saved`. Visual/Source are borderless view tabs: the active tab has dark text and a horizontal interaction marker at its bottom (the current-marker size), the inactive tab muted text. Hovering an inactive tab never adds a face: its text darkens over a neutral `border`-colored marker, distinct from the active marker. Wide/Outline/numbering, when on, have the selected icon color and the same interaction marker, without a selected face, so hover keeps the neutral face. No TopBar control uses the control boundary for state. Hover and focus preserve these states. |
 | Sidebar and Document panel | One current rule for both the open file and section being read: selected surface, selected text and a 3px vertical interaction marker. Hover uses the neutral hover surface; current+hover uses selected-hover and keeps the marker. An independent inset focus ring is not clipped by the scrolling lists. Current does not change font metrics or text placement. The folder and Outline headings remain 14px semibold; ordinary rows remain 14px regular. Folder icons/chevrons, wrapping/indent limits and compact ghost actions retain their behavior. Without a folder, Open folder… stays outlined and Open file… stays ghost. |
 | Controls | Base UI and native controls share 6px radii, 32px standard/28px compact targets and 16px icon slots. Ghost rest is transparent; hover is visible on a panel as well as white paper. Menu open and pressed states outside the TopBar use the neutral pressed face plus control boundary. Secondary/Cancel uses a white outlined face, with neutral hover. Refs, events, selection preservation and existing motion are retained. |
 | Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Open/New/Folder retain and associate their error messages. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The document is never raised into a card. |
-| Color | Interaction (`interaction`, selected roles): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Most chrome stays neutral; the TopBar's active view tab and on toggles share the current-item rule. Brand and danger meanings remain unchanged. |
+| Color | Interaction (`interaction`, selected roles): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Most chrome stays neutral; the TopBar's active view tab and on toggles carry the interaction marker. Brand and danger meanings remain unchanged. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
 | Callouts | Side bar and surface carry the kind; no full outline. |
 | Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
 | Read-only blocks | One indication: the source summary (`kind · Read-only content · line`). No separate label, no uppercase anywhere; `.block-kind` is plain 12px semibold metadata. Read-only text separates block children (`Draft Review`, not `DraftReview`). |
 
-v4 Before/After, base `eb4abc2` (2026-10-10): the TopBar's right side at 1440px, DPR 1, bundled Pretendard, the `quiet-document` scratch folder with the Outline panel closed except in the toggle rows. Each row is the same state in both checkouts; Saving holds the save request so the spinner can be captured. Captures are review evidence, not automated visual approval.
+v4.1 Before/After, base `eb418ba` (2026-10-10), same session, document, Chrome profile, DPR 1 and 100% zoom: the TopBar's right side at 1440px for each state (Save unavailable uses the `writeability-preflight` blocked scratch file), then the full header at 1024, 768 and the wrapping 704px width. Computed styles of the same states were compared alongside; Save's position and size are identical in every state and width.
+
+![TopBar v4.1 states before and after](assets/topbar-v4-1-states.png)
+
+![TopBar v4.1 widths before and after](assets/topbar-v4-1-widths.png)
+
+Historical v4 Before/After, base `eb4abc2` (2026-10-10); these are not current v4.1 captures: the TopBar's right side at 1440px, DPR 1, bundled Pretendard, the `quiet-document` scratch folder with the Outline panel closed except in the toggle rows. Each row is the same state in both checkouts; Saving holds the save request so the spinner can be captured. Captures are review evidence, not automated visual approval.
 
 ![TopBar v4 before and after](assets/topbar-v4-before-after.png)
 
