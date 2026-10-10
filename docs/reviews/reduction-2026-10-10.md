@@ -15,10 +15,10 @@
 | C02 | convenience loader는 테스트 전용; 실제 Open/New는 loadDocumentFile → readModel | HTTP/file 테스트는 API, replay 테스트는 replay, 타입은 shared 직접 import | 구현(단위 1) |
 | C03 | Save/Source/session replay는 markdown만 소비; App은 acknowledgement의 revision 사용 | 최종 canonical write와 중간 operation의 차이, conflict/history/delayed Save 검증 | 구현(단위 2) |
 | C04 | App만 HTTP Save/Source 정식 소비; pure file helper에는 별도 테스트 호출자 | HTTP session 필수 검사, 누락/잘못된 값 거부; 내부 helper 재사용 보존 | 구현(단위 2) |
-| C05 | legacy Button/IconButton 6개 소비 파일; Base UI button은 shell 소비 | type/ref/aria/disabled/event/selection, toolbar와 NodeView browser | 구현 예정 |
+| C05 | legacy Button/IconButton 6개 소비 파일; Base UI button은 shell 소비 | type/ref/aria/disabled/event/selection, toolbar와 NodeView browser | 구현(단위 3) |
 | C06 | cn helper는 generator alias 소비; CSS/exports/local unused를 개별 확인 | generator 경로 일치, 동적 hljs/admonition 클래스·asset 유지 | 구현 중 |
-| C07 | Equation/Figure/Table/section label summary와 dismiss 상태 | 명시 Edit, Apply/Cancel/Escape, read-only source, touch/keyboard | 구현 예정 |
-| C08 | 4 overlay animation class, button/input transition와 legacy CSS | 위치 transform·Save spinner 유지; close/unmount/focus browser | 구현 예정 |
+| C07 | Equation/Figure/Table/section label summary와 dismiss 상태 | 명시 Edit, Apply/Cancel/Escape, read-only source, touch/keyboard | 구현(단위 3) |
+| C08 | 4 overlay animation class, button/input transition와 legacy CSS | 위치 transform·Save spinner 유지; close/unmount/focus browser | 구현(단위 3) |
 | C09 | DocumentEditor render에서 opening projection 반복; App generation key가 수명 구분 | lazy initializer, document 교체/StrictMode/Save/history | 구현 예정 |
 | C10 | Equation/Figure Sets와 Table의 Figure listener 재사용 | kind+snapshot locator 집계, callback cleanup, 여러 draft와 이탈 보호 | 구현 예정 |
 | C11 | TopBar에는 기존 menu 없음; Sidebar menu는 folder 책임 | 이관에 새 menu나 책임 혼합 필요; responsive 접근성 확인 | 조사 중 |
@@ -54,3 +54,11 @@ Frozen install, typecheck, test, production build 통과. Core 210, File commit 
 같은 technical-document fixture, 고정 path와 64자리 revision의 JSON 응답: 3,325 → 79 bytes. 임시 Host 함수 계측(각 1 replay)에서 editable projection 3 → 1회, Markdown 동일. 코드 계측 사본은 실행 후 삭제했다. Windows Node 24.21, no-edit replay, warmup 5 + 측정 20회: baseline 총 204.988ms, 변경 후 총 111.085ms. 동시 검증 프로세스가 있었던 단일 측정이므로 일반화된 개선율이나 latency 보장은 하지 않는다.
 
 Editor 225/225, typecheck 통과. targeted browser 7개(save-session, save-during-edit, equation-save-during-edit, pending-figure, source-view, source-view-pending, writeability-preflight) 통과. 누락/잘못된 HTTP session fields는 Save와 Source 양쪽에서 400 및 원본 보존을 확인했다. valid stale revision은 409, conflict 이후 Source는 계속 복사 가능하다. pending Figure label swap 및 caption/label 변경 조합은 최종 canonical 계약으로 검증한다.
+
+### 단위 3 검증
+
+Base UI Button으로 6개 소비 파일을 이관하고 legacy Button/IconButton 및 전용 CSS를 제거했다. ref/type/disabled/aria, mousedown 선택 보존과 click/focus 반환을 유지하며 glyph 굵기 700도 보존했다. Notice와 독립 document control은 유지한다. 실제 소비가 없는 button variant/size, Popover/Dialog export와 구형 paragraph CSS만 제거했다.
+
+선택 summary와 dismiss 상태 4종을 제거했다. 선택은 선택으로 끝나고 기존 Edit가 폼을 연다. 신규 삽입과 Apply를 Undo한 transient Figure/빈 신규 Equation은 기존 폼 수명을 유지한다. 밖 클릭/선택 이동으로 폼을 폐기하지 않는다. overlay 입출 모션·pressed 이동·불필요한 transition을 제거한 뒤 tw-animate-css를 패키지 절차로 제거했다. 위치 보정 transform, spinner/reduced-motion과 shadcn CSS import는 유지한다.
+
+Editor 225/225, typecheck/build/frozen install/docs:check/diff 통과. targeted browser editor-shell, layout-rules, quiet-document, visual-states, figure-authoring, figure-draft-race, pending-figure, equation-insertion, table-authoring, section-reference, inline-math-authoring, link-authoring, new-document 통과(첫 실행 ARIA 오류 및 obsolete summary 대기는 수정 후 재실행). Undo → Save의 transient 안내 회귀도 기존 pending-figure 검사가 잡아 수정 후 통과했다. baseline/after 실제 768px selected/editing 캡처를 비교했고 문서 축·caption·폼 위치가 유지되며 자동 summary만 없어졌다. 704/768/1024/1440px captures는 임시 폴더에만 보존한다.

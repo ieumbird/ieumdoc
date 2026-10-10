@@ -47,9 +47,13 @@ async page => {
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     result.saveEnabledAfterCancel = await page.getByTestId('equation-draft-status').count() === 0;
 
-    // Figure properties open in a popover anchored to the figure (portaled, so not a DOM descendant).
+    // Selection ends at selection; only explicit Edit opens properties.
     await page.locator('[data-block="figure"] img').click();
-    result.figurePopover = await page.getByTestId('figure-properties').isVisible();
+    result.figureSelectionOnly = await page.getByTestId('figure-properties').count() === 0 &&
+      await page.locator('[data-block="figure"]').getAttribute('data-selected') === 'true';
+    await page.getByRole('button', {name:'Edit figure'}).click();
+    result.figurePopover = await page.getByTestId('figure-editor').isVisible();
+    await page.getByTestId('figure-cancel').click();
 
     // `+` inserts through the shared insert menu.
     await paragraph.hover();

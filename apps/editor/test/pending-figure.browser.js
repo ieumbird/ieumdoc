@@ -125,7 +125,8 @@ async page => {
     check((await read()).includes('[](#fig-pfc-control)') && await reference.getAttribute('data-resolved') === 'true',
       'Reload lost the link or numbered reference');
     await figures.first().getByTestId('figure-no-content').click();
-    await page.getByTestId('figure-properties').waitFor();
+    check(await page.getByTestId('figure-properties').count() === 0 && await figures.first().getAttribute('data-selected') === 'true',
+      'Pending Figure selection opened properties');
 
     // Real file Save held in flight; a second Apply remains unsaved after acknowledgement.
     let posted;

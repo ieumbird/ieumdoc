@@ -72,10 +72,9 @@ async page => {
     await openScratch();
     const baselineParagraphs = await page.locator('[data-block="paragraph"]').count();
 
-    // A. Existing Figure: select shows properties, Edit opens the form; Apply, Save, Reload.
+    // A. Existing Figure: selection opens no properties; explicit Edit, Apply, Save, Reload.
     await figures.first().locator('img').click();
-    await page.getByTestId('figure-properties').waitFor();
-    result.selectShowsSummaryOnly = await editor.count() === 0 &&
+    result.selectionOnly = await page.getByTestId('figure-properties').count() === 0 && await editor.count() === 0 &&
       await page.evaluate(() => document.activeElement?.closest('.document-editor') !== null);
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();

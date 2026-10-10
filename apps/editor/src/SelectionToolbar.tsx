@@ -2,7 +2,7 @@ import type { Editor } from "@tiptap/core";
 import { Code, Hash, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
 import { useState, type CSSProperties } from "react";
 import { Input } from "@/components/ui/input.tsx";
-import { Button, IconButton } from "./ui/primitives.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies. */
@@ -16,78 +16,78 @@ export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditRe
   const bounds = useOverlayBounds<HTMLDivElement>();
   return (
     <div ref={bounds} className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
-      <IconButton
-        label="Bold"
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Bold"
         aria-pressed={editor.isActive("bold")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "bold", onReject)}
       >
         <strong aria-hidden="true">B</strong>
-      </IconButton>
-      <IconButton
-        label="Italic"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Italic"
         aria-pressed={editor.isActive("italic")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "italic", onReject)}
       >
         <em aria-hidden="true">I</em>
-      </IconButton>
-      <IconButton
-        label="Strikethrough"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Strikethrough"
         aria-pressed={editor.isActive("strike")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "strike", onReject)}
       >
         <Strikethrough aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Subscript"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Subscript"
         aria-pressed={editor.isActive("subscript")}
         aria-keyshortcuts="Control+Comma Meta+Comma"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "subscript", onReject)}
       >
         <Subscript aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Superscript"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Superscript"
         aria-pressed={editor.isActive("superscript")}
         aria-keyshortcuts="Control+Period Meta+Period"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "superscript", onReject)}
       >
         <Superscript aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Inline code"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Inline code"
         aria-pressed={editor.isActive("code")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "code", onReject)}
       >
         <Code aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Link"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Link"
         aria-pressed={editor.isActive("link")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditLink() : onReject())}
       >
         <Link2 aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Inline math"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Inline math"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (makeInlineMath(editor) ? undefined : onReject())}
       >
         <Sigma aria-hidden="true" size={16} />
-      </IconButton>
-      <IconButton
-        label="Cross-reference"
+      </Button>
+      <Button variant="ghost" size="icon-sm"
+        aria-label="Cross-reference"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditReference() : onReject())}
       >
         <Hash aria-hidden="true" size={16} />
-      </IconButton>
+      </Button>
     </div>
   );
 }
@@ -209,7 +209,7 @@ export function LinkForm({ editor, draft, style, onClose }: {
       />
       <Button size="sm" type="submit" data-testid="link-apply">Apply</Button>
       {draft.href ? (
-        <Button size="sm" variant="subtle" data-testid="link-remove" onClick={remove}>Remove</Button>
+        <Button size="sm" variant="outline" data-testid="link-remove" onClick={remove}>Remove</Button>
       ) : null}
       {error ? <p className="link-form-error" role="alert">{error}</p> : null}
     </form>

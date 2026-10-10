@@ -107,7 +107,7 @@ async (page, { screenshots = false } = {}) => {
     await page.setViewportSize({width,height:1000});
     await rest();
     await page.getByTestId('figure-image').click();
-    await page.getByTestId('figure-properties').waitFor();
+    check(await page.getByTestId('figure-properties').count()===0,'Selection opened properties');
     check(await page.locator('.figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Selected metadata missing');
     if (screenshots) {
       await rest();

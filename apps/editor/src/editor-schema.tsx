@@ -43,7 +43,8 @@ import {
   type AppliedBlockSources,
   type TiptapJSON,
 } from "./tiptap-document.ts";
-import { Button, Notice } from "./ui/primitives.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Notice } from "./ui/primitives.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { TableCellFocus, TableTools } from "./table-tools.tsx";
 
@@ -495,13 +496,11 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const caption = tableCaption(node.toJSON() as TiptapJSON);
   const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
   const [editing, setEditing] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [draft, setDraft] = useState({ label, caption: text });
   const [error, setError] = useState("");
   const sourcePath = String(node.attrs.sourcePath);
   const dirty = editing && (draft.label !== label || draft.caption !== text);
   useEffect(() => { onDraftChange?.(sourcePath, dirty); return () => onDraftChange?.(sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  useEffect(() => { setDismissed(false); }, [selected]);
   useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
   const close = () => { setEditing(false); editor.commands.focus(); };
@@ -521,10 +520,10 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: generateHTML(toTiptapContent(caption), editor.extensionManager.extensions) }} /> : null}
     <OriginalContent node={node} editor={editor} getPos={getPos} />
-    {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="subtle" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
-    <BlockProperties anchor={anchor} kind={kind} testId="table" open={editing || (selected && !dismissed)} editing={editing}
-      readOnly={!editor.isEditable} summary={[["Label", label], ["Caption", text]]} error={error}
-      onApply={apply} onCancel={close} onDismiss={() => setDismissed(true)}>
+    {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="outline" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
+    <BlockProperties anchor={anchor} kind={kind} testId="table" open={editing}
+      error={error}
+      onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-caption-${sourcePath}`}>Caption</label>
       <Input ref={input} id={`table-caption-${sourcePath}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
       <label className="form-label" htmlFor={`table-label-${sourcePath}`}>Label</label>
@@ -613,14 +612,14 @@ function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "nod
         {error ? <Notice tone="error" data-testid="block-source-error">{error}</Notice> : null}
         <div className="form-actions">
           <Button type="submit" size="sm" disabled={busy} data-testid="block-source-apply">Apply</Button>
-          <Button type="button" size="sm" variant="subtle" onClick={close} data-testid="block-source-cancel">Cancel</Button>
+          <Button type="button" size="sm" variant="outline" onClick={close} data-testid="block-source-cancel">Cancel</Button>
         </div>
       </form>
     ) : (
       <>
         <pre>{original.text}</pre>
         {editor.isEditable && applier ? <>
-          <Button size="sm" variant="subtle" disabled={!unchanged} data-testid="block-source-edit"
+          <Button size="sm" variant="outline" disabled={!unchanged} data-testid="block-source-edit"
             onClick={() => { setDraft(original.text); setError(""); }}>Edit source</Button>
           {unchanged ? null : <p className="block-popover-note">Undo this block's edits, or Save and Reload, to edit its source.</p>}
         </> : null}
@@ -716,10 +715,8 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [draft, setDraft] = useState(label);
   const [error, setError] = useState("");
-  useEffect(() => { setDismissed(false); }, [selected]);
   useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
   const close = () => { setEditing(false); setError(""); editor.commands.focus(); };
   const apply = () => {
@@ -741,9 +738,9 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
             onClick={() => { setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
         ) : <span className="label-target-text">§ {label}</span>}
       </p>
-      <BlockProperties anchor={anchor} kind="Section label" testId="label-target" open={editing || (selected && !dismissed)} editing={editing}
-        readOnly={!editor.isEditable} summary={[["Label", label]]} error={error}
-        onApply={apply} onCancel={close} onDismiss={() => setDismissed(true)}>
+      <BlockProperties anchor={anchor} kind="Section label" testId="label-target" open={editing}
+        error={error}
+        onApply={apply} onCancel={close}>
         <label className="form-label" htmlFor={`label-target-${String(node.attrs.sourcePath)}`}>Label</label>
         <Input ref={input} id={`label-target-${String(node.attrs.sourcePath)}`} data-testid="label-target-input" value={draft}
           onChange={event => { setDraft(event.target.value); setError(""); }} />
@@ -1142,7 +1139,6 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   // "never applied": an applied pending Figure has a caption or a label and no content yet.
   const neverApplied = node.attrs.applied === false;
   const [editing, setEditing] = useState(false);
-  const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
@@ -1161,13 +1157,11 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     }
   }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
 
-  // Selection shows the properties summary; Edit opens the form. A new Figure starts in the form.
-  // Once editing starts, selection changes must not end the draft; Apply and Cancel own that boundary.
+  // Insertion and Undo of Apply restore the transient form; selection does not open it.
   useEffect(() => {
-    setSummaryDismissed(false);
     if (!editableFigure) return;
-    if (selected && neverApplied && !editing) beginEdit();
-  }, [selected]);
+    if (neverApplied) beginEdit();
+  }, [editableFigure, neverApplied]);
 
   useEffect(() => {
     onDraftChange?.(sourcePath, hasUnappliedDraft);
@@ -1265,11 +1259,6 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)));
     view.focus();
   };
-  const properties: [string, string][] = [
-    ["Label", label],
-    ["Image", applied.imageUrl],
-    ["Alt text", applied.imageAlt],
-  ];
   return (
     <NodeViewWrapper
       as="figure"
@@ -1280,7 +1269,6 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
       data-source-path={sourcePath}
       data-readonly={editableFigure ? "false" : "true"}
       contentEditable={editableFigure ? undefined : false}
-      onMouseDown={() => { if (!editing) setSummaryDismissed(false); }}
     >
       <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? "Figure", label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
@@ -1299,7 +1287,7 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
         : <figcaption className="caption" data-number={numbered}>{String(node.attrs.caption ?? "")}</figcaption>}
       <OriginalContent node={node} editor={editor} getPos={getPos} />
       {editableFigure && !editing ? (
-        <Button className="figure-edit" size="sm" variant="subtle" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
+        <Button className="figure-edit" size="sm" variant="outline" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
           Edit
         </Button>
       ) : null}
@@ -1307,15 +1295,11 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
         anchor={anchor}
         kind={numbered ?? "Figure"}
         testId="figure"
-        open={editing || (selected && !summaryDismissed)}
-        editing={editing}
-        readOnly={!editableFigure}
-        summary={properties}
+        open={editing}
         error={error}
         busy={validating}
         onApply={() => void apply()}
         onCancel={cancel}
-        onDismiss={() => setSummaryDismissed(true)}
       >
         {field("imageUrl", "Image", "figure-image-url")}
         {field("imageAlt", "Alt text", "figure-alt")}
@@ -1382,7 +1366,6 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState(false);
-  const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
@@ -1394,12 +1377,11 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     }
   }, [editing, latex, label]);
 
+  const emptyNewEquation = view.editable && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0;
   useEffect(() => {
-    // Selection shows the properties summary, as for a Figure. Only a new empty Equation
-    // enters its form automatically; Edit opens existing content.
-    setSummaryDismissed(false);
-    if (view.editable && selected && !editing && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0) beginEdit();
-  }, [selected]);
+    // Insertion and Undo restore an empty new Equation; existing content needs Edit.
+    if (emptyNewEquation) beginEdit();
+  }, [emptyNewEquation]);
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath) ||
@@ -1466,7 +1448,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
         {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
       </div>
       {view.editable && !editing ? (
-        <Button className="equation-edit" size="sm" variant="subtle" onClick={beginEdit}>
+        <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>
           Edit
         </Button>
       ) : null}
@@ -1474,13 +1456,10 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
         anchor={anchor}
         kind={kind}
         testId="equation"
-        open={editing || (selected && !summaryDismissed)}
-        editing={editing}
-        summary={[["Label", label], ["LaTeX", latex]]}
+        open={editing}
         error={error}
         onApply={apply}
         onCancel={cancel}
-        onDismiss={() => setSummaryDismissed(true)}
       >
         <label className="form-field">
           <span>LaTeX</span>
@@ -1607,7 +1586,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
             }}
           />
           <Button size="sm" type="submit" data-testid="inline-math-apply">Apply</Button>
-          <Button size="sm" variant="subtle" data-testid="inline-math-remove" onClick={remove}>Remove</Button>
+          <Button size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>Remove</Button>
           {error ? <span className="link-form-error" role="alert">{error}</span> : null}
         </form>
       ) : null}
