@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-10 (pending Figure Apply/Cancel, properties and real-file Save → Reload; existing shell regressions retained).
+- Last verified: 2026-10-11 (명시 block Edit, Apply/Cancel, 선택/focus와 전체 stable browser suite).
 - Scope: existing Editor interactions. [Visual Language (current v4.1)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
