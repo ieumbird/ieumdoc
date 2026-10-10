@@ -37,7 +37,7 @@ pnpm --filter @ieumdoc/editor build
 `apps/editor/test/*.browser.js`는 실제 브라우저에서 Editor 흐름을 검증한다.
 
 ```bash
-pnpm editor                                # 다른 터미널에서 dev server(http://127.0.0.1:5173)
+pnpm editor                                # 필요하면 다른 터미널에서 dev server를 직접 시작
 pnpm browser:test                          # stable 시나리오 전체
 pnpm browser:test footnotes outline        # 이름을 준 시나리오만
 pnpm browser:test --shard=1/2              # CI와 같은 분할. 로컬에서는 두 그룹을 차례로 실행
@@ -46,13 +46,15 @@ pnpm browser:prepare                       # scratch 사본만 다시 만든다(
 
 - 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행한다. 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)이 바뀌면 실패한다. 어떤 사본을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
 - stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다.
-- 브라우저는 재사용 프로필(`open --persistent`)로 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
+- Playwright Test worker가 `launchPersistentContext`로 checkout별 재사용 프로필을 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
 - 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `IEUMDOC_BROWSER_URL`을 지정한다.
-- 처음 한 번 필요하면 `pnpm exec playwright-cli install-browser chromium`을 실행한다.
+- Windows는 설치형 Chrome을 사용한다. 다른 OS에서는 처음 한 번 `pnpm exec playwright install chromium`을 실행한다.
+- 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `IEUMDOC_BROWSER_URL` 서버는 그대로 유지한다. 실패 시 `tmp/browser-results/`에 console/pageerror와 browser-state 진단을 남긴다.
+- `@playwright/cli`는 직접 디버깅용으로 유지하며 `open --persistent`를 사용한다. 정식 runner는 CLI 출력 형식을 파싱하지 않는다.
 
 ### CI
 
-`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build)과 browser `--shard=1/2`, `--shard=2/2`가 병렬로 돌고, 최종 check는 모두 성공했을 때만 통과한다.
+`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build)과 browser `--shard=1/2`, `--shard=2/2`가 병렬로 돌고, 최종 check는 모두 성공했을 때만 통과한다.
 
 ## 사람이 직접 볼 것
 
