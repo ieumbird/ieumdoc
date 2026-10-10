@@ -489,6 +489,7 @@ test("CLI insert-figure persists a Core Figure", () => {
     assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
     const minimal = readFileSync(file, "utf8");
     assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
+    // Invalid under the pending Figure contract too: no image, caption or label; alt text without an image.
     for (const args of [
       ["insert-figure", file, "--at", "0", "--image", ""],
       ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
@@ -499,6 +500,61 @@ test("CLI insert-figure persists a Core Figure", () => {
       assert.equal(run(args).status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), minimal, args.join(" "));
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI insert-figure makes a pending Figure in one write; update-figure connects and removes its image", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-pending-figure-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, "Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  const pending = ":::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n";
+  const document = (figure: string) => `Intro\n\n${figure}\nThe controller structure is shown in [](#fig-pfc-control).\n`;
+  try {
+    const inserted = run(["insert-figure", file, "--at", "1", "--label", "fig-pfc-control", "--caption", "PFC Current Control Architecture"]);
+    assert.equal(inserted.status, 0, inserted.stderr);
+    assert.equal(readFileSync(file, "utf8"), document(pending));
+
+    // Inspect tells a pending Figure from an image Figure; check warns but stays writable and exits 0.
+    assert.match(run(["inspect", file]).stdout, /^1 figure figureEditable=true label="fig-pfc-control" image="" alt="" content=none numbers=figure:1$/m);
+    const figure = JSON.parse(run(["inspect", file, "--format", "json"]).stdout).nodes.find((node: { type: string }) => node.type === "figure");
+    assert.equal(figure.contentKind, "none");
+    const checked = run(["check", file, "--format", "json"]);
+    assert.equal(checked.status, 0, checked.stderr);
+    const result = JSON.parse(checked.stdout);
+    assert.deepEqual([result.ok, result.writeability, result.readiness], [true, { writable: true }, { pendingFigures: [{ path: [1], label: "fig-pfc-control" }] }]);
+    const textCheck = run(["check", file]);
+    assert.equal(textCheck.status, 0, textCheck.stderr);
+    assert.match(textCheck.stdout, /writeability ok/);
+    assert.match(textCheck.stderr, /^warning: Figure "fig-pfc-control" \(block 1\) has no content yet$/m);
+
+    // A label alone is one command, and a rejected label leaves the file as it was.
+    const before = readFileSync(file, "utf8");
+    for (const args of [
+      ["insert-figure", file, "--at", "0", "--label", "FIG-PFC-Control"],
+      ["insert-figure", file, "--at", "0", "--label", " fig-a"],
+      ["insert-figure", file, "--at", "0", "--label", ""],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), before, args.join(" "));
+    }
+    assert.equal(run(["insert-figure", file, "--at", "0", "--label", "fig-only"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), `:::{figure}\n:name: fig-only\n:::\n\n${before}`);
+    writeFileSync(file, before);
+
+    // Connecting an image keeps the place, caption, label and the reference.
+    assert.equal(run(["update-figure", file, "--path", "1", "--image", "./pfc-control.svg", "--alt", "PFC current control diagram"]).status, 0);
+    const connected = document(":::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\nPFC Current Control Architecture\n:::\n");
+    assert.equal(readFileSync(file, "utf8"), connected);
+    assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).readiness, { pendingFigures: [] });
+    // Removing the image needs its alt text removed too; then it is the pending Figure again.
+    const altKept = run(["update-figure", file, "--path", "1", "--image", ""]);
+    assert.equal(altKept.status, 1);
+    assert.match(altKept.stderr, /without an image cannot have alt text/);
+    assert.equal(readFileSync(file, "utf8"), connected);
+    assert.equal(run(["update-figure", file, "--path", "1", "--image", "", "--alt", ""]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), document(pending));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -744,6 +800,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       validation: { valid: true },
       writeability: { writable: true },
       references: { unresolved: [] },
+      readiness: { pendingFigures: [] },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);

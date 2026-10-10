@@ -1,6 +1,6 @@
 import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
-import { supportedFigureContent } from "./myst/figure.ts";
+import { figureContentKind, supportedFigureContent, type FigureContentKind } from "./myst/figure.ts";
 import { numberedTargets } from "./myst/numbering.ts";
 import { getHeadingNumbering } from "./myst/heading-numbering.ts";
 import type { HeadingNumbering } from "./numbering.ts";
@@ -93,6 +93,9 @@ export type EditableBlock = (
       block: "figure";
       path: NodePath;
       label: string;
+      /** What the Figure shows: "none" for a pending Figure, "image", or "other" content (read-only). */
+      contentKind: FigureContentKind;
+      /** The image the Figure shows at its top level, if any; empty for a pending Figure. */
       imageUrl: string;
       imageAlt: string;
       caption: EditableCaption;
@@ -287,6 +290,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
     block: "figure",
     path,
     label: nodeLabel(node),
+    contentKind: figureContentKind(node),
     imageUrl: typeof image?.url === "string" ? image.url : "",
     imageAlt: typeof image?.alt === "string" ? image.alt : "",
     caption: {

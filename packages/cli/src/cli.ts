@@ -98,7 +98,8 @@ const OFFSET_NOTE = [
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
 ];
 const FIGURE_NOTE = [
-  "The image URL is required. An empty --alt or --caption removes that property.",
+  "Without an image (no --image, or an empty one) the Figure is pending: it has no content yet",
+  "and needs a caption or a label. Alt text needs an image. An empty --alt or --caption removes that property.",
   "Use --caption for text or --caption-content for Core InlineContent JSON; they are mutually exclusive.",
   "Values that cannot round-trip through canonical Markdown are rejected.",
 ];
@@ -143,6 +144,8 @@ const COMMANDS: CommandSpec[] = [
       "Exits 1 when it cannot. Asset files are not checked.",
       "References ({eq}, {numref}, {ref}) that name no target in this document are reported",
       "as warnings with their block and line; they do not fail the check.",
+      "Pending Figures (no content yet) are reported as readiness warnings with their block and",
+      "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
       "Output format is text by default; JSON is available with --format json.",
     ],
   },
@@ -308,11 +311,12 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-figure",
     summary: "Insert a Figure block at a top-level index",
-    usage: "ieumdoc insert-figure <file> --at <index> --image <url> [--alt <text>] [--caption <text> | --caption-content <json>]",
+    usage: "ieumdoc insert-figure <file> --at <index> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
-      "The new Figure has no label; set one with update-label.",
+      "--label sets the new Figure's label in the same write, under update-label's rules.",
+      "Connect an image to a pending Figure later with update-figure --image.",
     ],
   },
   {
@@ -323,6 +327,7 @@ const COMMANDS: CommandSpec[] = [
       "Update one top-level Figure through Core. Omitted properties are unchanged.",
       ...FIGURE_NOTE,
       "The Figure label is preserved; change it with update-label.",
+      "--image \"\" removes the image; the caption and label stay. Remove its alt text with --alt \"\".",
       ...PATH_NOTE,
     ],
   },
@@ -613,6 +618,9 @@ function main(argv: string[]): number {
       validateStructure(document);
       const writeError = canonicalWriteError(document);
       const unresolved = unresolvedReferences(document);
+      // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
+      const pendingFigures = getEditableDocument(document).blocks.flatMap(block =>
+        block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({
           ok: writeError === undefined,
@@ -620,6 +628,7 @@ function main(argv: string[]): number {
           validation: { valid: true },
           writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
           references: { unresolved },
+          readiness: { pendingFigures },
         })}\n`);
       } else {
         process.stdout.write(`${summarize(document)}\n`);
@@ -628,6 +637,9 @@ function main(argv: string[]): number {
         for (const { role, label, path, line } of unresolved) {
           const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
           process.stderr.write(`warning: {${role}}\`${label}\` (${at}) names no target in this document\n`);
+        }
+        for (const { path, label } of pendingFigures) {
+          process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
         }
       }
       return writeError === undefined ? 0 : 1;
@@ -722,11 +734,17 @@ function main(argv: string[]): number {
       return 0;
     }
     case "insert-figure": {
-      edit(file, (document) => insertFigure(document, intFlag(flags, "--at"), {
-        imageUrl: flag(flags, "--image"),
-        imageAlt: optionalFlag(flags, "--alt") ?? "",
-        caption: captionInput(flags) ?? "",
-      }));
+      const at = intFlag(flags, "--at");
+      const label = optionalFlag(flags, "--label") ?? "";
+      // One Core-backed edit and one file replacement, also when it sets the label.
+      edit(file, (document) => {
+        const inserted = insertFigure(document, at, {
+          imageUrl: optionalFlag(flags, "--image") ?? "",
+          imageAlt: optionalFlag(flags, "--alt") ?? "",
+          caption: captionInput(flags) ?? "",
+        });
+        return label.length > 0 ? updateLabel(inserted, [at], label) : inserted;
+      });
       return 0;
     }
     case "update-figure": {
@@ -928,7 +946,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
   "insert-equation": ["--at", "--latex"],
-  "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content"],
+  "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content", "--label"],
   "update-figure": ["--path", "--image", "--alt", "--caption", "--caption-content"],
   "insert-table": ["--at", "--cells", "--align"],
   "insert-list": ["--at", "--list"],
@@ -1054,6 +1072,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
         ...base,
         editable: block.editable,
         label: block.label,
+        contentKind: block.contentKind,
         imageUrl: block.imageUrl,
         imageAlt: block.imageAlt,
       },
@@ -1133,7 +1152,7 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "figure") {
     const captionPath = formatPath(block.caption.path);
     return [
-      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)}`,
+      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)} content=${block.contentKind}`,
       `  ${captionPath} caption textEditable=${block.caption.editable} text=${quote(block.caption.text)}`,
     ];
   }

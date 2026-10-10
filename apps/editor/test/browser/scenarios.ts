@@ -16,6 +16,7 @@ export const STABLE_SCENARIOS = [
   "writeability-preflight",
   "block-move",
   "figure-authoring",
+  "pending-figure",
   "image-assets",
   "external-html-paste",
   "figure-draft-race",

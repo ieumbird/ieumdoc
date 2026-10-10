@@ -2,6 +2,7 @@ import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
 import { completeFootnotes, footnoteWriteError } from "./footnote.ts";
+import { figureWriteError, isFigure } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
 import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
@@ -55,6 +56,26 @@ export function serialize(document: MystDocument): string {
   return markdown;
 }
 
+/** Write one flow node with myst-to-md, for a directive whose body IeumDoc writes itself. */
+function render(value: MystNode): string {
+  const file = new VFile();
+  writeMd(file, { type: "root", children: [value] } as never);
+  assertNoSerializationDiagnostics(file);
+  return String(file.result ?? "").trimEnd();
+}
+
+/**
+ * The canonical write of a document's final state: Save, `format` and every CLI edit. Rules
+ * a document may break only between Core operations (one Save can clear a pending Figure's
+ * label before setting another) are checked here, then `serialize`. Operations check their
+ * own round-trip with `serialize`, so they stay composable.
+ */
+export function canonicalSerialize(document: MystDocument): string {
+  const figure = figureWriteError(document);
+  if (figure) throw new Error(figure);
+  return serialize(document);
+}
+
 /** Adapt the MyST representation to the existing mdast writer, on the write-only clone.
  * The original fingerprint and the whole reparsed output still have to match. */
 function prepareWriter(tree: MystDocument): string {
@@ -90,12 +111,6 @@ function prepareWriter(tree: MystDocument): string {
     // Keep supported table directives as GFM tables. The upstream list-table writer
     // wraps cells in paragraphs and drops column alignment. The full guard still applies.
     if (isTableDirective(node)) {
-      const render = (value: MystNode) => {
-        const file = new VFile();
-        writeMd(file, { type: "root", children: [value] } as never);
-        assertNoSerializationDiagnostics(file);
-        return String(file.result ?? "").trimEnd();
-      };
       const caption = tableCaptionParagraph(node);
       const body = render(tableOf(node)!);
       const title = caption ? render(caption) : "";
@@ -103,6 +118,18 @@ function prepareWriter(tree: MystDocument): string {
       const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
       node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
+      delete node.children;
+    }
+    // myst-to-md writes a Figure only from its image. A pending Figure (no content, at most its
+    // caption) is the same directive without an argument; MyST reads it back as the same
+    // container. Only this shape is written here: a Figure with other content, a legend or
+    // subfigures still goes to myst-to-md and fails closed. The full guard still applies.
+    if (isFigure(node) && !node.subcontainer && (node.children ?? []).length <= 1 &&
+        (node.children ?? []).every(child => child.type === "caption")) {
+      const caption = (node.children ?? []).flatMap(child => child.children ?? []).map(render).join("\n\n");
+      const fence = ":".repeat(Math.max(3, ...[...caption.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
+      node.type = "html";
+      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}${caption ? `\n${caption}\n` : ""}${fence}`;
       delete node.children;
     }
     // MyST lifts standalone images out of paragraphs. Restore the writer's flow
@@ -147,13 +174,13 @@ function escapeDollars(text: MystNode): MystNode[] {
 
 /**
  * Canonical writeability preflight: why the canonical write path would refuse this
- * document, or undefined when it can write it. It runs `serialize` itself, so its verdict
+ * document, or undefined when it can write it. It runs the canonical write itself, so its verdict
  * and reason are those of Save and `format` for the same snapshot. Nothing is written and
  * the document is not changed (serialize works on a clone).
  */
 export function canonicalWriteError(document: MystDocument): string | undefined {
   try {
-    serialize(document);
+    canonicalSerialize(document);
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);

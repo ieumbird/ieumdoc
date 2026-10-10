@@ -41,7 +41,7 @@ import {
 } from "./myst/footnote.ts";
 import { nextFootnoteLabel } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
-import { serialize, serializeFor } from "./myst/serialize.ts";
+import { canonicalSerialize, serialize, serializeFor } from "./myst/serialize.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
@@ -844,12 +844,16 @@ function assertLabelRoundTrip(document: MystDocument, index: number, label: stri
 }
 
 /**
- * Authoritative persistent validity of Figure v1 properties: the same field rules and
- * canonical round-trip that insertFigure and updateFigure enforce. Returns the error message.
+ * Authoritative persistent validity of Figure v1 properties and a label: the field rules and
+ * canonical round-trip that insertFigure, updateFigure and updateLabel enforce, and the rule a
+ * saved Figure meets (an image, a caption or a label). Whether the label is unique in the
+ * document is checked when it is set there. Returns the error message.
  */
-export function validateFigure(figure: FigureContent): string | undefined {
+export function validateFigure(figure: FigureContent, label = ""): string | undefined {
   try {
-    insertFigure({ type: "root", children: [] }, 0, figure);
+    let document = insertFigure({ type: "root", children: [] }, 0, figure);
+    if (label.length > 0) document = updateLabel(document, [0], label);
+    canonicalSerialize(document);
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);

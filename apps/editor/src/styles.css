@@ -855,6 +855,18 @@ ol.list { list-style: decimal; }
   margin-inline: auto;
 }
 
+/* A pending Figure's content place: unfinished, like an unresolved reference (dashed, subtle). */
+.figure-no-content {
+  padding: var(--space-8) var(--space-4);
+  border: var(--border-width) dashed var(--id-color-border-strong);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface-subtle);
+  color: var(--id-color-text-subtle);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+}
+
 .caption {
   display: block;
   margin-top: var(--space-2);

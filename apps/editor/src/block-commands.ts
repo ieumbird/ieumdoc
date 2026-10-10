@@ -327,7 +327,9 @@ export function insertEquationAfter(state: EditorState, index: number, slash?: S
   return insertAtomAfter(state, index, "equation", { latex: "", label: "" }, slash);
 }
 
-/** Insert an unlabeled Figure with an empty caption and optional applied image, reusing transient empty prose. */
+/** Insert an unlabeled Figure with an empty caption, reusing transient empty prose. Without an
+ * applied image it is transient until its form is applied; with one (an inserted image file),
+ * that image is already its applied value. */
 export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange, applied?: Pick<FigureContent, "imageUrl" | "imageAlt">): Transaction {
   return insertAtomAfter(state, index, "figure", {
     label: "",
@@ -335,6 +337,7 @@ export function insertFigureAfter(state: EditorState, index: number, slash?: Sla
     imageAlt: "",
     caption: "",
     editable: true,
+    applied: applied !== undefined,
     ...applied,
   }, slash);
 }

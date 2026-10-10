@@ -567,12 +567,12 @@ async function requestSource(filePath: string, body: SessionSaveRequest): Promis
   return payload.markdown;
 }
 
-/** Asks the Host to run Core's persistent Figure validation. */
-async function validateFigure(figure: FigureContent): Promise<string | undefined> {
+/** Asks the Host to run Core's persistent Figure validation of an Apply: properties and label. */
+async function validateFigure(figure: FigureContent, label: string): Promise<string | undefined> {
   const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/figure-validation`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(figure),
+    body: JSON.stringify({ ...figure, label }),
   });
   const payload = (await response.json()) as { error?: string | null };
   if (!response.ok) throw new Error(payload.error ?? `request failed (${response.status})`);
