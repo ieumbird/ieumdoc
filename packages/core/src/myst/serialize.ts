@@ -105,6 +105,27 @@ function prepareWriter(tree: MystDocument): string {
       node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
       delete node.children;
     }
+    // SPIKE (persistent Figure draft): myst-to-md writes a Figure only from an image and
+    // rejects any other. A Figure without an image (no content yet, or a Mermaid diagram)
+    // is written as the same argument-less directive with its content, then its caption, in
+    // the body; MyST reads that back as the same container. The full guard still applies.
+    const content = node.children?.filter(child => child.type !== "caption") ?? [];
+    if (node.type === "container" && node.kind === "figure" &&
+        (content.length === 0 || (content.length === 1 && content[0].type === "mermaid"))) {
+      const render = (value: MystNode) => {
+        const file = new VFile();
+        writeMd(file, { type: "root", children: [value] } as never);
+        assertNoSerializationDiagnostics(file);
+        return String(file.result ?? "").trimEnd();
+      };
+      const body = (node.children ?? [])
+        .flatMap(child => child.type === "caption" ? child.children ?? [] : [child])
+        .map(render).join("\n\n");
+      const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
+      node.type = "html";
+      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}${body ? `\n${body}\n` : ""}${fence}`;
+      delete node.children;
+    }
     // MyST lifts standalone images out of paragraphs. Restore the writer's flow
     // wrapper so adjacent text/images get a blank separator, not merged inline.
     if (["root", "blockquote", "listItem", "admonition"].includes(node.type)) {

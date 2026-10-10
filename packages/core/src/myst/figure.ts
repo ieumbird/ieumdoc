@@ -15,9 +15,13 @@ export function isFigure(node: MystNode | undefined): boolean {
  */
 export function supportedFigureContent(node: MystNode): FigureContent | undefined {
   if (!isFigure(node)) return undefined;
-  const [image, caption, ...rest] = node.children ?? [];
-  if (image?.type !== "image" || typeof image.url !== "string" || rest.length > 0) return undefined;
-  if (image.alt !== undefined && typeof image.alt !== "string") return undefined;
+  // SPIKE (persistent Figure draft): a Figure with no content child is pending: imageUrl "".
+  const children = node.children ?? [];
+  const pending = children.every(child => child.type === "caption");
+  const [image, caption, ...rest] = pending ? [undefined, ...children] : children;
+  if (!pending && (image?.type !== "image" || typeof image.url !== "string")) return undefined;
+  if (rest.length > 0) return undefined;
+  if (image && image.alt !== undefined && typeof image.alt !== "string") return undefined;
   let content: InlineContent[] = [];
   if (caption !== undefined) {
     const [paragraph, ...others] = caption.type === "caption" ? caption.children ?? [] : [];
@@ -27,7 +31,7 @@ export function supportedFigureContent(node: MystNode): FigureContent | undefine
     }
     content = projected;
   }
-  return { imageUrl: image.url, imageAlt: image.alt ?? "", caption: content };
+  return { imageUrl: image?.url ?? "", imageAlt: image?.alt ?? "", caption: content };
 }
 
 /** Canonical MyST structure for a new Figure; no label is generated. */
@@ -40,13 +44,20 @@ export function createFigureNode(figure: FigureContent): MystNode {
 /** Replace the editable properties of a supported Figure in place. */
 export function setFigureContent(node: MystNode, figure: FigureContent): void {
   const children = node.children ?? [];
-  const image: MystNode = { ...children[0], type: "image", url: figure.imageUrl };
+  const content = figureCaptionContent(figure.caption);
+  const caption = content.length > 0
+    ? [{ type: "caption", children: [{ type: "paragraph", children: inlineContentToNodes(content) }] }]
+    : [];
+  // SPIKE (persistent Figure draft): connecting content later keeps the container, so its
+  // label and identifier stay; a pending Figure has no image node.
+  if (figure.imageUrl.length === 0) {
+    node.children = caption;
+    return;
+  }
+  const image: MystNode = { ...(children[0]?.type === "image" ? children[0] : {}), type: "image", url: figure.imageUrl };
   if (figure.imageAlt.length > 0) image.alt = figure.imageAlt;
   else delete image.alt;
-  const content = figureCaptionContent(figure.caption);
-  node.children = content.length > 0
-    ? [image, { type: "caption", children: [{ type: "paragraph", children: inlineContentToNodes(content) }] }]
-    : [image];
+  node.children = [image, ...caption];
 }
 
 /** Fail closed unless the top-level Figure keeps its properties and label through canonical Markdown. */

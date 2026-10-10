@@ -1,0 +1,12 @@
+import * as core from "../../src/index.ts";
+const src = "# Converter\n\nIntro.\n\nThe loop in [](#fig-pfc-control) regulates the current.\n";
+const doc = core.updateLabel(core.insertFigure(core.parse(src), 2, { imageUrl: "", imageAlt: "", caption: "PFC control loop." }), [2], "fig-pfc-control");
+const removed = core.removeBlock(doc, 2);
+console.log("removed md:", JSON.stringify(core.serialize(removed)));
+console.log("unresolved after remove:", JSON.stringify(core.unresolvedReferences(removed)));
+const img = core.parse(":::{figure} ./a.svg\n:name: fig-a\n\nA.\n:::\n\nSee [](#fig-a).\n");
+const imgRemoved = core.removeBlock(img, 0);
+console.log("image fig removed unresolved:", JSON.stringify(core.unresolvedReferences(imgRemoved)), JSON.stringify(core.serialize(imgRemoved)));
+console.log("bare link unresolved:", JSON.stringify(core.unresolvedReferences(core.parse("See [](#nothing).\n"))));
+console.log("numref unresolved:", JSON.stringify(core.unresolvedReferences(core.parse("See {numref}`nothing`.\n"))));
+console.log("validateStructure:", JSON.stringify(core.validateStructure(doc)));

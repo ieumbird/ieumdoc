@@ -24,7 +24,8 @@ export function figureContentError(figure: FigureContent): string | undefined {
       (typeof figure.caption !== "string" && !Array.isArray(figure.caption))) {
     return "Figure image URL and alt text must be strings; caption must be text or InlineContent.";
   }
-  if (figure.imageUrl.length === 0) return "Figure image URL is required.";
+  // SPIKE (persistent Figure draft): an empty URL is a Figure whose content is not connected yet.
+  if (figure.imageUrl.length === 0) return figure.imageAlt.length === 0 ? undefined : "A Figure without an image cannot have alt text.";
   if (/[\r\n]/.test(figure.imageUrl) || figure.imageUrl.trim() !== figure.imageUrl) {
     return "Figure image URL cannot contain line breaks or leading/trailing spaces.";
   }
