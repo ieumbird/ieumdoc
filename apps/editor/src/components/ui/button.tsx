@@ -17,13 +17,13 @@ const buttonVariants = cva(
       },
       size: {
         default:
-          "h-[var(--size-control)] gap-[var(--space-2)] px-[var(--space-3)] has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        sm: "h-[var(--size-control-compact)] gap-[var(--space-2)] rounded-[min(var(--radius-md),12px)] px-[var(--space-3)] text-sm leading-[var(--line-height-label)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
+          "h-[var(--size-control)] gap-[var(--space-2)] px-[var(--space-3)]",
+        sm: "h-[var(--size-control-compact)] gap-[var(--space-2)] rounded-[min(var(--radius-md),12px)] px-[var(--space-3)] text-sm leading-[var(--line-height-label)] [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
         icon: "size-[var(--size-control)]",
         "icon-xs":
-          "size-[var(--size-control-compact)] rounded-md in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
+          "size-[var(--size-control-compact)] rounded-md [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
         "icon-sm":
-          "size-[var(--size-control-compact)] rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+          "size-[var(--size-control-compact)] rounded-[min(var(--radius-md),12px)]",
       },
     },
     defaultVariants: {

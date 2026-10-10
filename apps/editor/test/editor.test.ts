@@ -1475,7 +1475,6 @@ test("schema-normalized nested marks survive the complete save and reload path",
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
     const reloaded = normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown)));
     assert.deepEqual(reloaded, projected);
-    assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
 });
 

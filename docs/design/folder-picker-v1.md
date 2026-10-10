@@ -5,6 +5,8 @@
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
+The development HTTP Host is currently the only adopted Host. This picker remains the file/folder/child/recent/New path until an actually adopted product Host supplies and verifies those same operations; a future native Host is not a reason to remove it now.
+
 ## Behavior
 
 - The path field determines the folder to open. Typing filters its parent's sub-folders;

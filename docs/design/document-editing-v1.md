@@ -4,6 +4,10 @@
 - Last verified: 2026-10-10 (pending Figure editing/history and persistence; caret key behavior retains the `focus-caret` regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
+## Code highlighting
+
+Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.
+
 ## Continuous editing
 
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all

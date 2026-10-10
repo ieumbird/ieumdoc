@@ -141,6 +141,29 @@ async page => {
     'Native table menu needs the shared persistent open face and boundary');
   await page.keyboard.press('Escape');
 
+  // Progress remains visible while motion is optional; opening/closing overlays are static.
+  for (const reducedMotion of ['no-preference', 'reduce']) {
+    await page.emulateMedia({reducedMotion});
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/document', async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await gate;
+      await route.fulfill({json:{revision:loaded.revision}});
+    });
+    try {
+      await page.getByTestId('save').click();
+      const spinner = page.locator('.top-bar-save-spinner');
+      await spinner.waitFor();
+      const progress = await spinner.evaluate(n => ({animation:getComputedStyle(n).animationName, busy:n.closest('button').getAttribute('aria-busy')}));
+      check(progress.busy === 'true' && (reducedMotion === 'reduce' ? progress.animation === 'none' : progress.animation !== 'none'),
+        `Save progress ignored motion preference: ${JSON.stringify(progress)}`);
+      release();
+      await spinner.waitFor({state:'detached'});
+    } finally { release(); await page.unroute('**/api/document'); }
+  }
+  await page.emulateMedia({reducedMotion:'no-preference'});
+
   // Actual resolved product roles: thresholds apply to text, control boundaries and indicators,
   // not decorative separators or the small difference between rest and hover backgrounds.
   const contrasts = await page.evaluate(() => {
