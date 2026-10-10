@@ -36,6 +36,7 @@ export const STABLE_SCENARIOS = [
   "label-authoring",
   "cross-reference",
   "block-source-editing",
+  "property-drafts",
   "section-reference",
   "folder-navigation",
   "footnotes",

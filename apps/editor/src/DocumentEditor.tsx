@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
@@ -23,6 +23,7 @@ import {
   createEditorExtensions,
   type BlockSourceApplier,
   type FigureValidator,
+  type DraftKind,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
 import { appliedDocument, freshBlockPath, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
@@ -37,9 +38,6 @@ type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 function insertMenuItem(item: { id: string; label: string; group: string; hint?: string }): CommandMenuItem {
   return { id: item.id, label: item.label, group: item.group, hint: item.hint, icon: insertCommandIcon(item.id) };
 }
-
-const EQUATION_DRAFT_MOVE_HINT = "Apply or Cancel the Equation edit before moving it.";
-const FIGURE_DRAFT_MOVE_HINT = "Apply or Cancel the Figure edit before moving it.";
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
@@ -61,8 +59,7 @@ type DocumentEditorProps = {
   documentPath: string;
   readOnly?: boolean;
   onStructuralReject: (reason?: string) => void;
-  onEquationDraftChange?: (active: boolean) => void;
-  onFigureDraftChange?: (active: boolean) => void;
+  onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
   onAssetError?: (reason: string) => void;
   /** Presentation only; reuse the existing document dirty comparison. */
@@ -75,19 +72,16 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onEquationDraftChange, onFigureDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, applyBlockSource, onOutlineChange },
+  { document, documentPath, readOnly = false, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, applyBlockSource, onOutlineChange },
   ref,
 ) {
-  const projection = toTiptapDocument(document);
-  const baseline = useRef(projection);
+  // App remounts this editor for Open/New/Reload; Save keeps its opening projection.
+  const [projection] = useState(() => toTiptapDocument(document));
   const pending = useRef<TiptapJSON | null>(null);
   const saved = useRef<TiptapJSON | null>(null);
-  const onEquationDraftChangeRef = useRef(onEquationDraftChange);
-  onEquationDraftChangeRef.current = onEquationDraftChange;
-  const activeEquationDrafts = useRef(new Set<string>());
-  const onFigureDraftChangeRef = useRef(onFigureDraftChange);
-  onFigureDraftChangeRef.current = onFigureDraftChange;
-  const activeFigureDrafts = useRef(new Set<string>());
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+  const activeDrafts = useRef(new Map<string, { kind: DraftKind; path: string }>());
   const onDirtyChangeRef = useRef(onDirtyChange);
   onDirtyChangeRef.current = onDirtyChange;
   const onOutlineChangeRef = useRef(onOutlineChange);
@@ -107,31 +101,27 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
   const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
-  const reportEquationDraft = (key: string, active: boolean) => {
-    if (active) activeEquationDrafts.current.add(key);
-    else activeEquationDrafts.current.delete(key);
-    onEquationDraftChangeRef.current?.(activeEquationDrafts.current.size > 0);
+  const reportDraft = useCallback((kind: DraftKind, path: string, active: boolean) => {
+    const key = `${kind}:${path}`;
+    if (activeDrafts.current.has(key) === active) return;
+    if (active) activeDrafts.current.set(key, { kind, path });
+    else activeDrafts.current.delete(key);
+    onDraftChangeRef.current?.(activeDrafts.current.size > 0);
     draftsChanged();
-  };
-  const reportFigureDraft = (key: string, active: boolean) => {
-    if (active) activeFigureDrafts.current.add(key);
-    else activeFigureDrafts.current.delete(key);
-    onFigureDraftChangeRef.current?.(activeFigureDrafts.current.size > 0);
-    draftsChanged();
-  };
+  }, []);
+  const hasOtherDraft = useCallback((kind: DraftKind, path: string) =>
+    [...activeDrafts.current.values()].some(draft => draft.path === path && draft.kind !== kind), []);
   const moveBlockedHint = (index: number) => {
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
-    if (activeEquationDrafts.current.has(path)) return EQUATION_DRAFT_MOVE_HINT;
-    if (activeFigureDrafts.current.has(path)) return editor.state.doc.maybeChild(index)?.type.name === "table"
-      ? "Apply or Cancel the Table edit before moving it." : FIGURE_DRAFT_MOVE_HINT;
-    return undefined;
+    const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
+    return draft ? `Apply or Cancel the ${draft.kind} edit before moving it.` : undefined;
   };
   const editor = useEditor({
     editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
     extensions: [
-      ...createEditorExtensions(() => baseline.current, onStructuralReject, reportEquationDraft, documentPath, reportFigureDraft, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource),
+      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft),
       Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
     ],
     content: projection,
@@ -196,8 +186,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       },
       hasUnsavedChanges() {
         if (!editor) return false;
-        return activeEquationDrafts.current.size > 0 || activeFigureDrafts.current.size > 0 ||
-          hasDocumentChanges();
+        return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
       revealHeading(item) {
         if (!editor) return;

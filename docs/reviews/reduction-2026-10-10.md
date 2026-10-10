@@ -19,8 +19,8 @@
 | C06 | cn helper는 generator alias 소비; CSS/exports/local unused를 개별 확인 | generator 경로 일치, 동적 hljs/admonition 클래스·asset 유지 | 구현 중 |
 | C07 | Equation/Figure/Table/section label summary와 dismiss 상태 | 명시 Edit, Apply/Cancel/Escape, read-only source, touch/keyboard | 구현(단위 3) |
 | C08 | 4 overlay animation class, button/input transition와 legacy CSS | 위치 transform·Save spinner 유지; close/unmount/focus browser | 구현(단위 3) |
-| C09 | DocumentEditor render에서 opening projection 반복; App generation key가 수명 구분 | lazy initializer, document 교체/StrictMode/Save/history | 구현 예정 |
-| C10 | Equation/Figure Sets와 Table의 Figure listener 재사용 | kind+snapshot locator 집계, callback cleanup, 여러 draft와 이탈 보호 | 구현 예정 |
+| C09 | DocumentEditor render에서 opening projection 반복; App generation key가 수명 구분 | lazy initializer, document 교체/StrictMode/Save/history | 구현(단위 4) |
+| C10 | Equation/Figure Sets와 Table의 Figure listener 재사용 | kind+snapshot locator 집계, callback cleanup, 여러 draft와 이탈 보호 | 구현(단위 4) |
 | C11 | TopBar에는 기존 menu 없음; Sidebar menu는 folder 책임 | 이관에 새 menu나 책임 혼합 필요; responsive 접근성 확인 | 조사 중 |
 | C12 | lowlight common 초기 bundle 기여 실제 측정 | 언어 지원 보존; 지연 등록 완료를 문서 변경 없이 반영할 API 확인 | 조사 중 |
 | C13 | CLI runner + CI lifecycle를 공식 Playwright API와 격리 비교 | persistent profile, console/pageerror, scratch/storage/routes/cleanup 동등성 | 조사 중 |
@@ -62,3 +62,13 @@ Base UI Button으로 6개 소비 파일을 이관하고 legacy Button/IconButton
 선택 summary와 dismiss 상태 4종을 제거했다. 선택은 선택으로 끝나고 기존 Edit가 폼을 연다. 신규 삽입과 Apply를 Undo한 transient Figure/빈 신규 Equation은 기존 폼 수명을 유지한다. 밖 클릭/선택 이동으로 폼을 폐기하지 않는다. overlay 입출 모션·pressed 이동·불필요한 transition을 제거한 뒤 tw-animate-css를 패키지 절차로 제거했다. 위치 보정 transform, spinner/reduced-motion과 shadcn CSS import는 유지한다.
 
 Editor 225/225, typecheck/build/frozen install/docs:check/diff 통과. targeted browser editor-shell, layout-rules, quiet-document, visual-states, figure-authoring, figure-draft-race, pending-figure, equation-insertion, table-authoring, section-reference, inline-math-authoring, link-authoring, new-document 통과(첫 실행 ARIA 오류 및 obsolete summary 대기는 수정 후 재실행). Undo → Save의 transient 안내 회귀도 기존 pending-figure 검사가 잡아 수정 후 통과했다. baseline/after 실제 768px selected/editing 캡처를 비교했고 문서 축·caption·폼 위치가 유지되며 자동 summary만 없어졌다. 704/768/1024/1440px captures는 임시 폴더에만 보존한다.
+
+### 단위 4 검증과 발견
+
+opening projection을 lazy state initializer로 옮기고 중복 baseline ref를 제거했다. App의 generation key가 Open/New/Reload 수명이며 Save는 그 key나 document를 갱신하지 않는다. 실제 StrictMode/같은 scratch/각 1회 임시 계측: Wide 5회 전환의 계산 10→0, 4문자 입력과 focus의 계산 10→0, Save 6→0, Reload 6→2(새 editor의 StrictMode initializer). 계측과 전용 browser session은 제거했다.
+
+Equation/Figure의 2 Set·callback ref·2 App 상태를 kind+snapshot locator Map, 안정 callback, 단일 active 알림으로 통합했다. 값은 각 폼에 남으며 동일 membership 알림은 no-op이다. Table/Source가 같은 locator여도 독립 등록된다. doc dirty·draft·pending Figure·asset busy는 별도 의미다.
+
+변경 전 실제 browser에서 section label/source draft의 beforeunload=false와 Reload 입력 유실, Table source Apply가 caption draft/이미 적용된 caption을 덮는 문제를 재현했다(`tmp/reduction-pre-fix`, disk Save 없음). section/source 등록 누락을 고치고 source replacement를 요청 전후 node/other draft/source/input 상태로 가드했다. Cancel/unmount는 늦은 응답을 무효화한다. 새 property-drafts 시나리오는 서로 다른 종류/같은 locator/한 폼 Cancel/Reload Keep editing/beforeunload/stale Apply/요청 중 입력을 검증한다. 기존 block-source refusal은 document JSON 불변과 입력 보존/dirty/Cancel을 검사하며 예전 변수명 고정 assertion은 실제 browser 보호로 대체했다.
+
+Editor 225/225와 typecheck/docs 통과. targeted browser property-drafts, block-source-editing, save-session, figure-draft-race, save-during-edit, equation-save-during-edit, pending-figure 모두 통과. 독립 reviewer의 관련 unit 36개와 diff 검토도 통과했다. 별도 기존 Inline Math/Link local input은 blur로 닫히는 inline overlay 계약이며 이번 블록 registry에 넣거나 durable recovery로 확대하지 않았다.

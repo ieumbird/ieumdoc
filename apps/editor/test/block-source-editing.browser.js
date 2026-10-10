@@ -27,11 +27,16 @@ async page => {
   };
   const result = {};
 
+  const unchanged = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
   await editSource(image, '```\nunclosed');
   await image.getByTestId('block-source-error').waitFor();
   assert((await image.getByTestId('block-source-error').innerText()).includes('not closed'), 'Refusal reason missing');
-  assert(await page.getByTestId('status').textContent() !== 'Unsaved changes', 'Refused source changed the document');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === unchanged, 'Refused source changed the document');
+  assert(await image.getByTestId('block-source-input').inputValue() === '```\nunclosed', 'Refusal discarded source input');
+  assert(await page.getByTestId('status').textContent() === 'Unsaved changes', 'Refused draft lost its work-loss guard');
   await image.getByTestId('block-source-cancel').click();
+  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  assert(await page.getByTestId('status').textContent() === '', 'Cancelled source draft remained dirty');
   result.refusedWithReason = true;
 
   await editSource(image, 'The diagram is **important**.');
