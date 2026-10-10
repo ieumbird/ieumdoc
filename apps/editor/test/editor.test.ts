@@ -893,7 +893,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
   }
 });
 
-test("Host reports canonical writeability with every document it opens, creates or saves", async () => {
+test("Host opens complete models and Save acknowledges only the written revision", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-writeability-"));
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
@@ -938,7 +938,7 @@ test("Host reports canonical writeability with every document it opens, creates 
       }),
     });
     assert.equal(saved.status, 200);
-    assert.equal(((await saved.json()) as { writeError: string | null }).writeError, null);
+    assert.deepEqual(await saved.json(), { revision: documentRevision(readFileSync(writable, "utf8")) });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

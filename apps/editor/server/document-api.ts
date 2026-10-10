@@ -289,7 +289,7 @@ export async function handleDocumentRequest(
       const body = JSON.parse(await readBody(req)) as SaveRequest;
       try {
         const saved = saveDocumentFile(typeof body.path === "string" ? body.path : undefined, saveRequestOf(body));
-        sendJson(res, 200, { path: saved.path, document: saved.document, revision: saved.revision, writeError: saved.writeError } satisfies SaveResponse);
+        sendJson(res, 200, { revision: saved.revision } satisfies SaveResponse);
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           sendJson(res, 409, { error: error.message });

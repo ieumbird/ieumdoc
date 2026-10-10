@@ -167,7 +167,7 @@ export type DocumentFileResponse = {
 export type SessionSaveRequest = SaveRequest & Required<Pick<SaveRequest, "revision">>;
 
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
-export type SaveResponse = Omit<DocumentFileResponse, "source">;
+export type SaveResponse = Pick<DocumentFileResponse, "revision">;
 
 export type SourceResponse = { markdown: string };
 
