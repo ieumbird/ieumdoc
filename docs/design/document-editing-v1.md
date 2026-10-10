@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-10 (pending Figure editing/history and persistence; caret key behavior retains the `focus-caret` regression).
+- Last verified: 2026-10-11 (deferred common grammars, literal fallback, upload/history 수명과 전체 stable browser suite).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting

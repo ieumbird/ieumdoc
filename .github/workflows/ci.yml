@@ -85,86 +85,21 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install pinned Chromium and Linux dependencies
-        run: pnpm exec playwright-cli install-browser chromium --with-deps
+        run: pnpm exec playwright install chromium --with-deps
 
       - name: Run Editor browser regressions
-        shell: bash
-        run: |
-          set -Eeuo pipefail
+        env:
+          IEUMDOC_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
+        run: pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
 
-          server_log="$RUNNER_TEMP/editor-vite.log"
-          server_pgid_file="$RUNNER_TEMP/editor-server.pgid"
-          session="ieumdoc-browser-regression"
-          rm -f "$server_pgid_file"
-          setsid bash -c 'printf "%s\n" "$$" >"$1"; exec pnpm editor' \
-            ieumdoc-editor "$server_pgid_file" >"$server_log" 2>&1 &
-          server_launcher_pid=$!
-          server_pgid=""
-
-          cleanup() {
-            status=$?
-            trap - EXIT INT TERM
-
-            if [[ -z "$server_pgid" && -s "$server_pgid_file" ]]; then
-              server_pgid=$(cat "$server_pgid_file")
-            fi
-
-            timeout --signal=TERM --kill-after=5s 15s \
-              pnpm exec playwright-cli -s="$session" close >/dev/null 2>&1 || true
-
-            if [[ -n "$server_pgid" ]] && kill -0 -- "-$server_pgid" 2>/dev/null; then
-              kill -TERM -- "-$server_pgid" 2>/dev/null || true
-              for _ in {1..10}; do
-                kill -0 -- "-$server_pgid" 2>/dev/null || break
-                sleep 1
-              done
-              kill -KILL -- "-$server_pgid" 2>/dev/null || true
-            elif kill -0 "$server_launcher_pid" 2>/dev/null; then
-              kill -TERM "$server_launcher_pid" 2>/dev/null || true
-            fi
-            wait "$server_launcher_pid" 2>/dev/null || true
-            rm -f "$server_pgid_file"
-
-            if [ "$status" -ne 0 ]; then
-              echo "Editor dev server log (failure):"
-              cat "$server_log" || true
-            fi
-            exit "$status"
-          }
-          trap cleanup EXIT
-          trap 'exit 130' INT
-          trap 'exit 143' TERM
-
-          ready=false
-          for _ in {1..60}; do
-            if [[ -z "$server_pgid" && -s "$server_pgid_file" ]]; then
-              server_pgid=$(cat "$server_pgid_file")
-            fi
-            if curl --fail --silent http://127.0.0.1:5173/api/document >/dev/null; then
-              ready=true
-              break
-            fi
-            if [[ -n "$server_pgid" ]] && ! kill -0 -- "-$server_pgid" 2>/dev/null; then
-              echo "Editor dev server exited before readiness."
-              cat "$server_log"
-              exit 1
-            fi
-            sleep 1
-          done
-
-          if [ "$ready" != true ]; then
-            echo "Editor dev server did not become ready at http://127.0.0.1:5173/api/document within 60 seconds."
-            exit 1
-          fi
-
-          pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
-
-      - name: Upload Editor dev server log on failure
+      - name: Upload Editor browser diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: editor-browser-ci-logs-${{ matrix.shard }}
-          path: ${{ runner.temp }}/editor-vite.log
+          path: |
+            ${{ runner.temp }}/editor-vite.log
+            tmp/browser-results/
           if-no-files-found: ignore
           retention-days: 7
 
