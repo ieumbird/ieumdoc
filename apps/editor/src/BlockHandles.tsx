@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
-import { IconButton } from "./ui/primitives.tsx";
+import { Button } from "@/components/ui/button.tsx";
 
 type BlockHandlesProps = {
   editor: Editor;
@@ -99,12 +99,12 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
         className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
         data-menu-open={menuIndex === index}
         style={{top: block.top}}>
-        <IconButton className="block-insert" label={`Insert block after ${block.name} block ${index + 1}`}
+        <Button variant="ghost" size="icon" className="block-insert" aria-label={`Insert block after ${block.name} block ${index + 1}`}
           title="Insert block below" aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
-          onClick={() => onInsert(index, block.top)}>+</IconButton>
-        <IconButton draggable={!blocked} className="block-handle"
-          label={`Move ${block.name} block ${index + 1}`} title={blocked ?? "Drag to move, click for block actions"}
+          onClick={() => onInsert(index, block.top)}>+</Button>
+        <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle"
+          aria-label={`Move ${block.name} block ${index + 1}`} title={blocked ?? "Drag to move, click for block actions"}
           aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
           onClick={() => onOpenMenu(index, block.top)}
@@ -117,7 +117,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/plain", "Move block");
             setMoving({top: block.top, height: block.height});
-          }}>⠿</IconButton>
+          }}>⠿</Button>
       </div>;
     })}
     {moving && <div className="block-drag-source" data-testid="block-drag-source" style={moving} />}

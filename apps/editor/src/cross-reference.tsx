@@ -7,7 +7,7 @@ import { useState, type CSSProperties } from "react";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
-import { Button } from "./ui/primitives.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
@@ -400,7 +400,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
       ) : (
         <span className="reference-empty">Label an Equation, Figure, Table or heading to reference it.</span>
       )}
-      {onRemove ? <Button size="sm" variant="subtle" data-testid="reference-remove" onClick={onRemove}>Remove</Button> : null}
+      {onRemove ? <Button size="sm" variant="outline" data-testid="reference-remove" onClick={onRemove}>Remove</Button> : null}
     </form>
   );
 }

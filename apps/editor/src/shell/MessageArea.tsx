@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { IconButton, Notice } from "../ui/primitives.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Notice } from "../ui/primitives.tsx";
 
 export const NOTICE_TIMEOUT_MS = 5000;
 
@@ -36,7 +37,7 @@ export function MessageArea({ error, notice, warning = "", draftNotice = "", onD
       {error ? (
         <Notice tone="error" className="message" data-testid="error">
           <span className="message-text">{error}</span>
-          <IconButton className="message-dismiss" label="Dismiss error" onClick={onDismissError}>×</IconButton>
+          <Button variant="ghost" size="icon-sm" className="message-dismiss" aria-label="Dismiss error" onClick={onDismissError}>×</Button>
         </Notice>
       ) : null}
       {notice ? (
