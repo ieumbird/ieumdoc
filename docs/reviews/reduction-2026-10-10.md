@@ -1,6 +1,7 @@
 # IeumDoc 감량 검증 기록
 
 - Status: Historical
+- Last verified: 2026-10-11 (baseline 대조, 실제 구현·단위/전체 자동 검증 및 독립 리뷰).
 - Baseline: `95457319e96d04023002949f8e003a3b84eecc5f` (remote master 확인).
 - Environment: Windows, Node 24.21.0, pnpm 12.5.1, TypeScript 7.0.2. 실행 session의 model/effort: `gpt-6.1-sol` / `xhigh`.
 - Authority: 실행 근거. 현재 계약은 [Editing session](../design/editing-session-save-v1.md), [UX Shell](../design/editor-ux-shell-v1.md), [Visual Language](../design/editor-visual-language-v1.md).
@@ -23,7 +24,7 @@
 | C10 | Equation/Figure Sets와 Table의 Figure listener 재사용 | kind+snapshot locator 집계, callback cleanup, 여러 draft와 이탈 보호 | 구현(단위 4) |
 | C11 | TopBar에는 기존 menu 없음; Sidebar menu는 folder 책임 | 이관에 새 menu나 책임 혼합 필요; responsive 접근성 확인 | 유지 |
 | C12 | lowlight common 초기 bundle 기여 실제 측정 | 언어 지원 보존; 지연 등록 완료를 문서 변경 없이 반영할 API 확인 | 구현(단위 5) |
-| C13 | CLI runner + CI lifecycle를 공식 Playwright API와 격리 비교 | persistent profile, console/pageerror, scratch/storage/routes/cleanup 동등성 | 구현 준비(별도 단위 6) |
+| C13 | CLI runner + CI lifecycle를 공식 Playwright API와 격리 비교 | persistent profile, console/pageerror, scratch/storage/routes/cleanup 동등성 | 구현(별도 단위 6) |
 | C14 | development Host만 존재; folder picker는 유일 정식 탐색 경로 | file/folder/child/recent/New 유지 | 유지 |
 | C15 | contract에 여러 역사적 Before/After가 섞임; test 각 경계 분리 | 과거 증거를 보존하며 historical review에 배치; docs links/index | 구현(단위 5) |
 
@@ -39,7 +40,8 @@ Frozen install, typecheck, test, production build 통과. Core 210, File commit 
 2. Save acknowledgement, markdown replay 후처리와 HTTP session 경계 (1에 의존).
 3. Base UI button 통합, 명시 속성 Edit와 정적 overlay (2에 의존).
 4. opening projection와 draft 집계 (3에 의존).
-5. 나머지 증거와 문서 정리 (4에 의존; runner 전환 채택 시 별도 PR).
+5. 언어 지연 등록, 나머지 증거와 문서 정리 (4에 의존).
+6. 공식 Playwright Test runner와 CI lifecycle (5에 의존).
 
 각 단위의 검증·commit·PR와 최종 측정은 실행 후 아래에 기록한다.
 
@@ -88,3 +90,14 @@ C15은 empty/v2/v4/v4.1 비교 설명을 기존 Historical visual review로 옮�
 Editor225, typecheck/build/docs 통과. code-highlighting/image-assets/visual-states/markdown-input targeted browser 통과. Save 진행 spinner의 normal/reduced-motion도 computed browser state로 통과했다. 독립 UI 비교에서 Open Escape와 toolbar keyboard focus 제한은 변경 전 동일함을 확인했다. Figure/Eq Cancel/Escape의 기존 BODY focus도 보존됐다. 375px touch Edit/Cancel은 실제 touchscreen API와 bounds를 확인했으나 mobile emulation 전환 때문에 375px Save pointer 검사는 신뢰 가능한 등가성 판정이 불가능했다(기존 baseline에서도 Save x417–474 overflow). 물리 기기 검증으로 주장하지 않는다.
 
 비교 baseline worktree의 browser/server/등록은 종료했으나 Windows가 TEMP directory 제거를 끝내지 못했고 후속 Remove-Item은 자동 승인 검토에서 `blocked by policy`로 거절됐다. 잔여 `C:\Users\swBaek\AppData\Local\Temp\ieumdoc-ui-baseline-97fea98`에는 활성 process가 없다(파일 apparent length191,096,707 bytes; disk allocation 아님). 동일 삭제는 재시도하지 않았다.
+
+### 단위 6: runner 채택 근거
+
+기존 subprocess/`### Result` 파싱/문자열 console monitor를 제거하고 Playwright Test worker fixture와 직접 Page API로 같은 시나리오를 실행한다. [webServer](https://playwright.dev/docs/test-webserver), [persistent context](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context), [worker fixture teardown](https://playwright.dev/docs/test-fixtures#execution-order)을 사용한다. browser 상태/console/pageerror는 TestInfo attachment로 보존하며 기존 HTTP status/path/최소 발생 수 분류 규칙을 그대로 옮겼다. 하나의 worker와 checkout별 재사용 profile, storage 정리, source write guard와 digest, scratch 복구를 유지한다. 실패한 delayed route는 해당 page 종료로 제거한다.
+
+`@playwright/test`는 기존 transitive Playwright와 정확히 같은 `1.64.0-alpha-1789764292000` 버전으로 추가했다. CLI 이름/분할/screenshots 진입점은 유지하며 [해당 버전의 공개 CLI export/bin](https://github.com/microsoft/playwright/blob/78ff4260d79b924724bdcc4ccd89e463b8f43b0d/packages/playwright-test/package.json#L23-L28)을 같은 process에서 실행한다. private API나 별도 CLI subprocess는 없다. 이 실행 방식은 공개 bin과 pinned version 실험에 근거하며 별도 공식 JavaScript runner API로 주장하지 않는다. import 완료가 suite 완료를 뜻하지 않으며 CLI가 최종 종료와 signals를 소유한다. 직접 디버깅 계약에 실제 소비자가 있는 `@playwright/cli`는 유지한다.
+
+격리 실험에서 대표 source/folder/save 3개 통과(26.5s), console+pageerror+held mock은 exit1로 실패하고 다음 worker의 storage/mock/source guard 정리는 통과(10.7s)했다. worker의 부모 PID가 entry process임도 확인했다. 직접 시작한 서버 종료, startup exit7 원인/실패 exit1, 기존 서버 PID/HTTP 생존을 각각 확인했고 실험 서버와 browser는 종료했다. strict typecheck와 통합 후 관련 5개 시나리오도 통과(28.8s)했다. Windows의 SIGTERM graceful option은 공식 구현에서 무시되며 owned process tree cleanup을 사용한다. CI의 수동 PGID/trap/readiness 코드를 없애고 webServer가 시작한 서버만 정리하도록 했다. 실패 로그와 attachment 업로드 및 기존 두 shard/필수 aggregate gate는 유지한다. 이전 runner는 남기지 않는다.
+
+
+최종 Windows 실행에서 stable 42개 전체 통과(3.9m), Core210/CLI46/Editor225 통과했다. File commit은 2 pass와 baseline부터 같은 Windows 환경 skip 2개다. frozen install, docs checker 자체 5개, docs:check, typecheck, 정식 production build, diff --check도 통과했다. 독립 C13 reviewer는 fixture/shard 7개와 타입/문서 검사, classifier 네 경계를 별도로 검증했고 기능 finding은 없었다. 전체 suite의 browser는 자동 종료됐으며 직접 시작한 Vite는 소유 PID를 확인해 종료했다.
