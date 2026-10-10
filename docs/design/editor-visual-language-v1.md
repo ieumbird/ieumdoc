@@ -71,13 +71,7 @@ After New succeeds, Base UI's closing focus handoff targets the newly mounted ed
 
 The paper boundary is permanent and neutral, not a document focus ring. Top/bottom paper padding is 32px (16px at ≤1024px), inside the 16px canvas gap; the body and gutter keep their existing axes. These are display and focus changes only; Core, CLI and saved document meaning are unchanged.
 
-Same-state comparison, base `e46b0ec` and #133 (2026-10-08). Empty captures exercise the real New UI with an empty Host response supplied by the capture script; persistence is separately checked with real scratch files by `new-document`. The populated pair uses `pnpm browser:test quiet-document --screenshots` in each checkout. Captures are review evidence, not automated visual approval.
-
-| State | Before | After |
-| --- | --- | --- |
-| Empty, 1440px | ![Empty document before](assets/empty-start-before-empty-1440.png) | ![Empty document after](assets/empty-start-after-empty-1440.png) |
-| Empty, 768px | ![Narrow empty document before](assets/empty-start-before-empty-768.png) | ![Narrow empty document after](assets/empty-start-after-empty-768.png) |
-| Content, 1440px | ![Populated document before](assets/empty-start-before-content-1440.png) | ![Populated document after](assets/empty-start-after-content-1440.png) |
+Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
 
 ## Filename and status
 
@@ -85,7 +79,7 @@ TopBar shows only the filename; long names ellipsize and the complete unchanged 
 
 ## Shell and control rules — v3 (2026-10-08), v4 and v4.1 (2026-10-10)
 
-v2 reduced persistent chrome. v3 keeps that document-first layout while distinguishing roles and simultaneous states: current location, hovered alternative, pressed/open control and keyboard focus. It changes static presentation only; it adds no motion or interaction engine. v4 gives TopBar controls role-specific forms: view tabs, current-item toggles and a Save that is quiet until there is something to save; the only motion it adds is the saving spinner, which respects reduced motion. v4.1 keeps one meaning per TopBar state axis: a neutral face is hover only, the focus ring is keyboard focus only, and the interaction marker is on/active only.
+The shell distinguishes current location, hovered alternatives, pressed/open controls and keyboard focus with static states. Save alone adds a reduced-motion-aware progress spinner.
 
 | Area | Rule |
 | --- | --- |
@@ -99,22 +93,7 @@ v2 reduced persistent chrome. v3 keeps that document-first layout while distingu
 | Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
 | Read-only blocks | One indication: the source summary (`kind · Read-only content · line`). No separate label, no uppercase anywhere; `.block-kind` is plain 12px semibold metadata. Read-only text separates block children (`Draft Review`, not `DraftReview`). |
 
-v4.1 Before/After, base `eb418ba` (2026-10-10), same session, document, Chrome profile, DPR 1 and 100% zoom: the TopBar's right side at 1440px for each state (Save unavailable uses the `writeability-preflight` blocked scratch file), then the full header at 1024, 768 and the wrapping 704px width. Computed styles of the same states were compared alongside; Save's position and size are identical in every state and width.
-
-![TopBar v4.1 states before and after](assets/topbar-v4-1-states.png)
-
-![TopBar v4.1 widths before and after](assets/topbar-v4-1-widths.png)
-
-Historical v4 Before/After, base `eb4abc2` (2026-10-10); these are not current v4.1 captures: the TopBar's right side at 1440px, DPR 1, bundled Pretendard, the `quiet-document` scratch folder with the Outline panel closed except in the toggle rows. Each row is the same state in both checkouts; Saving holds the save request so the spinner can be captured. Captures are review evidence, not automated visual approval.
-
-![TopBar v4 before and after](assets/topbar-v4-before-after.png)
-
-Historical v2 Before/After at 1440px, same document and state (heading numbers on with unsaved changes; a section reference just inserted, then the heading hovered). These are not current v3 captures:
-
-| Before (`c9077b8`) | After |
-| --- | --- |
-| ![Before numbering](assets/visual-v2-before-numbering.png) | ![After numbering](assets/visual-v2-after-numbering.png) |
-| ![Before section label](assets/visual-v2-before-section.png) | ![After section label](assets/visual-v2-after-section.png) ![After hover](assets/visual-v2-after-section-hover.png) |
+Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
 
 ### Reviewing a visual change
 
@@ -160,7 +139,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 
 ## Evidence and verification
 
-[Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) records the current refinement's baseline, measurements and limits.
+[Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) preserves that refinement's baseline, measurements and limits.
 
 [Review record and actual Before/After](editor-visual-refinement-v1-review.md). `quiet-document-reference.png` is the mockup; `quiet-document-before-*` / `quiet-document-after-*` are original v1 Editor captures, and `quiet-document-final-*` are the final polish captures.
 

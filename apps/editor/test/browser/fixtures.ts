@@ -61,6 +61,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       "# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | {u}`V` |\n\nBody.\n" }],
     scenarios: ["property-drafts"],
   },
+  "code-highlighting": {
+    files: [{ name: "code.md", create: () => "# Code\n\n```js\nconst value = 1;\n```\n\nAfter.\n" }],
+    scenarios: ["code-highlighting"],
+  },
   "writeability-preflight": {
     files: [fixture("front-matter.md"), fixture("preserved-markdown.md"), fixture("blocked-markdown.md"), document("diagram.svg")],
     scenarios: ["writeability-preflight"],

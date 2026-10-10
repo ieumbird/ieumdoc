@@ -16,16 +16,16 @@
 | C03 | Save/Source/session replay는 markdown만 소비; App은 acknowledgement의 revision 사용 | 최종 canonical write와 중간 operation의 차이, conflict/history/delayed Save 검증 | 구현(단위 2) |
 | C04 | App만 HTTP Save/Source 정식 소비; pure file helper에는 별도 테스트 호출자 | HTTP session 필수 검사, 누락/잘못된 값 거부; 내부 helper 재사용 보존 | 구현(단위 2) |
 | C05 | legacy Button/IconButton 6개 소비 파일; Base UI button은 shell 소비 | type/ref/aria/disabled/event/selection, toolbar와 NodeView browser | 구현(단위 3) |
-| C06 | cn helper는 generator alias 소비; CSS/exports/local unused를 개별 확인 | generator 경로 일치, 동적 hljs/admonition 클래스·asset 유지 | 구현 중 |
+| C06 | cn helper는 generator alias 소비; CSS/exports/local unused를 개별 확인 | generator 경로 일치, 동적 hljs/admonition 클래스·asset 유지 | 구현(단위 1/3/5) |
 | C07 | Equation/Figure/Table/section label summary와 dismiss 상태 | 명시 Edit, Apply/Cancel/Escape, read-only source, touch/keyboard | 구현(단위 3) |
 | C08 | 4 overlay animation class, button/input transition와 legacy CSS | 위치 transform·Save spinner 유지; close/unmount/focus browser | 구현(단위 3) |
 | C09 | DocumentEditor render에서 opening projection 반복; App generation key가 수명 구분 | lazy initializer, document 교체/StrictMode/Save/history | 구현(단위 4) |
 | C10 | Equation/Figure Sets와 Table의 Figure listener 재사용 | kind+snapshot locator 집계, callback cleanup, 여러 draft와 이탈 보호 | 구현(단위 4) |
-| C11 | TopBar에는 기존 menu 없음; Sidebar menu는 folder 책임 | 이관에 새 menu나 책임 혼합 필요; responsive 접근성 확인 | 조사 중 |
-| C12 | lowlight common 초기 bundle 기여 실제 측정 | 언어 지원 보존; 지연 등록 완료를 문서 변경 없이 반영할 API 확인 | 조사 중 |
-| C13 | CLI runner + CI lifecycle를 공식 Playwright API와 격리 비교 | persistent profile, console/pageerror, scratch/storage/routes/cleanup 동등성 | 조사 중 |
+| C11 | TopBar에는 기존 menu 없음; Sidebar menu는 folder 책임 | 이관에 새 menu나 책임 혼합 필요; responsive 접근성 확인 | 유지 |
+| C12 | lowlight common 초기 bundle 기여 실제 측정 | 언어 지원 보존; 지연 등록 완료를 문서 변경 없이 반영할 API 확인 | 구현(단위 5) |
+| C13 | CLI runner + CI lifecycle를 공식 Playwright API와 격리 비교 | persistent profile, console/pageerror, scratch/storage/routes/cleanup 동등성 | 구현 준비(별도 단위 6) |
 | C14 | development Host만 존재; folder picker는 유일 정식 탐색 경로 | file/folder/child/recent/New 유지 | 유지 |
-| C15 | contract에 여러 역사적 Before/After가 섞임; test 각 경계 분리 | 과거 증거를 보존하며 historical review에 배치; docs links/index | 조사 중 |
+| C15 | contract에 여러 역사적 Before/After가 섞임; test 각 경계 분리 | 과거 증거를 보존하며 historical review에 배치; docs links/index | 구현(단위 5) |
 
 ## Baseline
 
@@ -72,3 +72,19 @@ Equation/Figure의 2 Set·callback ref·2 App 상태를 kind+snapshot locator Ma
 변경 전 실제 browser에서 section label/source draft의 beforeunload=false와 Reload 입력 유실, Table source Apply가 caption draft/이미 적용된 caption을 덮는 문제를 재현했다(`tmp/reduction-pre-fix`, disk Save 없음). section/source 등록 누락을 고치고 source replacement를 요청 전후 node/other draft/source/input 상태로 가드했다. Cancel/unmount는 늦은 응답을 무효화한다. 새 property-drafts 시나리오는 서로 다른 종류/같은 locator/한 폼 Cancel/Reload Keep editing/beforeunload/stale Apply/요청 중 입력을 검증한다. 기존 block-source refusal은 document JSON 불변과 입력 보존/dirty/Cancel을 검사하며 예전 변수명 고정 assertion은 실제 browser 보호로 대체했다.
 
 Editor 225/225와 typecheck/docs 통과. targeted browser property-drafts, block-source-editing, save-session, figure-draft-race, save-during-edit, equation-save-during-edit, pending-figure 모두 통과. 독립 reviewer의 관련 unit 36개와 diff 검토도 통과했다. 별도 기존 Inline Math/Link local input은 blur로 닫히는 inline overlay 계약이며 이번 블록 registry에 넣거나 durable recovery로 확대하지 않았다.
+
+### 단위 5 판단과 검증
+
+C11은 유지한다. TopBar에 재사용할 menu가 없고 Sidebar menu는 파일 탐색 책임이다. numbering/Wide/Reload 이관은 새 menu 상태·추가 클릭·현재 상태 숨김을 늘려 채택 조건을 충족하지 않는다. 저사용 기능이라는 통계 주장은 하지 않는다. C14는 현재 개발 Host만 채택됐으므로 유일한 picker를 유지하고 실제 대체 Host 채택/동등 검증 시점까지의 수명을 기존 계약에 명시했다.
+
+C06은 producer가 없는 button icon/button-group, input file, tooltip kbd 생성 modifier를 제거했다. 기존 unused 진단을 4 packages에 실행해 통과했다. cn alias, shadcn CSS, dynamic hljs/Notice/admonition/NodeView CSS, 공개 exports/bin, dependency patches, fonts/license/document assets는 확인한 소비자·계약 때문에 유지한다.
+
+C12은 같은 common grammar 집합을 첫 code block 시점에 지연 등록한다. 문서·language·history는 기존 엔진/operation을 유지하고 code-free document는 grammar를 요청하지 않는다. 실제 stock lowlight가 미등록 언어를 auto-detect하는 기존 plain-fallback 계약 불일치도 확인하여 literal fallback으로 맞췄다. 초기 reconfigure 실험은 모든 plugin view를 destroy하여 image upload를 취소하는 반례를 독립 probe가 잡았으므로 폐기했다. 최종 연결은 stock PluginKey/state를 보존하면서 metadata transaction에서 기존 init로 decoration만 갱신하며 plugin set/view를 재구성하지 않는다. 독립 실제 imageAssetsPlugin probe에서 held upload, Undo/Redo, 모든 view destroy=0, rollback=0, document/selection/history identity를 확인했다. 실제 browser도 grammar 요청과 asset 응답을 동시에 보류하고 이후 이미지 삽입 및 별도 Undo, 코드 Undo/Redo/언어 전환/미등록·load failure plain 입력을 검증했다.
+
+동일 최종 코드/설정으로 eager/deferred 변형을 각 1회 Node Vite build했고 gzip은 Node zlib 기본 설정으로 측정했다. Entry 1,888,410→1,750,377 bytes, gzip597,299→554,898. 지연 chunk139,887/gzip43,073; 전체 JS는 1,854/gzip672 bytes 증가한다. 두 변형 CSS139,451 bytes 동일. 이 격리 build의 cwd는 repository root이며 정식 pnpm build와 CSS scan 범위가 다르므로 최종 전체 변화는 정식 build로 따로 기록한다. 측정 script는 삭제했다. code가 있는 문서는 mount 뒤 grammar를 요청하므로 전체 초기 network/latency 개선율을 주장하지 않는다.
+
+C15은 empty/v2/v4/v4.1 비교 설명을 기존 Historical visual review로 옮기고 날짜/baseline/이미지/anchor를 보존했다. 같은 입력·같은 경계의 정확한 중복 assertion 3개만 제거했고 테스트 자체와 Core/CLI/projection/browser의 고유 경계는 유지했다. 문서 이동은 runtime 감량이 아니다.
+
+Editor225, typecheck/build/docs 통과. code-highlighting/image-assets/visual-states/markdown-input targeted browser 통과. Save 진행 spinner의 normal/reduced-motion도 computed browser state로 통과했다. 독립 UI 비교에서 Open Escape와 toolbar keyboard focus 제한은 변경 전 동일함을 확인했다. Figure/Eq Cancel/Escape의 기존 BODY focus도 보존됐다. 375px touch Edit/Cancel은 실제 touchscreen API와 bounds를 확인했으나 mobile emulation 전환 때문에 375px Save pointer 검사는 신뢰 가능한 등가성 판정이 불가능했다(기존 baseline에서도 Save x417–474 overflow). 물리 기기 검증으로 주장하지 않는다.
+
+비교 baseline worktree의 browser/server/등록은 종료했으나 Windows가 TEMP directory 제거를 끝내지 못했고 후속 Remove-Item은 자동 승인 검토에서 `blocked by policy`로 거절됐다. 잔여 `C:\Users\swBaek\AppData\Local\Temp\ieumdoc-ui-baseline-97fea98`에는 활성 process가 없다(파일 apparent length191,096,707 bytes; disk allocation 아님). 동일 삭제는 재시도하지 않았다.

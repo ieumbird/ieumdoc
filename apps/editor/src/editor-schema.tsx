@@ -4,7 +4,7 @@ import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
-import { common, createLowlight } from "lowlight";
+import { codeHighlightingPlugin, lowlight } from "./code-highlight.ts";
 import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
@@ -189,9 +189,12 @@ const SimpleListItem = ListItem.extend({
 // ArrowDown at the end leave the block. The ``` input shortcut is a MarkdownInputRule.
 // Syntax highlighting is display-only: lowlight decorations never enter the document or
 // the saved Markdown. An empty or unregistered language shows plain code.
-const lowlight = createLowlight(common);
 
 const SourcedCodeBlock = CodeBlockLowlight.extend({
+  addProseMirrorPlugins() {
+    const plugins = this.parent!();
+    return [...plugins.slice(0, -1), codeHighlightingPlugin(plugins.at(-1)!)];
+  },
   addAttributes() {
     return blockAttrs({ language: { default: "", rendered: false } });
   },
@@ -201,7 +204,11 @@ const SourcedCodeBlock = CodeBlockLowlight.extend({
   addNodeView() {
     return ReactNodeViewRenderer(CodeBlockView);
   },
-}).configure({ lowlight, defaultLanguage: null, enableTabIndentation: true, tabSize: 4 });
+}).configure({
+  // Stock lowlight auto-detects unknown languages; IeumDoc's fallback is literal plain code.
+  lowlight: { ...lowlight, highlightAuto: () => ({ children: [] }) },
+  defaultLanguage: null, enableTabIndentation: true, tabSize: 4,
+});
 
 // Inline code is literal text that may sit inside bold, italic or a link, as in Markdown.
 const InlineCode = Code.extend({

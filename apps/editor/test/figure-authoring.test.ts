@@ -146,7 +146,6 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
   assert.match(saved.markdown, /^:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
-  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
 
   // Clearing optional properties keeps the Figure and its label.
   const cleared = toTiptapDocument(editable);
@@ -164,7 +163,6 @@ test("new Figure inserts save and reload through Core semantics", () => {
   assert.deepEqual(edits.inserts, [{ block: "figure", ...figure }]);
   const saved = saveEdits("Intro\n", edits);
   assert.equal(saved.markdown, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
-  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
 
   // An unapplied transient Figure (as the insert command makes it) remains in the session, outside the applied save.
