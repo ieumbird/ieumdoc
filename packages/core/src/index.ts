@@ -8,7 +8,7 @@ import type { Document } from "./document.ts";
 import { inspectDocument as inspectTree } from "./document.ts";
 import { getEditableDocument as editableTree } from "./editable.ts";
 import { parse as parseTree } from "./myst/parse.ts";
-import { canonicalWriteError as canonicalWriteErrorTree, serialize as serializeTree } from "./myst/serialize.ts";
+import { canonicalSerialize, canonicalWriteError as canonicalWriteErrorTree } from "./myst/serialize.ts";
 import type { MystDocument } from "./myst/tree.ts";
 import * as operations from "./operations.ts";
 import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
@@ -27,7 +27,7 @@ export type { ListContent, ListItemContent } from "./list.ts";
 export type { CodeBlockContent } from "./code.ts";
 export type { BlockConversion, TableCellInput } from "./operations.ts";
 export type { UnresolvedReference } from "./references.ts";
-export { figureContentError } from "./figure.ts";
+export { figureContentError, figurePersistenceError } from "./figure.ts";
 export { labelError, labelKey, targetLabelError } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
@@ -45,7 +45,7 @@ function fence<F>(implementation: F): Fenced<F> {
 }
 
 export const parse = fence(parseTree);
-export const serialize = fence(serializeTree);
+export const serialize = fence(canonicalSerialize);
 /** Why canonical write (serialize) would refuse the document, or undefined when it is writable. */
 export const canonicalWriteError = fence(canonicalWriteErrorTree);
 export const getEditableDocument = fence(editableTree);

@@ -524,9 +524,11 @@ function assertPath(path: NodePath, label: string): void {
   }
 }
 
-/** Core's persistent Figure validation for Editor Apply; returns the error message, if any. */
-export function validateFigureRequest(value: FigureContent | undefined): string | undefined {
-  return validateFigure(figureContent(value));
+/** Core's persistent Figure validation for Editor Apply, label included (a pending Figure may
+ * have only a label); returns the error message, if any. */
+export function validateFigureRequest(value: (FigureContent & { label?: string }) | undefined): string | undefined {
+  if (value?.label !== undefined && typeof value.label !== "string") throw new Error("figure label must be a string");
+  return validateFigure(figureContent(value), value?.label ?? "");
 }
 
 /** A complete typed Figure value; omitted properties are not treated as unchanged. */

@@ -276,7 +276,8 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
   if (!isNewBlockPath(sourcePathOf(node))) return false;
   if (node.type === "paragraph") return (node.content ?? []).length === 0;
   if (node.type === "equation") return node.attrs?.latex === "";
-  if (node.type === "figure") return node.attrs?.imageUrl === "";
+  // A Figure's missing image is content it may still get; only a never-applied insert is transient.
+  if (node.type === "figure") return node.attrs?.applied === false;
   if (node.type === "codeBlock") return (node.content ?? []).length === 0 && !node.attrs?.language;
   // A new list whose only item was never written.
   if (LIST_BLOCKS.has(node.type ?? "")) {

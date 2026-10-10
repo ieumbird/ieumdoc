@@ -2,13 +2,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  blockTargets,
+  canonicalSerialize,
+  canonicalWriteError,
   figureContentError,
   getEditableDocument,
   getNode,
   insertFigure,
+  moveBlock,
   parse,
+  removeBlock,
   serialize,
+  targetNumbers,
   updateFigure,
+  updateLabel,
   validateFigure,
   validateStructure,
   type MystDocument,
@@ -123,7 +130,8 @@ test("Figure validity rules reject values that canonical MyST cannot persist", (
   const valid: FigureContent = { imageUrl: "./a.png", imageAlt: "Alt", caption: "Caption" };
   assert.equal(figureContentError(valid), undefined);
   const invalid: [Partial<FigureContent>, RegExp][] = [
-    [{ imageUrl: "" }, /image URL is required/],
+    // Without an image there is nothing for alt text to describe, and no directive field for it.
+    [{ imageUrl: "" }, /without an image cannot have alt text/],
     [{ imageUrl: " ./a.png" }, /image URL cannot contain/],
     [{ imageUrl: "./a.png " }, /image URL cannot contain/],
     [{ imageUrl: "./a\n.png" }, /image URL cannot contain/],
@@ -150,12 +158,95 @@ test("validateFigure is the persistent validity used by insertFigure", () => {
   const valid: FigureContent = { imageUrl: "./a.png", imageAlt: "Alt", caption: "Caption" };
   assert.equal(validateFigure(valid), undefined);
   assert.equal(validateFigure({ ...valid, imageAlt: "", caption: "" }), undefined);
-  assert.match(validateFigure({ ...valid, imageUrl: "" }) ?? "", /image URL is required/);
+  assert.match(validateFigure({ ...valid, imageUrl: "" }) ?? "", /without an image cannot have alt text/);
+  // A pending Figure (no image) is valid with a caption or a label, and only then.
+  const pending: FigureContent = { imageUrl: "", imageAlt: "", caption: "" };
+  assert.match(validateFigure(pending) ?? "", /needs an image, a caption or a label/);
+  assert.equal(validateFigure(pending, "fig-pfc-control"), undefined);
+  assert.equal(validateFigure({ ...pending, caption: "PFC Current Control Architecture" }), undefined);
+  assert.match(validateFigure(pending, " fig") ?? "", /leading or trailing spaces/);
   // Field rules alone accept this caption; only the canonical round-trip rejects it.
   const reinterpreted = { ...valid, caption: "% comment" };
   assert.equal(figureContentError(reinterpreted), undefined);
   assert.match(validateFigure(reinterpreted) ?? "", /canonical round-trip|not canonical/);
   assert.throws(() => insertFigure(parse("Intro"), 1, reinterpreted), /canonical round-trip|not canonical/);
+});
+
+const PENDING: FigureContent = { imageUrl: "", imageAlt: "", caption: "PFC Current Control Architecture" };
+
+test("a pending Figure persists its caption and label, and connecting or removing an image keeps them", () => {
+  const start = parse("Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  const pending = updateLabel(insertFigure(start, 1, PENDING), [1], "fig-pfc-control");
+  const { markdown, figure, node } = roundTrip(pending, 1);
+  assert.equal(markdown, "Intro\n\n:::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n\n" +
+    "The controller structure is shown in [](#fig-pfc-control).\n");
+  assert.equal(canonicalSerialize(pending), markdown);
+  assert.deepEqual(figure, { editable: true, label: "fig-pfc-control", ...PENDING });
+  assert.equal(node.identifier, "fig-pfc-control");
+  const block = getEditableDocument(parse(markdown)).blocks[1];
+  assert.equal(block?.block === "figure" && block.contentKind, "none");
+
+  const connected = updateFigure(parse(markdown), [1], { imageUrl: "./pfc-control.svg", imageAlt: "PFC current control diagram" });
+  const withImage = roundTrip(connected, 1);
+  assert.equal(withImage.markdown, "Intro\n\n:::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\n" +
+    "PFC Current Control Architecture\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  assert.deepEqual([withImage.figure.label, withImage.figure.caption, withImage.node.identifier],
+    ["fig-pfc-control", PENDING.caption, "fig-pfc-control"]);
+  // Removing the image, and with it the alt text, is the same pending Figure again.
+  assert.equal(serialize(updateFigure(parse(withImage.markdown), [1], { imageUrl: "", imageAlt: "" })), markdown);
+
+  // A label alone, or a caption alone, is a Figure a document may keep.
+  const labelOnly = updateLabel(insertFigure(parse("Intro"), 1, { ...PENDING, caption: "" }), [1], "fig-pfc-control");
+  assert.equal(roundTrip(labelOnly, 1).markdown, "Intro\n\n:::{figure}\n:name: fig-pfc-control\n:::\n");
+  assert.equal(canonicalWriteError(labelOnly), undefined);
+  const captionOnly = insertFigure(parse("Intro"), 1, PENDING);
+  assert.equal(roundTrip(captionOnly, 1).markdown, "Intro\n\n:::{figure}\n\nPFC Current Control Architecture\n:::\n");
+  assert.equal(canonicalWriteError(captionOnly), undefined);
+  // Supported inline caption content is kept as it is for an image Figure.
+  const rich: FigureContent = { ...PENDING, caption: [
+    { kind: "strong", children: [{ kind: "text", text: "PFC" }] }, { kind: "text", text: " loop " }, { kind: "math", value: "i_L" },
+  ] };
+  assert.equal(roundTrip(insertFigure(parse("Intro"), 1, rich), 1).markdown, "Intro\n\n:::{figure}\n\n**PFC** loop $i_L$\n:::\n");
+  // A pending Figure is numbered like any Figure: the fixture's Figure after it becomes 2.
+  const blocks = getEditableDocument(insertFigure(parse(source), 2, PENDING)).blocks;
+  const numbers = targetNumbers(blocks.map(item => blockTargets(item)));
+  assert.deepEqual(blocks.flatMap((item, index) => item.block === "figure" ? [numbers[index].figure] : []), [1, 2]);
+  // Moving the same pending container keeps its label and caption; removing it
+  // removes only that block, leaving surrounding prose/reference source intact.
+  const moved = moveBlock(pending, 1, 0);
+  assert.deepEqual(roundTrip(moved, 0).figure, figure);
+  assert.equal(canonicalWriteError(moved), undefined);
+  assert.equal(serialize(removeBlock(moved, 0)), serialize(start));
+  assert.throws(() => updateLabel(insertFigure(pending, 2, PENDING), [2], "fig-pfc-control"), /already names another target/);
+  assert.equal(serialize(pending), markdown);
+});
+
+test("canonical write refuses a Figure with no image, caption or label; a Save may pass through one", () => {
+  const empty = insertFigure(parse("Intro"), 1, { ...PENDING, caption: "" });
+  assert.equal(canonicalWriteError(empty), "Block 2: A Figure needs an image, a caption or a label.");
+  assert.throws(() => canonicalSerialize(empty), /Block 2: A Figure needs an image, a caption or a label/);
+  // A file holding one is read-only rather than rewritten.
+  assert.match(canonicalWriteError(parse(":::{figure}\n:::\n")) ?? "", /needs an image, a caption or a label/);
+  // One Save clears changed labels before setting them, so label-only Figures can swap labels.
+  const labelOnly = { ...PENDING, caption: "" };
+  const two = updateLabel(updateLabel(insertFigure(insertFigure(parse("Intro"), 1, labelOnly), 2, labelOnly), [1], "fig-a"), [2], "fig-b");
+  let swapped = updateLabel(updateLabel(two, [1], ""), [2], "");
+  assert.ok(canonicalWriteError(swapped));
+  swapped = updateLabel(updateLabel(swapped, [1], "fig-b"), [2], "fig-a");
+  assert.equal(canonicalSerialize(swapped), "Intro\n\n:::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
+});
+
+test("Figures whose content Figure v1 does not author keep failing closed", () => {
+  for (const [markdown, kind] of [
+    [":::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A-->B\n```\n\nFlow.\n:::\n", "other"],
+    [":::{figure}\n:class: wide\n:name: fig-wide\n\nCaption.\n:::\n", "none"],
+    [":::{figure}\n:name: fig-legend\n\nCaption.\n\nLegend paragraph.\n:::\n", "none"],
+  ] as const) {
+    const document = parse(markdown);
+    const block = getEditableDocument(document).blocks[0];
+    assert.equal(block?.block === "figure" && block.contentKind, kind, markdown);
+    assert.ok(canonicalWriteError(document), markdown);
+  }
 });
 
 test("updateFigure rejects non-Figure and invalid paths", () => {
