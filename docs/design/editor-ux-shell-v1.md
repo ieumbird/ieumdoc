@@ -1,8 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (empty-document start, New success/cancel focus and real-file Save → Reload exercised by browser regression).
-- Scope: existing Editor interactions. [Visual Language (current v3)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
+- Last verified: 2026-10-10 (pending Figure Apply/Cancel, properties and real-file Save → Reload; existing shell regressions retained).
+- Scope: existing Editor interactions. [Visual Language (current v4.1)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
 
@@ -44,6 +44,7 @@ Host's creation API and checks are unchanged.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; handle drag reorders through the existing editor operation. Unsupported structures remain protected.
 - Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other.
 - Figure selection shows an anchored property summary. Edit opens Image/Alt text/Label fields and a Caption field for plain captions; rich captions are edited in the document. Metadata Apply preserves rich caption content. Summary may dismiss outside; editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; new never-applied Figure Cancel removes the transient block.
+- Image-less Figures may Apply a caption or label and remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references. All-empty Apply is refused. [Figure authoring](figure-authoring-v1.md) distinguishes transient, applied pending and completed image states; only the transient state is omitted from Save/Source.
 - Equations and Figures share one properties panel (#92): selecting the block shows a summary under its metadata line (`Equation (n) · label`, `Figure n · label`); Edit opens the form in the same panel (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. A read-only block offers no Edit. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
 - Read-only restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) toggle optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
 

@@ -149,7 +149,7 @@ async page => {
     result.newLabelEmpty = await page.getByTestId('figure-label').inputValue() === '';
     await page.getByTestId('figure-image-url').fill('');
     await page.getByTestId('figure-apply').click();
-    result.emptyImageRejected = await editor.getByText('Figure image URL is required.').isVisible();
+    result.emptyFigureRejected = await editor.getByText('A Figure needs an image, a caption or a label.').isVisible();
     await page.getByTestId('figure-image-url').fill('./diagram.svg');
     await page.getByTestId('figure-alt').fill('New figure alt');
     await page.getByTestId('figure-caption').fill('New figure caption.');

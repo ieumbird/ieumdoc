@@ -68,6 +68,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     ],
     scenarios: ["figure-authoring", "figure-draft-race"],
   },
+  "pending-figure": {
+    files: [document("diagram.svg"), { name: "pending.md", create: () =>
+      "# Pending Figures\n\nIntro.\n\nThe controller structure is shown in [](#fig-pfc-control).\n\nAfter.\n" }],
+    scenarios: ["pending-figure"],
+  },
   "table-cell-editing": { files: [...technical, fixture("mixed-table.md")], scenarios: ["table-cell-editing"] },
   "link-authoring": { files: [fixture("links.md")], scenarios: ["link-authoring"] },
   "inline-math": { files: [fixture("math.md"), fixture("split.md")], scenarios: ["inline-math-authoring", "inline-math-split"] },

@@ -1,7 +1,7 @@
 # Document support and preservation v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-10 (pending Figure contract and canonical write regression coverage).
 - Scope: Core read, visual authoring and canonical write boundaries; [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 Issue: #42. Readability, visual authoring, and canonical writeability are separate capabilities.
@@ -21,5 +21,7 @@ Core's read model provides the kind, opening source, and source line for content
 A document Core cannot write opens read-only before any typing. It shows the reason and location, offers the original source for copying, and directs the user to repair the file with an external editor or the existing Core-backed CLI, then Reload. Reload parses the repaired file and reevaluates writeability. No whole-document raw Markdown editing is added; block source editing (#102) replaces one block of a writable document through Core. The existing Save/Source pipeline continues to validate every edited snapshot.
 
 ## Interfaces and verification
+
+Pending Figures use the existing MyST container without an image argument. A caption or label is required; alt text is forbidden without an image. A narrow direct directive writer compensates for `myst-to-md`'s inability to write this shape, while the complete semantic fingerprint and diagnostic guards remain. Unsupported Mermaid, legends and subfigures keep their fail-closed boundary. Figure operations may compose temporary empty states, but public canonical write rejects a final all-empty Figure. [Figure authoring](figure-authoring-v1.md) defines the read model, operations, Editor states and CLI warnings. Writeability allows valid pending Figures; it does not certify publication readiness.
 
 No new semantic operation is introduced: existing CLI format and editing commands inherit the corrected Core serializer. CLI format persistence and failure without writes verify that boundary. Core regressions cover preservation, context-sensitive failure, source projection, and determinism. Host checks cover canonical save and preflight consistency. Browser checks cover supported body Save → Reload with preserved content, read-only blocking, original source, and repaired-file Reload.

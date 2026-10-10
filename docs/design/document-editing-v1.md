@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-09 (contract compared with current code and regression coverage; caret keys after focus with the `focus-caret` browser regression).
+- Last verified: 2026-10-10 (pending Figure editing/history and persistence; caret key behavior retains the `focus-caret` regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Continuous editing
@@ -67,6 +67,10 @@ read-only. Headless callers use the existing `--content` JSON, so no CLI command
 Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
 update-table-cell --content and insert-table --cells); cells reject line breaks.
 Core updateFigure/insertFigure accept text or inline captions (CLI --caption-content).
+Figure content may be absent when a caption or label exists. Pending/image transitions
+preserve the container, label and caption; applied pending Figures participate in the
+same editing state and history. See [Figure authoring](figure-authoring-v1.md) for
+the persistence boundary and the transient/Apply distinction.
 A Figure's caption is inline content in the single ProseMirror document, editable
 in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain
