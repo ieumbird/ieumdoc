@@ -70,11 +70,20 @@ async page => {
   const wide = page.getByRole('button', {name:'Wide document', exact:true});
   await wide.hover(); await settle(); const toggleHover = await state(wide);
   await wide.click(); await page.mouse.move(0,0); await settle(); const pressed = await state(wide);
-  check(pressed.background !== toggleHover.background && pressed.border !== 'rgba(0, 0, 0, 0)', 'Pressed toggle looks like hover');
-  await wide.hover(); await settle(); check((await state(wide)).border === pressed.border, 'Hover hides pressed boundary');
+  // On toggles and the active view tab use the current marker: a non-color indicator that hover keeps.
+  const marker = locator => locator.evaluate(n => {
+    const m = getComputedStyle(n, '::after');
+    return {content: m.content, color: m.backgroundColor, height: parseFloat(m.height)};
+  });
+  const pressedMarker = await marker(wide);
+  check(pressed.background !== toggleHover.background && pressedMarker.content === '""' && pressedMarker.height > 0 &&
+    pressedMarker.color === results[0].rest.markerColor, 'Pressed toggle lacks the current marker or looks like hover');
+  await wide.hover(); await settle();
+  check(JSON.stringify(await marker(wide)) === JSON.stringify(pressedMarker), 'Hover hides the pressed marker');
   await wide.click();
-  const activeView = await state(page.getByTestId('view-visual')), inactiveView = await state(page.getByTestId('view-source'));
-  check(activeView.background !== inactiveView.background && activeView.border !== inactiveView.border, 'View segment lacks active face/boundary');
+  const activeMarker = await marker(page.getByTestId('view-visual')), inactiveMarker = await marker(page.getByTestId('view-source'));
+  check(activeMarker.content === '""' && activeMarker.color === pressedMarker.color && inactiveMarker.content === 'none',
+    'View tab lacks the active marker');
 
   await ghost.click();
   const input = page.getByTestId('new-file-name');
