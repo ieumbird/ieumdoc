@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-10 (`layout-rules`, `quiet-document`, `visual-states`, `folder-navigation`, full stable browser suite; bundled Pretendard glyphs, inline math size and same-state responsive captures).
+- Last verified: 2026-10-11 (같은 상태 Before/After, static overlay, responsive captures, Save reduced-motion 및 전체 stable browser suite; 물리 모바일 검증 제외).
 - Current contract: v4.1. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.

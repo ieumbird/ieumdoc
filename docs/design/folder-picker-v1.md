@@ -1,7 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (`folder-navigation` and `new-document`: New destination, success/cancel focus and real-file persistence).
+- Last verified: 2026-10-11 (folder-navigation/new-document와 전체 browser suite; 현재 development Host lifecycle 대조).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 

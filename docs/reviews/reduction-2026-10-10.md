@@ -101,3 +101,43 @@ Editor225, typecheck/build/docs 통과. code-highlighting/image-assets/visual-st
 
 
 최종 Windows 실행에서 stable 42개 전체 통과(3.9m), Core210/CLI46/Editor225 통과했다. File commit은 2 pass와 baseline부터 같은 Windows 환경 skip 2개다. frozen install, docs checker 자체 5개, docs:check, typecheck, 정식 production build, diff --check도 통과했다. 독립 C13 reviewer는 fixture/shard 7개와 타입/문서 검사, classifier 네 경계를 별도로 검증했고 기능 finding은 없었다. 전체 suite의 browser는 자동 종료됐으며 직접 시작한 Vite는 소유 PID를 확인해 종료했다.
+
+
+추가 production runner 검사에서 기존 dev server가 없는 상태로 `pnpm browser:test source-view`를 실행하여 실제 pnpm/Vite chain의 자동 시작과 종료를 확인했다(1 pass,11.4s; 종료 후5173 listener 없음). 이전 수동 서버의 Ctrl+C 후 남은 Vite child도 이 작업의 PID/parent/command를 확인하여 종료했다.
+
+## 항목별 commit/PR와 결과
+
+아래 구현 판단은 일반적인 후속 과제로 남기지 않았다. 보류 항목은 없고, C11/C14는 채택 조건을 조사한 유지 결정이다. 각 구현의 고유 검증은 위 단위 기록과 최종 전체 검사에 포함한다.
+
+| ID | 판정/commit | PR | 검증 또는 유지 근거 |
+| --- | --- | --- | --- |
+| C01 | 구현 `d4e4c15` | [#156](https://github.com/ieumbird/ieumdoc/pull/156) | 비활성 sourceHint 제거; Source pending/shell |
+| C02 | 구현 `d4e4c15` | #156 | test-only loader/re-export 제거; 실제 Open/file/replay 경계 |
+| C03 | 구현 `35af134`, `0cb8507` | [#157](https://github.com/ieumbird/ieumdoc/pull/157) | revision ack/최종 projection 제거; Save/history/conflict/label 조합 |
+| C04 | 구현 `97fea98` | #157 | HTTP session required와 malformed400; 내부 pure helper 보존 |
+| C05 | 구현 `39abb98` | [#158](https://github.com/ieumbird/ieumdoc/pull/158) | Base UI 한 구현; ref/aria/selection/focus/keyboard |
+| C06 | 구현 `d4e4c15`, `39abb98`, `c6fffcd` | #156/#158/[#160](https://github.com/ieumbird/ieumdoc/pull/160) | exports/bin/alias/CSS side effects 검사; 생성 잔여물만 제거 |
+| C07 | 구현 `39abb98` | #158 | 자동 summary/dismiss 제거; 명시 Edit/Apply/Cancel/Undo |
+| C08 | 구현 `39abb98`, `c6fffcd` | #158/#160 | overlay 모션/unused tw-animate 제거; 위치·닫힘·focus/spinner |
+| C09 | 구현 `aafc122` | [#159](https://github.com/ieumbird/ieumdoc/pull/159) | 실제 lazy projection 계측과 remount/Save 회귀 |
+| C10 | 구현 `aafc122` | #159 | kind+locator 집계; 미보고 source/section 및 late Apply 보호 |
+| C11 | 유지 `c6fffcd` 기록 | #160 | 기존 menu 없음; 새 menu/state/추가 클릭이 증가 |
+| C12 | 구현 `c6fffcd` | #160 | common 집합 전체 지연; 실제 upload/plugin 수명/언어/실패 |
+| C13 | 구현 `d30ec9e` | [#161](https://github.com/ieumbird/ieumdoc/pull/161) | 공식 Test fixture; 정상/실패/ownership 격리 + 전체42 |
+| C14 | 유지 `c6fffcd` 기록 | #160 | 유일 development Host; 동일 기능의 adopted native 대체 없음 |
+| C15 | 구현 `c6fffcd` | #160 | 역사 evidence 재배치, 동일경계 중복 assertion3만 제거 |
+
+Stack/base: master → #156 → #157 → #158 → #159 → #160 → #161. #156~#160은 각각 실제 HEAD에서 quality/browser1/browser2/aggregate 4 checks SUCCESS를 확인했다. #161 제출 시 CI는 진행 중이며 최종 HEAD/SHA의 결과는 해당 PR 설명과 작업 완료 응답에 별도로 기록한다. pending을 pass로 기록하지 않는다. 자동 merge나 master/force push는 하지 않았다.
+
+## 감량과 추가 코드의 구분
+
+Baseline에서 단위6까지 생산 코드/설정은367줄 추가/601줄 삭제(28files), browser infrastructure/CI는296/411(7files), 나머지 테스트는376/125(29files), 문서는 별도로 증가했다. lockfile은 정상 패키지 명령의 생성 결과이며 파일 이동/minification/문서 재배치를 runtime 감량으로 계산하지 않는다. runner 본체와 새 연결 파일 총344→283줄, CI 순65줄 제거로 자체 infrastructure는126줄 감소했다.
+
+추가 생산 코드는 엄격한 HTTP session 검증, 공통 Draft 등록과 source의 늦은 응답 보호, plugin 수명을 유지하는 grammar refresh에 필요하다. 추가 테스트는 malformed protocol, pending label 조합, 미보고 Draft/late Apply, 동시 grammar+asset 수명 및 load failure의 기존 공백을 보호한다. 회귀 테스트 자체를 삭제하거나 skip을 추가하지 않았다. production dependency는 tw-animate-css 하나 제거했고 dev dependency는 기존 Playwright engine 버전과 같은 test surface 하나 추가했다.
+
+정식 `pnpm --filter @ieumdoc/editor build` 각 baseline/final1회: entry JS1,890,997→1,750,377bytes(-140,620); 전체 JS1,890,997→1,890,264(-733); CSS150,100→138,982(-11,118). 언어 chunk139,887bytes는 전체 JS에 포함한다. 위 paired eager/deferred 수치는 지연 분리의 효과를 고립시킨 별도 조건이며 합산하지 않는다. 폰트/라이선스/실제 asset은 그대로다. Save 응답3325→79bytes와 editable projection3→1은 같은 fixture/환경에서 측정했다. latency나 사용자 체감 개선율은 주장하지 않는다.
+
+남은 한계는 baseline부터의 375px TopBar Save overflow와 일부 keyboard/Escape focus 동작, OS IME/실제 clipboard/물리 touch의 수동 확인이다. 375px Edit/Cancel과704px 이상 실제 캡처는 확인했지만 mobile emulation 전환 중 Save pointer 결과는 신뢰할 수 없어 release 검증으로 주장하지 않는다. 새 durable recovery, Host abstraction이나 무관한 layout 재설계로 확대하지 않았다.
+
+
+추가 실험 script/config/PID 파일46개는 소유 경로의 개별 파일로 정리했다. logs/measurements는 TEMP `ieumdoc-conditional-audit-20261010`에 보존했다. 그 안의 `C:\Users\swBaek\AppData\Local\Temp\ieumdoc-conditional-audit-20261010\refresh-lifetime\node_modules` junction 삭제도 자동 승인 검토가 `blocked by policy`로 거절했다(target은 기존 `C:\Projects\ieumdoc\apps\editor\node_modules`). 추가 이유는 제공되지 않았고 재시도하지 않았다. 두 TEMP 잔여물은 활성 process 없이 남아 있다.

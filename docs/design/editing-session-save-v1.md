@@ -1,7 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-10 (contract compared with current code and regression coverage, including the File commit shared with the CLI).
+- Last verified: 2026-10-11 (Save acknowledgement/replay/session 및 전체 자동 검증; 추가 입력, conflict, history와 Draft 보호).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
 ## Save acknowledgement
