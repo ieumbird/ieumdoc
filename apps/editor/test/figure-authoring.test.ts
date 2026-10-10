@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { getSchema } from "@tiptap/core";
 import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
-import { parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
+import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -387,6 +387,19 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
   ] });
   assert.equal(swapped.markdown, ":::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
   assert.throws(() => saveEdits(labelOnlySource, { labels: [{ path: [0], from: "fig-a", to: "" }] }), /needs an image, a caption or a label/);
+  // Caption and label edits can temporarily leave an empty pending Figure between operations.
+  for (const [opening, from, to, beforeLabel, afterLabel] of [
+    [":::{figure}\n:name: fig-a\n:::\n", "", "Caption", "fig-a", ""],
+    [":::{figure}\n\nCaption\n:::\n", "Caption", "", "", "fig-a"],
+  ] as const) {
+    const result = saveEdits(opening, {
+      figures: [{ path: [0], from: { imageUrl: "", imageAlt: "", caption: from }, to: { imageUrl: "", imageAlt: "", caption: to } }],
+      labels: [{ path: [0], from: beforeLabel, to: afterLabel }],
+    });
+    assert.equal(canonicalWriteError(parse(result.markdown)), undefined);
+    assert.deepEqual(figureOf(loadEditableDocument(result.markdown), 0), { label: afterLabel, imageUrl: "", imageAlt: "", caption: to });
+  }
+
 });
 
 test("a Figure inserted with an image file is applied at once and saved", () => {

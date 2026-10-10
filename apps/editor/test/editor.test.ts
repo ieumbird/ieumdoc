@@ -881,6 +881,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
         body: JSON.stringify({
           path: file,
           revision: loaded.revision,
+          base: { source: loaded.source },
           paragraphs: [{ path: paragraph.path, content: [{ kind: "text", text: "Changed paragraph." }] }],
         }),
       });
@@ -930,12 +931,27 @@ test("Host opens complete models and Save acknowledges only the written revision
     assert.deepEqual(readFileSync(blocked), before);
 
     assert.equal(createDocumentFile(path.join(dir, "new.md")).writeError, null);
+    const snapshot = readFileSync(writable, "utf8");
+    const valid = { path: writable, revision: documentRevision(snapshot), base: { source: snapshot } };
+    for (const endpoint of ["document", "document-source"]) {
+      for (const invalid of [null, {}, { ...valid, path: undefined }, { ...valid, revision: undefined },
+        { ...valid, revision: 123 }, { ...valid, base: undefined }, { ...valid, base: { source: 123 } },
+        { ...valid, base: { source: snapshot, savedEdits: "invalid" } }, { ...valid, paragraphs: {} },
+        { ...valid, headingNumbering: "yes" }]) {
+        const rejected = await fetch(`http://127.0.0.1:${port}/api/${endpoint}`, {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(invalid),
+        });
+        assert.equal(rejected.status, 400, `${endpoint}: ${JSON.stringify(invalid)}`);
+        assert.equal(readFileSync(writable, "utf8"), snapshot);
+      }
+    }
     const saved = await fetch(`http://127.0.0.1:${port}/api/document`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         path: writable,
         revision: loadDocumentFile(writable).revision,
+        base: { source: readFileSync(writable, "utf8") },
         paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }],
       }),
     });
@@ -960,6 +976,7 @@ test("Source preview is the canonical Markdown Save would write, without writing
     const loaded = loadDocumentFile(file);
     const request = {
       revision: loaded.revision,
+      base: { source: loaded.source },
       paragraphs: [{ path: [8], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }],
     };
     const preview = previewDocumentFile(file, request);
@@ -978,12 +995,12 @@ test("Source preview is the canonical Markdown Save would write, without writing
     assert.equal(readFileSync(file, "utf8"), source);
 
     // An unchanged document previews as its canonical form.
-    const unchanged = await post({ path: file, revision: loaded.revision });
+    const unchanged = await post({ path: file, revision: loaded.revision, base: { source: loaded.source } });
     assert.equal(((await unchanged.json()) as { markdown: string }).markdown, previewDocumentFile(file, { revision: loaded.revision }).markdown);
 
-    const stale = await post({ path: file, ...request, revision: "stale" });
+    const stale = await post({ path: file, ...request, revision: "0".repeat(64) });
     assert.equal(stale.status, 409);
-    const invalid = await post({ path: file, revision: loaded.revision, paragraphs: [{ path: [8], content: [] }] });
+    const invalid = await post({ path: file, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [{ path: [8], content: [] }] });
     assert.equal(invalid.status, 400);
     assert.equal(readFileSync(file, "utf8"), source);
 
@@ -997,7 +1014,7 @@ test("Source preview is the canonical Markdown Save would write, without writing
     const lossy = path.join(dir, "keyboard.md");
     writeFileSync(lossy, "Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n");
     const before = readFileSync(lossy);
-    const lossyResponse = await post({ path: lossy, revision: loadDocumentFile(lossy).revision });
+    const lossyResponse = await post({ path: lossy, revision: loadDocumentFile(lossy).revision, base: { source: readFileSync(lossy, "utf8") } });
     assert.equal(lossyResponse.status, 400);
     assert.match(((await lossyResponse.json()) as { error: string }).error, /cannot be preserved in canonical Markdown/);
     assert.deepEqual(readFileSync(lossy), before);

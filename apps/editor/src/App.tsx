@@ -26,7 +26,7 @@ import type {
   FolderResponse,
   OrderItem,
   SupportedEdits,
-  SessionSaveRequest,
+  SaveRequest,
 } from "../shared/document-protocol.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
@@ -47,7 +47,7 @@ export function App() {
   const newFileButton = useRef<HTMLButtonElement>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
-  const sessionBase = useRef<SessionSaveRequest["base"]>(undefined);
+  const sessionBase = useRef<SaveRequest["base"] | undefined>(undefined);
   const [openedPath, setOpenedPath] = useState("");
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -125,7 +125,7 @@ export function App() {
     try {
       const next = await requestDocument("GET", requestedPath);
       setDocument(next.document);
-      sessionBase.current = next.source === undefined ? undefined : { source: next.source };
+      sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -180,7 +180,7 @@ export function App() {
   }, [openedPath]);
 
   async function save(): Promise<void> {
-    if (!document || !editorRef.current || !openedPath || busy) return;
+    if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
     if (writeError) return;
     setError("");
     setNotice("");
@@ -190,7 +190,7 @@ export function App() {
     try {
       submitted = editorRef.current.beginSave();
       payload = collectSupportedEdits(document, submitted);
-      const next = await requestSave(openedPath, { revision: sourceRevision, base: sessionBase.current, ...payload });
+      const next = await requestSave({ path: openedPath, revision: sourceRevision, base: sessionBase.current, ...payload });
       setSourceRevision(next.revision);
       if (sessionBase.current) sessionBase.current.savedEdits = payload;
       editorRef.current?.finishSave(true);
@@ -208,7 +208,7 @@ export function App() {
    * the Save request through Core without writing; any failure keeps the Visual view.
    */
   async function showSource(): Promise<void> {
-    if (!document || !editorRef.current || !openedPath || busy) return;
+    if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
     if (writeError) {
       setSourceMarkdown(sessionBase.current?.source ?? "");
       setView("source");
@@ -218,7 +218,7 @@ export function App() {
     setSourcePending(true);
     try {
       const payload = collectSupportedEdits(document, editorRef.current.getDocument());
-      setSourceMarkdown(await requestSource(openedPath, { revision: sourceRevision, base: sessionBase.current, ...payload }));
+      setSourceMarkdown(await requestSource({ path: openedPath, revision: sourceRevision, base: sessionBase.current, ...payload }));
       setView("source");
     } catch (cause) {
       setError(`Source view unavailable: ${messageOf(cause)}`);
@@ -241,7 +241,7 @@ export function App() {
     try {
       const next = await requestDocument("PUT", requestedPath);
       setDocument(next.document);
-      sessionBase.current = next.source === undefined ? undefined : { source: next.source };
+      sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -517,11 +517,11 @@ async function requestDocument(
   };
 }
 
-async function requestSave(filePath: string, body: SessionSaveRequest): Promise<SaveResponse> {
+async function requestSave(body: SaveRequest): Promise<SaveResponse> {
   const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: filePath, ...body }),
+    body: JSON.stringify(body),
   });
   const payload = (await response.json()) as Partial<SaveResponse> & Partial<DocumentErrorResponse>;
   if (response.status === 409) {
@@ -568,11 +568,11 @@ async function folderPlaces(): Promise<FolderPlace[]> {
 }
 
 /** Asks the Host for the canonical Markdown a Save request would write. */
-async function requestSource(filePath: string, body: SessionSaveRequest): Promise<string> {
+async function requestSource(body: SaveRequest): Promise<string> {
   const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document-source`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: filePath, ...body }),
+    body: JSON.stringify(body),
   });
   const payload = (await response.json()) as Partial<SourceResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || typeof payload.markdown !== "string") {

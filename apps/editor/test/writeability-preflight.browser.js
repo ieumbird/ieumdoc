@@ -105,7 +105,7 @@ async page => {
 
   // A second Core-backed client repairs the disk file through existing removeBlock semantics.
   // The current UI must not assume the opening verdict still applies after Reload.
-  const repair = await page.request.post(`${origin}/api/document`, {data:{path:path('blocked-markdown.md'),revision:before.revision,deletes:[[1]],order:before.document.blocks.filter(block => block.path[0] !== 1).map(block => ({path:block.path,part:0}))}});
+  const repair = await page.request.post(`${origin}/api/document`, {data:{path:path('blocked-markdown.md'),revision:before.revision,base:{source:before.source},deletes:[[1]],order:before.document.blocks.filter(block => block.path[0] !== 1).map(block => ({path:block.path,part:0}))}});
   assert(repair.ok(), `External Core repair failed: ${await repair.text()}`);
   await reload();
   assert(await warning.count() === 0 && await editor.getAttribute('contenteditable') === 'true', 'Repaired file was not reevaluated');
