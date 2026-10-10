@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { ListOrdered, PanelRight, RotateCcw, UnfoldHorizontal } from "lucide-react";
+import { ListOrdered, LoaderCircle, PanelRight, RotateCcw, UnfoldHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -41,8 +41,8 @@ type TopBarProps = {
 /**
  * Document identity and its state on the left, so status changes never move the controls.
  * On the right: the document setting, the view (mode, width, then the outline panel), then file actions. Only Save with unsaved
- * changes takes the accent. Spaced groups separate settings, view and file actions; persistent
- * view/toggle states have neutral faces and boundaries independent of keyboard focus.
+ * changes takes the accent. Spaced groups separate settings, view and file actions; the active view
+ * tab and on toggles carry the current-item marker, independent of keyboard focus.
  */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
@@ -64,11 +64,22 @@ export function TopBar({
     disabled: viewDisabled || Boolean(sourceHint),
     "data-testid": "view-source",
   };
-  const saveVariant = unsaved ? "default" : "outline";
+  const saving = status === "Saving…";
+  const saveState = saving ? "saving" : unsaved ? "unsaved" : "clean";
+  const saveVariant = saveState === "unsaved" ? "default" : "ghost";
+  const saveLabel = (
+    <>
+      Save
+      {saving ? <LoaderCircle aria-hidden="true" className="top-bar-save-spinner motion-safe:animate-spin" /> : null}
+    </>
+  );
   const saveButton = (
     <Button
       type="button"
       variant={saveVariant}
+      className="top-bar-save"
+      data-save-state={saveState}
+      aria-busy={saving || undefined}
       onClick={onSave}
       disabled={saveDisabled}
       focusableWhenDisabled={Boolean(saveHint)}
@@ -143,13 +154,14 @@ export function TopBar({
           ) : null}
           {saveHint ? (
             <Tooltip>
-              <TooltipTrigger render={saveButton}>Save</TooltipTrigger>
+              <TooltipTrigger render={saveButton}>{saveLabel}</TooltipTrigger>
               <TooltipContent>{saveHint}</TooltipContent>
             </Tooltip>
           ) : (
-            <Button type="button" variant={saveVariant} onClick={onSave} disabled={saveDisabled} data-testid="save"
+            <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
+              aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
               title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
-              Save
+              {saveLabel}
             </Button>
           )}
         </div>

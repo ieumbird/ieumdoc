@@ -444,10 +444,48 @@ button {
 }
 
 .status:empty { display: none; }
+/* An on toggle speaks the current-item language: selected face and text, plus the interaction
+ * marker as its non-color indicator. The active view tab carries the same marker alone. */
 .top-bar-toggle[aria-pressed="true"] {
-  background: var(--id-color-surface-pressed);
-  border-color: var(--id-color-border-control);
+  position: relative;
+  background: var(--id-color-surface-selected);
+  color: var(--id-color-text-selected);
+}
+.top-bar-toggle[aria-pressed="true"]:hover {
+  background: var(--id-color-surface-selected-hover);
+}
+:is(.top-bar-toggle, .view-toggle-option)[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: var(--space-2);
+  bottom: 0;
+  height: var(--size-current-marker);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-interaction);
+  pointer-events: none;
+}
+
+/* Save is quiet while clean and takes the accent only with unsaved changes. While saving it keeps
+ * its width and accessible name: the label turns transparent under a spinner. */
+.top-bar-save[data-save-state="clean"] {
+  background: var(--id-color-surface-subtle);
+  color: var(--id-color-text-muted);
+}
+.top-bar-save[data-save-state="clean"]:hover {
+  background: var(--id-color-surface-hover);
   color: var(--id-color-text);
+}
+.top-bar-save[data-save-state="saving"] {
+  position: relative;
+  background: var(--id-color-surface-subtle);
+  color: transparent;
+  opacity: 1;
+}
+.top-bar-save-spinner {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  color: var(--id-color-text-muted);
 }
 .status[data-operation="Saved"] { color: var(--id-color-text-subtle); }
 
@@ -1584,24 +1622,23 @@ ol.list { list-style: decimal; }
 }
 
 /* Visual | Source: two views of one document, not actions. */
+/* Visual/Source are view tabs, not a boxed control: the active tab has dark text and the marker. */
 .view-toggle {
   display: inline-flex;
   gap: 0;
-  padding: 1px;
-  border: var(--border-width) solid var(--id-color-border);
-  border-radius: var(--id-radius-lg);
-  background: var(--id-color-surface-subtle);
 }
 
 .view-toggle .view-toggle-option {
-  height: calc(var(--size-control) - 4px);
+  position: relative;
   color: var(--id-color-text-muted);
 }
 
 .view-toggle .view-toggle-option[aria-pressed="true"] {
-  background: var(--id-color-surface);
-  border-color: var(--id-color-border-control);
   color: var(--id-color-text);
+}
+
+.view-toggle .view-toggle-option[aria-pressed="true"]:hover {
+  background: transparent;
 }
 
 .source-view {
