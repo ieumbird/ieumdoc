@@ -8,7 +8,7 @@
 
 The MVP keeps the existing MyST Figure container and image authoring UI. Completion requires real-file Save → Reload with caption, label and reference preserved, then image connection and another Save → Reload. Core owns persistence validity; CLI and Editor use the same operations. No new Media model, Mermaid authoring, upload workflow, autosave or export pipeline is introduced.
 
-Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser Apply/Cancel, Source, Save acknowledgement and existing image authoring. The implementation PR remains unmerged for review.
+Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser Apply/Cancel, Source, Save acknowledgement and existing image authoring.
 
 ## Persistent meaning
 
@@ -38,7 +38,7 @@ Core operations may temporarily create an empty Figure or clear a label while co
 | Applied pending Figure | Caption and/or label applied; shows `No content yet`, normal metadata and caption. | Included; Reload restores a Figure with no image. |
 | Completed image Figure | Valid image attached; existing image behavior. | Included. |
 
-The Editor's `applied` node attribute is session state in ProseMirror history, not MyST data. Insert starts false; Apply sets true in one undo step. Reloaded Figures and images inserted by paste/drop start applied. Dirty comparison and Save collection use the same placeholder rule. Apply → Undo returns the prior state; Redo restores the applied payload. Deleting and undoing a Figure restores its attributes.
+The Editor's `applied` node attribute is session state in ProseMirror history, not MyST data. Insert starts false; Apply sets true in one undo step. Reloaded Figures and images inserted by paste/drop start applied. Dirty comparison and Save collection use the same placeholder rule. Apply → Save → Undo → Save excludes the restored transient Figure; Redo → Save includes it again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion.
 
 Apply accepts label-only, caption-only and label+caption values through Core validation. All-empty values and alt without an image show a validation error and retain the form. Existing Edit Figure connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
 

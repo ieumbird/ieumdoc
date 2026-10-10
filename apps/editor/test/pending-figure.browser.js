@@ -38,6 +38,7 @@ async page => {
     return value;
   };
   const figures = page.locator('[data-block="figure"]');
+  const reference = page.locator('[data-testid="cross-reference"][data-label="fig-pfc-control"]').first();
   const form = page.getByTestId('figure-editor');
   const edit = async figure => {
     const action = figure.getByRole('button', {name:'Edit figure'});
@@ -79,24 +80,38 @@ async page => {
     await apply();
     check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Pending state is invisible');
     check((await source()).includes(':name: fig-pfc-control'), 'Applied pending Figure omitted from Source');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Apply did not mark the Figure dirty');
+    await save();
+    check((await diskFigures())[0]?.label === 'fig-pfc-control' &&
+      await page.getByTestId('status').innerText() === 'Saved', 'Applied Figure was omitted or not acknowledged');
 
-    // Native Undo/Redo restores the explicit Apply state, including what the real Save writes.
+    // Save must preserve history. Undo a previously saved Apply, save its transient
+    // state against the opening snapshot/savedEdits checkpoint, then redo and save again.
     await historyKey('ControlOrMeta+z');
     check(!(await source()).includes(':::{figure}'), 'Undo of Apply still serializes the Figure');
+    check(await reference.getAttribute('data-resolved') === 'false', 'Undone target still resolves');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Undo of saved Apply did not become dirty');
     await save();
     check((await diskFigures()).length === 0, 'Undo of Apply left a Figure on disk');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Remaining transient draft was marked Saved');
     await historyKey('ControlOrMeta+Shift+z');
     check((await source()).includes(':name: fig-pfc-control'), 'Redo of Apply lost the Figure');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Redo after Save did not become dirty');
     // Undo selected the transient node and reopened its form. Redo restores the applied
     // document; Cancel dismisses any still-open form without removing that Figure.
     if (await form.isVisible()) await page.getByTestId('figure-cancel').click();
+    await save();
+    check((await diskFigures())[0]?.label === 'fig-pfc-control' &&
+      await page.getByTestId('status').innerText() === 'Saved', 'Redo/Save failed to restore the Figure');
+    await open();
+    check(await figures.count() === 1 && (await diskFigures())[0]?.caption.text === 'PFC Current Control Architecture',
+      'Save/Undo/Save/Redo/Save/Reload lost the applied Figure');
 
-    // The slash picker must see the new pending target before it is saved.
+    // The slash picker must resolve the persisted pending target.
     await page.getByText('After.', {exact:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' /fig');
     await page.getByRole('menuitem', {name:'Figure reference: fig-pfc-control', exact:true}).click();
-    const reference = page.locator('[data-testid="cross-reference"][data-label="fig-pfc-control"]');
     const referenceState = {resolved:await reference.getAttribute('data-resolved'), text:await reference.locator('.cross-reference-chip').innerText()};
     check(referenceState.resolved === 'true' && referenceState.text === 'Fig. 1',
       `Pending target is not numbered/resolved: ${JSON.stringify(referenceState)}`);
@@ -163,9 +178,19 @@ async page => {
     await page.getByRole('button', {name:/Move figure block/}).click();
     await page.getByRole('menu', {name:'Block actions'}).getByRole('menuitem', {name:'Delete', exact:true}).click();
     check(await figures.count() === 0, 'Figure deletion failed');
+    await save();
+    check((await diskFigures()).length === 0 && await reference.getAttribute('data-resolved') === 'false' &&
+      await page.getByTestId('status').innerText() === 'Saved', 'Saved deletion left a Figure or resolved reference');
     await historyKey('ControlOrMeta+z');
     check(await figures.count() === 1 && await figures.first().getByTestId('figure-no-content').count() === 1,
       'Undo did not restore pending Figure');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Undo of saved deletion did not become dirty');
+    await save();
+    check((await diskFigures())[0]?.label === 'fig-pfc-control', 'Undo/Save did not restore the opening-snapshot Figure');
+    await historyKey('ControlOrMeta+Shift+z');
+    await save();
+    check((await diskFigures()).length === 0, 'Redo/Save did not delete the opening-snapshot Figure');
+    await historyKey('ControlOrMeta+z');
     await save();
     await open();
     check((await diskFigures())[0].label === 'fig-pfc-control' && await reference.getAttribute('data-resolved') === 'true',
