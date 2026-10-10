@@ -9,7 +9,9 @@ import type { InlineContent } from "@ieumdoc/core";
 import { changeAdmonitionVariant } from "../src/block-commands.ts";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } from "../server/document-api.ts";
+import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const body = "Before **bold** and *italic*, [manual](https://a.example), $x$\\\nnext.";
 const source = `# Title\n\n:::{warning}\n${body}\n:::\n\nOutside paragraph.\n`;

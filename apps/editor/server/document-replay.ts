@@ -27,7 +27,6 @@ import {
   splitParagraph,
   mergeParagraphWithPrevious,
   moveBlock,
-  updateNodeTextAtPath,
   updateHeadingLevel,
   updateHeadingInlineContent,
   updateEquationLatex,
@@ -84,10 +83,6 @@ function editAt<T>(target: OrderItem, apply: () => T): T {
 export function readModel(source: string): { document: EditableDocument; writeError: string | null } {
   const document = parse(source);
   return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null };
-}
-
-export function loadEditableDocument(source: string): EditableDocument {
-  return getEditableDocument(parse(source));
 }
 
 export function saveEdits(

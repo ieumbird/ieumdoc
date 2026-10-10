@@ -357,19 +357,6 @@ function containsBreak(content: InlineContent[]): boolean {
   return content.some((item) => item.kind === "break" || ("children" in item && containsBreak(item.children)));
 }
 
-function isTextOnly(node: MystNode): boolean {
-  if (node.type === "text") {
-    return true;
-  }
-  const children = node.children ?? [];
-  if (children.length === 0) {
-    return false;
-  }
-  return children.every(
-    (child) => child.type === "text" || (child.type === "paragraph" && isTextOnly(child)),
-  );
-}
-
 function nodeLabel(node: MystNode): string {
   if (typeof node.label === "string" && node.label.length > 0) return node.label;
   if (typeof node.identifier === "string" && node.identifier.length > 0) return node.identifier;

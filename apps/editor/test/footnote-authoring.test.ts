@@ -3,7 +3,8 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { editorExtensions } from "../src/editor-schema.tsx";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
-import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 // One editable definition and one that holds two paragraphs.
 const source = "# Notes\n\nA claim[^a] and another[^b].\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n";

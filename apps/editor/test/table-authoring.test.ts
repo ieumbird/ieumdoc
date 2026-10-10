@@ -23,7 +23,8 @@ import {
   toTiptapDocument,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
-import { loadEditableDocument, saveEdits } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const text = (value: string) => [{ kind: "text" as const, text: value }];
 const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | {u}`bold` |\n| P |  |\n";

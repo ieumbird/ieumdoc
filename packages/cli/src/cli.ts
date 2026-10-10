@@ -1125,7 +1125,6 @@ function machineBlock(block: EditableBlock): MachineNode[] {
 function formatInspect(document: EditableDocument): string {
   const markers = document.blocks.map(sectionMarker);
   const numbers = targetNumbers(document.blocks.map(blockTargets));
-  const headings = headingNumbers(document.blocks, document.headingNumbering);
   // A heading's section is its half-open top-level block range [start,end). Numbers are the
   // computed numbers of the block's first equation, figure or table; they are never written.
   // A read-only block shows its current source, the input replace-block-source edits.

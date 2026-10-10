@@ -20,8 +20,6 @@ type TopBarProps = {
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
-  /** Why Source is unavailable; Source is disabled while set. */
-  sourceHint?: string;
   onViewChange(view: DocumentView): void;
   saveDisabled: boolean;
   /** Why Save is unavailable, when the reason is not obvious from the status. */
@@ -45,7 +43,7 @@ type TopBarProps = {
  * tab and on toggles carry the current-item marker, independent of keyboard focus.
  */
 export function TopBar({
-  documentPath, status, unsaved = false, writable = true, view, viewDisabled, sourceHint, onViewChange, saveDisabled, saveHint,
+  documentPath, status, unsaved = false, writable = true, view, viewDisabled, onViewChange, saveDisabled, saveHint,
   onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled, wide, onToggleWide,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
@@ -61,7 +59,7 @@ export function TopBar({
     className: "view-toggle-option",
     "aria-pressed": view === "source",
     onClick: () => onViewChange("source"),
-    disabled: viewDisabled || Boolean(sourceHint),
+    disabled: viewDisabled,
     "data-testid": "view-source",
   };
   const saving = status === "Saving…";
@@ -123,14 +121,7 @@ export function TopBar({
             >
               Visual
             </Button>
-            {sourceHint ? (
-              <Tooltip>
-                <TooltipTrigger render={<Button {...sourceProps} focusableWhenDisabled />}>Source</TooltipTrigger>
-                <TooltipContent>{sourceHint}</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button {...sourceProps}>Source</Button>
-            )}
+            <Button {...sourceProps}>Source</Button>
           </div>
           {onToggleWide ? (
             <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Wide document"

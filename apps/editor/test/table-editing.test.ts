@@ -16,7 +16,9 @@ import {
   toTiptapDocument,
   type TiptapJSON,
 } from "../src/tiptap-document.ts";
-import { documentRevision, loadEditableDocument, saveDocumentFile, saveEdits } from "../server/document-api.ts";
+import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditableDocument } from "./helpers/document.ts";
+import { saveEdits } from "../server/document-replay.ts";
 
 const fixture = fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url));
 const source = readFileSync(fixture, "utf8");
