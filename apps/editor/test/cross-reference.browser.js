@@ -167,6 +167,46 @@ async page => {
     await chip(paragraph(0), 'Fig. fig-a').getAttribute('data-resolved') === 'true';
   result.reloadedSourceMatchesFile = await sourceText() === await markdown();
 
+  // I. A table caption's inline math and references read as in the document and follow their
+  // targets, while the caption itself stays exactly as written (#165).
+  const captionPath = [root, 'tmp', 'cross-reference', 'caption.md'].join(separator);
+  const captionFile = async () =>
+    (await (await page.request.get(`${origin}/document/caption.md?path=${encodeURIComponent(captionPath)}`)).text()).replaceAll('\r\n', '\n');
+  const captionFresh = await captionFile();
+  const openCaption = async () => {
+    await page.reload();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.getByRole('button', {name:'Open file…'}).click();
+    await page.getByTestId('file-path').fill(captionPath);
+    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  };
+  const caption = page.getByTestId('table-caption');
+  // A missing chip fails at once instead of waiting for it.
+  const captionChip = async text => {
+    const chip = caption.locator('.cross-reference', {hasText: text});
+    return await chip.count() === 1 ? chip.getAttribute('data-resolved') : 'missing';
+  };
+  const captionReads = async () => await caption.locator('.inline-math .katex').count() === 1 && !(await caption.innerText()).includes('$') &&
+    await captionChip('Fig. 1') === 'true' && await captionChip('Eq. eq-gone') === 'false';
+  await openCaption();
+  result.captionShowsMathAndReferences = await captionReads();
+  const captionFigure = page.locator('[data-block="figure"]');
+  await captionFigure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
+  await captionFigure.getByRole('button', {name:'Edit figure'}).click();
+  await page.getByTestId('figure-label').fill('fig-b');
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  result.captionFollowsRelabeledTarget = await captionChip('Fig. fig-a') === 'false';
+  await page.keyboard.press('ControlOrMeta+z');
+  result.captionUndoResolvesAgain = await captionChip('Fig. 1') === 'true';
+  result.captionSourceUnchanged = await sourceText() === captionFresh;
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).waitFor();
+  result.captionSaveKeepsMarkdown = await captionFile() === captionFresh;
+  await openCaption();
+  result.captionReloaded = await captionReads();
+
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {
     throw new Error(`Cross-reference authoring failed: ${JSON.stringify({result, consoleErrors: problems})}`);

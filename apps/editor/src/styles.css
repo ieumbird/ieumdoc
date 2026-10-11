@@ -1573,6 +1573,10 @@ ol.list { list-style: decimal; }
 
 .table-block { position: relative; }
 .table-block .caption p { display: inline; margin: 0; }
+/* Caption math and references look as in the document but are display only: no pointer or hover. */
+.table-block .caption :is(.inline-math-rendered, .cross-reference-chip) { cursor: default; }
+.table-block .caption .inline-math-rendered:hover { background: none; box-shadow: none; }
+.table-block .caption .cross-reference[data-resolved="true"] .cross-reference-chip:hover { text-decoration: none; }
 
 [data-block="heading"][data-heading-number]::before { content: attr(data-heading-number) " "; }
 

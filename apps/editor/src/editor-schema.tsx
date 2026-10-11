@@ -1,20 +1,20 @@
-import { Extension, Node, getHTMLFromFragment, type Attribute, type Editor, type Extensions } from "@tiptap/core";
+import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
 import { codeHighlightingPlugin, lowlight } from "./code-highlight.ts";
-import type { DOMOutputSpec, Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { DOMSerializer, type DOMOutputSpec, type Node as ProseMirrorNode, type Schema } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { isAdmonitionVariant, type EditableBlock, type FigureContent } from "@ieumdoc/core";
+import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent, type ReferenceRole } from "@ieumdoc/core";
 import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError, figurePersistenceError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
@@ -23,7 +23,7 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
-import { CrossReference, useBlockNumber } from "./cross-reference.tsx";
+import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
 import { FootnoteReference, revealReference, useFootnoteNumber } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
@@ -502,6 +502,11 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const label = String(node.attrs.label ?? "");
   const caption = tableCaption(node.toJSON() as TiptapJSON);
   const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
+  // References in the caption follow their targets' numbers anywhere in the document.
+  const targets = useEditorState({
+    editor,
+    selector: ({ editor: current }) => current && hasReference(caption) ? JSON.stringify(referenceTargets(current.state.doc)) : "[]",
+  });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ label, caption: text });
   const [error, setError] = useState("");
@@ -524,8 +529,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} onEdit={begin} hidden={editing} />
     </div></div>
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
-      // The editor's own schema: rebuilding one from its resolved extensions duplicates them.
-      dangerouslySetInnerHTML={{ __html: getHTMLFromFragment(editor.schema.nodeFromJSON(toTiptapContent(caption)).content, editor.schema) }} /> : null}
+      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[]) }} /> : null}
     <OriginalContent node={node} editor={editor} getPos={getPos} />
     {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="outline" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
@@ -539,7 +543,46 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   </NodeViewWrapper>;
 }
 
-function captionText(item: import("@ieumdoc/core").InlineContent): string {
+/**
+ * A table caption as display HTML, from the editor's own schema (rebuilding one from its resolved
+ * extensions duplicates them). Inline math and references, which the schema serializes as empty
+ * spans for their NodeViews, show the same KaTeX and reference text as in the document. Display
+ * only: the caption is edited in the table's properties.
+ */
+function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[]): string {
+  const container = document.createElement("div");
+  container.append(DOMSerializer.fromSchema(schema).serializeFragment(schema.nodeFromJSON(toTiptapContent(caption)).content));
+  for (const math of container.querySelectorAll<HTMLElement>("span[data-inline-math]")) {
+    const value = math.dataset.value ?? "";
+    const rendered = renderEquation(value, false);
+    const shown = document.createElement("span");
+    shown.className = rendered.html ? "inline-math-rendered" : "inline-math-rendered inline-math-error";
+    shown.title = rendered.error ?? value;
+    if (rendered.html) shown.innerHTML = rendered.html;
+    else shown.textContent = `$${value}$`;
+    math.classList.add("inline-math");
+    math.append(shown);
+  }
+  for (const reference of container.querySelectorAll<HTMLElement>("span[data-cross-reference]")) {
+    const role = (reference.dataset.role ?? "eq") as ReferenceRole;
+    const label = reference.dataset.label ?? "";
+    const { text, resolved, kindName } = referenceDisplay(targets, role, label);
+    const chip = document.createElement("span");
+    chip.className = "cross-reference-chip";
+    chip.title = resolved ? `${kindName} ${label}` : unresolvedStatus(role, label);
+    chip.textContent = text;
+    reference.classList.add("cross-reference");
+    reference.dataset.resolved = String(resolved);
+    reference.append(chip);
+  }
+  return container.innerHTML;
+}
+
+function hasReference(content: InlineContent[]): boolean {
+  return content.some(item => item.kind === "reference" || ("children" in item && hasReference(item.children)));
+}
+
+function captionText(item: InlineContent): string {
   if ("children" in item) return item.children.map(captionText).join("");
   if (item.kind === "text") return item.text;
   if ("value" in item) return item.value;
