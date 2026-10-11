@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -9,11 +9,13 @@ type OpenDialogProps = {
   busy: boolean;
   /** Resolves to an error message, or "" once the document is open. */
   onOpen(path: string): Promise<string>;
+  /** The control that opened the dialog, which gets focus back when it closes. */
+  returnFocus?: RefObject<HTMLElement | null>;
   onClose(): void;
 };
 
 // Temporary path entry until a workspace or file picker structure is decided.
-export function OpenDialog({ open, initialPath, busy, onOpen, onClose }: OpenDialogProps) {
+export function OpenDialog({ open, initialPath, busy, onOpen, returnFocus, onClose }: OpenDialogProps) {
   const [path, setPath] = useState(initialPath);
   const [error, setError] = useState("");
 
@@ -27,7 +29,7 @@ export function OpenDialog({ open, initialPath, busy, onOpen, onClose }: OpenDia
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent showCloseButton={false}>
+      <DialogContent showCloseButton={false} finalFocus={() => returnFocus?.current ?? true}>
         <form
           className="grid gap-3"
           onSubmit={async (event) => {

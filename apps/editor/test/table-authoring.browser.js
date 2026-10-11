@@ -6,6 +6,10 @@
 // leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
 async page => {
+  // Rendering a caption must not rebuild a schema with duplicated extensions (Tiptap warns).
+  const tiptapWarnings = [];
+  const onConsole = message => { if (message.text().startsWith('[tiptap warn]')) tiptapWarnings.push(message.text()); };
+  page.on('console', onConsole);
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -204,6 +208,7 @@ async page => {
   result.captionWritten = (await read()).includes(':::{table} Port values\n:name: tbl-ports');
   await open();
   result.captionReloaded = await tables.last().getByTestId('table-caption').innerText() === 'Port values';
+  result.captionWithoutTiptapWarning = tiptapWarnings.length === 0;
   await tables.last().locator('td', {hasText:/^W$/}).click();
   await page.keyboard.type('att');
   result.captionCellSave = await save();
@@ -263,6 +268,7 @@ async page => {
     await page.evaluate(() => document.querySelector('.document-editor').editor.view.hasFocus()) &&
     await page.getByTestId('status').innerText() === status;
 
+  page.off('console', onConsole);
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);
   return result;

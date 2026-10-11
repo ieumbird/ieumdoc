@@ -1,21 +1,40 @@
 import type { Editor } from "@tiptap/core";
 import { Code, Hash, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type RefObject } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
-/** Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies. */
-export function SelectionToolbar({ editor, style, onReject, onEditLink, onEditReference }: {
+/**
+ * Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies.
+ * Tab from the selection enters it; Escape, or Shift+Tab from its first button, returns to the
+ * editor and its selection.
+ */
+export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject, onEditLink, onEditReference }: {
   editor: Editor;
   style: CSSProperties;
+  toolbarRef: RefObject<HTMLDivElement | null>;
+  /** Focus left both the toolbar and the editor. */
+  onLeave: () => void;
   onReject: () => void;
   onEditLink: () => void;
   onEditReference: () => void;
 }) {
   const bounds = useOverlayBounds<HTMLDivElement>();
   return (
-    <div ref={bounds} className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar">
+    <div ref={element => { bounds.current = element; toolbarRef.current = element; }}
+      className="selection-toolbar" role="toolbar" aria-label="Text formatting" style={style} data-testid="selection-toolbar"
+      onKeyDown={(event) => {
+        const back = event.key === "Tab" && event.shiftKey && event.target === event.currentTarget.querySelector("button");
+        if (event.key !== "Escape" && !back) return;
+        event.preventDefault();
+        editor.commands.focus();
+      }}
+      onBlur={(event) => {
+        const next = event.relatedTarget as Node | null;
+        if (!event.currentTarget.contains(next) && !editor.view.dom.contains(next)) onLeave();
+      }}
+    >
       <Button variant="ghost" size="icon-sm"
         aria-label="Bold"
         aria-pressed={editor.isActive("bold")}

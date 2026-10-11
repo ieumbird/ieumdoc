@@ -45,6 +45,8 @@ function writeBlockedMessage(reason: string): string {
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const newFileButton = useRef<HTMLButtonElement>(null);
+  // Open file… and Open folder… return focus to the control that opened them.
+  const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
   const sessionBase = useRef<SaveRequest["base"] | undefined>(undefined);
@@ -323,8 +325,14 @@ export function App() {
         open={sidebarOpen}
         documentPath={openedPath}
         onToggle={() => setSidebarOpen((value) => !value)}
-        onOpen={() => setOpenDialog(true)}
-        onOpenFolder={() => setFolderDialog(true)}
+        onOpen={(returnFocus) => {
+          dialogReturnFocus.current = returnFocus;
+          setOpenDialog(true);
+        }}
+        onOpenFolder={(returnFocus) => {
+          dialogReturnFocus.current = returnFocus;
+          setFolderDialog(true);
+        }}
         onNew={() => {
           if (!folderTree.state) return;
           // New starts in the open document's folder when it is inside the chosen one.
@@ -423,6 +431,7 @@ export function App() {
         initialPath={openedPath}
         busy={busy}
         onOpen={openFile}
+        returnFocus={dialogReturnFocus}
         onClose={() => { if (!switching) setOpenDialog(false); }}
       />
       <FolderDialog
@@ -432,6 +441,7 @@ export function App() {
         browse={browseHostFolder}
         places={folderPlaces}
         onOpen={openFolder}
+        returnFocus={dialogReturnFocus}
         onClose={() => setFolderDialog(false)}
       />
       <NewDialog

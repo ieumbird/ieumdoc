@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-11 (같은 상태 Before/After, static overlay, responsive captures, Save reduced-motion 및 전체 stable browser suite; 물리 모바일 검증 제외).
+- Last verified: 2026-10-11 (같은 상태 Before/After, static overlay, responsive captures, Save reduced-motion 및 전체 stable browser suite; 물리 모바일 검증 제외). Overlay focus/return 행: 같은 날 keyboard focus 안정화와 전체 stable browser suite.
 - Current contract: v4.1. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -129,13 +129,14 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 | --- | --- |
 | Slash menu | Focus stays in editor; arrows select; Escape dismisses query UI. |
 | Gutter command menu | Button opening focuses first item; Escape closes; return to connected opening control when no other focus has been chosen. |
-| Selection toolbar | Pointer actions preserve editor text selection. |
+| Selection toolbar | Pointer actions preserve editor text selection. Tab from a text selection enters its first button when no table or list Tab applies; the toolbar stays while focus is in it. Escape, or Shift+Tab from the first button, returns to the editor with the same selection. Leaving both hides it. |
 | Link / inline math / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
 | Figure | Selection keeps editor focus; explicit Edit autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
-| Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. Open retains its existing focus restoration. |
+| Block properties (Figure, Equation, Table, section label) | Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied block leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
+| Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. Open file… and Open folder… return focus to their opening control: the sidebar button, or `⋯` when opened from its menu. |
 | Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
-| Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog. |
+| Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog, whose closing returns it to `⋯`. |
 
 ## Evidence and verification
 

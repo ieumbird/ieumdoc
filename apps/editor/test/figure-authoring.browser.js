@@ -58,6 +58,14 @@ async page => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
   };
+  // Where closing a form leaves keyboard focus: the editor and the top-level block of its selection.
+  const editorFocus = () => page.evaluate(() => {
+    const {editor} = document.querySelector('.document-editor');
+    const {selection} = editor.state;
+    const block = selection.node ?? selection.$from.node(1);
+    return editor.view.hasFocus() && {block: block?.type.name, path: block?.attrs.sourcePath, from: selection.from, to: selection.to,
+      empty: selection.empty, text: selection.$from.parent.textContent};
+  });
   const insertAfterParagraph = async name => {
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
     await paragraph.hover();
@@ -138,6 +146,9 @@ async page => {
     await page.getByTestId('figure-cancel').click();
     await editor.waitFor({state:'detached'});
     result.unappliedCancelRemoves = await figures.count() === 1 && await saveDisabled.count() === 0;
+    // The removed Figure's place, never the next block: typing continues the paragraph.
+    const afterRemoval = await editorFocus();
+    result.unappliedCancelReturnsCaret = afterRemoval !== false && afterRemoval.empty && afterRemoval.text === 'The current reference is calculated from the active power command.';
 
     // B. `/figure` from a transient paragraph, then Apply, Save, Reload.
     await insertAfterParagraph('Paragraph');
@@ -185,6 +196,33 @@ async page => {
     await editor.waitFor({state:'detached'});
     result.escapeCancels = await figures.count() === 2 && await saveDisabled.count() === 0 &&
       await figures.first().locator('img').getAttribute('alt') === 'Updated block diagram';
+    const firstPath = await figures.first().getAttribute('data-source-path');
+    const afterEscape = await editorFocus();
+    result.escapeReturnsFocusToFigure = afterEscape.block === 'figure' && afterEscape.path === firstPath;
+
+    // Validation that finishes after the user has moved on applies without taking focus back.
+    let releaseValidation;
+    const validationGate = new Promise(resolve => { releaseValidation = resolve; });
+    await page.route('**/api/figure-validation', async route => { await validationGate; return route.continue(); });
+    await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
+    await figures.first().getByRole('button', {name:'Edit figure'}).click();
+    await editor.waitFor();
+    await page.getByTestId('figure-alt').fill('Validated later');
+    await page.getByTestId('figure-apply').click();
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).click();
+    await page.keyboard.press('End');
+    await page.waitForFunction(() => {
+      const {$from, empty} = document.querySelector('.document-editor').editor.state.selection;
+      return empty && $from.parent.type.name === 'paragraph' && $from.parentOffset === $from.parent.content.size;
+    });
+    const movedOn = await editorFocus();
+    releaseValidation();
+    await editor.waitFor({state:'detached'});
+    await page.unroute('**/api/figure-validation');
+    result.lateValidationKeepsFocus = await figures.first().locator('img').getAttribute('alt') === 'Validated later' &&
+      movedOn.block === 'paragraph' && JSON.stringify(await editorFocus()) === JSON.stringify(movedOn);
+    await save();
+    await openScratch();
 
     // A Figure draft typed while a Save is in flight survives the response and is not saved until applied.
     let release;

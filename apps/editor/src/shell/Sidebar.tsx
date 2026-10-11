@@ -9,8 +9,9 @@ type SidebarProps = {
   open: boolean;
   documentPath: string;
   onToggle(): void;
-  onOpen(): void;
-  onOpenFolder(): void;
+  /** Open file… and Open folder… name the control their dialog returns focus to. */
+  onOpen(returnFocus: HTMLElement | null): void;
+  onOpenFolder(returnFocus: HTMLElement | null): void;
   /** Opens New, which shows and lets the user choose the destination folder. */
   onNew?(): void;
   newButtonRef?: RefObject<HTMLButtonElement | null>;
@@ -55,11 +56,11 @@ export function Sidebar({
       ) : (
         <section className="sidebar-empty" aria-label="Files" data-testid="sidebar-empty">
           <p className="sidebar-empty-text">Open a folder to browse and create its Markdown files.</p>
-          <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={onOpenFolder}>
+          <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
             <FolderOpen aria-hidden="true" />
             Open folder…
           </Button>
-          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={onOpen}>
+          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onOpen(event.currentTarget)}>
             <FileText aria-hidden="true" />
             Open file…
           </Button>
@@ -76,8 +77,8 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(): void;
   newButtonRef?: RefObject<HTMLButtonElement | null>;
-  onOpen(): void;
-  onOpenFolder(): void;
+  onOpen(returnFocus: HTMLElement | null): void;
+  onOpenFolder(returnFocus: HTMLElement | null): void;
   onClose(): void;
 };
 
@@ -88,6 +89,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
   const [focused, setFocused] = useState<string>();
+  // The menu item that opens a dialog goes away; the dialog returns focus to `⋯`.
+  const more = useRef<HTMLButtonElement>(null);
   // One tab stop: the item last focused, else the open document, else the first item.
   const tabStop = [focused, documentPath].find(path => items.some(item => item.entry.path === path)) ?? items[0]?.entry.path;
 
@@ -117,15 +120,15 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
             <Plus />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="More actions" />}>
+            <DropdownMenuTrigger ref={more} render={<Button variant="ghost" size="icon-xs" aria-label="More actions" />}>
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onOpen}>
+              <DropdownMenuItem onClick={() => onOpen(more.current)}>
                 <FileText aria-hidden="true" />
                 Open file…
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onOpenFolder}>
+              <DropdownMenuItem onClick={() => onOpenFolder(more.current)}>
                 <FolderOpen aria-hidden="true" />
                 Open folder…
               </DropdownMenuItem>

@@ -26,6 +26,31 @@ async page => {
     await page.getByRole('button',{name:'Expand sidebar'}).click();
     result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 
+    // Open file… and Open folder… dialogs closed by Escape or Cancel return focus to their button.
+    const isFocused = locator => locator.evaluate(node => node === document.activeElement);
+    const dialog = page.getByRole('dialog');
+    const openFolder = page.getByRole('button',{name:'Open folder…', exact:true});
+    const openFile = page.getByRole('button',{name:'Open file…', exact:true});
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await page.getByTestId('file-path').waitFor();
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'detached'});
+    result.openEscapeReturnsFocus = await isFocused(openFile);
+    await page.keyboard.press('Enter');
+    await page.getByTestId('file-path').waitFor();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await dialog.waitFor({state:'detached'});
+    result.openCancelReturnsFocus = await isFocused(openFile);
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Enter');
+    await page.getByTestId('folder-path').waitFor();
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'detached'});
+    result.folderEscapeReturnsFocus = await isFocused(openFolder);
+
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
     await paragraph.click();
@@ -35,6 +60,42 @@ async page => {
     await page.getByTestId('selection-toolbar').getByRole('button',{name:'Bold'}).click();
     result.boldApplied = await page.locator('[data-source-path="8"] strong').count() === 1;
     await page.keyboard.press('Control+z');
+
+    // Keyboard: Tab from a text selection enters the toolbar. Moving through it, Shift+Tab and Escape
+    // keep the selection, history and status; a toolbar key applies to the selection as one step.
+    const toolbarButton = name => page.getByTestId('selection-toolbar').getByRole('button',{name, exact:true});
+    const editorState = () => page.evaluate(() => {
+      const {editor} = document.querySelector('.document-editor');
+      const {from, to} = editor.state.selection;
+      return JSON.stringify({from, to, undo: editor.can().undo(), redo: editor.can().redo(),
+        status: document.querySelector('[data-testid="status"]').textContent, bold: document.querySelectorAll('[data-source-path="8"] strong').length});
+    });
+    const backInEditor = async () => {
+      await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+      return editorState();
+    };
+    await paragraph.click();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Shift+End');
+    await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.to -
+      document.querySelector('.document-editor').editor.state.selection.from === 'The current reference is calculated from the active power command.'.length);
+    await page.getByTestId('selection-toolbar').waitFor();
+    const keyboardSelection = await editorState();
+    await page.keyboard.press('Tab');
+    result.toolbarTabEnters = await isFocused(toolbarButton('Bold')) && await editorState() === keyboardSelection;
+    await page.keyboard.press('Tab');
+    result.toolbarTabMoves = await isFocused(toolbarButton('Italic')) && await page.getByTestId('selection-toolbar').isVisible();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    result.toolbarShiftTabReturns = await backInEditor() === keyboardSelection;
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Escape');
+    result.toolbarEscapeReturns = await backInEditor() === keyboardSelection;
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    const bolded = JSON.parse(await backInEditor());
+    await page.keyboard.press('Control+z');
+    result.toolbarKeyAppliesOnce = bolded.bold === 1 && bolded.undo && await editorState() === keyboardSelection.replace('"redo":false', '"redo":true');
 
     // Drafts stay visible and explicitly separate from applied Save content.
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});

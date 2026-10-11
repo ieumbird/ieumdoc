@@ -352,8 +352,9 @@ async (page, {screenshots = false} = {}) => {
   await page.getByTestId('file-path').waitFor();
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   await dialog.waitFor({state:'detached'});
-  result.opensFileFromMenu = await current() === '추가.md';
   const more = section.getByRole('button', {name:'More actions', exact:true});
+  // The menu item is gone; the dialog returns focus to `⋯`.
+  result.opensFileFromMenu = await current() === '추가.md' && await more.evaluate(node => node === document.activeElement);
   await more.focus();
   await page.keyboard.press('Enter');
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
