@@ -93,7 +93,7 @@ async (page, { screenshots = false } = {}) => {
   }
   // These states only produce review images; layout-rules asserts responsive boundaries.
   if (screenshots) {
-    for(const width of [1440,1024,768,705,704]) {
+    for(const width of [1440,1024,768,705,704,414,375]) {
       await page.setViewportSize({width,height:1000});
       await rest();
       await shot(`${width}-rest`);

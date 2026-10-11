@@ -81,6 +81,38 @@ async page => {
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
+  // On a phone-width viewport the wrapped TopBar keeps every control inside the viewport, in order:
+  // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
+  for(const width of [414,375]) {
+    await page.setViewportSize({width,height:800});
+    for(const collapsed of [false,true]) {
+      if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await page.evaluate(()=>window.scrollTo(0,0));
+      const narrow=await page.evaluate(()=>{
+        const buttons=[...document.querySelectorAll('.top-bar-actions button')].map(n=>{
+          const r=n.getBoundingClientRect();
+          return {name:n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+        });
+        if(buttons.length<6||!buttons.some(b=>b.name==='Save'))throw Error('Missing TopBar controls');
+        const outside=buttons.filter(b=>b.left<0||b.right>innerWidth+0.5).map(b=>b.name);
+        const disorder=[],gaps=[];
+        buttons.slice(1).forEach((b,i)=>{
+          const a=buttons[i];
+          // Controls of different heights share a row when they overlap vertically.
+          if(b.top<a.bottom-1&&a.top<b.bottom-1){
+            const gap=b.left-a.right;
+            if(gap<0)disorder.push(`${a.name}>${b.name}`);
+            // Visual and Source are adjacent tabs inside the view group.
+            else if(a.group===b.group?Math.abs(gap-4)>0.5&&!(a.name==='Visual'&&b.name==='Source'):gap<12-0.5)gaps.push(`${a.name}|${b.name}:${gap}`);
+          } else if(b.top<a.bottom-1)disorder.push(`${a.name}>${b.name}`);
+        });
+        return {width:innerWidth,overflow:document.documentElement.scrollWidth-innerWidth,outside,disorder,gaps};
+      });
+      if(narrow.overflow>0||narrow.outside.length||narrow.disorder.length||narrow.gaps.length)throw Error(`Narrow TopBar ${collapsed?'collapsed':'expanded'}: ${JSON.stringify(narrow)}`);
+      results.push({...narrow,collapsed});
+      if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    }
+  }
   // Opened below the docking width, the document panel overlays at its own width below the sticky
   // header: the document keeps its width, the page does not scroll sideways, and Save, Reload and the
   // Outline toggle stay uncovered, also when the TopBar wraps. Escape closes it and returns focus.

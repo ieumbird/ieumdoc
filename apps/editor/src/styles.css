@@ -1499,8 +1499,15 @@ ol.list { list-style: decimal; }
     padding-block: var(--space-2);
   }
 
+  /* Controls never leave the viewport: groups, then controls within a group, wrap in order
+   * (12px between groups, 4px within) when the column is narrower than they are. */
   .top-bar-actions {
+    flex-wrap: wrap;
     justify-content: space-between;
+  }
+
+  .top-bar-group {
+    flex-wrap: wrap;
   }
 }
 
