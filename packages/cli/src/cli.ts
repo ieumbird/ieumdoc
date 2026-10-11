@@ -142,8 +142,10 @@ const COMMANDS: CommandSpec[] = [
       "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
       "Markdown without losing semantics (the same check format and Editor Save use).",
       "Exits 1 when it cannot. Asset files are not checked.",
-      "References ({eq}, {numref}, {ref}) that name no target in this document are reported",
-      "as warnings with their block and line; they do not fail the check.",
+      "References ({eq}, {numref}, {ref}, and links such as [](#label) whose URL starts with #)",
+      "that name no target in this document, as MyST resolves them (including the implicit IDs",
+      "of unlabeled headings), are reported as warnings with their block and line; they do not",
+      "fail the check. JSON: references.unresolved, with role or link.",
       "Pending Figures (no content yet) are reported as readiness warnings with their block and",
       "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
       "Output format is text by default; JSON is available with --format json.",
@@ -634,9 +636,11 @@ function main(argv: string[]): number {
         process.stdout.write(`${summarize(document)}\n`);
         if (writeError === undefined) process.stdout.write("writeability ok\n");
         else process.stderr.write(`writeability failed: ${writeError}\n`);
-        for (const { role, label, path, line } of unresolved) {
+        for (const reference of unresolved) {
+          const { path, line } = reference;
           const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-          process.stderr.write(`warning: {${role}}\`${label}\` (${at}) names no target in this document\n`);
+          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\`` : `link ${reference.link}`;
+          process.stderr.write(`warning: ${written} (${at}) names no target in this document\n`);
         }
         for (const { path, label } of pendingFigures) {
           process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
