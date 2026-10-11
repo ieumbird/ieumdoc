@@ -139,6 +139,21 @@ export function resolvedTarget(targets: ReferenceTarget[], role: ReferenceRole, 
   return targets.find((target) => target.role === role && labelKey(target.label) === key);
 }
 
+/** How a reference reads, as its chip shows it: the target's computed number, a section's heading
+ * text, or the label when it names no target here. */
+export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole, label: string): { text: string; resolved: boolean; kindName: string } {
+  const target = resolvedTarget(targets, role, label);
+  const kindName = target?.kind === "table" ? "Table" : KIND[role];
+  // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
+  const shown = target?.number !== undefined ? numberText(target.kind ?? (role === "eq" ? "equation" : "figure"), target.number) : target?.title ?? label;
+  return { text: `${target?.kind === "table" ? "Table" : PREFIX[role]} ${shown}`, resolved: target !== undefined, kindName };
+}
+
+/** What an unresolved reference tells the reader. */
+export function unresolvedStatus(role: ReferenceRole, label: string): string {
+  return `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
+}
+
 /** Whether a reference names a target of its kind here, compared the way MyST resolves labels. */
 export function isResolved(targets: ReferenceTarget[], role: ReferenceRole, label: string): boolean {
   return resolvedTarget(targets, role, label) !== undefined;
@@ -270,8 +285,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor,
     selector: ({ editor: current }) => JSON.stringify(current ? referenceTargets(current.state.doc) : []),
   });
-  const target = resolvedTarget(JSON.parse(targets ?? "[]") as ReferenceTarget[], role, label);
-  const resolved = target !== undefined;
+  const { text, resolved, kindName } = referenceDisplay(JSON.parse(targets ?? "[]") as ReferenceTarget[], role, label);
   const close = () => {
     setEditing(false);
     editor.commands.focus();
@@ -284,10 +298,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
       { type: "text", text: label, marks: node.marks.map((mark) => mark.toJSON()) }).run();
   };
-  const kindName = target?.kind === "table" ? "Table" : KIND[role];
-  const status = resolved ? `${kindName} ${label}. Click to go to it.` : `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
-  // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
-  const shown = target?.number !== undefined ? numberText(target.kind ?? (role === "eq" ? "equation" : "figure"), target.number) : target?.title ?? label;
+  const status = resolved ? `${kindName} ${label}. Click to go to it.` : unresolvedStatus(role, label);
   return (
     <NodeViewWrapper
       as="span"
@@ -301,7 +312,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
       {/* A resolved reference goes to its target; one without a target opens the form. */}
       <span className="cross-reference-chip" title={status} aria-label={status}
         onClick={() => { if (!revealReferenceTarget(editor, role, label)) setEditing(true); }}>
-        {target?.kind === "table" ? "Table" : PREFIX[role]} {shown}
+        {text}
       </span>
       <button type="button" className="cross-reference-edit" aria-label="Edit reference" title="Edit reference"
         data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>

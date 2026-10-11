@@ -101,7 +101,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["source-view", "source-view-pending"],
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
-  "cross-reference": { files: [fixture("refs.md"), document("diagram.svg")], scenarios: ["cross-reference"] },
+  "cross-reference": { files: [fixture("refs.md"), document("diagram.svg"),
+    // A table caption holding inline math, a resolved and an unresolved reference (#165), canonical.
+    { name: "caption.md", create: () => "# Caption\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
+      ":::{table} **Bold** with $x^2$, [link](https://example.com), {numref}`fig-a` and {eq}`eq-gone`\n:name: tbl-a\n\n" +
+      "| a | b |\n| - | - |\n| 1 | 2 |\n:::\n" }], scenarios: ["cross-reference"] },
   "footnotes": {
     files: [{ name: "footnotes.md", create: () =>
       "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" }],
