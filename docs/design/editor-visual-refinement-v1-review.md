@@ -85,6 +85,10 @@ Same-state comparison, base `e46b0ec` and #133 (2026-10-08). Empty captures exer
 | Empty, 768px | ![Narrow empty document before](assets/empty-start-before-empty-768.png) | ![Narrow empty document after](assets/empty-start-after-empty-768.png) |
 | Content, 1440px | ![Populated document before](assets/empty-start-before-content-1440.png) | ![Populated document after](assets/empty-start-after-content-1440.png) |
 
+Phone-width TopBar (#164), base `6c94928` (2026-10-11): `pnpm browser:test quiet-document --screenshots` in the same checkout before and after the change, DPR 1, 100% zoom, scroll top, header crop. Before, Outline, Reload and Save were outside the viewport; after, the groups wrap in order. The other 26 captures (704px and wider and every other state) are byte-identical.
+
+![Phone-width TopBar before and after](assets/topbar-narrow-before-after.png)
+
 v4.1 Before/After, base `eb418ba` (2026-10-10), same session, document, Chrome profile, DPR 1 and 100% zoom: the TopBar's right side at 1440px for each state (Save unavailable uses the `writeability-preflight` blocked scratch file), then the full header at 1024, 768 and the wrapping 704px width. Computed styles of the same states were compared alongside; Save's position and size are identical in every state and width.
 
 ![TopBar v4.1 states before and after](assets/topbar-v4-1-states.png)
