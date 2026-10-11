@@ -1,7 +1,7 @@
 # Section references v1
 
 - Status: Implemented
-- Last verified: 2026-10-08 (contract compared with current code and regression coverage).
+- Last verified: 2026-10-11 (contract compared with current code and regression coverage; `check` link-reference diagnostics, #151).
 - Scope: In-document MyST heading labels and references, not cross-document identity; [ADR-0003](../adr/0003-document-addressing-identity-boundary.md).
 
 Equations, Figures and Tables could be referenced; sections could not. A `{ref}` reference or a `(label)=` target kept its paragraph or block read-only, so authors had to write both by hand. Section references close that gap with MyST's own syntax.
@@ -32,6 +32,7 @@ Core's section rule already counts targets before a heading as part of that sect
 
 - Renaming a label does not rename its references, as for other labels.
 - `[](#label)` links stay ordinary links and read-only: Core does not promote links to references.
+- `check` diagnoses references as MyST resolves them on one page. A link whose URL starts with `#` (`[](#label)` or `[text](#label)`) is a reference: one that names no target is reported like an unresolved role reference (`link` instead of `role` in JSON), stays as written and does not fail the check. Targets are labeled blocks, `(label)=` targets and the implicit IDs MyST gives unlabeled headings (`## Install` → `#install`); a heading with a label has no implicit ID. Links without `#`, including external URLs with a fragment, are never reported.
 - References to targets before blocks other than headings, numbered section references (`{numref}` to a section), display text, and links to other documents are not authored.
 
 ## CLI

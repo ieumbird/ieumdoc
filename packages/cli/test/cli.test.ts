@@ -1333,19 +1333,21 @@ test("CLI check reports canonical writeability in text and JSON and agrees with 
 test("check warns about references a removal left without a target, without failing or writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-references-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n\nSee {numref}`fig-a`.\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
+  writeFileSync(file, "# Title\n\nSee {numref}`fig-a` and [the figure](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
   try {
     const removed = run(["remove-block", file, "--at", "2"]);
     assert.equal(removed.status, 0, removed.stderr);
     const after = readFileSync(file, "utf8");
+    assert.match(after, /\[the figure\]\(#fig-a\)/, "the link stays as written");
     const text = run(["check", file]);
     assert.equal(text.status, 0, text.stderr);
     assert.match(text.stdout, /\nwriteability ok\n$/);
-    assert.equal(text.stderr, "warning: {numref}`fig-a` (block 1, line 3) names no target in this document\n");
+    assert.equal(text.stderr, "warning: {numref}`fig-a` (block 1, line 3) names no target in this document\n" +
+      "warning: link #fig-a (block 1, line 3) names no target in this document\n");
     const json = run(["check", file, "--format", "json"]);
     assert.equal(json.status, 0, json.stderr);
     assert.deepEqual(JSON.parse(json.stdout).references, {
-      unresolved: [{ role: "numref", label: "fig-a", path: [1], line: 3 }],
+      unresolved: [{ role: "numref", label: "fig-a", path: [1], line: 3 }, { link: "#fig-a", label: "fig-a", path: [1], line: 3 }],
     });
     assert.equal(readFileSync(file, "utf8"), after, "check never writes");
   } finally {

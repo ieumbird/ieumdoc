@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeLabel } from "myst-common";
-import { basicTransformations, enumerateTargetsTransform, ReferenceState, resolveReferencesTransform } from "myst-transforms";
+import { basicTransformations, enumerateTargetsTransform, ReferenceState, resolveLinksAndCitationsTransform, resolveReferencesTransform } from "myst-transforms";
 import { VFile } from "vfile";
 import {
   getEditableDocument,
@@ -151,30 +151,48 @@ test("unresolvedReferences reports references that name no target in the documen
     ":::{table} Values\n:label: tbl-one\n| a |\n| - |\n| {numref}`fig-gone` |\n:::",
     "See {eq}`EQ-One`, {numref}`fig-one`, {numref}`tbl-one`, {ref}`sec-a`, {eq}`missing` and {numref}`Figure %s <gone>`.",
     ":::{note}\n- {ref}`nope`\n:::",
+    "## Implicit Heading",
+    // Links whose URL starts with `#` are references; an unlabeled heading has an implicit ID,
+    // a labeled one does not. Other links are never references.
+    "Links [](#fig-one), [text](#EQ-One), [](#implicit-heading), {ref}`implicit-heading`, [](#fig-missing), " +
+      "[](#section-a), [](#), [web](https://example.com#fig-missing) and [old](fig-gone).",
   ].join("\n\n") + "\n";
   const document = parse(source);
+  const before = JSON.stringify(document);
   assert.deepEqual(unresolvedReferences(document), [
     { role: "eq", label: "eq-gone", path: [3], line: 11 },
     { role: "numref", label: "fig-gone", path: [4], line: 18 },
     { role: "eq", label: "missing", path: [5], line: 21 },
     { role: "numref", label: "gone", path: [5], line: 21 },
     { role: "ref", label: "nope", path: [6], line: 24 },
+    { link: "#fig-missing", label: "fig-missing", path: [8], line: 29 },
+    { link: "#section-a", label: "section-a", path: [8], line: 29 },
+    { link: "#", label: "", path: [8], line: 29 },
   ]);
-  // The same labels MyST's own reference resolution cannot find.
+  assert.equal(JSON.stringify(document), before, "reporting never changes the document");
+  // The same references MyST's own link and reference resolution cannot find.
   const tree = structuredClone(document);
   const file = new VFile();
   basicTransformations(tree as never, file);
   const state = new ReferenceState("document.md", { vfile: file });
   enumerateTargetsTransform(tree as never, { state });
+  resolveLinksAndCitationsTransform(tree as never, { state });
   resolveReferencesTransform(tree as never, file, { state });
-  assert.deepEqual(file.messages.map((message) => message.message.replace(/^Cross reference target was not found: /, "")),
-    unresolvedReferences(document).map((reference) => normalizeLabel(reference.label)?.identifier));
+  const messages = file.messages.map((message) => message.message);
+  const reported = unresolvedReferences(document);
+  assert.deepEqual(messages.flatMap((message) => /^No target for internal reference "(.*)" was found\.$/.exec(message)?.[1] ?? []),
+    reported.flatMap((reference) => "link" in reference ? [reference.link] : []));
+  assert.deepEqual(messages.flatMap((message) => /^Cross reference target was not found: (.*)$/.exec(message)?.[1] ?? []),
+    reported.flatMap((reference) => "role" in reference ? [normalizeLabel(reference.label)?.identifier] : []));
 });
 
 test("removing or relabeling a referenced target leaves an unresolved reference to report", () => {
-  const document = parse("See {numref}`fig-a`.\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
+  const document = parse("See {numref}`fig-a` and [](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
   assert.deepEqual(unresolvedReferences(document), []);
-  const unresolved = [{ role: "numref", label: "fig-a", path: [0], line: 1 }];
+  const unresolved = [
+    { role: "numref", label: "fig-a", path: [0], line: 1 },
+    { link: "#fig-a", label: "fig-a", path: [0], line: 1 },
+  ];
   assert.deepEqual(unresolvedReferences(removeBlock(document, 1)), unresolved);
   assert.deepEqual(unresolvedReferences(updateLabel(document, [1], "fig-b")), unresolved);
 });

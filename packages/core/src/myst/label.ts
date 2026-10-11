@@ -1,5 +1,7 @@
 import { isTargetIdentifierNode, normalizeLabel } from "myst-common";
-import type { MystNode } from "./tree.ts";
+import { basicTransformations, enumerateTargetsTransform, ReferenceState } from "myst-transforms";
+import { VFile } from "vfile";
+import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 /** The identifier MyST resolves references against, or undefined when the label names nothing. */
 export function labelIdentifier(label: string): string | undefined {
@@ -24,4 +26,18 @@ export function targetIdentifiers(root: MystNode, except?: MystNode): Set<string
   };
   visit(root);
   return identifiers;
+}
+
+/**
+ * Whether an identifier names a target as MyST's own reference resolution finds it on one page:
+ * labeled blocks, `(label)=` targets and the implicit IDs of unlabeled headings. MyST's
+ * transforms run on a clone, so the document is unchanged.
+ */
+export function referenceTargets(document: MystDocument): (identifier: string) => boolean {
+  const tree = cloneDocument(document);
+  const file = new VFile();
+  basicTransformations(tree as never, file);
+  const state = new ReferenceState("document.md", { vfile: file });
+  enumerateTargetsTransform(tree as never, { state });
+  return (identifier) => state.getTarget(identifier) !== undefined;
 }
