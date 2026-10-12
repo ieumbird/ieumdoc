@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import type { OutlineItem, OutlineStore } from "../outline.ts";
@@ -38,8 +38,30 @@ export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: Do
   );
 }
 
+/** Scrolls only `list`, so the document and the section being read stay put. */
+function revealInList(list: HTMLElement, child: HTMLElement) {
+  const listRect = list.getBoundingClientRect();
+  const childRect = child.getBoundingClientRect();
+  if (childRect.top < listRect.top) list.scrollTop -= listRect.top - childRect.top;
+  else if (childRect.bottom > listRect.bottom && childRect.top > listRect.top) {
+    list.scrollTop += Math.min(childRect.bottom - listRect.bottom, childRect.top - listRect.top);
+  }
+}
+
+const useClientLayoutEffect = typeof document === "undefined" ? useEffect : useLayoutEffect;
+
 function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect(item: OutlineItem): void }) {
   const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
+  const list = useRef<HTMLOListElement>(null);
+  useClientLayoutEffect(() => {
+    const element = list.current;
+    const current = element?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!element || !current) return;
+    // Keyboard movement through the list keeps the focused heading in place.
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && element.contains(active) && active !== current) return;
+    revealInList(element, current);
+  }, [outline.current, outline.items]);
   // Arrow keys, Home and End move between headings; Enter or Space goes to one.
   const move = (event: KeyboardEvent<HTMLOListElement>) => {
     const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
@@ -53,7 +75,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
   return (
     <section className="document-outline" aria-labelledby="document-panel-title" data-testid="outline">
       {outline.items.length === 0 ? <p className="document-outline-empty">No headings</p> : (
-        <ol className="document-outline-list" onKeyDown={move}>
+        <ol ref={list} className="document-outline-list" onKeyDown={move}>
           {outline.items.map((item, index) => (
             <li key={`${item.index}:${item.pos}`}>
               <button
