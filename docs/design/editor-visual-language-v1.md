@@ -69,9 +69,13 @@ A single empty editable paragraph shows `Start writing, or type / to add a block
 
 After New succeeds, Base UI's closing focus handoff targets the newly mounted editor, so typing starts immediately. Cancel/Escape, including after rejected creation, returns focus to the New button. Opening or reloading an existing file does not invoke the New handoff. The white space below the actual editor content still places the caret at the end through the existing engine operation.
 
-The paper boundary is permanent and neutral, not a document focus ring. Top/bottom paper padding is 32px (16px at ≤1024px), inside the 16px canvas gap; the body and gutter keep their existing axes. These are display and focus changes only; Core, CLI and saved document meaning are unchanged.
+The paper boundary is permanent and neutral, not a document focus ring. Top paper padding is 32px (16px at ≤1024px), inside the 16px canvas gap; the body and gutter keep their existing axes. These are display and focus changes only; Core, CLI and saved document meaning are unchanged.
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
+
+## Writing end space (#173)
+
+The paper's bottom padding is the end space, 35% of the viewport height, so the last line can be scrolled well above the bottom edge without adding blank lines. Writing keeps the caret at least that far above the window bottom: ProseMirror's `scrollThreshold`/`scrollMargin` read the paper's bottom padding for their bottom side and keep their defaults on the other sides, so the line being written stays near the middle instead of the bottom edge. Like the rest of the blank paper, a click in the end space places the caret at the end, with the same room. The end space is presentation only and never reaches Markdown, Source, Save or dirty comparison. `new-document` writes past the window at 1440×900 and checks the caret, the scrolled end and the saved file.
 
 ## Filename and status
 
@@ -112,7 +116,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - They live at the top of `styles/tokens.css` under **Adjustable values**, each with a comment saying what it controls. Changing one value there changes the Editor; tests read the variable instead of pinning its number.
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The TopBar Wide document toggle chooses between them.
-- Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px). The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
+- Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px) at the top, and `--layout-document-end-space` (35% of the viewport height) at the bottom, which also sets how far above the window bottom writing keeps the caret. The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 176px). The collapsed rail is fixed.
 - Document panel entry: `--layout-document-panel-width` (256px), docked or overlaid.
 - Inline math entry: `--math-inline-size` (1.1em of its text). KaTeX's own 1.21em reads larger than Pretendard body text and, with integral or sum limits, makes a line taller.

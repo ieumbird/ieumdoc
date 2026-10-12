@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
@@ -54,6 +54,15 @@ export type DocumentEditorHandle = {
   focusEnd(clientY: number): boolean;
 };
 
+
+/** ProseMirror's scroll room around the caret, except below it: writing keeps the caret above the
+ * paper's end space (`--layout-document-end-space`), which also leaves that room after the last line. */
+function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
+  return {
+    top: side, right: side, left: side,
+    get bottom() { return paper.current ? parseFloat(getComputedStyle(paper.current).paddingBottom) : side; },
+  };
+}
 
 type DocumentEditorProps = {
   document: EditableDocument;
@@ -147,6 +156,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     },
     editorProps: {
       handleKeyDown: (_view, event) => slashKeys.current(event),
+      scrollThreshold: caretRoom(host, 0),
+      scrollMargin: caretRoom(host, 5),
       attributes: {
         class: "document-editor",
         spellcheck: "false",
