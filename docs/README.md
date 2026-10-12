@@ -22,7 +22,7 @@
 | [Editing session and Save](design/editing-session-save-v1.md) | Implemented | 현재 계약. opening snapshot, Save acknowledgement, draft와 work-loss 보호. |
 | [Block source editing](design/block-source-editing-v1.md) | Implemented | 현재 계약. Core를 통한 단일 read-only block source 교체. |
 | [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 파일·asset·folder 계약. Vite 개발 adapter와 Desktop Host가 같은 handler를 재사용. |
-| [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.1과 미게시 beta.2 후보 검증을 구분. |
+| [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.2와 실제 GitHub 업데이트 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file. |
 | [Footnotes](design/footnotes-v1.md) | Implemented | 현재 계약(v2). 각주 삽입, 한 문단 definition의 문서 내 편집, 그 밖의 definition source 편집과 유실 방지. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |
@@ -62,7 +62,7 @@
 
 ## Verification
 
-- [v0.0.1-beta.2 release notes and readiness](releases/v0.0.1-beta.2.md) — Draft; 미게시 후보의 변경과 승인 후 검증 절차.
+- [v0.0.1-beta.2 release and verification record](releases/v0.0.1-beta.2.md) — Historical; 공개 자산, CI와 실제 GitHub 업데이트 검증 근거.
 
 | Document | Status | Authority / description |
 | --- | --- | --- |
