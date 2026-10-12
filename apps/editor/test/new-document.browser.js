@@ -120,6 +120,36 @@ async page => {
   const listing = await (await page.request.get(`${origin}/api/folder?root=${encodeURIComponent(folder)}`)).json();
   check(listing.entries.every(entry => entry.kind === 'document' && entry.path === file) && listing.entries.length === 1,
     'Failed or cancelled New created a file');
+
+  // Writing past the window keeps the new line above the paper's end space, which leaves the
+  // last line room to rise; that room is display only and never reaches the saved file.
+  await page.setViewportSize({width:1440, height:900});
+  const end = await page.locator('.document').boundingBox();
+  await page.mouse.click(end.x + end.width/2, end.y + end.height - 40);
+  const lines = Array.from({length:30}, (_, index) => `Line ${index + 1}`);
+  for (const line of lines) {
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(line);
+  }
+  // Below the caret while writing, and below the last line once scrolled to the end.
+  const room = target => page.evaluate(target => ({
+    below: innerHeight - (target === 'caret' ? getSelection().getRangeAt(0).getClientRects()[0]
+      : document.querySelector('.document-editor > :last-child').getBoundingClientRect()).bottom,
+    end: parseFloat(getComputedStyle(document.querySelector('.document')).paddingBottom),
+    viewport: innerHeight, scrolled: scrollY,
+  }), target);
+  // A quarter of the window is the least that lifts the line off the bottom edge.
+  const writing = await room('caret');
+  check(writing.scrolled > 0 && writing.end >= writing.viewport / 4 && writing.below >= writing.end - 1,
+    `The line being written stays at the bottom of the window: ${JSON.stringify(writing)}`);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const scrolledEnd = await room('line');
+  check(scrolledEnd.below >= scrolledEnd.end - 1, `No room below the last line: ${JSON.stringify(scrolledEnd)}`);
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).waitFor();
+  check((await read()).source.trimEnd() === ['Browser-created paragraph', ...lines].join('\n\n'),
+    'The end space changed the saved document');
   return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
-    blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true};
+    blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true,
+    writingEndSpace:true};
 }

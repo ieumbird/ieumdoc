@@ -11,6 +11,9 @@
   /* White document's top/bottom padding; the outer canvas gap uses --layout-content-gutter. */
   --layout-document-block-padding: var(--space-8);
   --layout-document-block-padding-narrow: var(--space-4);
+  /* Blank paper after the last line, and how far above the window bottom writing keeps the
+   * caret, so the line being written can sit near the middle instead of the bottom edge. */
+  --layout-document-end-space: 35dvh;
   /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
