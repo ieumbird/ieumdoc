@@ -34,8 +34,9 @@ function powershell(script: string): string {
 
 /** The folder of the per-user installation, from its uninstall entry (which has no InstallLocation), or "". */
 function installedEntry(): string {
-  const uninstall = powershell("Get-ChildItem HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall -ErrorAction SilentlyContinue | " +
-    "ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString }");
+  const uninstall = powershell("$key = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'; " +
+    "if (Test-Path -LiteralPath $key) { Get-ChildItem -LiteralPath $key -ErrorAction Stop | " +
+    "ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction Stop } | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString } }");
   const match = /^"(.+)\\Uninstall IeumDoc\.exe"/.exec(uninstall);
   return match ? match[1]! : uninstall;
 }
