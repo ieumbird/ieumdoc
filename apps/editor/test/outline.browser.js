@@ -1,6 +1,7 @@
 // Run with pnpm browser:test outline.
 // Navigates a long scratch document from the document panel outline with the mouse and the keyboard,
-// follows the current section while scrolling, and checks that heading edits update the outline
+// follows the current section while scrolling, keeps that mark inside the outline list,
+// and checks that heading edits update the outline
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
 async (page, { openDocument }) => {
@@ -67,10 +68,23 @@ async (page, { openDocument }) => {
   // Scrolling to the end makes the last section current. It re-renders the outline only: re-rendering
   // the editor re-applies its options (a new editor.options object), which can race native caret moves.
   await page.locator('.document-editor').evaluate(element => { window.outlineEditorOptions = element.editor.options; });
+  // The fixture's ten headings fit the panel. Limit the list so the current mark has to move inside it.
+  const limit = await page.addStyleTag({ content: '.document-outline-list { max-height: 80px; }' });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await currentIs('Detail 6', 'after Detail 6');
   const scrollFollowsSection = await current() === 'Detail 6';
   const scrollKeepsEditor = await page.locator('.document-editor').evaluate(element => element.editor.options === window.outlineEditorOptions);
+  const currentStaysInView = await page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    return item.textContent?.trim() === 'Detail 6' && list.scrollTop > 0
+      && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1
+      && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+  });
+  await limit.evaluate(node => node.remove());
 
   // Renaming, adding and deleting headings update the outline at once.
   await page.locator('.document-editor').evaluate(element => {
@@ -135,7 +149,7 @@ async (page, { openDocument }) => {
   const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'Saved' &&
     JSON.stringify(disk.document.blocks.filter(block => block.block === 'heading').map(block => block.text)) === JSON.stringify(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
 
-  const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, editsUpdate, sourceReturnsToVisual,
+  const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, currentStaysInView, editsUpdate, sourceReturnsToVisual,
     sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
   // Numbering is a document setting and uses the same counters in the page and outline.
   const toggle = page.getByRole('button', {name:'Number headings', exact:true});
