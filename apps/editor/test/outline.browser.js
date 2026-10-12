@@ -84,6 +84,116 @@ async (page, { openDocument }) => {
       && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1
       && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
   });
+  const flushFrames = () => page.evaluate(() => new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)));
+  }));
+  const outlineView = () => page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    const editor = document.querySelector('.document-editor')?.editor;
+    if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement) || !editor) return null;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    const { from, to } = editor.state.selection;
+    return {
+      scrollTop: list.scrollTop, clientHeight: list.clientHeight, scrollY: window.scrollY, from, to,
+      text: item.textContent?.trim() ?? '',
+      visible: itemBox.height > 0 && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1,
+      // Content below the viewport. The last heading has none, so a taller list clamps scrollTop.
+      room: list.scrollHeight - list.clientHeight - list.scrollTop,
+      options: editor.options === window.outlineEditorOptions,
+    };
+  });
+  // A middle heading stays fully visible with outline content below it, so growing the list must not move it.
+  await page.evaluate(() => {
+    const heading = [...document.querySelectorAll('.document-editor h1, .document-editor h2, .document-editor h3')]
+      .find(node => node.textContent === 'Section 4');
+    const header = document.querySelector('.app-header')?.getBoundingClientRect().bottom ?? 0;
+    if (!(heading instanceof HTMLElement)) return;
+    window.scrollTo(0, heading.getBoundingClientRect().top + window.scrollY - header - 8);
+  });
+  await page.waitForFunction(() => {
+    const list = document.querySelector('.document-outline-list');
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
+    if (item.textContent?.trim() !== 'Section 4') return false;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    return list.scrollTop > 0 && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1
+      && list.scrollHeight - list.clientHeight - list.scrollTop >= 40;
+  }, undefined, {timeout: 5000});
+  const beforeTracking = await outlineView();
+  const grown = await page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    const before = list.scrollTop;
+    const height = list.clientHeight;
+    list.style.maxHeight = `${height + 24}px`;
+    return { before, height };
+  });
+  await flushFrames();
+  const grownView = await outlineView();
+  const visibleSectionStaysPut = Boolean(beforeTracking && grownView && grownView.visible && grownView.text === 'Section 4'
+    && beforeTracking.room >= 40 && grownView.clientHeight >= grown.height + 16
+    && Math.abs(grownView.scrollTop - grown.before) < 1
+    && Math.abs(grownView.scrollY - beforeTracking.scrollY) < 1 && grownView.from === beforeTracking.from && grownView.to === beforeTracking.to
+    && grownView.options);
+  const clipped = await page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    list.style.maxHeight = '72px';
+    list.scrollTop = 0;
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    return itemBox.bottom > listBox.bottom + 1 || itemBox.top < listBox.top - 1;
+  });
+  await page.waitForFunction(() => {
+    const list = document.querySelector('.document-outline-list');
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    return item.textContent?.trim() === 'Section 4' && list.scrollTop > 0
+      && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1;
+  });
+  const restored = await outlineView();
+  const resizeRestoresCurrent = Boolean(clipped && restored?.visible && restored.text === 'Section 4' && restored.scrollTop > 0
+    && beforeTracking && Math.abs(restored.scrollY - beforeTracking.scrollY) < 1
+    && restored.from === beforeTracking.from && restored.to === beforeTracking.to && restored.options);
+  await page.evaluate(() => document.querySelector('[data-testid="outline"] button')?.focus());
+  await page.keyboard.press('ArrowDown');
+  await flushFrames();
+  const arrowsDoNotSnapToCurrent = await page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    const current = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    const active = document.activeElement;
+    if (!(list instanceof HTMLElement) || !(current instanceof HTMLElement) || !(active instanceof HTMLElement)) return false;
+    const listBox = list.getBoundingClientRect();
+    const shown = (node) => {
+      const box = node.getBoundingClientRect();
+      return box.top >= listBox.top - 1 && box.bottom <= listBox.bottom + 1;
+    };
+    return active.textContent?.trim() === 'Section 1' && current.textContent?.trim() === 'Section 4' && shown(active) && !shown(current);
+  });
+  await page.evaluate(() => document.querySelector('[aria-label="Hide outline"]')?.focus());
+  await page.waitForFunction(() => {
+    const list = document.querySelector('.document-outline-list');
+    const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
+    if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = item.getBoundingClientRect();
+    return item.textContent?.trim() === 'Section 4'
+      && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1;
+  });
+  const exited = await outlineView();
+  const focusExitRestoresCurrent = Boolean(exited?.visible && exited.text === 'Section 4'
+    && await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Hide outline'));
+  const trackingPreservesDocument = Boolean(beforeTracking && exited
+    && Math.abs(exited.scrollY - beforeTracking.scrollY) < 1
+    && exited.from === beforeTracking.from && exited.to === beforeTracking.to && exited.options);
+  await page.evaluate(() => {
+    const list = document.querySelector('.document-outline-list');
+    if (list instanceof HTMLElement) list.style.maxHeight = '';
+  });
   await limit.evaluate(node => node.remove());
 
   // Renaming, adding and deleting headings update the outline at once.
@@ -149,7 +259,7 @@ async (page, { openDocument }) => {
   const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'Saved' &&
     JSON.stringify(disk.document.blocks.filter(block => block.block === 'heading').map(block => block.text)) === JSON.stringify(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
 
-  const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, currentStaysInView, editsUpdate, sourceReturnsToVisual,
+  const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, currentStaysInView, visibleSectionStaysPut, resizeRestoresCurrent, arrowsDoNotSnapToCurrent, focusExitRestoresCurrent, trackingPreservesDocument, editsUpdate, sourceReturnsToVisual,
     sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
   // Numbering is a document setting and uses the same counters in the page and outline.
   const toggle = page.getByRole('button', {name:'Number headings', exact:true});
