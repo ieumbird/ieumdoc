@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, X } from "lucide-react";
+import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -20,12 +20,14 @@ type SidebarProps = {
   onToggleFolder?(path: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(): void;
+  /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
+  onSettings?(returnFocus: HTMLElement): void;
 };
 
 /** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
 export function Sidebar({
   open, documentPath, onToggle, onOpen, onOpenFolder, onNew, newButtonRef,
-  folder, onToggleFolder, onOpenDocument, onCloseFolder,
+  folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings,
 }: SidebarProps) {
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
@@ -66,6 +68,20 @@ export function Sidebar({
           </Button>
         </section>
       )}
+      {onSettings ? (
+        <div className="sidebar-footer">
+          {open ? (
+            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
+              <Settings aria-hidden="true" />
+              Settings
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon-sm" aria-label="Settings" title="Settings" onClick={event => onSettings(event.currentTarget)}>
+              <Settings />
+            </Button>
+          )}
+        </div>
+      ) : null}
     </nav>
   );
 }

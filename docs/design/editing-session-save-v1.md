@@ -41,6 +41,10 @@ Decision: no autosave and no local draft recovery for now.
 - Draft recovery would need durable storage of the editor session: the opening source, the acknowledged revision and edits, and the editor state keyed by snapshot locators. That is persistence, and `apps/editor/server` is a development adapter that must not grow into it. A recovered session would also need its own conflict rules against the current disk.
 - `beforeunload` remains the guard against closing or navigating away with unsaved work. Revisit this decision together with the long-term persistence/backend design.
 
+Desktop update restarts additionally ask the live Editor about unsaved content/drafts and pending Save/Source/assets/switching through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This does not add autosave or recovery; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
+
+The unload guard reads the latest rendered busy state. A completed Save must not keep blocking close with the previous Saving state while a passive-effect replacement is pending. The browser regression observes the first Saved DOM commit to protect this boundary without timing delays.
+
 ## Evidence
 
 Before the change, an actual browser Save replaced the editor, changed selection from 287 to 1, and changed `can().undo()` from true to false. `save-session.browser.js` exercises real scratch-file persistence across Save/history, transient content, delayed responses, rejection, conflict, draft preservation and reload. Existing Figure, table, Source and delayed-save scenarios cover their distinct integration risks. Run `pnpm browser:test save-session` or the complete CI suite described in [TEST_GUIDE](../test/TEST_GUIDE.md).

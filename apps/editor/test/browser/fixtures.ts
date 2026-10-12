@@ -115,6 +115,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     files: [{ name: "focus.md", create: () => "# Focus\n\nFirst paragraph.\n\nLast paragraph.\n" }],
     scenarios: ["focus-caret"],
   },
+  "desktop-updates": {
+    files: [{ name: "updates.md", create: () => "# Updates\n\nAlpha.\n\n:::{table} Values\n:name: tbl-a\n\n| A |\n| - |\n| 1 |\n:::\n" }],
+    scenarios: ["desktop-updates"],
+  },
   "folder-navigation": {
     files: [
       { name: "index.md", create: () => "# Index\n\nStart here.\n" },

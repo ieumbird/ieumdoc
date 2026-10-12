@@ -1,10 +1,12 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-11 (명시 block Edit, Apply/Cancel, 선택/focus와 전체 stable browser suite; keyboard focus/dismiss 안정화).
+- Last verified: 2026-10-12 (기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
 - Scope: existing Editor interactions. [Visual Language (current v4.1)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
+
+The Desktop app alone adds a Sidebar footer Settings entry (also in the collapsed rail), About dialog and update notice/actions. The browser Editor has no such entry without the typed Desktop bridge. About reuses Base UI dialog focus/dismiss behavior; update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
 
 The document is the primary surface. One Tiptap/ProseMirror document state owns selection, history and editing; typed blocks use NodeViews and overlays.
 

@@ -8,7 +8,7 @@
 
 - CLI 명령과 입력 조건: `pnpm ieumdoc help`, `pnpm ieumdoc help <command>`
 - 설계와 경계: [`docs/design/`](../design/), [`docs/adr/`](../adr/)
-- 동작 근거: Core·CLI·Editor 테스트와 `apps/editor/test/*.browser.js`
+- 동작 근거: Core·CLI·Editor·Desktop 테스트와 `apps/editor/test/*.browser.js`; Windows package/install/update는 [검증 진입점](README.md#windows-desktop-regression)을 따른다.
 
 ## 준비
 
@@ -26,11 +26,11 @@ Windows에서 전역 pnpm shim이 실패하면 같은 버전의 `corepack pnpm`�
 ```bash
 pnpm docs:check
 pnpm typecheck
-pnpm test                                  # Core, File commit, CLI, Editor
+pnpm test                                  # Core, File commit, CLI, Editor, Desktop
 pnpm --filter @ieumdoc/editor build
 ```
 
-`pnpm test`가 Core, File commit, CLI, Editor suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
+`pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
 
 ### Browser regression
 

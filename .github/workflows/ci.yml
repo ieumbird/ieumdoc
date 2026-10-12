@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality:
-    name: Core, CLI, and Editor quality
+    name: Core, CLI, Editor, and Desktop quality
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
@@ -42,7 +42,7 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Run Core, CLI, and Editor tests
+      - name: Run Core, CLI, Editor, and Desktop tests
         run: pnpm test
 
       - name: Build Editor for production
@@ -103,9 +103,58 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  desktop:
+    name: Windows Desktop package and update regressions
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ieumdoc/desktop typecheck
+      - run: pnpm --filter @ieumdoc/desktop test
+      - name: Install and update through a local test feed
+        run: pnpm --filter @ieumdoc/desktop test:update
+      - name: Build a clean package from the actual app version
+        run: pnpm --filter @ieumdoc/desktop package
+      - name: Validate installer and update metadata
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag "v$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - name: Upload development installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-windows-unsigned
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*.yml
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Desktop diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-windows-diagnostics
+          path: |
+            tmp/desktop-e2e/profiles/*/logs/
+            tmp/desktop-update/
+          if-no-files-found: ignore
+          retention-days: 7
+
   quality-and-browser:
     name: Core, CLI, Editor, and browser regressions
-    needs: [quality, browser]
+    needs: [quality, browser, desktop]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -115,8 +164,9 @@ jobs:
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
         run: |
-          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" ]]; then
-            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT"
+          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" || "$DESKTOP_RESULT" != "success" ]]; then
+            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT desktop=$DESKTOP_RESULT"
             exit 1
           fi

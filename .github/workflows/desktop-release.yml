@@ -1,0 +1,159 @@
+name: Desktop release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag matching apps/desktop/package.json (vX.Y.Z or vX.Y.Z-beta.N)
+        required: true
+        type: string
+      publish:
+        description: Approve signed publication of this tag to GitHub Releases
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.publish && 'desktop-release' || 'desktop-check' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Verify existing tag and app version before building
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $tagCommit = git rev-parse --verify "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne (git rev-parse HEAD)) { throw 'Checkout must be the existing release tag' }
+          pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag $env:RELEASE_TAG --identity-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm docs:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm browser:test
+      - name: Install/update regression before the final package
+        run: pnpm --filter @ieumdoc/desktop test:update
+      - name: Build unsigned review package
+        if: ${{ !inputs.publish }}
+        run: pnpm --filter @ieumdoc/desktop package
+      - name: Build signed public package
+        if: inputs.publish
+        shell: pwsh
+        env:
+          IEUMDOC_RELEASE: '1'
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+        run: |
+          if (-not $env:CSC_LINK) { throw 'WINDOWS_CSC_LINK is required for public releases' }
+          pnpm --filter @ieumdoc/desktop package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify final artifacts and signatures
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          REQUIRE_SIGNED: ${{ inputs.publish }}
+        run: |
+          $verifyArgs = @('--filter', '@ieumdoc/desktop', 'exec', 'tsx', 'scripts/verify-release.ts', '--tag', $env:RELEASE_TAG)
+          if ($env:REQUIRE_SIGNED -eq 'true') { $verifyArgs += '--signed' }
+          pnpm @verifyArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-release
+          path: |
+            apps/desktop/release/IeumDoc-Setup-*.exe
+            apps/desktop/release/IeumDoc-Setup-*.exe.blockmap
+            apps/desktop/release/latest.yml
+            apps/desktop/release/beta.yml
+            apps/desktop/release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: inputs.publish && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    environment: desktop-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-release
+          path: apps/desktop/release
+      - name: Recheck downloaded artifacts before publication
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag $env:RELEASE_TAG --signed
+      - name: Create, upload, verify and publish a new Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # The absence check deliberately expects gh's HTTP 404 exit; every native failure is
+          # checked below instead of depending on the runner's PowerShell preference.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          $beta = $version.Contains('-beta.')
+          $existing = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" 2>&1
+          if ($LASTEXITCODE -eq 0) { throw 'A Release already exists; nothing will be overwritten' }
+          if (($existing | Out-String) -notmatch 'HTTP 404') { throw 'Could not verify the absence of an existing Release' }
+          $createArgs = @('release', 'create', $env:RELEASE_TAG, '--verify-tag', '--draft', '--latest=false', '--generate-notes', '--title', "IeumDoc $version")
+          if ($beta) { $createArgs += '--prerelease' }
+          gh @createArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Draft creation failed' }
+          $channel = if ($beta) { 'beta.yml' } else { 'latest.yml' }
+          $assets = @("apps/desktop/release/IeumDoc-Setup-$version.exe", "apps/desktop/release/IeumDoc-Setup-$version.exe.blockmap", "apps/desktop/release/$channel")
+          gh release upload $env:RELEASE_TAG @assets
+          if ($LASTEXITCODE -ne 0) { throw 'Upload failed; Release remains Draft' }
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or -not $release.draft -or $release.prerelease -ne $beta -or $release.tag_name -ne $env:RELEASE_TAG) { throw 'Draft properties do not match the requested release' }
+          $expected = @($assets | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object)
+          $actual = @($release.assets.name | Sort-Object)
+          if (@(Compare-Object $expected $actual).Count) { throw 'Uploaded assets do not match the verified files' }
+          foreach ($asset in $release.assets) {
+            $local = Join-Path apps/desktop/release $asset.name
+            $digest = 'sha256:' + (Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($asset.size -ne (Get-Item -LiteralPath $local).Length -or $asset.digest -ne $digest) { throw 'Uploaded asset size/hash does not match' }
+          }
+          gh release edit $env:RELEASE_TAG --draft=false "--prerelease=$($beta.ToString().ToLowerInvariant())" "--latest=$(((-not $beta).ToString()).ToLowerInvariant())"
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }
+          $published = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $published.draft -or $published.prerelease -ne $beta -or $published.tag_name -ne $env:RELEASE_TAG) { throw 'Published properties do not match' }

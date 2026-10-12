@@ -2,7 +2,7 @@
 
 ## Project status
 
-IeumDoc은 **Pre-alpha**다. 공식 release와 installer는 없으며, 현재 Visual Editor는 local development host로 실행한다. 공개 API, 문서 지원 범위와 배포 형태는 바뀔 수 있다.
+IeumDoc은 **Pre-alpha**다. Windows x64 Electron/NSIS 패키징과 Stable/Beta 업데이트를 구현했으며, 공식 공개 Release는 아직 없다. 서명되지 않은 로컬 installer는 개발·검증용이다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
 ## Development requirements
 
@@ -32,7 +32,7 @@ pnpm --filter @ieumdoc/editor build
 - 영속적인 문서 의미 변경은 editor-neutral Core operation이 소유한다. 새로운 주요 operation은 얇은 CLI command로도 제공하며, 생략하면 이유를 기록한다.
 - Editor는 Markdown 의미를 따로 구현하지 않고 Core의 read model과 operation을 사용한다. CLI도 얇은 인터페이스로 유지한다.
 - Tiptap/ProseMirror 타입과 문서 모델은 `apps/editor` 안에 둔다. 하나의 문서 편집 상태를 사용한다.
-- `apps/editor/server`는 개발 adapter다. 제품 backend나 장기 persistence 결정으로 확대하지 않는다.
+- `apps/editor/server`의 stateless 파일 handler는 개발 adapter와 Desktop Host가 공유한다. 제품 backend나 장기 persistence 결정으로 확대하지 않는다.
 - 지원하지 않는 의미를 보존할 수 없으면 공식 write path는 fail-closed로 거부한다.
 
 상세 제약은 [AGENTS.md](AGENTS.md#architectural-constraints)와 [ADRs](docs/README.md#architecture-decisions)가 기준이다.
@@ -58,8 +58,27 @@ pnpm --filter @ieumdoc/editor build
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
 | Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/design/editor-visual-language-v1.md#reviewing-a-visual-change)) |
 | Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression |
+| Desktop/update/release | Desktop tests/typecheck, clean Windows package + artifact verification, packaged regression; updater/installer 변경은 actual install/update regression도 실행 |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
+
+## Windows Desktop builds and releases
+
+Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 빌드 산출물은 `apps/desktop/build/`와 `apps/desktop/release/`이며 Git에 포함하지 않는다. `package`는 generated release 폴더를 비우고 빌드하며, 항상 `publish: never`다.
+
+```bash
+pnpm --filter @ieumdoc/desktop package
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0
+pnpm --filter @ieumdoc/desktop test:packaged
+```
+
+`--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
+
+일반 CI는 unsigned installer를 Artifact로만 제공한다. 공개 배포는 별도 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 **수동 실행**한다. 기존 `vX.Y.Z` 또는 `vX.Y.Z-beta.N` tag와 app 버전이 같아야 한다. 기본 `publish=false`는 검증/Artifact만 수행한다. `publish=true`는 서명된 신규 Release 게시의 명시적 승인이다. 이 작업 자체는 push/tag 생성/게시/활성화를 수행하지 않는다.
+
+공개 릴리즈 전에 `desktop-release` GitHub environment에 required reviewer와 master 제한을 설정하고 `WINDOWS_CSC_LINK`(electron-builder가 지원하는 PFX/인증서 참조), `WINDOWS_CSC_KEY_PASSWORD`를 등록한다. 인증서/키/토큰은 source에 넣지 않는다. 인증서가 없거나 서명·publisher·해시·채널 검증에 실패하면 게시하지 않는다. 환경·secret 설정과 workflow 활성화는 사용자 승인 후 수행한다.
+
+workflow는 기존 Release를 거부하고 새 Draft에 검증된 exe/blockmap/채널 yml만 올린 뒤 GitHub 자산의 size/SHA-256과 속성을 확인하고 게시한다. 실패한 Draft를 자동 덮어쓰거나 재게시하지 않는다. 운영자가 실패 원인을 확인한 뒤 별도로 처리한다. Stable/Beta 정책과 서명 검증의 정확한 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)에 있다.
 
 ## Issue and PR guidance
 
