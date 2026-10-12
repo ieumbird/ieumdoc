@@ -3,7 +3,6 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import semver from "semver";
 import type { ReleaseChannel } from "../../editor/shared/desktop-bridge.ts";
-import { parseChannel } from "./update-policy.ts";
 
 export type Preferences = {
   channel: ReleaseChannel;
@@ -11,19 +10,21 @@ export type Preferences = {
   postponed: string | null;
 };
 
-const DEFAULTS: Preferences = { channel: "stable", postponed: null };
-
-/** Unknown or damaged values fall back to the defaults: Stable, nothing postponed. */
-export function readPreferences(file: string): Preferences {
+/** Use the installed version's channel unless a valid user choice has been saved. */
+export function readPreferences(file: string, installedVersion: string): Preferences {
+  const defaults: Preferences = {
+    channel: semver.prerelease(installedVersion)?.[0] === "beta" ? "beta" : "stable",
+    postponed: null,
+  };
   let value: unknown;
   try {
     value = JSON.parse(readFileSync(file, "utf8"));
   } catch {
-    return { ...DEFAULTS };
+    return defaults;
   }
   const record = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
   return {
-    channel: parseChannel(record.channel),
+    channel: record.channel === "stable" || record.channel === "beta" ? record.channel : defaults.channel,
     postponed: typeof record.postponed === "string" && semver.valid(record.postponed) ? record.postponed : null,
   };
 }

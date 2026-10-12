@@ -201,16 +201,20 @@ test("closing with unsaved changes asks; Keep editing keeps the window and the e
 
 test("the release channel persists across restarts; an update check never blocks editing", async () => {
   const userData = profile("settings");
+  const version = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version as string;
+  const initialChannel = version.includes("-beta.") ? "beta" : "stable";
+  const selectedChannel = initialChannel === "beta" ? "stable" : "beta";
+  const channelName = (channel: string) => channel === "beta" ? /^Beta/ : /^Stable/;
   let { app, page } = await launch(userData);
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const dialog = page.getByTestId("settings-dialog");
     await dialog.waitFor();
-    assert.equal(await page.getByTestId("app-version").innerText(), JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version);
-    assert.equal(await page.getByRole("radio", { name: /^Stable/ }).isChecked(), true, "Stable is the default");
+    assert.equal(await page.getByTestId("app-version").innerText(), version);
+    assert.equal(await page.getByRole("radio", { name: channelName(initialChannel) }).isChecked(), true, "first launch uses the installed version's channel");
     // The choice shows once the Desktop app has saved it.
-    await page.getByRole("radio", { name: /^Beta/ }).click();
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[value="beta"]')?.checked);
+    await page.getByRole("radio", { name: channelName(selectedChannel) }).click();
+    await page.waitForFunction((channel) => document.querySelector<HTMLInputElement>(`input[value="${channel}"]`)?.checked, selectedChannel);
     // GitHub answers for real: this repository has no release yet, or the machine may be offline.
     await page.getByRole("button", { name: "Check for updates" }).click();
     await page.waitForFunction(() => ["error", "up-to-date", "available"].includes(document.querySelector('[data-testid="update-status"]')?.getAttribute("data-phase") ?? ""), null, { timeout: 30_000 });
@@ -222,12 +226,12 @@ test("the release channel persists across restarts; an update check never blocks
     await answerClose(app, 0);
     await closeApp(app);
   }
-  assert.deepEqual(JSON.parse(readFileSync(path.join(userData, "preferences.json"), "utf8")), { channel: "beta", postponed: null });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(userData, "preferences.json"), "utf8")), { channel: selectedChannel, postponed: null });
   ({ app, page } = await launch(userData));
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByTestId("settings-dialog").waitFor();
-    assert.equal(await page.getByRole("radio", { name: /^Beta/ }).isChecked(), true, "the channel survives a restart");
+    assert.equal(await page.getByRole("radio", { name: channelName(selectedChannel) }).isChecked(), true, "the user's choice survives a restart instead of reverting to the build's default");
   } finally {
     await closeApp(app);
   }

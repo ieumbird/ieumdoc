@@ -222,7 +222,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
-    preferences = readPreferences(preferencesFile());
+    preferences = readPreferences(preferencesFile(), app.getVersion());
     const initial = initialDocument();
     protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), initial));
     const { autoUpdater } = electronUpdater;

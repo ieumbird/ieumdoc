@@ -129,9 +129,9 @@ pnpm --filter @ieumdoc/editor build
 
 ### Windows Desktop
 
-Windows x64 설치형 Electron 앱을 로컬에서 만들 수 있습니다. 개발 checkout에서 `pnpm --filter @ieumdoc/desktop package`를 실행하면 `apps/desktop/release/IeumDoc-Setup-0.1.0.exe`가 생성됩니다(실제 버전은 `apps/desktop/package.json` 기준). 이 unsigned installer는 개발 검증용이며 공식 공개 Release가 아닙니다.
+Windows x64 설치형 Electron 앱을 로컬에서 만들 수 있습니다. 개발 checkout에서 `pnpm --filter @ieumdoc/desktop package`를 실행하면 `apps/desktop/release/IeumDoc-Setup-0.0.1-beta.1.exe`가 생성됩니다(실제 버전은 `apps/desktop/package.json` 기준). 첫 공개는 Beta로 준비하며 Stable 배포는 보류합니다. 이 unsigned installer는 개발 검증용이며 공식 공개 Release가 아닙니다.
 
-설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. 기본 sample 또는 `.md` 실행 인자로 시작하고 기존 Open file/Open folder/New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. 업데이트 확인은 자동이며 다운로드와 설치는 각각 사용자 동의 후 실행합니다. 미저장 편집이나 Draft가 있으면 Restart to update가 보류됩니다. 공식 Release가 없는 현재에는 업데이트 검색 오류가 표시될 수 있으며 편집은 계속 가능합니다.
+설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. 기본 sample 또는 `.md` 실행 인자로 시작하고 기존 Open file/Open folder/New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 다운로드와 설치는 각각 사용자 동의 후 실행합니다. 미저장 편집이나 Draft가 있으면 Restart to update가 보류됩니다. 공식 Release가 없는 현재에는 업데이트 검색 오류가 표시될 수 있으며 편집은 계속 가능합니다.
 
 빌드·서명·수동 릴리즈 절차는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases), 정확한 동작과 미검증 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다.
 

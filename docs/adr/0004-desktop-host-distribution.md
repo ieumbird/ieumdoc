@@ -20,7 +20,7 @@ IeumDoc은 다음을 채택한다.
 - **Desktop Host**: Electron 기반 `apps/desktop`을 Windows 제품 Host로 둔다. Editor의 production build를 그대로 싣고, custom protocol `ieumdoc://app`에서 Editor 정적 파일과 기존 `apps/editor/server`의 document/asset handler를 같은 프로세스 안에서 호출한다. TCP listener와 새 HTTP 서버를 만들지 않는다.
 - **Host 코드 재사용**: `apps/editor/server`의 handler는 Vite dev server와 Desktop Host가 함께 쓰는 Host 구현이 된다. Desktop은 Vite runtime(`ssrLoadModule`)이 아니라 handler를 직접 import해 번들한다. Desktop은 별도의 문서 저장 규칙, Markdown 처리나 경로 정책을 구현하지 않는다. 문서 의미와 write contract는 계속 Core([ADR-0002](0002-document-persistence-semantic-ownership.md))가 소유하고, 파일 교체는 CLI와 같은 File commit을 쓴다.
 - **배포**: electron-builder의 per-user NSIS installer(x64)를 기본 배포 형식으로 한다. Portable exe는 공식 배포하지 않는다. App ID `io.github.ieumbird.ieumdoc`, product name `IeumDoc`, 사용자 데이터 `%APPDATA%\IeumDoc`은 첫 공개 후 바꾸지 않는다.
-- **업데이트**: electron-updater의 GitHub provider와 GitHub Releases를 쓴다. 채널은 Stable(기본)과 Beta 둘이며 같은 앱의 사용자 설정이다. Stable은 GitHub의 정식 최신 Release만, Beta는 Beta와 Stable을 함께 받는다. 설치된 버전보다 낮은 버전으로는 채널을 바꿔도 내려가지 않는다.
+- **업데이트**: electron-updater의 GitHub provider와 GitHub Releases를 쓴다. 채널은 Stable과 Beta 둘이며 같은 앱의 사용자 설정이다. 최초 실행 기본값은 설치 버전에 따라 Stable 또는 Beta이며, 저장된 유효한 사용자 선택을 우선한다. Stable은 GitHub의 정식 최신 Release만, Beta는 Beta와 Stable을 함께 받는다. 설치된 버전보다 낮은 버전으로는 채널을 바꿔도 내려가지 않는다.
 - **설치 승인**: 업데이트 확인은 자동이지만 다운로드와 설치는 사용자가 각각 승인한다. 일반 종료는 설치 승인이 아니다. 설치를 위한 재시작은 Editor가 미저장 작업이 없다고 답하고 창이 정상적으로 닫힌 뒤에만 시작한다.
 - **릴리즈**: GitHub Actions가 Windows에서 빌드·검증하고, 명시적으로 승인된 수동 실행만 기존 Git tag의 Release를 게시한다. 공개 릴리즈는 Authenticode 서명을 요구한다.
 

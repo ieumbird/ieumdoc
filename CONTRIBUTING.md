@@ -68,11 +68,13 @@ Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 빌�
 
 ```bash
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.1-beta.1
 pnpm --filter @ieumdoc/desktop test:packaged
 ```
 
 `--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
+
+첫 배포 버전은 `0.0.1-beta.1`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. 공개 Beta도 아래 서명·승인 절차를 따른다.
 
 일반 CI는 unsigned installer를 Artifact로만 제공한다. 공개 배포는 별도 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 **수동 실행**한다. 기존 `vX.Y.Z` 또는 `vX.Y.Z-beta.N` tag와 app 버전이 같아야 한다. 기본 `publish=false`는 검증/Artifact만 수행한다. `publish=true`는 서명된 신규 Release 게시의 명시적 승인이다. 이 작업 자체는 push/tag 생성/게시/활성화를 수행하지 않는다.
 

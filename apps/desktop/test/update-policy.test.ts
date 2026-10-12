@@ -56,17 +56,27 @@ test("release notes links stay on the repository's releases", () => {
   assert.equal(releaseNotesUrl("../../evil"), "https://github.com/ieumbird/ieumdoc/releases");
 });
 
-test("preferences default to Stable and survive damage and restarts", () => {
+test("preferences follow the installed channel by default and preserve a saved choice across versions", () => {
   const folder = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-preferences-"));
   try {
     const file = path.join(folder, "preferences.json");
-    assert.deepEqual(readPreferences(file), { channel: "stable", postponed: null });
-    writePreferences(file, { channel: "beta", postponed: "0.3.0-beta.1" });
-    assert.deepEqual(readPreferences(file), { channel: "beta", postponed: "0.3.0-beta.1" });
-    writeFileSync(file, "{ not json");
-    assert.deepEqual(readPreferences(file), { channel: "stable", postponed: null });
-    writeFileSync(file, JSON.stringify({ channel: "nightly", postponed: "../x" }));
-    assert.deepEqual(readPreferences(file), { channel: "stable", postponed: null });
+    const installs = [["0.0.1", "stable"], ["0.0.1-beta.1", "beta"]] as const;
+    for (const [version, channel] of installs) {
+      rmSync(file, { force: true });
+      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `first launch of ${version}`);
+      writeFileSync(file, "{ not json");
+      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `damaged preferences on ${version}`);
+      writeFileSync(file, JSON.stringify({ channel: "nightly", postponed: "../x" }));
+      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `invalid channel on ${version}`);
+      writeFileSync(file, JSON.stringify({ postponed: "0.0.1-beta.2" }));
+      assert.deepEqual(readPreferences(file, version), { channel, postponed: "0.0.1-beta.2" }, `missing channel on ${version}`);
+    }
+    for (const channel of ["stable", "beta"] as const) {
+      writePreferences(file, { channel, postponed: "0.0.1-beta.2" });
+      for (const [version] of installs) {
+        assert.deepEqual(readPreferences(file, version), { channel, postponed: "0.0.1-beta.2" }, `saved ${channel} on ${version}`);
+      }
+    }
     assert.equal(parseChannel("beta"), "beta");
     assert.equal(parseChannel(undefined), "stable");
   } finally {

@@ -3,6 +3,7 @@
 // Settings: download, the Editor refusing the restart with unsaved work, then installing after Save
 // and starting the new version. Nothing is published; only the update host differs from a release.
 //   pnpm --filter @ieumdoc/desktop test:update
+//   IEUMDOC_TEST_UPDATE_CHANNEL=beta pnpm --filter @ieumdoc/desktop test:update
 // It installs IeumDoc for the current user and uninstalls it afterwards. It refuses to run if
 // IeumDoc is already installed or has user data on this machine.
 import assert from "node:assert/strict";
@@ -19,7 +20,9 @@ const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.
 const repo = path.resolve(desktop, "../..");
 const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
-const [OLD, NEW] = ["0.0.1", "0.0.2"];
+const BETA = process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
+const [OLD, NEW] = BETA ? ["0.0.1-beta.1", "0.0.1-beta.2"] : ["0.0.1", "0.0.2"];
+const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, "IeumDoc");
 const updaterCache = path.join(process.env.LOCALAPPDATA!, "ieumdoc-updater");
@@ -44,7 +47,7 @@ function packageVersion(version: string): string {
   mkdirSync(out, { recursive: true });
   execFileSync("pnpm --filter @ieumdoc/desktop package", { cwd: repo, shell: process.env.ComSpec ?? "cmd.exe", stdio: "ignore",
     env: { ...process.env, IEUMDOC_TEST_VERSION: version, IEUMDOC_TEST_UPDATE_HOST: HOST, IEUMDOC_RELEASE: "", IEUMDOC_REQUIRE_SIGNED_UPDATES: "" } });
-  for (const file of [`IeumDoc-Setup-${version}.exe`, `IeumDoc-Setup-${version}.exe.blockmap`, "latest.yml"]) {
+  for (const file of [`IeumDoc-Setup-${version}.exe`, `IeumDoc-Setup-${version}.exe.blockmap`, CHANNEL_FILE]) {
     copyFileSync(path.join(desktop, "release", file), path.join(out, file));
   }
   return out;
@@ -59,7 +62,10 @@ function releases(folder: string, requests: string[]): http.Server {
       return response.writeHead(200).end(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry>` +
         `<link rel="alternate" type="text/html" href="https://github.com/${owner}/${name}/releases/tag/v${NEW}"/><title>v${NEW}</title><content>Test</content></entry></feed>`);
     }
-    if (url === `/api/v3/repos/${owner}/${name}/releases/latest`) return response.writeHead(200).end(JSON.stringify({ tag_name: `v${NEW}` }));
+    if (url === `/api/v3/repos/${owner}/${name}/releases/latest`) {
+      // The first Beta distribution has no Stable release to fall back to.
+      return BETA ? response.writeHead(404).end() : response.writeHead(200).end(JSON.stringify({ tag_name: `v${NEW}` }));
+    }
     const asset = new RegExp(`^/${owner}/${name}/releases/download/v${NEW.replaceAll(".", "\\.")}/([^/]+)$`).exec(url);
     const file = asset ? path.join(folder, decodeURIComponent(asset[1]!)) : "";
     if (file && existsSync(file)) return response.writeHead(200).end(readFileSync(file));
@@ -67,12 +73,12 @@ function releases(folder: string, requests: string[]): http.Server {
   });
 }
 
-/** IeumDoc processes running from an install folder, with the file version of their exe (e.g. 0.0.2.0). */
+/** FileVersion retains Beta identifiers; Windows ProductVersion is numeric and loses them. */
 function appProcesses(folder: string): { pid: number; version: string }[] {
   // Windows PowerShell 5.1: no ConvertTo-Json -AsArray, so the array is passed as -InputObject.
   const raw = powershell(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "Name='IeumDoc.exe'" | ` +
     `Where-Object { $_.ExecutablePath -like '${folder}\\*' } | ` +
-    `ForEach-Object { @{ pid = $_.ProcessId; version = (Get-Item $_.ExecutablePath).VersionInfo.ProductVersion } })`);
+    `ForEach-Object { @{ pid = $_.ProcessId; version = (Get-Item $_.ExecutablePath).VersionInfo.FileVersion } })`);
   return raw ? [JSON.parse(raw)].flat() : [];
 }
 
@@ -109,9 +115,11 @@ test("installs per user, then updates from Settings only after the open document
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
+    assert.equal(await page.getByRole("radio", { name: BETA ? /^Beta/ : /^Stable/ }).isChecked(), true, "first install uses its own channel");
     await page.getByRole("button", { name: "Check for updates" }).click();
     await page.getByRole("button", { name: "Download update" }).waitFor({ timeout: 30_000 });
-    assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`IeumDoc ${NEW.replaceAll(".", "\\.")} \\(Stable\\) is available`));
+    assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`IeumDoc ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
+    assert.ok(requests.some((url) => url.endsWith(`/${CHANNEL_FILE}`)), "the installed channel fetched its update metadata");
     assert.equal(requests.some((url) => url.endsWith(".exe")), false, "finding the update downloaded nothing");
     await page.getByRole("button", { name: "Download update" }).click();
     await page.getByRole("button", { name: "Restart to update" }).waitFor({ timeout: 120_000 });
@@ -121,7 +129,8 @@ test("installs per user, then updates from Settings only after the open document
     // Normal quit with a downloaded update is not consent to install. Restart the old app,
     // then explicitly download again (the updater may reuse its checksum-verified cache).
     await app.close();
-    assert.ok(powershell(`(Get-Item -LiteralPath '${exe.replaceAll("'", "''")}').VersionInfo.ProductVersion`).startsWith(`${OLD}.`), "normal quit did not update the installed app");
+    const versionAfterQuit = powershell(`(Get-Item -LiteralPath '${exe.replaceAll("'", "''")}').VersionInfo.FileVersion`);
+    assert.equal(versionAfterQuit, OLD, "normal quit did not update the installed app");
     app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
     page = await app.firstWindow();
     page.on("dialog", () => {});
@@ -182,7 +191,7 @@ test("installs per user, then updates from Settings only after the open document
       if (Date.now() - restarted > 180_000) throw new Error(`The updated app did not start: ${existsSync(log) ? readFileSync(log, "utf8") : "no log"}`);
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    assert.ok(appProcesses(installedAt).some((process) => process.version.startsWith(`${NEW}.`)), "the new version is running");
+    assert.ok(appProcesses(installedAt).some((process) => process.version === NEW), "the new version is running");
     console.log(`installed ${NEW} and showed its window ${Date.now() - restarted} ms after the restart`);
     assert.equal(readFileSync(documentFile, "utf8"), "# Update\n\nAlpha. Saved before the update.\n");
   } finally {

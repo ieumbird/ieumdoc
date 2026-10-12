@@ -36,12 +36,20 @@ pnpm --filter @ieumdoc/desktop test
 pnpm --filter @ieumdoc/desktop typecheck
 pnpm --filter @ieumdoc/desktop test:update
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.1-beta.1
 pnpm --filter @ieumdoc/desktop test:packaged
 pnpm browser:test desktop-updates
 ```
 
 `test:update`는 기존 IeumDoc 설치/user data/updater cache가 있으면 거부한다. 테스트 전용 NSIS 두 버전을 로컬 feed로 설치·업데이트하고, 미저장 재시작 거부, Save 후 설치/재실행과 문서 보존, uninstall을 검증한다. 실패 시에도 자신이 설치한 프로세스와 data를 정리한다. 사용자 설치를 지워서 실행하지 않는다. 생성 경로는 `tmp/desktop-update/`와 앱의 기존 generated build/release 폴더다. 테스트 후 normal `package`를 실행해야 테스트 버전/HTTP feed가 산출물에 남지 않는다.
+
+기본 설치·업데이트 검증은 Stable `0.0.1 → 0.0.2`다. Beta 첫 배포 준비에서는 아래 PowerShell 명령으로 `0.0.1-beta.1 → 0.0.1-beta.2`도 검증한다. Beta feed에는 Stable Release가 없으며 최초 기본 채널, `beta.yml` 검색과 Beta 설치/재실행을 확인한다. 이후 환경 변수를 제거하고 normal `package`를 실행한다.
+
+```powershell
+$env:IEUMDOC_TEST_UPDATE_CHANNEL = 'beta'
+try { pnpm --filter @ieumdoc/desktop test:update }
+finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
+```
 
 `test:packaged`는 production app의 sample/외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
