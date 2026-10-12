@@ -1150,8 +1150,8 @@ ol.list { list-style: decimal; }
   cursor: pointer;
 }
 
-/* Consecutive definitions form a visual run, including read-only NodeViews. The marker and
- * generated heading are presentation only: schema, clipboard and Markdown stay unchanged. */
+/* The single trailing endnotes region includes editable and preserved definitions.
+ * Its heading is presentation only; explicit conversion owns source placement. */
 .document-editor > [data-footnote-definition="true"] {
   position: relative;
   margin: var(--space-6) 0;
@@ -1172,7 +1172,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"])::before {
-  content: "Footnotes";
+  content: "미주";
   position: absolute;
   inset: 0 0 auto;
   border-top: var(--border-width) solid var(--id-color-border-subtle);

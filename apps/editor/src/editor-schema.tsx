@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
-import { FootnoteReference, revealReference, useFootnoteNumber } from "./footnote.tsx";
+import { Endnotes, FootnoteReference, revealReference, useFootnoteNumber } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   BLOCK_SOURCES_ATTR,
@@ -970,6 +970,7 @@ const ParagraphMerge = Extension.create({
 });
 
 type BlockSourceOptions = {
+  hasActiveDraft?: () => boolean;
   apply?: BlockSourceApplier;
   baseline?: () => TiptapJSON;
   onDraftChange?: DraftListener;
@@ -1020,6 +1021,7 @@ export function editorExtensions(
       underline: false,
     }),
     DocumentNumbering,
+    Endnotes.configure({ canOrder: () => !blockSource?.hasActiveDraft?.() }),
     TableCellFocus,
     ParagraphHardBreak,
     ParagraphSplit,
@@ -1066,9 +1068,10 @@ export function createEditorExtensions(
   onAssetError?: (reason: string) => void,
   applyBlockSource?: BlockSourceApplier,
   hasOtherDraft?: BlockSourceOptions["hasOtherDraft"],
+  hasActiveDraft?: BlockSourceOptions["hasActiveDraft"],
 ): Extensions {
   const baselineOf = typeof baseline === "function" ? baseline : () => baseline;
-  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft }),
+  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft, hasActiveDraft }),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
@@ -1769,12 +1772,12 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
   );
 }
 
-/** A footnote definition's computed number, as MyST lists it. Clicking it goes back to the first reference. */
+/** A definition's computed number; return to the invoking reference when one is remembered. */
 function FootnoteNumber({ editor, label }: { editor: Editor; label: string }) {
   const number = useFootnoteNumber(editor, label);
   return (
     <sup className="footnote-number" data-testid="footnote-number" contentEditable={false}
-      title="Go to the reference" aria-label={`Footnote ${number ?? label}. Go to the reference.`}
+      title="Return to the reference" aria-label={`Endnote ${number ?? label}. Return to the reference.`}
       onMouseDown={(event) => event.preventDefault()} onClick={() => revealReference(editor, label)}>
       {number ?? `[^${label}]`}
     </sup>

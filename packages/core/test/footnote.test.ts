@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  canonicalWriteError, footnoteNumbers, getEditableDocument, insertFootnote, insertFootnoteDefinition, insertHeading, insertParagraph, insertQuote,
+  canonicalWriteError, collectEndnotes, footnoteNumbers, getEditableDocument, insertFootnote, insertFootnoteDefinition, insertHeading, insertParagraph, insertQuote,
   moveBlock, nextFootnoteLabel, parse, removeBlock, replaceBlockSource, serialize, updateFootnoteDefinition, updateParagraphInlineContent,
   type EditableBlock, type InlineContent,
 } from "@ieumdoc/core";
@@ -30,6 +30,34 @@ const SOURCE = [
 
 const footnoteBlock = (blocks: EditableBlock[], label: string) =>
   blocks.find((block) => block.block === "footnote" && block.label === label)!;
+
+test("explicit endnote collection preserves body order, labels and rich/read-only definitions", () => {
+  const original = parse(SOURCE);
+  const collected = collectEndnotes(original);
+  const blocks = getEditableDocument(collected).blocks;
+  assert.deepEqual(blocks.map(block => block.block === "footnote" ? block.label : block.block),
+    ["heading", "paragraph", "paragraph", "paragraph", "n", "Long-1", "inner"]);
+  for (const label of ["n", "Long-1", "inner"]) {
+    const next = footnoteBlock(blocks, label);
+    const before = footnoteBlock(getEditableDocument(original).blocks, label);
+    assert.equal(next.block === "footnote" && next.text, before.block === "footnote" && before.text);
+  }
+  const markdown = serialize(collected);
+  assert.equal(serialize(collectEndnotes(parse(markdown))), markdown, "conversion must be idempotent");
+  assert.equal(serialize(original), SOURCE, "operation mutated its input");
+  assert.ok(markdown.indexOf("Tail.") < markdown.indexOf("[^n]:"));
+  const reordered = parse("First[^b], second[^a].\n\n[^a]: **Second**.\n\nBody.\n\n[^b]: First $x$.\n");
+  assert.equal(serialize(collectEndnotes(reordered)), "First[^b], second[^a].\n\nBody.\n\n[^b]: First $x$.\n\n[^a]: **Second**.\n");
+});
+
+test("endnote collection refuses dropped definitions and unsupported canonical writes", () => {
+  for (const source of ["A[^a].\n\n[^a]: Kept.\n\n[^orphan]: Lost.\n",
+    "A[^a].\n\n[^a]: First.\n\n[^a]: Second.\n", "---\ntitle: unterminated front matter\n"]) {
+    const document = parse(source);
+    assert.throws(() => collectEndnotes(document));
+  }
+  assert.equal(serialize(collectEndnotes(parse("Just text.\n"))), "Just text.\n");
+});
 
 test("footnote references are editable inline content and definitions stay where they are written", () => {
   const document = parse(SOURCE);

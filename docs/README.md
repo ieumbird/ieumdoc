@@ -24,7 +24,7 @@
 | [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 파일·asset·folder 계약. Vite 개발 adapter와 Desktop Host가 같은 handler를 재사용. |
 | [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.2와 실제 GitHub 업데이트 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file·New folder. |
-| [Footnotes](design/footnotes-v1.md) | Implemented | 현재 계약(v2). 각주 삽입, 한 문단 definition의 문서 내 편집, 그 밖의 definition source 편집과 유실 방지. |
+| [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v3). 단일 미주 구역, 실제 참조로 복귀, 명시적 원문 변환과 기존 삽입·편집·유실 방지. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |
 | [Section references](design/section-references-v1.md) | Implemented | 현재 계약. 문서 안의 MyST heading label과 reference. |
 | [Table caption and label](design/table-caption-v1.md) | Implemented | 현재 계약. table caption/label과 reference target. |
@@ -32,7 +32,7 @@
 | [Figure authoring](design/figure-authoring-v1.md) | Implemented | 현재 계약. pending/image Figure, Apply 상태, canonical Save와 CLI readiness 경고. |
 | [Editor UX Shell](design/editor-ux-shell-v1.md) | Implemented | 현재 계약. Sidebar, TopBar, 작성 interaction과 상태 표시. |
 | [Editor Layout Rules](design/editor-layout-rules-v1.md) | Implemented | 현재 geometry 규범. 정렬·간격·control 치수와 검증. |
-| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract는 v4.4. 링크 안정성을 위해 v1 파일명 유지. |
+| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract는 v4.5. 링크 안정성을 위해 v1 파일명 유지. |
 
 ## Contribution and documentation governance
 
@@ -51,6 +51,7 @@
 | [IeumDoc reduction verification](reviews/reduction-2026-10-10.md) | Historical | C01–C15 감량 판단, 변경 단위와 실제 검증·측정 근거. |
 | [Open File removal verification](reviews/open-file-removal-2026-10-12.md) | Historical | #190 시작 화면·폴더 메뉴 Before/After와 파일 탐색·작업 보호 검증 경계. |
 | [Footnote region verification](reviews/footnote-regions-2026-10-12.md) | Historical | #185 원문 위치의 각주 구역 Before/After, 좁은 화면과 원문·편집·복사·저장 보존 검증. |
+| [Endnotes verification](reviews/endnotes-2026-10-12.md) | Historical | #194 단일 미주 구역 Before/After, 원문 보존·명시적 변환·참조 복귀·초안 보호 검증. |
 | [Single Editor Foundation review](reviews/single-editor-foundation.md) | Historical | 당시 architecture 검토 근거. 현재 authority는 ADR-0001과 design contracts. |
 | [MyST security alignment review](reviews/myst-security-alignment-v1.md) | Historical | 당시 security 분석. 현재 후속 작업은 issue #11; 현재 안전성의 영구 보증이 아님. |
 | [Desktop shell spike](reviews/desktop-shell-spike-v1.md) | Historical | 실행 가능성과 비용의 실험 근거. 제품 Host·배포 결정이 아님. |

@@ -1,4 +1,5 @@
 import type { EditableBlock, EditableDocument, InlineContent, ListContent, NodePath } from "@ieumdoc/core";
+import { endnoteOrder } from "@ieumdoc/core/numbering";
 import { toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
 /**
@@ -47,13 +48,31 @@ export function pathKey(path: NodePath): string {
 }
 
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
+  const content = document.blocks.map(toTiptapBlockNode);
+  const order = endnoteOrderOf(content);
+  const hasNotes = content.some(node => endnoteLabelOf(node) !== undefined);
   return {
     type: "doc",
-    ...(document.headingNumbering ? { attrs: { headingNumbering: document.headingNumbering } } : {}),
+    ...(document.headingNumbering || hasNotes ? { attrs: {
+      ...(document.headingNumbering ? { headingNumbering: document.headingNumbering } : {}),
+      ...(hasNotes ? { endnotesInSource: order.every((index, at) => index === at) } : {}),
+    } } : {}),
     content: document.blocks.length > 0
-      ? document.blocks.map(toTiptapBlockNode)
+      ? order.map(index => content[index])
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],
   };
+}
+
+export function endnoteLabelOf(node: TiptapJSON): string | undefined {
+  return node.type === "footnoteDefinition" ? String(node.attrs?.label)
+    : node.type === "unsupportedBlock" && node.attrs?.footnote ? String(node.attrs.footnote) : undefined;
+}
+
+/** Adapt the engine projection to Core's editor-neutral ordering policy. */
+export function endnoteOrderOf(nodes: readonly TiptapJSON[]): number[] {
+  const references = (node: TiptapJSON): string[] => Array.isArray(node.attrs?.footnotes) ? node.attrs.footnotes as string[]
+    : node.type === "footnoteReference" ? [String(node.attrs?.label)] : (node.content ?? []).flatMap(references);
+  return endnoteOrder(nodes.map(node => ({ definition: endnoteLabelOf(node), references: references(node) })));
 }
 
 export function toTiptapBlockNode(block: EditableBlock): TiptapJSON {

@@ -117,7 +117,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
         "[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.\n\n" +
         "Body resumes between the notes.\n\n[^b]: An editable note beside a read-only definition.\n\n" +
         "[^a]: A note with two paragraphs.\n\n    Its original source stays available.\n\n" +
-        "Body continues after the group.\n\n[^d]: The final note.\n" }],
+          "Body continues after the group.\n\n[^d]: The final note.\n" },
+        { name: "repeat.md", create: () => "# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n" }],
     scenarios: ["footnotes"],
   },
   "focus-caret": {

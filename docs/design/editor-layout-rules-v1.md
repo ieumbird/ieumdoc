@@ -1,9 +1,9 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#185 footnote run geometry in `footnotes`; `layout-rules` and `new-document`: existing axes, widths and overlays plus the empty writing surface; phone-width TopBar wrapping, #164).
+- Last verified: 2026-10-12 (#194 trailing endnotes and #185 definition geometry in `footnotes`; `layout-rules` and `new-document`: existing axes, widths and overlays plus the empty writing surface; phone-width TopBar wrapping, #164).
 - Scope: Editor shell, document, block tools and control geometry.
-- [Visual Language (current v4.4)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
+- [Visual Language (current v4.5)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 ## Alignment and ownership
 
@@ -22,9 +22,9 @@
 
 - Standard controls/inputs: 32px; compact controls/actions: 28px; icons: 16px. Measure actual rendered height after transitions complete.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable top block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
-- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.4).
+- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.5).
 - Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
-- Footnote definitions: 16/24px text, 24px number inset and space before/after a visual run, 8px between consecutive definitions. Only the first has a 1px rule, 12px to the 12/16px `Footnotes` label, then 8px to the definition. Original source disclosures keep their existing dimensions; the [Footnotes contract](footnotes-v1.md#definition-presentation-185) defines run membership.
+- Endnote definitions: one trailing region, 16/24px text, 24px number inset and space before/after the region, 8px between definitions. Only the first has a 1px rule, 12px to the 12/16px `미주` label, then 8px to the definition. Original source disclosures keep their existing dimensions; the [Endnotes contract](footnotes-v1.md#endnotes-presentation-194) defines display order and source conversion.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.
 
 ## Exceptions and checks

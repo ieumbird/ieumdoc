@@ -38,7 +38,7 @@ import { parseBlockSource } from "./myst/block-source.ts";
 import {
   completeFootnotes, createFootnoteDefinition, footnoteLabels, footnoteReferences, footnoteWriteError, supportedFootnoteContent,
 } from "./myst/footnote.ts";
-import { nextFootnoteLabel } from "./numbering.ts";
+import { endnoteOrder, nextFootnoteLabel } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
 import { canonicalSerialize, serialize, serializeFor } from "./myst/serialize.ts";
 import {
@@ -280,6 +280,20 @@ function assertQuoteRoundTrip(document: MystDocument, index: number, content: In
 }
 
 const FOOTNOTE_FAILURE = "footnote definition cannot round-trip losslessly through canonical Markdown";
+
+/** Explicitly collect existing definitions at the document end, preserving labels and content. */
+export function collectEndnotes(document: MystDocument): MystDocument {
+  const error = footnoteWriteError(document);
+  if (error) throw new Error(error);
+  const next = cloneDocument(document);
+  const order = endnoteOrder(next.children.map(node => ({
+    definition: node.type === "footnoteDefinition" ? String(node.label) : undefined,
+    references: footnoteReferences(node),
+  })));
+  next.children = order.map(index => next.children[index]);
+  canonicalSerialize(next);
+  return next;
+}
 
 /**
  * Insert a new footnote: a reference at `offset` (Core inline offsets) in the paragraph, heading,
