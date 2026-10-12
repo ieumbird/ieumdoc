@@ -1,7 +1,7 @@
 # Footnotes
 
 - Status: Implemented
-- Last verified: 2026-10-09 (Core, CLI and Editor tests and `pnpm browser:test footnotes`).
+- Last verified: 2026-10-12 (#185 visual runs, Source/copy and real-file Save → Reload in `pnpm browser:test footnotes`; Core/CLI meaning remains v2).
 - Current contract: v2 (#140) on v1 (#119). Historical filename retained for link stability.
 - Scope: footnote references, inserting footnotes, in-place editing of one-paragraph definitions, source-edited other definitions and fail-closed writes; [Block source editing](block-source-editing-v1.md).
 
@@ -48,6 +48,12 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
 - `/` in a paragraph offers **Footnote** before reference targets. It replaces the query, and a space before `/`, with a reference chip that keeps bold and italic. An empty definition is added at the end of the document and takes the caret; one Undo removes both. Save refuses a definition left empty.
 - Selecting a chip and pressing Backspace removes it. If that leaves a definition unreferenced, Save is refused with the reason.
 
+### Definition presentation (#185)
+
+Definitions stay at their written positions. Consecutive top-level definitions, editable or read-only, form a visual run. Its first definition has a subtle 1px rule, a 12/16px muted `Footnotes` label, and 24px space from the preceding body; each subsequent definition has an 8px gap. The run has 24px space before body text resumes. Definition text uses the existing 16px font and 1.5 line-height tokens (24px), with the normal document text color. Its computed number sits at the first line's baseline in a 24px inset and keeps its return-to-reference action. Inline reference chips stay superscript. Read-only definitions share the run and retain their original-source disclosure, Edit source and write restrictions.
+
+The NodeView markers and CSS-generated label are presentation only. There is no group node, reordering, stored heading, Outline entry or new Core/CLI operation. Source, clipboard serialization, dirty state and Save retain the same document. Inserting a paragraph between definitions separates the visual run; Undo reunites it without a presentation transaction. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying original Markdown.
+
 ## Scope
 
 - CLI: `insert-footnote <file> --path <indexes> --offset <n> (--text|--content)` and `update-footnote <file> --path <index> (--text|--content)` run the v2 operations. `inspect` lists each definition as `footnote label=… inlineEditable=…`, with its source when it is read-only. References are also written with `--content` `{"kind":"footnote","label":"…"}`, and other definitions with `replace-block-source`. `check` and `format` report a definition MyST would drop and do not write.
@@ -70,4 +76,8 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
   - unchanged definition Apply;
   - Save → Reload of an edited paragraph;
   - in-place definition editing, `/` Footnote and its Undo, going back from the number, and Save → Reload;
-  - the refused Save after removing a footnote's last reference.
+  - the refused Save after removing a footnote's last reference;
+  - isolated, consecutive and read-only definitions at 1440/768/375px, one heading per run, readable typography and no sideways overflow;
+  - Enter/Undo separating and reuniting a run, original Source/clipboard and byte-identical Save → Reload of the presentation fixture.
+
+`pnpm browser:test footnotes --screenshots` writes `tmp/visual-refinement/footnotes-*.png` for manual comparison. The [#185 visual verification](../reviews/footnote-regions-2026-10-12.md) records real Before/After evidence.

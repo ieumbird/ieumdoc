@@ -112,7 +112,12 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       "| a | b |\n| - | - |\n| 1 | 2 |\n:::\n" }], scenarios: ["cross-reference"] },
   "footnotes": {
     files: [{ name: "footnotes.md", create: () =>
-      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" }],
+      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" },
+      { name: "regions.md", create: () => "# Notes in context\n\nFirst claim[^b], second[^a], long note[^c] and final note[^d].\n\n" +
+        "[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.\n\n" +
+        "Body resumes between the notes.\n\n[^b]: An editable note beside a read-only definition.\n\n" +
+        "[^a]: A note with two paragraphs.\n\n    Its original source stays available.\n\n" +
+        "Body continues after the group.\n\n[^d]: The final note.\n" }],
     scenarios: ["footnotes"],
   },
   "focus-caret": {

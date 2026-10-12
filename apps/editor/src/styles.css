@@ -1150,18 +1150,56 @@ ol.list { list-style: decimal; }
   cursor: pointer;
 }
 
-/* An editable definition: its text, with its number hanging before the first line like a note. */
+/* Consecutive definitions form a visual run, including read-only NodeViews. The marker and
+ * generated heading are presentation only: schema, clipboard and Markdown stay unchanged. */
+.document-editor > [data-footnote-definition="true"] {
+  position: relative;
+  margin: var(--space-6) 0;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-body);
+}
+
+.document-editor > [data-footnote-definition="true"] + [data-footnote-definition="true"] {
+  margin-top: var(--space-2);
+}
+
+.document-editor > [data-footnote-definition="true"]:has(+ [data-footnote-definition="true"]) {
+  margin-bottom: var(--space-2);
+}
+
+.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"]) {
+  padding-top: calc(var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-2));
+}
+
+.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"])::before {
+  content: "Footnotes";
+  position: absolute;
+  inset: 0 0 auto;
+  border-top: var(--border-width) solid var(--id-color-border-subtle);
+  padding-top: var(--space-3);
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-meta);
+  pointer-events: none;
+  user-select: none;
+}
+
 .footnote-definition {
   position: relative;
-  margin: var(--space-4) 0;
-  padding-left: var(--space-4);
+  margin: 0;
+  padding-left: var(--space-6);
+  color: var(--id-color-text);
 }
 
 .footnote-definition > .footnote-number {
   position: absolute;
   top: 0;
   left: 0;
-  line-height: normal;
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
 }
 
 .footnote-definition-body {
