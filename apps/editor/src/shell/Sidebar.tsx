@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
+import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -15,6 +15,9 @@ type SidebarProps = {
   /** Opens New, which shows and lets the user choose the destination folder. */
   onNew?(): void;
   newButtonRef?: RefObject<HTMLButtonElement | null>;
+  /** Opens New folder, which likewise shows and chooses where the folder is created. */
+  onNewFolder?(): void;
+  newFolderButtonRef?: RefObject<HTMLButtonElement | null>;
   /** The folder the user chose, as a tree of the folders listed so far. */
   folder?: FolderTreeState;
   onToggleFolder?(path: string): void;
@@ -26,7 +29,7 @@ type SidebarProps = {
 
 /** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
 export function Sidebar({
-  open, documentPath, onToggle, onOpen, onOpenFolder, onNew, newButtonRef,
+  open, documentPath, onToggle, onOpen, onOpenFolder, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings,
 }: SidebarProps) {
   return (
@@ -46,11 +49,13 @@ export function Sidebar({
       {!open ? null : folder ? (
         <FolderTree
           newButtonRef={newButtonRef}
+          newFolderButtonRef={newFolderButtonRef}
           tree={folder}
           documentPath={documentPath}
           onToggleFolder={path => onToggleFolder?.(path)}
           onOpenDocument={path => onOpenDocument?.(path)}
           onNew={() => onNew?.()}
+          onNewFolder={() => onNewFolder?.()}
           onOpen={onOpen}
           onOpenFolder={onOpenFolder}
           onClose={() => onCloseFolder?.()}
@@ -93,13 +98,15 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(): void;
   newButtonRef?: RefObject<HTMLButtonElement | null>;
+  onNewFolder(): void;
+  newFolderButtonRef?: RefObject<HTMLButtonElement | null>;
   onOpen(returnFocus: HTMLElement | null): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
   onClose(): void;
 };
 
 /** The chosen folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const items = visibleTreeItems(tree);
@@ -134,6 +141,9 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
         <div className="sidebar-folder-actions">
           <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
             <Plus />
+          </Button>
+          <Button ref={newFolderButtonRef} variant="ghost" size="icon-xs" aria-label="New folder" title="New folder…" onClick={onNewFolder}>
+            <FolderPlus />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger ref={more} render={<Button variant="ghost" size="icon-xs" aria-label="More actions" />}>

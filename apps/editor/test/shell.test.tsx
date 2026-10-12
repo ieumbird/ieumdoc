@@ -71,6 +71,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.doesNotMatch(html, /Up to/);
   // New names no folder here: its dialog shows and chooses the destination.
   assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file…")[^>]*>/);
+  assert.match(html, /<button\b(?=[^>]*aria-label="New folder")(?=[^>]*title="New folder…")[^>]*>/);
   // Open file, Open folder and Close folder are behind one menu instead of a row of buttons.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);

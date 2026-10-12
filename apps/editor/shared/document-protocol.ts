@@ -196,3 +196,8 @@ export type FolderBrowseResponse = { path: string; crumbs: FolderCrumb[]; entrie
 export type FolderPlace = { kind: "home" | "documents" | "drive"; name: string; path: string };
 
 export type FolderPlacesResponse = { places: FolderPlace[] };
+
+/** Creates the folder `name` directly inside the existing folder `parent`. */
+export type FolderCreateRequest = { parent: string; name: string };
+
+export type FolderCreateResponse = { path: string };

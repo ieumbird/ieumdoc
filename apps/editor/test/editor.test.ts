@@ -32,7 +32,7 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, createDocumentFile, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
+import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
@@ -764,6 +764,29 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     assert.throws(() => listFolder(path.join(chosen, "b.md")), /must point to a directory/);
     assert.throws(() => listFolder(path.join(dir, "missing")), /does not exist/);
     assert.throws(() => listFolder(""), /folder path is required/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a new folder is created once, inside an existing folder, with a single portable name", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-folder-"));
+  try {
+    const created = createFolder(dir, "자료");
+    assert.equal(created.path, path.join(dir, "자료"));
+    assert.ok(fs.statSync(created.path).isDirectory());
+    assert.deepEqual(listFolder(dir).entries.map(entry => `${entry.kind}:${entry.name}`), ["folder:자료"]);
+
+    writeFileSync(path.join(dir, "notes.md"), "Keep this content\n");
+    assert.throws(() => createFolder(dir, "자료"), /already exists/);
+    assert.throws(() => createFolder(dir, "notes.md"), /already exists/);
+    assert.equal(readFileSync(path.join(dir, "notes.md"), "utf8"), "Keep this content\n");
+    for (const name of ["", " ", ".", "..", "../outside", "a/b", "a\\b"]) assert.throws(() => createFolder(dir, name), /required|directory path/, name);
+    for (const name of [".git", "a:b", "what?", "trailing.", "trailing ", "CON", "nul.txt", "Com1"]) assert.throws(() => createFolder(dir, name), /folder name/, name);
+    assert.throws(() => createFolder(path.join(dir, "missing"), "child"), /does not exist/);
+    assert.throws(() => createFolder(path.join(dir, "notes.md"), "child"), /must point to a directory/);
+    assert.throws(() => createFolder("", "child"), /folder path is required/);
+    assert.deepEqual(fs.readdirSync(dir).sort(), ["notes.md", "자료"], "rejected requests create nothing");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
