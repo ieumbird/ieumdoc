@@ -20,6 +20,8 @@ export function updateStatusText(info: DesktopInfo): string {
       return info.updatesSupported ? "IeumDoc checks for updates automatically." : "Updates run in the installed app.";
     case "checking":
       return "Checking for updates…";
+    case "no-stable-release":
+      return "No Stable release has been published yet.";
     case "up-to-date":
       return state.latest && state.latest !== info.version
         ? `You have ${info.version}. The newest ${channel} release is ${state.latest}; IeumDoc updates when a newer ${channel} release is published.`

@@ -2,7 +2,7 @@
 
 > Document first. Semantics in Core. Interfaces replaceable.
 >
-> **Status: Pre-alpha** — 공식 release와 installer는 없습니다. 현재 Visual Editor는 local development host로 실행하며, 공개 API·문서 지원 범위·배포 형태는 바뀔 수 있습니다.
+> **Status: Beta** — [v0.0.1-beta.1](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.1)이 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
 
 IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사용하는 구조화 기술문서 시스템입니다.
 
@@ -129,9 +129,11 @@ pnpm --filter @ieumdoc/editor build
 
 ### Windows Desktop
 
-Windows x64 설치형 Electron 앱을 로컬에서 만들 수 있습니다. 개발 checkout에서 `pnpm --filter @ieumdoc/desktop package`를 실행하면 `apps/desktop/release/IeumDoc-Setup-0.0.1-beta.1.exe`가 생성됩니다(실제 버전은 `apps/desktop/package.json` 기준). 첫 공개는 Beta로 준비하며 Stable 배포는 보류합니다. 이 unsigned installer는 개발 검증용이며 공식 공개 Release가 아닙니다.
+일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.0.1-beta.1.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 첫 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 
-설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. 기본 sample 또는 `.md` 실행 인자로 시작하고 기존 Open file/Open folder/New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 다운로드와 설치는 각각 사용자 동의 후 실행합니다. 미저장 편집이나 Draft가 있으면 Restart to update가 보류됩니다. 공식 Release가 없는 현재에는 업데이트 검색 오류가 표시될 수 있으며 편집은 계속 가능합니다.
+설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. 기본 sample 또는 `.md` 실행 인자로 시작하고 기존 Open file/Open folder/New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 편집이나 Draft가 있으면 재시작을 거부하며, 일반 종료는 다운로드한 업데이트를 설치하지 않습니다.
+
+현재 공개 버전은 beta.1입니다. 이 checkout의 `0.0.1-beta.2`는 배포 준비 중이며 아직 공개하지 않았습니다. beta.2에서는 Stable 미출시를 **No Stable release has been published yet.**로 안내하고 Beta로 전환해 업데이트를 검색할 수 있습니다. beta.1의 Stable 조회 오류는 편집을 막지 않습니다. 개발자용 로컬 패키징은 아래 Contributing 절차를 따릅니다.
 
 빌드·서명·수동 릴리즈 절차는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases), 정확한 동작과 미검증 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다.
 

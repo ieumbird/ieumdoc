@@ -71,6 +71,10 @@ async (page, { screenshots = false } = {}) => {
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
   check(await stable.evaluate(node => node === document.activeElement), 'Settings did not focus its first channel control');
+  await push({phase:'no-stable-release'});
+  check(await status() === 'No Stable release has been published yet.', 'Stable absence is not explained');
+  check(await notice.count() === 0, 'Stable absence displayed an update notification');
+  check(await page.getByRole('button', {name:'Check for updates'}).isEnabled(), 'Stable absence disabled checking');
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'channel'));
   check(await beta.isChecked() && (await calls()).includes('channel:beta'), 'The channel change did not reach the Desktop app');

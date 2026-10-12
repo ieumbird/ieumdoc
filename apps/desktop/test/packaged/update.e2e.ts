@@ -8,6 +8,7 @@
 // IeumDoc is already installed or has user data on this machine.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -15,12 +16,15 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { _electron as electron } from "@playwright/test";
 import { RELEASE_REPOSITORY } from "../../src/update-policy.ts";
+import { readUpdateInfo } from "../../scripts/verify-release.ts";
+import { readPreferences, writePreferences } from "../../src/preferences.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
 const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
-const BETA = process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
+const LIVE = process.argv.includes("--github");
+const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
 const [OLD, NEW] = BETA ? ["0.0.1-beta.1", "0.0.1-beta.2"] : ["0.0.1", "0.0.2"];
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
@@ -54,6 +58,40 @@ function packageVersion(version: string): string {
   return out;
 }
 
+/** Opt-in, public read/download only. Both releases must already exist; no publication API calls. */
+async function publicBeta(): Promise<string> {
+  const folder = path.join(work, "public-beta.1");
+  mkdirSync(folder, { recursive: true });
+  for (const version of [OLD, NEW]) {
+    const result = await fetch(`https://api.github.com/repos/${owner}/${name}/releases/tags/v${version}`);
+    assert.equal(result.status, 200, `Public v${version} is required; real GitHub update validation remains Pending`);
+    const release = await result.json() as { tag_name: string; draft: boolean; prerelease: boolean; assets: { name: string; size: number; digest: string; browser_download_url: string }[] };
+    assert.equal(release.tag_name, `v${version}`); assert.equal(release.draft, false); assert.equal(release.prerelease, true);
+    const installer = `IeumDoc-Setup-${version}.exe`;
+    assert.deepEqual(release.assets.map((asset) => asset.name).sort(), [installer, `${installer}.blockmap`, "beta.yml"].sort());
+    const download = async (assetName: string) => {
+      const asset = release.assets.find((asset) => asset.name === assetName)!;
+      assert.equal(asset.browser_download_url, `https://github.com/${owner}/${name}/releases/download/v${version}/${assetName}`);
+      const response = await fetch(asset.browser_download_url); assert.equal(response.status, 200);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.equal(bytes.length, asset.size);
+      assert.equal(`sha256:${createHash("sha256").update(bytes).digest("hex")}`, asset.digest);
+      return bytes;
+    };
+    const metadata = readUpdateInfo((await download("beta.yml")).toString("utf8"));
+    assert.equal(metadata.version, version); assert.equal(metadata.path, installer);
+    assert.ok(Array.isArray(metadata.files) && metadata.files.length === 1);
+    const file = metadata.files[0]; assert.equal(file.url, installer); assert.equal(file.sha512, metadata.sha512);
+    if (version === OLD) {
+      const bytes = await download(installer);
+      assert.equal(createHash("sha512").update(bytes).digest("base64"), file.sha512);
+      assert.equal(bytes.length, file.size);
+      writeFileSync(path.join(folder, installer), bytes);
+    }
+  }
+  return folder;
+}
+
 /** GitHub Releases with one published release, the new version. */
 function releases(folder: string, requests: string[]): http.Server {
   return http.createServer((request, response) => {
@@ -83,31 +121,44 @@ function appProcesses(folder: string): { pid: number; version: string }[] {
   return raw ? [JSON.parse(raw)].flat() : [];
 }
 
-test("installs per user, then updates from Settings only after the open document is saved", { timeout: 15 * 60_000 }, async () => {
-  assert.equal(installedEntry(), "", "IeumDoc is already installed for this user; uninstall it before this test");
+function requireCleanUser(): void {
+  assert.equal(installedEntry(), "", "IeumDoc is already installed; use a separate Windows test account");
   for (const folder of [appData, updaterCache, defaultInstall]) assert.equal(existsSync(folder), false, `${folder} exists; this test would change it`);
+}
+
+test("installs per user, then updates from Settings only after the open document is saved", { timeout: 15 * 60_000 }, async () => {
+  requireCleanUser();
   rmSync(work, { recursive: true, force: true });
-  const oldBuild = packageVersion(OLD);
-  const newBuild = packageVersion(NEW);
+  const oldBuild = LIVE ? await publicBeta() : packageVersion(OLD);
+  const newBuild = LIVE ? "" : packageVersion(NEW);
   const install = path.join(work, "install");
   const documents = path.join(work, "documents");
   mkdirSync(documents, { recursive: true });
   const documentFile = path.join(documents, "update.md");
   writeFileSync(documentFile, "# Update\n\nAlpha.\n");
   const requests: string[] = [];
-  const server = releases(newBuild, requests);
-  await new Promise<void>((resolve) => server.listen(47320, "127.0.0.1", resolve));
+  const server = LIVE ? null : releases(newBuild, requests);
+  if (server) await new Promise<void>((resolve) => server.listen(47320, "127.0.0.1", resolve));
   let installedAt = "";
+  let ownsData = false;
   try {
     // Per-user and silent: no administrator rights and no wizard.
     const started = Date.now();
+    requireCleanUser(); // Downloads/builds can take minutes; recheck before installing.
     const setup = spawnSync(path.join(oldBuild, `IeumDoc-Setup-${OLD}.exe`), ["/S", `/D=${install}`], { stdio: "ignore" });
     assert.equal(setup.status, 0, "the installer failed");
-    installedAt = installedEntry();
-    assert.ok(installedAt, "the installer registered no uninstall entry");
+    const registered = installedEntry();
+    assert.equal(path.resolve(registered).toLowerCase(), path.resolve(install).toLowerCase(), "the registered installation is not owned by this test");
+    installedAt = registered;
+    ownsData = true;
     const exe = path.join(installedAt, "IeumDoc.exe");
     assert.equal(existsSync(exe), true);
     console.log(`installed ${OLD} in ${Date.now() - started} ms at ${installedAt}`);
+    const prefs = { channel: BETA ? "beta" as const : "stable" as const, postponed: OLD };
+    const preferencesFile = path.join(appData, "preferences.json");
+    const canary = path.join(appData, "update-test-canary.txt");
+    mkdirSync(appData, { recursive: true });
+    writeFileSync(canary, "Preserve existing user data.\n");
 
     let app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
     let page = await app.firstWindow();
@@ -120,18 +171,21 @@ test("installs per user, then updates from Settings only after the open document
     await page.getByRole("button", { name: "Check for updates" }).click();
     await page.getByRole("button", { name: "Download update" }).waitFor({ timeout: 30_000 });
     assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`IeumDoc ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
-    assert.ok(requests.some((url) => url.endsWith(`/${CHANNEL_FILE}`)), "the installed channel fetched its update metadata");
-    assert.equal(requests.some((url) => url.endsWith(".exe")), false, "finding the update downloaded nothing");
+    if (!LIVE) {
+      assert.ok(requests.some((url) => url.endsWith(`/${CHANNEL_FILE}`)), "the installed channel fetched its update metadata");
+      assert.equal(requests.some((url) => url.endsWith(".exe")), false, "finding the update downloaded nothing");
+    }
     await page.getByRole("button", { name: "Download update" }).click();
     await page.getByRole("button", { name: "Restart to update" }).waitFor({ timeout: 120_000 });
     assert.equal(await phase(), "downloaded");
-    assert.ok(requests.some((url) => url.endsWith(`IeumDoc-Setup-${NEW}.exe`)), "the installer was downloaded from the release");
+    if (!LIVE) assert.ok(requests.some((url) => url.endsWith(`IeumDoc-Setup-${NEW}.exe`)), "the installer was downloaded from the release");
 
     // Normal quit with a downloaded update is not consent to install. Restart the old app,
     // then explicitly download again (the updater may reuse its checksum-verified cache).
     await app.close();
     const versionAfterQuit = powershell(`(Get-Item -LiteralPath '${exe.replaceAll("'", "''")}').VersionInfo.FileVersion`);
     assert.equal(versionAfterQuit, OLD, "normal quit did not update the installed app");
+    writePreferences(preferencesFile, prefs);
     app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
     page = await app.firstWindow();
     page.on("dialog", () => {});
@@ -195,8 +249,11 @@ test("installs per user, then updates from Settings only after the open document
     assert.ok(appProcesses(installedAt).some((process) => process.version === NEW), "the new version is running");
     console.log(`installed ${NEW} and showed its window ${Date.now() - restarted} ms after the restart`);
     assert.equal(readFileSync(documentFile, "utf8"), "# Update\n\nAlpha. Saved before the update.\n");
+    assert.deepEqual(readPreferences(preferencesFile, NEW), prefs, "saved channel and preferences survived installation");
+    assert.equal(readFileSync(canary, "utf8"), "Preserve existing user data.\n");
+    assert.ok(readFileSync(log, "utf8").includes(`started ${NEW} (${prefs.channel})`), "the new app loaded the preserved channel");
   } finally {
-    server.close();
+    if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     for (const process of installedAt ? (() => { try { return appProcesses(installedAt); } catch { return []; } })() : []) {
       spawnSync("taskkill", ["/PID", String(process.pid), "/T", "/F"], { stdio: "ignore" });
     }
@@ -207,7 +264,7 @@ test("installs per user, then updates from Settings only after the open document
       console.log(`uninstall: ${uninstall.status}; entry ${installedEntry() ? "remains" : "removed"}`);
     }
     // This test made these folders (it refused to run when they existed).
-    for (const folder of [appData, updaterCache]) rmSync(folder, { recursive: true, force: true });
+    if (ownsData) for (const folder of [appData, updaterCache]) rmSync(folder, { recursive: true, force: true });
   }
   assert.equal(installedEntry(), "", "the uninstaller left its entry");
 });

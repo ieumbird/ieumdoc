@@ -6,7 +6,11 @@
 // and app must carry a valid Authenticode signature and the app must name its publisher, so that it
 // accepts only updates from the same publisher. Prints the files to upload, one per line.
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import os from "node:os";
+import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "js-yaml";
@@ -14,6 +18,35 @@ import { RELEASE_REPOSITORY, releaseIdentity } from "../src/update-policy.ts";
 import { readSignatureSync, signatureProblem } from "../src/signatures.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Reuse the pinned builder's chunker; never implement a second blockmap/checksum algorithm. */
+export async function verifyBlockmap(installer: string, blockmap: string): Promise<void> {
+  const require = createRequire(import.meta.url);
+  const builder = createRequire(require.resolve("electron-builder"));
+  const { buildBlockMap } = builder("app-builder-lib/out/targets/blockmap/blockmap.js") as {
+    buildBlockMap(input: string, format: "gzip", output: string): Promise<unknown>;
+  };
+  const temp = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-blockmap-"));
+  try {
+    const expected = path.join(temp, "expected.blockmap");
+    await buildBlockMap(installer, "gzip", expected);
+    if (!gunzipSync(readFileSync(blockmap)).equals(gunzipSync(readFileSync(expected)))) throw new Error("Installer blockmap does not match the installer");
+  } finally { rmSync(temp, { recursive: true, force: true }); }
+}
+
+/** Read PE resources without executing either binary. FileVersion retains the Beta identifier. */
+export function verifyExecutableVersions(release: string, version: string): void {
+  if (process.platform !== "win32") throw new Error("Executable version verification requires Windows");
+  const exe = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (key.toLowerCase() === "psmodulepath") delete env[key];
+  for (const file of [path.join(release, `IeumDoc-Setup-${version}.exe`), path.join(release, "win-unpacked/IeumDoc.exe")]) {
+    const actual = execFileSync(exe, ["-NoProfile", "-NonInteractive", "-Command",
+      `$ErrorActionPreference = 'Stop'; (Get-Item -LiteralPath '${file.replaceAll("'", "''")}').VersionInfo.FileVersion`],
+      { env, encoding: "utf8", timeout: 20_000, windowsHide: true }).trim();
+    if (actual !== version) throw new Error(`${path.basename(file)} FileVersion ${actual} differs from ${version}`);
+  }
+}
 
 /** Use the existing YAML library; malformed/duplicate keys must not be interpreted differently. */
 export function readUpdateInfo(text: string): Record<string, unknown> {
@@ -91,6 +124,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (args.includes("--identity-only")) console.log(JSON.stringify(releaseIdentity(tag, version)));
   else {
     const files = verifyRelease({ tag, release: path.join(desktop, "release"), signed: args.includes("--signed"), version });
+    verifyExecutableVersions(path.join(desktop, "release"), version);
+    await verifyBlockmap(files[0]!, files[1]!);
     for (const file of files) console.log(path.relative(process.cwd(), file));
   }
 }

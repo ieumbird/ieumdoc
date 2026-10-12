@@ -23,6 +23,8 @@ export type OfferedUpdate = {
 export type UpdateState =
   | { phase: "idle" }
   | { phase: "checking" }
+  /** The repository has published no full release; Beta checks remain available. */
+  | { phase: "no-stable-release" }
   /** Nothing newer in the channel. `latest` is the channel's newest version when it is known. */
   | { phase: "up-to-date"; latest?: string }
   | ({ phase: "available" } & OfferedUpdate)
