@@ -8,6 +8,7 @@ import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { OpenDialog } from "./shell/OpenDialog.tsx";
+import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
 import { splitDocumentPath, unquotePath } from "./shell/document-path.ts";
@@ -28,6 +29,7 @@ import type {
   SupportedEdits,
   SaveRequest,
 } from "../shared/document-protocol.ts";
+import type { DesktopInfo, RestartCheck } from "../shared/desktop-bridge.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
@@ -36,6 +38,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 
 const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
+
+/** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
+const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
 
 /** Shown for the whole session of a document Core cannot write as canonical Markdown. */
 function writeBlockedMessage(reason: string): string {
@@ -87,6 +92,9 @@ export function App() {
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
   const [sourcePending, setSourcePending] = useState(false);
+  const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsReturnFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     void load();
@@ -116,6 +124,9 @@ export function App() {
   // A pending Source preview belongs to the open document, so it blocks document switches too.
   const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…" ||
     sourcePending || assetPending;
+  // A close can arrive after the rendered status changed but before passive effects ran.
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
   const switching = status === "Loading…" || status === "Opening…" || status === "Creating…";
 
   /** Resolves to an error message for a requested path, or "" on success. */
@@ -275,15 +286,73 @@ export function App() {
     return () => window.removeEventListener("keydown", listener, true);
   }, []);
 
+  /**
+   * Work an update restart would lose or interrupt, as the Desktop app asks before installing:
+   * the same state that guards closing the page, with the reason to show.
+   */
+  function pendingWork(): string | null {
+    if (!document || !editorRef.current) return "The editor is not ready to restart.";
+    if (status === "Saving…") return "A save is in progress. Restart to update after it finishes.";
+    if (assetPending) return "An image is still being added. Restart to update after it finishes.";
+    if (sourcePending || switching) return "IeumDoc is still working on the document. Try again in a moment.";
+    if (editorRef.current?.hasUnsavedChanges()) {
+      return draftActive ? "Apply or Cancel the open edits and save your changes, then restart to update."
+        : "Save your changes, then restart to update.";
+    }
+    return null;
+  }
+  const restartCheck = useRef<() => RestartCheck>(() => ({ ok: false, reason: "The editor is not ready." }));
+  restartCheck.current = () => {
+    const reason = pendingWork();
+    return reason ? { ok: false, reason } : { ok: true };
+  };
+  useEffect(() => {
+    if (!desktop) return;
+    let active = true;
+    void desktop.info().then((info) => { if (active) setDesktopInfo(info); })
+      .catch((cause: unknown) => { if (active) setError(`Desktop settings unavailable: ${messageOf(cause)}`); });
+    const stopState = desktop.onUpdateState((update) => setDesktopInfo((info) => info && { ...info, update }));
+    const stopCheck = desktop.onRestartCheck(() => restartCheck.current());
+    return () => {
+      active = false;
+      stopState();
+      stopCheck();
+    };
+  }, []);
+
+  /** Resolves to why the app did not restart, or "" when it is restarting to install. */
+  async function installUpdate(): Promise<string> {
+    if (!desktop) return "";
+    const result = await desktop.installUpdate();
+    return result.ok ? "" : result.reason;
+  }
+
+  function postponeUpdate(version: string): void {
+    setDesktopInfo((info) => info && { ...info, postponed: version });
+    void desktop?.postponeUpdate(version).catch((cause: unknown) => setError(messageOf(cause)));
+  }
+
+  const update = desktopInfo?.update;
+  const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
+    ? update.phase === "available"
+      ? { text: `IeumDoc ${update.version}${update.prerelease ? " (Beta)" : ""} is available.`, action: "View", onAction: () => {
+          settingsReturnFocus.current = null;
+          setSettingsOpen(true);
+        }, onLater: () => postponeUpdate(update.version) }
+      : { text: `IeumDoc ${update.version} is ready to install.`, action: "Restart to update",
+          onAction: () => void installUpdate().then((reason) => { if (reason) setError(reason); })
+            .catch((cause: unknown) => setError(messageOf(cause))), onLater: () => postponeUpdate(update.version) }
+    : null;
+
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
-      if (!editorRef.current?.hasUnsavedChanges() && !busy) return;
+      if (!editorRef.current?.hasUnsavedChanges() && !busyRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", protect);
     return () => window.removeEventListener("beforeunload", protect);
-  }, [busy]);
+  }, []);
 
   /** Outline navigation always lands in the Visual view, where the heading is. */
   function revealHeading(item: OutlineItem): void {
@@ -343,6 +412,10 @@ export function App() {
         onToggleFolder={folderTree.toggle}
         onOpenDocument={(path) => void openFolderDocument(path)}
         onCloseFolder={folderTree.close}
+        onSettings={desktop ? (returnFocus) => {
+          settingsReturnFocus.current = returnFocus;
+          setSettingsOpen(true);
+        } : undefined}
       />
       <div className="app-main">
         <div className="app-header" ref={header}>
@@ -374,6 +447,7 @@ export function App() {
             notice={notice}
             draftNotice={draftNotice}
             warning={writeError ? writeBlockedMessage(writeError) : ""}
+            update={updateNotice}
             onDismissError={() => setError("")}
             onNoticeExpired={() => setNotice("")}
           />
@@ -424,6 +498,17 @@ export function App() {
             // The panel's own controls go away; its toggle keeps the focus.
             outlineToggle.current?.focus();
           }}
+        />
+      ) : null}
+      {desktop ? (
+        <SettingsDialog
+          open={settingsOpen}
+          desktop={desktop}
+          info={desktopInfo}
+          onInfo={setDesktopInfo}
+          onInstall={installUpdate}
+          returnFocus={settingsReturnFocus}
+          onClose={() => setSettingsOpen(false)}
         />
       ) : null}
       <OpenDialog

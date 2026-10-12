@@ -11,6 +11,7 @@
 | [ADR-0001: Single-document editor](adr/0001-single-document-editor-architecture.md) | Accepted | 현재 architecture 규범. 하나의 Tiptap/ProseMirror state가 문서 편집 세션을 소유한다. |
 | [ADR-0002: Persistence and semantic ownership](adr/0002-document-persistence-semantic-ownership.md) | Accepted | 현재 architecture 규범. plain-text SSOT와 Core semantic/write ownership. |
 | [ADR-0003: Addressing and identity](adr/0003-document-addressing-identity-boundary.md) | Accepted | 현재 architecture 규범. snapshot locator와 persistent identity의 경계. |
+| [ADR-0004: Desktop Host and distribution](adr/0004-desktop-host-distribution.md) | Accepted | Windows Electron/NSIS Host, 기존 handler 재사용과 사용자 승인 기반 업데이트/배포. |
 
 ## Current implemented contracts
 
@@ -20,7 +21,8 @@
 | [Continuous document editing](design/document-editing-v1.md) | Implemented | 현재 계약. 연속 편집, clipboard, table/section 구조 변경의 보존 경계. |
 | [Editing session and Save](design/editing-session-save-v1.md) | Implemented | 현재 계약. opening snapshot, Save acknowledgement, draft와 work-loss 보호. |
 | [Block source editing](design/block-source-editing-v1.md) | Implemented | 현재 계약. Core를 통한 단일 read-only block source 교체. |
-| [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 개발 Host의 현재 계약. 파일·asset·folder 접근; 제품 Host는 미정. |
+| [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 파일·asset·folder 계약. Vite 개발 adapter와 Desktop Host가 같은 handler를 재사용. |
+| [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약과 로컬 검증 결과; 공개 Release 미게시. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file. |
 | [Footnotes](design/footnotes-v1.md) | Implemented | 현재 계약(v2). 각주 삽입, 한 문단 definition의 문서 내 편집, 그 밖의 definition source 편집과 유실 방지. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |

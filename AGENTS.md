@@ -22,7 +22,7 @@
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
 - Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. IeumDoc이 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
-- `apps/editor/server`는 현재 local development adapter다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
+- `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter와 ADR-0004의 Desktop Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 
@@ -41,6 +41,7 @@
 - `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
 - `packages/file-commit/` — CLI와 Editor Host가 공유하는 Node 전용 파일 교체(revision 확인, temporary sibling, rename). 문서 의미를 알지 않는다.
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
+- `apps/desktop/` — Electron Windows Host, NSIS 패키징과 Stable/Beta 업데이트. 기존 파일 Host handler를 재사용하며 문서 의미를 구현하지 않는다.
 - `docs/design/editor-layout-rules-v1.md` — Editor UI 변경 시 정렬, 간격 및 control 치수 기준으로 참고한다.
 - `docs/design/editor-visual-language-v1.md` — Editor typography, surface, 상태 및 overlay 표현 기준.
 - `docs/test/` — 자동 검증 실행 방법과 자동화가 판정하지 않는 수동 확인 항목.

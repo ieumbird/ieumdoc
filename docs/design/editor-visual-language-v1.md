@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-11 (같은 상태 Before/After, static overlay, responsive captures, Save reduced-motion 및 전체 stable browser suite; 물리 모바일 검증 제외). Overlay focus/return 행: 같은 날 keyboard focus 안정화와 전체 stable browser suite.
+- Last verified: 2026-10-12 (Desktop footer의 동일 sample Before/After, About wide/375px captures와 전체 stable browser suite; 기존 v4.1 표현 유지, 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
 - Current contract: v4.1. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -119,6 +119,8 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
 
 ## Responsibility boundaries
+
+Desktop Settings/About reuses the existing dialog, Button and Notice components and product spacing/type/surface tokens. The Sidebar footer uses the existing compact ghost target; the native channel radios and progress use the interaction color. Status is plain text and actions wrap within the dialog. Update notices use the existing information surface with View/Restart and Later actions. No new visual theme or document state is introduced. [Desktop contract](desktop-distribution-v1.md) owns the behavior.
 
 - **Product tokens** own role values. `index.css` maps them one way to shadcn/Tailwind. Product colors/radii use `--id-*` names so generated Tailwind names cannot override them. No cycles, duplicate role definitions or `!important`.
 - **Controls** enter through `components/ui`. Base UI Button owns shared button behavior, refs and disabled/focusable-disabled semantics. Document-specific native controls keep their interaction policy. Notice remains independent.

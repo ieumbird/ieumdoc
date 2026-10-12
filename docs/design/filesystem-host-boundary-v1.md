@@ -1,8 +1,8 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-10 (development adapter and tests, including the sidebar folder tree and the File commit shared with the CLI; not a production-host validation).
-- Authority: implemented development-host boundary; production host remains undecided. [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
+- Last verified: 2026-10-12 (shared handler boundary reviewed; Desktop integration verification is recorded in its contract).
+- Authority: shared file Host boundary for Vite and the [ADR-0004 Desktop Host](../adr/0004-desktop-host-distribution.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
@@ -37,7 +37,7 @@ filesystem watch는 현재 제공하지 않으며 향후 검토 대상이다.
 
 Host는 요청된 document locator를 실제 filesystem 동작으로 연결한다. Locator는 interface/host layer의 값이며 Core의 semantic document model에 포함하지 않는다.
 
-Host 구현은 교체 가능해야 한다. 현재 localhost HTTP를 사용할 수 있지만, 향후 Desktop, Tauri, Electron 또는 다른 native host adapter로 바꿀 수 있다. HTTP transport나 localhost server를 permanent architecture, production backend, 또는 workspace server로 정의하지 않는다.
+Host 구현은 교체 가능해야 한다. Vite 개발 adapter는 localhost HTTP를 사용하고, Windows Desktop은 `ieumdoc://app` custom protocol로 같은 stateless document/asset handler를 직접 호출한다. HTTP transport나 localhost server를 permanent architecture, production backend, 또는 workspace server로 정의하지 않는다. Desktop 경계와 배포는 [Desktop contract](desktop-distribution-v1.md)에 있다.
 
 IeumDoc은 browser file upload를 기본 document access model로 사용하지 않는다.
 

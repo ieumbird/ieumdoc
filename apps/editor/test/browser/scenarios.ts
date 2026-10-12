@@ -42,6 +42,7 @@ export const STABLE_SCENARIOS = [
   "folder-navigation",
   "footnotes",
   "focus-caret",
+  "desktop-updates",
 ];
 
 /** Select before starting a server probe or browser; an invalid/empty shard must fail. */
@@ -69,8 +70,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation"].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation --screenshots");
+  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates"].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

@@ -423,6 +423,79 @@ button {
   color: inherit;
 }
 
+.message-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+}
+
+/* Desktop app only: Settings sits at the bottom of the sidebar, open or collapsed. */
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+}
+
+/* Settings → About (Desktop app only): facts, the release channel and update status. */
+.settings-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-heading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.settings-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.settings-facts dt { color: var(--id-color-text-muted); }
+.settings-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.settings-channel {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-channel legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  color: var(--id-color-text-muted);
+}
+
+.settings-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-2);
+  align-items: baseline;
+}
+
+.settings-choice input { accent-color: var(--id-color-interaction); }
+.settings-choice-hint {
+  grid-column: 2;
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
+.settings-status { margin: 0; line-height: var(--line-height-label); }
+.settings-progress { width: 100%; accent-color: var(--id-color-interaction); }
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .document-column {
   flex: 1 0 auto;
   width: 100%;

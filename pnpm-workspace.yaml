@@ -4,6 +4,9 @@ packages:
 
 # tsx uses esbuild's native executable; approve its install-time binary check.
 allowBuilds:
+  # electron-builder's Squirrel.Windows dependency picks a 7z binary at install time. The desktop
+  # app ships NSIS only and never runs Squirrel, so the script stays off.
+  electron-winstaller@5.4.0: false
   esbuild@0.28.2: true
 
 # Already locked on master before the pnpm 12 migration (2026-09-23).

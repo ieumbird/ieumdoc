@@ -3,7 +3,7 @@
 - Status: Historical
 - Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
 - Scope: Historical spike evidence; not a product-host or distribution decision.
-- Current authority: [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
+- Current authority: [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md), [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) and the subsequent [ADR-0004 Desktop decision](../adr/0004-desktop-host-distribution.md). The experiments below remain historical.
 
 - Date: 2026-10-07
 - Baseline: `7779f61` (master). 보존 태그: `archive/desktop-shell-spike` (`spikes/desktop-shell/`, 실험 브랜치 `spike/desktop-shell`). 제품 구현 또는 release가 아니다.

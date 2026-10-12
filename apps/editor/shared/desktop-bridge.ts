@@ -1,0 +1,69 @@
+/**
+ * What the Desktop Host (apps/desktop) exposes to the Editor through its preload script, as
+ * `window.ieumdocDesktop`. The browser Editor has no bridge; Desktop-only UI appears only with it.
+ * Nothing here reads or writes documents: those keep the Host requests every interface uses.
+ */
+
+/** Stable receives only full releases; Beta receives Beta and full releases. */
+export type ReleaseChannel = "stable" | "beta";
+
+export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["stable", "beta"];
+
+/** An update the channel offers: newer than the installed version. */
+export type OfferedUpdate = {
+  version: string;
+  /** A Beta (semver prerelease) version. */
+  prerelease: boolean;
+};
+
+/**
+ * Where updating stands. Every phase comes from the updater's own results and events;
+ * progress is the updater's download progress.
+ */
+export type UpdateState =
+  | { phase: "idle" }
+  | { phase: "checking" }
+  /** Nothing newer in the channel. `latest` is the channel's newest version when it is known. */
+  | { phase: "up-to-date"; latest?: string }
+  | ({ phase: "available" } & OfferedUpdate)
+  | ({ phase: "downloading"; percent: number; transferred: number; total: number } & OfferedUpdate)
+  /** Downloaded and verified (checksum, and the publisher signature when the build requires it). */
+  | ({ phase: "downloaded" } & OfferedUpdate)
+  /** The Editor allowed the restart; the window is closing for the installer. */
+  | ({ phase: "installing" } & OfferedUpdate)
+  | { phase: "error"; message: string; during: "check" | "download" | "install"; update?: OfferedUpdate };
+
+export type DesktopInfo = {
+  version: string;
+  channel: ReleaseChannel;
+  /** False in a development run, which has no installed update configuration. */
+  updatesSupported: boolean;
+  update: UpdateState;
+  /** The version whose notification the user postponed with Later. */
+  postponed: string | null;
+};
+
+/** The Editor's answer when an update asks to restart: never yes with unsaved work. */
+export type RestartCheck = { ok: true } | { ok: false; reason: string };
+
+export type DesktopBridge = {
+  info(): Promise<DesktopInfo>;
+  setChannel(channel: ReleaseChannel): Promise<DesktopInfo>;
+  checkForUpdates(): Promise<void>;
+  downloadUpdate(): Promise<void>;
+  /** Asks the Editor (onRestartCheck) and restarts to install only if it agrees; otherwise why not. */
+  installUpdate(): Promise<RestartCheck>;
+  /** Later: no further notification for this version; About still shows it. */
+  postponeUpdate(version: string): Promise<void>;
+  /** Opens the GitHub release page of a version, or the releases list, in the system browser. */
+  openReleaseNotes(version?: string): Promise<void>;
+  onUpdateState(listener: (state: UpdateState) => void): () => void;
+  /** The Editor's restart check. It answers from current state, synchronously. */
+  onRestartCheck(check: () => RestartCheck): () => void;
+};
+
+declare global {
+  interface Window {
+    ieumdocDesktop?: DesktopBridge;
+  }
+}
