@@ -40,6 +40,7 @@ export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: Do
 
 /** Scrolls only `list`, so the document and the section being read stay put. */
 function revealInList(list: HTMLElement, child: HTMLElement) {
+  if (list.clientHeight <= 0) return;
   const listRect = list.getBoundingClientRect();
   const childRect = child.getBoundingClientRect();
   if (childRect.top < listRect.top) list.scrollTop -= listRect.top - childRect.top;
@@ -53,15 +54,40 @@ const useClientLayoutEffect = typeof document === "undefined" ? useEffect : useL
 function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect(item: OutlineItem): void }) {
   const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
   const list = useRef<HTMLOListElement>(null);
-  useClientLayoutEffect(() => {
+  const revealTracked = () => {
     const element = list.current;
     const current = element?.querySelector<HTMLElement>('[aria-current="location"]');
     if (!element || !current) return;
-    // Keyboard movement through the list keeps the focused heading in place.
+    // Arrow keys keep a different heading focused. Do not pull that focus back to the current section.
     const active = document.activeElement;
     if (active instanceof HTMLElement && element.contains(active) && active !== current) return;
     revealInList(element, current);
+  };
+  const revealTrackedRef = useRef(revealTracked);
+  revealTrackedRef.current = revealTracked;
+  useClientLayoutEffect(() => {
+    revealTrackedRef.current();
   }, [outline.current, outline.items]);
+  useEffect(() => {
+    const element = list.current;
+    if (!element) return;
+    // The visible area can shrink while the current section index stays the same.
+    const observer = new ResizeObserver(() => revealTrackedRef.current());
+    observer.observe(element);
+    const onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget;
+      // Moving between outline items is still keyboard navigation.
+      if (next instanceof Node && element.contains(next)) return;
+      // activeElement can still be the button that is losing focus.
+      const current = element.querySelector<HTMLElement>('[aria-current="location"]');
+      if (current) revealInList(element, current);
+    };
+    element.addEventListener("focusout", onFocusOut);
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("focusout", onFocusOut);
+    };
+  }, [outline.items.length === 0]);
   // Arrow keys, Home and End move between headings; Enter or Space goes to one.
   const move = (event: KeyboardEvent<HTMLOListElement>) => {
     const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
