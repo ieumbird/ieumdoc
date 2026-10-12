@@ -4,7 +4,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { footnoteNumbers, nextFootnoteLabel } from "@ieumdoc/core/numbering";
-import { endnoteOrderOf } from "./tiptap-projection.ts";
+import { endnoteOrderOf, isNewBlockPath } from "./tiptap-projection.ts";
 
 type ReturnPoint = { label: string; pos: number };
 const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
@@ -71,6 +71,25 @@ export const Endnotes = Extension.create<{ canOrder(): boolean }>({
 
 export function collectEndnotesInSource(state: EditorState) {
   return closeHistory(state.tr).setDocAttribute("collectEndnotes", true);
+}
+
+/** Ordinary writes retain existing source definition order and append new definitions.
+ * Body edits can change first-reference order even when the opening source was collected. */
+export function canCollectEndnotes(state: EditorState): boolean {
+  if (state.doc.attrs.collectEndnotes) return false;
+  if (state.doc.attrs.endnotesInSource === false) return true;
+  let previous = -1;
+  let newDefinition = false;
+  let changed = false;
+  state.doc.forEach(node => {
+    if (definitionLabel(node) === undefined) return;
+    const path = String(node.attrs.sourcePath ?? "");
+    if (isNewBlockPath(path)) { newDefinition = true; return; }
+    const index = Number(path);
+    changed ||= newDefinition || index < previous;
+    previous = index;
+  });
+  return changed;
 }
 
 /**
