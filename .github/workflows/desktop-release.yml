@@ -53,6 +53,36 @@ jobs:
           node apps/desktop/scripts/release.ts preflight --tag $env:RELEASE_TAG --mode $env:RELEASE_MODE --trusted $env:TRUSTED_COMMIT
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+  browser:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+      - name: Full Editor browser regressions on the existing CI platform
+        run: pnpm browser:test
+      - name: Preserve browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-release-browser-diagnostics
+          path: tmp/browser-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   build:
     needs: preflight
     runs-on: windows-latest
@@ -75,7 +105,6 @@ jobs:
       - run: pnpm docs:check
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm browser:test
       - name: Stable install/update regression before the final package
         run: pnpm --filter @ieumdoc/desktop test:update
       - name: Beta install/update regression before the final package
@@ -107,14 +136,6 @@ jobs:
           pnpm @verifyArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: pnpm --filter @ieumdoc/desktop test:packaged
-      - name: Preserve browser failure diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: desktop-release-browser-diagnostics
-          path: tmp/browser-results/
-          if-no-files-found: ignore
-          retention-days: 7
       - uses: actions/upload-artifact@v6
         with:
           name: desktop-release
@@ -129,7 +150,7 @@ jobs:
 
   publish:
     if: inputs.mode != 'verify' && github.ref == 'refs/heads/master'
-    needs: [preflight, build]
+    needs: [preflight, browser, build]
     runs-on: windows-latest
     timeout-minutes: 15
     environment: desktop-release

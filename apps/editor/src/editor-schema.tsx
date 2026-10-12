@@ -1480,10 +1480,17 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   const latex = String(node.attrs.latex ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);
+  const focusFrame = useRef<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
+
+  const cancelFocus = () => {
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+    focusFrame.current = null;
+  };
+  useEffect(() => cancelFocus, []);
 
   useEffect(() => {
     if (!editing) {
@@ -1513,12 +1520,15 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     setError("");
     setEditing(true);
     // After the panel renders and after an insert command refocuses the editor.
-    requestAnimationFrame(() => {
+    cancelFocus();
+    focusFrame.current = requestAnimationFrame(() => {
+      focusFrame.current = null;
       const input = latexInput.current;
       if (input && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
   const cancel = () => {
+    cancelFocus();
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
     if (isUnappliedNewEquation) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(latex);
@@ -1539,6 +1549,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
       setError(invalidLabel);
       return;
     }
+    cancelFocus();
     updateAttributes({ latex: draft, label: labelDraft });
     setError("");
     setEditing(false);
