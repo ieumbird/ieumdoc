@@ -52,6 +52,7 @@ pnpm --filter @ieumdoc/editor build
 | Change type | Required verification |
 | --- | --- |
 | Documentation only | `pnpm docs:check`, `git diff --check` |
+| Issue forms / registration tooling | `pnpm issues:forms --check`, `pnpm issues:test`, `pnpm docs:check`, `git diff --check` |
 | Core semantics | Core tests, `pnpm typecheck`, 관련 canonical round-trip/거부 regression |
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |

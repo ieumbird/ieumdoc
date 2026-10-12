@@ -38,7 +38,7 @@
 
 | Document | Status | Authority / description |
 | --- | --- | --- |
-| [이슈 작성](contributing/issues.md) | Implemented | 현재 기여 안내. 문제·범위·완료 기준과 CLI/API 등록. |
+| [이슈 작성](contributing/issues.md) | Implemented | 제목·유형·최소 정보 규칙, 공통 정의에서 생성하는 웹 폼, CLI 사전 검사와 GitHub 등록 후 검사. |
 | [Documentation governance](contributing/documentation-governance.md) | Implemented | 현재 작업 규칙. 문서 authority, status, metadata와 갱신 절차. |
 | [Windows browser automation](contributing/windows-browser-automation.md) | Implemented | 현재 실행 규칙. persistent profile, storage 격리와 process cleanup. |
 

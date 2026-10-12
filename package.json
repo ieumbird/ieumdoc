@@ -7,6 +7,11 @@
     "node": ">=24.21.0 <25"
   },
   "scripts": {
+    "issues:forms": "node scripts/issues.mjs forms",
+    "issues:check": "node scripts/issues.mjs check",
+    "issues:test": "node --test scripts/issue-policy.test.mjs",
+    "issues:labels": "node scripts/issues.mjs labels",
+    "issue:create": "node scripts/issues.mjs create",
     "docs:check": "tsx scripts/check-docs.ts",
     "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/file-commit test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test && pnpm --filter @ieumdoc/desktop test",
     "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/file-commit typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck && pnpm --filter @ieumdoc/desktop typecheck",
@@ -18,6 +23,7 @@
   "devDependencies": {
     "@playwright/cli": "0.1.21",
     "@playwright/test": "1.64.0-alpha-1789764292000",
+    "js-yaml": "5.4.2",
     "tsx": "^4.23.15"
   },
   "packageManager": "pnpm@12.5.1"

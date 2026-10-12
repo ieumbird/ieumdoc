@@ -57,6 +57,10 @@
 - 모든 유지되는 `docs/**/*.md` 문서는 [docs index](docs/README.md)에 직접 연결되어야 한다.
 - 상태·metadata·충돌 처리의 상세 규칙은 [Documentation governance](docs/contributing/documentation-governance.md)를 따른다.
 
+## Issue 작성
+
+- 이슈 생성·수정 시 [이슈 작성 규칙](docs/contributing/issues.md)을 먼저 따른다. 웹·CLI·Agent 모두 같은 제목·유형·최소 정보 규칙을 적용한다. 일반 작성 스킬이 저장소 분류나 검토 상태를 임의로 바꾸지 않도록 한다.
+
 ## Verification
 
 - 변경한 동작에 필요한 검증과 필수 CI 검사를 수행한다. 무관한 테스트 확장·리팩터링은 하지 않는다. 변경 유형별 최소 검증은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따르며, 문서만 바꾸면 `pnpm docs:check`와 `git diff --check`를 실행한다.

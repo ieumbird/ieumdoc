@@ -42,6 +42,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Issue forms and registration checks
+        run: |
+          pnpm issues:forms --check
+          pnpm issues:test
+
       - name: Run Core, CLI, Editor, and Desktop tests
         run: pnpm test
 

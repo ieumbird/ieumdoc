@@ -176,6 +176,9 @@ importers:
       '@playwright/test':
         specifier: 1.64.0-alpha-1789764292000
         version: 1.64.0-alpha-1789764292000
+      js-yaml:
+        specifier: 5.4.2
+        version: 5.4.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
