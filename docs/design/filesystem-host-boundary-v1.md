@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (shared handler boundary reviewed; Desktop integration verification is recorded in its contract).
+- Last verified: 2026-10-12 (shared handler boundary reviewed, Folder creation v1 added; Desktop integration verification is recorded in its contract).
 - Authority: shared file Host boundary for Vite and the [ADR-0004 Desktop Host](../adr/0004-desktop-host-distribution.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -32,6 +32,7 @@ Browser Editor는 Host를 통해 다음을 요청한다.
 - file write
 - file create
 - 사용자가 고른 folder의 한 단계 listing (아래 Folder listing v1)
+- 기존 folder 안의 새 folder 하나 생성 (아래 Folder creation v1)
 
 filesystem watch는 현재 제공하지 않으며 향후 검토 대상이다.
 
@@ -149,6 +150,16 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - `GET /api/folder-places`는 `{ places: [{ kind, name, path }] }`를 돌려준다. Home, 실제 존재하는 Documents, Windows drive roots 또는 `/`가 시작점이다. Host는 탐색 위치나 최근 목록을 저장하지 않는다.
 - Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하고, 새로고침 시 sidebar folder를 자동으로 복원하지 않는다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
 
+### Folder creation v1
+
+[Folder picker](folder-picker-v1.md#new-folder)와 sidebar folder의 New folder가 사용한다.
+
+- `POST /api/folder`는 `{ parent, name }`을 받아 `parent` 바로 아래에 `name` folder 하나를 만들고 201 `{ path }`를 돌려준다. 오류는 다른 folder 요청처럼 400 `{ error }`다. Desktop은 같은 handler를 그대로 쓴다.
+- `parent`는 이미 있는 directory여야 한다. 중간 folder를 함께 만들지 않는다(non-recursive). 같은 이름의 file이나 folder가 있으면 덮어쓰거나 합치지 않고 거부한다.
+- `name`은 한 단계의 portable 이름이다. 빈 이름, 구분자(`/`, `\`), `.`/`..`, `.`으로 시작하는 이름(listing에 나타나지 않음), `< > : " | ? *`와 control 문자, 끝의 `.`이나 공백, Windows 예약 이름(`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, 확장자가 붙어도 같음)을 모든 플랫폼에서 거부한다. 문서 folder를 다른 OS로 옮겨도 열 수 있게 하기 위함이다.
+- Picker는 선택 전 탐색처럼 sidebar의 `root` 제한을 쓰지 않는다. Host는 요청 사이에 아무것도 기억하지 않으며, 만든 folder를 열거나 rename/delete/move하는 API는 없다.
+- 문서 내용과 의미를 바꾸지 않으므로 Core operation이나 CLI command를 추가하지 않는다. headless 환경에서는 shell의 `mkdir`로 충분하다.
+
 ## Current implementation mapping
 
 현재 `apps/editor/server`는 **local filesystem host boundary의 현재 dev implementation**이다.
@@ -159,7 +170,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - adapter는 Core의 parse, semantic save operation, validation 및 serialization을 호출하고, 파일 I/O 자체는 adapter가 수행한다.
 - 문서 revision을 확인하여 외부 변경 후 stale save를 거부하는 현재 conflict 동작도 이 경계 안의 host/editor adapter 동작이다.
 - 상대 media는 열린 document directory를 기준으로 resolve하며 directory 밖 traversal을 거부한다.
-- `/api/folder`가 Folder listing v1을 구현한다(`listFolder`).
+- `/api/folder`가 Folder listing v1(GET, `listFolder`)과 Folder creation v1(POST, `createFolder`)을 구현한다.
 - `/api/folder-browse`와 `/api/folder-places`가 경로 선택용 목록과 시작점을 제공한다(`browseFolder`, `folderPlaces`).
 
 이 매핑은 현재 개발 구현을 설명할 뿐이다. `apps/editor/server`를 production backend, permanent local server architecture 또는 workspace server로 정의하지 않는다.

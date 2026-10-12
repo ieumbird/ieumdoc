@@ -22,6 +22,7 @@ import type {
   SourceResponse,
   DocumentErrorResponse,
   FolderBrowseResponse,
+  FolderCreateResponse,
   FolderCrumb,
   FolderEntry,
   FolderPlacesResponse,
@@ -239,12 +240,17 @@ export async function handleDocumentRequest(
     return;
   }
   if (url === "/api/folder") {
-    if (req.method !== "GET") {
+    if (req.method !== "GET" && req.method !== "POST") {
       res.statusCode = 405;
       res.end();
       return;
     }
     try {
+      if (req.method === "POST") {
+        const body = JSON.parse(await readBody(req)) as { parent?: unknown; name?: unknown };
+        sendJson(res, 201, createFolder(typeof body.parent === "string" ? body.parent : undefined, typeof body.name === "string" ? body.name : undefined));
+        return;
+      }
       sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined));
     } catch (error) {
       sendJson(res, 400, errorPayload(error));
@@ -361,6 +367,36 @@ export function folderPlaces(): FolderPlacesResponse {
       ...drives.map(drive => ({ kind: "drive" as const, name: drive, path: drive })),
     ],
   };
+}
+
+/**
+ * Creates one folder inside an existing folder; an existing file or folder is never replaced.
+ * The name is a single portable name, so the folder can be listed and moved between systems.
+ */
+export function createFolder(requestedParent: string | undefined, requestedName: string | undefined): FolderCreateResponse {
+  if (!requestedParent?.trim()) throw new Error("folder path is required");
+  const name = requestedName ?? "";
+  if (!name.trim()) throw new Error("folder name is required");
+  if (name === "." || name === ".." || /[\\/]/.test(name)) throw new Error("folder name cannot contain a directory path");
+  // Hidden folders are not listed, so one created here would seem to disappear.
+  if (name.startsWith(".")) throw new Error("folder name cannot start with a dot");
+  if (/[<>:"|?*\u0000-\u001f]/.test(name)) throw new Error("folder name cannot contain < > : \" | ? * or control characters");
+  if (/[. ]$/.test(name)) throw new Error("folder name cannot end with a dot or space");
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(name)) throw new Error("folder name is reserved on Windows");
+  const parent = path.resolve(requestedParent.trim());
+  const folder = path.join(parent, name);
+  try {
+    if (!statSync(parent).isDirectory()) throw new Error("folder path must point to a directory");
+    fs.mkdirSync(folder);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") throw new Error("a file or folder with that name already exists");
+    if (code === "ENOENT") throw new Error("folder does not exist");
+    if (code === "ENOTDIR") throw new Error("folder path must point to a directory");
+    if (code === "EACCES" || code === "EPERM") throw new Error("folder cannot be created: permission denied");
+    throw error;
+  }
+  return { path: folder };
 }
 
 function isDirectory(candidate: string): boolean {

@@ -11,7 +11,7 @@ import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
-import { splitDocumentPath, unquotePath } from "./shell/document-path.ts";
+import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
 import type {
@@ -22,6 +22,8 @@ import type {
   SourceResponse,
   DocumentErrorResponse,
   FolderBrowseResponse,
+  FolderCreateRequest,
+  FolderCreateResponse,
   FolderPlace,
   FolderPlacesResponse,
   FolderResponse,
@@ -50,6 +52,7 @@ function writeBlockedMessage(reason: string): string {
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const newFileButton = useRef<HTMLButtonElement>(null);
+  const newFolderButton = useRef<HTMLButtonElement>(null);
   // Open file… and Open folder… return focus to the control that opened them.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
@@ -70,6 +73,7 @@ export function App() {
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [newDialog, setNewDialog] = useState(false);
   const [newDirectory, setNewDirectory] = useState("");
+  const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
@@ -179,6 +183,16 @@ export function App() {
     }
   }
 
+  /** Creates a folder; nothing about the open document changes. */
+  async function createFolder(parent: string, name: string): Promise<string> {
+    try {
+      await requestCreateFolder(parent, name);
+      return "";
+    } catch (cause) {
+      return messageOf(cause);
+    }
+  }
+
   async function openFolderDocument(path: string): Promise<void> {
     if (path === openedPath) return;
     const message = await openFile(path);
@@ -276,7 +290,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (openDialog || folderDialog || newDialog || reloadDialog) return;
+    if (openDialog || folderDialog || newDialog || newFolderDialog || reloadDialog) return;
     void save();
   };
   useEffect(() => {
@@ -408,6 +422,12 @@ export function App() {
           setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
           setNewDialog(true);
         }}
+        newFolderButtonRef={newFolderButton}
+        onNewFolder={() => {
+          if (!folderTree.state) return;
+          setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
+          setNewFolderDialog(true);
+        }}
         folder={folderTree.state ?? undefined}
         onToggleFolder={folderTree.toggle}
         onOpenDocument={(path) => void openFolderDocument(path)}
@@ -526,6 +546,12 @@ export function App() {
         browse={browseHostFolder}
         places={folderPlaces}
         onOpen={openFolder}
+        onCreateFolder={async (parent, name) => {
+          const message = await createFolder(parent, name);
+          // Creating while choosing changes no expansion; an already listed folder shows it.
+          if (!message) folderTree.refresh(parent);
+          return message;
+        }}
         returnFocus={dialogReturnFocus}
         onClose={() => setFolderDialog(false)}
       />
@@ -534,10 +560,24 @@ export function App() {
         destinations={folderTree.state ? newDestinations(folderTree.state) : []}
         directory={newDirectory}
         busy={busy}
-        onCreate={createFile}
+        onCreate={(directory, name) => createFile(childPath(directory, name))}
         createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
         returnFocus={newFileButton}
         onClose={() => { if (!switching) setNewDialog(false); }}
+      />
+      <NewDialog
+        kind="folder"
+        open={newFolderDialog}
+        destinations={folderTree.state ? newDestinations(folderTree.state) : []}
+        directory={newDirectory}
+        busy={false}
+        onCreate={async (directory, name) => {
+          const message = await createFolder(directory, name);
+          if (!message) folderTree.reveal(childPath(directory, name));
+          return message;
+        }}
+        returnFocus={newFolderButton}
+        onClose={() => setNewFolderDialog(false)}
       />
       <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>
         <DialogContent showCloseButton={false}>
@@ -648,6 +688,18 @@ async function browseHostFolder(path: string): Promise<FolderBrowseResponse> {
   const payload = (await response.json()) as Partial<FolderBrowseResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || !Array.isArray(payload.entries) || !Array.isArray(payload.crumbs)) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload as FolderBrowseResponse;
+}
+
+/** Asks the Host to create one folder inside an existing one. */
+async function requestCreateFolder(parent: string, name: string): Promise<FolderCreateResponse> {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parent, name } satisfies FolderCreateRequest),
+  });
+  const payload = (await response.json()) as Partial<FolderCreateResponse> & Partial<DocumentErrorResponse>;
+  if (!response.ok || typeof payload.path !== "string") throw new Error(payload.error ?? `request failed (${response.status})`);
+  return { path: payload.path };
 }
 
 /** Asks the Host where choosing a folder can start. */

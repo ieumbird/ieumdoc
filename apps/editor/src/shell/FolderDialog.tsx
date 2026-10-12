@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import { ArrowUp, ChevronRight, FileText, Folder, HardDrive, House } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import { ArrowUp, ChevronRight, FileText, Folder, FolderPlus, HardDrive, House } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+import { Input } from "@/components/ui/input.tsx";
 import type { FolderBrowseResponse, FolderPlace } from "../../shared/document-protocol.ts";
-import { splitDocumentPath, unquotePath } from "./document-path.ts";
+import { childPath, splitDocumentPath, unquotePath } from "./document-path.ts";
 
 type FolderDialogProps = {
   open: boolean;
@@ -14,6 +15,8 @@ type FolderDialogProps = {
   places(): Promise<FolderPlace[]>;
   /** Resolves to an error message, or "" once the folder is open. */
   onOpen(path: string): Promise<string>;
+  /** Creates a folder inside `parent`; resolves to an error message, or "" once it exists. */
+  onCreateFolder(parent: string, name: string): Promise<string>;
   /** The control that opened the dialog, which gets focus back when it closes. */
   returnFocus?: RefObject<HTMLElement | null>;
   onClose(): void;
@@ -34,15 +37,21 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * the list shows the folder up to its last separator, filtered by what follows it; Open opens
  * exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, initialPath, recent, browse, places, onOpen, returnFocus, onClose }: FolderDialogProps) {
+export function FolderDialog({ open, initialPath, recent, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
   const [input, setInput] = useState("");
   const [listing, setListing] = useState<Listing>({ directory: "" });
   const [highlight, setHighlight] = useState(-1);
   const [placeList, setPlaceList] = useState<FolderPlace[]>([]);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  // New folder: a name row for the listed folder. Creating it moves there; it opens nothing.
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [createPending, setCreatePending] = useState(false);
   const field = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  const newFolderButton = useRef<HTMLButtonElement>(null);
 
   const path = unquotePath(input);
   const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
@@ -60,6 +69,9 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
     setInput(initialPath ? inside(initialPath) : "");
     setError("");
     setHighlight(-1);
+    setCreating(false);
+    setNewName("");
+    setCreateError("");
     void places().then(
       next => { if (active) setPlaceList(next); },
       () => { if (active) setPlaceList([]); },
@@ -92,6 +104,31 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
     setHighlight(-1);
     setError("");
     field.current?.focus();
+  };
+
+  const cancelCreate = () => {
+    setCreating(false);
+    setNewName("");
+    setCreateError("");
+    newFolderButton.current?.focus();
+  };
+
+  const createFolder = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!result || createPending) return;
+    const name = newName.trim();
+    if (!name || name === "." || name === ".." || /[\\/]/.test(name)) {
+      setCreateError("Enter a folder name without a directory path.");
+      return;
+    }
+    setCreatePending(true);
+    const message = await onCreateFolder(result.path, name);
+    setCreatePending(false);
+    setCreateError(message);
+    if (message) return;
+    setCreating(false);
+    setNewName("");
+    go(childPath(result.path, name));
   };
 
   const submit = async () => {
@@ -133,7 +170,12 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
     : [folders.length === 0 ? (partial ? "No matching folders" : "No sub-folders") : "",
       partial ? "" : `${documents} Markdown ${documents === 1 ? "file" : "files"} here`].filter(Boolean).join(" · ");
   return (
-    <Dialog open={open} onOpenChange={next => { if (!next && !pending) onClose(); }}>
+    <Dialog open={open} onOpenChange={(next, details) => {
+      if (next || pending) return;
+      // Escape leaves the name row first, then the dialog.
+      if (creating && details.reason === "escape-key") cancelCreate();
+      else onClose();
+    }}>
       <DialogContent className="folder-picker sm:max-w-[var(--layout-folder-picker-width)]" showCloseButton={!pending}
         finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
@@ -179,11 +221,39 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
               </span>
             ))}
           </nav>
-          <Button type="button" variant="outline" size="sm" disabled={!parent || pending} onClick={() => parent && go(parent.path)}>
-            <ArrowUp aria-hidden="true" />
-            Up
-          </Button>
+          <div className="folder-picker-location-actions">
+            <Button type="button" variant="outline" size="sm" disabled={!parent || pending} onClick={() => parent && go(parent.path)}>
+              <ArrowUp aria-hidden="true" />
+              Up
+            </Button>
+            <Button ref={newFolderButton} type="button" variant="outline" size="sm" title={result ? `New folder in ${result.path}` : undefined}
+              disabled={!result || pending} onClick={() => { setCreating(true); setCreateError(""); }}>
+              <FolderPlus aria-hidden="true" />
+              New folder
+            </Button>
+          </div>
         </div>
+        {creating ? (
+          <form className="folder-picker-new" onSubmit={event => void createFolder(event)}>
+            <Input
+              data-testid="new-folder-name"
+              aria-label="New folder name"
+              aria-invalid={createError ? true : undefined}
+              aria-describedby={createError ? "new-folder-error" : undefined}
+              className="text-foreground"
+              value={newName}
+              onChange={event => { setNewName(event.target.value); setCreateError(""); }}
+              placeholder="New folder name"
+              spellCheck={false}
+              autoComplete="off"
+              disabled={createPending}
+              autoFocus
+            />
+            <Button type="submit" size="sm" disabled={!result || createPending || !newName.trim()}>Create</Button>
+            <Button type="button" variant="ghost" size="sm" aria-label="Cancel new folder" disabled={createPending} onClick={cancelCreate}>Cancel</Button>
+            {createError ? <p id="new-folder-error" className="text-sm text-destructive" role="alert" data-testid="new-error">{createError}</p> : null}
+          </form>
+        ) : null}
         <ul ref={list} id="folder-picker-list" className="folder-picker-list" role="listbox" aria-label="Folders">
           {folders.map((entry, index) => (
             <li

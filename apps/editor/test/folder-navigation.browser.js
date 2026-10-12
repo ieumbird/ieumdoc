@@ -137,6 +137,35 @@ async (page, {screenshots = false} = {}) => {
   await option('guides').waitFor();
   result.completesKoreanPath = true;
 
+  // New folder creates inside the listed folder and moves into it; nothing opens. Escape leaves
+  // the name row before the dialog; rejected names create nothing.
+  const newFolder = dialog.getByRole('button', {name:'New folder', exact:true});
+  const newFolderName = page.getByTestId('new-folder-name');
+  const newFolderError = text => dialog.getByTestId('new-error').getByText(text, {exact:true}).waitFor();
+  await newFolder.click();
+  await newFolderName.fill('..');
+  await newFolderName.press('Enter');
+  await newFolderError('Enter a folder name without a directory path.');
+  await newFolderName.fill('CON');
+  await newFolderName.press('Enter');
+  await newFolderError('folder name is reserved on Windows');
+  await newFolderName.fill('guides');
+  await newFolderName.press('Enter');
+  await newFolderError('a file or folder with that name already exists');
+  if (screenshots) await page.screenshot({path:'tmp/picker-capture/07-picker-new-folder.png'});
+  await newFolderName.press('Escape');
+  await newFolderName.waitFor({state:'detached'});
+  assert(await dialog.isVisible() && await newFolder.evaluate(node => node === document.activeElement), 'Escape leaves only the name row');
+  await newFolder.click();
+  await newFolderName.fill('picked');
+  await newFolderName.press('Enter');
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
+  assert(await field.inputValue() === [folder, 'picked', ''].join(sep) && (await open.innerText()).includes('picked') &&
+    await field.evaluate(node => node === document.activeElement), 'New folder moves into the created folder');
+  await field.press('Backspace');
+  await option('picked').waitFor();
+  result.pickerCreatesFolder = await section.count() === 0 && await option('guides').count() === 1;
+
   // The dialog remains inside both desktop and narrow viewports; Open/Cancel stay reachable.
   await page.setViewportSize({width:1440, height:1000});
   if (screenshots) await page.screenshot({path: 'tmp/picker-capture/04-final.png'});
@@ -346,6 +375,41 @@ async (page, {screenshots = false} = {}) => {
   assert(await current() === '추가.md' && (await editor.innerText()).includes('Created in the displayed folder.') &&
     (await read(createdPath)).source.includes('Created in the displayed folder.'), 'Save and Reload preserve the actual new file');
   result.createsInSubFolderAndPersists = true;
+
+  // Sidebar New folder starts at the open document's folder; a collapsed destination is expanded
+  // to show the folder, which can take a new file at once. The open document stays.
+  if (await row('guides').getAttribute('aria-expanded') === 'true') await row('guides').click();
+  await item('New folder').click();
+  const folderDestination = page.getByTestId('new-folder-directory');
+  assert(await folderDestination.inputValue() === subFolder, "New folder starts in the open document's folder");
+  await folderDestination.selectOption(guidesPath);
+  await page.getByTestId('new-folder-name').fill('chapter');
+  await page.getByTestId('new-folder-name').press('Enter');
+  await dialog.waitFor({state:'detached'});
+  await row('chapter').waitFor();
+  assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('chapter').getAttribute('aria-level') === '2' &&
+    await current() === '추가.md' && await item('New folder').evaluate(node => node === document.activeElement), 'Sidebar New folder shows the created folder');
+  if (screenshots) await page.screenshot({path:'tmp/picker-capture/08-sidebar-new-folder.png'});
+  await item('New file in folder').click();
+  const chapterPath = [guidesPath, 'chapter'].join(sep);
+  assert((await destination.evaluate(select => [...select.options].map(option => option.value))).includes(chapterPath), 'A created folder is a New file destination');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  result.sidebarCreatesFolder = true;
+
+  // A folder created while choosing appears in the sidebar folder already listed; the second
+  // Escape closes the picker without opening anything.
+  await folderMenu('Open folder…');
+  await option('guides').waitFor();
+  await newFolder.click();
+  await newFolderName.fill('later');
+  await newFolderName.press('Enter');
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
+  await field.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  await row('later').waitFor();
+  result.pickerFolderListedInSidebar = await row('later').getAttribute('aria-level') === '1' && await current() === '추가.md' &&
+    await section.getByTitle(folder, {exact:true}).count() === 1;
 
   // With a folder shown, Open file is in the folder's menu, which the keyboard opens and leaves.
   await folderMenu('Open file…');

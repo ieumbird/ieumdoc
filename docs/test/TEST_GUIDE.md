@@ -76,4 +76,4 @@ pnpm browser:test folder-navigation --screenshots   # tmp/picker-capture/
 3. **이미지 붙여넣기와 이동.** 스크린샷 PNG를 붙여넣고, 파일 탐색기에서 사진(JPEG)을 끌어다 놓아 Save한 뒤, 문서와 `assets/`를 함께 다른 폴더로 옮겨 다시 연다. 이미지가 모두 보여야 한다. 자동 검사의 drop은 합성 event다.
 4. **Code block 키 입력.** code block 안에서 Enter, Tab/Shift+Tab, 빈 줄 Enter 세 번으로 빠져나가기와 구문 강조 표시를 확인한다. 이 동작에는 전용 browser 시나리오가 없다.
 5. **이탈 보호.** 저장하지 않은 입력이 있을 때 새로고침이나 탭 닫기를 시도하고 취소한다. 입력이 남아야 한다.
-6. **실제 폴더 탐색.** `Open folder…`에서 Home, Documents, 다른 드라이브, 긴 경로를 열고 문서를 오가며 편집·저장한다.
+6. **실제 폴더 탐색.** `Open folder…`에서 Home, Documents, 다른 드라이브, 긴 경로를 열고, picker와 sidebar에서 새 폴더를 만들고, 문서를 오가며 편집·저장한다.

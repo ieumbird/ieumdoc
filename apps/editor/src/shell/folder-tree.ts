@@ -151,10 +151,10 @@ export function useFolderTree(request: (root: string, path: string) => Promise<F
     );
   };
 
-  // Expands the folders above a document inside the chosen folder and lists them again (the
+  // Expands the folders above a document or folder inside the chosen folder and lists them again (the
   // chosen folder too unless it was just listed). A document elsewhere changes nothing.
-  const show = (root: string, documentPath: string, listRoot: boolean) => {
-    for (const folder of folderChain(root, documentPath)) {
+  const show = (root: string, itemPath: string, listRoot: boolean) => {
+    for (const folder of folderChain(root, itemPath)) {
       if (folder !== root) dispatch({ type: "expand", path: folder });
       if (folder !== root || listRoot) load(root, folder);
     }
@@ -175,9 +175,16 @@ export function useFolderTree(request: (root: string, path: string) => Promise<F
       dispatch({ type: "expand", path });
       load(state.root, path);
     },
-    /** Shows the document just opened or created; its folders are listed again, so a new file appears. */
-    reveal(documentPath: string) {
-      if (state) show(state.root, documentPath, true);
+    /**
+     * Shows the document just opened or created, or a folder just created; the folders above it
+     * are expanded and listed again, so a new item appears.
+     */
+    reveal(itemPath: string) {
+      if (state) show(state.root, itemPath, true);
+    },
+    /** Lists a folder the tree already knows again, without expanding anything. */
+    refresh(path: string) {
+      if (state?.nodes.has(path)) load(state.root, path);
     },
   };
 }

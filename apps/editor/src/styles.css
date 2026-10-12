@@ -1724,7 +1724,22 @@ ol.list { list-style: decimal; }
 
 .folder-picker-crumbs > span { min-width: 0; }
 .folder-picker-crumb:focus-visible { box-shadow: var(--focus-ring); }
-.folder-picker-location > button { flex: none; }
+.folder-picker-location-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+
+.folder-picker-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.folder-picker-new > input { flex: 1 1 0; }
+.folder-picker-new > button { flex: none; }
+.folder-picker-new > p { flex-basis: 100%; }
 
 .folder-picker-crumb:hover {
   background: var(--id-color-surface-hover);
