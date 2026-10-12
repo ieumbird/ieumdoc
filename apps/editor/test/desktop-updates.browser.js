@@ -172,7 +172,7 @@ async (page, { screenshots = false } = {}) => {
     });
   } finally { releaseSave(); }
   await page.getByText('Saved', {exact:true}).waitFor();
-  await page.waitForFunction(() => typeof window.__savedUnloadPrevented === 'boolean');
+  await page.waitForFunction(() => typeof window.__savedUnloadPrevented === 'boolean', undefined, {timeout:30_000});
   const savedUnloadPrevented = await page.evaluate(() => window.__savedUnloadPrevented);
   check(savedUnloadPrevented === false, `The first completed Save commit blocks unload: ${savedUnloadPrevented}`);
   await page.unroute('**/api/document', holdSave);

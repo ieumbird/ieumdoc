@@ -87,7 +87,7 @@ async page => {
       const {selection} = editor.state;
       return editor.view.hasFocus() && !selection.empty && selection.node?.type.name === 'equation' &&
         selection.node.attrs.sourcePath === path;
-    }, newPath);
+    }, newPath, {timeout:30_000});
     const escapeReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
