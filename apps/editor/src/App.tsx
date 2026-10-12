@@ -8,7 +8,6 @@ import { DocumentStart } from "./shell/DocumentStart.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
-import { OpenDialog } from "./shell/OpenDialog.tsx";
 import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
@@ -55,7 +54,7 @@ export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
   const newFileButton = useRef<HTMLButtonElement>(null);
   const newFolderButton = useRef<HTMLButtonElement>(null);
-  // Open file… and Open folder… return focus to the control that opened them.
+  // Open folder… returns focus to the control that opened it.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
   // Set when the Host opened no document at start; cleared once one opens.
@@ -72,7 +71,6 @@ export function App() {
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
-  const [openDialog, setOpenDialog] = useState(false);
   const [folderDialog, setFolderDialog] = useState(false);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [newDialog, setNewDialog] = useState(false);
@@ -301,7 +299,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (openDialog || folderDialog || newDialog || newFolderDialog || reloadDialog) return;
+    if (folderDialog || newDialog || newFolderDialog || reloadDialog) return;
     void save();
   };
   useEffect(() => {
@@ -421,10 +419,6 @@ export function App() {
         open={sidebarOpen}
         documentPath={openedPath}
         onToggle={() => setSidebarOpen((value) => !value)}
-        onOpen={(returnFocus) => {
-          dialogReturnFocus.current = returnFocus;
-          setOpenDialog(true);
-        }}
         onOpenFolder={(returnFocus) => {
           dialogReturnFocus.current = returnFocus;
           setFolderDialog(true);
@@ -505,10 +499,6 @@ export function App() {
                 dialogReturnFocus.current = returnFocus;
                 setFolderDialog(true);
               }}
-              onOpen={(returnFocus) => {
-                dialogReturnFocus.current = returnFocus;
-                setOpenDialog(true);
-              }}
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
               onOpenSample={(sample) => void openFile(sample).then((message) => {
                 if (message) setError(message);
@@ -564,14 +554,6 @@ export function App() {
           onClose={() => setSettingsOpen(false)}
         />
       ) : null}
-      <OpenDialog
-        open={openDialog}
-        initialPath={openedPath}
-        busy={busy}
-        onOpen={openFile}
-        returnFocus={dialogReturnFocus}
-        onClose={() => { if (!switching) setOpenDialog(false); }}
-      />
       <FolderDialog
         open={folderDialog}
         initialPath={folderTree.state?.root ?? splitDocumentPath(openedPath).directory}

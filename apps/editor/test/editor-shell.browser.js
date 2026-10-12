@@ -20,36 +20,28 @@ async page => {
   try {
     // Shell: application UI stays outside the document.
     result.noLegacyUi = await page.locator('.file-picker, .format-bar, [data-testid="equation-draft-notice"]').count() === 0;
-    result.appUiOutsideDocument = await article.locator('[data-testid="file-path"], [data-testid="status"], [data-testid="message-area"]').count() === 0;
+    result.appUiOutsideDocument = await article.locator('[data-testid="folder-path"], [data-testid="status"], [data-testid="message-area"]').count() === 0;
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    result.sidebarCollapses = await page.getByRole('button',{name:'Open file…'}).count() === 0;
+    result.sidebarCollapses = await page.getByRole('button',{name:'Open folder…'}).count() === 0;
     await page.getByRole('button',{name:'Expand sidebar'}).click();
     result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 
-    // Open file… and Open folder… dialogs closed by Escape or Cancel return focus to their button.
+    // Folder entry is the only general Open action; Escape and Cancel return focus to it.
     const isFocused = locator => locator.evaluate(node => node === document.activeElement);
     const dialog = page.getByRole('dialog');
     const openFolder = page.getByRole('button',{name:'Open folder…', exact:true});
-    const openFile = page.getByRole('button',{name:'Open file…', exact:true});
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Enter');
-    await page.getByTestId('file-path').waitFor();
-    await page.keyboard.press('Escape');
-    await dialog.waitFor({state:'detached'});
-    result.openEscapeReturnsFocus = await isFocused(openFile);
-    await page.keyboard.press('Enter');
-    await page.getByTestId('file-path').waitFor();
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Enter');
-    await dialog.waitFor({state:'detached'});
-    result.openCancelReturnsFocus = await isFocused(openFile);
-    await page.keyboard.press('Shift+Tab');
+    result.folderOnlyEntry = await page.getByRole('button',{name:'Open file…', exact:true}).count() === 0;
+    await openFolder.focus();
     await page.keyboard.press('Enter');
     await page.getByTestId('folder-path').waitFor();
     await page.keyboard.press('Escape');
     await dialog.waitFor({state:'detached'});
     result.folderEscapeReturnsFocus = await isFocused(openFolder);
+    await page.keyboard.press('Enter');
+    await page.getByTestId('folder-path').waitFor();
+    await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+    await dialog.waitFor({state:'detached'});
+    result.folderCancelReturnsFocus = await isFocused(openFolder);
 
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});

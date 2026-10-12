@@ -8,6 +8,7 @@ import { runInNewContext } from "node:vm";
 import { classifyConsoleErrors } from "./console-errors.ts";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
+import { openDocument } from "./navigation.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5173";
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
@@ -127,7 +128,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean }) => Promise<unknown>;
-    await scenario(page, { screenshots });
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument }) => Promise<unknown>;
+    await scenario(page, { screenshots, openDocument });
   });
 }

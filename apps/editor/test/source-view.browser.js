@@ -1,10 +1,10 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view.browser.js.
+// Run with pnpm browser:test source-view.
 // Switches between Visual and the read-only Source view, checks that Source is the canonical
 // Markdown Save would write (including unsaved Visual edits), that the file is only written by
 // Save, that Equation/Figure drafts survive Source, and that unwritable documents show their original Source.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -26,9 +26,7 @@ async page => {
   const open = async file => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const visual = page.getByTestId('view-visual');

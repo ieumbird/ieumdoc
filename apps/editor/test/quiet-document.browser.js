@@ -1,6 +1,6 @@
 // Regression checks on real scratch files; optional captures are for manual visual review.
 // pnpm browser:test quiet-document --screenshots writes tmp/visual-refinement/after-*.png.
-async (page, { screenshots = false } = {}) => {
+async (page, { screenshots = false, openDocument }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -12,11 +12,12 @@ async (page, { screenshots = false } = {}) => {
   const open = async name => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(scratch(name));
-    await page.getByRole('dialog').getByRole('button', {name:'Open',exact:true}).click();
+    await openDocument(page, scratch(name));
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     check(await page.getByTestId('current-file').getAttribute('title') === scratch(name), 'Wrong file');
+    // Keep the existing visual-review state: a loaded document with no folder displayed.
+    await page.getByRole('button', {name:'More actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all([...document.images].map(img => img.decode()));
@@ -298,7 +299,7 @@ async (page, { screenshots = false } = {}) => {
     await shot(`${width}-long-content`);
     results.push({width,...local});
   }
-  for(const [button,label] of [['Open file…','Open']]) {
+  for(const [button,label] of [['Open folder…','Folder']]) {
     await page.getByRole('button',{name:button,exact:true}).click();
     await bounds(page.getByRole('dialog'),`${label} dialog`);
     await shot(`768-${label.toLowerCase()}-dialog`);

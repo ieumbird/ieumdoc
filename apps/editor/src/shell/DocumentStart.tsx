@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Folder, FolderOpen } from "lucide-react";
+import { BookOpen, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
@@ -9,7 +9,6 @@ type DocumentStartProps = {
   sample?: string;
   busy: boolean;
   onOpenFolder(returnFocus: HTMLElement): void;
-  onOpen(returnFocus: HTMLElement): void;
   onOpenRecent(folder: string): void;
   onOpenSample(sample: string): void;
 };
@@ -18,19 +17,15 @@ type DocumentStartProps = {
  * The document column while no document is open: the user chooses what to work on. Nothing here
  * is a document; the sample is a separate choice, never opened for them.
  */
-export function DocumentStart({ recent, sample, busy, onOpenFolder, onOpen, onOpenRecent, onOpenSample }: DocumentStartProps) {
+export function DocumentStart({ recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
   return (
     <section className="document document-start" aria-labelledby="document-start-title" data-testid="document-start">
       <h1 id="document-start-title" className="document-start-title">Open your Markdown</h1>
-      <p className="document-start-text">Open a folder to browse and create its Markdown files, or open a single file.</p>
+      <p className="document-start-text">Open a folder, then choose a Markdown file from the sidebar or create a new one.</p>
       <div className="document-start-actions">
         <Button size="sm" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>
           <FolderOpen aria-hidden="true" />
           Open folder…
-        </Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={event => onOpen(event.currentTarget)}>
-          <FileText aria-hidden="true" />
-          Open file…
         </Button>
       </div>
       {recent.length > 0 ? (

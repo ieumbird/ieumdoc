@@ -1,9 +1,9 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/reference-save-reload.browser.js.
+// Run with pnpm browser:test reference-save-reload.
 // Edits an unrelated paragraph, saves and reloads a real file, then checks that the {eq} role
 // stays a semantic reference and `[](#...)` fragment links stay ordinary links (issue #12).
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -25,9 +25,7 @@ async page => {
     throw new Error('Scratch document is not a fresh technical-document.md copy');
   }
 
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(filePath);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, filePath);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   if (!(await page.getByTestId('current-file').getAttribute('title')).includes('reference-save-reload')) {
     throw new Error('Scratch file was not opened');
@@ -40,9 +38,7 @@ async page => {
 
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(filePath);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, filePath);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const article = await page.getByRole('article').innerText();
   const saved = await markdown();

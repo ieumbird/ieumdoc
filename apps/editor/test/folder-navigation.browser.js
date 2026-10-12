@@ -411,14 +411,16 @@ async (page, {screenshots = false} = {}) => {
   result.pickerFolderListedInSidebar = await row('later').getAttribute('aria-level') === '1' && await current() === '추가.md' &&
     await section.getByTitle(folder, {exact:true}).count() === 1;
 
-  // With a folder shown, Open file is in the folder's menu, which the keyboard opens and leaves.
-  await folderMenu('Open file…');
-  await page.getByTestId('file-path').waitFor();
+  // Only folder navigation remains in the menu; its dialog returns focus to `⋯`.
+  await section.getByRole('button', {name:'More actions', exact:true}).click();
+  result.noOpenFileEntry = await page.getByRole('menuitem', {name:'Open file…', exact:true}).count() === 0;
+  await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
+  await field.waitFor();
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   await dialog.waitFor({state:'detached'});
   const more = section.getByRole('button', {name:'More actions', exact:true});
   // The menu item is gone; the dialog returns focus to `⋯`.
-  result.opensFileFromMenu = await current() === '추가.md' && await more.evaluate(node => node === document.activeElement);
+  result.opensFolderFromMenu = await current() === '추가.md' && await more.evaluate(node => node === document.activeElement);
   await more.focus();
   await page.keyboard.press('Enter');
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();

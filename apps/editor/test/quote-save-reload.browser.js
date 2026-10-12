@@ -2,7 +2,7 @@
 // Types an apostrophe and straight double quotes into paragraphs of a real scratch file, saves,
 // reloads and reopens it, and checks that the file and the Editor keep the text exactly as typed
 // (no typographic quotes). The file is a scratch copy under the repository's ignored tmp/ directory.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -23,9 +23,7 @@ async page => {
     throw new Error('Scratch document is not a fresh quotes.md copy');
   }
   const open = async () => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(filePath);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, filePath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes('quote-save-reload')) {
       throw new Error('Scratch file was not opened');

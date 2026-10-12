@@ -2,7 +2,7 @@
 // update notifications and the restart check the Desktop app asks before installing. The browser
 // Editor without the bridge shows none of it. Updater behavior itself is tested in apps/desktop.
 // pnpm browser:test desktop-updates
-async (page, { screenshots = false } = {}) => {
+async (page, { screenshots = false, openDocument }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   check(await page.getByRole('button', {name:'Settings'}).count() === 0, 'The browser Editor shows Desktop Settings');
@@ -48,9 +48,7 @@ async (page, { screenshots = false } = {}) => {
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const sep = defaultPath.includes('\\') ? '\\' : '/';
   const file = [...defaultPath.split(sep).slice(0, -4), 'tmp', 'desktop-updates', 'updates.md'].join(sep);
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(file);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, file);
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
 

@@ -2,7 +2,7 @@
 // Types Markdown shortcuts with real keys: `## `, `- `, `3. `, a code fence and inline marks,
 // and `$...$` inline math, checks that Undo right after a shortcut restores the typed text, that no shortcut applies inside
 // code blocks while marks apply in table cells and headings, then saves a scratch Markdown file and reloads it.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
@@ -21,9 +21,7 @@ async page => {
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh Markdown input fixture');
 
   const openScratch = async () => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('markdown-input'));

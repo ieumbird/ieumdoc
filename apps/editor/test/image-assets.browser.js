@@ -1,5 +1,5 @@
 // Native PNG clipboard, actual local Host assets, file drop and compensated insertion failure.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -9,9 +9,7 @@ async page => {
   const separator = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'image-assets', 'images.md'].join(separator);
-  await page.getByRole('button', { name: 'Open file…' }).click();
-  await page.getByTestId('file-path').fill(file);
-  await page.getByRole('dialog').getByRole('button', { name: 'Open', exact: true }).click();
+  await openDocument(page, file);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const result = {};

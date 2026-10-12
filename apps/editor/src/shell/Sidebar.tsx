@@ -9,8 +9,7 @@ type SidebarProps = {
   open: boolean;
   documentPath: string;
   onToggle(): void;
-  /** Open file… and Open folder… name the control their dialog returns focus to. */
-  onOpen(returnFocus: HTMLElement | null): void;
+  /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
   /** Opens New, which shows and lets the user choose the destination folder. */
   onNew?(): void;
@@ -29,7 +28,7 @@ type SidebarProps = {
 
 /** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
 export function Sidebar({
-  open, documentPath, onToggle, onOpen, onOpenFolder, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
+  open, documentPath, onToggle, onOpenFolder, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings,
 }: SidebarProps) {
   return (
@@ -56,7 +55,6 @@ export function Sidebar({
           onOpenDocument={path => onOpenDocument?.(path)}
           onNew={() => onNew?.()}
           onNewFolder={() => onNewFolder?.()}
-          onOpen={onOpen}
           onOpenFolder={onOpenFolder}
           onClose={() => onCloseFolder?.()}
         />
@@ -66,10 +64,6 @@ export function Sidebar({
           <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
             <FolderOpen aria-hidden="true" />
             Open folder…
-          </Button>
-          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onOpen(event.currentTarget)}>
-            <FileText aria-hidden="true" />
-            Open file…
           </Button>
         </section>
       )}
@@ -100,13 +94,12 @@ type FolderTreeProps = {
   newButtonRef?: RefObject<HTMLButtonElement | null>;
   onNewFolder(): void;
   newFolderButtonRef?: RefObject<HTMLButtonElement | null>;
-  onOpen(returnFocus: HTMLElement | null): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
   onClose(): void;
 };
 
 /** The chosen folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpen, onOpenFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpenFolder, onClose }: FolderTreeProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const items = visibleTreeItems(tree);
@@ -150,10 +143,6 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onOpen(more.current)}>
-                <FileText aria-hidden="true" />
-                Open file…
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onOpenFolder(more.current)}>
                 <FolderOpen aria-hidden="true" />
                 Open folder…

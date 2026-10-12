@@ -1,5 +1,5 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -8,12 +8,11 @@ async page => {
   const file = [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  await page.getByRole('button',{name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(file);
-  await page.getByRole('dialog').getByRole('button',{name:'Open',exact:true}).click();
+  await openDocument(page, file);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   // The sidebar is measured with its folder: heading, actions and listed files.
-  await page.getByRole('button',{name:'Open folder…',exact:true}).click();
+  await page.getByRole('button',{name:'More actions',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)));
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});

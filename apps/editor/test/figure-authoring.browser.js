@@ -1,8 +1,8 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/figure-authoring.browser.js.
+// Run with pnpm browser:test figure-authoring.
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   const onConsole = message => {
     if (message.type() === 'error' || message.type() === 'warning') problems.push(`${message.type()}: ${message.text()}`);
@@ -47,9 +47,7 @@ async page => {
   const openScratch = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(filePath);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, filePath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes('figure-authoring')) throw new Error('Scratch file was not opened');
   };
@@ -319,7 +317,8 @@ async page => {
     // Canceling a never-applied Figure that is the only block restores the empty-document paragraph.
     const emptyName = `empty-${Date.now()}.md`;
     const emptyPath = filePath.replace('technical-document.md', emptyName);
-    await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await page.getByRole('button', {name:'More actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
     await page.getByTestId('folder-path').fill(filePath.slice(0, -'technical-document.md'.length));
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});

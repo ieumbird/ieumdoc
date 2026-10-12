@@ -4,7 +4,7 @@
 // subscript with their keyboard shortcuts, creates a quote, a divider and
 // strikethrough with Markdown shortcuts, inserts H5 and a divider from the slash menu, then saves
 // a scratch Markdown file and reloads it.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
@@ -23,9 +23,7 @@ async page => {
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh basic blocks fixture');
 
   const openScratch = async () => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('basic-blocks'));

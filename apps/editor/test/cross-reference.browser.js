@@ -1,10 +1,10 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/cross-reference.browser.js.
+// Run with pnpm browser:test cross-reference.
 // Inserts {eq}/{numref} references from a selection and from the slash menu, checks computed numbers
 // and that clicking a reference goes to its target, retargets and removes
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -24,9 +24,7 @@ async page => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(filePath);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, filePath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const sourceText = async () => {
@@ -176,9 +174,7 @@ async page => {
   const openCaption = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(captionPath);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, captionPath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const caption = page.getByTestId('table-caption');

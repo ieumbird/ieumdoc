@@ -53,6 +53,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
+`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 변경·Draft·Save 진행 중 전환 거부와 충돌 보존을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴의 수동 비교용 캡처를 저장한다.
+
 `desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
 
 CI의 Windows Desktop job은 위 install/update, clean package와 packaged regressions를 실행하며 aggregate required job이 그 결과도 요구한다. 수동 release workflow는 기존 tag를 검증하고 최종 artifact를 검증/업로드한다. 서명/승인 절차는 [Contributing](../../CONTRIBUTING.md#windows-desktop-builds-and-releases), 현재 계약과 검증 결과는 [Desktop distribution](../design/desktop-distribution-v1.md)에 있다.

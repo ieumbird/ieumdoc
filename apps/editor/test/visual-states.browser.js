@@ -25,8 +25,8 @@ async page => {
   const faces = async () => {
     await page.mouse.move(0,0);
     const button = (await state(openFolder)).background;
-    await page.getByRole('button', {name:'Open file…', exact:true}).click();
-    const field = (await state(page.getByTestId('file-path'))).background;
+    await openFolder.click();
+    const field = (await state(page.getByTestId('folder-path'))).background;
     await page.keyboard.press('Escape');
     return [button, field];
   };
