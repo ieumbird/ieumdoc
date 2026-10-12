@@ -22,7 +22,7 @@
 
 - Standard controls/inputs: 32px; compact controls/actions: 28px; icons: 16px. Measure actual rendered height after transitions complete.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable top block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
-- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v3).
+- Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.3).
 - Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.
 

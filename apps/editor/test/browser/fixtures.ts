@@ -25,7 +25,10 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
   "new-document": { files: [], scenarios: ["new-document"] },
-  "open-files": { files: [], scenarios: ["open-files"] },
+  "open-files": { files: [
+    { name: "ieumdoc-a.md", create: () => "# A\n" },
+    { name: "ieumdoc-b.md", create: () => "# B\n" },
+  ], scenarios: ["open-files"] },
   "image-assets": { files: [{ name: "images.md", create: () => "# Images\n\nAlpha.\n\nBeta.\n" }], scenarios: ["image-assets"] },
   "external-html-paste": { files: [{ name: "external.md", create: () => "# External\n\nAlpha.\n\nOmega.\n" }], scenarios: ["external-html-paste"] },
   "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),

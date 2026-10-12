@@ -1,11 +1,11 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (folder-navigation/new-document와 전체 browser suite; New folder Host·picker·sidebar 경로).
+- Last verified: 2026-10-12 (#190 폴더 중심 파일 탐색; folder-navigation/new-document와 전체 browser suite; New folder Host·picker·sidebar 경로).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
-The development HTTP Host is currently the only adopted Host. This picker remains the file/folder/child/recent/New path until an actually adopted product Host supplies and verifies those same operations; a future native Host is not a reason to remove it now.
+The Vite development adapter and Windows Desktop Host both reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
 
 ## Behavior
 
@@ -34,12 +34,12 @@ The development HTTP Host is currently the only adopted Host. This picker remain
 
 No native picker, upload/copy, rename/delete/move, tree inside the dialog, search, watcher, workspace,
 new persistence service or file-picker UI. (The chosen folder is shown as a lazily listed tree in the sidebar; see
-[Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112).) The existing file-path dialog remains. No CLI parity command:
+[Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112).) The separate full-file-path dialog is removed (#190). No CLI parity command:
 choosing a folder is interface/Host navigation, not a document semantic operation.
 
 ## New document in a sidebar folder
 
-- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Open file…, Open folder…, Close folder).
+- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Open folder…, Close folder).
 - The New dialog's Location field shows and chooses the destination: the chosen folder and
   every sub-folder listed in the tree so far, expanded or not, named from the chosen folder.
   It starts at the open document's folder when that is inside the chosen folder, otherwise at

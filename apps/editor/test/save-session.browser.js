@@ -1,5 +1,5 @@
 // Real scratch-file saves across engine history, drafts and an external conflict.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -18,9 +18,7 @@ async page => {
     await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
   };
   const open = async path => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(path);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, path);
     await page.getByRole('dialog').waitFor({state:'detached'});
     await ready();
   };

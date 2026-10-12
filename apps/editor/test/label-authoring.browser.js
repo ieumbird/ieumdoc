@@ -1,9 +1,9 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/label-authoring.browser.js.
+// Run with pnpm browser:test label-authoring.
 // Adds, changes and removes Equation and Figure labels, labels new blocks, checks Source View and
 // Save/Reload against a real file, and checks that duplicate and invalid labels never write.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -23,9 +23,7 @@ async page => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(filePath);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, filePath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const equation = page.locator('[data-block="equation"]').first();

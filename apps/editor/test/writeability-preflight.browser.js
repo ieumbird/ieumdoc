@@ -1,5 +1,5 @@
 // Real scratch files: preservation, read-only diagnostics, original source, and repair → Reload.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -11,9 +11,7 @@ async page => {
   const path = name => [root, 'tmp', 'writeability-preflight', name].join(sep);
   const read = async name => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path(name))}`)).json());
   const open = async name => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(path(name));
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, path(name));
     await ready();
     await page.getByRole('dialog').waitFor({state:'detached'});
   };

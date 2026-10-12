@@ -1,9 +1,9 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/source-view-pending.browser.js.
+// Run with pnpm browser:test source-view-pending.
 // Holds a Source preview for document A in flight, tries Open and folder New for other documents, and
 // checks that neither switches the document, so the late preview can only show A's Markdown.
 // Uses the scratch files prepared for source-view.browser.js (see docs/test/TEST_GUIDE.md);
 // the scenario writes nothing.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -25,20 +25,16 @@ async page => {
   }
   if (await exists(created, 'created-during-preview.md')) throw new Error(`Remove ${created} first`);
 
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(documentA);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, documentA);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   // New creates in the displayed sidebar folder, so the scratch folder is opened first.
-  await page.getByRole('button', {name:'Open folder…'}).click();
+  await page.getByRole('button', {name:'More actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
   await page.getByTestId('folder-path').fill(dir);
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await page.getByTestId('folder').waitFor();
-  const openFile = async () => {
-    await page.getByRole('button', {name:'More actions', exact:true}).click();
-    await page.getByRole('menuitem', {name:'Open file…', exact:true}).click();
-  };
+  const otherDocument = page.getByTestId('folder').getByRole('treeitem', {name:'keyboard.md', exact:true});
 
   let release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -75,7 +71,9 @@ async page => {
   try {
     await page.getByTestId('view-source').click();
     await requested;
-    result.openBlockedWhilePending = await trySubmit(openFile, 'file-path', 'Open', documentB);
+    await otherDocument.click();
+    await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
+    result.openBlockedWhilePending = await currentFile() === documentA;
     result.newBlockedWhilePending = await trySubmit(() => page.getByRole('button', {name:'New file in folder', exact:true}).click(),
       'new-file-name', 'Create', 'created-during-preview');
     result.newFileNotCreated = !await exists(created, 'created-during-preview.md');
@@ -89,9 +87,7 @@ async page => {
   await page.unroute('**/api/document-source');
 
   // Once the preview is done, Open works again and returns to Visual.
-  await openFile();
-  await page.getByTestId('file-path').fill(documentB);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await otherDocument.click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   result.openAfterPreview = await currentFile() === documentB &&
     await page.getByTestId('view-visual').getAttribute('aria-pressed') === 'true';

@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test";
+import { openDocument } from "../../../editor/test/browser/navigation.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -57,9 +58,7 @@ const figuresLoaded = (page: Page) => page.waitForFunction(() => {
 }, null, { timeout: 15_000 }).then(() => true, () => false);
 
 async function openFile(page: Page, file: string): Promise<void> {
-  await page.getByTestId("sidebar").getByRole("button", { name: "Open file…" }).click();
-  await page.getByTestId("file-path").fill(file);
-  await page.getByRole("dialog").getByRole("button", { name: "Open", exact: true }).click();
+  await openDocument(page, file);
   await ready(page);
   await page.getByRole("dialog").waitFor({ state: "detached" });
 }
@@ -97,6 +96,7 @@ test("started without a document, it opens none; the sample opens with its figur
     const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
     await page.getByTestId("document-start").waitFor();
+    assert.equal(await page.getByRole("button", { name: "Open file…", exact: true }).count(), 0);
     assert.equal(await page.getByTestId("current-file").innerText(), "No file opened");
     assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
     await page.getByRole("button", { name: "Open sample document", exact: true }).click();
@@ -156,7 +156,8 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /\.\/assets\/image-[^)]+\.png/);
 
-    await page.getByRole("button", { name: "Open folder…" }).click();
+    await page.getByRole("button", { name: "More actions", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Open folder…", exact: true }).click();
     await page.getByTestId("folder-path").fill(folder);
     await page.getByTestId("folder-open").click();
     await page.getByTestId("folder").getByRole("treeitem", { name: "doc.md" }).waitFor();

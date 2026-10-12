@@ -9,7 +9,6 @@ import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
-import { OpenDialog } from "../src/shell/OpenDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
 
@@ -25,17 +24,17 @@ test("document path splits for display without changing the address", () => {
   assert.equal(unquotePath('"unfinished'), '"unfinished');
 });
 
-test("sidebar without a folder offers Open folder and Open file, and collapses", () => {
-  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpen={noop} onOpenFolder={noop} />);
+test("sidebar without a folder offers only Open folder, and collapses", () => {
+  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
   assert.match(open, /IeumDoc/);
   assert.match(open, />Open folder…</);
-  assert.match(open, />Open file…</);
+  assert.doesNotMatch(open, /Open file…/);
   assert.doesNotMatch(open, /data-testid="folder"/);
   // No app-level full-path New and no second listing of the open document; TopBar names it.
   assert.doesNotMatch(open, />New</);
   assert.doesNotMatch(open, /guide\.md|aria-current/);
   assert.match(open, /aria-label="Collapse sidebar"/);
-  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpen={noop} onOpenFolder={noop} />);
+  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(collapsed, /Open file…|Open folder…|IeumDoc/);
 });
@@ -57,7 +56,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folder={folder} onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
@@ -72,13 +71,13 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   // New names no folder here: its dialog shows and chooses the destination.
   assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file…")[^>]*>/);
   assert.match(html, /<button\b(?=[^>]*aria-label="New folder")(?=[^>]*title="New folder…")[^>]*>/);
-  // Open file, Open folder and Close folder are behind one menu instead of a row of buttons.
+  // Open folder and Close folder are behind one menu instead of a row of buttons.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);
   const top = renderToStaticMarkup(
     <Sidebar open documentPath={PATH} folder={{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }}
-      onToggle={noop} onOpen={noop} onOpenFolder={noop} />,
+      onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No folders or Markdown files/);
 });
@@ -191,15 +190,6 @@ test("message area keeps the writeability warning without a dismiss control", ()
   assert.match(html, /role="status"/);
   assert.match(html, />Cannot save: reason</);
   assert.doesNotMatch(html, /Dismiss/);
-});
-
-test("Open dialog renders nothing while closed", () => {
-  // The dialog content is portaled and only mounts in a browser once open (see the
-  // "Editor UX Shell v1" browser script for the Open/Cancel/error flow it drives).
-  const html = renderToStaticMarkup(
-    <OpenDialog open={false} initialPath={PATH} busy={false} onOpen={async () => ""} onClose={noop} />,
-  );
-  assert.equal(html, "");
 });
 
 test("New dialog renders nothing while closed", () => {

@@ -1,9 +1,9 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/link-authoring.browser.js.
+// Run with pnpm browser:test link-authoring.
 // Adds, retargets, relabels and removes ordinary links through the selection toolbar, saves and
 // reloads a real file, and checks that cross-references stay read-only and invalid links fail
 // closed. The file is a scratch copy under the repository's ignored tmp/ directory; prepare it
 // first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -23,9 +23,7 @@ async page => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const editor = page.getByTestId('document-editor');

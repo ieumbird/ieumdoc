@@ -1,7 +1,7 @@
 // Run with pnpm browser:test list-authoring.
 // Edits list items with the keyboard (Enter, Tab, Enter on an empty item), inserts a numbered
 // list from the slash menu, saves a scratch Markdown file, and reloads it.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
@@ -20,9 +20,7 @@ async page => {
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh list fixture');
 
   const openScratch = async () => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.waitForFunction(() =>
       document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('lists.md'));

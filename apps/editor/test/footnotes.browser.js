@@ -3,7 +3,7 @@
 // definition's own source applies unchanged, a one-paragraph definition is edited in place, `/`
 // Footnote inserts a reference and a definition whose number goes back to it, and removing a
 // footnote's last reference is refused with the reason.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -16,9 +16,7 @@ async page => {
   const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.replaceAll('\r\n', '\n');
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const open = async () => {
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await ready();
     await page.getByRole('dialog').waitFor({state:'detached'});
   };

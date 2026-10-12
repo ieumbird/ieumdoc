@@ -1,9 +1,9 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/table-cell-editing.browser.js.
+// Run with pnpm browser:test table-cell-editing.
 // Edits header and body cells of a Markdown table, saves and reloads a real file, and checks that
 // cells keep applied, pasted and removed formatting, Enter exits the table, and read-only cells stay unchanged.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes those copies only.
-async page => {
+async (page, { openDocument }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -26,9 +26,7 @@ async page => {
   const open = async file => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.getByRole('button', {name:'Open file…'}).click();
-    await page.getByTestId('file-path').fill(file);
-    await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+    await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
   const save = async () => {

@@ -1,5 +1,5 @@
 // Draft membership by kind + snapshot locator, and source Apply's destructive replacement boundary.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -8,9 +8,7 @@ async page => {
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const file = [...initial.path.split(sep).slice(0,-4), 'tmp', 'property-drafts', 'drafts.md'].join(sep);
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(file);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, file);
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
   const editor = page.locator('.document-editor');

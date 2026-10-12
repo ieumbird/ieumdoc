@@ -34,14 +34,14 @@ pnpm --filter @ieumdoc/editor build
 
 ### Browser regression
 
-`apps/editor/test/*.browser.js`는 실제 브라우저에서 Editor 흐름을 검증한다.
+`apps/editor/test/*.browser.js`는 `pnpm browser:test`로 실행한다. runner는 공통 `openDocument` helper를 전달하며, helper는 실제 Open folder 대화상자와 Sidebar 파일 선택으로 검증용 문서를 연다. 파일 전환이 거부되는지는 각 시나리오가 판정한다.
 
 ```bash
 pnpm editor                                # 필요하면 다른 터미널에서 dev server를 직접 시작
 pnpm browser:test                          # stable 시나리오 전체
 pnpm browser:test footnotes outline        # 이름을 준 시나리오만
 pnpm browser:test --shard=1/2              # CI와 같은 분할. 로컬에서는 두 그룹을 차례로 실행
-pnpm browser:prepare                       # scratch 사본만 다시 만든다(run-code를 직접 실행할 때)
+pnpm browser:prepare                       # 수동 검토용 scratch 사본만 다시 만든다
 ```
 
 - 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행한다. 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)이 바뀌면 실패한다. 어떤 사본을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
@@ -65,6 +65,7 @@ pnpm browser:prepare                       # scratch 사본만 다시 만든다(
 ```bash
 pnpm browser:test quiet-document --screenshots      # tmp/visual-refinement/after-*.png
 pnpm browser:test folder-navigation --screenshots   # tmp/picker-capture/
+pnpm browser:test open-files --screenshots          # tmp/visual-refinement/: 시작 화면·폴더 메뉴
 ```
 
 캡처에서 정렬, 간격, 겹침, 잘림, 긴 이름·수식·표의 처리를 본다. 기준은 [layout rules](../design/editor-layout-rules-v1.md)와 [visual language](../design/editor-visual-language-v1.md), 이전 근거는 [review record](../design/editor-visual-refinement-v1-review.md)다.

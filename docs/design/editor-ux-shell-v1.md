@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#174 문서 없는 시작: `open-files`와 packaged app regressions; 기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
+- Last verified: 2026-10-12 (#190: 폴더 기반 파일 열기, 시작 화면과 작업 보호 회귀; #174 문서 없는 시작: `open-files`와 packaged app regressions; 기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
 - Scope: existing Editor interactions. [Visual Language (current v4.3)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
@@ -14,13 +14,13 @@ The shell has three responsibilities: the Sidebar on the left is filesystem/docu
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc, then the chosen folder (#112) or, without one, a compact choice of Open folder… (primary) and Open file…. User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the chosen folder (icon and name, full path in `title`) with `+` (New file in folder), New folder and a `⋯` menu: Open file…, Open folder…, Close folder. Below it the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. The folders above the open document expand by themselves when it is inside the chosen folder; a document elsewhere adds nothing to the tree. Expanded folders are page state only and are not restored on reload. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text and a vertical current marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. The open document is not listed separately: the TopBar names it. |
+| Sidebar | IeumDoc, then the chosen folder (#112) or, without one, Open folder… as its only general document-navigation entry. User-controlled collapse/expand; no workspace or placeholder navigation. The folder heading names the chosen folder (icon and name, full path in `title`) with `+` (New file in folder), New folder and a `⋯` menu: Open folder…, Close folder. Below it the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. The folders above the open document expand by themselves when it is inside the chosen folder; a document elsewhere adds nothing to the tree. Expanded folders are page state only and are not restored on reload. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text and a vertical current marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. The open document is not listed separately: the TopBar names it. |
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and scrolls by itself; it is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, Reload and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
 | TopBar | Filename (full path in title) and actual status on the left; Number headings icon toggle, Visual/Source, Wide document, Outline, Reload and Save on the right, in that order. Wide document widens the document column and is remembered in this browser only. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
-Open file… uses the existing local path dialog; closing it, like Open folder…, returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only (or the original Markdown when an unwritable file opens read-only); it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 The folder heading's `+` opens New. Its Location field shows the destination and lists the
 chosen folder and every sub-folder the tree has listed, named from the chosen folder
@@ -37,17 +37,19 @@ success shows the folder in the tree and returns focus to New folder. See [New f
 Behavior change (sidebar chrome cleanup): the sidebar no longer has the Open…, Open folder…
 and New button row or the separate current-document row. The app-level New, which took a full
 file path in any existing directory, is removed rather than moved: a document is created by
-opening its folder and using the folder's `+`. Open file… keeps arbitrary `.md` paths, and the
-Host's creation API and checks are unchanged.
+opening its folder and using the folder's `+`. The separate full-file-path Open file entry is also
+removed (#190); the shared document loader, Host file APIs and Desktop `.md` arguments remain.
+Folder navigation changes no document meaning, so this removal adds no Core operation or CLI command.
 
 ## Start without a document (#174)
 
 When the Host's answer to the first request opens no document (the Desktop app started without a
 `.md` argument, see [Desktop distribution](desktop-distribution-v1.md)), the document column
-shows the start on the paper instead of an editor: Open folder… (primary) and Open file…, the
+shows the start on the paper instead of an editor: Open folder… (primary), the
 recent folders from the folder picker (name, then full path) and, when the Host offers one, the
 sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
-a document opens. Open sample document opens the Host's writable sample through Open and its
+a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
+choosing another file uses the existing document-switch guards. Open sample document opens the Host's writable sample through Open and its
 checks, with a temporary notice that it is a copy in the app's data. Nothing is opened for the
 user. Without a document the TopBar shows `No file opened`, Save, Reload, the views and heading
 numbering stay unavailable, and no error is shown. With nothing to lose, the Desktop app's

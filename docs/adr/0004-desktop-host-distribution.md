@@ -38,7 +38,7 @@ electron-updater의 GitHub provider는 Stable에서 GitHub의 `releases/latest`�
 - Electron과 Chromium의 보안 업데이트를 따라 주기적으로 다시 빌드·배포해야 한다.
 - 서명된 릴리즈에는 코드 서명 인증서와 GitHub Actions secret이 필요하다. Beta는 이 준비 없이 unsigned installer로 공개할 수 있으며, 배포자 서명 검증을 제공한다고 주장하지 않는다. Windows 경고·실행 차단 정책과 파일의 서명 상태를 구분하여 알린다.
 - Desktop 전용 UI(Settings → About, 업데이트 알림)는 Desktop bridge가 있을 때만 나타나며, 브라우저 Editor의 화면과 동작은 바뀌지 않는다.
-- 첫 문서는 명령줄의 `.md` 인자이거나, 없으면 사용자 데이터의 sample 사본이다. Workspace, recent document, 파일 연결(file association)은 이 결정에 포함하지 않는다.
+- 첫 문서는 명령줄의 `.md` 인자가 있을 때만 바로 연다. 인자가 없으면 문서 없이 시작하며, 폴더를 선택하고 Sidebar에서 파일을 고르거나 사용자 요청으로 sample 사본을 연다([시작 계약](../design/editor-ux-shell-v1.md#start-without-a-document-174), #174/#190). sample 자동 열기 설명은 #174 이전 동작이 남은 문서 drift이므로 현행 계약에 맞춘다. Workspace, recent document, 파일 연결(file association)은 이 결정에 포함하지 않는다.
 
 ## Non-decisions
 

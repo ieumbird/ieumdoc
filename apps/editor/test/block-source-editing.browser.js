@@ -1,5 +1,5 @@
 // Edit a read-only block's MyST source: refusal, Apply, Undo/Redo, further editing, Save → Reload.
-async page => {
+async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -11,9 +11,7 @@ async page => {
   const file = [root, 'tmp', 'block-source-editing', 'block-source.md'].join(sep);
   const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  await page.getByRole('button', {name:'Open file…'}).click();
-  await page.getByTestId('file-path').fill(file);
-  await page.getByRole('dialog').getByRole('button', {name:'Open', exact:true}).click();
+  await openDocument(page, file);
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
   const opened = await read();
