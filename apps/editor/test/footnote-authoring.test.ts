@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
+import { EditorState } from "@tiptap/pm/state";
+import { BLOCK_COMMANDS } from "../src/block-commands.ts";
 import { editorExtensions } from "../src/editor-schema.tsx";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -8,6 +10,20 @@ import { saveEdits } from "../server/document-replay.ts";
 
 // One editable definition and one that holds two paragraphs.
 const source = "# Notes\n\nA claim[^a] and another[^b].\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n";
+
+test("source collection becomes available again when body edits change endnote order", () => {
+  const projection = toTiptapDocument(loadEditableDocument(source));
+  const schema = getSchema(editorExtensions());
+  const command = BLOCK_COMMANDS.find(command => command.id === "collect-endnotes")!;
+  const state = (document: TiptapJSON) => EditorState.create({ schema, doc: schema.nodeFromJSON(document) });
+  assert.equal(command.enabled(state(projection), 2), false);
+  projection.content![1].content = [{ type: "text", text: "Changed" }, { type: "footnoteReference", attrs: { label: "b" } },
+    { type: "footnoteReference", attrs: { label: "a" } }];
+  [projection.content![2], projection.content![3]] = [projection.content![3], projection.content![2]];
+  assert.equal(command.enabled(state(projection), 2), true);
+  const changed = state(projection);
+  assert.equal(command.enabled(changed.apply(command.run(changed, 2)), 2), false);
+});
 
 test("endnote projection and ordinary edits preserve original source anchors; conversion is explicit", () => {
   const scattered = "# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\nTail.\n";
