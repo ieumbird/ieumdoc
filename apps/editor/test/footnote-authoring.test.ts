@@ -9,6 +9,23 @@ import { saveEdits } from "../server/document-replay.ts";
 // One editable definition and one that holds two paragraphs.
 const source = "# Notes\n\nA claim[^a] and another[^b].\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n";
 
+test("endnote projection and ordinary edits preserve original source anchors; conversion is explicit", () => {
+  const scattered = "# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\nTail.\n";
+  const editable = loadEditableDocument(scattered);
+  const projection = toTiptapDocument(editable);
+  assert.deepEqual(projection.content!.map(node => node.attrs?.sourcePath), ["0", "1", "3", "5", "4", "2"]);
+  assert.equal(saveEdits(scattered, collectSupportedEdits(editable, projection)).markdown, scattered);
+  const edited = structuredClone(projection);
+  edited.content![2].content!.push({ type: "text", text: " Edited." });
+  assert.equal(saveEdits(scattered, collectSupportedEdits(editable, edited)).markdown, scattered.replace("Body resumes.", "Body resumes. Edited."));
+  edited.content!.splice(3, 0, { type: "paragraph", attrs: { sourcePath: "new:body" }, content: [{ type: "text", text: "New body." }] });
+  assert.equal(saveEdits(scattered, collectSupportedEdits(editable, edited)).markdown,
+    scattered.replace("Body resumes.", "Body resumes. Edited.\n\nNew body."));
+  edited.attrs = { ...edited.attrs, collectEndnotes: true };
+  const converted = saveEdits(scattered, collectSupportedEdits(editable, edited)).markdown;
+  assert.equal(converted, "# Notes\n\nClaim[^b] and second[^a].\n\nBody resumes. Edited.\n\nNew body.\n\nTail.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\n[^a]: Short note.\n");
+});
+
 test("editable definitions project to footnote definition blocks; others stay read-only", () => {
   const blocks = toTiptapDocument(loadEditableDocument(source)).content!;
   assert.deepEqual(blocks[2], { type: "footnoteDefinition", attrs: { sourcePath: "2", label: "a" }, content: [{ type: "text", text: "Short note." }] });

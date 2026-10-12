@@ -13,10 +13,10 @@ import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
-import { FOOTNOTE_COMMAND, footnoteCommandItems, insertFootnote } from "./footnote.tsx";
+import { ENDNOTE_DRAFT_CLOSED, FOOTNOTE_COMMAND, footnoteCommandItems, insertFootnote } from "./footnote.tsx";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
-import { Extension } from "@tiptap/core";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { Extension, type Editor } from "@tiptap/core";
+import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import type { EditableDocument } from "@ieumdoc/core";
@@ -92,6 +92,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
   const activeDrafts = useRef(new Map<string, { kind: DraftKind; path: string }>());
+  const draftEditor = useRef<Editor | null>(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
   onDirtyChangeRef.current = onDirtyChange;
   const onOutlineChangeRef = useRef(onOutlineChange);
@@ -119,6 +120,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     else activeDrafts.current.delete(key);
     onDraftChangeRef.current?.(activeDrafts.current.size > 0);
     draftsChanged();
+    if (!active) queueMicrotask(() => {
+      const current = draftEditor.current;
+      if (current && !current.isDestroyed) current.view.dispatch(current.state.tr.setMeta(ENDNOTE_DRAFT_CLOSED, true));
+    });
   }, []);
   const hasOtherDraft = useCallback((kind: DraftKind, path: string) =>
     [...activeDrafts.current.values()].some(draft => draft.path === path && draft.kind !== kind), []);
@@ -127,12 +132,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
     return draft ? `Apply or Cancel the ${draft.kind} edit before moving it.` : undefined;
   };
-  const editor = useEditor({
+  // This component remounts for a new document. Keep extension and view option identities
+  // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
+  const [editorOptions] = useState<UseEditorOptions>(() => ({
     editable: !readOnly,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
     extensions: [
-      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft),
+      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft,
+        () => activeDrafts.current.size > 0),
       Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
       // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
       Extension.create({
@@ -163,7 +171,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         spellcheck: "false",
       },
     },
-  });
+  }));
+  const editor = useEditor(editorOptions);
+  draftEditor.current = editor;
 
   const empty = !readOnly && editor?.isEmpty && editor.state.doc.childCount === 1 &&
     editor.state.doc.firstChild?.type.name === "paragraph";

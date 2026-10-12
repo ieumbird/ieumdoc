@@ -1,9 +1,9 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#185: 원문 위치의 각주 구역과 1440/768/375px Before/After, `footnotes`의 편집·복사·저장 보존; #190: 폴더 중심 탐색과 시작 화면, `layout-rules`/`quiet-document` 및 상태·포커스 회귀; #174: 문서 없는 시작의 1440/768/375px captures와 `open-files`의 375px 넘침 검사, 기존 화면은 `quiet-document` Before/After 동일; #172: master `f71fa00`과 동일 상태의 `quiet-document` Before/After에서 주요 동작 버튼만 바뀜, OS dark preference의 Open file 대화상자 Before/After, 전체 stable browser suite; 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
-- Current contract: v4.4. Historical filename retained for link stability.
-- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12; v4.4 (in-place footnote regions, #185) 2026-10-12. Visual approval remains with the user.
+- Last verified: 2026-10-12 (#194: 단일 미주 구역, 명시적 원문 변환과 참조 복귀·초안 보호; #185: 원문 위치의 각주 구역과 1440/768/375px Before/After, `footnotes`의 편집·복사·저장 보존; #190: 폴더 중심 탐색과 시작 화면, `layout-rules`/`quiet-document` 및 상태·포커스 회귀; #174: 문서 없는 시작의 1440/768/375px captures와 `open-files`의 375px 넘침 검사, 기존 화면은 `quiet-document` Before/After 동일; #172: master `f71fa00`과 동일 상태의 `quiet-document` Before/After에서 주요 동작 버튼만 바뀜, OS dark preference의 Open file 대화상자 Before/After, 전체 stable browser suite; 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
+- Current contract: v4.5. Historical filename retained for link stability.
+- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12; v4.4 (in-place footnote regions, #185) 2026-10-12. v4.5 (one trailing endnotes region, #194) 2026-10-12. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
@@ -24,7 +24,7 @@
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
 | Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title, explicit read-only restriction when applicable |
-| Footnote definition | 16/24px document type and normal text color; baseline number in a 24px inset, returning to the first reference. Consecutive definitions share a subtle rule and 12/16px `Footnotes` label at the start, 8px internal gaps and 24px separation from surrounding body. Read-only definitions share the run and retain their original-source presentation. |
+| Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Preserved definitions retain their own source disclosure; **미주로 모으기** in the definition's block menu explicitly changes source placement. |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 

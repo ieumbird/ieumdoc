@@ -120,6 +120,8 @@ export type BlockSourceEdit = {
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
+  /** Explicit source conversion after other edits; display grouping alone never requests it. */
+  collectEndnotes?: boolean;
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
   /** Applied first, so the other edits address the replaced blocks at the same locators. */

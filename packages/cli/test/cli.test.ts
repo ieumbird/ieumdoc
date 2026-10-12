@@ -345,6 +345,24 @@ test("CLI inserts footnotes and edits their definitions in a real file and rejec
   }
 });
 
+test("CLI explicitly collects endnotes and leaves refused documents intact", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnotes-"));
+  const file = path.join(dir, "document.md");
+  try {
+    writeFileSync(file, "Claim[^b], second[^a].\n\n[^a]: Second.\n\nBody.\n\n[^b]: First.\n");
+    const result = run(["collect-endnotes", file]);
+    assert.equal(result.status, 0, result.stderr);
+    const expected = "Claim[^b], second[^a].\n\nBody.\n\n[^b]: First.\n\n[^a]: Second.\n";
+    assert.equal(readFileSync(file, "utf8"), expected);
+    assert.equal(run(["collect-endnotes", file]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), expected);
+    const invalid = "Claim[^a].\n\n[^a]: Kept.\n\n[^orphan]: Preserve me.\n";
+    writeFileSync(file, invalid);
+    assert.notEqual(run(["collect-endnotes", file]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), invalid);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI writes formatted headings and rejects line breaks and read-only headings without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
   const file = path.join(dir, "document.md");

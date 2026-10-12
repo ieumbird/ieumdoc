@@ -4,6 +4,7 @@ import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from 
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
+import { collectEndnotesInSource } from "./footnote.tsx";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -161,6 +162,13 @@ const isSectionHeading = (state: EditorState, index: number) =>
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
   {
+    id: "collect-endnotes",
+    label: "미주로 모으기",
+    applies: (state, index) => state.doc.child(index).type.name === "footnoteDefinition" || Boolean(state.doc.child(index).attrs.footnote),
+    enabled: state => !state.doc.attrs.collectEndnotes && !state.doc.attrs.endnotesInSource,
+    run: collectEndnotesInSource,
+  },
+  {
     id: "paragraph",
     label: "Change to Paragraph",
     applies: isHeading,
@@ -293,6 +301,7 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
 
 /** Block menu group of a block command, by what it acts on. */
 export function blockCommandGroup(id: string): string {
+  if (id === "collect-endnotes") return "Endnotes";
   if (id.startsWith("table-")) return "Table";
   if (id.startsWith("section-")) return "Section";
   return id === "delete" ? "Block" : "Turn into";

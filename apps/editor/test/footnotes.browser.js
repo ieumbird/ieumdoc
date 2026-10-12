@@ -4,6 +4,7 @@
 // Footnote inserts a reference and a definition whose number goes back to it, and removing a
 // footnote's last reference is refused with the reason.
 async (page, { screenshots = false, openDocument }) => {
+  page.setDefaultTimeout(15_000);
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -77,7 +78,7 @@ async (page, { screenshots = false, openDocument }) => {
   await editor.locator('p.paragraph', {hasText:'Middle paragraph.'}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /footnote');
-  await page.getByRole('menuitem', {name:'Footnote', exact:true}).waitFor();
+  await page.getByRole('menuitem', {name:'Endnote', exact:true}).waitFor();
   await page.keyboard.press('Enter');
   await caretIn('1');
   const created = editor.locator('[data-testid="footnote-definition"][data-label="1"]');
@@ -120,8 +121,8 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
 
-  // Presentation (#185): definitions in place, with one heading per contiguous run,
-  // including read-only definitions. Captures precede checks to record the old display.
+  // Endnotes (#194): one trailing region, including read-only definitions, while Source
+  // and ordinary Save retain the existing definition positions.
   await page.reload();
   await ready();
   const regionsFile = [root, 'tmp', 'footnotes', 'regions.md'].join(sep);
@@ -169,26 +170,37 @@ async (page, { screenshots = false, openDocument }) => {
   for (const display of displays) {
     assert(display.notes.length > 0, 'No definitions to review');
     for (const note of display.notes) {
-      assert(note.startsGroup ? note.heading === '"Footnotes"' && note.border === '1px' : note.heading !== '"Footnotes"', `Group heading: ${JSON.stringify(note)}`);
+      assert(note.startsGroup ? note.heading === '"미주"' && note.border === '1px' : note.heading !== '"미주"', `Group heading: ${JSON.stringify(note)}`);
       assert(note.fontSize === '16px' && note.lineHeight === '24px', `Note typography: ${JSON.stringify(note)}`);
       assert(note.numberSize === '16px' && note.numberAlign === 'baseline', `Definition number: ${JSON.stringify(note)}`);
       assert(note.indent === '24px' && note.marginTop === (note.startsGroup ? '24px' : '8px') && note.marginBottom === (note.endsGroup ? '24px' : '8px'), `Note spacing: ${JSON.stringify(note)}`);
       assert(note.bounds.left >= 0 && note.bounds.right <= display.width && display.overflow <= 1, `Viewport overflow: ${JSON.stringify(display)}`);
     }
   }
+  assert(displays.every(display => display.notes.filter(note => note.startsGroup).length === 1 && display.notes.at(-1).endsGroup), 'Expected one trailing region');
+  assert(displays.every(display => display.notes.map(note => note.label).join(',') === 'b,a,c,d'), 'Definitions must follow first reference order');
+  assert(await editor.evaluate(element => {
+    let started = false;
+    return element.editor.getJSON().content.every(node => {
+      const note = node.type === 'footnoteDefinition' || node.attrs?.footnote;
+      if (note) started = true;
+      return !started || note;
+    });
+  }), 'Body appeared after an endnote');
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Presentation changed document state');
-  result.noteRegionsInPlace = true;
+  result.singleTrailingEndnotes = true;
 
-  // Enter between the editable/read-only pair splits the visual run. Undo joins it again,
-  // without inserting a semantic group or consuming an extra history step.
+  // Enter exits a definition into the body before the region. The appended ordering
+  // transaction shares the engine's original history event.
   await page.setViewportSize({width:1440, height:900});
   await editor.locator('[data-testid="footnote-definition"][data-label="b"] p').click();
   await caretIn('b');
   await page.keyboard.press('Enter');
-  assert((await presentation()).notes.find(note => note.label === 'a').heading === '"Footnotes"', 'Following note needs a new group');
+  assert((await presentation()).notes.filter(note => note.heading === '"미주"').length === 1, 'Enter split the endnotes region');
+  assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.type.name === 'paragraph'), 'Enter did not leave the definition');
   await page.keyboard.press('Control+z');
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'One Undo did not restore definitions');
-  assert((await presentation()).notes.find(note => note.label === 'a').heading !== '"Footnotes"', 'Undo did not join the visual group');
+  assert((await presentation()).notes.find(note => note.label === 'a').heading !== '"미주"', 'Undo split the endnotes region');
   result.groupFollowsHistory = true;
 
   // The decorative label is absent from native DOM text selection and Source copying.
@@ -199,7 +211,7 @@ async (page, { screenshots = false, openDocument }) => {
   await page.keyboard.press('Control+c');
   assert(await page.evaluate(() => navigator.clipboard.readText()) === 'clipboard before note selection', 'Rejected copy changed clipboard');
   assert(/cannot be copied losslessly/.test(await page.getByTestId('notice').innerText()), 'Existing copy restriction missing');
-  assert(!await editor.evaluate(element => { const range = document.createRange(); range.selectNodeContents(element); return range.toString().includes('Footnotes'); }), 'Generated heading entered selected text');
+  assert(!await editor.evaluate(element => { const range = document.createRange(); range.selectNodeContents(element); return range.toString().includes('미주'); }), 'Generated heading entered selected text');
   await page.getByRole('button', {name:'Source', exact:true}).click();
   const preview = page.getByTestId('source-view').locator('pre');
   await preview.waitFor();
@@ -222,7 +234,92 @@ async (page, { screenshots = false, openDocument }) => {
   await page.getByRole('button', {name:'Reload', exact:true}).click();
   await ready();
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Reload changed definition order or state');
-  assert((await presentation()).notes.every(note => note.startsGroup ? note.heading === '"Footnotes"' : note.heading !== '"Footnotes"'), 'Reload lost group presentation');
+  assert((await presentation()).notes.every(note => note.startsGroup ? note.heading === '"미주"' : note.heading !== '"미주"'), 'Reload lost group presentation');
   result.regionSaveReload = true;
+
+  // Explicit source conversion is one undoable edit; unchanged projection alone never requests it.
+  const note = editor.locator('[data-testid="footnote-definition"][data-label="b"]');
+  await note.hover();
+  await page.getByRole('button', {name:/^Move footnotedefinition block /}).first().click();
+  await page.getByRole('menuitem', {name:'미주로 모으기', exact:true}).click();
+  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Conversion command missing');
+  assert(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Conversion not dirty');
+  await page.keyboard.press('Control+z');
+  assert(!await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'One Undo did not undo conversion');
+  await page.keyboard.press('Control+Shift+z');
+  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Redo did not restore conversion');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  const converted = await regionsRead();
+  const body = regionsSource.split('\n\n').filter(part => !part.startsWith('[^') && !part.startsWith('    '));
+  const definitions = [
+    '[^b]: An editable note beside a read-only definition.',
+    '[^a]: A note with two paragraphs.\n\n    Its original source stays available.',
+    '[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.',
+    '[^d]: The final note.',
+  ];
+  assert(converted === [...body, ...definitions].join('\n\n') + '\n', 'Conversion changed content: ' + converted);
+  await editor.evaluate(element => element.editor.commands.focus());
+  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  await page.keyboard.press('Control+z');
+  assert(!await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Undo after Save did not undo conversion');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  assert(await regionsRead() === regionsSource, 'Undo after Save did not restore original source placement');
+  await editor.evaluate(element => element.editor.commands.focus());
+  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  await page.keyboard.press('Control+Shift+z');
+  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Redo after Save did not restore conversion');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  assert(await regionsRead() === converted, 'Redo after Save did not restore conversion');
+  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await ready();
+  assert(await editor.evaluate(element => element.editor.state.doc.attrs.endnotesInSource), 'Reload did not retain source conversion');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  assert(await regionsRead() === converted, 'Repeated Save changed converted source');
+  result.explicitSourceConversion = true;
+
+  // Repeated references return to the invoking occurrence after definition and body edits.
+  await openDocument(page, [root, 'tmp', 'footnotes', 'repeat.md'].join(sep));
+  await ready();
+  await editor.locator('[data-label="x"][data-testid="footnote-reference"] sup').nth(1).click();
+  await caretIn('x');
+  await page.keyboard.type(' Edited.');
+  await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').click();
+  assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent.startsWith('Second')), 'Returned to first reference');
+  await editor.locator('[data-label="x"][data-testid="footnote-reference"] sup').nth(1).click();
+  await caretIn('x');
+  await editor.locator('p.paragraph', {hasText:'First'}).click();
+  await page.keyboard.press('Home');
+  await page.keyboard.type('Prefix ');
+  await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').click();
+  assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent.startsWith('Second')), 'Return bookmark did not map body edits');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+
+  // Source drafts survive a pending display reorder; Cancel resumes ordering.
+  // This fixture's definitions are editable, so use the preserved multi-paragraph definition.
+  await openDocument(page, regionsFile);
+  await ready();
+  const preserved = editor.locator('[data-block="unsupported"]').filter({hasText:'A note with two paragraphs.'}).locator('.original-content');
+  await preserved.locator('summary').click();
+  await preserved.getByTestId('block-source-edit').click();
+  await preserved.getByTestId('block-source-input').fill('[^a]: Draft text.');
+  const tail = editor.locator('p.paragraph', {hasText:'First claim'});
+  await tail.click({position:{x:4, y:8}});
+  await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.$from.parent.type.name === 'paragraph');
+  await page.keyboard.press('Home');
+  await page.keyboard.type('New /endnote');
+  await page.getByRole('menuitem', {name:'Endnote', exact:true}).waitFor();
+  await page.keyboard.press('Enter');
+  await caretIn('1');
+  await page.keyboard.type('New after body.');
+  assert(await preserved.getByTestId('block-source-input').inputValue() === '[^a]: Draft text.', 'Ordering discarded source draft');
+  await preserved.getByTestId('block-source-cancel').click();
+  assert((await presentation()).notes.filter(note => note.startsGroup).length === 1, 'Cancel did not finish ordering');
+  result.returnToInvokingReference = true;
+  result.orderingPreservesSourceDraft = true;
   return result;
 }

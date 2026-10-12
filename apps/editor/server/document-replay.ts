@@ -1,6 +1,7 @@
 import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
   canonicalWriteError,
+  collectEndnotes,
   getEditableDocument,
   isAdmonitionVariant,
   inlineContentLength,
@@ -467,6 +468,8 @@ export function saveEdits(
     }
   }
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
+  if (edits.collectEndnotes !== undefined && typeof edits.collectEndnotes !== "boolean") throw new Error("invalid endnotes conversion");
+  if (edits.collectEndnotes) document = collectEndnotes(document);
   validateStructure(document);
   const markdown = serialize(document);
   return { markdown };

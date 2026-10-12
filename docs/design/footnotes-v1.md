@@ -1,13 +1,15 @@
-# Footnotes
+# Endnotes (MyST footnotes)
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#185 visual runs, Source/copy and real-file Save → Reload in `pnpm browser:test footnotes`; Core/CLI meaning remains v2).
-- Current contract: v2 (#140) on v1 (#119). Historical filename retained for link stability.
+- Last verified: 2026-10-12 (#194 trailing endnotes, explicit source conversion, invoking-reference return, source draft protection and real-file Save → Reload in `pnpm browser:test footnotes`).
+- Current contract: v3 (#194) on v2 (#140) and v1 (#119). Historical filename retained for link stability.
 - Scope: footnote references, inserting footnotes, in-place editing of one-paragraph definitions, source-edited other definitions and fail-closed writes; [Block source editing](block-source-editing-v1.md).
 
 Issue #119. A footnote reference (`[^label]`) made its whole paragraph read-only, and a definition's source showed a neighbouring block. Footnotes v1 makes paragraphs with footnotes editable. Definitions stay where they are written. Text that MyST would drop is never saved.
 
 Issue #140. A new footnote had to be written as Markdown, and every definition was edited as source. Footnotes v2 inserts a footnote from the Editor or CLI and edits a one-paragraph definition in place.
+
+Issue #194 replaces #185's in-place visual runs with one trailing endnotes region. The stored syntax and labels remain MyST footnotes. Display placement does not silently convert existing source placement.
 
 ## How MyST reads footnotes
 
@@ -36,6 +38,7 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
   - `insertFootnoteDefinition(document, index, label, content)` and `updateFootnoteDefinition(document, path, content)` write a one-paragraph definition. Its text must be non-empty and hold no footnote reference. The label must be unused and stays when the text changes.
   - A new label is `nextFootnoteLabel`: the smallest positive number no footnote uses. Shown numbers still follow reference order, so a new footnote before others can show a number different from its label.
   - `[^1]:` with no text is not a definition in MyST, so an empty definition is refused.
+- **Endnotes (v3)**: `endnoteOrder` places body blocks first and definitions in first-reference order. References inside preserved definitions follow body references, discovering further definitions in that order. Unreferenced definitions remain visible; the existing write guard still refuses them. `collectEndnotes(document)` explicitly applies this order to the source, preserving body order, labels and definition contents. It checks complete footnotes and canonical writeability, is idempotent, and never mutates its input. Ordinary `format` keeps written placement.
 - **Block boundaries**: operations compare block kinds after a canonical write with the document's footnotes completed, so a save can add a reference before the definition it inserts.
 - **Block source**: block source is parsed with the document's footnotes as context. A definition stays a definition, and `[^x]` reads as a reference wherever the document defines `x`. Applying a definition's source unchanged leaves the document unchanged.
 
@@ -43,20 +46,25 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
 
 - A footnote reference is an atomic superscript chip that shows its number. Bold and italic apply to it.
 - Clicking a chip selects the definition and scrolls to it. A chip with no definition shows its label and is marked unresolved.
-- A definition block shows the same number. Clicking the number goes back to the first reference.
-- A one-paragraph definition is edited in place with the inline formatting controls; Enter leaves it and Shift+Enter is a line break. It holds no footnote reference. Other definitions are edited with Edit source.
-- `/` in a paragraph offers **Footnote** before reference targets. It replaces the query, and a space before `/`, with a reference chip that keeps bold and italic. An empty definition is added at the end of the document and takes the caret; one Undo removes both. Save refuses a definition left empty.
+- A definition block shows the same number. Clicking the number returns to the reference that invoked it; the engine maps that position through subsequent edits. If that reference was deleted or no invocation is remembered, it finds the first remaining reference. This navigation state is not persisted.
+- A one-paragraph definition is edited in the endnotes region with the inline formatting controls; Enter leaves it into body space before the region and Shift+Enter is a line break. It holds no footnote reference. Other definitions are edited with Edit source.
+- `/` in a paragraph offers **Endnote** before reference targets (`/endnote`, `/footnote`, `/미주` aliases). It replaces the query, and a space before `/`, with a reference chip that keeps bold and italic. An empty definition takes the caret in the endnotes region; one Undo removes both. Its number returns to the new reference. Save refuses a definition left empty.
 - Selecting a chip and pressing Backspace removes it. If that leaves a definition unreferenced, Save is refused with the reason.
 
-### Definition presentation (#185)
+### Endnotes presentation (#194)
 
-Definitions stay at their written positions. Consecutive top-level definitions, editable or read-only, form a visual run. Its first definition has a subtle 1px rule, a 12/16px muted `Footnotes` label, and 24px space from the preceding body; each subsequent definition has an 8px gap. The run has 24px space before body text resumes. Definition text uses the existing 16px font and 1.5 line-height tokens (24px), with the normal document text color. Its computed number sits at the first line's baseline in a 24px inset and keeps its return-to-reference action. Inline reference chips stay superscript. Read-only definitions share the run and retain their original-source disclosure, Edit source and write restrictions.
+All top-level definitions, editable or read-only, follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted `미주` label, and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. Preserved definitions retain their own original-source disclosure, Edit source and write restrictions. There is no new heading or Outline entry in Markdown.
 
-The NodeView markers and CSS-generated label are presentation only. There is no group node, reordering, stored heading, Outline entry or new Core/CLI operation. Source, clipboard serialization, dirty state and Save retain the same document. Inserting a paragraph between definitions separates the visual run; Undo reunites it without a presentation transaction. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying original Markdown.
+Projection keeps opening-snapshot locators while changing display order. Ordinary Save reconstructs existing definition placement using the next surviving body block in the opening snapshot as its source anchor; if that block was deleted, the next survivor is used. Trailing and new definitions stay at the end. Body edits, splits, merges and reordering still use the existing Core save operations. Opening, switching Visual/Source and unchanged Save do not request source conversion or become dirty because of display grouping.
+
+The definition's gutter block menu offers **미주로 모으기** when source is not already collected. This is an explicit, undoable source change; Source preview and Save replay `collectEndnotes` after other edits. Undo can restore the original placement even after Save because the session keeps its opening snapshot. A reload uses the converted source as its new snapshot.
+
+An appended engine transaction keeps the region trailing and ordered after body changes; selection moves with its existing block and this shares the original edit's history event. Reordering waits while a block has a dirty/busy property or source draft and resumes after Apply/Cancel. Editor option identities remain stable during React updates to preserve NodeViews holding drafts. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown, without the decorative heading.
 
 ## Scope
 
 - CLI: `insert-footnote <file> --path <indexes> --offset <n> (--text|--content)` and `update-footnote <file> --path <index> (--text|--content)` run the v2 operations. `inspect` lists each definition as `footnote label=… inlineEditable=…`, with its source when it is read-only. References are also written with `--content` `{"kind":"footnote","label":"…"}`, and other definitions with `replace-block-source`. `check` and `format` report a definition MyST would drop and do not write.
+- CLI: `collect-endnotes <file>` calls the v3 Core operation through the existing revision-checked file write path. A refusal leaves the original file intact. No new endnote syntax is introduced.
 - The Editor inserts footnotes from `/`, which opens only in paragraphs. The CLI also inserts them in headings, quotes, simple admonitions and table cells (`--path table,row,cell`). A new reference in a Figure caption is inserted by neither; existing ones are kept and edited.
 - Not included: removing a definition together with its last reference (cutting and pasting a paragraph would lose its definitions; Save names the definition instead), renaming labels, a shortcut or toolbar button. Inline footnotes (`^[...]`) are not enabled in myst-parser.
 
@@ -70,14 +78,16 @@ The NodeView markers and CSS-generated label are presentation only. There is no 
   - label rules;
   - block source with footnote context;
   - editable definitions, inserts and updates, labels and their refusals.
-- CLI tests cover `insert-footnote`/`update-footnote` writes and failures without writes. Editor tests cover the projection, collection and refusals.
+- Core tests also cover explicit collection, nested references, content preservation, idempotence and refusals. CLI tests cover insertion/update/collection writes and failures without writes. Editor tests cover trailing projection, ordinary source anchors including body insertion, explicit conversion and refusals.
 - `pnpm browser:test footnotes` covers:
   - chip numbers and navigation;
   - unchanged definition Apply;
   - Save → Reload of an edited paragraph;
-  - in-place definition editing, `/` Footnote and its Undo, going back from the number, and Save → Reload;
+  - definition editing, `/` Endnote and its Undo, returning from the number, and Save → Reload;
   - the refused Save after removing a footnote's last reference;
-  - isolated, consecutive and read-only definitions at 1440/768/375px, one heading per run, readable typography and no sideways overflow;
-  - Enter/Undo separating and reuniting a run, original Source/clipboard and byte-identical Save → Reload of the presentation fixture.
+  - formerly scattered and preserved definitions at 1440/768/375px, one trailing heading, first-reference order, readable typography and no sideways overflow;
+  - Enter/Undo retaining one region, original Source/clipboard and byte-identical ordinary Save → Reload;
+  - explicit source collection, dirty state, Undo/Redo and repeated Save → Reload;
+  - repeated-reference return after definition/body edits and source draft retention during a pending reorder.
 
-`pnpm browser:test footnotes --screenshots` writes `tmp/visual-refinement/footnotes-*.png` for manual comparison. The [#185 visual verification](../reviews/footnote-regions-2026-10-12.md) records real Before/After evidence.
+`pnpm browser:test footnotes --screenshots` writes `tmp/visual-refinement/footnotes-*.png` for manual comparison. The [#194 verification](../reviews/endnotes-2026-10-12.md) records real Before/After evidence; [#185](../reviews/footnote-regions-2026-10-12.md) remains historical evidence of the earlier in-place runs.

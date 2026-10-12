@@ -85,6 +85,22 @@ export function footnoteNumbers(references: Iterable<string>): Map<string, numbe
   return numbers;
 }
 
+/** Body blocks first, then definitions in first-reference order. References held in a
+ * definition follow the body's references, including preserved/read-only definitions. */
+export function endnoteOrder(blocks: readonly { definition?: string; references: readonly string[] }[]): number[] {
+  const body = blocks.flatMap((block, index) => block.definition === undefined ? [index] : []);
+  const definitions = blocks.flatMap((block, index) => block.definition === undefined ? [] : [index]);
+  const referenced = new Set(body.flatMap(index => blocks[index].references));
+  // Visit definitions in discovered order, so nested references have a stable trailing order.
+  for (const label of referenced) {
+    const definition = definitions.find(index => blocks[index].definition === label);
+    if (definition !== undefined) blocks[definition].references.forEach(reference => referenced.add(reference));
+  }
+  const numbers = footnoteNumbers(referenced);
+  return [...body, ...definitions.sort((left, right) =>
+    (numbers.get(blocks[left].definition!) ?? Infinity) - (numbers.get(blocks[right].definition!) ?? Infinity))];
+}
+
 /** The label a new footnote takes: the smallest positive number no footnote in `labels` uses.
  * Labels match exactly, as in MyST; the shown number still follows reference order. */
 export function nextFootnoteLabel(labels: Iterable<string>): string {

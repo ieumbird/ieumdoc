@@ -6,6 +6,7 @@ import {
   BLOCK_SOURCES_ATTR,
   blockSourcesOf,
   editableParagraph,
+  endnoteLabelOf,
   isNewBlockPath,
   markKey,
   NEW_BLOCK_PREFIX,
@@ -228,7 +229,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   }
   const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
   const counts = new Map<string, number>();
-  const order: OrderItem[] = nodes.map(node => {
+  const displayedOrder: OrderItem[] = nodes.map(node => {
     const insert = insertOf.get(node);
     if (insert !== undefined) return { insert };
     const key = snapshotPaths(sourcePathOf(node)).join(";");
@@ -236,6 +237,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     counts.set(key, part + 1);
     return { path: key.split(";")[0].split(",").map(Number), part };
   });
+  const order = sourceOrder(document, nodes, displayedOrder);
   const positions = order.flatMap(item => "path" in item ? [item.path[0]] : []);
   const reordered = inserts.length > 0 || deletes.length > 0 ||
     positions.some((position, index) => index > 0 && position < positions[index - 1]) ||
@@ -246,6 +248,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     throw new Error("unsupported heading numbering settings");
   }
   return {
+    ...(next.attrs?.collectEndnotes ? { collectEndnotes: true } : {}),
     ...(Object.keys(sources).length ? { sources: Object.entries(sources).map(([key, { source }]) => ({ path: key.split(",").map(Number), source })) } : {}),
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(reordered ? { order } : {}),
@@ -270,6 +273,30 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   };
 }
 
+/** Displayed definitions live at the end. Ordinary saves retain each existing definition's
+ * source anchor: the next surviving body block from the opening snapshot. If that block was
+ * deleted, use the following survivor; trailing/new definitions remain at the end. */
+function sourceOrder(document: EditableDocument, nodes: TiptapJSON[], displayed: OrderItem[]): OrderItem[] {
+  const body = nodes.flatMap((node, index) => endnoteLabelOf(node) === undefined ? [index] : []);
+  const notes = nodes.flatMap((node, index) => endnoteLabelOf(node) === undefined ? [] : [index]);
+  const before = new Map<number, number[]>();
+  const trailing: number[] = [];
+  // Snapshot order is authoritative for existing definitions, including preserved source.
+  const originalNotes = document.blocks.filter(block => block.block === "footnote");
+  for (const block of originalNotes) {
+    const note = notes.find(index => sourcePathOf(nodes[index]) === pathKey(block.path));
+    if (note === undefined) continue;
+    const following = document.blocks.slice(document.blocks.indexOf(block) + 1).filter(block => block.block !== "footnote");
+    const anchor = following.map(block => body.find(index => snapshotPaths(sourcePathOf(nodes[index])).includes(pathKey(block.path))))
+      .find(index => index !== undefined);
+    if (anchor === undefined) trailing.push(note);
+    else before.set(anchor, [...(before.get(anchor) ?? []), note]);
+  }
+  const existing = new Set([...before.values()].flat().concat(trailing));
+  return [...body.flatMap(index => [...(before.get(index) ?? []), index]), ...trailing,
+    ...notes.filter(index => !existing.has(index))].map(index => displayed[index]);
+}
+
 /** Editor-only space and never-applied atoms have no persistent document meaning.
  * Existing content emptied by the user is deliberately not a placeholder. */
 export function isSessionPlaceholder(node: TiptapJSON): boolean {
@@ -292,6 +319,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
   const sources = blockSourcesOf(document);
   const attrs = {
+    ...(document.attrs?.collectEndnotes ? { collectEndnotes: true } : {}),
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
     ...(Object.keys(sources).length ? { [BLOCK_SOURCES_ATTR]: sources } : {}),
   };

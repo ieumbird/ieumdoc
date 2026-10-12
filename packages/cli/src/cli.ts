@@ -42,6 +42,7 @@ import {
   updateQuoteInlineContent,
   insertDivider,
   insertFootnote,
+  collectEndnotes,
   updateFootnoteDefinition,
   convertBlock,
   updateHeadingInlineContent,
@@ -272,6 +273,13 @@ const COMMANDS: CommandSpec[] = [
       "use replace-block-source for them.",
       ...PATH_NOTE,
     ],
+  },
+  {
+    name: "collect-endnotes",
+    summary: "Collect footnote definitions at the document end",
+    usage: "ieumdoc collect-endnotes <file>",
+    details: ["Move definitions into first-reference order after the body, preserving labels and contents.",
+      "This explicitly changes source placement. Invalid or lossy documents are refused without writing."],
   },
   {
     name: "insert-divider",
@@ -702,6 +710,10 @@ function main(argv: string[]): number {
       edit(file, (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags)));
       return 0;
     }
+    case "collect-endnotes": {
+      edit(file, collectEndnotes);
+      return 0;
+    }
     case "insert-divider": {
       edit(file, (document) => insertDivider(document, intFlag(flags, "--at")));
       return 0;
@@ -946,6 +958,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-quote": ["--path", "--text", "--content"],
   "insert-footnote": ["--path", "--offset", "--text", "--content"],
   "update-footnote": ["--path", "--text", "--content"],
+  "collect-endnotes": [],
   "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
