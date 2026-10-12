@@ -330,7 +330,8 @@ const FootnoteDefinition = Node.create({
     return ["div", { ...HTMLAttributes, "data-footnote-definition": "" }, ["p", 0]];
   },
   addNodeView() {
-    return ReactNodeViewRenderer(FootnoteDefinitionView);
+    // NodeView-only marker: CSS can recognize adjacent definitions without changing the schema.
+    return ReactNodeViewRenderer(FootnoteDefinitionView, { attrs: { "data-footnote-definition": "true" } });
   },
 });
 
@@ -848,7 +849,9 @@ const UnsupportedBlock = Node.create({
     return ["p", { ...HTMLAttributes, "data-unsupported-block": "" }];
   },
   addNodeView() {
-    return ReactNodeViewRenderer(UnsupportedView);
+    return ReactNodeViewRenderer(UnsupportedView, {
+      attrs: ({ node }) => ({ "data-footnote-definition": node.attrs.footnote ? "true" : "false" }),
+    });
   },
 });
 
@@ -1753,7 +1756,7 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper
       as="div"
-      className="unsupported"
+      className={footnote ? "unsupported footnote-definition" : "unsupported"}
       data-block="unsupported"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       data-readonly="true"

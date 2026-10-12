@@ -70,8 +70,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files"].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files --screenshots");
+  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files", "footnotes"].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|footnotes --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

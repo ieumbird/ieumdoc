@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-12 (#190: 폴더 기반 파일 열기, 시작 화면과 작업 보호 회귀; #174 문서 없는 시작: `open-files`와 packaged app regressions; 기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
-- Scope: existing Editor interactions. [Visual Language (current v4.3)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
+- Scope: existing Editor interactions. [Visual Language (current v4.4)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
 
