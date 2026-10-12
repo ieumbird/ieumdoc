@@ -7,8 +7,12 @@ async page => {
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
-  const pathA = 'C:\\tmp\\ieumdoc-a.md';
-  const pathB = 'C:\\tmp\\ieumdoc-b.md';
+  const separator = loaded.path.includes('\\') ? '\\' : '/';
+  const root = loaded.path.split(separator).slice(0, -4).join(separator);
+  // A prepared empty directory makes the absent diagram a real 404 on every OS.
+  const folder = [root, 'tmp', 'open-files'].join(separator);
+  const pathA = [folder, 'ieumdoc-a.md'].join(separator);
+  const pathB = [folder, 'ieumdoc-b.md'].join(separator);
   const fileA = clone(loaded);
   const fileB = clone(loaded);
   fileA.path = pathA;
