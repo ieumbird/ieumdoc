@@ -19,7 +19,7 @@ mkdirSync(documents);
 const initial = path.join(documents, "first.md");
 writeFileSync(initial, "# First\n\nAlpha.\n");
 writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
-const handle = createProtocolHandler(editorDir, initial);
+const handle = createProtocolHandler(editorDir, { document: initial });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
 test("serves the Editor build with the content security policy", async () => {
@@ -58,6 +58,17 @@ test("the first document request opens the initial document through the Host han
   assert.equal(media.status, 200);
   assert.equal(media.headers.get("content-type"), "image/svg+xml");
   assert.equal((await get(`/document/..%2f..%2fsecret.txt?path=${encodeURIComponent(initial)}`)).status, 400);
+});
+
+test("started without a document, the first request opens none and offers the sample", async () => {
+  const sample = path.join(documents, "sample.md");
+  const start = createProtocolHandler(editorDir, { sample });
+  const response = await start(new Request(`${ORIGIN}/api/document`));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-security-policy"), CONTENT_SECURITY_POLICY);
+  assert.deepEqual(await response.json(), { start: true, sample });
+  const named = await start(new Request(`${ORIGIN}/api/document?path=${encodeURIComponent(initial)}`));
+  assert.equal(((await named.json()) as { path: string }).path, initial);
 });
 
 test("Save goes through the Host's session checks and Core", async () => {

@@ -1,7 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (public beta.2, release workflow and actual GitHub beta.1→beta.2 verified).
+- Last verified: 2026-10-12 (public beta.2, release workflow and actual GitHub beta.1→beta.2 verified; start without a document (#174) in the packaged app regressions).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
 
@@ -14,7 +14,7 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 ## App and Host
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The first `.md` command-line argument opens; otherwise a writable sample is copied into user data once. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The first `.md` command-line argument opens. Otherwise no document opens: the Host answers the Editor's first request with a start without a document, and the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). A writable sample is copied into user data once and offered there; it opens only when the user chooses it, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 

@@ -1,8 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
-- Scope: existing Editor interactions. [Visual Language (current v4.1)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
+- Last verified: 2026-10-12 (#174 문서 없는 시작: `open-files`와 packaged app regressions; 기존 작성 interaction과 전체 stable browser suite; Desktop Settings/notice와 최신 작업 상태의 restart/unload 보호).
+- Scope: existing Editor interactions. [Visual Language (current v4.3)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
 
@@ -39,6 +39,21 @@ and New button row or the separate current-document row. The app-level New, whic
 file path in any existing directory, is removed rather than moved: a document is created by
 opening its folder and using the folder's `+`. Open file… keeps arbitrary `.md` paths, and the
 Host's creation API and checks are unchanged.
+
+## Start without a document (#174)
+
+When the Host's answer to the first request opens no document (the Desktop app started without a
+`.md` argument, see [Desktop distribution](desktop-distribution-v1.md)), the document column
+shows the start on the paper instead of an editor: Open folder… (primary) and Open file…, the
+recent folders from the folder picker (name, then full path) and, when the Host offers one, the
+sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
+a document opens. Open sample document opens the Host's writable sample through Open and its
+checks, with a temporary notice that it is a copy in the app's data. Nothing is opened for the
+user. Without a document the TopBar shows `No file opened`, Save, Reload, the views and heading
+numbering stay unavailable, and no error is shown. With nothing to lose, the Desktop app's
+update restart check allows the restart unless a document is opening. The browser development server keeps
+answering with its default document. The start writes nothing and changes no document
+semantics, so it has no CLI counterpart.
 
 ## Writing interactions
 

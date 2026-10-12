@@ -57,7 +57,7 @@ const figuresLoaded = (page: Page) => page.waitForFunction(() => {
 }, null, { timeout: 15_000 }).then(() => true, () => false);
 
 async function openFile(page: Page, file: string): Promise<void> {
-  await page.getByRole("button", { name: "Open file…" }).click();
+  await page.getByTestId("sidebar").getByRole("button", { name: "Open file…" }).click();
   await page.getByTestId("file-path").fill(file);
   await page.getByRole("dialog").getByRole("button", { name: "Open", exact: true }).click();
   await ready(page);
@@ -90,12 +90,18 @@ async function closeApp(app: ElectronApplication): Promise<void> {
   }
 }
 
-test("opens its sample document with the figure from ieumdoc://app, with no development server", async () => {
+test("started without a document, it opens none; the sample opens with its figure from ieumdoc://app when chosen", async () => {
   const { app, page, requests } = await launch(profile("sample"));
   try {
     assert.equal(page.url(), "ieumdoc://app/index.html");
     const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
+    await page.getByTestId("document-start").waitFor();
+    assert.equal(await page.getByTestId("current-file").innerText(), "No file opened");
+    assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
+    await page.getByRole("button", { name: "Open sample document", exact: true }).click();
+    await page.locator(".ProseMirror h1").first().waitFor();
+    assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample[\\/]technical-document\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Converter Control");
     assert.equal(await figuresLoaded(page), true);
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
@@ -205,7 +211,8 @@ test("the release channel persists across restarts; an update check never blocks
   const initialChannel = version.includes("-beta.") ? "beta" : "stable";
   const selectedChannel = initialChannel === "beta" ? "stable" : "beta";
   const channelName = (channel: string) => channel === "beta" ? /^Beta/ : /^Stable/;
-  let { app, page } = await launch(userData);
+  const { file } = documentFolder("settings");
+  let { app, page } = await launch(userData, [file]);
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const dialog = page.getByTestId("settings-dialog");
@@ -255,7 +262,7 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
     assert.equal(await page.getByTestId("app-version").isVisible(), true);
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).updatesSupported), false);
     await page.keyboard.press("Escape");
-    assert.equal(await page.locator(".document-editor").isVisible(), true);
+    assert.equal(await page.getByTestId("document-start").isVisible(), true);
   } finally {
     if (app) await closeApp(app);
     writeFileSync(config, original);

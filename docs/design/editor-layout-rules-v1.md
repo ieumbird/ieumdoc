@@ -3,7 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-11 (`layout-rules` and `new-document`: existing axes, widths and overlays plus the empty writing surface; phone-width TopBar wrapping, #164).
 - Scope: Editor shell, document, block tools and control geometry.
-- [Visual Language (current v4.1)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
+- [Visual Language (current v4.3)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 ## Alignment and ownership
 

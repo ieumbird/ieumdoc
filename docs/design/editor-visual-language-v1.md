@@ -1,9 +1,9 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#172: master `f71fa00`과 동일 상태의 `quiet-document` Before/After에서 주요 동작 버튼만 바뀜, OS dark preference의 Open file 대화상자 Before/After, 전체 stable browser suite; 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
-- Current contract: v4.2. Historical filename retained for link stability.
-- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12. Visual approval remains with the user.
+- Last verified: 2026-10-12 (#174: 문서 없는 시작의 1440/768/375px captures와 `open-files`의 375px 넘침 검사, 기존 화면은 `quiet-document` Before/After 동일; #172: master `f71fa00`과 동일 상태의 `quiet-document` Before/After에서 주요 동작 버튼만 바뀜, OS dark preference의 Open file 대화상자 Before/After, 전체 stable browser suite; 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
+- Current contract: v4.3. Historical filename retained for link stability.
+- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
@@ -73,6 +73,10 @@ After New succeeds, Base UI's closing focus handoff targets the newly mounted ed
 The paper boundary is permanent and neutral, not a document focus ring. Top paper padding is 32px (16px at ≤1024px), inside the 16px canvas gap; the body and gutter keep their existing axes. These are display and focus changes only; Core, CLI and saved document meaning are unchanged.
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
+
+## Start without a document (#174)
+
+With no document open, the [start](editor-ux-shell-v1.md#start-without-a-document-174) uses the same paper and its content axis instead of a dialog or a centered card. A 20px semibold UI title, 14/20px muted explanation and 28px actions (Open folder… primary, Open file… outlined) are separated from the Recent folders and Sample sections by a `border-subtle` rule; text and sections are at most 576px wide. Section labels are 12/16px semibold subtle text. A recent folder is a 32px row whose folder icon sits on the text axis: its name, then its full path in 12/16px subtle text, both ellipsized, with the full path in `title`; hover uses the neutral hover surface and keyboard focus the inset 2px ring. Open sample document is an outlined secondary action. At ≤1024px the start, which has no block tools, gives up their 80px gutter for the 16px inline inset, and a label wider than the paper wraps inside its button, so nothing leaves the paper at 375px.
 
 ## Writing end space (#173)
 

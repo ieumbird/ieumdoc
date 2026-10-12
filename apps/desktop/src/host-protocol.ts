@@ -8,6 +8,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { handleAssetRequest } from "../../editor/server/asset-api.ts";
 import { handleDocumentRequest } from "../../editor/server/document-api.ts";
+import type { DocumentStartResponse } from "../../editor/shared/document-protocol.ts";
 
 export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
@@ -82,11 +83,15 @@ export function serveEditorFile(editorDir: string, pathname: string): Response {
   }
 }
 
+/** What the Editor's first request, which names no document, opens: a document, or none. */
+export type FirstDocument = { document: string } | { sample: string };
+
 /**
- * The protocol handler. `initialDocument` answers the Editor's first request, which names no
- * document; the development server's default file is not part of the app.
+ * The protocol handler. `first` answers the Editor's first request: the document the app was
+ * started with or, without one, a start without a document that offers the sample. The
+ * development server's default file is not part of the app.
  */
-export function createProtocolHandler(editorDir: string, initialDocument: string): (request: Request) => Promise<Response> {
+export function createProtocolHandler(editorDir: string, first: FirstDocument): (request: Request) => Promise<Response> {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
   return async (request) => {
@@ -96,7 +101,13 @@ export function createProtocolHandler(editorDir: string, initialDocument: string
       return callNodeHandler(request, url, (req, res) => handleAssetRequest(req, res, assetSigningKey));
     }
     if (DOCUMENT_ROUTES.has(url.pathname) || url.pathname.startsWith("/document/")) {
-      if (url.pathname === "/api/document" && request.method === "GET" && !url.searchParams.get("path")) url.searchParams.set("path", initialDocument);
+      if (url.pathname === "/api/document" && request.method === "GET" && !url.searchParams.get("path")) {
+        if (!("document" in first)) {
+          const start: DocumentStartResponse = { start: true, sample: first.sample };
+          return new Response(JSON.stringify(start), { headers: { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8" } });
+        }
+        url.searchParams.set("path", first.document);
+      }
       return callNodeHandler(request, url, handleDocumentRequest);
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });

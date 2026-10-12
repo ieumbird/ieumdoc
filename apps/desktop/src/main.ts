@@ -7,7 +7,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, ty
 import electronUpdater from "electron-updater";
 import { load as loadYaml } from "js-yaml";
 import type { DesktopInfo, RestartCheck } from "../../editor/shared/desktop-bridge.ts";
-import { createProtocolHandler, ORIGIN, SCHEME } from "./host-protocol.ts";
+import { createProtocolHandler, ORIGIN, SCHEME, type FirstDocument } from "./host-protocol.ts";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.ts";
 import { parseChannel, releaseNotesUrl, RELEASE_REPOSITORY, RESTART_CHECK_TIMEOUT_MS } from "./update-policy.ts";
 import { UpdateController, type UpdaterPort } from "./updates.ts";
@@ -39,18 +39,21 @@ function log(message: string): void {
   }
 }
 
-/** A `.md` argument (opening a file with the app), else a writable copy of the sample document. */
-function initialDocument(): string {
+/**
+ * A `.md` argument (opening a file with the app) opens. Otherwise nothing opens until the user
+ * chooses; a writable copy of the sample document is offered.
+ */
+function firstDocument(): FirstDocument {
   const argument = process.argv.slice(app.isPackaged ? 1 : 2)
     .find((value) => value.toLowerCase().endsWith(".md") && existsSync(value) && statSync(value).isFile());
-  if (argument) return path.resolve(argument);
+  if (argument) return { document: path.resolve(argument) };
   const sampleDir = path.join(app.getPath("userData"), "sample");
   const sample = path.join(sampleDir, "technical-document.md");
   if (!existsSync(sample)) {
     mkdirSync(sampleDir, { recursive: true });
     for (const file of ["technical-document.md", "diagram.svg"]) copyFileSync(path.join(appRoot, "sample", file), path.join(sampleDir, file));
   }
-  return sample;
+  return { sample };
 }
 
 /** Why this build does not update itself, or undefined when it can. */
@@ -228,8 +231,7 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
-    const initial = initialDocument();
-    protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), initial));
+    protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), firstDocument()));
     const { autoUpdater } = electronUpdater;
     if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__ && autoUpdater instanceof electronUpdater.NsisUpdater) {
       autoUpdater.verifyUpdateCodeSignature = verifyUpdateSignature;
