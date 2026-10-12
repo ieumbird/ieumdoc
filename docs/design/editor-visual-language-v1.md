@@ -1,16 +1,16 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-12 (Desktop footer의 동일 sample Before/After, About wide/375px captures와 전체 stable browser suite; 기존 v4.1 표현 유지, 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
-- Current contract: v4.1. Historical filename retained for link stability.
-- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10. Visual approval remains with the user.
+- Last verified: 2026-10-12 (#172: master `f71fa00`과 동일 상태의 `quiet-document` Before/After에서 주요 동작 버튼만 바뀜, OS dark preference의 Open file 대화상자 Before/After, 전체 stable browser suite; 물리 모바일 제외). 이전 overlay focus/return 근거는 2026-10-11의 keyboard 안정화.
+- Current contract: v4.2. Historical filename retained for link stability.
+- History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Direction
 
 **Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
-[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Existing heritage red remains the primary-action accent; focus and current items use a separate blue interaction role. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
+[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus and current items share one blue interaction role; red means only errors and destructive meaning. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
 ## Surfaces and typography
 
@@ -32,7 +32,7 @@ Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → A
 
 The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography; inline math is sized by `--math-inline-size` ([verification](../reviews/inline-math-size-2026-10-09.md)).
 
-Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain heritage red for Save/Apply and existing primary actions. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product brand accent, and `muted` remains a quiet background rather than a universal interaction state.
+Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` color Save/Apply and other primary actions; the accent is the interaction blue, so an action, the focus ring and the current item read as one role, and red never marks an ordinary action. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product primary-action accent, and `muted` remains a quiet background rather than a universal interaction state. The Editor has one light theme: Tailwind's `dark:` variant follows a `.dark` class the Editor never sets, so an OS dark preference cannot gray out fields or outlined controls.
 
 | Product role (prefix `--id-color-`) | Value / responsibility |
 | --- | --- |
@@ -44,8 +44,9 @@ Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` retain h
 | `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
 | `border-control` | `#7b8390`: fields, outlined buttons, menu-open/pressed controls outside the TopBar. At least 3:1 against their adjacent white/panel/pressed faces |
 | `interaction`, `interaction-soft` | `#315fd4` indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
+| `accent`, `accent-hover` | An alias to `interaction` and `#2449a6`: primary action faces with `text-on-accent` |
 
-Keyboard control focus uses a separate 2px ring; a current marker, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
+Keyboard control focus uses a separate 2px ring; a current marker, error boundary or pressed face stays visible alongside it. A focused primary action, whose face shares the ring's blue, shows a white boundary inside the ring. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
 
 ## State rules
 

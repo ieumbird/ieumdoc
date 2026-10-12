@@ -32,7 +32,7 @@
 | [Figure authoring](design/figure-authoring-v1.md) | Implemented | 현재 계약. pending/image Figure, Apply 상태, canonical Save와 CLI readiness 경고. |
 | [Editor UX Shell](design/editor-ux-shell-v1.md) | Implemented | 현재 계약. Sidebar, TopBar, 작성 interaction과 상태 표시. |
 | [Editor Layout Rules](design/editor-layout-rules-v1.md) | Implemented | 현재 geometry 규범. 정렬·간격·control 치수와 검증. |
-| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract는 v4.1. 링크 안정성을 위해 v1 파일명 유지. |
+| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract는 v4.2. 링크 안정성을 위해 v1 파일명 유지. |
 
 ## Contribution and documentation governance
 

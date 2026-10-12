@@ -20,7 +20,22 @@ async page => {
   await page.setViewportSize({width:1440, height:1000});
   await page.evaluate(() => {localStorage.clear(); sessionStorage.clear();});
   await page.reload();
-  await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+  const openFolder = page.getByRole('button', {name:'Open folder…', exact:true});
+  // One light theme: an OS dark preference must not gray out fields or outlined controls.
+  const faces = async () => {
+    await page.mouse.move(0,0);
+    const button = (await state(openFolder)).background;
+    await page.getByRole('button', {name:'Open file…', exact:true}).click();
+    const field = (await state(page.getByTestId('file-path'))).background;
+    await page.keyboard.press('Escape');
+    return [button, field];
+  };
+  const lightFaces = await faces();
+  await page.emulateMedia({colorScheme:'dark'});
+  const darkFaces = await faces();
+  await page.emulateMedia({colorScheme:'light'});
+  check(JSON.stringify(darkFaces) === JSON.stringify(lightFaces), `OS dark preference changed control faces: ${JSON.stringify({lightFaces, darkFaces})}`);
+  await openFolder.click();
   await page.getByTestId('folder-path').fill(folder);
   await page.getByTestId('folder-open').click();
   const currentFile = page.getByRole('treeitem', {name:'quiet-document.md', exact:true});
@@ -113,6 +128,13 @@ async page => {
   check(await input.getAttribute('aria-invalid') !== 'true', 'Correcting input did not clear invalid state');
   await page.getByRole('button', {name:'Cancel', exact:true}).focus(); await settle();
   const field = await state(input), secondary = await state(page.getByRole('button', {name:'Cancel', exact:true}));
+  // The primary face shares the ring's blue; a white boundary keeps focus visible.
+  await page.mouse.move(0,0); await input.focus();
+  for (let i = 0; i < 4 && !await create.evaluate(n => n === document.activeElement); i++) await page.keyboard.press('Tab');
+  await settle();
+  const primaryFocus = await state(create);
+  check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.outlineColor),
+    `Focused primary action hides its ring: ${JSON.stringify(primaryFocus)}`);
   await page.keyboard.press('Escape');
   await page.getByTestId('figure-image').click();
   await page.getByRole('button', {name:'Edit figure', exact:true}).click();

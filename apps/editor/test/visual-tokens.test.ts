@@ -27,7 +27,9 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions", ()
   assert.equal(values.get("--id-color-border-focus"), "var(--id-color-interaction)");
   assert.equal(values.get("--ring"), "var(--id-color-border-focus)");
   assert.equal(values.get("--destructive"), "var(--id-color-danger)");
-  assert.equal(new Set(["--id-color-accent", "--id-color-interaction", "--id-color-danger"].map(name => values.get(name))).size, 3);
+  // Primary actions share the interaction blue; red stays distinct for danger.
+  assert.equal(values.get("--id-color-accent"), "var(--id-color-interaction)");
+  assert.notEqual(values.get("--id-color-danger"), values.get("--id-color-interaction"));
   assert.equal(values.get("--font-family-document"), "var(--font-family-sans)");
   assert.equal(values.get("--color-primary"), "var(--primary)");
   assert.doesNotMatch(tokens + adapters, /!important/);
