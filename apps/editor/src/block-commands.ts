@@ -336,19 +336,18 @@ export function insertEquationAfter(state: EditorState, index: number, slash?: S
   return insertAtomAfter(state, index, "equation", { latex: "", label: "" }, slash);
 }
 
-/** Insert an unlabeled Figure with an empty caption, reusing transient empty prose. Without an
- * applied image it is transient until its form is applied; with one (an inserted image file),
- * that image is already its applied value. */
-export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange, applied?: Pick<FigureContent, "imageUrl" | "imageAlt">): Transaction {
-  return insertAtomAfter(state, index, "figure", {
+/** Insert an unlabeled Figure with an empty caption, reusing transient empty prose. It is
+ * persistent as inserted, with or without an image; the caret starts in its caption. */
+export function insertFigureAfter(state: EditorState, index: number, slash?: SlashRange, image?: Pick<FigureContent, "imageUrl" | "imageAlt">): Transaction {
+  const tr = insertAtomAfter(state, index, "figure", {
     label: "",
     imageUrl: "",
     imageAlt: "",
     caption: "",
     editable: true,
-    applied: applied !== undefined,
-    ...applied,
+    ...image,
   }, slash);
+  return tr.setSelection(TextSelection.create(tr.doc, tr.selection.from + 1));
 }
 
 /** The new atom block is node-selected so its NodeView opens its authoring UI. */

@@ -1,4 +1,4 @@
-// Real user session regression: transient → applied pending → image → pending,
+// Real user session regression: empty → pending with caption/label → image → pending,
 // including Source, native history and edits made during a real-file Save.
 async (page, { openDocument }) => {
   await page.unrouteAll();
@@ -58,23 +58,27 @@ async (page, { openDocument }) => {
     await page.getByRole('menuitem', {name:'Paragraph', exact:true}).click();
     await page.keyboard.type('/figure');
     await page.getByRole('menuitem', {name:'Figure', exact:true}).click();
-    await form.waitFor();
   };
   const check = (ok, message) => { if (!ok) throw Error(message); };
   let release = () => {};
   try {
     await open();
+    // An inserted Figure is a document block at once: no form opens, the caret is in its caption.
     await insert();
-    await page.getByTestId('figure-apply').click();
-    await form.getByText('A Figure needs an image, a caption or a label.').waitFor();
+    check(await figures.count() === 1 && await form.count() === 0, 'Figure insertion opened its form');
+    check(await page.locator('.document-editor').evaluate(element => element.editor.state.selection.$from.parent.type.name) === 'figure',
+      'Figure insertion did not place the caret in its caption');
+    check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Empty state is invisible');
+    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Insertion did not mark the Figure dirty');
+    check((await source()).includes(':::{figure}\n:::'), 'Empty Figure omitted from Source');
+    await save();
+    let empty = (await diskFigures())[0];
+    check(empty?.contentKind === 'none' && empty.label === '' && empty.caption.text === '' &&
+      await page.getByTestId('status').innerText() === 'Saved', 'Empty Figure was not saved or acknowledged');
+
+    await edit(figures.first());
     await page.getByTestId('figure-label').fill('fig-pfc-control');
     await page.getByTestId('figure-caption').fill('PFC Current Control Architecture');
-    check(!(await source()).includes(':::{figure}'), 'Transient Figure entered Source');
-    await save();
-    check((await diskFigures()).length === 0 && await figures.count() === 1,
-      'Saving a transient Figure wrote it or removed the session draft');
-    check(await page.getByTestId('figure-caption').inputValue() === 'PFC Current Control Architecture',
-      'Save or Source discarded the draft fields');
     await apply();
     check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Pending state is invisible');
     check((await source()).includes(':name: fig-pfc-control'), 'Applied pending Figure omitted from Source');
@@ -83,21 +87,20 @@ async (page, { openDocument }) => {
     check((await diskFigures())[0]?.label === 'fig-pfc-control' &&
       await page.getByTestId('status').innerText() === 'Saved', 'Applied Figure was omitted or not acknowledged');
 
-    // Save must preserve history. Undo a previously saved Apply, save its transient
-    // state against the opening snapshot/savedEdits checkpoint, then redo and save again.
+    // Save must preserve history. Undo a previously saved Apply, save the empty Figure
+    // against the opening snapshot/savedEdits checkpoint, then redo and save again.
     await historyKey('ControlOrMeta+z');
-    check(!(await source()).includes(':::{figure}'), 'Undo of Apply still serializes the Figure');
+    check(!(await source()).includes(':name: fig-pfc-control'), 'Undo of Apply kept the label');
     check(await reference.getAttribute('data-resolved') === 'false', 'Undone target still resolves');
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Undo of saved Apply did not become dirty');
     await save();
-    check((await diskFigures()).length === 0, 'Undo of Apply left a Figure on disk');
-    check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Remaining transient draft was marked Saved');
+    empty = (await diskFigures())[0];
+    check(empty?.label === '' && empty.caption.text === '' && await page.getByTestId('status').innerText() === 'Saved',
+      'Undo of Apply did not save the empty Figure');
     await historyKey('ControlOrMeta+Shift+z');
     check((await source()).includes(':name: fig-pfc-control'), 'Redo of Apply lost the Figure');
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Redo after Save did not become dirty');
-    // Undo selected the transient node and reopened its form. Redo restores the applied
-    // document; Cancel dismisses any still-open form without removing that Figure.
-    if (await form.isVisible()) await page.getByTestId('figure-cancel').click();
+    check(await form.count() === 0, 'Undo or Redo opened the Figure form');
     await save();
     check((await diskFigures())[0]?.label === 'fig-pfc-control' &&
       await page.getByTestId('status').innerText() === 'Saved', 'Redo/Save failed to restore the Figure');
@@ -195,20 +198,23 @@ async (page, { openDocument }) => {
     check((await diskFigures())[0].label === 'fig-pfc-control' && await reference.getAttribute('data-resolved') === 'true',
       'Undo/Save/Reload lost pending attributes or reference');
 
-    // The actual form supports label-only and caption-only Apply, then persists both.
-    for (const [label, caption] of [['fig-label-only', ''], ['', 'Caption only']]) {
-      await insert();
-      await page.getByTestId('figure-label').fill(label);
-      await page.getByTestId('figure-caption').fill(caption);
-      await apply();
-    }
+    // A caption typed at the inserted caret and a label-only Apply persist, as does an untouched insert.
+    await insert();
+    await page.keyboard.type('Caption only');
+    await insert();
+    await edit(figures.first());
+    await page.getByTestId('figure-label').fill('fig-label-only');
+    await apply();
+    await insert();
     await save();
     await open();
     const final = await diskFigures();
-    check(final.some(f => f.label === 'fig-label-only' && f.caption.text === '') &&
-      final.some(f => f.label === '' && f.caption.text === 'Caption only'), 'Label-only or caption-only Apply did not persist');
-    return {transientExcluded:true, pendingReloaded:true, historyPayload:true, referencesPreserved:true,
-      lateApplyRetained:true, imageConnectedAndRemoved:true, deletionUndone:true, labelAndCaptionOnly:true};
+    check(final.length === 4 && final.some(f => f.label === 'fig-label-only' && f.caption.text === '') &&
+      final.some(f => f.label === '' && f.caption.text === 'Caption only') &&
+      final.some(f => f.label === '' && f.caption.text === '' && f.contentKind === 'none'),
+      'Typed caption, label-only Apply or empty Figure did not persist');
+    return {emptySaved:true, pendingReloaded:true, historyPayload:true, referencesPreserved:true,
+      lateApplyRetained:true, imageConnectedAndRemoved:true, deletionUndone:true, captionLabelAndEmpty:true};
   } finally {
     release();
     await page.unroute('**/api/document**');

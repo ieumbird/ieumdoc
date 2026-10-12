@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS, isAssetMime, MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import type { AssetResponse } from "../shared/asset-protocol.ts";
@@ -60,8 +60,9 @@ export function imageAssetsPlugin(options: Options): Plugin {
       if (destroyed || !view.editable || pending?.anchor == null) throw new Error("Image insertion was cancelled because its Editor or target block changed.");
       const index = view.state.doc.resolve(pending.anchor).index(0);
       const tr = insertFigureAfter(view.state, index, undefined, { imageUrl: created.path, imageAlt: "" });
-      if (!(tr.selection instanceof NodeSelection) || tr.selection.node.type.name !== "figure") throw new Error("Figure command did not produce an insertion.");
-      const sourcePath = tr.selection.node.attrs.sourcePath;
+      const figure = tr.selection.$from.parent;
+      if (figure.type.name !== "figure") throw new Error("Figure command did not produce an insertion.");
+      const sourcePath = figure.attrs.sourcePath;
       // Upload completion must not steal a caret that moved while the request ran.
       const keepSelection = pending.selectionMoved || !view.hasFocus();
       if (keepSelection) tr.setSelection(view.state.selection.map(tr.doc, tr.mapping));

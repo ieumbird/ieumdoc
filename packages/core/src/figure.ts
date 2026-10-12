@@ -38,14 +38,3 @@ export function figureContentError(figure: FigureContent): string | undefined {
   return undefined;
 }
 import type { InlineContent } from "./inline.ts";
-
-/**
- * A Figure a document may persist has an image, a caption or a label: a pending Figure
- * without content is kept for its caption and the references its label receives. One with
- * none of them has no meaning, so canonical write rejects it. A label is set by its own
- * operation, so this holds for a document's final state, not between Core operations.
- */
-export function figurePersistenceError(figure: FigureContent, label: string): string | undefined {
-  return figure.imageUrl.length === 0 && figureCaptionContent(figure.caption).length === 0 && label.length === 0
-    ? "A Figure needs an image, a caption or a label." : undefined;
-}

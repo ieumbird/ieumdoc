@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   blockTargets,
-  canonicalSerialize,
   canonicalWriteError,
   figureContentError,
   getEditableDocument,
@@ -159,9 +158,9 @@ test("validateFigure is the persistent validity used by insertFigure", () => {
   assert.equal(validateFigure(valid), undefined);
   assert.equal(validateFigure({ ...valid, imageAlt: "", caption: "" }), undefined);
   assert.match(validateFigure({ ...valid, imageUrl: "" }) ?? "", /without an image cannot have alt text/);
-  // A pending Figure (no image) is valid with a caption or a label, and only then.
+  // A pending Figure (no image) is valid with or without a caption or a label.
   const pending: FigureContent = { imageUrl: "", imageAlt: "", caption: "" };
-  assert.match(validateFigure(pending) ?? "", /needs an image, a caption or a label/);
+  assert.equal(validateFigure(pending), undefined);
   assert.equal(validateFigure(pending, "fig-pfc-control"), undefined);
   assert.equal(validateFigure({ ...pending, caption: "PFC Current Control Architecture" }), undefined);
   assert.match(validateFigure(pending, " fig") ?? "", /leading or trailing spaces/);
@@ -180,7 +179,7 @@ test("a pending Figure persists its caption and label, and connecting or removin
   const { markdown, figure, node } = roundTrip(pending, 1);
   assert.equal(markdown, "Intro\n\n:::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n\n" +
     "The controller structure is shown in [](#fig-pfc-control).\n");
-  assert.equal(canonicalSerialize(pending), markdown);
+  assert.equal(serialize(pending), markdown);
   assert.deepEqual(figure, { editable: true, label: "fig-pfc-control", ...PENDING });
   assert.equal(node.identifier, "fig-pfc-control");
   const block = getEditableDocument(parse(markdown)).blocks[1];
@@ -221,19 +220,23 @@ test("a pending Figure persists its caption and label, and connecting or removin
   assert.equal(serialize(pending), markdown);
 });
 
-test("canonical write refuses a Figure with no image, caption or label; a Save may pass through one", () => {
+test("an empty Figure, with no image, caption or label, is a numbered place a document keeps", () => {
   const empty = insertFigure(parse("Intro"), 1, { ...PENDING, caption: "" });
-  assert.equal(canonicalWriteError(empty), "Block 2: A Figure needs an image, a caption or a label.");
-  assert.throws(() => canonicalSerialize(empty), /Block 2: A Figure needs an image, a caption or a label/);
-  // A file holding one is read-only rather than rewritten.
-  assert.match(canonicalWriteError(parse(":::{figure}\n:::\n")) ?? "", /needs an image, a caption or a label/);
-  // One Save clears changed labels before setting them, so label-only Figures can swap labels.
-  const labelOnly = { ...PENDING, caption: "" };
-  const two = updateLabel(updateLabel(insertFigure(insertFigure(parse("Intro"), 1, labelOnly), 2, labelOnly), [1], "fig-a"), [2], "fig-b");
-  let swapped = updateLabel(updateLabel(two, [1], ""), [2], "");
-  assert.ok(canonicalWriteError(swapped));
-  swapped = updateLabel(updateLabel(swapped, [1], "fig-b"), [2], "fig-a");
-  assert.equal(canonicalSerialize(swapped), "Intro\n\n:::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
+  const { markdown, figure } = roundTrip(empty, 1);
+  assert.equal(markdown, "Intro\n\n:::{figure}\n:::\n");
+  assert.deepEqual(figure, { editable: true, label: "", imageUrl: "", imageAlt: "", caption: "" });
+  assert.equal(canonicalWriteError(empty), undefined);
+  // A file holding one stays writable and editable.
+  const opened = parse(":::{figure}\n:::\n");
+  assert.equal(canonicalWriteError(opened), undefined);
+  const block = getEditableDocument(opened).blocks[0];
+  assert.deepEqual(block?.block === "figure" && [block.editable, block.contentKind], [true, "none"]);
+  // It is numbered like any Figure, and later content fills the same container.
+  const blocks = getEditableDocument(insertFigure(parse(source), 2, { ...PENDING, caption: "" })).blocks;
+  const numbers = targetNumbers(blocks.map(item => blockTargets(item)));
+  assert.deepEqual(blocks.flatMap((item, index) => item.block === "figure" ? [numbers[index].figure] : []), [1, 2]);
+  assert.equal(serialize(updateFigure(empty, [1], { imageUrl: "./a.png", caption: "Caption" })),
+    "Intro\n\n:::{figure} ./a.png\nCaption\n:::\n");
 });
 
 test("Figures whose content Figure v1 does not author keep failing closed", () => {

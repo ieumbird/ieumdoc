@@ -16,7 +16,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent, type ReferenceRole } from "@ieumdoc/core";
 import { toTiptapContent } from "./tiptap-inline.ts";
-import { figureCaptionContent, figureContentError, figurePersistenceError } from "@ieumdoc/core/figure";
+import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
@@ -65,12 +65,11 @@ export function isUnappliedEquationDraft(editing: boolean, draft: string, latex:
   return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
 }
 
-/** An open Figure form is unsaved when changed, or when its new Figure was never applied.
- * Whether a Figure was applied is the session's `applied` state, never its missing image. */
-export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent, wasApplied = true): boolean {
+/** An open Figure form is unsaved when changed. */
+export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent): boolean {
   const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt ||
     JSON.stringify(draft.caption) !== JSON.stringify(applied.caption);
-  return editing && (changed || !wasApplied);
+  return editing && changed;
 }
 
 const hiddenAttr = (defaultValue: string | number | boolean = ""): Attribute => ({
@@ -390,9 +389,6 @@ const Figure = Node.create({
       imageAlt: hiddenAttr(""),
       caption: hiddenAttr(""),
       editable: hiddenAttr(false),
-      // Editor session state, never written: false only for a Figure the insert command made
-      // and no Apply has committed yet. Apply sets it in its transaction, so undo/redo restore it.
-      applied: hiddenAttr(true),
     });
   },
   parseHTML() {
@@ -1220,7 +1216,7 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   };
 }
 
-function FigureView({ node, editor, selected, deleteNode, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
+function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
   const number = useBlockNumber(editor, getPos, "figure");
   // The computed number prefixes the caption, as MyST renders it; it is never saved.
   const numbered = number === undefined ? undefined : `Figure ${number}`;
@@ -1231,9 +1227,6 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const editableFigure = node.attrs.editable === true && view.editable;
-  // A new Figure has no persistent state until a valid value is applied. No image is not
-  // "never applied": an applied pending Figure has a caption or a label and no content yet.
-  const neverApplied = node.attrs.applied === false;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [labelDraft, setLabelDraft] = useState(label);
@@ -1243,7 +1236,7 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   const captionChanged = useRef(false);
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
-    { ...draft, caption: captionChanged.current ? draft.caption : applied.caption }, applied, !neverApplied) ||
+    { ...draft, caption: captionChanged.current ? draft.caption : applied.caption }, applied) ||
     (editing && labelDraft !== label);
 
   useEffect(() => {
@@ -1252,12 +1245,6 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
       setLabelDraft(label);
     }
   }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
-
-  // Insertion and Undo of Apply restore the transient form; selection does not open it.
-  useEffect(() => {
-    if (!editableFigure) return;
-    if (neverApplied) beginEdit();
-  }, [editableFigure, neverApplied]);
 
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasUnappliedDraft);
@@ -1270,7 +1257,7 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     setLabelDraft(label);
     setError("");
     setEditing(true);
-    // After the form renders and after an insert command refocuses the editor.
+    // After the form renders.
     requestAnimationFrame(() => {
       const input = imageInput.current;
       if (input && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
@@ -1279,13 +1266,11 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
   const cancel = () => {
     validation.current++;
     setValidating(false);
-    if (neverApplied) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(applied);
     setLabelDraft(label);
     setError("");
     setEditing(false);
-    if (neverApplied) view.focus();
-    else focusBlock(view, getPos);
+    focusBlock(view, getPos);
   };
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
   // Whether the label is referenceable and unique in the document is checked by Core on Save.
@@ -1296,7 +1281,7 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
     const liveCaption = figureAttrs(current).caption;
     const candidate = { ...draft, caption: captionChanged.current ? draft.caption : liveCaption };
     const nextLabel = labelDraft;
-    const local = labelError(nextLabel) ?? figureContentError(candidate) ?? figurePersistenceError(candidate, nextLabel) ??
+    const local = labelError(nextLabel) ?? figureContentError(candidate) ??
       (validateFigure ? undefined : "Figure validation is unavailable.");
     if (local) {
       setError(local);
@@ -1326,12 +1311,12 @@ function FigureView({ node, editor, selected, deleteNode, getPos, view, document
       return;
     }
     const { caption, ...attributes } = candidate;
-    const replacement = latest.type.create({ ...latest.attrs, ...attributes, label: nextLabel, applied: true },
+    const replacement = latest.type.create({ ...latest.attrs, ...attributes, label: nextLabel },
       view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content);
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
     const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
-    // One undo step: undo returns the form's previous value (for a new Figure, its transient state).
+    // One undo step: undo returns the form's previous value.
     view.dispatch(closeHistory(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement)));
     setEditing(false);
     if (returnFocus) focusBlock(view, getPos);

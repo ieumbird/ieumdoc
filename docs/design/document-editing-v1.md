@@ -79,10 +79,10 @@ read-only. Headless callers use the existing `--content` JSON, so no CLI command
 Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
 update-table-cell --content and insert-table --cells); cells reject line breaks.
 Core updateFigure/insertFigure accept text or inline captions (CLI --caption-content).
-Figure content may be absent when a caption or label exists. Pending/image transitions
-preserve the container, label and caption; applied pending Figures participate in the
+Figure content, caption and label may all be absent (a pending Figure). Pending/image
+transitions preserve the container, label and caption; pending Figures participate in the
 same editing state and history. See [Figure authoring](figure-authoring-v1.md) for
-the persistence boundary and the transient/Apply distinction.
+the persistence boundary and insertion behavior.
 A Figure's caption is inline content in the single ProseMirror document, editable
 in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain

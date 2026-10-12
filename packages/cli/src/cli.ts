@@ -99,8 +99,8 @@ const OFFSET_NOTE = [
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
 ];
 const FIGURE_NOTE = [
-  "Without an image (no --image, or an empty one) the Figure is pending: it has no content yet",
-  "and needs a caption or a label. Alt text needs an image. An empty --alt or --caption removes that property.",
+  "Without an image (no --image, or an empty one) the Figure is pending: it has no content yet.",
+  "Caption and label are optional. Alt text needs an image. An empty --alt or --caption removes that property.",
   "Use --caption for text or --caption-content for Core InlineContent JSON; they are mutually exclusive.",
   "Values that cannot round-trip through canonical Markdown are rejected.",
 ];

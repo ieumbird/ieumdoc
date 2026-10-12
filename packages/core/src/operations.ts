@@ -40,7 +40,7 @@ import {
 } from "./myst/footnote.ts";
 import { endnoteOrder, nextFootnoteLabel } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
-import { canonicalSerialize, serialize, serializeFor } from "./myst/serialize.ts";
+import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
@@ -291,7 +291,7 @@ export function collectEndnotes(document: MystDocument): MystDocument {
     references: footnoteReferences(node),
   })));
   next.children = order.map(index => next.children[index]);
-  canonicalSerialize(next);
+  serialize(next);
   return next;
 }
 
@@ -858,15 +858,15 @@ function assertLabelRoundTrip(document: MystDocument, index: number, label: stri
 
 /**
  * Authoritative persistent validity of Figure v1 properties and a label: the field rules and
- * canonical round-trip that insertFigure, updateFigure and updateLabel enforce, and the rule a
- * saved Figure meets (an image, a caption or a label). Whether the label is unique in the
+ * canonical round-trip that insertFigure, updateFigure and updateLabel enforce. A Figure with
+ * no image, caption or label is a valid empty Figure. Whether the label is unique in the
  * document is checked when it is set there. Returns the error message.
  */
 export function validateFigure(figure: FigureContent, label = ""): string | undefined {
   try {
     let document = insertFigure({ type: "root", children: [] }, 0, figure);
     if (label.length > 0) document = updateLabel(document, [0], label);
-    canonicalSerialize(document);
+    serialize(document);
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);

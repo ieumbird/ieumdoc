@@ -150,6 +150,10 @@ async (page, { openDocument }) => {
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await insertAfterParagraph('Figure');
+  // A new Figure opens no form; its properties are an explicit Edit.
+  const newFigure = page.locator('[data-block="figure"]').filter({has:page.getByTestId('figure-no-content')});
+  await newFigure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
+  await newFigure.getByRole('button', {name:'Edit figure'}).click();
   await figureFormReady();
   await page.getByTestId('figure-image-url').fill('./diagram.svg');
   await page.getByTestId('figure-label').fill('fig-new');
