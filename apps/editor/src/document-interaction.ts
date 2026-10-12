@@ -5,6 +5,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS } from "../shared/asset-policy.ts";
+import { changeHeadingLevel } from "./block-commands.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
@@ -127,9 +128,16 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
     priority: 120,
     addKeyboardShortcuts() {
       const tab = (backward: boolean) => {
-        const tr = tableTab(this.editor.state, backward);
-        if (!tr) return false;
-        this.editor.view.dispatch(tr); return true;
+        const { state, view } = this.editor;
+        const tr = tableTab(state, backward);
+        if (tr) { view.dispatch(tr); return true; }
+        const { selection } = state, { $from } = selection;
+        // Selected text keeps its toolbar Tab; only an editable top-level heading caret changes level.
+        if (!this.editor.isEditable || view.composing || !selection.empty || $from.depth !== 1 || $from.parent.type.name !== "heading") return false;
+        const level = Number($from.parent.attrs.level) + (backward ? -1 : 1);
+        if (level >= 1 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
+        // At H1/H6, retain focus rather than falling through to browser Tab navigation.
+        return true;
       };
       const join = (backward: boolean) => {
         const tr = joinRichProse(this.editor.state, backward);

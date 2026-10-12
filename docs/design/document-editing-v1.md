@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-11 (deferred common grammars, literal fallback, upload/history 수명과 전체 stable browser suite).
+- Last verified: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -18,6 +18,11 @@ persistent changes and canonical semantic validation.
   heading joined with prose that has line breaks becomes a paragraph to retain them
   (headings hold marks and inline atoms but no line breaks, #58).
   Admonitions, Figures and table cells are isolating: they never silently become prose.
+- With a caret in an editable top-level heading, Tab changes H2 to H3 (one level
+  deeper), and Shift+Tab changes H3 to H2 (one level higher). Each change is one
+  Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
+  H1 keep the heading and focus unchanged. A text selection still uses Tab to
+  reach its formatting toolbar; table, list and code Tab behavior is unchanged.
 - Tab/Shift+Tab move between editable table cells, skipping read-only cells;
   leaving the first/last cell enters surrounding prose (creating a paragraph at
   a document edge). Enter leaves a table, a Figure caption or a simple admonition.
@@ -58,7 +63,10 @@ other engine conversions, and Core `convertBlock` (CLI `convert-block`) is the s
 conversion for headless callers. Headings hold inline content without line breaks
 (#58), so a paragraph with line breaks is refused with a visible reason instead of
 losing them. Heading edits save through Core `updateHeadingInlineContent` (CLI
-`update-heading`). Cursor navigation, including reaching the document end, and session identity repair require no CLI command.
+`update-heading`). Heading level changes from the menu or Tab/Shift+Tab save
+through Core `updateHeadingLevel`, already exposed by CLI `update-heading-level`;
+the keyboard shortcut adds no semantic operation or CLI command. Cursor navigation,
+including reaching the document end, and session identity repair require no CLI command.
 
 Subscript and superscript are InlineContent marks (`subscript`, `superscript`) written as
 the MyST `{sub}` and `{sup}` roles, for text notation such as H{sub}`2`O or m{sup}`2`;
