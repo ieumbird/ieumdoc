@@ -62,7 +62,7 @@ Keyboard control focus uses a separate 2px ring; a current marker, error boundar
 | Disabled control | Native disabled controls retain dimming. Focusable `aria-disabled` controls use a muted face, secondary text and structural boundary, preserving their tooltip, focus ring and Base UI activation guard. |
 | No hover device | Gutter and Edit remain visible. |
 
-These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel removes only a never-applied new Figure, as before.
+These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel never removes a Figure.
 
 ## Empty document start (#133)
 
@@ -144,7 +144,7 @@ Desktop Settings/About reuses the existing dialog, Button and Notice components 
 | Link / inline math / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
 | Figure | Selection keeps editor focus; explicit Edit autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
-| Block properties (Figure, Equation, Table, section label) | Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied block leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
+| Block properties (Figure, Equation, Table, section label) | Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
 | Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. New folder always returns focus to its button. Open folder… returns focus to its opening control: the sidebar button, `⋯` when opened from its menu, or the start-screen button. |
 | Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog, whose closing returns it to `⋯`. |

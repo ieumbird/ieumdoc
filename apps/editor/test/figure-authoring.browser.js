@@ -129,41 +129,34 @@ async (page, { openDocument }) => {
     result.validCaptionSavedAndReloaded = revalidated.caption === 'Cost is 5 units.' && revalidated.label === 'fig-control' &&
       await figures.first().locator('figcaption').innerText() === 'Cost is 5 units.';
 
-    // C1. A new Figure canceled before any Apply is removed.
+    // C1. A new Figure is a document block at once: no form opens, the caret is in its caption,
+    // and Undo removes it.
     await insertAfterParagraph('Figure');
-    await editor.waitFor();
-    result.newFigureFocusesImage = await imageFocused();
-    await page.getByTestId("figure-draft-status").waitFor();
-    result.newFigureAllowsAppliedSave = await saveEnabled.count() === 1;
-    await page.getByTestId('figure-caption').fill('Unapplied new figure');
-    await page.getByTestId('save').click();
-    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
-    result.placeholderSaveKeepsDraft = (await semantic()).length === 1 &&
-      await page.getByTestId('figure-caption').inputValue() === 'Unapplied new figure' &&
-      await page.getByTestId('status').innerText() === 'Unsaved changes';
-    await page.getByTestId('figure-cancel').click();
-    await editor.waitFor({state:'detached'});
-    result.unappliedCancelRemoves = await figures.count() === 1 && await saveDisabled.count() === 0;
-    // The removed Figure's place, never the next block: typing continues the paragraph.
-    const afterRemoval = await editorFocus();
-    result.unappliedCancelReturnsCaret = afterRemoval !== false && afterRemoval.empty && afterRemoval.text === 'The current reference is calculated from the active power command.';
+    await figures.nth(1).waitFor();
+    result.newFigureOpensNoForm = await editor.count() === 0;
+    const inserted = await editorFocus();
+    result.newFigureCaretInCaption = inserted !== false && inserted.block === 'figure' && inserted.empty && inserted.text === '';
+    result.newFigureIsUnsaved = await saveEnabled.count() === 1;
+    await page.keyboard.press('ControlOrMeta+z');
+    result.newFigureUndoRemoves = await figures.count() === 1;
 
-    // B. `/figure` from a transient paragraph, then Apply, Save, Reload.
+    // B. `/figure` from a transient paragraph, a caption typed at the caret, an image set by Edit, Save, Reload.
     await insertAfterParagraph('Paragraph');
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();
+    result.slashReplacesTransientParagraph = await page.locator('[data-block="paragraph"]').count() === baselineParagraphs &&
+      await figures.count() === 2 && await editor.count() === 0;
+    const created = figures.nth(1);
+    await page.keyboard.type('New figure caption.');
+    result.newCaptionTypedAtCaret = await created.locator('figcaption').innerText() === 'New figure caption.';
+    await created.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
+    await created.getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
-    result.slashReplacesTransientParagraph = await page.locator('[data-block="paragraph"]').count() === baselineParagraphs;
     result.newLabelEmpty = await page.getByTestId('figure-label').inputValue() === '';
-    await page.getByTestId('figure-image-url').fill('');
-    await page.getByTestId('figure-apply').click();
-    result.emptyFigureRejected = await editor.getByText('A Figure needs an image, a caption or a label.').isVisible();
     await page.getByTestId('figure-image-url').fill('./diagram.svg');
     await page.getByTestId('figure-alt').fill('New figure alt');
-    await page.getByTestId('figure-caption').fill('New figure caption.');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
-    const created = figures.nth(1);
     result.newPreviewAfterApply = String(await imageLoaded(created)).startsWith('/document/diagram.svg?path=');
 
     // C2. Apply, Edit, change, Cancel keeps the block and restores the applied value.
@@ -314,7 +307,7 @@ async (page, { openDocument }) => {
     result.metadataKeepsCaptionFormatting = await caption.locator('strong').innerText() === 'DC-link voltage' &&
       (await semantic())[0].imageAlt === 'Rich caption image' && (await semantic())[0].label === 'fig-control';
 
-    // Canceling a never-applied Figure that is the only block restores the empty-document paragraph.
+    // In a new empty document, `/figure` makes the only block an empty Figure that saves.
     const emptyName = `empty-${Date.now()}.md`;
     const emptyPath = filePath.replace('technical-document.md', emptyName);
     await page.getByRole('button', {name:'More actions', exact:true}).click();
@@ -329,14 +322,10 @@ async (page, { openDocument }) => {
     await page.locator('[data-testid="document-editor"] [contenteditable="true"]').click();
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();
-    await editor.waitFor();
-    await page.getByTestId('figure-cancel').click();
-    await editor.waitFor({state:'detached'});
-    result.onlyBlockCancelRestoresEmptyParagraph = await figures.count() === 0 &&
-      await page.locator('.document-editor > p[data-block="paragraph"]').count() === 1 && await saveDisabled.count() === 0;
+    result.onlyBlockFigureOpensNoForm = await figures.count() === 1 && await editor.count() === 0;
     await save();
-    result.onlyBlockCancelSavesEmpty = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(emptyPath)}`)).json())
-      .document.blocks.length === 0;
+    const onlyBlocks = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(emptyPath)}`)).json()).document.blocks;
+    result.onlyBlockFigureSaved = onlyBlocks.length === 1 && onlyBlocks[0].block === 'figure' && onlyBlocks[0].contentKind === 'none';
 
     result.consoleProblems = problems;
     const failed = Object.entries(result).filter(([key, value]) => key !== 'consoleProblems' && value !== true);

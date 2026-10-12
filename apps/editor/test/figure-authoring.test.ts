@@ -165,16 +165,6 @@ test("new Figure inserts save and reload through Core semantics", () => {
   assert.equal(saved.markdown, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
 
-  // An unapplied transient Figure (as the insert command makes it) remains in the session, outside the applied save.
-  const empty = toTiptapDocument(editable);
-  empty.content!.push({ type: "figure", attrs: { sourcePath: "new:empty-figure", label: "", editable: true, imageUrl: "", imageAlt: "", caption: "", applied: false } });
-  assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), empty));
-  assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
-  assert.throws(() => saveEdits("Intro\n", {
-    inserts: [{ block: "figure", imageUrl: "", imageAlt: "", caption: "" }],
-    order: [{ path: [0], part: 0 }, { insert: 0 }],
-  }), /needs an image, a caption or a label/);
-
   // A new Figure can carry a label; persistent blocks cannot become Figures.
   const labeled = toTiptapDocument(editable);
   labeled.content!.push(setFigure({ type: "figure", attrs: { sourcePath: "new:labeled", label: "fig-x", editable: true } }, figure));
@@ -209,22 +199,15 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   assert.equal(isUnappliedFigureDraft(false, CHANGED, ORIGINAL), false);
   assert.equal(isUnappliedFigureDraft(true, ORIGINAL, ORIGINAL), false);
   assert.equal(isUnappliedFigureDraft(true, { ...ORIGINAL, caption: "x" }, ORIGINAL), true);
+  // An open form on an empty Figure is not a draft until its values change.
   const empty = { imageUrl: "", imageAlt: "", caption: "" };
-  // A new Figure stays a draft until its form is applied, even with no typed change.
-  assert.equal(isUnappliedFigureDraft(true, empty, empty, false), true);
-  assert.equal(isUnappliedFigureDraft(false, empty, empty, false), false);
-  assert.equal(isUnappliedFigureDraft(true, CHANGED, CHANGED, false), true);
-  // An applied pending Figure has no image and is not a draft.
-  assert.equal(isUnappliedFigureDraft(true, { ...empty, caption: "Caption" }, { ...empty, caption: "Caption" }, true), false);
+  assert.equal(isUnappliedFigureDraft(true, empty, empty), false);
 
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  // Cancel removes only a never-applied transient Figure; Apply writes the validated draft.
-  assert.match(schemaSource, /const neverApplied = node\.attrs\.applied === false;/);
-  assert.match(schemaSource, /if \(neverApplied\) removeUnappliedBlock\(view, getPos, node, deleteNode\);/);
   // Apply commits only after Core's persistent validation through the Host accepts the value.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*label: nextLabel, applied: true \}[\s\S]*view\.dispatch\(closeHistory\(view\.state\.tr\.replaceWith/);
+  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*label: nextLabel \}[\s\S]*view\.dispatch\(closeHistory\(view\.state\.tr\.replaceWith/);
   assert.match(app, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });
@@ -233,9 +216,9 @@ test("the Host Figure validation endpoint returns Core's persistent validation",
   assert.equal(validateFigureRequest(CHANGED), undefined);
   assert.match(validateFigureRequest({ ...CHANGED, caption: "% comment" }) ?? "", /canonical round-trip|not canonical/);
   assert.match(validateFigureRequest({ ...CHANGED, imageUrl: "" }) ?? "", /without an image cannot have alt text/);
-  // A pending Figure Apply is valid with a label, a caption, or both, and only then.
+  // A pending Figure Apply is valid with a label, a caption, both, or neither.
   const pending = { imageUrl: "", imageAlt: "", caption: "" };
-  assert.match(validateFigureRequest(pending) ?? "", /needs an image, a caption or a label/);
+  assert.equal(validateFigureRequest(pending), undefined);
   assert.equal(validateFigureRequest({ ...pending, label: "fig-pfc-control" }), undefined);
   assert.equal(validateFigureRequest({ ...pending, caption: "PFC Current Control Architecture" }), undefined);
   assert.match(validateFigureRequest({ ...pending, label: "fig pfc " }) ?? "", /leading or trailing spaces/);
@@ -295,13 +278,13 @@ function figurePosition(state: EditorState): number {
   return position;
 }
 
-/** The transaction Figure Apply dispatches: the validated values and the applied session state. */
+/** The transaction Figure Apply dispatches: the validated values. */
 function applyFigure(state: EditorState, figure: FigureContent, label: string): EditorState {
   const position = figurePosition(state);
   const node = state.doc.nodeAt(position)!;
   const { caption, ...attributes } = figure;
   const content = state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(typeof caption === "string" && caption ? [{ kind: "text", text: caption }] : []) }).content;
-  return state.apply(closeHistory(state.tr.replaceWith(position, position + node.nodeSize, node.type.create({ ...node.attrs, ...attributes, label, applied: true }, content))));
+  return state.apply(closeHistory(state.tr.replaceWith(position, position + node.nodeSize, node.type.create({ ...node.attrs, ...attributes, label }, content))));
 }
 
 const step = (state: EditorState, command: typeof undo) => {
@@ -310,18 +293,24 @@ const step = (state: EditorState, command: typeof undo) => {
   return next;
 };
 
-test("an applied pending Figure is saved; the transient Figure before Apply is not, through undo and redo", () => {
+test("an inserted Figure is saved as an empty place before any input, through undo and redo", () => {
   const editable = loadEditableDocument(DRAFT_SOURCE);
   let { state } = editorState(DRAFT_SOURCE);
   const opening = editorDocumentJSON(state);
   state = state.apply(insertFigureAfter(state, 0));
-  const transient = state.doc.nodeAt(figurePosition(state))!.toJSON() as TiptapJSON;
-  assert.equal(transient.attrs?.applied, false);
-  assert.equal(isSessionPlaceholder(transient), true);
-  const nothing = collectSupportedEdits(editable, editorDocumentJSON(state));
-  assert.equal(nothing.inserts, undefined);
-  // Dirty comparison reads the same rule: the transient Figure leaves the applied document unchanged.
-  assert.deepEqual(appliedDocument(editorDocumentJSON(state)).content, appliedDocument(opening).content);
+  const inserted = state.doc.nodeAt(figurePosition(state))!.toJSON() as TiptapJSON;
+  assert.equal(isSessionPlaceholder(inserted), false);
+  assert.notDeepEqual(appliedDocument(editorDocumentJSON(state)).content, appliedDocument(opening).content);
+  const emptyEdits = collectSupportedEdits(editable, editorDocumentJSON(state));
+  assert.deepEqual(emptyEdits.inserts, [{ block: "figure", imageUrl: "", imageAlt: "", caption: "" }]);
+  const emptyMarkdown = "Intro\n\n:::{figure}\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n";
+  assert.equal(saveEdits(DRAFT_SOURCE, emptyEdits).markdown, emptyMarkdown);
+  assert.deepEqual(figureOf(loadEditableDocument(emptyMarkdown), 1), { label: "", imageUrl: "", imageAlt: "", caption: "" });
+
+  // Undo removes the inserted Figure and its payload; redo restores both.
+  const undone = step(state, undo);
+  assert.equal(collectSupportedEdits(editable, editorDocumentJSON(undone)).inserts, undefined);
+  assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(step(undone, redo))), emptyEdits);
 
   const pending = { imageUrl: "", imageAlt: "", caption: "PFC Current Control Architecture" };
   state = applyFigure(state, pending, "fig-pfc-control");
@@ -332,10 +321,9 @@ test("an applied pending Figure is saved; the transient Figure before Apply is n
   const reloaded = figureOf(loadEditableDocument(saved.markdown), 1);
   assert.deepEqual(reloaded, { label: "fig-pfc-control", ...pending });
 
-  // Undo returns the transient Figure and an empty payload; redo the applied one and the same payload.
+  // Undo of Apply returns the empty Figure; redo the applied values.
   state = step(state, undo);
-  assert.equal(state.doc.nodeAt(figurePosition(state))!.attrs.applied, false);
-  assert.equal(collectSupportedEdits(editable, editorDocumentJSON(state)).inserts, undefined);
+  assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(state)), emptyEdits);
   state = step(state, redo);
   assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(state)), edits);
 
@@ -383,7 +371,8 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
     { path: [0], from: "fig-a", to: "fig-b" }, { path: [1], from: "fig-b", to: "fig-a" },
   ] });
   assert.equal(swapped.markdown, ":::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
-  assert.throws(() => saveEdits(labelOnlySource, { labels: [{ path: [0], from: "fig-a", to: "" }] }), /needs an image, a caption or a label/);
+  assert.equal(saveEdits(labelOnlySource, { labels: [{ path: [0], from: "fig-a", to: "" }] }).markdown,
+    ":::{figure}\n:::\n\n:::{figure}\n:name: fig-b\n:::\n");
   // Caption and label edits can temporarily leave an empty pending Figure between operations.
   for (const [opening, from, to, beforeLabel, afterLabel] of [
     [":::{figure}\n:name: fig-a\n:::\n", "", "Caption", "fig-a", ""],
@@ -399,12 +388,9 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
 
 });
 
-test("a Figure inserted with an image file is applied at once and saved", () => {
+test("a Figure inserted with an image file is saved with it", () => {
   const editable = loadEditableDocument("Intro\n");
   let { state } = editorState("Intro\n");
   state = state.apply(insertFigureAfter(state, 0, undefined, { imageUrl: "./pasted.png", imageAlt: "" }));
-  const node = state.doc.nodeAt(figurePosition(state))!.toJSON() as TiptapJSON;
-  assert.equal(node.attrs?.applied, true);
-  assert.equal(isSessionPlaceholder(node), false);
   assert.equal(saveEdits("Intro\n", collectSupportedEdits(editable, editorDocumentJSON(state))).markdown, "Intro\n\n:::{figure} ./pasted.png\n:::\n");
 });

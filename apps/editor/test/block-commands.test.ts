@@ -113,7 +113,7 @@ test("Equation slash insertion replaces a transient empty paragraph", () => {
   assert.equal(next.selection instanceof NodeSelection, true);
 });
 
-test("Figure insertion selects a new unlabeled editable atom", () => {
+test("Figure insertion places the caret in the caption of a new unlabeled editable Figure", () => {
   const state = EditorState.create({ schema, doc: docOf("AB") });
   assert.deepEqual(filterInsertCommands("fig").map(command => command.id), ["figure"]);
   assert.deepEqual(filterInsertCommands("image").map(command => command.id), ["figure"]);
@@ -125,8 +125,8 @@ test("Figure insertion selects a new unlabeled editable atom", () => {
     [figure.attrs.label, figure.attrs.imageUrl, figure.attrs.imageAlt, figure.attrs.caption, figure.attrs.editable],
     ["", "", "", "", true],
   );
-  assert.equal(next.selection instanceof NodeSelection, true);
-  assert.equal(next.selection.from, positionOf(next.doc, String(figure.attrs.sourcePath)));
+  assert.equal(next.selection instanceof TextSelection && next.selection.empty, true);
+  assert.equal(next.selection.from, positionOf(next.doc, String(figure.attrs.sourcePath)) + 1);
 });
 
 test("Figure slash insertion replaces a transient empty paragraph but not a persistent one", () => {

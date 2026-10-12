@@ -507,9 +507,8 @@ test("CLI insert-figure persists a Core Figure", () => {
     assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
     const minimal = readFileSync(file, "utf8");
     assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
-    // Invalid under the pending Figure contract too: no image, caption or label; alt text without an image.
+    // Invalid under the pending Figure contract too: alt text without an image.
     for (const args of [
-      ["insert-figure", file, "--at", "0", "--image", ""],
       ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
       ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "% comment"],
       ["insert-figure", file, "--at", "9", "--image", "./a.svg"],
@@ -552,13 +551,19 @@ test("CLI insert-figure makes a pending Figure in one write; update-figure conne
     for (const args of [
       ["insert-figure", file, "--at", "0", "--label", "FIG-PFC-Control"],
       ["insert-figure", file, "--at", "0", "--label", " fig-a"],
-      ["insert-figure", file, "--at", "0", "--label", ""],
     ]) {
       assert.equal(run(args).status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), before, args.join(" "));
     }
     assert.equal(run(["insert-figure", file, "--at", "0", "--label", "fig-only"]).status, 0);
     assert.equal(readFileSync(file, "utf8"), `:::{figure}\n:name: fig-only\n:::\n\n${before}`);
+    writeFileSync(file, before);
+    // With no image, caption or label it is an empty place, saved and reported like any pending Figure.
+    assert.equal(run(["insert-figure", file, "--at", "0"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), `:::{figure}\n:::\n\n${before}`);
+    const emptyCheck = run(["check", file]);
+    assert.equal(emptyCheck.status, 0, emptyCheck.stderr);
+    assert.match(emptyCheck.stderr, /^warning: Figure \(block 0\) has no content yet$/m);
     writeFileSync(file, before);
 
     // Connecting an image keeps the place, caption, label and the reference.

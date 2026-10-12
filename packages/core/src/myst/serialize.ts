@@ -2,7 +2,7 @@ import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
 import { completeFootnotes, footnoteWriteError } from "./footnote.ts";
-import { figureWriteError, isFigure } from "./figure.ts";
+import { isFigure } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
 import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
@@ -62,18 +62,6 @@ function render(value: MystNode): string {
   writeMd(file, { type: "root", children: [value] } as never);
   assertNoSerializationDiagnostics(file);
   return String(file.result ?? "").trimEnd();
-}
-
-/**
- * The canonical write of a document's final state: Save, `format` and every CLI edit. Rules
- * a document may break only between Core operations (one Save can clear a pending Figure's
- * label before setting another) are checked here, then `serialize`. Operations check their
- * own round-trip with `serialize`, so they stay composable.
- */
-export function canonicalSerialize(document: MystDocument): string {
-  const figure = figureWriteError(document);
-  if (figure) throw new Error(figure);
-  return serialize(document);
 }
 
 /** Adapt the MyST representation to the existing mdast writer, on the write-only clone.
@@ -180,7 +168,7 @@ function escapeDollars(text: MystNode): MystNode[] {
  */
 export function canonicalWriteError(document: MystDocument): string | undefined {
   try {
-    canonicalSerialize(document);
+    serialize(document);
     return undefined;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);

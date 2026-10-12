@@ -1,4 +1,4 @@
-import { figureCaptionContent, figurePersistenceError, type FigureContent } from "../figure.ts";
+import { figureCaptionContent, type FigureContent } from "../figure.ts";
 import { inlineContentToNodes, projectInlineContent, sameInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
@@ -65,21 +65,6 @@ export function setFigureContent(node: MystNode, figure: FigureContent): void {
   if (figure.imageAlt.length > 0) image.alt = figure.imageAlt;
   else delete image.alt;
   node.children = [image, ...caption];
-}
-
-/** The persistence rule for every Figure in a document's final state (see figurePersistenceError). */
-export function figureWriteError(document: MystNode): string | undefined {
-  let error: string | undefined;
-  const visit = (node: MystNode, block: number) => {
-    if (error) return;
-    if (isFigure(node) && !node.subcontainer && figureContentKind(node) === "none" &&
-        !(node.children ?? []).some(child => child.type === "caption") && !node.label) {
-      error = `Block ${block + 1}: ${figurePersistenceError({ imageUrl: "", imageAlt: "", caption: [] }, "")}`;
-    }
-    node.children?.forEach(child => visit(child, block));
-  };
-  (document.children ?? []).forEach((child, index) => visit(child, index));
-  return error;
 }
 
 /** Fail closed unless the top-level Figure keeps its properties and label through canonical Markdown. */
