@@ -1,8 +1,11 @@
+import path from "node:path";
+import { REPOSITORY_ROOT } from "./fixtures.ts";
+
 type ExpectedConsoleErrorRule = {
   status: number;
   pathname: string;
   minimum: number;
-  queryPath?: RegExp;
+  queryPath?: string;
   description: string;
 };
 
@@ -23,14 +26,14 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {
       status: 404,
       pathname: "/document/diagram.svg",
-      queryPath: /^C:\\tmp\\ieumdoc-a\.md$/,
+      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "ieumdoc-a.md"),
       minimum: 1,
       description: "missing diagram for mocked file A",
     },
     {
       status: 404,
       pathname: "/document/diagram.svg",
-      queryPath: /^C:\\tmp\\ieumdoc-b\.md$/,
+      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "ieumdoc-b.md"),
       minimum: 1,
       description: "missing diagram for mocked file B",
     },
@@ -80,7 +83,7 @@ export function classifyConsoleErrors(scenario: string, messages: string[]) {
       // A malformed or non-HTTP console location cannot match an expected response.
     }
     const ruleIndex = rules.findIndex((rule) => status === rule.status && url?.pathname === rule.pathname &&
-      (!rule.queryPath || rule.queryPath.test(url.searchParams.get("path") ?? "")));
+      (!rule.queryPath || rule.queryPath === url.searchParams.get("path")));
     if (ruleIndex < 0) {
       unexpected.push(message);
     } else {
