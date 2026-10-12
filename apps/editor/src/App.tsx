@@ -4,6 +4,7 @@ import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx"
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
+import { DocumentStart } from "./shell/DocumentStart.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
@@ -21,6 +22,7 @@ import type {
   SaveResponse,
   SourceResponse,
   DocumentErrorResponse,
+  DocumentStartResponse,
   FolderBrowseResponse,
   FolderCreateRequest,
   FolderCreateResponse,
@@ -56,6 +58,8 @@ export function App() {
   // Open file… and Open folder… return focus to the control that opened them.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   const [document, setDocument] = useState<EditableDocument | null>(null);
+  // Set when the Host opened no document at start; cleared once one opens.
+  const [start, setStart] = useState<DocumentStartResponse | null>(null);
   const [sourceRevision, setSourceRevision] = useState("");
   const sessionBase = useRef<SaveRequest["base"] | undefined>(undefined);
   const [openedPath, setOpenedPath] = useState("");
@@ -140,6 +144,12 @@ export function App() {
     setStatus(requestedPath ? "Opening…" : "Loading…");
     try {
       const next = await requestDocument("GET", requestedPath);
+      if ("start" in next) {
+        setStart(next);
+        setStatus("Ready");
+        return "";
+      }
+      setStart(null);
       setDocument(next.document);
       sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
@@ -265,6 +275,7 @@ export function App() {
     setStatus("Creating…");
     try {
       const next = await requestDocument("PUT", requestedPath);
+      setStart(null);
       setDocument(next.document);
       sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
@@ -305,6 +316,8 @@ export function App() {
    * the same state that guards closing the page, with the reason to show.
    */
   function pendingWork(): string | null {
+    // The start has no document, so nothing can be lost unless one is opening.
+    if (!document && start) return switching ? "IeumDoc is still working on the document. Try again in a moment." : null;
     if (!document || !editorRef.current) return "The editor is not ready to restart.";
     if (status === "Saving…") return "A save is in progress. Restart to update after it finishes.";
     if (assetPending) return "An image is still being added. Restart to update after it finishes.";
@@ -483,6 +496,26 @@ export function App() {
               <pre className="source-view-text">{sourceMarkdown}</pre>
             </article>
           ) : null}
+          {!document && start ? (
+            <DocumentStart
+              recent={recentFolders}
+              sample={start.sample}
+              busy={busy}
+              onOpenFolder={(returnFocus) => {
+                dialogReturnFocus.current = returnFocus;
+                setFolderDialog(true);
+              }}
+              onOpen={(returnFocus) => {
+                dialogReturnFocus.current = returnFocus;
+                setOpenDialog(true);
+              }}
+              onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
+              onOpenSample={(sample) => void openFile(sample).then((message) => {
+                if (message) setError(message);
+                else setNotice("This is the sample document, a copy in IeumDoc's app data.");
+              })}
+            />
+          ) : null}
           {/* Hidden, not unmounted, in Source: the one editor state and its history stay intact. */}
           {document ? (
             <div hidden={view === "source"}>
@@ -621,10 +654,12 @@ class SaveConflictError extends Error {
   }
 }
 
+function requestDocument(method: "PUT", filePath: string): Promise<DocumentResponse>;
+function requestDocument(method: "GET", filePath?: string): Promise<DocumentResponse | DocumentStartResponse>;
 async function requestDocument(
   method: "GET" | "PUT",
   filePath?: string,
-): Promise<DocumentResponse> {
+): Promise<DocumentResponse | DocumentStartResponse> {
   const body = method === "PUT" ? { path: filePath } : undefined;
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
   const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document${query}`, {
@@ -632,9 +667,13 @@ async function requestDocument(
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const payload = (await response.json()) as Partial<DocumentFileResponse> & Partial<DocumentErrorResponse>;
+  const payload = (await response.json()) as Partial<DocumentFileResponse> & Partial<DocumentErrorResponse> & Partial<DocumentStartResponse>;
   if (response.status === 409) {
     throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
+  }
+  // Only the first request, which names no document, may start without one.
+  if (response.ok && method === "GET" && !filePath && payload.start === true) {
+    return { start: true, ...(typeof payload.sample === "string" ? { sample: payload.sample } : {}) };
   }
   if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);

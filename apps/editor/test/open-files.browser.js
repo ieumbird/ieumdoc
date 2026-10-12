@@ -23,11 +23,14 @@ async page => {
   const files = new Map([[pathA, fileA], [pathB, fileB]]);
   const requests = [];
   let conflictNext = false;
+  // The Desktop Host's first answer when the app was started without a document.
+  let startNext = true;
 
   // Match selected-file GETs (?path=...) as well.
   await page.route('**/api/document**', async route => {
     const request = route.request();
     if (request.method() === 'GET') {
+      if (!queryPath(request.url()) && startNext) return route.fulfill({json:{start:true, sample:pathB}});
       const requestedPath = queryPath(request.url()) || pathA;
       const response = files.get(requestedPath);
       if (!response) return route.fulfill({status:400,json:{error:'unknown test file'}});
@@ -52,6 +55,32 @@ async page => {
   });
 
   try {
+    // Started without a document: nothing opens until the user chooses a folder, a file or the sample.
+    await page.evaluate(recent => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify([recent])), folder);
+    await page.reload();
+    const start = page.getByTestId('document-start');
+    await start.waitFor();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if (await page.getByTestId('current-file').innerText() !== 'No file opened' || await page.locator('.ProseMirror').count() ||
+      !await page.getByTestId('save').isDisabled() || await page.getByTestId('error').count()) {
+      throw new Error('The start opened a document or reported an error');
+    }
+    await page.setViewportSize({width:375, height:800});
+    const overflow = await start.evaluate(paper => {
+      const edge = paper.getBoundingClientRect().right;
+      return [...paper.querySelectorAll('h1, h2, p, button')].filter(node => node.getBoundingClientRect().right > edge + 0.5).map(node => node.textContent);
+    });
+    await page.setViewportSize({width:1280, height:720});
+    if (overflow.length) throw new Error(`The start leaves the paper at 375px: ${JSON.stringify(overflow)}`);
+    await start.getByRole('button', {name:/^open-files/}).click();
+    await page.getByRole('region', {name:'open-files', exact:true}).waitFor();
+    if (!await start.isVisible()) throw new Error('Opening a recent folder opened a document');
+    await start.getByRole('button', {name:'Open sample document', exact:true}).click();
+    await start.waitFor({state:'detached'});
+    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('The sample did not open');
+    await page.getByText("This is the sample document, a copy in IeumDoc's app data.", {exact:true}).waitFor();
+    startNext = false;
+
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('File A was not opened');
@@ -94,8 +123,9 @@ async page => {
     await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('Save conflict',{exact:true}).waitFor();
     if (!(await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Stale edit was discarded');
-    return {fileA:true, fileB:true, unsavedSwitchGuarded:true, conflictRetained:true};
+    return {start:true, fileA:true, fileB:true, unsavedSwitchGuarded:true, conflictRetained:true};
   } finally {
+    await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
     await page.unroute('**/api/document**');
     await page.unrouteAll();
   }

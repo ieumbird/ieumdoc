@@ -51,7 +51,7 @@ try { pnpm --filter @ieumdoc/desktop test:update }
 finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 ```
 
-`test:packaged`는 production app의 sample/외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
+`test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
 `desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
 

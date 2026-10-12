@@ -162,6 +162,12 @@ export type DocumentFileResponse = {
   writeError: string | null;
 };
 
+/**
+ * The Host's answer to the first request, which names no document, when it opens none: the
+ * Editor starts without a document. `sample` is a writable sample the user may open.
+ */
+export type DocumentStartResponse = { start: true; sample?: string };
+
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
 export type SaveResponse = Pick<DocumentFileResponse, "revision">;
 

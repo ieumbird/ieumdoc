@@ -588,6 +588,122 @@ button {
   box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle);
 }
 
+/* No document open yet: the same paper offers the choice at the text axis, in UI type. */
+.document-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.document-start-title {
+  margin: 0;
+  color: var(--id-color-text);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.document-start-text {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+}
+
+.document-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Where the paper is narrower than a label, the label wraps inside its button. */
+.document-start-actions [data-slot="button"] {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--size-control-compact);
+  white-space: normal;
+  text-align: left;
+}
+
+.document-start-section {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 36rem;
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--id-color-border-subtle);
+}
+
+.document-start-label {
+  margin: 0;
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-meta);
+}
+
+.document-start-recent {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A recent folder: its name, then its full path; the icon stays on the text axis. */
+.document-start-folder {
+  display: grid;
+  grid-template-columns: var(--size-icon-slot) minmax(0, max-content) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+  width: calc(100% + var(--space-2) * 2);
+  min-height: var(--size-control);
+  margin: 0 calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--id-radius-md);
+  background: transparent;
+  color: var(--id-color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+.document-start-folder svg {
+  width: var(--size-icon-slot);
+  height: var(--size-icon-slot);
+  color: var(--id-color-text-subtle);
+}
+
+.document-start-folder span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-start-folder-path {
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
+.document-start-folder:hover {
+  background: var(--id-color-surface-hover);
+}
+
+.document-start-folder:focus-visible {
+  outline: 2px solid var(--id-color-border-focus);
+  outline-offset: -2px;
+}
+
+.document-start-folder:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .document-editor {
   outline: none;
   color: var(--id-color-text);
@@ -1563,6 +1679,11 @@ ol.list { list-style: decimal; }
   .document {
     --layout-document-inline-padding: var(--space-4);
     --layout-document-block-padding: var(--layout-document-block-padding-narrow);
+  }
+
+  /* The start has no block tools, so it does not keep their gutter where width is scarce. */
+  .document-start {
+    padding-left: var(--layout-document-inline-padding);
   }
 }
 

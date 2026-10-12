@@ -217,5 +217,19 @@ async (page, { screenshots = false } = {}) => {
   const recorded = await calls();
   check(JSON.stringify(recorded) === JSON.stringify(['channel:beta', 'check', 'notes:', 'postpone:0.3.0-beta.1', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
     `Unexpected Desktop calls ${JSON.stringify(recorded)}`);
+
+  // Started without a document, nothing can be lost: the start allows the restart.
+  const firstRequest = route => route.request().method() === 'GET' ? route.fulfill({json:{start:true}}) : route.continue();
+  await page.route(/\/api\/document$/, firstRequest);
+  try {
+    await page.reload();
+    await page.getByTestId('document-start').waitFor();
+    await push({phase:'downloaded', version:'0.3.0-beta.2', prerelease:true});
+    await notice.getByRole('button', {name:'Restart to update'}).click();
+    await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'install'));
+    check(JSON.stringify(await calls()) === JSON.stringify(['install:true']), `The start refused the restart: ${JSON.stringify(await calls())}`);
+  } finally {
+    await page.unroute(/\/api\/document$/, firstRequest);
+  }
   return {calls: recorded};
 }
