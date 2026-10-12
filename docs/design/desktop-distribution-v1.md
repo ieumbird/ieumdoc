@@ -1,7 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (`feat/desktop-distribution`: local Windows package/install/update, Editor browser suite and checks below; no remote CI or public release executed).
+- Last verified: 2026-10-12 (local checks and initial remote CI evidence below; initial unsigned Beta publication policy adopted).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
 
@@ -9,7 +9,7 @@
 
 The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, new autosave/recovery, cloud account or second editor state.
 
-Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. A local unsigned package is a development artifact. Authenticode credentials, protected release environment, actual signed publication and real GitHub update delivery remain separate public-release prerequisites.
+Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. An unsigned installer may be published as an initial Beta after these checks, with its signature status and possible Windows warnings disclosed. Authenticode credentials and the protected release environment are prerequisites for signed releases and Stable publication. Real GitHub update delivery is distinct from the local feed checks.
 
 ## App and Host
 
@@ -29,7 +29,7 @@ The first distribution version is `0.0.1-beta.1`; Stable publication is deferred
 
 Tags are exactly `vX.Y.Z` or `vX.Y.Z-beta.N`; tag, app/package version and update metadata must agree. Beta Releases have `prerelease=true`; Stable Releases have `prerelease=false`. Other prerelease channels are rejected. Setting the updater channel is followed by explicit `allowPrerelease` and `allowDowngrade=false`, because the library's channel setter enables downgrades. A Beta → Stable switch keeps an installed newer Beta until a newer Stable exists.
 
-Before the first public release, local development versions can be reset. A previously installed `0.1.0` development build cannot update down to `0.0.1-beta.1`; replace that development installation manually without weakening downgrade protection. Public Beta releases require the same signing and publication checks as Stable.
+Before the first public release, local development versions can be reset. A previously installed `0.1.0` development build cannot update down to `0.0.1-beta.1`; replace that development installation manually without weakening downgrade protection. Initial Beta publication may use an unsigned installer; Stable publication requires signing. Both require matching tag/version/channel, verified assets and passing CI.
 
 `generateUpdatesFilesForAllChannels=false` and explicit publish channels prevent a Beta from generating Stable metadata. Artifact validation refuses the other channel file. Channel changes during download/install are refused; late check results from a previous channel are ignored. A downloaded update stays ready until installation or a channel change makes it ineligible.
 
@@ -42,15 +42,17 @@ Before the first public release, local development versions can be reset. A prev
 
 ## Verification and signing
 
-The updater uses its own SHA-512 download verification. A public build additionally uses the public `NsisUpdater.verifyUpdateCodeSignature` hook for strict Windows Authenticode verification: status must be Valid and the publisher must match `app-update.yml`; missing tools/errors refuse the update. It repeats that check before marking the download installable, including cache reuse (6.x skips the fresh-download signature hook for a cached file). Code-signing secrets are supplied only by the release environment, never source/logs.
+The updater uses its own SHA-512 download verification. A signed release build additionally uses the public `NsisUpdater.verifyUpdateCodeSignature` hook for strict Windows Authenticode verification: status must be Valid and the publisher must match `app-update.yml`; missing tools/errors refuse the update. It repeats that check before marking the download installable, including cache reuse (6.x skips the fresh-download signature hook for a cached file). The unsigned initial Beta does not enable this publisher-signature check. Code-signing secrets are supplied only by the release environment, never source/logs.
 
-electron-updater 6.8.9 does not use a detached signature for `latest.yml`/`beta.yml`. Metadata is obtained over GitHub HTTPS; release permissions, version/channel/hash validation and the installer publisher signature form the trust boundary. A checksum alone does not authenticate a publisher. Local test builds intentionally use unsigned installers and a local stand-in feed; those checks do not prove signed GitHub delivery.
+electron-updater 6.8.9 does not use a detached signature for `latest.yml`/`beta.yml`. The unsigned Beta relies on GitHub HTTPS/release access control and version/channel/hash validation; a checksum alone does not authenticate a publisher. Signed releases additionally validate the installer publisher signature. Local test feeds do not establish real GitHub delivery or SmartScreen reputation.
 
 ## Build and release procedure
 
 Development and package/test commands, the CI jobs, signing setup and the publication boundary are documented in [Contributing](../../CONTRIBUTING.md) and [Verification](../test/README.md). Packaging removes its generated output first so test feeds, versions and old channel files cannot survive into a normal build. No build command publishes.
 
 PR/push CI builds and tests unsigned packages. The release workflow is manual, targets an existing tag, defaults to build-only and refuses missing/mismatched tags or credentials. Publishing requires its explicit publish input and the `desktop-release` environment. It creates a new Draft, uploads verified assets, checks tag/prerelease/draft properties, then publishes; an existing Release is refused and assets are never overwritten. Failed upload leaves a Draft for review, not an active update.
+
+For the initial unsigned Beta, the operator uses the passing Windows CI installer/blockmap/`beta.yml` directly instead of the signed workflow. Verify the tag/app version and asset version/size/SHA-512, create a new Draft with `prerelease=true` and `latest=false`, upload these three assets, compare their server size/SHA-256 to the local files, then publish. Release notes state that it is unsigned and Windows may warn. Existing Releases/assets are never overwritten.
 
 ## Evidence and limits
 
@@ -73,13 +75,15 @@ First Beta preparation additionally verified `0.0.1-beta.1 → 0.0.1-beta.2` wit
 
 The same regression also passed for Stable `0.0.1 → 0.0.2`. Full workspace unit/integration and type checks passed, along with docs and whitespace checks. The final clean `0.0.1-beta.1` package passed artifact verification (`beta.yml` only, correct version/hash and GitHub provider without a test host) and all 7 packaged regressions, including initial Beta selection and saved Stable selection after restart. Direct execution showed the window in 681 ms, 4 processes, 395 MB combined working set after 3 seconds and no TCP listeners. The final approximately 102.5 MiB installer is unsigned and exists only in generated `apps/desktop/release/`; no remote CI, tag or public release was executed for Beta preparation.
 
+The [first remote CI run](https://github.com/ieumbird/ieumdoc/actions/runs/38190001483) passed the Windows installer/update/package job and both Editor browser shards. Its Linux quality job exposed a fixture error: the Windows `NsisUpdater` mock inherited the runner platform and requested `latest-linux.yml`/`beta-linux.yml`. The fixture now uses electron-updater's test platform option to model Windows on every runner; the actual provider, download/checksum/signature paths and assertions are unchanged. The initial unsigned Beta policy supersedes the original requirement that every public Beta be signed.
+
 Before the unload fix, the first Saved DOM commit still prevented unload using the earlier Saving closure. The added browser regression failed on that state and passed when the guard read the current rendered busy ref. The real packaged Save→close→reopen path then completed normally. This changes no document, revision, selection/history or Save semantics. Electron test profiles retain Chromium state between runs; only app-owned test preferences/sample/logs are reset, and a failed close has a bounded cleanup that still fails the test.
 
 Visual review used the same sample at 1440×1000 before/after the Desktop bridge, plus About at 1440×1000 and 375×812, DPR 1 / 100% zoom after fonts/images loaded. Captures are local `tmp/desktop-visual/`; only the Desktop footer was added to the sample view and About/actions fit the phone width. These are real Editor UI captures with a mock bridge, separately from packaged Windows execution.
 
 `pnpm audit` reported 16 advisories (5 high, 10 moderate, 1 low), compared with 15 on the current baseline lockfile. The added advisory is optional build-time `sprintf-js@1.1.3` under electron-builder's download/proxy logger; it is not a runtime import or a shipped module in the bundled app. Existing Core/MyST and Editor tooling advisories remain; this work does not claim a clean security audit or change those dependencies. See the existing [MyST security follow-up](https://github.com/ieumbird/ieumdoc/issues/11).
 
-Signing credentials are not installed by this work. SmartScreen/reputation, corporate endpoint policy, OS IME/clipboard and physical touch require their respective real environments; automated mocked feeds and clipboard events do not establish those results. Signed real GitHub delivery, GitHub environment/secret setup, push/tag/publication and distribution activation remain unperformed and require explicit approval. The current no-Release GitHub check error is expected and does not block editing.
+Signing credentials are not installed by this work. SmartScreen/reputation, corporate endpoint policy, OS IME/clipboard and physical touch require their respective real environments; automated mocked feeds and clipboard events do not establish those results. Signed real GitHub delivery and signing environment/secret setup remain future work. Initial unsigned Beta publication follows the CI-artifact procedure above. Before a public Release existed, GitHub update check errors were expected and did not block editing.
 
 ## References
 

@@ -22,7 +22,7 @@ IeumDoc은 다음을 채택한다.
 - **배포**: electron-builder의 per-user NSIS installer(x64)를 기본 배포 형식으로 한다. Portable exe는 공식 배포하지 않는다. App ID `io.github.ieumbird.ieumdoc`, product name `IeumDoc`, 사용자 데이터 `%APPDATA%\IeumDoc`은 첫 공개 후 바꾸지 않는다.
 - **업데이트**: electron-updater의 GitHub provider와 GitHub Releases를 쓴다. 채널은 Stable과 Beta 둘이며 같은 앱의 사용자 설정이다. 최초 실행 기본값은 설치 버전에 따라 Stable 또는 Beta이며, 저장된 유효한 사용자 선택을 우선한다. Stable은 GitHub의 정식 최신 Release만, Beta는 Beta와 Stable을 함께 받는다. 설치된 버전보다 낮은 버전으로는 채널을 바꿔도 내려가지 않는다.
 - **설치 승인**: 업데이트 확인은 자동이지만 다운로드와 설치는 사용자가 각각 승인한다. 일반 종료는 설치 승인이 아니다. 설치를 위한 재시작은 Editor가 미저장 작업이 없다고 답하고 창이 정상적으로 닫힌 뒤에만 시작한다.
-- **릴리즈**: GitHub Actions가 Windows에서 빌드·검증하고, 명시적으로 승인된 수동 실행만 기존 Git tag의 Release를 게시한다. 공개 릴리즈는 Authenticode 서명을 요구한다.
+- **릴리즈**: GitHub Actions가 Windows에서 빌드·검증한다. 첫 Beta는 검증된 unsigned installer를 기존 Git tag의 GitHub Prerelease로 수동 게시할 수 있다. 서명되지 않았고 Windows 경고가 나타날 수 있음을 알린다. Stable 공개와 서명된 릴리즈 workflow는 Authenticode 서명을 요구한다.
 
 ## Rationale
 
@@ -36,7 +36,7 @@ electron-updater의 GitHub provider는 Stable에서 GitHub의 `releases/latest`�
 
 - `apps/editor/server`는 더 이상 개발 전용 adapter가 아니다. 변경은 Vite dev server와 Desktop Host 모두에서 동작해야 하며, Vite 전용 기능에 의존할 수 없다.
 - Electron과 Chromium의 보안 업데이트를 따라 주기적으로 다시 빌드·배포해야 한다.
-- 공개 릴리즈에는 코드 서명 인증서와 GitHub Actions secret, 그리고 Release 게시 승인 절차가 필요하다. 서명되지 않은 빌드는 개발·검증용이며 공개 배포 완료로 보지 않는다.
+- 서명된 릴리즈에는 코드 서명 인증서와 GitHub Actions secret이 필요하다. 초기 Beta는 이 준비 없이 unsigned installer로 공개할 수 있으며, 배포자 서명 검증을 제공한다고 주장하지 않는다. Windows 경고·실행 차단 정책과 파일의 서명 상태를 구분하여 알린다.
 - Desktop 전용 UI(Settings → About, 업데이트 알림)는 Desktop bridge가 있을 때만 나타나며, 브라우저 Editor의 화면과 동작은 바뀌지 않는다.
 - 첫 문서는 명령줄의 `.md` 인자이거나, 없으면 사용자 데이터의 sample 사본이다. Workspace, recent document, 파일 연결(file association)은 이 결정에 포함하지 않는다.
 

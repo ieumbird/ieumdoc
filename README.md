@@ -147,7 +147,7 @@ IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한
 
 ## Project status and non-goals
 
-공식 공개 Release는 아직 없습니다. Windows x64 NSIS 패키징과 업데이트는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)에 따라 구현되었습니다. 공개 배포 전 서명 자격 증명, Release environment와 실제 GitHub 전달 검증이 필요합니다. `apps/editor/server`의 stateless 파일 handler는 Vite와 Desktop이 재사용하며 장기 backend 결정이 아닙니다.
+첫 Beta 배포 버전은 `0.0.1-beta.1`이며 배포 위치는 [GitHub Prerelease](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.1)입니다. 초기 Beta는 CI에서 검증한 unsigned Windows x64 installer로 공개하며 설치 시 Windows 경고가 나타날 수 있습니다. 서명된 릴리즈와 Stable 공개는 후속 작업입니다. 패키징과 업데이트는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)에 따라 구현되었습니다. `apps/editor/server`의 stateless 파일 handler는 Vite와 Desktop이 재사용하며 장기 backend 결정이 아닙니다.
 
 **Planned direction:** AI/MCP integration과 broader automation, cross-document identity, transclusion·requirement semantics는 후속 설계 대상입니다. [Desktop/VS Code spikes](docs/README.md#historical-reviews-and-spikes)는 당시 실험 근거입니다. Desktop 제품 채택의 현재 authority는 ADR-0004이며 공개 출시와는 구분합니다.
 

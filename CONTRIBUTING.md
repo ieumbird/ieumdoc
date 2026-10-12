@@ -2,7 +2,7 @@
 
 ## Project status
 
-IeumDoc은 **Pre-alpha**다. Windows x64 Electron/NSIS 패키징과 Stable/Beta 업데이트를 구현했으며, 공식 공개 Release는 아직 없다. 서명되지 않은 로컬 installer는 개발·검증용이다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
+IeumDoc은 **초기 Beta** 단계다. Windows x64 Electron/NSIS 패키징과 Stable/Beta 업데이트를 구현했으며 첫 배포 버전은 `0.0.1-beta.1`이다. 초기 Beta는 CI에서 검증된 unsigned installer로 공개할 수 있다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
 ## Development requirements
 
@@ -74,11 +74,13 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 `--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
 
-첫 배포 버전은 `0.0.1-beta.1`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. 공개 Beta도 아래 서명·승인 절차를 따른다.
+첫 배포 버전은 `0.0.1-beta.1`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. 초기 Beta는 아래 CI 자산의 unsigned 공개 절차를 사용할 수 있으며, Stable은 서명된 릴리즈 절차를 따른다.
 
-일반 CI는 unsigned installer를 Artifact로만 제공한다. 공개 배포는 별도 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 **수동 실행**한다. 기존 `vX.Y.Z` 또는 `vX.Y.Z-beta.N` tag와 app 버전이 같아야 한다. 기본 `publish=false`는 검증/Artifact만 수행한다. `publish=true`는 서명된 신규 Release 게시의 명시적 승인이다. 이 작업 자체는 push/tag 생성/게시/활성화를 수행하지 않는다.
+일반 CI는 unsigned installer를 Artifact로 제공하며 자동 게시하지 않는다. 초기 Beta는 모든 필수 CI가 통과한 Windows 자산에서 installer, blockmap, `beta.yml`만 골라 기존 `vX.Y.Z-beta.N` tag의 신규 GitHub Prerelease로 수동 게시할 수 있다. tag/app 버전과 metadata의 버전·크기·SHA-512를 검증하고, 먼저 Draft에 업로드한 뒤 서버 자산의 크기·SHA-256을 대조해 공개한다. `latest=false`를 유지하고 unsigned 상태와 Windows 경고 가능성을 릴리즈 노트에 알린다. 기존 Release/자산을 덮어쓰지 않는다.
 
-공개 릴리즈 전에 `desktop-release` GitHub environment에 required reviewer와 master 제한을 설정하고 `WINDOWS_CSC_LINK`(electron-builder가 지원하는 PFX/인증서 참조), `WINDOWS_CSC_KEY_PASSWORD`를 등록한다. 인증서/키/토큰은 source에 넣지 않는다. 인증서가 없거나 서명·publisher·해시·채널 검증에 실패하면 게시하지 않는다. 환경·secret 설정과 workflow 활성화는 사용자 승인 후 수행한다.
+서명된 공개 배포는 별도 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 **수동 실행**한다. 기존 `vX.Y.Z` 또는 `vX.Y.Z-beta.N` tag와 app 버전이 같아야 한다. 기본 `publish=false`는 검증/Artifact만 수행한다. `publish=true`는 서명된 신규 Release 게시의 명시적 승인이다.
+
+서명된 릴리즈 전에 `desktop-release` GitHub environment에 required reviewer와 master 제한을 설정하고 `WINDOWS_CSC_LINK`(electron-builder가 지원하는 PFX/인증서 참조), `WINDOWS_CSC_KEY_PASSWORD`를 등록한다. 인증서/키/토큰은 source에 넣지 않는다. 서명된 경로는 인증서가 없거나 서명·publisher·해시·채널 검증에 실패하면 게시하지 않는다. 환경·secret 설정과 workflow 활성화는 사용자 승인 후 수행한다.
 
 workflow는 기존 Release를 거부하고 새 Draft에 검증된 exe/blockmap/채널 yml만 올린 뒤 GitHub 자산의 size/SHA-256과 속성을 확인하고 게시한다. 실패한 Draft를 자동 덮어쓰거나 재게시하지 않는다. 운영자가 실패 원인을 확인한 뒤 별도로 처리한다. Stable/Beta 정책과 서명 검증의 정확한 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)에 있다.
 

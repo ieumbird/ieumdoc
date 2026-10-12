@@ -118,6 +118,9 @@ function realUpdater(installed: string, host: string, options: { publisherName?:
   const app = { version: installed, name: "ieumdoc", isPackaged: true, appUpdateConfigPath: config, userDataPath: folder,
     baseCachePath: path.join(folder, "cache"), whenReady: () => Promise.resolve(), relaunch() {}, quit() {}, onQuit() {} };
   const updater = new NsisUpdater(null, app as never);
+  // This is a Windows app fixture even when the tests run on Linux CI. Otherwise the provider
+  // asks for latest-linux.yml/beta-linux.yml instead of the NSIS metadata produced by our app.
+  (updater as unknown as { _testOnlyOptions: { platform: "win32" } })._testOnlyOptions = { platform: "win32" };
   (updater as unknown as { httpExecutor: HttpExecutor<http.ClientRequest> }).httpExecutor = new NodeHttpExecutor();
   updater.logger = null;
   updater.disableDifferentialDownload = true;
