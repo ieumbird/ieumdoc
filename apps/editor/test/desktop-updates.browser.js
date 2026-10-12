@@ -153,24 +153,28 @@ async (page, { screenshots = false } = {}) => {
   let releaseSave;
   const saveGate = new Promise(resolve => { releaseSave = resolve; });
   const holdSave = async route => { if (route.request().method() === 'POST') await saveGate; await route.continue(); };
-  await page.evaluate(() => {
-    const observer = new MutationObserver(() => {
-      if (document.querySelector('[data-testid="status"]')?.textContent !== 'Saved') return;
-      const event = new Event('beforeunload', {cancelable:true});
-      window.dispatchEvent(event);
-      window.__savedUnloadPrevented = event.defaultPrevented;
-      observer.disconnect();
-    });
-    observer.observe(document.querySelector('[data-testid="status"]'), {childList:true, characterData:true, subtree:true});
-  });
   await page.route('**/api/document', holdSave);
   try {
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.locator('[data-operation="Saving…"]').waitFor({state:'attached'});
     await refused(/A save is in progress/);
+    // Observe this held Save's first Saved commit, after the prior Save/draft UI settled.
+    await page.evaluate(() => {
+      delete window.__savedUnloadPrevented;
+      const observer = new MutationObserver(() => {
+        if (document.querySelector('[data-testid="status"]')?.textContent !== 'Saved') return;
+        const event = new Event('beforeunload', {cancelable:true});
+        window.dispatchEvent(event);
+        window.__savedUnloadPrevented = event.defaultPrevented;
+        observer.disconnect();
+      });
+      observer.observe(document.querySelector('[data-testid="status"]'), {childList:true, characterData:true, subtree:true});
+    });
   } finally { releaseSave(); }
   await page.getByText('Saved', {exact:true}).waitFor();
-  check(await page.evaluate(() => window.__savedUnloadPrevented) === false, 'A completed Save still blocks unload with the previous Saving state');
+  await page.waitForFunction(() => typeof window.__savedUnloadPrevented === 'boolean');
+  const savedUnloadPrevented = await page.evaluate(() => window.__savedUnloadPrevented);
+  check(savedUnloadPrevented === false, `The first completed Save commit blocks unload: ${savedUnloadPrevented}`);
   await page.unroute('**/api/document', holdSave);
 
   let releaseSource;

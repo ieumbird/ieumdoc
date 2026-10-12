@@ -81,6 +81,13 @@ async page => {
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').press('Escape');
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
+    // Closing the properties panel and handing focus back are separate browser tasks.
+    await page.waitForFunction(path => {
+      const {editor} = document.querySelector('.document-editor');
+      const {selection} = editor.state;
+      return editor.view.hasFocus() && !selection.empty && selection.node?.type.name === 'equation' &&
+        selection.node.attrs.sourcePath === path;
+    }, newPath);
     const escapeReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();

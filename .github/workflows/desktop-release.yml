@@ -107,6 +107,14 @@ jobs:
           pnpm @verifyArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - name: Preserve browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-release-browser-diagnostics
+          path: tmp/browser-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v6
         with:
           name: desktop-release
