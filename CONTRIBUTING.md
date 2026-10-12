@@ -40,6 +40,7 @@ pnpm --filter @ieumdoc/editor build
 ## Contribution workflow
 
 - 하나의 문제에 하나의 응집된 PR을 만든다. 관련 issue가 있으면 연결한다.
+- `master`는 repository ruleset `Protect master`로 보호한다. 2026-10-12에 설정해 API로 확인했으며 bypass 대상은 없다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. merge 전에 CI의 aggregate 검사 `Core, CLI, Editor, and browser regressions`가 통과해야 한다. 개인 운영이라 필요한 승인 수는 0이다. 규칙을 바꿀 때는 이 문단도 함께 갱신한다.
 - 가장 작고 단순한 변경을 우선하고, 확인되지 않은 필요를 위한 abstraction이나 infrastructure를 추가하지 않는다.
 - current behavior를 바꾸면 관련 design document도 같은 PR에서 갱신한다. 새 문서는 [docs index](docs/README.md)에 직접 연결한다.
 - historical review의 당시 결과를 현재 계약처럼 고쳐 쓰지 않는다. 상태와 현재 authority를 링크한다.
