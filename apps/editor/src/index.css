@@ -2,6 +2,9 @@
 @import "shadcn/tailwind.css";
 @import "./styles/tokens.css";
 
+/* One light theme: `dark:` follows a `.dark` class the Editor never sets, not the OS preference. */
+@custom-variant dark (&:is(.dark *));
+
 /* One-way adapters. Product tokens never reference shadcn or Tailwind names. */
 :root {
   --background: var(--id-color-surface);

@@ -44,12 +44,12 @@
   --id-color-text-selected: #2449a6;
   --id-color-text-readonly: var(--id-color-text-muted);
   --id-color-text-on-accent: #ffffff;
-  /* Preserve the existing heritage red. */
-  --id-color-accent: oklch(0.459 0.183 15.405);
-  --id-color-accent-hover: oklch(0.399 0.16 15.405);
-  /* Two blue axes. Interaction: focus, selection, the current item and drag. Content (info):
-   * links, references and informational callouts. Chrome recedes in neutrals. */
+  /* Two blue axes. Interaction: primary actions, focus, selection, the current item and drag.
+   * Content (info): links, references and informational callouts. Chrome recedes in neutrals;
+   * red (danger) means only errors and destructive meaning. */
   --id-color-interaction: #315fd4;
+  --id-color-accent: var(--id-color-interaction);
+  --id-color-accent-hover: #2449a6;
   --id-color-interaction-soft: var(--id-color-surface-selected);
   --id-color-border: #d9dde4;
   --id-color-border-subtle: #e7eaf0;
