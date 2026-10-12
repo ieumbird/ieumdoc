@@ -18,16 +18,19 @@ import type { ReleaseChannel, UpdateState } from "../../editor/shared/desktop-br
 import { configureUpdater, RELEASE_REPOSITORY } from "../src/update-policy.ts";
 import { UpdateController, type UpdaterPort, type UpdateControllerOptions } from "../src/updates.ts";
 import { verifyUpdateSignature } from "../src/signatures.ts";
+import { IeumGitHubProvider } from "../src/github-provider.ts";
 
 const { NsisUpdater } = electronUpdater;
 const { owner, repo } = RELEASE_REPOSITORY;
 
 /** Node's http in place of Electron's net; downloads still go through the library's checksum path. */
 class NodeHttpExecutor extends HttpExecutor<http.ClientRequest> {
+  constructor(private readonly publicAddress?: URL) { super(); }
   createRequest(options: RequestOptions, callback: (response: http.IncomingMessage) => void): http.ClientRequest {
     // The library sets request timeouts on the socket. Node's keep-alive agent would reuse one
     // socket across this mock feed and accumulate those listeners; Electron uses its own net API.
-    return http.request({ ...options, agent: false }, callback);
+    const address = this.publicAddress ? { hostname: this.publicAddress.hostname, port: this.publicAddress.port, protocol: "http:" } : {};
+    return http.request({ ...options, ...address, agent: false }, callback);
   }
 
   download(url: URL, destination: string, options: DownloadOptions): Promise<string> {
@@ -43,7 +46,7 @@ class NodeHttpExecutor extends HttpExecutor<http.ClientRequest> {
   }
 }
 
-type Release = { tag: string; prerelease?: boolean; channelFile?: "latest" | "beta"; tamper?: boolean };
+type Release = { tag: string; prerelease?: boolean; channelFile?: "latest" | "beta"; tamper?: boolean; metadata?: string | null };
 const installerName = (version: string) => `IeumDoc-Setup-${version}.exe`;
 const installerBytes = (version: string) => Buffer.from(`IeumDoc installer ${version}\n`.repeat(64));
 const sha512 = (bytes: Buffer) => createHash("sha512").update(bytes).digest("base64");
@@ -58,7 +61,7 @@ function channelFile(version: string): string {
 type GitHub = { url: string; requests: string[]; delay: (ms: number) => void; fail: (on: boolean) => void; close(): Promise<void> };
 
 /** Releases newest first, as GitHub lists them. `latest` overrides which release GitHub marks Latest. */
-async function gitHub(releases: Release[], latest?: string): Promise<GitHub> {
+async function gitHub(releases: Release[], latest?: string, faults: { feed?: string | null; latestStatus?: number } = {}): Promise<GitHub> {
   const requests: string[] = [];
   let delayMs = 0;
   let failing = false;
@@ -68,12 +71,14 @@ async function gitHub(releases: Release[], latest?: string): Promise<GitHub> {
     const reply = () => {
       if (failing) return response.writeHead(503).end("unavailable");
       if (url === `/${owner}/${repo}/releases.atom`) {
+        if (faults.feed === null) return response.writeHead(404).end();
         const entries = releases.map((release) => `<entry><id>tag:github.com,2008:Repository/1/${release.tag}</id>` +
           `<link rel="alternate" type="text/html" href="https://github.com/${owner}/${repo}/releases/tag/${release.tag}"/>` +
           `<title>${release.tag}</title><content type="html">Notes for ${release.tag}</content></entry>`).join("");
-        return response.writeHead(200, { "Content-Type": "application/atom+xml" }).end(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">${entries}</feed>`);
+        return response.writeHead(200, { "Content-Type": "application/atom+xml" }).end(faults.feed ?? `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">${entries}</feed>`);
       }
-      if (url === `/api/v3/repos/${owner}/${repo}/releases/latest`) {
+      if (url === `/api/v3/repos/${owner}/${repo}/releases/latest` || url === `/${owner}/${repo}/releases/latest`) {
+        if (faults.latestStatus) return response.writeHead(faults.latestStatus).end();
         const tag = latest ?? releases.find((release) => !release.prerelease)?.tag;
         return tag ? response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ tag_name: tag }))
           : response.writeHead(404).end();
@@ -83,7 +88,7 @@ async function gitHub(releases: Release[], latest?: string): Promise<GitHub> {
       if (release) {
         const version = release.tag.slice(1);
         const file = release.channelFile ?? (release.prerelease ? "beta" : "latest");
-        if (asset![2] === `${file}.yml`) return response.writeHead(200).end(channelFile(version));
+        if (asset![2] === `${file}.yml` && release.metadata !== null) return response.writeHead(200).end(release.metadata ?? channelFile(version));
         if (asset![2] === installerName(version)) {
           const bytes = installerBytes(version);
           if (release.tamper) bytes[10] ^= 1;
@@ -109,7 +114,7 @@ const folders: string[] = [];
 after(() => { for (const folder of folders) rmSync(folder, { recursive: true, force: true }); });
 
 /** The real updater, as the installed app (app-update.yml from electron-builder) would create it. */
-function realUpdater(installed: string, host: string, options: { publisherName?: string; folder?: string } = {}) {
+function realUpdater(installed: string, host: string, options: { publisherName?: string; folder?: string; publicHost?: boolean } = {}) {
   const folder = options.folder ?? mkdtempSync(path.join(os.tmpdir(), "ieumdoc-updater-test-"));
   if (!options.folder) folders.push(folder);
   const config = path.join(folder, "app-update.yml");
@@ -121,10 +126,10 @@ function realUpdater(installed: string, host: string, options: { publisherName?:
   // This is a Windows app fixture even when the tests run on Linux CI. Otherwise the provider
   // asks for latest-linux.yml/beta-linux.yml instead of the NSIS metadata produced by our app.
   (updater as unknown as { _testOnlyOptions: { platform: "win32" } })._testOnlyOptions = { platform: "win32" };
-  (updater as unknown as { httpExecutor: HttpExecutor<http.ClientRequest> }).httpExecutor = new NodeHttpExecutor();
+  (updater as unknown as { httpExecutor: HttpExecutor<http.ClientRequest> }).httpExecutor = new NodeHttpExecutor(options.publicHost ? new URL(`http://${host}`) : undefined);
   updater.logger = null;
   updater.disableDifferentialDownload = true;
-  updater.setFeedURL({ provider: "github", owner, repo, host, protocol: "http" } as never);
+  updater.setFeedURL({ provider: "custom", updateProvider: IeumGitHubProvider, owner, repo, host: options.publicHost ? "github.com" : host, protocol: options.publicHost ? "https" : "http" } as never);
   return { updater, folder };
 }
 
@@ -151,6 +156,56 @@ test("configured updater never downloads by itself or installs on quit", async (
     assert.equal(github.requests.some((url) => url.endsWith(".exe")), false, "finding an update downloads nothing");
   } finally {
     await github.close();
+  }
+});
+
+test("Beta-only publication is a normal Stable absence; switching channel and the first Stable recover", async () => {
+  const releases: Release[] = [{ tag: "v0.0.1-beta.2", prerelease: true }, { tag: "archive%2Fdesktop-shell-spike", prerelease: true }];
+  const github = await gitHub(releases);
+  try {
+    const { instance } = controller(realUpdater("0.0.1-beta.1", github.url).updater, "0.0.1-beta.1", "stable");
+    await instance.check();
+    assert.deepEqual(instance.state, { phase: "no-stable-release" });
+    assert.equal(github.requests.length, 2, "no supplementary API polling");
+    await instance.setChannel("beta");
+    assert.deepEqual(instance.state, { phase: "available", version: "0.0.1-beta.2", prerelease: true });
+    await instance.setChannel("stable");
+    assert.deepEqual(instance.state, { phase: "no-stable-release" });
+    releases.unshift({ tag: "v0.0.1" });
+    await instance.check();
+    assert.deepEqual(instance.state, { phase: "available", version: "0.0.1", prerelease: false });
+  } finally { await github.close(); }
+});
+
+test("an empty valid release feed has no Stable; missing or corrupt metadata remains an error", async () => {
+  for (const releases of [[], [{ tag: "v0.2.0", metadata: null }], [{ tag: "v0.2.0", metadata: "version: [broken" }]] satisfies Release[][]) {
+    const github = await gitHub(releases);
+    try {
+      const { instance } = controller(realUpdater("0.1.0", github.url).updater, "0.1.0", "stable");
+      await instance.check();
+      assert.equal(instance.state.phase, releases.length ? "error" : "no-stable-release");
+    } finally { await github.close(); }
+  }
+});
+
+test("only the exact latest-full endpoint with valid Beta-only evidence can establish absence", async () => {
+  const beta: Release[] = [{ tag: "v0.0.1-beta.2", prerelease: true }, { tag: "archive%2Fdesktop-shell-spike", prerelease: true }];
+  const cases = [
+    { releases: beta, faults: { latestStatus: 406 }, publicHost: true, phase: "no-stable-release" },
+    { releases: beta, faults: { latestStatus: 404 }, publicHost: true, phase: "no-stable-release" },
+    { releases: beta, faults: { latestStatus: 406 }, publicHost: false, phase: "error" },
+    { releases: beta, faults: { latestStatus: 503 }, publicHost: true, phase: "error" },
+    { releases: [{ tag: "v0.0.1" }], faults: { latestStatus: 404 }, publicHost: true, phase: "error" },
+    { releases: beta, faults: { feed: null }, publicHost: true, phase: "error" },
+    { releases: beta, faults: { feed: "<broken", latestStatus: 404 }, publicHost: true, phase: "error" },
+  ];
+  for (const fixture of cases) {
+    const github = await gitHub(fixture.releases, undefined, fixture.faults);
+    try {
+      const { instance } = controller(realUpdater("0.0.1-beta.1", github.url, { publicHost: fixture.publicHost }).updater, "0.0.1-beta.1", "stable");
+      await instance.check();
+      assert.equal(instance.state.phase, fixture.phase, JSON.stringify(fixture));
+    } finally { await github.close(); }
   }
 });
 

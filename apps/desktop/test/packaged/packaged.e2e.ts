@@ -217,7 +217,7 @@ test("the release channel persists across restarts; an update check never blocks
     await page.waitForFunction((channel) => document.querySelector<HTMLInputElement>(`input[value="${channel}"]`)?.checked, selectedChannel);
     // GitHub answers for real: this repository has no release yet, or the machine may be offline.
     await page.getByRole("button", { name: "Check for updates" }).click();
-    await page.waitForFunction(() => ["error", "up-to-date", "available"].includes(document.querySelector('[data-testid="update-status"]')?.getAttribute("data-phase") ?? ""), null, { timeout: 30_000 });
+    await page.waitForFunction(() => ["error", "up-to-date", "available", "no-stable-release"].includes(document.querySelector('[data-testid="update-status"]')?.getAttribute("data-phase") ?? ""), null, { timeout: 30_000 });
     console.log(`update check: ${await page.getByTestId("update-status").innerText()}`);
     await page.keyboard.press("Escape");
     await typeAtStart(page, "STILL EDITING ");
@@ -234,6 +234,31 @@ test("the release channel persists across restarts; an update check never blocks
     assert.equal(await page.getByRole("radio", { name: channelName(selectedChannel) }).isChecked(), true, "the user's choice survives a restart instead of reverting to the build's default");
   } finally {
     await closeApp(app);
+  }
+});
+
+test("a damaged update configuration leaves the Editor and Settings usable", {
+  skip: Boolean(process.env.IEUMDOC_DESKTOP_EXE) && "Fault injection is confined to the generated package",
+}, async () => {
+  // Only mutate this task's generated package, never an IEUMDOC_DESKTOP_EXE user installation.
+  const generated = path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
+  assert.equal(path.resolve(exe), generated, "configuration fault injection requires the generated test package");
+  const config = path.join(path.dirname(exe), "resources", "app-update.yml");
+  const original = readFileSync(config);
+  let app: ElectronApplication | undefined;
+  try {
+    writeFileSync(config, "provider: [broken");
+    const launched = await launch(profile("invalid-updates"));
+    app = launched.app;
+    const { page } = launched;
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    assert.equal(await page.getByTestId("app-version").isVisible(), true);
+    assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).updatesSupported), false);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator(".document-editor").isVisible(), true);
+  } finally {
+    if (app) await closeApp(app);
+    writeFileSync(config, original);
   }
 });
 

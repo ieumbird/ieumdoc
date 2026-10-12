@@ -9,9 +9,10 @@ import { load as loadYaml } from "js-yaml";
 import type { DesktopInfo, RestartCheck } from "../../editor/shared/desktop-bridge.ts";
 import { createProtocolHandler, ORIGIN, SCHEME } from "./host-protocol.ts";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.ts";
-import { parseChannel, releaseNotesUrl, RESTART_CHECK_TIMEOUT_MS } from "./update-policy.ts";
+import { parseChannel, releaseNotesUrl, RELEASE_REPOSITORY, RESTART_CHECK_TIMEOUT_MS } from "./update-policy.ts";
 import { UpdateController, type UpdaterPort } from "./updates.ts";
 import { verifyUpdateSignature } from "./signatures.ts";
+import { IeumGitHubProvider } from "./github-provider.ts";
 
 /** Set by the release build: an update must carry the publisher signature the installed app names. */
 declare const __IEUMDOC_REQUIRE_SIGNED_UPDATES__: boolean;
@@ -53,20 +54,24 @@ function initialDocument(): string {
 }
 
 /** Why this build does not update itself, or undefined when it can. */
-function updatesUnsupported(): string | undefined {
+function updatesUnsupported(updater: typeof electronUpdater.autoUpdater): string | undefined {
   if (!app.isPackaged) return "Updates run in the installed app.";
   const config = path.join(process.resourcesPath, "app-update.yml");
   if (!existsSync(config)) return "This build has no update configuration.";
-  if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__) {
-    try {
-      const parsed = loadYaml(readFileSync(config, "utf8")) as { publisherName?: unknown } | null;
+  try {
+    const parsed = loadYaml(readFileSync(config, "utf8")) as Record<string, unknown> | null;
+    if (!parsed || Array.isArray(parsed) || parsed.provider !== "github" || parsed.owner !== RELEASE_REPOSITORY.owner || parsed.repo !== RELEASE_REPOSITORY.repo) {
+      return "This build has an invalid update configuration.";
+    }
+    if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__) {
       const names = typeof parsed?.publisherName === "string" ? [parsed.publisherName] : parsed?.publisherName;
       if (!Array.isArray(names) || !names.length || !names.every((name) => typeof name === "string" && name.trim())) {
         return "This build cannot verify who published an update, so it does not update itself.";
       }
-    } catch {
-      return "This build has an invalid update configuration.";
     }
+    updater.setFeedURL({ ...parsed, provider: "custom", updateProvider: IeumGitHubProvider });
+  } catch {
+    return "This build has an invalid update configuration.";
   }
   return undefined;
 }
@@ -231,7 +236,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     autoUpdater.logger = { info: (m: unknown) => log(`updater: ${String(m)}`), warn: (m: unknown) => log(`updater warning: ${String(m)}`),
       error: (m: unknown) => log(`updater error: ${String(m)}`), debug: () => {} };
-    const unsupported = updatesUnsupported();
+    const unsupported = updatesUnsupported(autoUpdater);
     updates = new UpdateController(autoUpdater as unknown as UpdaterPort, {
       installed: app.getVersion(),
       channel: preferences.channel,

@@ -1,6 +1,6 @@
 // Update checks, downloads and the install hand-off, around electron-updater's own results and events.
 import type { OfferedUpdate, ReleaseChannel, UpdateState } from "../../editor/shared/desktop-bridge.ts";
-import { CHECK_INTERVAL_MS, configureUpdater, FIRST_CHECK_DELAY_MS, offerFor, RETRY_INTERVAL_MS, type UpdaterSettings } from "./update-policy.ts";
+import { CHECK_INTERVAL_MS, configureUpdater, FIRST_CHECK_DELAY_MS, NoStableReleaseError, offerFor, RETRY_INTERVAL_MS, type UpdaterSettings } from "./update-policy.ts";
 
 type DownloadProgress = { percent: number; transferred: number; total: number };
 
@@ -115,6 +115,11 @@ export class UpdateController {
       this.schedule(CHECK_INTERVAL_MS);
     } catch (error) {
       if (generation !== this.generation) return;
+      if (this.channel === "stable" && error instanceof NoStableReleaseError) {
+        this.set({ phase: "no-stable-release" });
+        this.schedule(CHECK_INTERVAL_MS);
+        return;
+      }
       this.options.log?.(`update check failed: ${messageOf(error)}`);
       this.set({ phase: "error", message: messageOf(error), during: "check" });
       this.schedule(RETRY_INTERVAL_MS);

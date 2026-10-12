@@ -6,6 +6,11 @@ import type { OfferedUpdate, ReleaseChannel } from "../../editor/shared/desktop-
 export const RELEASE_REPOSITORY = { owner: "ieumbird", repo: "ieumdoc" } as const;
 export const RELEASES_URL = `https://github.com/${RELEASE_REPOSITORY.owner}/${RELEASE_REPOSITORY.repo}/releases`;
 
+/** Only the GitHub adapter can establish this; generic HTTP errors are never classified here. */
+export class NoStableReleaseError extends Error {
+  constructor() { super("No Stable release has been published yet."); }
+}
+
 /** First check soon after launch, without delaying the window or the first document. */
 export const FIRST_CHECK_DELAY_MS = 15_000;
 /** GitHub is asked at most every 6 hours while the app runs (two small requests each time). */

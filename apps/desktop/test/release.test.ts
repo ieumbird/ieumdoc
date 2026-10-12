@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { readUpdateInfo, verifyRelease } from "../scripts/verify-release.ts";
+import { readUpdateInfo, verifyBlockmap, verifyRelease } from "../scripts/verify-release.ts";
 import { signatureProblem } from "../src/signatures.ts";
+import { publishVerifiedRelease, releaseMode, resolveRelease, type ReleaseApi } from "../scripts/release.ts";
 
 const roots: string[] = [];
 after(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
@@ -66,4 +69,83 @@ test("a signed release must name the publisher updates are verified against", { 
   // The synthetic installer is not a signed executable: both it and the missing publisher are reported.
   assert.throws(() => verifyRelease({ tag: "v0.2.0", version: "0.2.0", release: release("0.2.0"), signed: true }),
     (error: Error) => /names no publisher/.test(error.message) && /IeumDoc-Setup-0\.2\.0\.exe signature is (?!Valid)\w+/.test(error.message));
+});
+
+test("the builder blockmap is bound to this installer, including chunk checksums", async () => {
+  const root = release("0.2.0");
+  const installer = path.join(root, "IeumDoc-Setup-0.2.0.exe");
+  const blockmap = `${installer}.blockmap`;
+  const require = createRequire(import.meta.url);
+  const builder = createRequire(require.resolve("electron-builder"));
+  const { buildBlockMap } = builder("app-builder-lib/out/targets/blockmap/blockmap.js");
+  await buildBlockMap(installer, "gzip", blockmap);
+  await verifyBlockmap(installer, blockmap);
+  writeFileSync(installer, "another installer of the same length");
+  await assert.rejects(verifyBlockmap(installer, blockmap), /does not match the installer/);
+});
+
+test("manual release modes reject unsigned Stable and unsafe tags", () => {
+  assert.equal(releaseMode("unsigned-beta", "v0.0.1-beta.2"), "unsigned-beta");
+  assert.equal(releaseMode("signed", "v1.0.0"), "signed");
+  for (const tag of ["v1.0.0", "v1.0.0-rc.1", "v01.0.0-beta.2", "v1.0.0-beta.02", "--help", "v1.0.0-beta.2\n", "v1.0.0-beta.2\r", "v1.0.0-beta.2\nBAD=1"]) {
+    assert.throws(() => releaseMode("unsigned-beta", tag));
+  }
+  assert.throws(() => releaseMode("publish", "v1.0.0"));
+});
+
+test("preflight accepts only an existing, version-matched tag in the captured master history", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-release-git-")); roots.push(root);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init", "-b", "master"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
+  mkdirSync(path.join(root, "apps/desktop"), { recursive: true });
+  writeFileSync(path.join(root, "apps/desktop/package.json"), '{"version":"0.0.1-beta.2"}');
+  git("add", "."); git("commit", "-m", "Fixture"); git("tag", "-a", "v0.0.1-beta.2", "-m", "Fixture tag");
+  const master = git("rev-parse", "HEAD");
+  git("tag", "v0.0.1-beta.3");
+  git("switch", "-c", "other"); writeFileSync(path.join(root, "other.txt"), "other"); git("add", "."); git("commit", "-m", "Other fixture"); git("tag", "v0.0.1-beta.4"); git("switch", "master");
+  const origin = path.join(root, "origin.git"); git("clone", "--bare", root, origin); git("remote", "add", "origin", origin);
+  assert.equal(resolveRelease(root, "v0.0.1-beta.2", "unsigned-beta", master).commit, master);
+  assert.throws(() => resolveRelease(root, "v0.0.1-beta.9", "unsigned-beta", master));
+  assert.throws(() => resolveRelease(root, "v0.0.1-beta.3", "unsigned-beta", master), /package version differ/);
+  assert.throws(() => resolveRelease(root, "v0.0.1-beta.4", "unsigned-beta", master), /trusted master history/);
+  git("--git-dir", origin, "update-ref", "-d", "refs/tags/v0.0.1-beta.2");
+  assert.throws(() => resolveRelease(root, "v0.0.1-beta.2", "unsigned-beta", master), /Remote release tag/);
+});
+
+test("publication uses a new Draft ID, checks all uploaded hashes and activates only at the end", () => {
+  const tag = "v0.0.1-beta.2";
+  const files = verifyRelease({ tag, version: tag.slice(1), signed: false, release: release(tag.slice(1)) });
+  for (const fault of ["none", "collision", "page2-draft", "upload", "asset-set", "digest", "state", "changed-tag", "activate"] as const) {
+    const calls: { endpoint: string; method: string; body?: object }[] = [];
+    const draft = { id: 123, tag_name: tag, draft: true, prerelease: true, assets: [] as object[] };
+    const api: ReleaseApi = (endpoint, method = "GET", body, file) => {
+      calls.push({ endpoint, method, body });
+      if (endpoint.includes("?per_page")) {
+        if (fault === "collision") return [{ tag_name: tag }];
+        if (fault === "page2-draft") return endpoint.endsWith("page=1") ? Array.from({ length: 100 }, () => ({ tag_name: "v0.0.0-beta.1" })) : [{ tag_name: tag, draft: true }];
+        return [];
+      }
+      if (endpoint === "repos/ieumbird/ieumdoc/releases") { assert.equal(method, "POST"); assert.equal((body as { make_latest: string }).make_latest, "false"); return draft; }
+      if (file) {
+        if (fault === "upload") throw new Error("Partial upload");
+        draft.assets.push({ name: path.basename(file), size: statSync(file).size, state: fault === "state" ? "starter" : "uploaded",
+          digest: fault === "digest" ? "sha256:wrong" : `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}` });
+        return {};
+      }
+      assert.equal(endpoint, "repos/ieumbird/ieumdoc/releases/123", "never resolve a Draft by tag");
+      if (method === "PATCH") {
+        assert.equal((body as { make_latest: string }).make_latest, "false");
+        if (fault === "activate") throw new Error("Lost response");
+        return { ...draft, draft: false };
+      }
+      return fault === "asset-set" ? { ...draft, assets: draft.assets.slice(1) } : draft;
+    };
+    const run = () => publishVerifiedRelease({ tag, mode: "unsigned-beta", files, beforeActivate: () => { if (fault === "changed-tag") throw new Error("Tag changed"); } }, api);
+    if (fault === "none") { assert.equal(run().draft, false); assert.equal(calls.at(-1)?.method, "PATCH"); }
+    else {
+      assert.throws(run, fault === "activate" ? /confirmation required/ : fault.includes("draft") || fault === "collision" ? /already exists/ : /remains Draft/);
+      assert.equal(calls.some((call) => call.method === "PATCH"), fault === "activate", fault);
+    }
+  }
+  assert.throws(() => publishVerifiedRelease({ tag, mode: "verify", files, beforeActivate() {} }, () => { throw new Error("Must not call GitHub"); }), /cannot publish/);
 });
