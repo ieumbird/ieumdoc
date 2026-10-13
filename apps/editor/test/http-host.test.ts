@@ -130,6 +130,8 @@ test("symlink/junction escapes and replaced roots cannot grant file or asset acc
   for (const [route, method, body] of [
     [documentQuery(escaped), "GET"], ["/api/document", "POST", { ...outsideBody, path: escaped }],
     ["/api/document", "PUT", { path: path.join(link, "new.md") }],
+    // A missing name behind the link must look the same as an existing one.
+    [documentQuery(path.join(link, "missing.md")), "GET"], ["/api/document", "PUT", { path: path.join(link, "missing", "new.md") }],
     [`/api/folder-browse?${new URLSearchParams({ path: link })}`, "GET"],
     ["/api/folder", "POST", { parent: link, name: "new-folder" }],
     [`/document/image.png?${new URLSearchParams({ path: escaped })}`, "GET"],
@@ -145,7 +147,7 @@ test("symlink/junction escapes and replaced roots cannot grant file or asset acc
 });
 
 test("root validation handles duplicates/nesting and rejects Windows special locators", async t => {
-  const { a, b } = await fixture(t);
+  const { a, b, base } = await fixture(t);
   fs.mkdirSync(path.join(a, "child"));
   const access = new RootAccess([a, a, b, path.join(a, "child")]);
   assert.deepEqual(access.roots, [a, b, path.join(a, "child")]);
@@ -155,6 +157,21 @@ test("root validation handles duplicates/nesting and rejects Windows special loc
   assert.throws(() => new RootAccess([path.join(a, "document.md")]), /directory/);
   for (const value of ["C:relative.md", "\\\\?\\C:\\outside.md", "\\\\.\\C:\\outside.md", "bad\0.md"]) assert.throws(() => access.resolve(value), /Invalid/);
   if (process.platform === "win32") assert.throws(() => access.resolve(path.join(a, "document.md:stream")), /Invalid/);
+  // JavaScript case folding equates KELVIN SIGN with "k"; NTFS keeps these sibling folders distinct.
+  const book = path.join(base, "book"), alias = path.join(base, "boo\u212A");
+  fs.mkdirSync(book);
+  const narrow = new RootAccess([book]);
+  assert.throws(() => narrow.resolve(path.join(alias, "missing.md")), /outside/, "A missing look-alike is outside too");
+  fs.mkdirSync(alias);
+  assert.throws(() => narrow.resolve(alias), /outside/);
+  assert.throws(() => narrow.resolve(path.join(alias, "new.md"), true), /outside/);
+  fs.symlinkSync(book, path.join(alias, "link"), process.platform === "win32" ? "junction" : "dir");
+  assert.throws(() => narrow.resolve(path.join(alias, "link")), /outside/, "The locator must also be inside the root");
+  // Both are real roots; the same directory in another case is still one root.
+  const both = new RootAccess([book, alias, ...(process.platform === "win32" ? [book.toUpperCase()] : [])]);
+  assert.deepEqual(both.roots, [book, alias]);
+  assert.equal(both.resolve(path.join(alias, "new.md"), true), path.join(alias, "new.md"));
+  assert.equal(both.boundary(alias), alias);
 });
 
 test("HTTP rejects foreign/missing origins, forged hosts and malformed requests; media cannot execute scripts", async t => {

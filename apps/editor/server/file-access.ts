@@ -24,20 +24,45 @@ function locator(value: string): string {
   return path.resolve(value.trim());
 }
 
+/** The real path of the nearest existing ancestor. */
+function realParent(target: string): string {
+  for (let folder = path.dirname(target); ; folder = path.dirname(folder)) {
+    try { return fs.realpathSync(folder); }
+    catch (error) { if (path.dirname(folder) === folder) throw error; }
+  }
+}
+
+type RootEntry = { path: string; real: string; dev: number; ino: number };
+
+/**
+ * `target` is `root` or beneath it, and the prefix matching `root` is the pinned root directory.
+ * Windows path comparison lowercases in JavaScript, which equates names NTFS keeps distinct
+ * (KELVIN SIGN and "k"), so the matching prefix is also compared by filesystem identity.
+ */
+function within(entry: RootEntry, root: string, target: string): boolean {
+  if (!inside(root, target)) return false;
+  let folder = target;
+  while (path.relative(root, folder) && path.dirname(folder) !== folder) folder = path.dirname(folder);
+  try {
+    const stat = fs.statSync(folder);
+    return stat.dev === entry.dev && stat.ino === entry.ino;
+  } catch { return false; } // A missing look-alike prefix is outside, not a file error.
+}
+
 /** Fixed operator roots, not the folder currently selected in the Editor. */
 export class RootAccess {
   readonly roots: readonly string[];
-  private readonly entries: readonly { path: string; real: string; dev: number; ino: number }[];
+  private readonly entries: readonly RootEntry[];
 
   constructor(roots: readonly string[]) {
     if (!roots.length) throw new Error("At least one --root directory is required.");
-    const entries: { path: string; real: string; dev: number; ino: number }[] = [];
+    const entries: RootEntry[] = [];
     for (const value of roots) {
       const folder = locator(value);
       const real = fs.realpathSync(folder);
       const stat = fs.statSync(real);
       if (!stat.isDirectory()) throw new Error(`Root must be an existing directory: ${folder}`);
-      if (!entries.some(entry => inside(entry.real, real) && inside(real, entry.real))) {
+      if (!entries.some(entry => inside(real, entry.real) && within(entry, entry.real, real))) {
         entries.push({ path: folder, real, dev: stat.dev, ino: stat.ino });
       }
     }
@@ -56,11 +81,16 @@ export class RootAccess {
     }
   }
 
+  private contains(real: string): boolean {
+    return this.entries.some(entry => within(entry, entry.real, real));
+  }
+
   /** Check before any filesystem I/O; an absent leaf is allowed only beneath an existing parent. */
   resolve(value: string, create = false): string {
     const target = locator(value);
     if (!this.entries.some(entry => inside(entry.path, target) || inside(entry.real, target))) throw new FileAccessError();
     this.currentRoots();
+    if (!this.entries.some(entry => within(entry, entry.path, target) || within(entry, entry.real, target))) throw new FileAccessError();
     let real: string;
     try {
       // lstat distinguishes a dangling symlink from a genuinely absent new leaf.
@@ -69,6 +99,8 @@ export class RootAccess {
       const stat = fs.statSync(real);
       if (!stat.isFile() && !stat.isDirectory()) throw new FileAccessError("Only regular files and directories are supported.");
     } catch (error) {
+      // Even whether a name exists behind an outside link is not revealed.
+      if (!this.contains(realParent(target))) throw new FileAccessError();
       if (!create || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       try { fs.lstatSync(target); throw new FileAccessError("A new file cannot replace a symlink."); }
       catch (leafError) { if ((leafError as NodeJS.ErrnoException).code !== "ENOENT") throw leafError; }
@@ -76,15 +108,15 @@ export class RootAccess {
       if (!fs.statSync(parent).isDirectory()) throw new FileAccessError("Parent must be an existing directory.");
       real = path.join(parent, path.basename(target));
     }
-    if (!this.entries.some(entry => inside(entry.real, real))) throw new FileAccessError();
+    if (!this.contains(real)) throw new FileAccessError();
     // Keep the locator: existing per-document media/asset rules must still see symlinks.
     return target;
   }
 
   boundary(value: string): string {
     const target = this.resolve(value);
-    return this.entries.flatMap(entry => [entry.path, entry.real])
-      .filter(root => inside(root, target)).sort((a, b) => b.length - a.length)[0]!;
+    return this.entries.flatMap(entry => [entry.path, entry.real].filter(root => within(entry, root, target)))
+      .sort((a, b) => b.length - a.length)[0]!;
   }
 }
 
