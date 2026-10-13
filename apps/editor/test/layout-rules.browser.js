@@ -42,8 +42,12 @@ async (page, { openDocument }) => {
         const starts=selectors.map(s=>rect('.document-editor '+s).left);
         const controls=rect('.block-controls.visible');
         const standard=rect('[data-testid="save"]').height;
-        const compact=[...document.querySelectorAll('.sidebar-header button,.sidebar-folder-actions button,.figure-edit,.equation-edit')].map(n=>n.getBoundingClientRect().height);
-        if(compact.length<3)throw Error('Missing compact controls');
+        const compactSelectors=['.sidebar-header button','.sidebar-tool','.figure-edit','.equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
+        const compact=compactSelectors.flatMap(selector=>{
+          const nodes=[...document.querySelectorAll(selector)];
+          if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
+          return nodes.map(n=>n.getBoundingClientRect().height);
+        });
         for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
           if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
         }
@@ -92,7 +96,7 @@ async (page, { openDocument }) => {
           const r=n.getBoundingClientRect();
           return {name:n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
         });
-        if(buttons.length<6||!buttons.some(b=>b.name==='Save'))throw Error('Missing TopBar controls');
+        if(!['Visual','Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
         const outside=buttons.filter(b=>b.left<0||b.right>innerWidth+0.5).map(b=>b.name);
         const disorder=[],gaps=[];
         buttons.slice(1).forEach((b,i)=>{
@@ -109,6 +113,10 @@ async (page, { openDocument }) => {
       });
       if(narrow.overflow>0||narrow.outside.length||narrow.disorder.length||narrow.gaps.length)throw Error(`Narrow TopBar ${collapsed?'collapsed':'expanded'}: ${JSON.stringify(narrow)}`);
       results.push({...narrow,collapsed});
+      await page.getByRole('button',{name:'File actions',exact:true}).click();
+      const reload=await page.getByRole('menuitem',{name:'Reload',exact:true}).boundingBox();
+      if(!reload||reload.x<0||reload.x+reload.width>width||reload.y<0||reload.y+reload.height>800)throw Error('Reload menu leaves the viewport');
+      await page.keyboard.press('Escape');
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
@@ -120,7 +128,7 @@ async (page, { openDocument }) => {
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
     const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
     const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const uncovered=['[data-testid="save"]','.top-bar-actions button[title="Reload the file from disk"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{
+    const uncovered=['[data-testid="save"]','.top-bar-actions button[aria-label="File actions"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{
       const r=rect(s);const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return document.querySelector(s).contains(hit);
     });
     return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
@@ -194,20 +202,44 @@ async (page, { openDocument }) => {
     document.body.append(probe);const wide=probe.getBoundingClientRect().width;probe.remove();
     return {width:column.width,available:main.width,wide,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),textInset:doc.left-column.left};
   });
-  const toggle=page.getByRole('button',{name:'Wide document',exact:true});
+  await page.getByRole('button',{name:'Display',exact:true}).click();
+  const toggle=page.getByRole('checkbox',{name:'Wide document',exact:true});
+  const unchanged=()=>page.locator('.document-editor').evaluate(n=>JSON.stringify({doc:n.editor.getJSON(),dirty:document.querySelector('[data-testid="status"]').textContent}));
+  const beforeWidth=await unchanged();
   const standard=await column();
   const before=await controls();
   await toggle.click();
   const wide=await column();
   const after=await controls();
   if(!(wide.wide>0)||Math.abs(wide.width-Math.min(wide.wide,wide.available))>1||wide.width<=standard.width||wide.centerDelta>1||wide.blockDelta>1||
-    Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||await toggle.getAttribute('aria-pressed')!=='true')
+    Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||!await toggle.isChecked()||await unchanged()!==beforeWidth)
     throw Error(`Wide document layout: ${JSON.stringify({standard,wide,before,after})}`);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  const remembered=await toggle.getAttribute('aria-pressed')==='true'&&await page.locator('.app-shell--wide').count()===1;
+  await page.getByRole('button',{name:'Display',exact:true}).click();
+  const remembered=await toggle.isChecked()&&await page.locator('.app-shell--wide').count()===1;
   await toggle.click();
   if(!remembered||await page.locator('.app-shell--wide').count()!==0)throw Error('Wide document preference was not remembered or cleared');
   results.push({wide:{standard:standard.width,wide:wide.width}});
+  // Display fits the same sidebar at every target width; labels, controls and reopening tools stay reachable.
+  for(const width of [1920,1440,1280,1024,768,375]) {
+    await page.setViewportSize({width,height:800});
+    // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
+    await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
+    const display=await page.locator('#sidebar-display').evaluate(n=>{
+      const rect=n.getBoundingClientRect();
+      const controls=[...n.querySelectorAll('input')].map(control=>{
+        const r=control.closest('label').getBoundingClientRect();
+        return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height};
+      });
+      return {left:rect.left,right:rect.right,controls,overflow:n.scrollWidth>n.clientWidth,pageOverflow:document.documentElement.scrollWidth>innerWidth};
+    });
+    if(display.overflow||display.pageOverflow||!display.controls.length||display.controls.some(c=>c.left<display.left||c.right>display.right+0.5||c.top<0||c.bottom>800||c.height<28))
+      throw Error(`Display controls outside sidebar: ${JSON.stringify({width,display})}`);
+    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+    if(await toggle.isVisible())throw Error('Collapsed Display still exposes controls');
+    await page.getByRole('button',{name:'Display',exact:true}).click();
+    if(!await toggle.isVisible())throw Error('Collapsed Display entry failed to reopen it');
+  }
   return results;
 }

@@ -98,7 +98,8 @@ async (page, { screenshots = false, openDocument }) => {
   const edited = await read();
   assert(edited === placed.replace('second[^a].', 'second[^a]. Edited.'), 'Saved Markdown differs: ' + JSON.stringify({placed, edited}));
   assert(await notice.count() === 0, 'Notice stayed after Save');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await notice.count() === 0, 'Reloaded chips or notice');
   result.firstSavePlacesEndnotes = true;
@@ -139,7 +140,8 @@ async (page, { screenshots = false, openDocument }) => {
   const inserted = await read();
   const expected = edited.replace('[^b]: Defined first.', '[^b]: Defined first. More.').replace('Middle paragraph.', 'Middle paragraph.[^1]') + '\n[^1]: New note.\n';
   assert(inserted === expected, 'Saved Markdown differs: ' + JSON.stringify({expected, inserted}));
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', 'Reloaded chips after insertion');
   result.insertedSaveReload = true;
@@ -301,7 +303,8 @@ async (page, { screenshots = false, openDocument }) => {
   await save.click();
   await saved();
   assert(await regionsRead() === regionsPlaced, 'Repeated Save changed the file');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Reload changed definition order or state');
   assert((await presentation()).notes.every(note => note.startsGroup ? note.heading === '"미주"' : note.heading !== '"미주"'), 'Reload lost group presentation');

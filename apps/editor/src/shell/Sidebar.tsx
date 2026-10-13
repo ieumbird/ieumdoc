@@ -1,9 +1,10 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
+import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
+import { DisplaySettings, type DisplaySettingsProps } from "./DisplaySettings.tsx";
 
 type SidebarProps = {
   open: boolean;
@@ -24,13 +25,20 @@ type SidebarProps = {
   onCloseFolder?(): void;
   /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
+  display: Omit<DisplaySettingsProps, "documentPath">;
 };
 
-/** Files: the folder the user chose, or a way to choose one. The outline is in the DocumentPanel. */
+/** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
   open, documentPath, onToggle, onOpenFolder, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
-  folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings,
+  folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
+  const [tool, setTool] = useState<"files" | "display">("files");
+  const displayButton = useRef<HTMLButtonElement>(null);
+  const selectTool = (next: typeof tool) => {
+    setTool(next);
+    if (!open) onToggle();
+  };
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
       <div className="sidebar-header">
@@ -45,28 +53,51 @@ export function Sidebar({
           {open ? <PanelLeftClose /> : <PanelLeftOpen />}
         </Button>
       </div>
-      {!open ? null : folder ? (
-        <FolderTree
-          newButtonRef={newButtonRef}
-          newFolderButtonRef={newFolderButtonRef}
-          tree={folder}
-          documentPath={documentPath}
-          onToggleFolder={path => onToggleFolder?.(path)}
-          onOpenDocument={path => onOpenDocument?.(path)}
-          onNew={() => onNew?.()}
-          onNewFolder={() => onNewFolder?.()}
-          onOpenFolder={onOpenFolder}
-          onClose={() => onCloseFolder?.()}
-        />
-      ) : (
-        <section className="sidebar-empty" aria-label="Files" data-testid="sidebar-empty">
-          <p className="sidebar-empty-text">Open a folder to browse and create its Markdown files.</p>
-          <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
-            <FolderOpen aria-hidden="true" />
-            Open folder…
-          </Button>
-        </section>
-      )}
+      <div className="sidebar-tools" role="group" aria-label="Sidebar tools">
+        <Button type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
+          aria-label="Files" title={open ? undefined : "Files"} aria-pressed={tool === "files"}
+          aria-expanded={open && tool === "files"} aria-controls="sidebar-files" onClick={() => selectTool("files")}>
+          <FileText aria-hidden="true" />{open ? "Files" : null}
+        </Button>
+        <Button ref={displayButton} type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
+          aria-label="Display" title={open ? undefined : "Display"} aria-pressed={tool === "display"}
+          aria-expanded={open && tool === "display"} aria-controls="sidebar-display" onClick={() => selectTool("display")}>
+          <SlidersHorizontal aria-hidden="true" />{open ? "Display" : null}
+        </Button>
+      </div>
+      {/* Keep the tree mounted: tool switches and collapse retain scroll and keyboard position. */}
+      <div id="sidebar-files" className="sidebar-content" hidden={!open || tool !== "files"}>
+        {folder ? (
+          <FolderTree
+            newButtonRef={newButtonRef}
+            newFolderButtonRef={newFolderButtonRef}
+            tree={folder}
+            documentPath={documentPath}
+            onToggleFolder={path => onToggleFolder?.(path)}
+            onOpenDocument={path => onOpenDocument?.(path)}
+            onNew={() => onNew?.()}
+            onNewFolder={() => onNewFolder?.()}
+            onOpenFolder={onOpenFolder}
+            onClose={() => onCloseFolder?.()}
+          />
+        ) : (
+          <section className="sidebar-empty" aria-label="Files" data-testid="sidebar-empty">
+            <p className="sidebar-empty-text">Open a folder to browse and create its Markdown files.</p>
+            <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
+              <FolderOpen aria-hidden="true" />
+              Open folder…
+            </Button>
+          </section>
+        )}
+      </div>
+      <div id="sidebar-display" className="sidebar-content" hidden={!open || tool !== "display"}
+        onKeyDown={event => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          displayButton.current?.focus();
+        }}>
+        <DisplaySettings documentPath={documentPath} {...display} />
+      </div>
       {onSettings ? (
         <div className="sidebar-footer">
           {open ? (

@@ -221,6 +221,27 @@ async (page, {screenshots = false} = {}) => {
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('install.md'));
   await ready();
 
+  // Tool switches retain the tree's expansion, scroll and last keyboard stop without listing again.
+  const viewport = page.viewportSize();
+  await page.setViewportSize({width:1280, height:300});
+  await row('install.md').focus();
+  await page.keyboard.press('End');
+  const tree = section.getByRole('tree');
+  const treeState = () => tree.evaluate(node => ({scroll:node.scrollTop, stop:node.querySelector('[tabindex="0"]')?.textContent}));
+  const retained = await treeState();
+  assert(retained.scroll > 0, 'Short window must exercise a scrolled tree');
+  const requestsBeforeSwitch = folderRequests.length;
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  assert(!await tree.isVisible(), 'Files must not remain exposed under Display');
+  await page.getByRole('button', {name:'Files', exact:true}).click();
+  assert(JSON.stringify(await treeState()) === JSON.stringify(retained), 'Tool switch reset tree scroll or keyboard stop');
+  await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
+  await page.getByRole('button', {name:'Files', exact:true}).click();
+  assert(JSON.stringify(await treeState()) === JSON.stringify(retained) && await row('guides').getAttribute('aria-expanded') === 'true' &&
+    folderRequests.length === requestsBeforeSwitch, 'Reopening Files reset the tree or reloaded its folder');
+  await page.setViewportSize(viewport);
+  result.toolSwitchPreservesTree = true;
+
   // Keyboard: Left goes to the parent and then collapses; Right expands and then enters;
   // Home, End and the arrows move through visible items; Enter toggles a folder.
   await row('install.md').focus();
@@ -291,7 +312,8 @@ async (page, {screenshots = false} = {}) => {
   assert(createRequests === 0 && await current() === 'install.md', 'Folder New preserves unsaved work without creating a file');
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   result.folderNewKeepsUnsavedWork = true;
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
@@ -370,7 +392,8 @@ async (page, {screenshots = false} = {}) => {
   await page.keyboard.type('Created in the displayed folder.');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   assert(await current() === '추가.md' && (await editor.innerText()).includes('Created in the displayed folder.') &&
     (await read(createdPath)).source.includes('Created in the displayed folder.'), 'Save and Reload preserve the actual new file');

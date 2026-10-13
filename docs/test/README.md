@@ -67,6 +67,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 변경·Draft·Save 진행 중 전환 거부와 충돌 보존을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴의 수동 비교용 캡처를 저장한다.
 
+`editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source·읽기 전용에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
+
 `footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
 
 `desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.

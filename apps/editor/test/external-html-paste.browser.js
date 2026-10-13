@@ -74,7 +74,8 @@ async (page, { openDocument }) => {
     '*   One\n\n    *   Nested\n*   Two\n\n3.  Third\n\n> Quoted red text.\n\nPress Ctrl+C and see Example.\n\n' +
     '```python\ndef f():\n    return 1\n```\n\n---\n\n| Key | Value |\n| --: | ----- |\n|   a | 1     |\n\nOmega.\n';
   assert(disk === preview && disk === saved, `Save writes the canonical Markdown Source showed: ${JSON.stringify(disk)}`);
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   assert((await state()).doc === pasted.doc, 'Reload must retain the pasted structure');
   result.saveReload = true;

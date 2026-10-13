@@ -56,7 +56,8 @@ async (page, { openDocument, screenshots }) => {
   check((await editor.innerText()).includes('HTTP saved.'), 'Dirty text remains in the Editor');
   await page.getByRole('button', {name:'Dismiss error'}).click();
   await save();
-  await page.getByRole('button', {name:'Reload', exact:true}).click(); await ready();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
   check((await editor.innerText()).includes('HTTP saved.'), 'Root A Save survives Reload');
   await openDocument(page, fileB); await ready();
   check((await editor.innerText()).includes('Beta.'), 'Root B opens independently');
@@ -80,7 +81,8 @@ async (page, { openDocument, screenshots }) => {
   });
   await page.getByTestId('figure-image').waitFor();
   await page.waitForFunction(() => { const image = document.querySelector('[data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
-  await save(); await page.getByRole('button', {name:'Reload', exact:true}).click(); await ready();
+  await save(); await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
   await page.waitForFunction(() => { const image = document.querySelector('[data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
   const fresh = await page.getByTestId('current-file').getAttribute('title');
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fresh)}`)).json();
@@ -105,7 +107,8 @@ async (page, { openDocument, screenshots }) => {
   await page.locator('[data-testid="status"][data-operation="Save conflict"]').waitFor({state:'attached'});
   check((await editor.innerText()).includes('Kept local.'), '409 keeps local input');
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json()).source.includes('Changed elsewhere.'), '409 preserves the other writer');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click(); await ready();
   // The media CSP also works in a real browser when an SVG is opened as a document.
   const media = await page.context().newPage();

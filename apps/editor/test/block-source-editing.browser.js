@@ -68,7 +68,8 @@ async (page, { openDocument }) => {
   const saved = await read();
   assert(saved === opened.replace('![Diagram](./diagram.svg)', 'The diagram is **important**. Edited.').replace('*   [ ] Draft', '*   [x] Draft'),
     'Saved Markdown differs: ' + JSON.stringify({opened, saved}));
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   await editor.locator('p.paragraph', {hasText:'The diagram is important. Edited.'}).waitFor();
   assert(await page.locator('.original-content summary', {hasText:'Original line 5'}).count() === 1, 'Reloaded task list lost its source line');

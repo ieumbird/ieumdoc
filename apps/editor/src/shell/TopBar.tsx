@@ -1,6 +1,7 @@
 import type { Ref } from "react";
-import { ListOrdered, LoaderCircle, PanelRight, RotateCcw, UnfoldHorizontal } from "lucide-react";
+import { Ellipsis, LoaderCircle, PanelRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
@@ -10,9 +11,6 @@ const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad
 
 type TopBarProps = {
   documentPath: string;
-  headingNumbering?: boolean;
-  onToggleHeadingNumbering?(): void;
-  numberingDisabled?: boolean;
   status: string;
   unsaved?: boolean;
   /** False when IeumDoc cannot write the open document as canonical Markdown. */
@@ -27,9 +25,7 @@ type TopBarProps = {
   onSave(): void;
   onReload?(): void;
   reloadDisabled?: boolean;
-  /** The Wide document display preference. */
-  wide?: boolean;
-  onToggleWide?(): void;
+  fileActionsRef?: Ref<HTMLButtonElement>;
   /** Whether the outline panel is shown. */
   outline?: boolean;
   onToggleOutline?(): void;
@@ -38,13 +34,13 @@ type TopBarProps = {
 
 /**
  * Document identity and its state on the left, so status changes never move the controls.
- * On the right: the document setting, the view (mode, width, then the outline panel), then file actions. Only Save with unsaved
- * changes takes the accent. Spaced groups separate settings, view and file actions; the active view
+ * On the right: Visual/Source and Outline, then Save and the File actions menu. Only Save with unsaved
+ * changes takes the accent. Spaced groups separate view and file actions; the active view
  * tab and on toggles carry the current-item marker, independent of keyboard focus.
  */
 export function TopBar({
   documentPath, status, unsaved = false, writable = true, view, viewDisabled, onViewChange, saveDisabled, saveHint,
-  onSave, onReload, reloadDisabled, headingNumbering, onToggleHeadingNumbering, numberingDisabled, wide, onToggleWide,
+  onSave, onReload, reloadDisabled, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
@@ -99,14 +95,6 @@ export function TopBar({
         </p>
       </div>
       <div className="top-bar-actions">
-        {onToggleHeadingNumbering ? (
-          <div className="top-bar-group" role="group" aria-label="Document settings">
-            <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Number headings"
-              title="Number headings (H2–H6; H1 stays a title)" aria-pressed={headingNumbering} disabled={numberingDisabled} onClick={onToggleHeadingNumbering}>
-              <ListOrdered aria-hidden="true" />
-            </Button>
-          </div>
-        ) : null}
         <div className="top-bar-group" role="group" aria-label="View controls">
           <div className="view-toggle" role="group" aria-label="Document view">
             <Button
@@ -123,12 +111,6 @@ export function TopBar({
             </Button>
             <Button {...sourceProps}>Source</Button>
           </div>
-          {onToggleWide ? (
-            <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Wide document"
-              title="Wide document (this browser only)" aria-pressed={wide} onClick={onToggleWide}>
-              <UnfoldHorizontal aria-hidden="true" />
-            </Button>
-          ) : null}
           {onToggleOutline ? (
             <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Outline"
               title="Outline" aria-pressed={outline} onClick={onToggleOutline}>
@@ -137,12 +119,6 @@ export function TopBar({
           ) : null}
         </div>
         <div className="top-bar-group" role="group" aria-label="File actions">
-          {onReload ? (
-            <Button type="button" size="sm" variant="ghost" onClick={onReload} disabled={reloadDisabled} title="Reload the file from disk">
-              <RotateCcw aria-hidden="true" />
-              Reload
-            </Button>
-          ) : null}
           {saveHint ? (
             <Tooltip>
               <TooltipTrigger render={saveButton}>{saveLabel}</TooltipTrigger>
@@ -155,6 +131,19 @@ export function TopBar({
               {saveLabel}
             </Button>
           )}
+          {onReload ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger ref={fileActionsRef}
+                render={<Button type="button" size="icon-sm" variant="ghost" aria-label="File actions" title="File actions" disabled={reloadDisabled} />}>
+                <Ellipsis aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>
+                  <RotateCcw aria-hidden="true" />Reload
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       </div>
     </header>

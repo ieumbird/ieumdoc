@@ -106,7 +106,8 @@ async page => {
   await page.getByText('Saved', {exact:true}).waitFor();
   const written = await read();
   check(written.source.trim() === 'Browser-created paragraph', 'Save did not write only the entered text');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
   check((await editor.innerText()).trim() === 'Browser-created paragraph' && !await hint(), 'Reload lost the saved text or showed the hint');
