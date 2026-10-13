@@ -70,6 +70,7 @@
 
 ## Verification
 
+- [v0.0.1-beta.3 release and verification record](releases/v0.0.1-beta.3.md) — Draft; 배포 범위, 검증 계획과 알려진 제한. 공개 전 후보.
 - [v0.0.1-beta.2 release and verification record](releases/v0.0.1-beta.2.md) — Historical; 공개 자산, CI와 실제 GitHub 업데이트 검증 근거.
 
 | Document | Status | Authority / description |
