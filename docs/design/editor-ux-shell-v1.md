@@ -43,8 +43,8 @@ Folder navigation changes no document meaning, so this removal adds no Core oper
 
 ## Start without a document (#174)
 
-When the Host's answer to the first request opens no document (the Desktop app started without a
-`.md` argument, see [Desktop distribution](desktop-distribution-v1.md)), the document column
+When the Host's answer to the first request opens no document (Desktop without a `.md` argument,
+or the [HTTP Host](http-host-v1.md)), the document column
 shows the start on the paper instead of an editor: Open folder… (primary), the
 recent folders from the folder picker (name, then full path) and, when the Host offers one, the
 sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
@@ -54,7 +54,8 @@ checks, with a temporary notice that it is a copy in the app's data. Nothing is 
 user. Without a document the TopBar shows `No file opened`, Save, Reload, the views and heading
 numbering stay unavailable, and no error is shown. With nothing to lose, the Desktop app's
 update restart check allows the restart unless a document is opening. The browser development server keeps
-answering with its default document. The start writes nothing and changes no document
+answering with its default document. HTTP offers allowed server folders, filters recent folders to
+those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 
 ## Writing interactions

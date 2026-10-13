@@ -108,6 +108,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  http:
+    name: HTTP Host package and browser (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ieumdoc/cli package
+      - run: pnpm --filter @ieumdoc/cli test:packaged
+      - name: Check Windows filesystem and HTTP boundaries
+        if: runner.os == 'Windows'
+        run: pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts
+      - name: Install pinned Chromium and Linux dependencies
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm browser:test http-host --screenshots
+      - uses: actions/upload-artifact@v6
+        with:
+          name: http-host-${{ runner.os }}
+          path: |
+            packages/cli/dist/*.tgz
+            tmp/http-host-capture/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload HTTP browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: http-host-diagnostics-${{ runner.os }}
+          path: tmp/browser-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   desktop:
     name: Windows Desktop package and update regressions
     runs-on: windows-latest
@@ -159,7 +204,7 @@ jobs:
 
   quality-and-browser:
     name: Core, CLI, Editor, and browser regressions
-    needs: [quality, browser, desktop]
+    needs: [quality, browser, desktop, http]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -170,8 +215,9 @@ jobs:
           QUALITY_RESULT: ${{ needs.quality.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           DESKTOP_RESULT: ${{ needs.desktop.result }}
+          HTTP_RESULT: ${{ needs.http.result }}
         run: |
-          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" || "$DESKTOP_RESULT" != "success" ]]; then
-            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT desktop=$DESKTOP_RESULT"
+          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" || "$DESKTOP_RESULT" != "success" || "$HTTP_RESULT" != "success" ]]; then
+            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT desktop=$DESKTOP_RESULT http=$HTTP_RESULT"
             exit 1
           fi

@@ -1,20 +1,20 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (shared handler boundary reviewed, Folder creation v1 added; Desktop integration verification is recorded in its contract).
-- Authority: shared file Host boundary for Vite and the [ADR-0004 Desktop Host](../adr/0004-desktop-host-distribution.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
+- Last verified: 2026-10-13 (shared Vite/Desktop/HTTP handlers, root enforcement, full tests and Vite/HTTP browser regressions).
+- Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
 ## Purpose
 
-IeumDoc의 persistent SSOT는 사용자의 로컬 filesystem에 있는 사람이 읽을 수 있는 plain-text `.md` 파일이다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
+IeumDoc의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
 
 이 경계의 핵심은 filesystem을 Browser Editor가 직접 소유하지 않고, 교체 가능한 Host가 소유한다는 것이다. 현재의 localhost HTTP adapter는 이 경계의 한 구현일 뿐이며 최종 backend architecture로 확정하지 않는다.
 
 ## Decision
 
-Local host가 filesystem access의 소유자다.
+Host가 자신이 실행되는 OS의 filesystem access를 소유한다.
 
 ```text
 Browser Editor
@@ -38,7 +38,7 @@ filesystem watch는 현재 제공하지 않으며 향후 검토 대상이다.
 
 Host는 요청된 document locator를 실제 filesystem 동작으로 연결한다. Locator는 interface/host layer의 값이며 Core의 semantic document model에 포함하지 않는다.
 
-Host 구현은 교체 가능해야 한다. Vite 개발 adapter는 localhost HTTP를 사용하고, Windows Desktop은 `ieumdoc://app` custom protocol로 같은 stateless document/asset handler를 직접 호출한다. HTTP transport나 localhost server를 permanent architecture, production backend, 또는 workspace server로 정의하지 않는다. Desktop 경계와 배포는 [Desktop contract](desktop-distribution-v1.md)에 있다.
+Host 구현은 교체 가능해야 한다. Vite는 개발 HTTP, Windows Desktop은 `ieumdoc://app` custom protocol, 독립 HTTP Host는 Node listener와 production 정적 파일을 사용하며 같은 stateless document/asset handler를 호출한다. Vite/Desktop은 기존 local 파일 정책을 명시적으로 선택하고 HTTP는 고정 Root allowlist를 반드시 적용한다. [Desktop contract](desktop-distribution-v1.md)와 [HTTP contract](http-host-v1.md)가 각 배포·접근 경계를 정한다. 이 재사용을 장기 persistence/backend 또는 Workspace 결정으로 확대하지 않는다.
 
 IeumDoc은 browser file upload를 기본 document access model로 사용하지 않는다.
 
@@ -103,7 +103,7 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - PNG, JPEG, GIF, WebP를 지원한다. MIME과 그 형식의 완성된 container를 확인한다: PNG는 signature·IHDR·IEND까지의 chunk envelope, JPEG는 SOI·frame header·scan 뒤의 EOI(EOI 뒤 camera 부가 data는 유지), GIF는 header·block·trailer, WebP는 file 길이와 맞는 RIFF chunk와 image data. 내용이 MIME과 다르거나 잘린 파일, 빈 파일과 과도한 크기를 거부한다. 형식 목록과 크기 상한의 코드 기준은 `apps/editor/shared/asset-policy.ts`다. 이미지를 decode·변환·최적화하지 않는다. SVG는 script를 담을 수 있는 active content라 sanitizer 없이 저장하지 않는다. 원격 다운로드도 포함하지 않는다. 문서에 이미 있는 상대 media는 확장자에 맞는 `Content-Type`과 `nosniff`로 제공한다.
 - `POST /api/asset?path=<document locator>`는 지원 형식의 MIME을 `Content-Type`으로 한 binary body를 받는다. 응답은 상대 `path`와 opaque `rollbackToken`이다. 저장 protocol과 binary upload를 합치지 않는다.
 - Host는 document directory의 real path를 경계로 사용한다. `assets/` 자체의 symlink, 경계 밖 document symlink, traversal·absolute·비정상 asset path를 거부한다. 완성된 temporary sibling을 exclusive hard link로 공개한 뒤 temp를 제거하여 partial 파일과 기존 파일 overwrite를 막는다. 이 filesystem 동작을 지원하지 않으면 실패를 표시한다.
-- Host write 실패는 Editor를 변경하지 않는다. 성공한 경로로 기존 Figure insert 경로를 사용하며, 삽입이 거부되거나 요청 중 Editor가 사라지면 `DELETE /api/asset`로 rollback한다. 서명된 receipt는 생성 inode와 업로드 바이트에 묶는다. 삭제 전에 임시 이름으로 옮겨 같은 fd에서 identity/content를 검증하고, 다른 파일로 바뀌었으면 overwrite 없이 원위치로 복구한다. rollback/복구 실패는 남은 경로와 함께 명시한다. temp cleanup도 directory/file identity를 확인하며, 외부 directory 교체로 소유권을 확인할 수 없으면 삭제를 거부하고 잔여 temp 경로를 오류로 표시한다. Host는 session이나 asset 목록을 저장하지 않으며 receipt 서명 key는 dev server 수명에 한정한다.
+- Host write 실패는 Editor를 변경하지 않는다. 성공한 경로로 기존 Figure insert 경로를 사용하며, 삽입이 거부되거나 요청 중 Editor가 사라지면 `DELETE /api/asset`로 rollback한다. 서명된 receipt는 생성 inode와 업로드 바이트에 묶는다. 삭제 전에 임시 이름으로 옮겨 같은 fd에서 identity/content를 검증하고, 다른 파일로 바뀌었으면 overwrite 없이 원위치로 복구한다. rollback/복구 실패는 남은 경로와 함께 명시한다. temp cleanup도 directory/file identity를 확인하며, 외부 directory 교체로 소유권을 확인할 수 없으면 삭제를 거부하고 잔여 temp 경로를 오류로 표시한다. Host는 session이나 asset 목록을 저장하지 않으며 receipt 서명 key는 각 Host 프로세스 수명에 한정한다.
 - 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
@@ -162,10 +162,11 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 ## Current implementation mapping
 
-현재 `apps/editor/server`는 **local filesystem host boundary의 현재 dev implementation**이다.
+현재 `apps/editor/server`는 **세 Host가 공유하는 stateless filesystem 구현**이다.
 
 - `apps/editor/server/document-api.ts`가 요청된 `.md` path를 resolve하고 Node filesystem API로 read/create한다. 기존 파일 교체는 CLI와 공유하는 [File commit v1](#file-commit-v1)을 사용한다.
-- 현재 Browser와 adapter 사이의 transport는 `/api/document`를 경유하는 localhost HTTP다.
+- `/api/document` 등의 동일 route를 Vite HTTP, Desktop custom protocol, 독립 HTTP가 연결한다.
+- `file-access.ts`의 HTTP Root 정책은 모든 파일 helper에 전달한다. 기존 대상은 lexical/real path, 새 대상은 기존 parent의 real path를 검사한다. Root의 경로·identity가 바뀌면 거부한다. 정적 Editor 자산은 `editor-static.ts`가 별도 고정 build directory에서 제공한다.
 - `apps/editor/shared/document-protocol.ts`가 Browser와 Host의 저장 요청·응답 타입을 공유한다. 이 파일은 Core 공개 타입을 사용하는 데이터 계약이며, 파일 접근·검증·저장 실행은 포함하지 않는다.
 - adapter는 Core의 parse, semantic save operation, validation 및 serialization을 호출하고, 파일 I/O 자체는 adapter가 수행한다.
 - 문서 revision을 확인하여 외부 변경 후 stale save를 거부하는 현재 conflict 동작도 이 경계 안의 host/editor adapter 동작이다.
@@ -173,7 +174,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - `/api/folder`가 Folder listing v1(GET, `listFolder`)과 Folder creation v1(POST, `createFolder`)을 구현한다.
 - `/api/folder-browse`와 `/api/folder-places`가 경로 선택용 목록과 시작점을 제공한다(`browseFolder`, `folderPlaces`).
 
-이 매핑은 현재 개발 구현을 설명할 뿐이다. `apps/editor/server`를 production backend, permanent local server architecture 또는 workspace server로 정의하지 않는다.
+HTTP의 네트워크 검사·Root 정책과 로컬 Host의 기존 정책은 분리한다. 새 문서 의미나 별도 영속 저장소는 추가하지 않는다.
 
 ## Security considerations
 
@@ -191,7 +192,7 @@ Host는 Browser에서 전달된 locator와 filesystem operation을 신뢰 경계
 
 ## Relationship to New Document
 
-현재 New Document creation은 이 개발 Host 경계로 구현되어 있다.
+현재 New Document creation은 이 공유 Host 경계로 구현되어 있다.
 
 ```text
 사용자 path

@@ -27,6 +27,18 @@ pnpm browser:test save-session       # 관련 시나리오만 선택
 
 runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
+## Production HTTP regression
+
+```bash
+pnpm --filter @ieumdoc/cli package
+pnpm --filter @ieumdoc/cli test:packaged
+pnpm browser:test http-host
+```
+
+The archive test installs outside the checkout with no runtime dependencies and runs Node-only CLI/serve, real writes, port conflict and shutdown. The separate HTTP browser scenario starts the built Host with two scratch roots and verifies real Save/Reload, New file/folder, images, dirty/draft guards, revision conflict and SVG script blocking. Do not combine it with Vite scenarios. Windows uses the existing persistent browser profile. `--screenshots` saves optional wide/narrow manual captures under `tmp/http-host-capture/`.
+
+HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts`. CI requires the archive and HTTP browser paths on Windows and Linux as well as the existing Vite/Desktop checks. See [HTTP contract](../design/http-host-v1.md) for scope and deployment limitations.
+
 ## Windows Desktop regression
 
 Windows x64에서 실행한다. `package`와 아래 tests는 공개 Release를 만들지 않는다.

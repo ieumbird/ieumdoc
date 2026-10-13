@@ -43,7 +43,7 @@ electron-updater의 GitHub provider는 Stable에서 GitHub의 `releases/latest`�
 ## Non-decisions
 
 - macOS/Linux installer, Microsoft Store, portable 공식 배포
-- 독립 HTTP 서버(`ieumdoc serve`), 원격 접속, 계정·클라우드 동기화
+- 독립 HTTP 서버와 원격 접속은 이 Desktop 결정 밖이며, 후속 [ADR-0005](0005-http-host.md)에서 별도 채택했다. 계정·클라우드 동기화는 계속 범위 밖이다.
 - 점진적(staged) 배포, 업데이트 전용 서버나 데이터베이스
 - 자동 저장과 draft recovery([Editing session](../design/editing-session-save-v1.md)의 결정을 유지)
 - 특정 서명 방식(인증서 파일 또는 클라우드 서명 서비스)의 선택

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   canonicalWriteError,
   getEditableDocument,
@@ -116,6 +117,19 @@ const CODE_NOTE = [
 ];
 const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
+  {
+    name: "serve",
+    summary: "Serve the production Editor inside explicitly allowed folders",
+    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]",
+    details: [
+      "At least one existing --root is required. Roots are server filesystem access boundaries,",
+      "not a workspace or an initial folder selection. Use Open Folder to choose a root or subfolder.",
+      "Defaults: --host 127.0.0.1 --port 5180. Requires the production Editor build.",
+      "For an access-controlled reverse proxy, set --public-origin to its exact http(s) origin.",
+      "Non-loopback binding requires --public-origin and restricted upstream access. No built-in authentication.",
+      "Serve at the site root (/); subpath hosting is not supported. Ctrl+C stops the server.",
+    ],
+  },
   {
     name: "insert-hard-break",
     summary: "Insert a hard break within a supported Paragraph",
@@ -1308,7 +1322,13 @@ function pathFlag(args: string[]): NodePath {
 }
 
 try {
-  process.exitCode = main(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  if (args[0] === "serve" && !isCommandHelpRequest(args.slice(1))) {
+    const { serve } = await import("./serve.ts");
+    // Source checkout runs use an explicit Editor build; the distributable carries it beside cli.mjs.
+    const editorDir = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "../../../apps/editor/dist/" : "./editor/", import.meta.url));
+    await serve(args.slice(1), editorDir);
+  } else process.exitCode = main(args);
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;

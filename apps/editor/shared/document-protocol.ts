@@ -169,7 +169,7 @@ export type DocumentFileResponse = {
  * The Host's answer to the first request, which names no document, when it opens none: the
  * Editor starts without a document. `sample` is a writable sample the user may open.
  */
-export type DocumentStartResponse = { start: true; sample?: string };
+export type DocumentStartResponse = { start: true; sample?: string; allowedRoots?: string[] };
 
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
 export type SaveResponse = Pick<DocumentFileResponse, "revision">;
@@ -202,7 +202,7 @@ export type FolderCrumb = { name: string; path: string };
 /** One level of any folder while choosing which folder to open; `crumbs` ends with `path`. */
 export type FolderBrowseResponse = { path: string; crumbs: FolderCrumb[]; entries: FolderEntry[] };
 
-export type FolderPlace = { kind: "home" | "documents" | "drive"; name: string; path: string };
+export type FolderPlace = { kind: "home" | "documents" | "drive" | "root"; name: string; path: string };
 
 export type FolderPlacesResponse = { places: FolderPlace[] };
 

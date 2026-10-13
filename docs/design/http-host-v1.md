@@ -1,0 +1,98 @@
+# HTTP Host v1
+
+- Status: Implemented
+- Last verified: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
+- Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
+- Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/ieumbird/ieumdoc/issues/186)).
+
+## Build and run
+
+Build from the selected checkout using the repository's Node.js and pnpm versions:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @ieumdoc/cli package
+```
+
+`packages/cli/dist/ieumdoc-cli-0.0.0.tgz` contains the CLI ESM bundles, production Editor, manifest and dependency license notices. It has no runtime npm dependencies. Copy the archive to the target machine; install it in an otherwise empty folder with `npm install --offline --ignore-scripts <archive-path>`. Then run the installed binary:
+
+```powershell
+# Windows; these folders must already exist on the server.
+.\node_modules\.bin\ieumdoc.cmd serve --port 5180 --root "C:\project" --root "C:\document"
+```
+
+```bash
+# Linux
+./node_modules/.bin/ieumdoc serve --root /srv/project --root /srv/document
+```
+
+An extracted package can instead run with `node cli.mjs serve --root <folder>`. For local development after `pnpm --filter @ieumdoc/cli build`, use `node packages/cli/dist/cli.mjs serve --root <folder>`. Runtime requires Node.js `>=24.21.0 <25`; no pnpm, tsx, source checkout, Vite server or Electron is needed. Initial platforms are Windows x64 and Linux x64. macOS and individual NAS/filesystem combinations are not verified. The archive is a CI/local build artifact, not a published npm package or an automatic updater.
+
+| Option | Contract |
+| --- | --- |
+| `--root <directory>` | Required, repeatable; relative paths use launch cwd. All must exist and be directories. Same real roots are deduplicated. Nested roots are allowed. |
+| `--port <number>` | Default `5180`; integer 1–65535. Port conflicts fail without starting a replacement listener. |
+| `--host <IP>` | Default `127.0.0.1`; IP literal only. A non-loopback bind requires `--public-origin`. |
+| `--public-origin <origin>` | Explicit `http(s)://host[:port]`, without path, credentials, query or fragment. Adds that exact origin and Host authority. |
+
+Unknown options, positional arguments and repeated single-value options fail. Invalid configuration is rejected before listening. SIGINT/SIGTERM closes the listener, allows active connections up to five seconds, then closes remaining owned connections. New CLI builds replace the complete package, including Editor assets; do not mix versions.
+
+## Allowed roots and Open Folder
+
+Roots are the server's access boundary, fixed until restart. They are neither initial folder selections nor a merged Workspace. Paths refer to the server filesystem, even when a browser runs on another PC.
+
+HTTP starts without a document or development sample. Open Folder offers each allowed root and its descendants. Breadcrumbs start at the most specific containing root; Up cannot leave it. The path field still accepts another allowed root. Recent folders are browser preferences: locations outside current roots are hidden without deleting stored preferences, and every actual request is revalidated by the Host. A root name is compact in breadcrumbs; starting places and the path field retain the full locator.
+
+Choose a folder, then a Markdown file in the sidebar. Open, New file/folder, Save, relative images, image paste/drop and receipt-based rollback use existing shared handlers. Switching folders/documents retains existing dirty/draft/in-flight protections. Stale disk revisions still return 409; unsupported canonical writes fail closed. Markdown semantics and relative image source strings do not change.
+
+## Filesystem boundary
+
+Every document read/create/save/preview, folder list/browse/create, media read and asset upload/rollback passes the same root policy. Block-source and Figure validation perform no filesystem access. Static Editor assets are a separate fixed build directory, never a requested document directory.
+
+- Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling.
+- Existing targets must resolve to regular files/directories. New leaves require an existing allowed real parent; dangling links cannot be replaced. Exclusive file/folder creation and overwrite refusal remain in force.
+- Symlink/junction targets outside all roots are rejected. A link into another allowed root does not relax narrower per-document media, folder or asset rules.
+- Startup pins each root's real path and filesystem identity. A missing, moved or replaced root fails closed until the operator checks configuration and restarts.
+- NUL, device paths, drive-relative locators and Windows alternate streams are rejected. Responses suppress raw filesystem errors that could reveal out-of-bound resolved paths.
+- Asset receipts are bound to the process signing key and uploaded file identity/content. Restart invalidates receipts; there is no asset/session registry or automatic orphan cleanup.
+
+The operator's OS account and filesystem administrators are trusted. `realpath` checks cannot promise an atomic OS sandbox against a local process replacing directories between a check and I/O; the existing [File commit limitation](filesystem-host-boundary-v1.md#file-commit-v1) remains. Common traversal, link escape and root replacement cases are covered by real filesystem tests.
+
+## HTTP and remote access
+
+Default access is `http://127.0.0.1:5180`. This Host has no built-in authentication. Host/Origin checks defend browser request boundaries; they do not identify an authorized person. A same-machine process or directly reachable client can construct accepted headers.
+
+For an existing access-controlled reverse proxy on the same server, keep the upstream on loopback and configure its browser origin explicitly:
+
+```bash
+ieumdoc serve --root /srv/project --root /srv/document --public-origin https://docs.example.internal
+```
+
+Configure the proxy to authenticate **every path** on that dedicated origin, forward `/` unchanged to `http://127.0.0.1:5180`, preserve the browser's Origin, and set Host to `docs.example.internal` or the loopback upstream authority. Do not mount under a URL subpath. Use HTTPS at the proxy and restrict direct upstream access. A proxy on another machine additionally requires an explicit bind such as `--host 0.0.0.0` and firewall/private-network controls; specifying a public origin alone provides no access control. Never expose this service as an unauthenticated public Internet editor. Proxy identity, credentials and TLS provisioning remain the operator's responsibility.
+
+The listener accepts only configured Host authorities and exact origins. Writes require Origin; cross-site API/media requests are rejected. It emits no permissive CORS headers and does not infer trust from `Forwarded`/`X-Forwarded-*`. JSON routes require `application/json`. Malformed/duplicated query parameters and malformed encoded paths are rejected. GET/HEAD with bodies are rejected; unknown routes fail without SPA fallback.
+
+| Limit | Value |
+| --- | --- |
+| Document/source/block/Figure JSON bodies | 32 MiB |
+| Image upload | 10 MiB, existing supported MIME types |
+| Asset rollback JSON | 8 KiB |
+| Headers | 16 KiB; 15-second header timeout |
+| Request / keep-alive timeout | 60 seconds / 5 seconds |
+
+Body limits count bytes for Content-Length and chunked input. Oversized/interrupted requests do not reach a file operation. Failed bodies are discarded without accumulating further buffers. Production assets use the shared CSP and MIME checks; HTTP adds no-store, same-origin resource policy, no-referrer and frame denial. Document media uses a sandbox CSP with scripts disabled, including direct navigation to user-supplied SVG.
+
+## Verification
+
+```bash
+pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts
+pnpm --filter @ieumdoc/cli package
+pnpm --filter @ieumdoc/cli test:packaged
+pnpm browser:test http-host
+```
+
+The package test installs the archive offline outside the checkout and runs existing CLI commands plus serve using Node alone. HTTP tests exercise both roots, outside sentinels, links/root replacement, request boundaries, body limits and an access-controlled test reverse proxy covering HTML, API and media. The production browser scenario verifies two-root navigation, actual Save → Reload, New file/folder, image persistence, draft/dirty protection, 409 preservation and SVG script blocking. It is separate from Vite scenarios because startup differs. `--screenshots` adds wide/narrow captures for manual layout review, not a substitute for assertions.
+
+Windows/Linux CI runs package and production browser checks; Windows also runs the filesystem/HTTP suite and Linux's quality job runs it with all Editor tests. Existing Vite browser and Windows packaged Desktop regressions remain required. This does not establish arbitrary NAS compatibility, measured startup speed improvements, public Internet hardening or OS-native clipboard/IME correctness.
+
+The 2026-10-13 dependency audit still reports 16 existing transitive advisories (5 high, 10 moderate, 1 low). This change reuses the already locked esbuild build tool and changes no resolved dependency versions; it does not remediate those advisories. Core parser configuration and the local markdown-it patch remain unchanged, and build-only tooling is not a Host runtime. MyST remediation remains tracked in [#11](https://github.com/ieumbird/ieumdoc/issues/11); the historical [dependency review](../reviews/myst-security-alignment-v1.md) is context, not current security assurance.
