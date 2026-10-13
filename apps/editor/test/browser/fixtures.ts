@@ -118,7 +118,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
         "Body resumes between the notes.\n\n[^b]: An editable note beside a read-only definition.\n\n" +
         "[^a]: A note with two paragraphs.\n\n    Its original source stays available.\n\n" +
           "Body continues after the group.\n\n[^d]: The final note.\n" },
-        { name: "repeat.md", create: () => "# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n" }],
+        { name: "repeat.md", create: () => "# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n" },
+        { name: "sections.md", create: () => "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
+          "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n" }],
     scenarios: ["footnotes"],
   },
   "focus-caret": {

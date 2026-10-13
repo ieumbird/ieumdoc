@@ -1,5 +1,6 @@
 import { figureCaptionContent, type FigureContent } from "../figure.ts";
 import { inlineContentToNodes, projectInlineContent, sameInlineContent, type InlineContent } from "../inline.ts";
+import { bodyIndex } from "./footnote.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -76,9 +77,10 @@ export function assertFigureRoundTrip(
   identifier: unknown,
 ): void {
   const failure = "Figure cannot be preserved through canonical round-trip";
-  const markdown = serializeFor({ type: "root", children: root.children ?? [] }, failure);
+  const document = { type: "root", children: root.children ?? [] };
+  const markdown = serializeFor(document, failure);
   const reparsed = parse(markdown);
-  const node = reparsed.children[index];
+  const node = reparsed.children[bodyIndex(document, index)];
   const content = node && supportedFigureContent(node);
   if (
     reparsed.children.length !== (root.children ?? []).length ||

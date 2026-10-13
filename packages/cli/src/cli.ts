@@ -42,7 +42,7 @@ import {
   updateQuoteInlineContent,
   insertDivider,
   insertFootnote,
-  collectEndnotes,
+  endnotesInPlace,
   updateFootnoteDefinition,
   convertBlock,
   updateHeadingInlineContent,
@@ -149,6 +149,8 @@ const COMMANDS: CommandSpec[] = [
       "fail the check. JSON: references.unresolved, with role or link.",
       "Pending Figures (no content yet) are reported as readiness warnings with their block and",
       "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
+      "Footnote definitions not written after the body in first-reference order are reported as a",
+      "note: format and Editor Save write them there (JSON: endnotes.inPlace).",
       "Output format is text by default; JSON is available with --format json.",
     ],
   },
@@ -171,7 +173,8 @@ const COMMANDS: CommandSpec[] = [
     name: "format",
     summary: "Canonically format a document",
     usage: "ieumdoc format <file>",
-    details: ["Canonically format a document."],
+    details: ["Canonically format a document. Footnote definitions are written after the body, in the",
+      "order of the first reference to each (endnotes), as every IeumDoc write does."],
   },
   {
     name: "replace-text",
@@ -275,13 +278,6 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
-    name: "collect-endnotes",
-    summary: "Collect footnote definitions at the document end",
-    usage: "ieumdoc collect-endnotes <file>",
-    details: ["Move definitions into first-reference order after the body, preserving labels and contents.",
-      "This explicitly changes source placement. Invalid or lossy documents are refused without writing."],
-  },
-  {
     name: "insert-divider",
     summary: "Insert a divider (thematic break) at a top-level index",
     usage: "ieumdoc insert-divider <file> --at <index>",
@@ -363,7 +359,8 @@ const COMMANDS: CommandSpec[] = [
     name: "move-block",
     summary: "Move a top-level block",
     usage: "ieumdoc move-block <file> --from <index> --to <index>",
-    details: ["Move a top-level block."],
+    details: ["Move a top-level block. Footnote definitions are written after the body in first-reference",
+      "order wherever they are moved; move a reference to change their order."],
   },
   {
     name: "move-section",
@@ -372,6 +369,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Move the section a top-level heading opens: its label targets, content and deeper sections.",
       "--to is the start of another section or the block count (the end). Heading levels are kept.",
+      "Footnote definitions (endnotes) are in no section and stay after the body.",
       "inspect shows each heading's section as [start,end).",
     ],
   },
@@ -379,7 +377,8 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-section",
     summary: "Remove a heading's section",
     usage: "ieumdoc remove-section <file> --at <heading index>",
-    details: ["Remove the section a top-level heading opens: its label targets, content and deeper sections."],
+    details: ["Remove the section a top-level heading opens: its label targets, content and deeper sections.",
+      "Footnote definitions (endnotes) are kept. Removing the last reference to one is refused without writing."],
   },
   {
     name: "insert-table",
@@ -631,6 +630,7 @@ function main(argv: string[]): number {
       // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
       const pendingFigures = getEditableDocument(document).blocks.flatMap(block =>
         block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
+      const endnotes = { inPlace: endnotesInPlace(document) };
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({
           ok: writeError === undefined,
@@ -639,6 +639,7 @@ function main(argv: string[]): number {
           writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
           references: { unresolved },
           readiness: { pendingFigures },
+          endnotes,
         })}\n`);
       } else {
         process.stdout.write(`${summarize(document)}\n`);
@@ -653,6 +654,7 @@ function main(argv: string[]): number {
         for (const { path, label } of pendingFigures) {
           process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
         }
+        if (!endnotes.inPlace) process.stderr.write("note: format and Save move footnote definitions after the body, in first-reference order\n");
       }
       return writeError === undefined ? 0 : 1;
     }
@@ -708,10 +710,6 @@ function main(argv: string[]): number {
     }
     case "update-footnote": {
       edit(file, (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
-    }
-    case "collect-endnotes": {
-      edit(file, collectEndnotes);
       return 0;
     }
     case "insert-divider": {
@@ -958,7 +956,6 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-quote": ["--path", "--text", "--content"],
   "insert-footnote": ["--path", "--offset", "--text", "--content"],
   "update-footnote": ["--path", "--text", "--content"],
-  "collect-endnotes": [],
   "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],

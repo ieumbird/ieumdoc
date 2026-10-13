@@ -345,20 +345,43 @@ test("CLI inserts footnotes and edits their definitions in a real file and rejec
   }
 });
 
-test("CLI explicitly collects endnotes and leaves refused documents intact", () => {
+test("CLI writes endnotes after the body as Core and Editor Save do, and leaves refused documents intact", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnotes-"));
   const file = path.join(dir, "document.md");
+  const scattered = "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
+    "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n";
+  const placed = "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n" +
+    "[^b]: First note.\n\n[^a]: Second note.\n";
   try {
-    writeFileSync(file, "Claim[^b], second[^a].\n\n[^a]: Second.\n\nBody.\n\n[^b]: First.\n");
-    const result = run(["collect-endnotes", file]);
-    assert.equal(result.status, 0, result.stderr);
-    const expected = "Claim[^b], second[^a].\n\nBody.\n\n[^b]: First.\n\n[^a]: Second.\n";
-    assert.equal(readFileSync(file, "utf8"), expected);
-    assert.equal(run(["collect-endnotes", file]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), expected);
-    const invalid = "Claim[^a].\n\n[^a]: Kept.\n\n[^orphan]: Preserve me.\n";
+    writeFileSync(file, scattered);
+    const checked = run(["check", file]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.match(checked.stderr, /^note: format and Save move footnote definitions after the body/m);
+    assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).endnotes, { inPlace: false });
+    // check only reads; format writes what Core's canonical write gives, and again gives the same.
+    assert.equal(readFileSync(file, "utf8"), scattered);
+    assert.equal(run(["format", file]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), placed);
+    assert.equal(serialize(parse(scattered)), placed);
+    assert.equal(run(["format", file]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), placed);
+    assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).endnotes, { inPlace: true });
+
+    // Sections hold no endnotes: 0 # Document, 1 ## A, 2 claims, 3 ## B, 4 another, 5 [^b], 6 [^a].
+    assert.equal(run(["move-section", file, "--from", "1", "--to", "7"]).status, 0);
+    const moved = "# Document\n\n## Section B\n\nAnother paragraph[^b].\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n" +
+      "[^b]: First note.\n\n[^a]: Second note.\n";
+    assert.equal(readFileSync(file, "utf8"), moved);
+    const orphaning = run(["remove-section", file, "--at", "3"]);
+    assert.equal(orphaning.status, 1);
+    assert.match(orphaning.stderr, /\[\^a\] with no reference/);
+    assert.equal(readFileSync(file, "utf8"), moved);
+    assert.equal(run(["remove-section", file, "--at", "1"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
+
+    const invalid = "Claim[^a].\n\n[^orphan]: Preserve me.\n\nBody.\n\n[^a]: Kept.\n";
     writeFileSync(file, invalid);
-    assert.notEqual(run(["collect-endnotes", file]).status, 0);
+    assert.equal(run(["format", file]).status, 1);
     assert.equal(readFileSync(file, "utf8"), invalid);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -824,6 +847,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       writeability: { writable: true },
       references: { unresolved: [] },
       readiness: { pendingFigures: [] },
+      endnotes: { inPlace: true },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);

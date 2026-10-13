@@ -1,13 +1,19 @@
 import { createTokenizer } from "myst-parser";
 import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
+import { endnoteOrder, type EndnoteBlock } from "../numbering.ts";
 import { labelIdentifier } from "./label.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 /**
- * Footnotes at the MyST boundary. markdown-it-footnote reads every `[^label]: ...` definition
- * first, keeps the last definition of each label that the text references, and moves the kept
- * ones to the end of the tree. It gives them no source position, so myst-parser copies a
- * neighbouring block's. A reference to an undefined label is plain text.
+ * Footnotes at the MyST boundary. The syntax and node names are MyST's (`[^label]`,
+ * `footnoteReference`, `footnoteDefinition`); IeumDoc presents them as endnotes: definitions
+ * belong to the document, not to the block or section they are written after, and canonical
+ * Markdown writes them after the body in endnote order.
+ *
+ * markdown-it-footnote reads every `[^label]: ...` definition first, keeps the last definition
+ * of each label that the text references, and moves the kept ones to the end of the tree. It
+ * gives them no source position, so myst-parser copies a neighbouring block's. A reference to
+ * an undefined label is plain text.
  */
 
 /** Root field: why the parse dropped a written definition. Its parenthesized name is not a
@@ -51,37 +57,75 @@ export function sourceDefinitions(text: string, options: object): SourceDefiniti
 }
 
 /**
- * Put each kept definition back where it is written, with its own source lines, and record a
- * definition the parse dropped. Canonical write then keeps definitions where they are, and a
- * document reloads with its blocks in the order they were written.
+ * Give each kept definition its own source lines, record a definition the parse dropped, and
+ * place the definitions after the body in endnote order (`endnotePlacement`). A parsed
+ * document therefore has the order canonical write gives it, whatever the source placement:
+ * the read model, the Editor and section operations see one order.
  */
 export function locateFootnotes(document: MystDocument, text: string, options: object): void {
   const written = sourceDefinitions(text, options);
   // The last definition of a label is the one kept.
   const last = new Map(written.map(definition => [definition.label, definition]));
   const kept = new Set<string>();
-  const located: MystNode[] = [];
   for (const node of document.children) {
     if (node.type !== "footnoteDefinition") continue;
     const source = last.get(String(node.label));
     kept.add(String(node.label));
-    if (!source) {
-      delete node.position;
-      continue;
-    }
-    node.position = { start: { line: source.start, column: 1 }, end: { line: source.end, column: 1 } };
-    located.push(node);
+    if (source) node.position = { start: { line: source.start, column: 1 }, end: { line: source.end, column: 1 } };
+    else delete node.position;
   }
-  const blocks = document.children.filter(node => !located.includes(node));
-  for (const definition of located) {
-    const at = blocks.findIndex(node => (node.position?.start.line ?? 0) > definition.position!.start.line);
-    blocks.splice(at < 0 ? blocks.length : at, 0, definition);
-  }
-  document.children = blocks;
+  // Written order first: definitions no reference ranks keep it.
+  const line = (node: MystNode) => node.type === "footnoteDefinition" ? node.position?.start.line ?? Infinity : 0;
+  document.children = endnotePlacement({ ...document, children: [...document.children].sort((left, right) => line(left) - line(right)) });
   const repeated = written.find(definition => last.get(definition.label) !== definition);
   const unreferenced = written.find(definition => !kept.has(definition.label));
   if (repeated) document[DROPPED_FOOTNOTE_FIELD] = REPEATED(repeated.label);
   else if (unreferenced) document[DROPPED_FOOTNOTE_FIELD] = UNREFERENCED(unreferenced.label);
+}
+
+/** Each top-level block as endnote ordering sees it: the label it defines, and the references it holds. */
+export function endnoteBlocks(document: MystDocument): EndnoteBlock[] {
+  return document.children.map(node => ({
+    ...(node.type === "footnoteDefinition" ? { definition: String(node.label) } : {}),
+    references: footnoteReferences(node),
+  }));
+}
+
+/**
+ * The top-level blocks in the order canonical Markdown writes them: the body as it is, then the
+ * footnote definitions in endnote order (`endnoteOrder`). The same nodes, in a new array.
+ */
+export function endnotePlacement(document: MystDocument): MystNode[] {
+  if (!document.children.some(node => node.type === "footnoteDefinition")) return document.children;
+  return endnoteOrder(endnoteBlocks(document)).map(index => document.children[index]);
+}
+
+/**
+ * Where the body block at `index` is once canonical write has placed the endnotes after the body:
+ * body blocks keep their order, so it is the number of body blocks before it. An operation's
+ * round-trip check finds the block it wrote at this index of the reloaded document.
+ */
+export function bodyIndex(document: MystDocument, index: number): number {
+  return document.children.slice(0, index).filter(node => node.type !== "footnoteDefinition").length;
+}
+
+/**
+ * Whether a parsed snapshot's definitions are written where canonical Markdown puts them: after
+ * every body block, in endnote order. It reads the source lines `parse` gave them, so it
+ * describes the opened source; when false, the first canonical write moves definitions.
+ */
+export function endnotesInPlace(document: MystDocument): boolean {
+  let line = 0;
+  for (const node of document.children) {
+    if (node.type !== "footnoteDefinition") {
+      line = Math.max(line, node.position?.end.line ?? 0);
+      continue;
+    }
+    const start = node.position?.start.line;
+    if (start === undefined || start <= line) return false;
+    line = node.position!.end.line;
+  }
+  return true;
 }
 
 /**

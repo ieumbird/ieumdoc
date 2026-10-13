@@ -4,7 +4,7 @@ import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from 
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
-import { canCollectEndnotes, collectEndnotesInSource } from "./footnote.tsx";
+import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -162,13 +162,6 @@ const isSectionHeading = (state: EditorState, index: number) =>
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
   {
-    id: "collect-endnotes",
-    label: "미주로 모으기",
-    applies: (state, index) => state.doc.child(index).type.name === "footnoteDefinition" || Boolean(state.doc.child(index).attrs.footnote),
-    enabled: canCollectEndnotes,
-    run: collectEndnotesInSource,
-  },
-  {
     id: "paragraph",
     label: "Change to Paragraph",
     applies: isHeading,
@@ -288,6 +281,7 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     label: "Delete section",
     applies: isSectionHeading,
     enabled: (state, index) => isSectionHeading(state, index) && !wholeDocumentSection(state, index),
+    rejection: sectionDeleteRejection,
     run: deleteSection,
   },
   {
@@ -301,7 +295,6 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
 
 /** Block menu group of a block command, by what it acts on. */
 export function blockCommandGroup(id: string): string {
-  if (id === "collect-endnotes") return "Endnotes";
   if (id.startsWith("table-")) return "Table";
   if (id.startsWith("section-")) return "Section";
   return id === "delete" ? "Block" : "Turn into";
@@ -759,7 +752,8 @@ function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
   doc.forEach(node => {
     const heading = node.type.name === "heading" || node.type.name === "readonlyHeading";
     markers.push(sectionMarker({
-      block: heading ? "heading" : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name === "labelTarget" ? "target" : node.type.name,
+      block: heading ? "heading" : endnoteLabel(node) !== undefined ? "footnote"
+        : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name === "labelTarget" ? "target" : node.type.name,
       level: Number(node.attrs.level), original: node.attrs.original ?? undefined,
     }));
   });
@@ -813,13 +807,28 @@ const wholeDocumentSection = (state: EditorState, index: number) => {
   return start === 0 && end === state.doc.childCount;
 };
 
-/** Remove the section at `index`: its label targets, content and deeper sections. */
+/** Whether the block at `at` is content of the section range: endnotes are in no section. */
+const sectionContent = (state: EditorState, { start, end }: { start: number; end: number }) =>
+  (at: number) => at >= start && at < end && endnoteLabel(state.doc.child(at)) === undefined;
+
+/** Why the section at `index` cannot be deleted: it holds the last reference to an endnote,
+ * which Save would refuse to keep. The reader deletes that endnote first, explicitly. */
+function sectionDeleteRejection(state: EditorState, index: number): string | undefined {
+  if (!isSectionHeading(state, index)) return undefined;
+  const orphaned = orphanedEndnoteNumbers(state.doc, sectionContent(state, sectionRange(sectionMarkers(state.doc), index)));
+  return orphaned.length === 0 ? undefined
+    : `This section holds the last reference to endnote ${orphaned.join(", ")}. Delete the endnote first, or move its reference out of the section. Your document is unchanged.`;
+}
+
+/** Remove the section at `index`: its label targets, content and deeper sections. Endnotes stay. */
 export function deleteSection(state: EditorState, index: number): Transaction {
   if (!isSectionHeading(state, index) || wholeDocumentSection(state, index)) throw new Error("invalid section deletion");
-  const { start, end } = sectionRange(sectionMarkers(state.doc), index);
-  const from = blockPos(state, start);
+  const range = sectionRange(sectionMarkers(state.doc), index);
+  const removed = sectionContent(state, range);
+  const from = blockPos(state, range.start);
   // The structure guard declares the snapshot blocks removed by this command.
-  const tr = closeHistory(state.tr).delete(from, blockPos(state, end));
+  const tr = closeHistory(state.tr);
+  for (let at = range.end - 1; at >= range.start; at--) if (removed(at)) tr.delete(blockPos(state, at), blockPos(state, at + 1));
   tr.setSelection(Selection.near(tr.doc.resolve(Math.min(from, tr.doc.content.size))));
   return tr.setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }

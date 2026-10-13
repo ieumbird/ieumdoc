@@ -112,6 +112,9 @@ and the Editor. A heading's block menu moves its section past the previous or ne
 sibling section, or deletes it, in one engine transaction. Save reuses the existing
 block order and deletion path, and the result matches the Core operation. Heading
 levels never change. Read-only blocks and targets move or are removed verbatim.
+[Endnote](footnotes-v1.md#core) definitions belong to no section: a section ends at the
+end of the body, moving or deleting it leaves them, and deleting a section that holds the
+last reference to one is refused before anything changes.
 
 ## External clipboard
 

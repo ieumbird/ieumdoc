@@ -24,7 +24,7 @@
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable top block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
 - Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.5).
 - Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
-- Endnote definitions: one trailing region, 16/24px text, 24px number inset and space before/after the region, 8px between definitions. Only the first has a 1px rule, 12px to the 12/16px `미주` label, then 8px to the definition. Original source disclosures keep their existing dimensions; the [Endnotes contract](footnotes-v1.md#endnotes-presentation-194) defines display order and source conversion.
+- Endnote definitions: one trailing region, 16/24px text, 24px number inset and space before/after the region, 8px between definitions. Only the first has a 1px rule, 12px to the 12/16px `미주` label, then 8px to the definition. Original source disclosures keep their existing dimensions; the [Endnotes contract](footnotes-v1.md#endnotes-presentation) defines display order and source conversion.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.
 
 ## Exceptions and checks

@@ -1,219 +1,10 @@
-import { Extension, Node, type Editor } from "@tiptap/core";
-import { closeHistory } from "@tiptap/pm/history";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
-import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
-import { footnoteNumbers, nextFootnoteLabel } from "@ieumdoc/core/numbering";
-import { endnoteOrderOf, isNewBlockPath } from "./tiptap-projection.ts";
+import { Node } from "@tiptap/core";
+import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
+import { revealEndnote, useEndnoteNumber } from "./endnotes.ts";
 
-type ReturnPoint = { label: string; pos: number };
-const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
-const ORDER_META = "endnoteOrder";
-
-/** Move a position with its top-level block using the engine's existing selection model. */
-function orderedPosition(doc: ProseMirrorNode, order: number[], pos: number): number {
-  const index = doc.resolve(pos).index(0);
-  if (index === doc.childCount) return doc.content.size;
-  let before = 0;
-  let after = 0;
-  doc.forEach((node, _pos, at) => { if (at < index) before += node.nodeSize; });
-  for (const at of order) { if (at === index) break; after += doc.child(at).nodeSize; }
-  return after + pos - before;
-}
-
-export const ENDNOTE_DRAFT_CLOSED = "endnoteDraftClosed";
-
-/** One engine state, body then definitions. Source placement remains a separate explicit edit. */
-export const Endnotes = Extension.create<{ canOrder(): boolean }>({
-  name: "endnotes",
-  addOptions() { return { canOrder: () => true }; },
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: {
-    collectEndnotes: { default: false, rendered: false },
-    endnotesInSource: { default: null, rendered: false },
-  } }]; },
-  addProseMirrorPlugins() {
-    const canOrder = this.options.canOrder;
-    return [new Plugin<ReturnPoint | null>({
-      key: returnPointKey,
-      state: {
-        init: () => null,
-        apply(tr, point) {
-          const visited = tr.getMeta(returnPointKey) as ReturnPoint | undefined;
-          if (visited) return visited;
-          if (!point) return null;
-          const order = tr.getMeta(ORDER_META) as number[] | undefined;
-          const mapped = order ? { pos: orderedPosition(tr.before, order, point.pos), deleted: false } : tr.mapping.mapResult(point.pos);
-          const node = tr.doc.nodeAt(mapped.pos);
-          return !mapped.deleted && node?.type.name === "footnoteReference" && node.attrs.label === point.label
-            ? { ...point, pos: mapped.pos } : null;
-        },
-      },
-      appendTransaction(transactions, _old, state) {
-        if (!canOrder() || !transactions.some(tr => tr.docChanged || tr.getMeta(ENDNOTE_DRAFT_CLOSED))) return null;
-        const order = endnoteOrderOf(state.doc.toJSON().content ?? []);
-        if (order.every((index, at) => index === at)) return null;
-        let first = 0;
-        let last = order.length;
-        while (order[first] === first) first++;
-        while (last > first && order[last - 1] === last - 1) last--;
-        let from = 0;
-        let to = 0;
-        state.doc.forEach((node, _pos, index) => { if (index < first) from += node.nodeSize; if (index < last) to += node.nodeSize; });
-        const tr = state.tr.replaceWith(from, to, order.slice(first, last).map(index => state.doc.child(index)));
-        const selected = state.selection.toJSON();
-        if (selected.anchor !== undefined) selected.anchor = orderedPosition(state.doc, order, selected.anchor);
-        if (selected.head !== undefined) selected.head = orderedPosition(state.doc, order, selected.head);
-        return tr.setSelection(Selection.fromJSON(tr.doc, selected)).setMeta(ORDER_META, order);
-      },
-    })];
-  },
-});
-
-export function collectEndnotesInSource(state: EditorState) {
-  return closeHistory(state.tr).setDocAttribute("collectEndnotes", true);
-}
-
-/** Ordinary writes retain existing source definition order and append new definitions.
- * Body edits can change first-reference order even when the opening source was collected. */
-export function canCollectEndnotes(state: EditorState): boolean {
-  if (state.doc.attrs.collectEndnotes) return false;
-  if (state.doc.attrs.endnotesInSource === false) return true;
-  let previous = -1;
-  let newDefinition = false;
-  let changed = false;
-  state.doc.forEach(node => {
-    if (definitionLabel(node) === undefined) return;
-    const path = String(node.attrs.sourcePath ?? "");
-    if (isNewBlockPath(path)) { newDefinition = true; return; }
-    const index = Number(path);
-    changed ||= newDefinition || index < previous;
-    previous = index;
-  });
-  return changed;
-}
-
-/**
- * Footnote reference labels of the current editor document, in document order: inline
- * references in editable content, and the ones Core read in each read-only block.
- */
-function footnoteReferences(doc: ProseMirrorNode): string[] {
-  const labels: string[] = [];
-  doc.forEach((block) => {
-    if (Array.isArray(block.attrs.footnotes)) labels.push(...block.attrs.footnotes as string[]);
-    else block.descendants((node) => { if (node.type.name === "footnoteReference") labels.push(String(node.attrs.label)); });
-  });
-  return labels;
-}
-
-/** The label a top-level footnote definition defines, editable or read-only; otherwise undefined. */
-function definitionLabel(block: ProseMirrorNode): string | undefined {
-  if (block.type.name === "footnoteDefinition") return String(block.attrs.label);
-  return block.type.name === "unsupportedBlock" && block.attrs.footnote ? String(block.attrs.footnote) : undefined;
-}
-
-/** Whether a top-level block is the definition of the footnote `label`. Labels match exactly, as in MyST. */
-function definesFootnote(block: ProseMirrorNode, label: string): boolean {
-  return definitionLabel(block) === label;
-}
-
-/** Every footnote label the editor document uses, defined or referenced. */
-function footnoteLabels(doc: ProseMirrorNode): string[] {
-  const labels = footnoteReferences(doc);
-  doc.forEach((block) => { const label = definitionLabel(block); if (label !== undefined) labels.push(label); });
-  return labels;
-}
-
-/** A footnote's number as MyST shows it, following every change to the editor document;
- * undefined when the document has no definition for it. Numbers are display only. */
-export function useFootnoteNumber(editor: Editor, label: string): number | undefined {
-  return useEditorState({
-    editor,
-    selector: ({ editor: current }) => {
-      if (!current) return undefined;
-      let defined = false;
-      current.state.doc.forEach((block) => { defined ||= definesFootnote(block, label); });
-      return defined ? footnoteNumbers(footnoteReferences(current.state.doc)).get(label) : undefined;
-    },
-  }) ?? undefined;
-}
-
-/** Go to the definition of the footnote `label`: the caret at the end of an editable one, a
- * read-only one selected; false when there is none. */
-function revealFootnote(editor: Editor, label: string, referencePos?: number): boolean {
-  const { doc } = editor.state;
-  let target: ProseMirrorNode | undefined;
-  let at = 0;
-  doc.forEach((block, pos) => { if (!target && definesFootnote(block, label)) { target = block; at = pos; } });
-  if (!target) return false;
-  const selection = target.type.name === "footnoteDefinition"
-    ? TextSelection.create(doc, at + 1 + target.content.size) : NodeSelection.create(doc, at);
-  return reveal(editor, selection, at, referencePos === undefined ? undefined : { label, pos: referencePos });
-}
-
-/** Return to the invoking reference, falling back to the first remaining reference or its read-only block. */
-export function revealReference(editor: Editor, label: string): boolean {
-  const { doc } = editor.state;
-  const point = returnPointKey.getState(editor.state);
-  if (point?.label === label) return reveal(editor, NodeSelection.create(doc, point.pos), point.pos);
-  let found: number | undefined;
-  doc.forEach((block, pos) => {
-    if (found !== undefined) return;
-    if (Array.isArray(block.attrs.footnotes)) {
-      if ((block.attrs.footnotes as string[]).includes(label)) found = pos;
-      return;
-    }
-    block.descendants((node, offset) => {
-      if (found === undefined && node.type.name === "footnoteReference" && node.attrs.label === label) found = pos + 1 + offset;
-      return found === undefined;
-    });
-  });
-  if (found === undefined) return false;
-  return reveal(editor, NodeSelection.create(doc, found), found);
-}
-
-function reveal(editor: Editor, selection: Selection, pos: number, point?: ReturnPoint): boolean {
-  const tr = editor.state.tr.setSelection(selection);
-  if (point) tr.setMeta(returnPointKey, point);
-  editor.view.dispatch(tr);
-  editor.view.focus();
-  const element = editor.view.nodeDOM(pos);
-  if (element instanceof HTMLElement) element.scrollIntoView({ block: "center" });
-  return true;
-}
-
-/**
- * Replace a slash query in a paragraph, and the space before it, with a new footnote: a reference
- * keeping the bold/italic marks there, and an empty definition at the end of the document that
- * takes the caret. The label is Core's next unused number. Save writes both through Core.
- */
-export function insertFootnote(editor: Editor, range: { from: number; to: number }, sourcePath: string): boolean {
-  const { state } = editor;
-  const $from = state.doc.resolve(range.from);
-  if ($from.depth !== 1 || $from.parent.type.name !== "paragraph" || !$from.sameParent(state.doc.resolve(range.to))) return false;
-  const label = nextFootnoteLabel(footnoteLabels(state.doc));
-  const marks = (state.storedMarks ?? $from.marks()).filter((mark) => mark.type.name === "bold" || mark.type.name === "italic");
-  // `/` opens after a space; the reference follows the word, as footnotes are written.
-  const from = range.from > $from.start() && state.doc.textBetween(range.from - 1, range.from) === " " ? range.from - 1 : range.from;
-  const tr = closeHistory(state.tr).replaceWith(from, range.to, state.schema.nodes.footnoteReference.create({ label }, null, marks));
-  const end = tr.doc.content.size;
-  tr.insert(end, state.schema.nodes.footnoteDefinition.create({ sourcePath, label }));
-  editor.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, end + 1))
-    .setMeta(returnPointKey, { label, pos: from }).scrollIntoView());
-  editor.view.focus();
-  return true;
-}
-
-/** The slash menu's Footnote item, when the query asks for it. */
-export function footnoteCommandItems(query: string): { id: string; label: string; group: string }[] {
-  const needle = query.toLowerCase();
-  return needle.length === 0 || ["endnote", "en", "footnote", "fn", "미주"].some((word) => word.startsWith(needle))
-    ? [{ id: FOOTNOTE_COMMAND, label: "Endnote", group: "References" }] : [];
-}
-
-export const FOOTNOTE_COMMAND = "footnote";
-
-// A footnote reference `[^label]` is an atomic inline node holding its label. Bold and italic
-// apply to it like to text; a link cannot contain it. Its definition is a top-level block.
+// A MyST footnote reference `[^label]`: an atomic inline node holding its label, shown as the
+// endnote's number (endnotes.ts). Bold and italic apply to it like to text; a link cannot contain
+// it. Its definition is a top-level block in the endnotes region.
 export const FootnoteReference = Node.create({
   name: "footnoteReference",
   group: "inline",
@@ -244,7 +35,7 @@ export const FootnoteReference = Node.create({
 
 function FootnoteReferenceView({ node, editor, selected, getPos }: ReactNodeViewProps) {
   const label = String(node.attrs.label ?? "");
-  const number = useFootnoteNumber(editor, label);
+  const number = useEndnoteNumber(editor, label);
   const status = number !== undefined ? `Endnote ${number}. Click to go to its definition.`
     : `Unresolved: no definition of footnote [^${label}] in this document`;
   return (
@@ -256,7 +47,7 @@ function FootnoteReferenceView({ node, editor, selected, getPos }: ReactNodeView
       data-testid="footnote-reference"
       data-label={label}
     >
-      <sup className="cross-reference-chip" title={status} aria-label={status} onClick={() => revealFootnote(editor, label, getPos())}>
+      <sup className="cross-reference-chip" title={status} aria-label={status} onClick={() => revealEndnote(editor, label, getPos())}>
         {number ?? label}
       </sup>
     </NodeViewWrapper>

@@ -45,6 +45,9 @@ const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the mess
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
 
+/** Shown until the first Save of a source whose endnote definitions canonical write moves. */
+const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after the body, in the order of their first reference, keeping each label and text. Source shows the Markdown Save writes.";
+
 /** Shown for the whole session of a document Core cannot write as canonical Markdown. */
 function writeBlockedMessage(reason: string): string {
   return `Read-only: IeumDoc cannot save this document safely. ${reason} Open Source to inspect or copy the original Markdown. Repair the file in an external editor or with the CLI, then Reload to check it again.`;
@@ -92,6 +95,9 @@ export function App() {
   // writable sessions are validated again on every Save/Source request.
   const [writeError, setWriteError] = useState("");
   const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
+  // The opened source writes endnote definitions elsewhere than canonical write puts them; the
+  // first Save moves them. Opening never writes and does not make the document dirty.
+  const [endnotesMove, setEndnotesMove] = useState(false);
   const draftNotice = draftActive
     ? "Save and Source include applied content only. Block property and source drafts remain unsaved until Apply."
     : "";
@@ -151,6 +157,7 @@ export function App() {
       setDocument(next.document);
       sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
+      setEndnotesMove(!next.endnotesInPlace);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
@@ -225,6 +232,7 @@ export function App() {
       payload = collectSupportedEdits(document, submitted);
       const next = await requestSave({ path: openedPath, revision: sourceRevision, base: sessionBase.current, ...payload });
       setSourceRevision(next.revision);
+      setEndnotesMove(false);
       if (sessionBase.current) sessionBase.current.savedEdits = payload;
       editorRef.current?.finishSave(true);
       const hasPendingUserState = editorRef.current?.hasUnsavedChanges() ?? false;
@@ -277,6 +285,7 @@ export function App() {
       setDocument(next.document);
       sessionBase.current = { source: next.source };
       setWriteError(next.writeError);
+      setEndnotesMove(!next.endnotesInPlace);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
       setEditorGeneration((value) => value + 1);
@@ -473,6 +482,7 @@ export function App() {
             error={error}
             notice={notice}
             draftNotice={draftNotice}
+            documentNotice={endnotesMove && !writeError ? ENDNOTES_MOVE_NOTICE : ""}
             warning={writeError ? writeBlockedMessage(writeError) : ""}
             update={updateNotice}
             onDismissError={() => setError("")}
@@ -666,6 +676,7 @@ async function requestDocument(
     revision: payload.revision,
     source: payload.source,
     writeError: typeof payload.writeError === "string" ? payload.writeError : "",
+    endnotesInPlace: payload.endnotesInPlace !== false,
   };
 }
 

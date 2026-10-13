@@ -1311,6 +1311,16 @@ ol.list { list-style: decimal; }
   cursor: grab;
 }
 
+/* An endnote has no insert control; its handle stays aligned with the other blocks'. */
+.block-insert-space {
+  width: var(--size-control-compact);
+  flex: none;
+}
+
+.block-handle[data-endnote="true"] {
+  cursor: pointer;
+}
+
 .block-insert:hover:not([aria-expanded="true"]),
 .block-handle:hover:not([aria-expanded="true"]) {
   background: var(--id-color-surface-hover);

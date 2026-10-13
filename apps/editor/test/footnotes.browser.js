@@ -1,34 +1,71 @@
-// Footnotes (#119, #140): numbered reference chips go to their definitions, a paragraph with
-// footnotes is edited and saved with every definition where it is written, a read-only
-// definition's own source applies unchanged, a one-paragraph definition is edited in place, `/`
-// Footnote inserts a reference and a definition whose number goes back to it, and removing a
-// footnote's last reference is refused with the reason.
+// Endnotes (#119, #140, #194, endnotes v4): MyST footnotes shown as one endnotes region after the
+// body. Opening a file whose definitions are written within the body changes nothing on disk,
+// says what the first Save does, and Source shows that Markdown; Save writes the definitions after
+// the body in first-reference order, and saving again gives the same file. Reference chips go to
+// their definitions and numbers return to the invoking reference; definitions are edited in place
+// or as source; `/` Endnote inserts one; endnotes cannot be dragged and sections hold none;
+// reference order changes move them in one Undo step; a draft holds placement until it closes.
 async (page, { screenshots = false, openDocument }) => {
   page.setDefaultTimeout(15_000);
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const saved = () => page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const sep = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(sep).slice(0, -4).join(sep);
-  const file = [root, 'tmp', 'footnotes', 'footnotes.md'].join(sep);
-  const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.replaceAll('\r\n', '\n');
+  const fixture = name => [root, 'tmp', 'footnotes', name].join(sep);
+  const reader = path => async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path)}`)).json()).source.replaceAll('\r\n', '\n');
+  const file = fixture('footnotes.md');
+  const read = reader(file);
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  const open = async () => {
-    await openDocument(page, file);
+  const open = async path => {
+    await openDocument(page, path);
     await ready();
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
-  await open();
-  const opened = await read();
   const editor = page.locator('.document-editor');
   const chips = editor.getByTestId('footnote-reference');
   const texts = async locator => (await locator.allInnerTexts()).map(text => text.trim());
+  const notice = page.getByTestId('document-notice');
+  const save = page.locator('.top-bar [data-testid="save"]');
+  const status = () => page.getByTestId('status').innerText();
+  const order = () => editor.evaluate(element => {
+    const labels = [];
+    element.editor.state.doc.forEach(node => labels.push(node.type.name === 'footnoteDefinition' ? node.attrs.label : node.attrs.footnote || node.type.name));
+    return labels.join(' ');
+  });
+  const showSource = async () => {
+    await page.getByRole('button', {name:'Source', exact:true}).click();
+    const preview = page.getByTestId('source-view').locator('pre');
+    await preview.waitFor();
+    return preview;
+  };
+  const showVisual = async () => {
+    await page.getByRole('button', {name:'Visual', exact:true}).click();
+    await editor.waitFor();
+  };
   const result = {};
 
-  // [^b] is referenced first, so it is footnote 1 although [^a] sorts first.
+  // An external file writes [^b] between paragraphs. Opening it writes nothing and is not an edit;
+  // the endnotes follow the body, and a notice and Source say what the first Save writes.
+  const written = '# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n' +
+    '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n';
+  const placed = '# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
+    '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n';
+  await open(file);
+  assert(await read() === written, 'Opening changed the file');
+  assert(await order() === 'heading paragraph paragraph b a', `Opened order: ${await order()}`);
+  assert(await status() !== 'Unsaved changes', 'Opening made the document dirty');
+  assert(/Save moves this file's endnote definitions after the body/.test(await notice.innerText()), 'Missing endnote placement notice');
+  assert((await showSource().then(preview => preview.textContent())) === placed, 'Source differs from the Markdown Save writes');
+  await showVisual();
+  assert(await read() === written && await status() !== 'Unsaved changes', 'Source changed the file or made it dirty');
+  result.openWritesNothingAndExplains = true;
+
+  // [^b] is referenced first, so it is endnote 1 although [^a] sorts first.
   assert(JSON.stringify(await texts(chips)) === '["1","2"]', `Chip numbers: ${await texts(chips)}`);
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["b","a"]', 'Chip labels');
   assert(JSON.stringify(await texts(editor.getByTestId('footnote-number'))) === '["1","2"]', 'Definition numbers');
@@ -39,7 +76,7 @@ async (page, { screenshots = false, openDocument }) => {
   assert(selected === 'a', `Chip went to ${selected}`);
   result.chipGoesToDefinition = true;
 
-  // The definition's source is its own; applying it unchanged changes nothing.
+  // The read-only definition's source is its own; applying it unchanged changes nothing.
   const definition = page.locator('.original-content').filter({hasText:'[^a]: Defined later,'});
   await definition.locator('summary').click();
   assert(await definition.locator('pre').textContent() === '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.', 'Definition source');
@@ -50,19 +87,21 @@ async (page, { screenshots = false, openDocument }) => {
   // Apply returns focus to the editor, with the definition selected, on the next frame.
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
 
+  // The first Save writes the edit and the endnotes after the body; the notice ends with it.
   await editor.locator('p.paragraph', {hasText:'First claim'}).click({position:{x:4, y:8}});
   // The click replaces the definition's node selection a moment later; typing before would replace the block.
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.empty);
   await page.keyboard.press('End');
   await page.keyboard.type(' Edited.');
-  await page.locator('.top-bar [data-testid="save"]').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  const saved = await read();
-  assert(saved === opened.replace('second[^a].', 'second[^a]. Edited.'), 'Saved Markdown differs: ' + JSON.stringify({opened, saved}));
+  await save.click();
+  await saved();
+  const edited = await read();
+  assert(edited === placed.replace('second[^a].', 'second[^a]. Edited.'), 'Saved Markdown differs: ' + JSON.stringify({placed, edited}));
+  assert(await notice.count() === 0, 'Notice stayed after Save');
   await page.getByRole('button', {name:'Reload', exact:true}).click();
   await ready();
-  assert(JSON.stringify(await texts(chips)) === '["1","2"]', 'Reloaded chips');
-  result.editSaveReload = true;
+  assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await notice.count() === 0, 'Reloaded chips or notice');
+  result.firstSavePlacesEndnotes = true;
 
   // A chip goes into its editable definition, which is edited in place.
   const caretIn = label => page.waitForFunction(label => {
@@ -74,7 +113,7 @@ async (page, { screenshots = false, openDocument }) => {
   await page.keyboard.type(' More.');
   result.chipGoesIntoEditableDefinition = true;
 
-  // `/` Footnote: the reference follows the word, and the new definition at the end takes the caret.
+  // `/` Endnote: the reference follows the word, and the new definition takes the caret in the region.
   await editor.locator('p.paragraph', {hasText:'Middle paragraph.'}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /footnote');
@@ -95,10 +134,10 @@ async (page, { screenshots = false, openDocument }) => {
   const back = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.node?.attrs.label);
   assert(back === '1', `Number went back to ${back}`);
   result.slashInsertsFootnote = true;
-  await page.locator('.top-bar [data-testid="save"]').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  await save.click();
+  await saved();
   const inserted = await read();
-  const expected = saved.replace('[^b]: Defined first.', '[^b]: Defined first. More.').replace('Middle paragraph.', 'Middle paragraph.[^1]') + '\n[^1]: New note.\n';
+  const expected = edited.replace('[^b]: Defined first.', '[^b]: Defined first. More.').replace('Middle paragraph.', 'Middle paragraph.[^1]') + '\n[^1]: New note.\n';
   assert(inserted === expected, 'Saved Markdown differs: ' + JSON.stringify({expected, inserted}));
   await page.getByRole('button', {name:'Reload', exact:true}).click();
   await ready();
@@ -115,22 +154,31 @@ async (page, { screenshots = false, openDocument }) => {
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.node?.type.name === 'footnoteReference');
   await page.keyboard.press('Backspace');
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
-  await page.locator('.top-bar [data-testid="save"]').click();
+  await save.click();
   await page.getByText('Save failed', {exact:true}).waitFor();
   assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing');
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
 
-  // Endnotes (#194): one trailing region, including read-only definitions, while Source
-  // and ordinary Save retain the existing definition positions.
+  // One trailing region, including read-only definitions, from definitions written in three places.
   await page.reload();
   await ready();
-  const regionsFile = [root, 'tmp', 'footnotes', 'regions.md'].join(sep);
-  await openDocument(page, regionsFile);
-  await ready();
-  const regionsRead = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(regionsFile)}`)).json()).source.replaceAll('\r\n', '\n');
+  const regionsFile = fixture('regions.md');
+  const regionsRead = reader(regionsFile);
+  await open(regionsFile);
   const regionsSource = await regionsRead();
+  const regionsBody = regionsSource.split('\n\n').filter(part => !part.startsWith('[^') && !part.startsWith('    '));
+  const regionsNotes = [
+    '[^b]: An editable note beside a read-only definition.',
+    '[^a]: A note with two paragraphs.\n\n    Its original source stays available.',
+    '[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.',
+    '[^d]: The final note.',
+  ];
+  const regionsPlaced = [...regionsBody, ...regionsNotes].join('\n\n') + '\n';
+  assert(regionsSource !== regionsPlaced, 'Fixture already places its endnotes');
   const originalState = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  // The region's decorative label is not a heading: the Outline lists the document's one heading.
+  assert(JSON.stringify(await page.getByTestId('outline').locator('button').allInnerTexts()) === '["Notes in context"]', 'Region label entered the Outline');
   const presentation = () => editor.evaluate(element => {
     const {view, state} = element.editor;
     const isDefinition = node => node.type.name === 'footnoteDefinition' || (node.type.name === 'unsupportedBlock' && node.attrs.footnote);
@@ -179,20 +227,39 @@ async (page, { screenshots = false, openDocument }) => {
   }
   assert(displays.every(display => display.notes.filter(note => note.startsGroup).length === 1 && display.notes.at(-1).endsGroup), 'Expected one trailing region');
   assert(displays.every(display => display.notes.map(note => note.label).join(',') === 'b,a,c,d'), 'Definitions must follow first reference order');
-  assert(await editor.evaluate(element => {
-    let started = false;
-    return element.editor.getJSON().content.every(node => {
-      const note = node.type === 'footnoteDefinition' || node.attrs?.footnote;
-      if (note) started = true;
-      return !started || note;
-    });
-  }), 'Body appeared after an endnote');
+  assert(await order() === 'heading paragraph paragraph paragraph b a c d', 'Body appeared after an endnote');
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Presentation changed document state');
   result.singleTrailingEndnotes = true;
 
+  // Endnotes are not dragged and nothing is inserted after them: their handle opens block actions,
+  // and a body block dropped below them lands at the end of the body.
+  await page.setViewportSize({width:1440, height:900});
+  const handles = page.locator('.block-handle[data-endnote="true"]');
+  assert(await handles.count() === 4 && (await handles.evaluateAll(nodes => nodes.map(node => node.getAttribute('draggable')))).every(value => value === 'false'), 'Endnote handles can drag');
+  assert(await page.locator('.block-insert').count() === 4, 'An endnote offers Insert block below');
+  await editor.locator('[data-testid="footnote-definition"][data-label="b"]').hover();
+  await page.getByRole('button', {name:/^Actions for endnote block \d+$/}).first().click();
+  const actions = await page.getByRole('menuitem').allInnerTexts();
+  assert(actions.length > 0 && actions.every(item => !/미주로 모으기|Insert/.test(item)), `Endnote actions: ${actions}`);
+  await page.keyboard.press('Escape');
+  const resumes = editor.locator('p.paragraph', {hasText:'Body resumes'});
+  await resumes.hover({position:{x:4, y:4}});
+  const handle = await page.getByRole('button', {name:'Move paragraph block 3', exact:true}).boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  const lastNote = await editor.locator('[data-testid="footnote-definition"], .unsupported.footnote-definition').last().boundingBox();
+  for (const y of [lastNote.y + lastNote.height - 2, lastNote.y + lastNote.height - 1]) await page.mouse.move(700, y, {steps:5});
+  await page.mouse.up();
+  await page.getByTestId('block-drag-source').waitFor({state:'detached'});
+  assert(await order() === 'heading paragraph paragraph paragraph b a c d', `Drop entered the endnotes: ${await order()}`);
+  assert(await editor.evaluate(element => element.editor.state.doc.child(3).textContent.startsWith('Body resumes')), 'Dropped block not at the body end');
+  await editor.evaluate(element => element.editor.commands.focus());
+  await page.keyboard.press('Control+z');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Undo did not restore the drop');
+  result.endnotesNotDraggedOrInsertedAfter = true;
+
   // Enter exits a definition into the body before the region. The appended ordering
   // transaction shares the engine's original history event.
-  await page.setViewportSize({width:1440, height:900});
   await editor.locator('[data-testid="footnote-definition"][data-label="b"] p').click();
   await caretIn('b');
   await page.keyboard.press('Enter');
@@ -212,10 +279,8 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await page.evaluate(() => navigator.clipboard.readText()) === 'clipboard before note selection', 'Rejected copy changed clipboard');
   assert(/cannot be copied losslessly/.test(await page.getByTestId('notice').innerText()), 'Existing copy restriction missing');
   assert(!await editor.evaluate(element => { const range = document.createRange(); range.selectNodeContents(element); return range.toString().includes('미주'); }), 'Generated heading entered selected text');
-  await page.getByRole('button', {name:'Source', exact:true}).click();
-  const preview = page.getByTestId('source-view').locator('pre');
-  await preview.waitFor();
-  assert(await preview.textContent() === regionsSource, 'Decorative heading or reordered notes entered Source');
+  const preview = await showSource();
+  assert(await preview.textContent() === regionsPlaced, 'Source differs from the Markdown Save writes');
   await preview.evaluate(element => {
     const range = document.createRange(); range.selectNodeContents(element);
     const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
@@ -223,67 +288,92 @@ async (page, { screenshots = false, openDocument }) => {
   await page.keyboard.press('Control+c');
   const copiedSource = (await page.evaluate(() => navigator.clipboard.readText())).replaceAll('\r\n', '\n');
   // Chromium's native preformatted selection omits the terminal newline.
-  assert(copiedSource === regionsSource.replace(/\n$/, ''), 'Source clipboard differs: ' + JSON.stringify({copiedSource, regionsSource}));
-  await page.getByRole('button', {name:'Visual', exact:true}).click();
-  await editor.waitFor();
+  assert(copiedSource === regionsPlaced.replace(/\n$/, ''), 'Source clipboard differs: ' + JSON.stringify({copiedSource, regionsPlaced}));
+  await showVisual();
   result.decorativeHeadingExcluded = true;
 
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  assert(await regionsRead() === regionsSource, 'Presentation changed saved Markdown');
+  // An unedited document's first Save places its endnotes; saving again gives the same file.
+  assert(await status() !== 'Unsaved changes' && await notice.count() === 1 && await regionsRead() === regionsSource, 'Unedited document state');
+  await save.click();
+  await saved();
+  assert(await regionsRead() === regionsPlaced, 'First Save did not place the endnotes');
+  assert(await notice.count() === 0, 'Notice stayed after Save');
+  await save.click();
+  await saved();
+  assert(await regionsRead() === regionsPlaced, 'Repeated Save changed the file');
   await page.getByRole('button', {name:'Reload', exact:true}).click();
   await ready();
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Reload changed definition order or state');
   assert((await presentation()).notes.every(note => note.startsGroup ? note.heading === '"미주"' : note.heading !== '"미주"'), 'Reload lost group presentation');
-  result.regionSaveReload = true;
+  await save.click();
+  await saved();
+  assert(await regionsRead() === regionsPlaced, 'Save after Reload changed the file');
+  result.uneditedSavePlacesOnce = true;
 
-  // Explicit source conversion is one undoable edit; unchanged projection alone never requests it.
-  const note = editor.locator('[data-testid="footnote-definition"][data-label="b"]');
-  await note.hover();
-  await page.getByRole('button', {name:/^Move footnotedefinition block /}).first().click();
-  await page.getByRole('menuitem', {name:'미주로 모으기', exact:true}).click();
-  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Conversion command missing');
-  assert(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Conversion not dirty');
-  await page.keyboard.press('Control+z');
-  assert(!await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'One Undo did not undo conversion');
-  await page.keyboard.press('Control+Shift+z');
-  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Redo did not restore conversion');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  const converted = await regionsRead();
-  const body = regionsSource.split('\n\n').filter(part => !part.startsWith('[^') && !part.startsWith('    '));
-  const definitions = [
-    '[^b]: An editable note beside a read-only definition.',
-    '[^a]: A note with two paragraphs.\n\n    Its original source stays available.',
-    '[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.',
-    '[^d]: The final note.',
-  ];
-  assert(converted === [...body, ...definitions].join('\n\n') + '\n', 'Conversion changed content: ' + converted);
+  // Moving [^b]'s reference to the end of the paragraph moves its endnote last; one Undo restores both.
+  const moveReference = () => editor.evaluate(element => {
+    const {state, view} = element.editor;
+    const start = state.doc.child(0).nodeSize + 1;
+    let at = -1;
+    state.doc.child(1).forEach((node, offset) => { if (node.type.name === 'footnoteReference' && node.attrs.label === 'b') at = start + offset; });
+    const end = start + state.doc.child(1).content.size;
+    const chip = state.doc.nodeAt(at);
+    view.dispatch(state.tr.insert(end, chip).delete(at, at + chip.nodeSize));
+  });
+  await moveReference();
+  assert(await order() === 'heading paragraph paragraph paragraph a c d b', `Reordered endnotes: ${await order()}`);
+  assert(JSON.stringify(await texts(chips)) === '["1","2","3","4"]' && JSON.stringify(await texts(editor.getByTestId('footnote-number'))) === '["1","2","3","4"]', 'Renumbered endnotes');
   await editor.evaluate(element => element.editor.commands.focus());
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  const orderBecomes = expected => page.waitForFunction(expected => {
+    const labels = [];
+    document.querySelector('.document-editor').editor.state.doc.forEach(node => labels.push(node.type.name === 'footnoteDefinition' ? node.attrs.label : node.attrs.footnote || node.type.name));
+    return labels.join(' ') === expected;
+  }, expected, {timeout: 5000}).then(() => true, () => false);
   await page.keyboard.press('Control+z');
-  assert(!await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Undo after Save did not undo conversion');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  assert(await regionsRead() === regionsSource, 'Undo after Save did not restore original source placement');
-  await editor.evaluate(element => element.editor.commands.focus());
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  assert(await orderBecomes('heading paragraph paragraph paragraph b a c d'), 'Undo did not restore reference and endnote order');
   await page.keyboard.press('Control+Shift+z');
-  assert(await editor.evaluate(element => element.editor.state.doc.attrs.collectEndnotes), 'Redo after Save did not restore conversion');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  assert(await regionsRead() === converted, 'Redo after Save did not restore conversion');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
-  await ready();
-  assert(await editor.evaluate(element => element.editor.state.doc.attrs.endnotesInSource), 'Reload did not retain source conversion');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
-  assert(await regionsRead() === converted, 'Repeated Save changed converted source');
-  result.explicitSourceConversion = true;
+  assert(await orderBecomes('heading paragraph paragraph paragraph a c d b'), 'Redo did not restore reference and endnote order');
+  await save.click();
+  await saved();
+  const reordered = [regionsBody[0], regionsBody[1].replace('First claim[^b], second[^a], long note[^c] and final note[^d].', 'First claim, second[^a], long note[^c] and final note[^d].[^b]'),
+    ...regionsBody.slice(2), regionsNotes[1], regionsNotes[2], regionsNotes[3], regionsNotes[0]].join('\n\n') + '\n';
+  assert(await regionsRead() === reordered, 'Saved reference order differs: ' + await regionsRead());
+  result.referenceOrderUndoRedo = true;
+
+  // Sections hold no endnotes: deleting the last section keeps the endnotes other sections
+  // reference, deleting one that holds an endnote's last reference is refused, and moving a
+  // section leaves the endnotes after the body.
+  const sectionsFile = fixture('sections.md');
+  const sectionsRead = reader(sectionsFile);
+  await open(sectionsFile);
+  const headingAction = async (text, item) => {
+    const index = await editor.evaluate((element, text) => {
+      let found = -1;
+      element.editor.state.doc.forEach((node, _pos, at) => { if (found < 0 && node.textContent === text) found = at; });
+      return found + 1;
+    }, text);
+    await editor.locator('h1, h2, h3').filter({hasText:new RegExp(`^${text}$`)}).hover();
+    await page.getByRole('button', {name:`Move heading block ${index}`, exact:true}).click();
+    await page.getByRole('menuitem', {name:item, exact:true}).click();
+  };
+  assert(await order() === 'heading heading paragraph heading paragraph b a', `Sections order: ${await order()}`);
+  await headingAction('Section A', 'Delete section');
+  assert(/last reference to endnote 2\b/.test(await page.getByTestId('notice').innerText()), 'Orphaning section delete not explained');
+  assert(await order() === 'heading heading paragraph heading paragraph b a', 'Refused section delete changed the document');
+  await headingAction('Section A', 'Move section down');
+  assert(await order() === 'heading heading paragraph heading paragraph b a' &&
+    await editor.evaluate(element => element.editor.state.doc.child(1).textContent === 'Section B'), 'Section move took endnotes');
+  await page.keyboard.press('Control+z');
+  await headingAction('Section B', 'Delete section');
+  assert(await order() === 'heading heading paragraph b a', `Last section delete took endnotes: ${await order()}`);
+  await save.click();
+  await saved();
+  assert(await sectionsRead() === '# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n', 'Section delete saved differently: ' + await sectionsRead());
+  result.sectionsHoldNoEndnotes = true;
 
   // Repeated references return to the invoking occurrence after definition and body edits.
-  await openDocument(page, [root, 'tmp', 'footnotes', 'repeat.md'].join(sep));
-  await ready();
+  await open(fixture('repeat.md'));
   await editor.locator('[data-label="x"][data-testid="footnote-reference"] sup').nth(1).click();
   await caretIn('x');
   await page.keyboard.type(' Edited.');
@@ -296,13 +386,16 @@ async (page, { screenshots = false, openDocument }) => {
   await page.keyboard.type('Prefix ');
   await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').click();
   assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent.startsWith('Second')), 'Return bookmark did not map body edits');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  // Screen readers hear the number and its action.
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').getAttribute('aria-label') === 'Endnote 1. Return to the reference.', 'Number has no accessible name');
+  await save.click();
+  await saved();
+  assert(await reader(fixture('repeat.md'))() === '# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently');
+  result.returnToInvokingReference = true;
 
-  // Source drafts survive a pending display reorder; Cancel resumes ordering.
+  // Source drafts survive a pending reorder; Cancel resumes it.
   // This fixture's definitions are editable, so use the preserved multi-paragraph definition.
-  await openDocument(page, regionsFile);
-  await ready();
+  await open(regionsFile);
   const preserved = editor.locator('[data-block="unsupported"]').filter({hasText:'A note with two paragraphs.'}).locator('.original-content');
   await preserved.locator('summary').click();
   await preserved.getByTestId('block-source-edit').click();
@@ -319,7 +412,7 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await preserved.getByTestId('block-source-input').inputValue() === '[^a]: Draft text.', 'Ordering discarded source draft');
   await preserved.getByTestId('block-source-cancel').click();
   assert((await presentation()).notes.filter(note => note.startsGroup).length === 1, 'Cancel did not finish ordering');
-  result.returnToInvokingReference = true;
+  assert(await order() === 'heading paragraph paragraph paragraph 1 a c d b', `Resumed order: ${await order()}`);
   result.orderingPreservesSourceDraft = true;
   return result;
 }

@@ -85,9 +85,18 @@ export function footnoteNumbers(references: Iterable<string>): Map<string, numbe
   return numbers;
 }
 
-/** Body blocks first, then definitions in first-reference order. References held in a
- * definition follow the body's references, including preserved/read-only definitions. */
-export function endnoteOrder(blocks: readonly { definition?: string; references: readonly string[] }[]): number[] {
+/** A top-level block as endnote ordering sees it: the footnote label it defines, if it is a
+ * definition, and the footnote references it holds in document order. */
+export type EndnoteBlock = { definition?: string; references: readonly string[] };
+
+/**
+ * Endnote order, the one placement policy of footnote definitions: body blocks first, as they
+ * are, then the definitions in the order of the first reference to each. References held in a
+ * definition (preserved/read-only ones can hold them) follow the body's references. A
+ * definition no reference reaches comes last, in its current order. Core's parse and canonical
+ * write and the Editor's endnotes region all order by it.
+ */
+export function endnoteOrder(blocks: readonly EndnoteBlock[]): number[] {
   const body = blocks.flatMap((block, index) => block.definition === undefined ? [index] : []);
   const definitions = blocks.flatMap((block, index) => block.definition === undefined ? [] : [index]);
   const referenced = new Set(body.flatMap(index => blocks[index].references));
@@ -99,6 +108,18 @@ export function endnoteOrder(blocks: readonly { definition?: string; references:
   const numbers = footnoteNumbers(referenced);
   return [...body, ...definitions.sort((left, right) =>
     (numbers.get(blocks[left].definition!) ?? Infinity) - (numbers.get(blocks[right].definition!) ?? Infinity))];
+}
+
+/**
+ * Labels of the definitions that some block references now and none would once the blocks
+ * `removed` selects are gone. Canonical write refuses an unreferenced definition, so a
+ * structural removal names them before it runs rather than leaving them for Save.
+ */
+export function orphanedEndnotes(blocks: readonly EndnoteBlock[], removed: (index: number) => boolean): string[] {
+  const before = new Set(blocks.flatMap(block => block.references));
+  const after = new Set(blocks.flatMap((block, index) => removed(index) ? [] : block.references));
+  return blocks.flatMap((block, index) => block.definition !== undefined && !removed(index) &&
+    before.has(block.definition) && !after.has(block.definition) ? [block.definition] : []);
 }
 
 /** The label a new footnote takes: the smallest positive number no footnote in `labels` uses.
