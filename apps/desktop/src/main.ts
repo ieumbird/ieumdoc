@@ -175,6 +175,7 @@ function registerIpc(): void {
 function createWindow(): void {
   const created = new BrowserWindow({
     width: 1400, height: 900, minWidth: 360, minHeight: 480, title: "IeumDoc", show: false, backgroundColor: "#f6f7f9",
+    icon: path.join(appRoot, "icon.ico"),
     webPreferences: {
       preload: path.join(appRoot, "preload.cjs"),
       contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, spellcheck: false,
