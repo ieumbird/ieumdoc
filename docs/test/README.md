@@ -77,6 +77,8 @@ CI의 Windows Desktop job은 위 install/update, clean package와 packaged regre
 
 ## Real GitHub Beta update
 
+2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)에 있다. 아래 명령의 현재 대상은 beta.2→beta.3이다.
+
 2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다. 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
 ```powershell
