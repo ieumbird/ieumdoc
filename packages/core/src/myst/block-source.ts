@@ -1,5 +1,5 @@
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
-import { DROPPED_FOOTNOTE_FIELD, sourceDefinitions } from "./footnote.ts";
+import { DROPPED_FOOTNOTE_FIELD, endnotePlacement, sourceDefinitions } from "./footnote.ts";
 import { OPTIONS, parse } from "./parse.ts";
 import { rememberSource, type MystDocument } from "./tree.ts";
 
@@ -20,6 +20,8 @@ export function parseBlockSource(source: string, footnotes: string[] = []): Myst
   }
   const followed = parseInDocument(`${source}\n\n${NEXT_BLOCK}\n`, footnotes);
   const expected = { type: "root", children: [fragment.children[0], ...parse(NEXT_BLOCK).children] };
+  // A definition reads back after the body, as parse places it.
+  expected.children = endnotePlacement(expected);
   if (semanticDifference(semanticFingerprint(expected), semanticFingerprint(followed))) {
     throw new Error("block source is not closed: it would continue into the next block");
   }

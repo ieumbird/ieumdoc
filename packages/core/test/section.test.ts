@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sectionRange, type SectionMarker } from "../src/section.ts";
-import { getEditableDocument, moveSection, parse, removeSection, serialize } from "./core-internal.ts";
+import { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "../src/section.ts";
+import { getEditableDocument, moveBlock, moveSection, parse, removeSection, serialize } from "./core-internal.ts";
 
 // 0 Preamble · 1 # One · 2 Intro · 3 (sec-a)= · 4 ## A · 5 Body A · 6 ### A.1 · 7 Deep · 8 ## B · 9 Body B · 10 # Two · 11 End
 const source = "Preamble.\n\n# One\n\nIntro.\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\nDeep {u}`x`.\n\n## B\n\nBody B.\n\n# Two\n\nEnd.\n";
@@ -17,6 +17,19 @@ test("a section runs from its heading's label targets to the next heading of the
   assert.deepEqual(sectionRange(markers, 6), { start: 6, end: 8 });
   assert.deepEqual(sectionRange(markers, 10), { start: 10, end: 12 });
   assert.throws(() => sectionRange(markers, 0), /not a heading/);
+});
+
+test("endnotes are in no section: the last section ends with the body, and the body end is a boundary", () => {
+  const markers: SectionMarker[] = [1, null, 2, null, "endnote", "endnote"];
+  assert.deepEqual(sectionRange(markers, 0), { start: 0, end: 4 });
+  assert.deepEqual(sectionRange(markers, 2), { start: 2, end: 4 });
+  assert.deepEqual(sectionBoundaries(markers), [0, 2, 4, 6]);
+  assert.equal(sectionMarker({ block: "footnote" }), "endnote");
+  // A definition still inside the body is not section content, but does not end the section.
+  const inBody = moveBlock(parse("# A\n\nOne[^n].\n\n## B\n\nTwo[^n].\n\n[^n]: Note.\n"), 4, 2);
+  assert.equal(serialize(removeSection(inBody, 3)), "# A\n\nOne[^n].\n\n[^n]: Note.\n");
+  assert.equal(serialize(moveSection(inBody, 3, 0)), "## B\n\nTwo[^n].\n\n# A\n\nOne[^n].\n\n[^n]: Note.\n");
+  assert.throws(() => removeSection(removeSection(inBody, 3), 0), /footnote \[\^n\] with no reference/);
 });
 
 test("moveSection moves a heading with its targets, content and subsections, keeping read-only blocks verbatim", () => {

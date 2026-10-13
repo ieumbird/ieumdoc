@@ -314,7 +314,6 @@ function supportedEditsOf(value: unknown): SupportedEdits {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);
   }
   if (value.headingNumbering !== undefined && typeof value.headingNumbering !== "boolean") throw new Error("invalid heading numbering");
-  if (value.collectEndnotes !== undefined && typeof value.collectEndnotes !== "boolean") throw new Error("invalid endnotes conversion");
   return value as SupportedEdits;
 }
 

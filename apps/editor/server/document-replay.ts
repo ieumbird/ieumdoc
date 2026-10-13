@@ -1,7 +1,7 @@
 import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
   canonicalWriteError,
-  collectEndnotes,
+  endnotesInPlace,
   getEditableDocument,
   isAdmonitionVariant,
   inlineContentLength,
@@ -80,10 +80,10 @@ function editAt<T>(target: OrderItem, apply: () => T): T {
   catch (error) { throw new SaveContentError(error instanceof Error ? error.message : String(error), target, { cause: error }); }
 }
 
-/** The read model and canonical writeability of one parsed snapshot. */
-export function readModel(source: string): { document: EditableDocument; writeError: string | null } {
+/** The read model, canonical writeability and endnote placement of one parsed snapshot. */
+export function readModel(source: string): { document: EditableDocument; writeError: string | null; endnotesInPlace: boolean } {
   const document = parse(source);
-  return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null };
+  return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null, endnotesInPlace: endnotesInPlace(document) };
 }
 
 export function saveEdits(
@@ -468,8 +468,6 @@ export function saveEdits(
     }
   }
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
-  if (edits.collectEndnotes !== undefined && typeof edits.collectEndnotes !== "boolean") throw new Error("invalid endnotes conversion");
-  if (edits.collectEndnotes) document = collectEndnotes(document);
   validateStructure(document);
   const markdown = serialize(document);
   return { markdown };

@@ -15,7 +15,8 @@ import { rememberSource, type MystDocument } from "./tree.ts";
  *   so it is off, and a typed straight quote reloads exactly as written;
  * - a leading UTF-8 byte order mark is an encoding signature, not content;
  * - front matter is marked so canonical write preserves its metadata role;
- * - footnote definitions get their own source lines, and those the parse dropped are recorded.
+ * - footnote definitions get their own source lines and follow the body in endnote order, as
+ *   canonical write puts them; those the parse dropped are recorded.
  */
 export const OPTIONS = { extensions: { smartquotes: false } };
 

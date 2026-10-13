@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  canonicalWriteError, collectEndnotes, footnoteNumbers, getEditableDocument, insertFootnote, insertFootnoteDefinition, insertHeading, insertParagraph, insertQuote,
+  canonicalWriteError, endnotesInPlace, footnoteNumbers, getEditableDocument, insertFootnote, insertFootnoteDefinition, insertHeading, insertParagraph, insertQuote,
   moveBlock, nextFootnoteLabel, parse, removeBlock, replaceBlockSource, serialize, updateFootnoteDefinition, updateParagraphInlineContent,
   type EditableBlock, type InlineContent,
 } from "@ieumdoc/core";
@@ -28,40 +28,36 @@ const SOURCE = [
   "",
 ].join("\n");
 
+// Canonical Markdown of SOURCE: the body, then the endnotes in first-reference order.
+const PLACED = [
+  "# Title",
+  "",
+  "Text with **a note[^n]** and more[^Long-1].",
+  "",
+  "Another paragraph.",
+  "",
+  "Tail.",
+  "",
+  "[^n]: The note, see[^inner].",
+  "",
+  "[^Long-1]: A longer note",
+  "    with a second line.",
+  "",
+  "    Second paragraph.",
+  "",
+  "[^inner]: Inner.",
+  "",
+].join("\n");
+
 const footnoteBlock = (blocks: EditableBlock[], label: string) =>
   blocks.find((block) => block.block === "footnote" && block.label === label)!;
 
-test("explicit endnote collection preserves body order, labels and rich/read-only definitions", () => {
-  const original = parse(SOURCE);
-  const collected = collectEndnotes(original);
-  const blocks = getEditableDocument(collected).blocks;
-  assert.deepEqual(blocks.map(block => block.block === "footnote" ? block.label : block.block),
-    ["heading", "paragraph", "paragraph", "paragraph", "n", "Long-1", "inner"]);
-  for (const label of ["n", "Long-1", "inner"]) {
-    const next = footnoteBlock(blocks, label);
-    const before = footnoteBlock(getEditableDocument(original).blocks, label);
-    assert.equal(next.block === "footnote" && next.text, before.block === "footnote" && before.text);
-  }
-  const markdown = serialize(collected);
-  assert.equal(serialize(collectEndnotes(parse(markdown))), markdown, "conversion must be idempotent");
-  assert.equal(serialize(original), SOURCE, "operation mutated its input");
-  assert.ok(markdown.indexOf("Tail.") < markdown.indexOf("[^n]:"));
-  const reordered = parse("First[^b], second[^a].\n\n[^a]: **Second**.\n\nBody.\n\n[^b]: First $x$.\n");
-  assert.equal(serialize(collectEndnotes(reordered)), "First[^b], second[^a].\n\nBody.\n\n[^b]: First $x$.\n\n[^a]: **Second**.\n");
-});
-
-test("endnote collection refuses dropped definitions and unsupported canonical writes", () => {
-  for (const source of ["A[^a].\n\n[^a]: Kept.\n\n[^orphan]: Lost.\n",
-    "A[^a].\n\n[^a]: First.\n\n[^a]: Second.\n", "---\ntitle: unterminated front matter\n"]) {
-    const document = parse(source);
-    assert.throws(() => collectEndnotes(document));
-  }
-  assert.equal(serialize(collectEndnotes(parse("Just text.\n"))), "Just text.\n");
-});
-
-test("footnote references are editable inline content and definitions stay where they are written", () => {
+test("footnote references are editable inline content and definitions follow the body", () => {
   const document = parse(SOURCE);
-  assert.equal(serialize(document), SOURCE);
+  assert.equal(serialize(document), PLACED);
+  assert.equal(endnotesInPlace(document), false);
+  assert.equal(endnotesInPlace(parse(PLACED)), true);
+  assert.equal(endnotesInPlace(parse("No notes.\n")), true);
   const blocks = getEditableDocument(document).blocks;
   const paragraph = blocks[1];
   assert.equal(paragraph.block === "paragraph" && paragraph.editable, true);
@@ -74,11 +70,11 @@ test("footnote references are editable inline content and definitions stay where
   ]);
   assert.equal(paragraph.block === "paragraph" && paragraph.text, "Text with a note[^n] and more[^Long-1].");
   assert.deepEqual(blocks.map((block) => block.block === "footnote" ? block.label : block.block),
-    ["heading", "paragraph", "n", "paragraph", "Long-1", "inner", "paragraph"]);
+    ["heading", "paragraph", "paragraph", "paragraph", "n", "Long-1", "inner"]);
 
   const content = paragraph.block === "paragraph" ? paragraph.content : [];
   const edited = updateParagraphInlineContent(document, [1], [{ kind: "text", text: "Edited. " }, ...content]);
-  assert.equal(serialize(edited), SOURCE.replace("Text with", "Edited. Text with"));
+  assert.equal(serialize(edited), PLACED.replace("Text with", "Edited. Text with"));
 });
 
 test("a footnote definition shows its own source and the references it holds", () => {
@@ -99,12 +95,15 @@ test("footnotes are numbered in the order their first reference is read", () => 
   assert.deepEqual([...footnoteNumbers(references)], [["n", 1], ["Long-1", 2], ["inner", 3]]);
 });
 
-test("blocks move and insert around definitions, which keep their place", () => {
+test("body blocks move and insert before the endnotes, which keep their place", () => {
   const document = parse(SOURCE);
-  const moved = moveBlock(document, 1, 6);
-  assert.equal(serialize(moved), SOURCE.replace("Text with **a note[^n]** and more[^Long-1].\n\n", "").replace("Tail.\n", "Tail.\n\nText with **a note[^n]** and more[^Long-1].\n"));
+  // 0 # Title · 1 Text · 2 Another · 3 Tail · 4 [^n] · 5 [^Long-1] · 6 [^inner]
+  const moved = moveBlock(document, 1, 3);
+  assert.equal(serialize(moved), PLACED.replace("Text with **a note[^n]** and more[^Long-1].\n\n", "").replace("Tail.\n", "Tail.\n\nText with **a note[^n]** and more[^Long-1].\n"));
+  // A definition moved into the body is written with the endnotes again.
+  assert.equal(serialize(moveBlock(document, 5, 0)), PLACED);
   const inserted = insertHeading(insertParagraph(document, 7, "End."), 7, 2, "Notes");
-  assert.equal(serialize(inserted), `${SOURCE}\n## Notes\n\nEnd.\n`);
+  assert.equal(serialize(inserted), PLACED.replace("Tail.\n", "Tail.\n\n## Notes\n\nEnd.\n"));
 });
 
 test("canonical write refuses footnotes MyST would drop or reread, naming the footnote", () => {
@@ -117,12 +116,13 @@ test("canonical write refuses footnotes MyST would drop or reread, naming the fo
   const document = parse(SOURCE);
   const withoutReference = updateParagraphInlineContent(document, [1], [{ kind: "text", text: "Text more" }, { kind: "footnote", label: "Long-1" }]);
   assert.match(canonicalWriteError(withoutReference) ?? "", /\[\^n\] has no reference/);
-  assert.match(canonicalWriteError(removeBlock(document, 4)) ?? "", /reference \[\^Long-1\] has no definition/);
+  assert.match(canonicalWriteError(removeBlock(document, 5)) ?? "", /reference \[\^Long-1\] has no definition/);
   // Other operations still check their own blocks while the footnotes are incomplete.
   // A reference whose definition a save inserts later does not shift the checked block boundaries.
-  assert.doesNotThrow(() => insertQuote(removeBlock(document, 4), 2, [{ kind: "text", text: "Quoted." }]));
-  const completed = removeBlock(removeBlock(insertHeading(withoutReference, 7, 2, "Notes"), 5), 2);
-  assert.equal(serialize(completed), "# Title\n\nText more[^Long-1]\n\nAnother paragraph.\n\n[^Long-1]: A longer note\n    with a second line.\n\n    Second paragraph.\n\nTail.\n\n## Notes\n");
+  assert.doesNotThrow(() => insertQuote(removeBlock(document, 5), 2, [{ kind: "text", text: "Quoted." }]));
+  // Without [^n], nothing references [^inner] either.
+  const completed = removeBlock(removeBlock(insertHeading(withoutReference, 4, 2, "Notes"), 7), 5);
+  assert.equal(serialize(completed), "# Title\n\nText more[^Long-1]\n\nAnother paragraph.\n\nTail.\n\n## Notes\n\n[^Long-1]: A longer note\n    with a second line.\n\n    Second paragraph.\n");
 });
 
 test("footnote labels are kept as MyST reads them", () => {
@@ -137,11 +137,11 @@ test("block source reads footnotes as the document does", () => {
   const blocks = getEditableDocument(document).blocks;
   const index = blocks.indexOf(footnoteBlock(blocks, "Long-1"));
   const definition = footnoteBlock(blocks, "Long-1").original!.text;
-  assert.equal(serialize(replaceBlockSource(document, index, definition)), SOURCE);
+  assert.equal(serialize(replaceBlockSource(document, index, definition)), PLACED);
   assert.equal(serialize(replaceBlockSource(document, index, "[^Long-1]: Shorter.")),
-    SOURCE.replace("A longer note\n    with a second line.\n\n    Second paragraph.", "Shorter."));
+    PLACED.replace("A longer note\n    with a second line.\n\n    Second paragraph.", "Shorter."));
   // A reference in block source names a definition elsewhere in the document.
-  const paragraph = getEditableDocument(replaceBlockSource(document, 3, "Another[^inner] paragraph.")).blocks[3];
+  const paragraph = getEditableDocument(replaceBlockSource(document, 2, "Another[^inner] paragraph.")).blocks[2];
   assert.deepEqual(paragraph.block === "paragraph" && labels(paragraph.content), ["inner"]);
   assert.throws(() => replaceBlockSource(document, index, "[^Long-1]: One.\n\n[^Long-1]: Two."), /defined more than once/);
   assert.throws(() => replaceBlockSource(document, index, "[^renamed]: Text."), /reference \[\^Long-1\] has no definition/);
@@ -151,7 +151,7 @@ test("a one-paragraph definition is editable inline content; others stay read-on
   const document = parse(SOURCE);
   const blocks = getEditableDocument(document).blocks;
   const inner = footnoteBlock(blocks, "inner");
-  assert.deepEqual(inner, { block: "footnote", path: [5], label: "inner", text: "Inner.", content: [{ kind: "text", text: "Inner." }], editable: true });
+  assert.deepEqual(inner, { block: "footnote", path: [6], label: "inner", text: "Inner.", content: [{ kind: "text", text: "Inner." }], editable: true });
   // One holds a footnote reference, the other two paragraphs.
   for (const label of ["n", "Long-1"]) {
     const block = footnoteBlock(blocks, label);
@@ -162,35 +162,38 @@ test("a one-paragraph definition is editable inline content; others stay read-on
     { kind: "strong", children: [{ kind: "text", text: "Inner" }] }, { kind: "text", text: " at " }, { kind: "math", value: "x^2" },
     { kind: "text", text: ", see " }, { kind: "link", url: "https://example.com", children: [{ kind: "text", text: "the source" }] },
   ];
-  const edited = updateFootnoteDefinition(document, [5], content);
-  assert.equal(serialize(edited), SOURCE.replace("[^inner]: Inner.", "[^inner]: **Inner** at $x^2$, see [the source](https://example.com)"));
+  const edited = updateFootnoteDefinition(document, [6], content);
+  assert.equal(serialize(edited), PLACED.replace("[^inner]: Inner.", "[^inner]: **Inner** at $x^2$, see [the source](https://example.com)"));
   assert.deepEqual(footnoteBlock(getEditableDocument(parse(serialize(edited))).blocks, "inner"), { ...inner, text: "Inner at $x^2$, see the source", content });
 
   assert.throws(() => updateFootnoteDefinition(document, [4], content), /footnote edit is not supported/);
-  assert.throws(() => updateFootnoteDefinition(document, [5], [{ kind: "text", text: "  " }]), /non-empty text/);
-  assert.throws(() => updateFootnoteDefinition(document, [5], [{ kind: "text", text: "See" }, { kind: "footnote", label: "n" }]), /cannot contain footnote references/);
+  assert.throws(() => updateFootnoteDefinition(document, [6], [{ kind: "text", text: "  " }]), /non-empty text/);
+  assert.throws(() => updateFootnoteDefinition(document, [6], [{ kind: "text", text: "See" }, { kind: "footnote", label: "n" }]), /cannot contain footnote references/);
 });
 
-test("insertFootnote adds a reference and a definition at the document end, labelled with the next unused number", () => {
+test("insertFootnote adds a reference and a definition placed by it, labelled with the next unused number", () => {
   const document = parse(SOURCE);
-  const once = insertFootnote(document, [3], 7, [{ kind: "text", text: "First new." }]);
-  assert.equal(serialize(once), SOURCE.replace("Another paragraph.", "Another[^1] paragraph.") + "\n[^1]: First new.\n");
+  const once = insertFootnote(document, [2], 7, [{ kind: "text", text: "First new." }]);
+  // [^1] is referenced after [^Long-1] and before any reference to [^inner].
+  assert.equal(serialize(once), PLACED.replace("Another paragraph.", "Another[^1] paragraph.")
+    .replace("[^inner]: Inner.", "[^1]: First new.\n\n[^inner]: Inner."));
   // Labels are numbers no footnote uses; shown numbers follow reference order, so the new footnote before them is 1.
   const twice = insertFootnote(once, [1], 0, [{ kind: "text", text: "Second new." }]);
   assert.match(serialize(twice), /^# Title\n\n\[\^2\]Text with/);
-  assert.match(serialize(twice), /\[\^1\]: First new\.\n\n\[\^2\]: Second new\.\n$/);
+  assert.match(serialize(twice), /Tail\.\n\n\[\^2\]: Second new\.\n\n\[\^n\]:/);
   const blocks = getEditableDocument(parse(serialize(twice))).blocks;
   const references = blocks.flatMap((block) => block.footnotes ?? ("content" in block && Array.isArray(block.content) ? labels(block.content) : []));
-  assert.deepEqual([...footnoteNumbers(references)].map(([label]) => label), ["2", "n", "Long-1", "inner", "1"]);
+  assert.deepEqual([...footnoteNumbers(references)].map(([label]) => label), ["2", "n", "Long-1", "1", "inner"]);
+  assert.deepEqual(blocks.flatMap(block => block.block === "footnote" ? [block.label] : []), ["2", "n", "Long-1", "1", "inner"]);
 
   assert.equal(serialize(insertFootnote(parse("# Title\n"), [0], 5, [{ kind: "text", text: "On a heading." }])),
     "# Title[^1]\n\n[^1]: On a heading.\n");
   assert.equal(serialize(insertFootnote(parse("| Key | Value |\n| --- | --- |\n| a | 1 |\n"), [0, 1, 1], 1, [{ kind: "text", text: "In a cell." }])),
     "| Key | Value |\n| --- | ----- |\n| a   | 1[^1] |\n\n[^1]: In a cell.\n");
   assert.throws(() => insertFootnote(document, [4], 0, [{ kind: "text", text: "x" }]), /cannot be inserted/);
-  assert.throws(() => insertFootnote(document, [3], 99, [{ kind: "text", text: "x" }]), /offset out of range/);
-  assert.throws(() => insertFootnote(document, [3], 0, []), /non-empty text/);
-  assert.equal(serialize(document), SOURCE);
+  assert.throws(() => insertFootnote(document, [2], 99, [{ kind: "text", text: "x" }]), /offset out of range/);
+  assert.throws(() => insertFootnote(document, [2], 0, []), /non-empty text/);
+  assert.equal(serialize(document), PLACED);
 });
 
 test("a definition is inserted before or after its reference, and the write rule still holds", () => {
@@ -199,6 +202,10 @@ test("a definition is inserted before or after its reference, and the write rule
   assert.match(canonicalWriteError(definition) ?? "", /\[\^note\] has no reference/);
   const referenced = updateParagraphInlineContent(definition, [0], [{ kind: "text", text: "A paragraph." }, { kind: "footnote", label: "note" }]);
   assert.equal(serialize(referenced), "A paragraph.[^note]\n\n[^note]: Defined first.\n");
+  // A definition inserted inside the body is written with the endnotes.
+  const early = insertFootnoteDefinition(parse("A[^a].\n\nB.\n\n[^a]: Kept.\n"), 1, "b", [{ kind: "text", text: "Early." }]);
+  assert.equal(serialize(updateParagraphInlineContent(early, [0], [{ kind: "text", text: "A" }, { kind: "footnote", label: "b" }, { kind: "footnote", label: "a" }, { kind: "text", text: "." }])),
+    "A[^b][^a].\n\nB.\n\n[^b]: Early.\n\n[^a]: Kept.\n");
   assert.throws(() => insertFootnoteDefinition(referenced, 2, "note", [{ kind: "text", text: "Again." }]), /already defined/);
   assert.throws(() => insertFootnoteDefinition(document, 1, "two words", [{ kind: "text", text: "x" }]), /footnote label/);
   assert.equal(nextFootnoteLabel(["1", "2", "a", "04"]), "3");

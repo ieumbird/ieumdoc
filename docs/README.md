@@ -24,7 +24,7 @@
 | [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 파일·asset·folder 계약. Vite 개발 adapter와 Desktop Host가 같은 handler를 재사용. |
 | [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.2와 실제 GitHub 업데이트 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file·New folder. |
-| [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v3). 단일 미주 구역, 실제 참조로 복귀, 명시적 원문 변환과 기존 삽입·편집·유실 방지. |
+| [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v4). 모든 쓰기에서 미주 정의를 본문 뒤 첫 참조 순서로 배치, 단일 미주 구역, Section과 분리, 실제 참조로 복귀와 기존 삽입·편집·유실 방지. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |
 | [Section references](design/section-references-v1.md) | Implemented | 현재 계약. 문서 안의 MyST heading label과 reference. |
 | [Table caption and label](design/table-caption-v1.md) | Implemented | 현재 계약. table caption/label과 reference target. |

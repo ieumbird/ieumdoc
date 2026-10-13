@@ -24,7 +24,8 @@ import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
 import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
-import { Endnotes, FootnoteReference, revealReference, useFootnoteNumber } from "./footnote.tsx";
+import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
+import { FootnoteReference } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
   BLOCK_SOURCES_ATTR,
@@ -345,7 +346,7 @@ function FootnoteDefinitionView({ node, editor }: ReactNodeViewProps) {
       data-label={label}
       data-source-path={String(node.attrs.sourcePath ?? "")}
     >
-      <FootnoteNumber editor={editor} label={label} />
+      <EndnoteNumber editor={editor} label={label} />
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
     </NodeViewWrapper>
   );
@@ -1751,15 +1752,15 @@ function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
       contentEditable={false}
     >
       {node.attrs.original ? null : <span className="block-kind">Read-only </span>}
-      {footnote ? <FootnoteNumber editor={editor} label={footnote} /> : null}{String(node.attrs.text ?? "")}
+      {footnote ? <EndnoteNumber editor={editor} label={footnote} /> : null}{String(node.attrs.text ?? "")}
       <OriginalContent node={node} editor={editor} getPos={getPos} />
     </NodeViewWrapper>
   );
 }
 
 /** A definition's computed number; return to the invoking reference when one is remembered. */
-function FootnoteNumber({ editor, label }: { editor: Editor; label: string }) {
-  const number = useFootnoteNumber(editor, label);
+function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
+  const number = useEndnoteNumber(editor, label);
   return (
     <sup className="footnote-number" data-testid="footnote-number" contentEditable={false}
       title="Return to the reference" aria-label={`Endnote ${number ?? label}. Return to the reference.`}

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
+import { endnoteLabel } from "./endnotes.ts";
 import { Button } from "@/components/ui/button.tsx";
 
 type BlockHandlesProps = {
@@ -14,10 +15,13 @@ type BlockHandlesProps = {
   moveBlockedHint?(index: number): string | undefined;
 };
 
+/** An endnote follows its first reference: it is not dragged, and nothing is inserted after it. */
+const ENDNOTE_HINT = "Endnotes follow the order of their first reference. Click for block actions.";
+
 export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
-  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string }[]>([]);
+  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean }[]>([]);
   const [active, setActive] = useState(-1);
   const [dropTop, setDropTop] = useState<number | null>(null);
   const [moving, setMoving] = useState<{ top: number; height: number } | null>(null);
@@ -31,10 +35,21 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       });
       return result;
     };
+    // A dragged body block lands in the body: the endnotes after it keep their own order.
+    const bodyRectangles = () => {
+      let end = editor.state.doc.childCount;
+      while (end > 0 && endnoteLabel(editor.state.doc.child(end - 1)) !== undefined) end--;
+      return rectangles().slice(0, end);
+    };
     const update = () => {
       const rects = rectangles();
       const top = host.getBoundingClientRect().top;
-      setBlocks(rects.map((rect, index) => ({top: rect.top - top, height: rect.height, name: editor.state.doc.child(index).type.name.replace(/^readonly/, "").replace(/Block$/, "").toLowerCase()})));
+      setBlocks(rects.map((rect, index) => {
+        const node = editor.state.doc.child(index);
+        const endnote = endnoteLabel(node) !== undefined;
+        return {top: rect.top - top, height: rect.height, endnote,
+          name: endnote ? "endnote" : node.type.name.replace(/^readonly/, "").replace(/Block$/, "").toLowerCase()};
+      }));
     };
     const transaction = () => {
       update();
@@ -49,7 +64,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       event.stopPropagation();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
       // No line where the block would stay in place.
-      const target = blockDropTarget(rectangles(), event.clientY, drag.current.index);
+      const target = blockDropTarget(bodyRectangles(), event.clientY, drag.current.index);
       setDropTop(target ? target.line - host.getBoundingClientRect().top : null);
     };
     const end = () => { drag.current = null; setDropTop(null); setMoving(null); };
@@ -61,7 +76,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       event.stopPropagation();
       end();
       if (!source.doc.eq(editor.state.doc)) return;
-      const target = blockDropTarget(rectangles(), event.clientY, source.index);
+      const target = blockDropTarget(bodyRectangles(), event.clientY, source.index);
       if (target) editor.view.dispatch(reorderBlock(editor.state, source.index, target.to));
       dropped = true;
     };
@@ -94,22 +109,23 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => {
-      const blocked = moveBlockedHint?.(index);
+      const blocked = block.endnote ? ENDNOTE_HINT : moveBlockedHint?.(index);
       return <div key={index}
         className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
         data-menu-open={menuIndex === index}
         style={{top: block.top}}>
-        <Button variant="ghost" size="icon" className="block-insert" aria-label={`Insert block after ${block.name} block ${index + 1}`}
+        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={`Insert block after ${block.name} block ${index + 1}`}
           title="Insert block below" aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
-          onClick={() => onInsert(index, block.top)}>+</Button>
-        <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle"
-          aria-label={`Move ${block.name} block ${index + 1}`} title={blocked ?? "Drag to move, click for block actions"}
+          onClick={() => onInsert(index, block.top)}>+</Button>}
+        <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={block.endnote}
+          aria-label={block.endnote ? `Actions for endnote block ${index + 1}` : `Move ${block.name} block ${index + 1}`}
+          title={blocked ?? "Drag to move, click for block actions"}
           aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
           onClick={() => onOpenMenu(index, block.top)}
           onDragStart={event => {
-            if (moveBlockedHint?.(index)) {
+            if (blocked) {
               event.preventDefault();
               return;
             }

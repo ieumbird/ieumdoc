@@ -13,6 +13,8 @@ type MessageAreaProps = {
   /** Standing condition of the open document (e.g. it cannot be saved); not dismissible. */
   warning?: string;
   draftNotice?: string;
+  /** Standing information about the open document (e.g. what its first Save changes). */
+  documentNotice?: string;
   update?: UpdateNotice | null;
   onDismissError(): void;
   onNoticeExpired(): void;
@@ -23,16 +25,17 @@ type MessageAreaProps = {
  * Warnings stay while their condition holds; errors stay until dismissed or resolved;
  * notices expire.
  */
-export function MessageArea({ error, notice, warning = "", draftNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, notice, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(onNoticeExpired, NOTICE_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [notice]);
-  if (!error && !notice && !warning && !draftNotice && !update) return null;
+  if (!error && !notice && !warning && !draftNotice && !documentNotice && !update) return null;
   return (
     <div className="message-area" data-testid="message-area">
       {draftNotice ? <Notice className="message" data-testid="draft-notice"><span className="message-text">{draftNotice}</span></Notice> : null}
+      {documentNotice ? <Notice className="message" data-testid="document-notice"><span className="message-text">{documentNotice}</span></Notice> : null}
       {warning ? (
         <Notice tone="warning" className="message" data-testid="writeability-warning">
           <span className="message-text">{warning}</span>

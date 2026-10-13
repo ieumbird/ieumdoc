@@ -1,7 +1,7 @@
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { semanticDifference, semanticFingerprint } from "./fingerprint.ts";
-import { completeFootnotes, footnoteWriteError } from "./footnote.ts";
+import { completeFootnotes, endnotePlacement, footnoteWriteError } from "./footnote.ts";
 import { isFigure } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
@@ -32,13 +32,16 @@ export function serializeFor(document: MystDocument, failure: string): string {
  * Canonical write path. Never returns Markdown that loses document semantics:
  * 1. myst-to-md diagnostics mean output it could not render;
  * 2. the reparsed Markdown must keep the original semantic fingerprint.
+ * Footnote definitions are written after the body in endnote order, wherever the tree holds
+ * them (`endnotePlacement`); parse reads them back in that order, so writing is idempotent.
  */
 export function serialize(document: MystDocument): string {
   // The fingerprint would also catch these, but not name the footnote.
   const footnotes = footnoteWriteError(document);
   if (footnotes) throw new SemanticLossError(footnotes);
-  const expected = semanticFingerprint(document);
   const tree = cloneDocument(document);
+  tree.children = endnotePlacement(tree);
+  const expected = semanticFingerprint(tree);
   prepareReferences(tree);
   const frontMatter = prepareWriter(tree);
   const file = new VFile();

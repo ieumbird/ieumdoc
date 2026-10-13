@@ -120,8 +120,6 @@ export type BlockSourceEdit = {
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
-  /** Explicit source conversion after other edits; display grouping alone never requests it. */
-  collectEndnotes?: boolean;
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
   /** Applied first, so the other edits address the replaced blocks at the same locators. */
@@ -162,6 +160,9 @@ export type DocumentFileResponse = {
   revision: string;
   /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
   writeError: string | null;
+  /** False when the source writes footnote definitions elsewhere than after the body in endnote
+   * order: the first Save moves them there, as Source shows. Opening never writes. */
+  endnotesInPlace: boolean;
 };
 
 /**

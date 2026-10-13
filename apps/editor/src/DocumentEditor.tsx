@@ -13,7 +13,7 @@ import { BlockHandles } from "./BlockHandles.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
-import { ENDNOTE_DRAFT_CLOSED, FOOTNOTE_COMMAND, footnoteCommandItems, insertFootnote } from "./footnote.tsx";
+import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { Extension, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
@@ -324,9 +324,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       insertReference(editor, slash, reference);
       return;
     }
-    if (id === FOOTNOTE_COMMAND && slash) {
+    if (id === ENDNOTE_COMMAND && slash) {
       setBlockMenu(null);
-      insertFootnote(editor, slash, freshBlockPath());
+      insertEndnote(editor, slash, freshBlockPath());
       return;
     }
     const command = INSERT_COMMANDS.find(command => command.id === id);
@@ -352,7 +352,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...footnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
+    ? [...filterInsertCommands(slash.query), ...endnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {

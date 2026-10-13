@@ -36,9 +36,10 @@ import { createListNode, hasVisibleContent, supportedListContent } from "./myst/
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import { parseBlockSource } from "./myst/block-source.ts";
 import {
-  completeFootnotes, createFootnoteDefinition, footnoteLabels, footnoteReferences, footnoteWriteError, supportedFootnoteContent,
+  bodyIndex, completeFootnotes, createFootnoteDefinition, endnoteBlocks, endnotePlacement, footnoteLabels, footnoteReferences,
+  footnoteWriteError, supportedFootnoteContent,
 } from "./myst/footnote.ts";
-import { endnoteOrder, nextFootnoteLabel } from "./numbering.ts";
+import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import {
@@ -85,7 +86,8 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
 
 /**
  * Move the section a top-level heading opens, with its label targets and deeper sections, to `to`:
- * the start of another section or the end of the document. Heading levels are kept.
+ * the start of another section or the end of the body. Heading levels are kept. Endnote
+ * definitions are in no section and stay with the endnotes.
  */
 export function moveSection(document: MystDocument, heading: number, to: number): MystDocument {
   const markers = sectionMarkers(document);
@@ -94,19 +96,36 @@ export function moveSection(document: MystDocument, heading: number, to: number)
     throw new Error(`a section moves to the start of a section or the end of the document: ${to}`);
   }
   if (to > start && to < end) throw new Error("a section cannot move into itself");
+  const inSection = sectionContent(document, start, end);
   const next = cloneDocument(document);
-  const moved = next.children.splice(start, end - start);
-  next.children.splice(to > start ? to - moved.length : to, 0, ...moved);
+  const moved = next.children.filter((_, index) => inSection(index));
+  const kept = next.children.filter((_, index) => !inSection(index));
+  kept.splice(next.children.slice(0, to).filter((_, index) => !inSection(index)).length, 0, ...moved);
+  next.children = kept;
   assertCanonicalBlockBoundaries(next);
   return next;
 }
 
-/** Remove the section a top-level heading opens, with its label targets and deeper sections. */
+/**
+ * Remove the section a top-level heading opens, with its label targets and deeper sections.
+ * Endnote definitions are in no section and are kept; a removal that would leave one with no
+ * reference is refused, naming it, because canonical write would refuse the document.
+ */
 export function removeSection(document: MystDocument, heading: number): MystDocument {
   const { start, end } = sectionRange(sectionMarkers(document), heading);
+  const inSection = sectionContent(document, start, end);
+  const orphaned = orphanedEndnotes(endnoteBlocks(document), inSection);
+  if (orphaned.length > 0) {
+    throw new Error(`removing this section would leave footnote [^${orphaned[0]}] with no reference, and MyST drops an unreferenced definition`);
+  }
   const next = cloneDocument(document);
-  next.children.splice(start, end - start);
+  next.children = next.children.filter((_, index) => !inSection(index));
   return next;
+}
+
+/** Whether a top-level block is content of the section range `[start, end)`: definitions are not. */
+function sectionContent(document: MystDocument, start: number, end: number): (index: number) => boolean {
+  return index => index >= start && index < end && document.children[index].type !== "footnoteDefinition";
 }
 
 function sectionMarkers(document: MystDocument) {
@@ -116,8 +135,10 @@ function sectionMarkers(document: MystDocument) {
 const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
 
 function assertCanonicalBlockBoundaries(document: MystDocument): void {
-  // `serializeFor` completes the footnotes, adding definitions for references that have none yet.
-  const expectedBlocks = getEditableDocument(completeFootnotes(document)).blocks;
+  // `serializeFor` completes the footnotes, adding definitions for references that have none yet,
+  // and canonical write places the definitions after the body.
+  const complete = completeFootnotes(document);
+  const expectedBlocks = getEditableDocument({ ...complete, children: endnotePlacement(complete) }).blocks;
   const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
@@ -167,7 +188,7 @@ export function insertHeading(document: MystDocument, index: number, level: numb
   const next = insertBlock(document, index, heading);
   const markdown = serializeFor(next, HEADING_FAILURE);
   const reparsed = parse(markdown);
-  const reparsedHeading = reparsed.children[index];
+  const reparsedHeading = reparsed.children[bodyIndex(next, index)];
   const projected = reparsedHeading && projectInlineContent(reparsedHeading);
   if (
     reparsedHeading?.type !== "heading" ||
@@ -225,7 +246,7 @@ export function insertAdmonition(
   const next = insertBlock(document, index, admonition);
   const markdown = serializeFor(next, ADMONITION_INSERTION_FAILURE);
   const reparsed = parse(markdown);
-  const inserted = reparsed.children[index];
+  const inserted = reparsed.children[bodyIndex(next, index)];
   const insertedContent = inserted && supportedAdmonitionContent(inserted);
   if (
     inserted?.type !== "admonition" ||
@@ -271,7 +292,7 @@ function quoteContent(content: InlineContent[]): InlineContent[] {
 function assertQuoteRoundTrip(document: MystDocument, index: number, content: InlineContent[]): void {
   const markdown = serializeFor(document, QUOTE_FAILURE);
   const reparsed = parse(markdown);
-  const quote = reparsed.children[index];
+  const quote = reparsed.children[bodyIndex(document, index)];
   const projected = quote && supportedQuoteContent(quote);
   if (!projected || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
     throw new Error(QUOTE_FAILURE);
@@ -281,24 +302,11 @@ function assertQuoteRoundTrip(document: MystDocument, index: number, content: In
 
 const FOOTNOTE_FAILURE = "footnote definition cannot round-trip losslessly through canonical Markdown";
 
-/** Explicitly collect existing definitions at the document end, preserving labels and content. */
-export function collectEndnotes(document: MystDocument): MystDocument {
-  const error = footnoteWriteError(document);
-  if (error) throw new Error(error);
-  const next = cloneDocument(document);
-  const order = endnoteOrder(next.children.map(node => ({
-    definition: node.type === "footnoteDefinition" ? String(node.label) : undefined,
-    references: footnoteReferences(node),
-  })));
-  next.children = order.map(index => next.children[index]);
-  serialize(next);
-  return next;
-}
-
 /**
  * Insert a new footnote: a reference at `offset` (Core inline offsets) in the paragraph, heading,
  * quote or simple admonition at `[index]`, or the table cell at `[table,row,cell]`, and its
- * definition at the end of the document. The label is the next unused number.
+ * definition with the endnotes; canonical write places it by its reference. The label is the
+ * next unused number.
  */
 export function insertFootnote(document: MystDocument, path: NodePath, offset: number, content: InlineContent[]): MystDocument {
   const target = footnoteTarget(document, path);
@@ -338,7 +346,7 @@ export function insertFootnoteDefinition(document: MystDocument, index: number, 
   }
   const normalized = footnoteContent(content);
   const next = insertBlock(document, index, createFootnoteDefinition(label, normalized));
-  assertFootnoteRoundTrip(next, index, label, normalized);
+  assertFootnoteRoundTrip(next, label, normalized);
   return next;
 }
 
@@ -351,7 +359,7 @@ export function updateFootnoteDefinition(document: MystDocument, path: NodePath,
   const normalized = footnoteContent(content);
   const next = cloneDocument(document);
   next.children[path[0]] = createFootnoteDefinition(label, normalized);
-  assertFootnoteRoundTrip(next, path[0], label, normalized);
+  assertFootnoteRoundTrip(next, label, normalized);
   return next;
 }
 
@@ -364,13 +372,14 @@ function footnoteContent(content: InlineContent[]): InlineContent[] {
   return concatenateInlineContent(content);
 }
 
-function assertFootnoteRoundTrip(document: MystDocument, index: number, label: string, content: InlineContent[]): void {
+function assertFootnoteRoundTrip(document: MystDocument, label: string, content: InlineContent[]): void {
   // MyST keeps only referenced definitions; check one that has no reference yet with one after it.
   const check = footnoteReferences(document).includes(label) ? document : insertBlock(document, document.children.length,
     { type: "paragraph", children: [{ type: "footnoteReference", identifier: labelIdentifier(label), label }] });
   const markdown = serializeFor(check, FOOTNOTE_FAILURE);
   const reparsed = parse(markdown);
-  const definition = reparsed.children[index];
+  // Canonical write places a definition by its references, so find it by its label.
+  const definition = reparsed.children.find(node => node.type === "footnoteDefinition" && node.label === label);
   const projected = definition && supportedFootnoteContent(definition);
   if (!projected || definition.label !== label || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
     throw new Error(FOOTNOTE_FAILURE);
@@ -439,7 +448,7 @@ function normalizeList(list: ListContent): ListContent {
 function assertListRoundTrip(document: MystDocument, index: number, list: ListContent): void {
   const markdown = serializeFor(document, LIST_FAILURE);
   const reparsed = parse(markdown);
-  const reloaded = reparsed.children[index];
+  const reloaded = reparsed.children[bodyIndex(document, index)];
   const content = reloaded && supportedListContent(reloaded);
   if (reparsed.children.length !== document.children.length || !content || !sameList(content, list) ||
       serialize(reparsed) !== markdown) {
@@ -498,7 +507,7 @@ function assertCodeBlockContent(content: CodeBlockContent): void {
 function assertCodeBlockRoundTrip(document: MystDocument, index: number, content: CodeBlockContent): void {
   const markdown = serializeFor(document, CODE_FAILURE);
   const reparsed = parse(markdown);
-  const reloaded = reparsed.children[index];
+  const reloaded = reparsed.children[bodyIndex(document, index)];
   const block = reloaded && supportedCodeBlock(reloaded);
   if (reparsed.children.length !== document.children.length || !block || block.language !== content.language ||
       block.code !== content.code || serialize(reparsed) !== markdown) {
@@ -613,12 +622,13 @@ function assertStableTable(document: MystDocument, index: number, failure: strin
   const markdown = serializeFor(document, failure);
   const reparsed = parse(markdown);
   const cells = (block: MystNode | undefined) => (tableOf(block)?.children ?? []).map((row) => (row.children ?? []).map(tableCellContent));
+  const reloaded = reparsed.children[bodyIndex(document, index)];
   const before = cells(document.children[index]);
-  const after = cells(reparsed.children[index]);
+  const after = cells(reloaded);
   const caption = (block: MystNode) => tableCaptionContent(block);
-  if (serialize(reparsed) !== markdown || !tableOf(reparsed.children[index]) ||
-      reparsed.children[index].type !== document.children[index].type ||
-      !sameInlineContent(caption(document.children[index]), caption(reparsed.children[index])) || after.length !== before.length ||
+  if (serialize(reparsed) !== markdown || !tableOf(reloaded) ||
+      reloaded.type !== document.children[index].type ||
+      !sameInlineContent(caption(document.children[index]), caption(reloaded)) || after.length !== before.length ||
       before.some((row, rowIndex) => row.length !== after[rowIndex].length || row.some((content, column) => {
         const reloaded = after[rowIndex][column];
         return content !== undefined && (reloaded === undefined || !sameInlineContent(content, reloaded));
@@ -850,7 +860,7 @@ function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" 
 function assertLabelRoundTrip(document: MystDocument, index: number, label: string, failure: string): void {
   const markdown = serializeFor(document, failure);
   const reparsed = parse(markdown);
-  const reloaded = reparsed.children[index];
+  const reloaded = reparsed.children[bodyIndex(document, index)];
   if (reloaded?.type !== document.children[index].type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
     throw new Error(failure);
   }
@@ -933,7 +943,7 @@ export function updateHeadingLevel(
   getNode(next, path).depth = to;
   const markdown = serializeFor(next, HEADING_LEVEL_FAILURE);
   const reparsed = parse(markdown);
-  const updated = getNode(reparsed, path);
+  const updated = getNode(reparsed, [bodyIndex(next, path[0]), ...path.slice(1)]);
   if (
     updated.type !== "heading" ||
     Number(updated.depth) !== to ||
@@ -1025,7 +1035,7 @@ function assertEquationRoundTrip(
 ): void {
   const markdown = serializeFor(document, EQUATION_FAILURE);
   const reparsed = parse(markdown);
-  const equation = getNode(reparsed, path);
+  const equation = getNode(reparsed, [bodyIndex(document, path[0]), ...path.slice(1)]);
   if (
     equation.type !== "math" ||
     equation.value !== latex ||
