@@ -32,6 +32,8 @@ export async function buildDesktop(): Promise<string> {
   const editorBuild = path.join(repo, "apps", "editor", "dist");
   if (!existsSync(path.join(editorBuild, "index.html"))) throw new Error("The Editor build has no index.html");
   cpSync(editorBuild, path.join(stage, "editor"), { recursive: true });
+  // Runtime window icon (also used by the development Electron shell).
+  cpSync(path.join(desktop, "assets", "icon.ico"), path.join(stage, "icon.ico"));
 
   const requireSigned = process.env.IEUMDOC_REQUIRE_SIGNED_UPDATES === "1";
   await build({
