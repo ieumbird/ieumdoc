@@ -32,20 +32,37 @@ function realParent(target: string): string {
   }
 }
 
+type RootEntry = { path: string; real: string; dev: number; ino: number };
+
+/**
+ * `target` is `root` or beneath it, and the prefix matching `root` is the pinned root directory.
+ * Windows path comparison lowercases in JavaScript, which equates names NTFS keeps distinct
+ * (KELVIN SIGN and "k"), so the matching prefix is also compared by filesystem identity.
+ */
+function within(entry: RootEntry, root: string, target: string): boolean {
+  if (!inside(root, target)) return false;
+  let folder = target;
+  while (path.relative(root, folder) && path.dirname(folder) !== folder) folder = path.dirname(folder);
+  try {
+    const stat = fs.statSync(folder);
+    return stat.dev === entry.dev && stat.ino === entry.ino;
+  } catch { return false; } // A missing look-alike prefix is outside, not a file error.
+}
+
 /** Fixed operator roots, not the folder currently selected in the Editor. */
 export class RootAccess {
   readonly roots: readonly string[];
-  private readonly entries: readonly { path: string; real: string; dev: number; ino: number }[];
+  private readonly entries: readonly RootEntry[];
 
   constructor(roots: readonly string[]) {
     if (!roots.length) throw new Error("At least one --root directory is required.");
-    const entries: { path: string; real: string; dev: number; ino: number }[] = [];
+    const entries: RootEntry[] = [];
     for (const value of roots) {
       const folder = locator(value);
       const real = fs.realpathSync(folder);
       const stat = fs.statSync(real);
       if (!stat.isDirectory()) throw new Error(`Root must be an existing directory: ${folder}`);
-      if (!entries.some(entry => inside(entry.real, real) && inside(real, entry.real))) {
+      if (!entries.some(entry => inside(real, entry.real) && within(entry, entry.real, real))) {
         entries.push({ path: folder, real, dev: stat.dev, ino: stat.ino });
       }
     }
@@ -64,18 +81,8 @@ export class RootAccess {
     }
   }
 
-  /**
-   * Windows path comparison lowercases in JavaScript, which equates names NTFS keeps distinct
-   * (KELVIN SIGN and "k"). The matching prefix must therefore be the pinned root directory itself.
-   */
   private contains(real: string): boolean {
-    return this.entries.some(entry => {
-      if (!inside(entry.real, real)) return false;
-      let folder = real;
-      while (path.relative(entry.real, folder) && path.dirname(folder) !== folder) folder = path.dirname(folder);
-      const stat = fs.statSync(folder);
-      return stat.dev === entry.dev && stat.ino === entry.ino;
-    });
+    return this.entries.some(entry => within(entry, entry.real, real));
   }
 
   /** Check before any filesystem I/O; an absent leaf is allowed only beneath an existing parent. */
@@ -83,6 +90,7 @@ export class RootAccess {
     const target = locator(value);
     if (!this.entries.some(entry => inside(entry.path, target) || inside(entry.real, target))) throw new FileAccessError();
     this.currentRoots();
+    if (!this.entries.some(entry => within(entry, entry.path, target) || within(entry, entry.real, target))) throw new FileAccessError();
     let real: string;
     try {
       // lstat distinguishes a dangling symlink from a genuinely absent new leaf.
@@ -107,8 +115,8 @@ export class RootAccess {
 
   boundary(value: string): string {
     const target = this.resolve(value);
-    return this.entries.flatMap(entry => [entry.path, entry.real])
-      .filter(root => inside(root, target)).sort((a, b) => b.length - a.length)[0]!;
+    return this.entries.flatMap(entry => [entry.path, entry.real].filter(root => within(entry, root, target)))
+      .sort((a, b) => b.length - a.length)[0]!;
   }
 }
 

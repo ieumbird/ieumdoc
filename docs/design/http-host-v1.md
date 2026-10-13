@@ -30,7 +30,7 @@ An extracted package can instead run with `node cli.mjs serve --root <folder>`. 
 
 | Option | Contract |
 | --- | --- |
-| `--root <directory>` | Required, repeatable; relative paths use launch cwd. All must exist and be directories. Same real roots are deduplicated. Nested roots are allowed. |
+| `--root <directory>` | Required, repeatable; relative paths use launch cwd. All must exist and be directories. The same real directory (filesystem identity) given twice is deduplicated. Nested roots are allowed. |
 | `--port <number>` | Default `5180`; integer 1–65535. Port conflicts fail without starting a replacement listener. |
 | `--host <IP>` | Default `127.0.0.1`; IP literal only. A non-loopback bind requires `--public-origin`. |
 | `--public-origin <origin>` | Explicit `http(s)://host[:port]`, without path, credentials, query or fragment. Adds that exact origin and Host authority. |
@@ -49,7 +49,7 @@ Choose a folder, then a Markdown file in the sidebar. Open, New file/folder, Sav
 
 Every document read/create/save/preview, folder list/browse/create, media read and asset upload/rollback passes the same root policy. Block-source and Figure validation perform no filesystem access. Static Editor assets are a separate fixed build directory, never a requested document directory.
 
-- Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling: the matching prefix of the resolved target must be the pinned root directory itself, so names that JavaScript case folding equates but the filesystem keeps distinct (for example KELVIN SIGN and `k` on NTFS) are rejected.
+- Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling: the matching prefix of both the locator and the resolved target must be the pinned root directory itself, so names that JavaScript case folding equates but the filesystem keeps distinct (for example KELVIN SIGN and `k` on NTFS) are rejected.
 - Existing targets must resolve to regular files/directories. New leaves require an existing allowed real parent; dangling links cannot be replaced. Exclusive file/folder creation and overwrite refusal remain in force.
 - Symlink/junction targets outside all roots are rejected. A missing name behind such a link is rejected the same way, so responses do not reveal what exists outside. A link into another allowed root does not relax narrower per-document media, folder or asset rules.
 - Startup pins each root's real path and filesystem identity. A missing, moved or replaced root fails closed until the operator checks configuration and restarts.
