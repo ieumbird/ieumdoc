@@ -8,6 +8,7 @@
   "author": "IeumDoc",
   "type": "module",
   "scripts": {
+    "icons": "tsx scripts/generate-icon.ts",
     "build": "tsx scripts/build.ts",
     "start": "electron build/app",
     "package": "tsx scripts/package.ts",

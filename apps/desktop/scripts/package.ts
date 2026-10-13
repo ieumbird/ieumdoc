@@ -47,8 +47,10 @@ export function packageConfiguration(appVersion: string, release: boolean): Conf
     detectUpdateChannel: false,
     generateUpdatesFilesForAllChannels: false,
     publish: [publishTarget(appVersion, release)],
-    win: { target: [{ target: "nsis", arch: ["x64"] }] },
+    win: { target: [{ target: "nsis", arch: ["x64"] }], icon: "assets/icon.ico" },
     nsis: {
+      installerIcon: "assets/icon.ico",
+      uninstallerIcon: "assets/icon.ico",
       // Per-user, no administrator rights, installed and updated without a wizard.
       oneClick: true,
       perMachine: false,
