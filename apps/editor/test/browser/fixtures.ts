@@ -128,7 +128,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
         { name: "repeat.md", create: () => "# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n" },
         { name: "sections.md", create: () => "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
           "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n" }],
-    scenarios: ["footnotes"],
+    scenarios: ["footnotes", "save-session"],
   },
   "focus-caret": {
     files: [{ name: "focus.md", create: () => "# Focus\n\nFirst paragraph.\n\nLast paragraph.\n" }],

@@ -32,7 +32,9 @@ export function sourceDefinitions(text: string, options: object): SourceDefiniti
   if (!text.includes("[^")) return [];
   // Keep definitions in place: the tail rule is what moves, drops and unpositions them.
   let tokenizer = tokenizers.get(options);
-  if (!tokenizer) tokenizers.set(options, tokenizer = createTokenizer(options).disable("footnote_tail"));
+  if (!tokenizer) tokenizers.set(options, tokenizer = createTokenizer(options));
+  // MyST's nested directive/role parsing re-enables this rule; reset it on every reuse.
+  tokenizer.disable("footnote_tail");
   const lines = text.split(/\r?\n/);
   const definitions: SourceDefinition[] = [];
   let depth = 0;
