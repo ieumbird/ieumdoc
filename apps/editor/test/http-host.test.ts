@@ -97,6 +97,8 @@ test("every file endpoint denies outside paths without exposing or modifying the
     [`/api/folder?${new URLSearchParams({ root: outside })}`, "GET"],
     [`/api/folder?${new URLSearchParams({ root: a, path: outside })}`, "GET"],
     [`/api/folder-browse?${new URLSearchParams({ path: base })}`, "GET"],
+    [`/api/folder-browse?${new URLSearchParams({ path: outside, files: "image" })}`, "GET"],
+    ["/api/asset", "POST", { documentPath: path.join(a, "document.md"), source: path.join(outside, "image.png") }],
     ["/api/folder", "POST", { parent: outside, name: "new-folder" }],
     [`/document/image.png?${new URLSearchParams({ path: outsideFile })}`, "GET"],
   ];

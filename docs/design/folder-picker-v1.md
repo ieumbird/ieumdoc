@@ -1,7 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload).
+- Last verified: 2026-10-14 (image choice through the `image-assets` browser regression; Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload on 2026-10-13).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
@@ -34,10 +34,20 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
 - Shared product tokens control presentation. Long folder names and narrow viewports keep
   navigation and Open/Cancel reachable.
 
+## Choosing an image
+
+A Figure's Choose… reuses this picker to choose an image file instead of a folder
+([Figure authoring](figure-authoring-v1.md)). It starts in the open document's folder and lists
+sub-folders and PNG, JPEG, GIF, WebP and SVG files instead of Markdown files; navigation, Recent,
+starting places and the HTTP root limits are unchanged, and there is no New folder. Clicking an image
+makes it the typed path; Use, or Enter, chooses it. A folder path only navigates. The Host then links
+or copies the image as the [Asset Host Contract](filesystem-host-boundary-v1.md#image-choice-v1-208)
+describes. An error, such as an unsupported or missing file, keeps the picker open with the path.
+
 ## Exclusions
 
-No native picker, upload/copy, rename/delete/move, tree inside the dialog, search, watcher, workspace,
-new persistence service or file-picker UI. (The chosen folder is shown as a lazily listed tree in the sidebar; see
+No native picker, upload, rename/delete/move, tree inside the dialog, search, watcher, workspace,
+new persistence service or other file-picker UI. Copying is limited to the image choice above. (The chosen folder is shown as a lazily listed tree in the sidebar; see
 [Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112).) The separate full-file-path dialog is removed (#190). No CLI parity command:
 choosing a folder is interface/Host navigation, not a document semantic operation.
 

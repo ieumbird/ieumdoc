@@ -144,5 +144,55 @@ async (page, { openDocument }) => {
   assert(cleaned.status() === 204, 'Clean up only the failed request asset with its receipt');
   result.rollbackFailureVisible = true;
   await dismiss(); await page.unrouteAll();
+
+  // Choose… picks a Host image in the Open folder picker. One beside the document keeps its
+  // relative path; one elsewhere is copied into assets/ and removed again if the form is cancelled.
+  const outsidePhoto = [root, 'tmp', 'image-assets-outside', 'photo.png'].join(separator);
+  const imageField = page.getByTestId('figure-image-url');
+  const picker = page.getByRole('dialog', {name:'Choose image'});
+  const pathField = picker.getByRole('combobox', {name:'Image path'});
+  const editFigure = async index => {
+    const edit = figures.nth(index).getByRole('button', {name:'Edit figure'});
+    await edit.locator('..').hover({position:{x:4,y:4}}); await edit.click(); await imageField.waitFor();
+  };
+  const chooseOutside = async () => {
+    await page.getByRole('button', {name:'Choose…', exact:true}).click();
+    await pathField.fill(outsidePhoto); await pathField.press('Enter');
+    await picker.waitFor({state:'hidden'});
+    return imageField.inputValue();
+  };
+  await editFigure(0);
+  const before = await imageField.inputValue();
+  await page.getByRole('button', {name:'Choose…', exact:true}).click();
+  await picker.waitFor();
+  await page.keyboard.press('Escape'); await picker.waitFor({state:'hidden'});
+  assert(await imageField.inputValue() === before, 'Cancelling the picker keeps the Image field');
+  await page.getByRole('button', {name:'Choose…', exact:true}).click();
+  await picker.getByRole('option', {name:'figures', exact:true}).click();
+  await picker.getByRole('option', {name:'diagram.svg', exact:true}).click();
+  await picker.getByRole('button', {name:'Use “diagram.svg”', exact:true}).click();
+  await picker.waitFor({state:'hidden'});
+  assert(await imageField.inputValue() === './figures/diagram.svg', 'An image beside the document is linked by its relative path');
+  assert(await page.evaluate(() => document.activeElement?.textContent) === 'Choose…', 'Closing the picker returns focus to Choose…');
+  await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
+  result.chooseLinksNearbyImage = true;
+
+  await editFigure(1);
+  const cancelled = await chooseOutside();
+  assert(/^\.\/assets\/image-[a-f0-9-]+\.png$/.test(cancelled), 'An image elsewhere is copied into assets/');
+  assert((await page.request.get(media(cancelled))).status() === 200, 'The copy exists while the form holds it');
+  const removed = page.waitForResponse(response => response.url().endsWith('/api/asset') && response.request().method() === 'DELETE');
+  await page.getByTestId('figure-cancel').click();
+  assert((await removed).status() === 204 && (await page.request.get(media(cancelled))).status() === 404, 'Cancel removes the unused copy');
+  await editFigure(1);
+  const copied = await chooseOutside();
+  await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  const chosen = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json())
+    .document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
+  assert(chosen[0] === './figures/diagram.svg' && chosen[1] === copied, 'Save writes the chosen paths');
+  assert((await page.request.get(media(copied))).status() === 200, 'An applied copy is kept');
+  result.chooseCopiesOtherImage = true;
   return result;
 }

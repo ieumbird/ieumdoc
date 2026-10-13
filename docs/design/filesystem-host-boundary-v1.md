@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (shared Vite/Desktop/HTTP handlers, root enforcement, full tests and Vite/HTTP browser regressions).
+- Last verified: 2026-10-14 (image choice listing, link/copy and HTTP root denial in Host tests and the Vite `image-assets` regression; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -107,6 +107,16 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 - 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
+### Image choice v1 (#208)
+
+Figure의 Choose…가 [folder picker](folder-picker-v1.md#choosing-an-image)에서 고른 Host 이미지를 문서에 연결한다.
+
+- `GET /api/folder-browse?path=<folder>&files=image`는 Markdown 대신 `kind: "image"` 항목(`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`)을 넣는다. 그 밖의 필터·정렬·crumbs·root 제한은 Folder picker v1과 같다.
+- `POST /api/asset`에 `Content-Type: application/json`의 `{ documentPath, source }`를 보내면 `source` 이미지를 그 문서에 연결한다. 응답은 상대 `path`이며, 복사했을 때만 `rollbackToken`이 붙는다. `source`는 모든 Host 파일 요청처럼 HTTP root 정책을 거친다.
+- `source`가 lexical path와 real path 모두 문서 directory 안이면 아무것도 쓰지 않고 `./`로 시작하는 `/` 구분 상대 경로를 돌려준다. 이 경로는 위 상대 media resolution이 받아들여야 한다. 원래 파일 이름과 위치, SVG가 그대로 유지된다.
+- 그 밖의 이미지, 문서 directory 안에서 밖을 가리키는 link를 포함해 Host가 읽어 Asset Host Contract v1과 같은 `createImageAsset` 검증·공개·receipt로 `assets/`에 복사한다. MIME은 확장자로 정하고 내용이 그 형식이 아니면 거부한다. SVG는 복사하지 않는다. 문서가 read-only이면 복사도 거부한다.
+- Editor는 form을 Cancel하거나 다른 이미지를 다시 고르면 그 form이 만든 복사본을 같은 receipt로 rollback한다. rollback 실패는 남은 경로와 함께 표시한다. Apply한 복사본의 이후 orphan 처리는 위 정책과 같다.
+
 ### File commit v1
 
 Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같은 Node 함수 `commitFile`(`packages/file-commit`)로 교체한다. 호출자는 Core validation과 canonical serialization을 마친 UTF-8 / LF Markdown과 baseline revision을 넘긴다. Core는 이 경로나 filesystem을 알지 않는다.
@@ -173,6 +183,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - 상대 media는 열린 document directory를 기준으로 resolve하며 directory 밖 traversal을 거부한다.
 - `/api/folder`가 Folder listing v1(GET, `listFolder`)과 Folder creation v1(POST, `createFolder`)을 구현한다.
 - `/api/folder-browse`와 `/api/folder-places`가 경로 선택용 목록과 시작점을 제공한다(`browseFolder`, `folderPlaces`).
+- `/api/asset`의 JSON POST가 Image choice v1(`chooseImageAsset`)을 구현한다.
 
 HTTP의 네트워크 검사·Root 정책과 로컬 Host의 기존 정책은 분리한다. 새 문서 의미나 별도 영속 저장소는 추가하지 않는다.
 

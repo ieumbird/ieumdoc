@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
+import type { ImageChoice, ImageChooser } from "./editor-schema.tsx";
+import { chooseHostImage, rollbackAsset } from "./image-assets.ts";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
@@ -76,6 +78,13 @@ export function App() {
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
+  // A Figure's Choose… opens the image picker; its promise settles when the picker closes.
+  const [imageChoice, setImageChoice] = useState<{ documentPath: string; resolve(choice?: ImageChoice): void } | null>(null);
+  const imageReturnFocus = useRef<HTMLElement | null>(null);
+  const chooseImage = useRef<ImageChooser>((documentPath, returnFocus) => new Promise(resolve => {
+    imageReturnFocus.current = returnFocus.current;
+    setImageChoice({ documentPath, resolve });
+  })).current;
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
   const visibleRecent = visibleRecentFolders(recentFolders, allowedRoots);
@@ -541,6 +550,7 @@ export function App() {
                 onHeadingNumberingChange={setHeadingNumbering}
                 onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}
+                chooseImage={chooseImage}
                 applyBlockSource={(path, source, applied) => applyBlockSource(sessionBase.current?.source ?? "", path, source, applied)}
                 onStructuralReject={(reason) =>
                   setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")
@@ -589,6 +599,34 @@ export function App() {
         }}
         returnFocus={dialogReturnFocus}
         onClose={() => setFolderDialog(false)}
+      />
+      <FolderDialog
+        open={imageChoice !== null}
+        choose="image"
+        initialPath={imageChoice ? splitDocumentPath(imageChoice.documentPath).directory : ""}
+        recent={visibleRecent}
+        restricted={allowedRoots !== undefined}
+        browse={browseHostImages}
+        places={folderPlaces}
+        onOpen={async (source) => {
+          if (!imageChoice) return "";
+          const { documentPath, resolve } = imageChoice;
+          try {
+            const { path, rollbackToken } = await chooseHostImage(documentPath, source);
+            // A copy no Figure ends up using is removed; a linked image is never touched.
+            const discard = rollbackToken === undefined ? undefined : () => void rollbackAsset({ path, rollbackToken }, documentPath).catch((cause: unknown) =>
+              setError(`The unused copied image remains at ${path}: ${cause instanceof Error ? cause.message : String(cause)}`));
+            resolve({ path, ...(discard ? { discard } : {}) });
+            return "";
+          } catch (cause) {
+            return cause instanceof Error ? cause.message : String(cause);
+          }
+        }}
+        returnFocus={imageReturnFocus}
+        onClose={() => {
+          imageChoice?.resolve(undefined);
+          setImageChoice(null);
+        }}
       />
       <NewDialog
         open={newDialog}
@@ -725,13 +763,15 @@ async function requestFolder(root: string, path?: string): Promise<FolderRespons
   return payload as FolderResponse;
 }
 
-/** Asks the Host for one level of any folder while choosing which folder to open. */
-async function browseHostFolder(path: string): Promise<FolderBrowseResponse> {
-  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder-browse?${new URLSearchParams({ path })}`);
+/** Asks the Host for one level of any folder while choosing which folder to open, or an image. */
+async function browseHostFolder(path: string, files?: "image"): Promise<FolderBrowseResponse> {
+  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder-browse?${new URLSearchParams({ path, ...(files ? { files } : {}) })}`);
   const payload = (await response.json()) as Partial<FolderBrowseResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || !Array.isArray(payload.entries) || !Array.isArray(payload.crumbs)) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload as FolderBrowseResponse;
 }
+
+const browseHostImages = (path: string) => browseHostFolder(path, "image");
 
 /** Asks the Host to create one folder inside an existing one. */
 async function requestCreateFolder(parent: string, name: string): Promise<FolderCreateResponse> {

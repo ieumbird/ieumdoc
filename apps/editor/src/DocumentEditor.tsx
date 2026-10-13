@@ -24,6 +24,7 @@ import {
   createEditorExtensions,
   type BlockSourceApplier,
   type FigureValidator,
+  type ImageChooser,
   type DraftKind,
   editorDocumentJSON,
 } from "./editor-schema.tsx";
@@ -76,13 +77,15 @@ type DocumentEditorProps = {
   onDirtyChange?: (dirty: boolean) => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
   validateFigure?: FigureValidator;
+  /** Opens the Host image picker for a Figure's image. */
+  chooseImage?: ImageChooser;
   applyBlockSource?: BlockSourceApplier;
   /** The heading outline and the section being read, for navigation outside the editor. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, applyBlockSource, onOutlineChange },
+  { document, documentPath, readOnly = false, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, applyBlockSource, onOutlineChange },
   ref,
 ) {
   // App remounts this editor for Open/New/Reload; Save keeps its opening projection.
@@ -140,7 +143,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     shouldRerenderOnTransaction: true,
     extensions: [
       ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft,
-        () => activeDrafts.current.size > 0),
+        () => activeDrafts.current.size > 0, chooseImage),
       Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
       // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
       Extension.create({

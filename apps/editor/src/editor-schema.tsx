@@ -13,7 +13,7 @@ import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent, type ReferenceRole } from "@ieumdoc/core";
 import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
@@ -56,6 +56,10 @@ export type DraftListener = (kind: DraftKind, path: string, active: boolean) => 
 /** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
 /** Core's persistent validation of a Figure Apply: its properties and its label. */
 export type FigureValidator = (figure: FigureContent, label: string) => Promise<string | undefined>;
+/** An image chosen for a Figure. `discard` removes a copy made for it, once no Figure will use it. */
+export type ImageChoice = { path: string; discard?(): void };
+/** Lets the user choose an image on the Host for this document; undefined when cancelled. */
+export type ImageChooser = (documentPath: string, returnFocus: RefObject<HTMLElement | null>) => Promise<ImageChoice | undefined>;
 
 /** Core's block source replacement through the Host: the block a source makes at a snapshot path,
  * after the session's other applied sources. Rejects with Core's reason. */
@@ -430,17 +434,17 @@ function equationNode(onDraftChange?: DraftListener) {
   });
 }
 
-function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
+function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
   return Figure.configure({ documentPath }).extend({
     addNodeView() {
-      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure));
+      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure, chooseImage));
     },
   });
 }
 
-function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
+function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
   return function FigureAssetNodeView(props: ReactNodeViewProps) {
-    return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} validateFigure={validateFigure} />;
+    return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} validateFigure={validateFigure} chooseImage={chooseImage} />;
   };
 }
 
@@ -991,6 +995,7 @@ export function editorExtensions(
   documentPath?: string,
   validateFigure?: FigureValidator,
   blockSource?: BlockSourceOptions,
+  chooseImage?: ImageChooser,
 ): Extensions {
   return [
     StarterKit.configure({
@@ -1040,7 +1045,7 @@ export function editorExtensions(
     Quote,
     FootnoteDefinition,
     Divider,
-    figureNode(documentPath, onDraftChange, validateFigure),
+    figureNode(documentPath, onDraftChange, validateFigure, chooseImage),
     equationNode(onDraftChange),
     tableNode(onDraftChange),
     TableRow,
@@ -1067,9 +1072,10 @@ export function createEditorExtensions(
   applyBlockSource?: BlockSourceApplier,
   hasOtherDraft?: BlockSourceOptions["hasOtherDraft"],
   hasActiveDraft?: BlockSourceOptions["hasActiveDraft"],
+  chooseImage?: ImageChooser,
 ): Extensions {
   const baselineOf = typeof baseline === "function" ? baseline : () => baseline;
-  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft, hasActiveDraft }),
+  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft, hasActiveDraft }, chooseImage),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
@@ -1218,12 +1224,16 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   };
 }
 
-function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator }) {
+function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
   const number = useBlockNumber(editor, getPos, "figure");
   // The computed number prefixes the caption, as MyST renders it; it is never saved.
   const numbered = number === undefined ? undefined : `Figure ${number}`;
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
+  const chooseButton = useRef<HTMLButtonElement>(null);
+  // A copy the chooser made for this form; discarded unless Apply puts it in the Figure.
+  const copied = useRef<ImageChoice | undefined>(undefined);
+  const [choosing, setChoosing] = useState(false);
   const applied = figureAttrs(node);
   const src = resolveFigureSource(applied.imageUrl, documentPath);
   const label = String(node.attrs.label ?? "");
@@ -1265,7 +1275,24 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       if (input && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
+  const releaseCopy = (kept?: string) => {
+    const copy = copied.current;
+    copied.current = undefined;
+    if (copy && copy.path !== kept) copy.discard?.();
+  };
+  const pickImage = async () => {
+    if (!chooseImage || !documentPath) return;
+    setChoosing(true);
+    const choice = await chooseImage(documentPath, chooseButton);
+    setChoosing(false);
+    if (!choice) return;
+    releaseCopy();
+    if (choice.discard) copied.current = choice;
+    setDraft(current => ({ ...current, imageUrl: choice.path }));
+    setError("");
+  };
   const cancel = () => {
+    releaseCopy();
     validation.current++;
     setValidating(false);
     setDraft(applied);
@@ -1320,6 +1347,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
     // One undo step: undo returns the form's previous value.
     view.dispatch(closeHistory(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement)));
+    releaseCopy(attributes.imageUrl);
     setEditing(false);
     if (returnFocus) focusBlock(view, getPos);
   };
@@ -1390,7 +1418,14 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
         onApply={() => void apply()}
         onCancel={cancel}
       >
-        {field("imageUrl", "Image", "figure-image-url")}
+        {chooseImage && documentPath ? (
+          <div className="figure-image-field">
+            {field("imageUrl", "Image", "figure-image-url")}
+            <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>
+              Choose…
+            </Button>
+          </div>
+        ) : field("imageUrl", "Image", "figure-image-url")}
         {field("imageAlt", "Alt text", "figure-alt")}
         {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", "Caption", "figure-caption")
           : <p className="block-popover-note">Edit the formatted caption directly below the image.</p>}

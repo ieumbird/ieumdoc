@@ -3,9 +3,9 @@ import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { ASSET_FORMATS, ASSET_TYPES, isAssetMime, MAX_ASSET_BYTES, type AssetMime } from "../shared/asset-policy.ts";
-import type { AssetResponse, AssetRollbackRequest } from "../shared/asset-protocol.ts";
-import { loadDocumentFile, resolveDocumentPath, resolveMediaPath } from "./document-api.ts";
-import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
+import type { AssetResponse, AssetRollbackRequest, ImageChoiceRequest, ImageChoiceResponse } from "../shared/asset-protocol.ts";
+import { loadDocumentFile, MEDIA_TYPES, resolveDocumentPath, resolveMediaPath } from "./document-api.ts";
+import { accessPath, fileErrorMessage, fileErrorStatus, inside, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 
 const ASSET_PATH = /^\.\/assets\/image-[a-f0-9-]{36}\.(png|jpg|gif|webp)$/;
@@ -220,6 +220,31 @@ export function createImageAsset(locator: string, mime: string, bytes: Buffer, k
   }
 }
 
+/**
+ * An image the user chose on the Host. Inside the document's folder it is linked where it is,
+ * so the document keeps a readable path; elsewhere it is copied into assets/ like a pasted image.
+ */
+export function chooseImageAsset(request: ImageChoiceRequest, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): ImageChoiceResponse {
+  const source = request?.source;
+  if (typeof source !== "string" || !source.trim() || source.includes("\0")) throw new AssetError("Choose an image file.");
+  const file = path.resolve(accessPath(source.trim(), access));
+  const mime = MEDIA_TYPES[path.extname(file).toLowerCase()];
+  let stat: fs.Stats;
+  try { stat = fs.statSync(file); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new AssetError("The image does not exist."); throw error; }
+  if (!stat.isFile() || !mime) throw new AssetError(`Choose a ${ASSET_FORMATS} or SVG image file.`);
+  const scope = documentScope(request.documentPath, false, access);
+  const directory = path.dirname(scope.document);
+  if (inside(directory, file) && inside(scope.root, fs.realpathSync(file))) {
+    const relative = `./${path.relative(directory, file).split(path.sep).join("/")}`;
+    resolveMediaPath(relative, scope.document, access); // The rule that serves it must accept it.
+    return { path: relative };
+  }
+  if (!isAssetMime(mime)) throw new AssetError(`Only ${ASSET_FORMATS} images can be copied into assets/. Move the SVG into the document's folder to use it.`);
+  if (stat.size > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
+  return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access);
+}
+
 /** No arbitrary delete API: only a signed receipt for this exact, unchanged created file. */
 export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): void {
   if (typeof request?.path !== "string" || !ASSET_PATH.test(request.path)) throw new AssetError("Invalid relative asset path.");
@@ -270,7 +295,9 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
     res.end(JSON.stringify(body));
   };
   try {
-    if (req.method === "POST") {
+    if (req.method === "POST" && /^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] ?? "")) {
+      json(200, chooseImageAsset(JSON.parse((await readRequestBody(req, 65536)).toString("utf8")) as ImageChoiceRequest, key, access));
+    } else if (req.method === "POST") {
       const mime = req.headers["content-type"] ?? "";
       if (!isAssetMime(mime)) throw new AssetError(UNSUPPORTED);
       if (Number(req.headers["content-length"]) > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);

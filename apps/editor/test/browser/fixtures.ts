@@ -36,7 +36,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "ieumdoc-a.md", create: () => "# A\n" },
     { name: "ieumdoc-b.md", create: () => "# B\n" },
   ], scenarios: ["open-files"] },
-  "image-assets": { files: [{ name: "images.md", create: () => "# Images\n\nAlpha.\n\nBeta.\n" }], scenarios: ["image-assets"] },
+  "image-assets": { files: [{ name: "images.md", create: () => "# Images\n\nAlpha.\n\nBeta.\n" },
+    { name: "figures/diagram.svg", create: () => document("diagram.svg").create() }], scenarios: ["image-assets"] },
+  // An image outside that document's folder, which choosing copies into its assets/.
+  "image-assets-outside": { files: [{ name: "photo.png", create: () =>
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") }], scenarios: ["image-assets"] },
   "external-html-paste": { files: [{ name: "external.md", create: () => "# External\n\nAlpha.\n\nOmega.\n" }], scenarios: ["external-html-paste"] },
   "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
     { name: "edge-equation.md", create: () => "$$\nx\n$$\n" },

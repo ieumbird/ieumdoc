@@ -1,7 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (empty Figure persistence and link-reference warnings compared with Core/CLI/Editor code and existing regression coverage).
+- Last verified: 2026-10-14 (Choose… image selection with Host unit tests and the `image-assets` browser regression; empty Figure persistence and link-reference warnings compared with Core/CLI/Editor code on 2026-10-13).
 - Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
 ## Scope and completion
@@ -40,6 +40,8 @@ Public `serialize` and `canonicalWriteError` validate the final state; an empty 
 Insertion is one undo step and opens no form: the caret starts in the new Figure's caption, so a caption can be typed at once or the Figure left empty. Images inserted by paste/drop are the same insertion with the image set. Undo removes an inserted Figure; Apply → Save → Undo → Save writes the Figure as it was before Apply, and Redo → Save writes the applied value again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion.
 
 Edit opens the properties of any editable Figure. Apply accepts any combination of label, caption and image through Core validation, all-empty included. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
+
+Choose… beside the Image field opens the [folder picker](folder-picker-v1.md#choosing-an-image) to choose an image on the Host, starting in the document's folder ([#208](https://github.com/ieumbird/ieumdoc/issues/208)). It only fills the Image field; Apply validates and commits it like a typed value. An image inside the document's folder fills its relative path, such as `./figures/diagram.svg`, and nothing is copied. One elsewhere is copied into `assets/` as a pasted image is, and the field gets that copy's path. Cancel, or choosing again, removes a copy the form made; a copy Apply put in the Figure stays. Closing the picker without choosing leaves the field unchanged. No CLI command is added: choosing is Host navigation, and `update-figure --image` already sets the path.
 
 Relative image sources remain unchanged in document attributes and Markdown. Both the live NodeView and the editor's HTML serializer resolve the displayed image through the Host media URL, so production HTTP does not request a document asset as an Editor build asset.
 
