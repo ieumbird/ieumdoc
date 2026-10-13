@@ -25,7 +25,7 @@ const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
 const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
-const [OLD, NEW] = BETA ? ["0.0.1-beta.1", "0.0.1-beta.2"] : ["0.0.1", "0.0.2"];
+const [OLD, NEW] = BETA ? ["0.0.1-beta.2", "0.0.1-beta.3"] : ["0.0.1", "0.0.2"];
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, "IeumDoc");
@@ -60,7 +60,7 @@ function packageVersion(version: string): string {
 
 /** Opt-in, public read/download only. Both releases must already exist; no publication API calls. */
 async function publicBeta(): Promise<string> {
-  const folder = path.join(work, "public-beta.1");
+  const folder = path.join(work, `public-${OLD}`);
   mkdirSync(folder, { recursive: true });
   for (const version of [OLD, NEW]) {
     const result = await fetch(`https://api.github.com/repos/${owner}/${name}/releases/tags/v${version}`);
