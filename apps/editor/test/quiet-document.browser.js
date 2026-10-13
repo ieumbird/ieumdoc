@@ -102,6 +102,10 @@ async (page, { screenshots = false, openDocument }) => {
       await rest();
       await shot(`${width}-collapsed`);
       await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      await page.getByRole('button',{name:'Display',exact:true}).click();
+      await rest();
+      await shot(`${width}-display`);
+      await page.getByRole('button',{name:'Files',exact:true}).click();
     }
   }
   for(const width of [1440,1024,768]) {
@@ -221,7 +225,8 @@ async (page, { screenshots = false, openDocument }) => {
   check(await page.getByTestId('status').textContent()==='Saved','Undo to the saved baseline did not clear dirty status');
   await page.keyboard.press('Control+Shift+z');
   check(await page.getByTestId('status').textContent()==='Unsaved changes','Redo did not restore dirty status');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await open('quiet-document.md');

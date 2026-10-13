@@ -65,6 +65,96 @@ button {
   justify-content: center;
 }
 
+/* Tools share the existing sidebar width; the collapsed rail keeps both entry points. */
+.sidebar-tools {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.sidebar-tools .sidebar-tool {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding-inline: var(--space-1);
+}
+
+.sidebar--collapsed .sidebar-tools { flex-direction: column; }
+.sidebar--collapsed .sidebar-tool { flex: none; }
+
+.sidebar-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+}
+
+/* Author display rules must not override the hidden panels' accessibility/layout boundary. */
+.sidebar-content[hidden] { display: none; }
+
+.display-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-height: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  overflow-y: auto;
+}
+
+.display-title,
+.display-scope {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-label);
+}
+
+.display-file {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
+.display-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: var(--size-control-compact);
+  padding-block: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+  cursor: pointer;
+}
+
+.display-choice input {
+  flex: none;
+  width: var(--size-icon-slot);
+  height: var(--size-icon-slot);
+  margin: calc((var(--line-height-label) - var(--size-icon-slot)) / 2) 0 0;
+  accent-color: var(--id-color-interaction);
+}
+
+.display-choice input:focus-visible {
+  outline: 2px solid var(--id-color-border-focus);
+  outline-offset: 2px;
+}
+
+.display-choice:has(:disabled) {
+  color: var(--id-color-text-subtle);
+  cursor: default;
+}
+
+.display-hint {
+  margin: var(--space-1) 0 0;
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
 .product {
   padding-left: var(--space-3);
   color: var(--id-color-text);
@@ -210,7 +300,7 @@ button {
 }
 
 /* Opened below the docking width, the panel covers the document instead of narrowing it. It
- * starts below the sticky header (measured by the App), so Save, Reload and the Outline toggle
+ * starts below the sticky header (measured by the App), so Save, File actions and the Outline toggle
  * stay visible and usable. */
 .document-panel--overlay {
   position: fixed;
@@ -388,7 +478,7 @@ button {
   gap: var(--space-3);
 }
 
-/* Spacing distinguishes document settings, view and file actions without adding toolbar chrome. */
+/* Spacing distinguishes views and file actions without adding toolbar chrome. */
 .top-bar-group {
   display: flex;
   align-items: center;
@@ -520,11 +610,12 @@ button {
 /* TopBar state axes stay separate: hover is a neutral face (none on view tabs), keyboard focus is
  * the ring, and "on"/active is the interaction marker. An on toggle also takes the selected icon
  * color, but no selected face, so the face never means two things. */
-.top-bar-toggle[aria-pressed="true"] {
+.top-bar-toggle[aria-pressed="true"],
+.sidebar-tool[aria-pressed="true"] {
   position: relative;
   color: var(--id-color-text-selected);
 }
-:is(.top-bar-toggle, .view-toggle-option)[aria-pressed="true"]::after,
+:is(.top-bar-toggle, .view-toggle-option, .sidebar-tool)[aria-pressed="true"]::after,
 .view-toggle .view-toggle-option:not([aria-pressed="true"], [aria-disabled="true"]):enabled:hover::after {
   content: "";
   position: absolute;

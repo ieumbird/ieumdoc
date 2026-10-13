@@ -95,7 +95,8 @@ async (page, { openDocument }) => {
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   const paths = disk.document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
   assert(paths.length === 3 && paths.every(path => path.startsWith('./assets/')), 'Save retains all Figure paths');
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'}); await loaded();
   assert((await documentJSON()).content.filter(node => node.type === 'figure').map(node => node.attrs.imageUrl).join('|') === paths.join('|'), 'Reload retains relative paths');
   result.saveReloadAndImageLoad = true;

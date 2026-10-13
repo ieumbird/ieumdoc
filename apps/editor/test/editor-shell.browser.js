@@ -43,6 +43,36 @@ async page => {
     await dialog.waitFor({state:'detached'});
     result.folderCancelReturnsFocus = await isFocused(openFolder);
 
+    // Both tools reopen from the collapsed rail. Tab reaches the selected content; Escape returns.
+    const files = page.getByRole('button', {name:'Files', exact:true});
+    const display = page.getByRole('button', {name:'Display', exact:true});
+    const numbering = page.getByRole('checkbox', {name:'Number headings', exact:true});
+    const editorHandle = await page.locator('.document-editor').evaluateHandle(n => n.editor);
+    await page.getByRole('button',{name:'Collapse sidebar'}).click();
+    await display.focus();
+    await page.keyboard.press('Enter');
+    result.displayReopens = await numbering.isVisible() && await isFocused(display) &&
+      await page.locator('.display-file').textContent() === 'technical-document.md';
+    await page.keyboard.press('Tab');
+    result.displayKeyboardEntry = await isFocused(numbering);
+    await page.keyboard.press('Escape');
+    result.displayEscapeReturnsFocus = await isFocused(display);
+    await page.getByRole('button',{name:'Collapse sidebar'}).click();
+    await page.getByRole('button',{name:'Expand sidebar'}).click();
+    result.collapseKeepsTool = await numbering.isVisible();
+    await page.getByRole('button',{name:'Collapse sidebar'}).click();
+    await files.click();
+    result.filesReopens = await openFolder.isVisible() && !await numbering.isVisible();
+    result.toolsKeepEditor = await page.locator('.document-editor').evaluate((n, original) => n.editor === original, editorHandle);
+    await editorHandle.dispose();
+
+    const fileActions = page.getByRole('button', {name:'File actions', exact:true});
+    await fileActions.focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).waitFor();
+    await page.keyboard.press('Escape');
+    result.fileMenuEscapeReturnsFocus = await isFocused(fileActions);
+
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
     await paragraph.click();
@@ -73,6 +103,10 @@ async page => {
       document.querySelector('.document-editor').editor.state.selection.from === 'The current reference is calculated from the active power command.'.length);
     await page.getByTestId('selection-toolbar').waitFor();
     const keyboardSelection = await editorState();
+    await display.click();
+    await files.click();
+    result.toolSwitchKeepsSelectionAndHistory = await editorState() === keyboardSelection;
+    await page.locator('.document-editor').focus();
     await page.keyboard.press('Tab');
     result.toolbarTabEnters = await isFocused(toolbarButton('Bold')) && await editorState() === keyboardSelection;
     await page.keyboard.press('Tab');
@@ -96,6 +130,16 @@ async page => {
     result.equationDraftInBlock = await page.getByTestId('equation-draft-status').isVisible();
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
     result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
+    await display.click();
+    await files.click();
+    result.toolSwitchKeepsEquationDraft = await page.getByTestId('equation-latex').inputValue() === 'x + 1' &&
+      await page.getByTestId('draft-notice').isVisible();
+    await fileActions.click();
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+    await page.getByRole('dialog', {name:'Discard local changes?', exact:true}).waitFor();
+    await page.getByRole('button', {name:'Keep editing', exact:true}).click();
+    await page.getByRole('dialog', {name:'Discard local changes?', exact:true}).waitFor({state:'detached'});
+    result.reloadCancelKeepsDraftAndFocus = await page.getByTestId('equation-latex').inputValue() === 'x + 1' && await isFocused(fileActions);
     await page.getByTestId('equation-cancel').click();
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     result.saveEnabledAfterCancel = await page.getByTestId('equation-draft-status').count() === 0;
@@ -106,6 +150,9 @@ async page => {
       await page.locator('[data-block="figure"]').getAttribute('data-selected') === 'true';
     await page.getByRole('button', {name:'Edit figure'}).click();
     result.figurePopover = await page.getByTestId('figure-editor').isVisible();
+    await display.click();
+    await files.click();
+    result.toolSwitchKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
     await page.getByTestId('figure-cancel').click();
 
     // `+` inserts through the shared insert menu.

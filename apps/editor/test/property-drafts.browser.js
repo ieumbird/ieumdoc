@@ -44,7 +44,8 @@ async (page, { openDocument }) => {
   check(await focused('label-target-input'), 'Edit did not focus the section label');
   await page.getByTestId('label-target-input').fill('section-draft');
   await dirty();
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check(await page.getByTestId('label-target-input').inputValue() === 'section-draft', 'Reload discarded section draft');

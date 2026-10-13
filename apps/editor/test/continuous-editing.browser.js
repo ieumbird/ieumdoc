@@ -144,7 +144,8 @@ async (page, { openDocument }) => {
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.doc.textContent.includes('End paragraph.한글'));
   await save();
   const saved = model(await disk());
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   assert(model(await disk()) === saved, 'Reload must retain the saved semantic model');
   assert((await page.locator('.document-editor').innerText()).includes('한글'), 'Committed Korean text must survive Reload');
@@ -219,7 +220,8 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Control+Shift+z');
   assert(formattedBlocks(await doc()).join() === formattedTwice.join(), 'Redo must restore the formatted paste');
   await save();
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   assert(formattedBlocks(await doc()).join() === formattedTwice.join(), 'Formatted paste must survive Save and Reload');
   // A line break is still not heading content, even in typed clipboard HTML.

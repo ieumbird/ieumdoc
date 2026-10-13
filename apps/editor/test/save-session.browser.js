@@ -153,14 +153,16 @@ async (page, { openDocument }) => {
   await page.getByTestId('view-source').click(); await page.getByTestId('source-view').waitFor();
   check('conflictSourceRecovery', (await page.getByTestId('source-view').innerText()).includes('Local'));
   await page.getByTestId('view-visual').click();
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check('reloadCancelKeepsWork', (await paragraph().innerText()).includes('Local'));
   check('beforeUnloadProtected', await page.evaluate(() => {
     const event = new Event('beforeunload', {cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented;
   }));
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click(); await ready();
   check('reloadUsesDisk', (await paragraph().innerText()) === 'External.');
 
@@ -193,7 +195,8 @@ async (page, { openDocument }) => {
   check('draftRetained', await page.getByTestId('equation-latex').inputValue() === 'x + 40');
   await page.getByTestId('equation-apply').click(); await save();
   check('appliedDraftWritten', (await read(technical)).source.includes('x + 40'));
-  await page.getByRole('button', {name:'Reload', exact:true}).click(); await ready();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
   check('reopenedAppliedEquation', await page.locator('[data-block="equation"] .katex').count() > 0 &&
     (await page.getByTestId('document-editor').innerText()).includes('BodySaved'));
   return result;

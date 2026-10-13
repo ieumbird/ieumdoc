@@ -82,20 +82,20 @@ async page => {
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'More actions');
   check(await menu.evaluate(n => n === document.activeElement), 'Menu did not restore focus');
-  const wide = page.getByRole('button', {name:'Wide document', exact:true});
-  await wide.hover(); await settle(); const toggleHover = await state(wide);
-  await wide.click(); await page.mouse.move(0,0); await settle(); const pressed = await state(wide);
+  const outline = page.getByRole('button', {name:'Outline', exact:true});
+  await outline.click();
+  await outline.hover(); await settle(); const toggleHover = await state(outline);
+  await outline.click(); await page.mouse.move(0,0); await settle(); const pressed = await state(outline);
   // On toggles and the active view tab use the current marker: a non-color indicator that hover keeps.
   const marker = locator => locator.evaluate(n => {
     const m = getComputedStyle(n, '::after');
     return {content: m.content, color: m.backgroundColor, height: parseFloat(m.height)};
   });
-  const pressedMarker = await marker(wide);
+  const pressedMarker = await marker(outline);
   check(pressed.background !== toggleHover.background && pressedMarker.content === '""' && pressedMarker.height > 0 &&
     pressedMarker.color === results[0].rest.markerColor, 'Pressed toggle lacks the current marker or looks like hover');
-  await wide.hover(); await settle();
-  check(JSON.stringify(await marker(wide)) === JSON.stringify(pressedMarker), 'Hover hides the pressed marker');
-  await wide.click();
+  await outline.hover(); await settle();
+  check(JSON.stringify(await marker(outline)) === JSON.stringify(pressedMarker), 'Hover hides the pressed marker');
   const activeMarker = await marker(page.getByTestId('view-visual')), inactiveMarker = await marker(page.getByTestId('view-source'));
   check(activeMarker.content === '""' && activeMarker.color === pressedMarker.color && inactiveMarker.content === 'none',
     'View tab lacks the active marker');
@@ -108,9 +108,9 @@ async page => {
   await page.getByTestId('view-visual').hover(); await settle();
   check(JSON.stringify(await marker(page.getByTestId('view-visual'))) === JSON.stringify(activeMarker), 'Hover hides the active view marker');
   await page.mouse.move(0,0); await settle();
-  // A clean Save is an ordinary available ghost action, like Reload beside it.
-  const cleanSave = await state(page.getByTestId('save')), reloadRest = await state(page.getByRole('button', {name:'Reload', exact:true}));
-  check(!await page.getByTestId('save').isDisabled() && cleanSave.background === reloadRest.background && cleanSave.color === reloadRest.color &&
+  // A clean Save is an ordinary available ghost action, like File actions beside it.
+  const cleanSave = await state(page.getByTestId('save')), actionsRest = await state(page.getByRole('button', {name:'File actions', exact:true}));
+  check(!await page.getByTestId('save').isDisabled() && cleanSave.background === actionsRest.background && cleanSave.color === actionsRest.color &&
     cleanSave.opacity === '1', 'Clean Save must look like an available ghost action');
 
   await ghost.click();

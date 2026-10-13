@@ -80,7 +80,8 @@ async (page, { openDocument }) => {
   const expected = opened.replace('## Install', '(sec-install)=\n\n## Install').replace('See the install section.', 'See the install section. {ref}`sec-install`')
     .replace('## 개요', '(sec-1)=\n\n## 개요');
   assert(saved === expected, 'Saved Markdown differs: ' + JSON.stringify({saved, expected}));
-  await page.getByRole('button', {name:'Reload', exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();
   await chip.waitFor();
   result.saveReload = await chip.getAttribute('data-resolved') === 'true' && JSON.stringify(await labels()) === JSON.stringify(['sec-install', 'sec-1']);

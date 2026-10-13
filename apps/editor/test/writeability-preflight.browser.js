@@ -15,7 +15,11 @@ async (page, { openDocument }) => {
     await ready();
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
-  const reload = async () => { await page.getByRole('button', {name:'Reload',exact:true}).click(); await ready(); };
+  const reload = async () => {
+    await page.getByRole('button', {name:'File actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+    await ready();
+  };
   const save = page.locator('.top-bar [data-testid="save"]');
   const source = page.getByTestId('view-source');
   const editor = page.locator('.document-editor');
@@ -70,6 +74,9 @@ async (page, { openDocument }) => {
   const message = await warning.innerText();
   assert(message.includes('Read-only:') && message.includes('Line 3') && message.includes('keyboard') && message.includes('then Reload'), 'Missing location, reason or recovery path');
   assert(await editor.getAttribute('contenteditable') === 'false', 'Blocked document accepts typing');
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  assert(await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled(), 'Read-only document accepts numbering changes');
+  await page.getByRole('button', {name:'Files', exact:true}).click();
   const disabledSave = await save.evaluate(button => {
     const paper = document.querySelector('.document');
     if (!paper) throw Error('Missing document surface');

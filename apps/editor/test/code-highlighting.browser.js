@@ -66,7 +66,8 @@ async (page, { openDocument }) => {
     });
     check(JSON.stringify(languages.actual) === JSON.stringify(languages.expected), 'Deferred registration changed language set: '+JSON.stringify(languages));
   } finally { release(); releaseAsset(); await page.unroute('**/src/code-languages.ts*'); await page.unroute('**/api/asset?*'); }
-  await page.getByRole('button',{name:'Reload',exact:true}).click();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
   await ready();
   // A successful HTTP module that throws exercises the caught failure without hiding console errors.

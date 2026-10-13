@@ -71,6 +71,9 @@ async (page, { openDocument }) => {
   try {
     await page.getByTestId('view-source').click();
     await requested;
+    await page.getByRole('button', {name:'Display', exact:true}).click();
+    result.numberingBlockedWhilePending = await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled();
+    await page.getByRole('button', {name:'Files', exact:true}).click();
     await otherDocument.click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     result.openBlockedWhilePending = await currentFile() === documentA;
@@ -84,6 +87,10 @@ async (page, { openDocument }) => {
   const source = await page.getByTestId('source-view').locator('pre').textContent();
   result.identityStillA = await currentFile() === documentA;
   result.sourceIsA = source.includes('# Converter Control') && !source.includes('Editable paragraph.');
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  result.displaySourceIsReadOnly = await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled() &&
+    await page.getByRole('checkbox', {name:'Wide document', exact:true}).isEnabled();
+  await page.getByRole('button', {name:'Files', exact:true}).click();
   await page.unroute('**/api/document-source');
 
   // Once the preview is done, Open works again and returns to Visual.

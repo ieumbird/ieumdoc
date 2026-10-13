@@ -71,6 +71,7 @@ export function App() {
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
   const outlineToggle = useRef<HTMLButtonElement>(null);
+  const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
@@ -113,7 +114,7 @@ export function App() {
   }, []);
 
   // The overlaid Document panel starts below the sticky header, whose height changes when the
-  // TopBar wraps or a message appears; it never covers Save, Reload or the Outline toggle.
+  // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
   useEffect(() => {
     const element = header.current;
     if (!element) return;
@@ -427,6 +428,15 @@ export function App() {
         newButtonRef={newFileButton}
         open={sidebarOpen}
         documentPath={openedPath}
+        display={{
+          headingNumbering,
+          onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
+          numberingDisabled: !document || busy || Boolean(writeError) || view !== "visual",
+          numberingHint: !document ? "Open a document to change numbering." : busy ? "Wait for the current operation to finish."
+            : writeError ? "This document is read-only." : view !== "visual" ? "Switch to Visual to change heading numbering." : undefined,
+          wide: documentWidth === "wide",
+          onToggleWide: toggleDocumentWidth,
+        }}
         onToggle={() => setSidebarOpen((value) => !value)}
         onOpenFolder={(returnFocus) => {
           dialogReturnFocus.current = returnFocus;
@@ -466,14 +476,10 @@ export function App() {
             saveDisabled={!document || busy ||
               Boolean(writeError)}
             saveHint={saveHint}
-            headingNumbering={headingNumbering}
-            onToggleHeadingNumbering={() => editorRef.current?.toggleHeadingNumbering()}
-            numberingDisabled={!document || busy || Boolean(writeError) || view !== "visual"}
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
-            wide={documentWidth === "wide"}
-            onToggleWide={toggleDocumentWidth}
+            fileActionsRef={fileActionsToggle}
             outline={panelOpen}
             onToggleOutline={() => setPanelOpen((value) => !value)}
             outlineToggleRef={outlineToggle}
@@ -605,7 +611,7 @@ export function App() {
         onClose={() => setNewFolderDialog(false)}
       />
       <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>
-        <DialogContent showCloseButton={false}>
+        <DialogContent showCloseButton={false} finalFocus={fileActionsToggle}>
           <DialogHeader>
             <DialogTitle>{switching ? "Reloading…" : "Discard local changes?"}</DialogTitle>
             <DialogDescription>Reload replaces your unsaved changes and unapplied drafts with the file on disk. Keep editing to preserve them. Source lets you copy applied content first.</DialogDescription>
