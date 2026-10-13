@@ -1,7 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (dedicated Windows icon, clean package, packaged/install-update regressions and native display for #170; public beta.2 and actual GitHub beta.1→beta.2 were verified on 2026-10-12).
+- Last verified: 2026-10-14 (public beta.3, release CI, anonymous assets and actual GitHub beta.2→beta.3 update; see the release record).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
 
@@ -21,7 +21,9 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 
 ## Channels and versions
 
-The public distribution version is `0.0.1-beta.2`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About shows installed version, channel, update status/actions and a Release notes link.
+The public distribution version is `0.0.1-beta.3`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About shows installed version, channel, update status/actions and a Release notes link.
+
+The [beta.3 release record](../releases/v0.0.1-beta.3.md) contains publication, verified public assets, required CI and actual GitHub beta.2→beta.3 update evidence. Earlier verification below remains historical.
 
 | Channel | Feed and offer | Release assets |
 | --- | --- | --- |

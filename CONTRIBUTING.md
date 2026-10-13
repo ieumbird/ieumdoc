@@ -2,7 +2,7 @@
 
 ## Project status
 
-IeumDoc은 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.1-beta.2](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.2)이 공개되었고 Stable은 아직 없다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
+IeumDoc은 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.1-beta.3](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.3)이 공개되었고 Stable은 아직 없다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
 ## Development requirements
 
@@ -77,13 +77,13 @@ Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 빌�
 
 ```bash
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.1-beta.2
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.1-beta.3
 pnpm --filter @ieumdoc/desktop test:packaged
 ```
 
 `--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
 
-공개 버전은 `0.0.1-beta.2`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
+공개 버전은 `0.0.1-beta.3`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
 
 일반 PR/push CI는 unsigned installer를 Artifact로 제공하며 게시 권한이나 release job이 없다. 첫 beta.1은 CI 자산을 별도로 검증하여 수동 공개했다. 다음 Beta부터는 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 수동 실행한다.
 
@@ -99,7 +99,7 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 인증된 paginated Release 목록에서 기존 공개 Release와 Draft를 모두 거부한다. 생성 응답의 ID로 새 Draft에 세 자산을 올리고 서버의 정확한 자산 집합·uploaded 상태·size·SHA-256·tag/channel을 확인한 뒤 마지막 요청으로 공개한다. 업로드/검증 실패는 Draft로 남기고 자동 삭제·덮어쓰기·재시도하지 않는다. 마지막 공개 요청의 응답이 소실되면 공개 여부를 확인해야 하므로 `Publication confirmation required`와 ID를 보고한다.
 
-다음 Beta 발행 순서: 버전 변경과 로컬 후보 검증 → 명시적 원격 승인 → 변경 push/CI/master 반영 → 실제 환경 보호 확인 → 검증된 master commit에 해당 버전 tag 게시 → master에서 해당 tag와 `unsigned-beta` 또는 `signed`로 수동 실행 → 모든 빌드·테스트·자산 검증 성공 확인 → 대기 중인 `desktop-release` 게시 job 승인 → 공개 결과와 [실제 GitHub 업데이트 검증](docs/test/README.md#real-github-beta-update) 확인 → README의 공개 버전과 릴리즈 기록 갱신. 게시 모드도 전체 검증을 실행하므로 동일 후보의 `verify`와 게시 빌드를 연속으로 반복할 필요는 없다. 게시 여부를 결정하기 전 산출물만 검토하려면 `verify`를 사용한다. beta.2의 현재 결과는 [릴리즈 기록](docs/releases/v0.0.1-beta.2.md), 동작 계약은 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고한다. 이미 공개된 tag나 자산은 재작성하지 않는다.
+다음 Beta 발행 순서: 버전 변경과 로컬 후보 검증 → 명시적 원격 승인 → 변경 push/CI/master 반영 → 실제 환경 보호 확인 → 검증된 master commit에 해당 버전 tag 게시 → master에서 해당 tag와 `unsigned-beta` 또는 `signed`로 수동 실행 → 모든 빌드·테스트·자산 검증 성공 확인 → 대기 중인 `desktop-release` 게시 job 승인 → 공개 결과와 [실제 GitHub 업데이트 검증](docs/test/README.md#real-github-beta-update) 확인 → README의 공개 버전과 릴리즈 기록 갱신. 게시 모드도 전체 검증을 실행하므로 동일 후보의 `verify`와 게시 빌드를 연속으로 반복할 필요는 없다. 게시 여부를 결정하기 전 산출물만 검토하려면 `verify`를 사용한다. beta.3의 현재 결과는 [릴리즈 기록](docs/releases/v0.0.1-beta.3.md), 동작 계약은 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고한다. 이미 공개된 tag나 자산은 재작성하지 않는다.
 
 Unsigned Beta의 SHA-512/SHA-256은 무결성 검증이다. 악의적인 게시자가 파일과 manifest를 함께 바꾸는 경우에 대한 게시자 인증이 아니다. Unsigned 경로는 Authenticode 인증을 제공하지 않으며, Signed 경로의 인증서 검증을 해제하지 않는다.
 
