@@ -8,6 +8,8 @@ import type {
   ListContent,
   NodePath,
 } from "@ieumdoc/core";
+import type { WriteIssue } from "@ieumdoc/core";
+import type { SaveFailure } from "./save-error.ts";
 
 // Browser Editor/local Host data contract, not a Core operation or backend architecture.
 // Paths in edits address the session's opening snapshot, including after Save.
@@ -160,6 +162,7 @@ export type DocumentFileResponse = {
   revision: string;
   /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
   writeError: string | null;
+  writeIssue?: WriteIssue;
   /** False when the source writes footnote definitions elsewhere than after the body in endnote
    * order: the first Save moves them there, as Source shows. Opening never writes. */
   endnotesInPlace: boolean;
@@ -176,7 +179,7 @@ export type SaveResponse = Pick<DocumentFileResponse, "revision">;
 
 export type SourceResponse = { markdown: string };
 
-export type DocumentErrorResponse = { error: string; target?: OrderItem };
+export type DocumentErrorResponse = { error: string; target?: OrderItem; failure?: SaveFailure };
 
 /** Apply one block source to the session's opening snapshot after its other applied sources. */
 export type BlockSourceRequest = BlockSourceEdit & {

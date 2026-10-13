@@ -73,6 +73,7 @@ async (page, { openDocument }) => {
   const before = await read('blocked-markdown.md');
   const message = await warning.innerText();
   assert(message.includes('Read-only:') && message.includes('Line 3') && message.includes('keyboard') && message.includes('then Reload'), 'Missing location, reason or recovery path');
+  assert(message.includes('Block 2 (paragraph)'), 'Blocked document must identify the affected displayed block');
   assert(await editor.getAttribute('contenteditable') === 'false', 'Blocked document accepts typing');
   await page.getByRole('button', {name:'Display', exact:true}).click();
   assert(await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled(), 'Read-only document accepts numbering changes');

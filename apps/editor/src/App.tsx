@@ -1,3 +1,5 @@
+import { SaveContentError } from "../shared/save-error.ts";
+import { saveErrorMessage, writeIssueMessage } from "./save-error.ts";
 import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
@@ -13,7 +15,7 @@ import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
-import { collectSupportedEdits, isSessionPlaceholder, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
+import { collectSupportedEdits, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
 import type {
   BlockSourceRequest,
   BlockSourceResponse,
@@ -28,7 +30,6 @@ import type {
   FolderPlace,
   FolderPlacesResponse,
   FolderResponse,
-  OrderItem,
   SupportedEdits,
   SaveRequest,
 } from "../shared/document-protocol.ts";
@@ -243,7 +244,9 @@ export function App() {
       setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
     } catch (cause) {
       editorRef.current?.finishSave();
-      setError(saveErrorMessage(cause, submitted, payload));
+      const failure = cause instanceof SaveContentError ? cause
+        : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
+      setError(saveErrorMessage(failure, submitted, payload));
       setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");
     }
   }
@@ -635,23 +638,9 @@ type DocumentResponse = Omit<DocumentFileResponse, "writeError"> & {
   writeError: string;
 };
 
-class SaveContentError extends Error {
-  constructor(message: string, readonly target?: OrderItem) { super(message); }
-}
-
-function saveErrorMessage(error: unknown, submitted?: TiptapJSON, edits?: SupportedEdits): string {
-  if (!(error instanceof SaveContentError) || !error.target || !submitted) return messageOf(error);
-  const target = error.target;
-  const nodes = submitted.content ?? [];
-  const node = "path" in target
-    ? nodes.find(node => String(node.attrs?.sourcePath).split(";").includes(target.path.join(",")))
-    : nodes.filter(node => !isSessionPlaceholder(node))[edits?.order?.findIndex(item => "insert" in item && item.insert === target.insert) ?? -1];
-  return node ? `Block ${nodes.indexOf(node) + 1} (${node.type}): ${error.message}` : error.message;
-}
-
-class SaveConflictError extends Error {
+class SaveConflictError extends SaveContentError {
   constructor(message: string) {
-    super(message);
+    super(message, undefined, { phase: "revision", action: "Copy applied content from Source, or Reload only when you are ready to discard local changes." });
     this.name = "SaveConflictError";
   }
 }
@@ -686,23 +675,37 @@ async function requestDocument(
     document: payload.document,
     revision: payload.revision,
     source: payload.source,
-    writeError: typeof payload.writeError === "string" ? payload.writeError : "",
+    writeError: payload.writeIssue && payload.document ? writeIssueMessage(payload.writeIssue, payload.document)
+      : typeof payload.writeError === "string" ? payload.writeError : "",
     endnotesInPlace: payload.endnotesInPlace !== false,
   };
 }
 
 async function requestSave(body: SaveRequest): Promise<SaveResponse> {
-  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json()) as Partial<SaveResponse> & Partial<DocumentErrorResponse>;
-  if (response.status === 409) {
-    throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
+  let response: Response;
+  let payload: Partial<SaveResponse> & Partial<DocumentErrorResponse>;
+  try {
+    response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/document`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    payload = await response.json();
+  } catch (cause) {
+    throw new SaveContentError("The Host response could not be received or read. The file may already have been saved.", undefined, {
+      cause, phase: "transport", action: "Keep your edits. Check the connection to the Host and the disk version before deciding whether to save again or Reload.",
+    });
   }
-  if (!response.ok || typeof payload.revision !== "string") {
-    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
+  if (response.status === 409) {
+    throw new SaveConflictError(payload?.error ?? "Document changed outside the editor.");
+  }
+  if (!response.ok) {
+    throw new SaveContentError(payload?.error ?? `request failed (${response.status})`, payload?.target ?? payload?.failure?.target, {
+      phase: "request", action: "The Host rejected this request. Keep your edits and report this error if the reason does not identify a correction.", ...payload?.failure,
+    });
+  }
+  if (!payload || typeof payload.revision !== "string") {
+    throw new SaveContentError("The Host did not return a valid Save acknowledgement. The file may already have been saved.", undefined, {
+      phase: "transport", action: "Keep your edits and check the disk version before saving again or Reloading.",
+    });
   }
   return { revision: payload.revision };
 }

@@ -78,19 +78,26 @@ function isPlainText(node: Fingerprint): boolean {
 
 /** Return where the first semantic difference is, or undefined when equal. */
 export function semanticDifference(before: Fingerprint, after: Fingerprint, path = before.type): string | undefined {
-  if (before.type !== after.type) return `${path}: ${before.type} became ${after.type}`;
+  return semanticDifferenceIssue(before, after, path)?.reason;
+}
+
+/** The original top-level block index, when the mismatch actually identifies one. */
+export function semanticDifferenceIssue(before: Fingerprint, after: Fingerprint, path = before.type): { reason: string; blockIndex?: number } | undefined {
+  if (before.type !== after.type) return { reason: `${path}: ${before.type} became ${after.type}` };
   for (const key of new Set([...Object.keys(before.fields), ...Object.keys(after.fields)])) {
     const was = JSON.stringify(before.fields[key]);
     const is = JSON.stringify(after.fields[key]);
-    if (was !== is) return `${path}: ${key} ${was ?? "(absent)"} became ${is ?? "(absent)"}`;
+    if (was !== is) return { reason: `${path}: ${key} ${was ?? "(absent)"} became ${is ?? "(absent)"}` };
   }
   for (let index = 0; index < Math.max(before.children.length, after.children.length); index++) {
     const was = before.children[index];
     const is = after.children[index];
-    if (!was) return `${path}: unexpected ${is.type} added`;
-    if (!is) return `${path}: ${was.type} was dropped`;
-    const difference = semanticDifference(was, is, `${path} > ${was.type}`);
-    if (difference) return before.type === "root" ? `Block ${index + 1}: ${difference}` : difference;
+    const difference = !was ? { reason: `${path}: unexpected ${is.type} added` }
+      : !is ? { reason: `${path}: ${was.type} was dropped` }
+      : semanticDifferenceIssue(was, is, `${path} > ${was.type}`);
+    if (difference) return before.type === "root"
+      ? { reason: was && is ? `Block ${index + 1}: ${difference.reason}` : difference.reason, ...(was ? { blockIndex: index } : {}) }
+      : difference;
   }
   return undefined;
 }

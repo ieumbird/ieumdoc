@@ -1,3 +1,4 @@
+import { SaveContentError } from "../shared/save-error.ts";
 import { isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
@@ -103,7 +104,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const insertOf = new Map<TiptapJSON, number>();
   const used = new Set<string>();
   const nodes = (next.content ?? []).filter(node => !isSessionPlaceholder(node));
-  const saveError = (node: TiptapJSON, message: string) => new Error(`Block ${(next.content ?? []).indexOf(node) + 1} (${node.type}): ${message}`);
+  const saveError = (node: TiptapJSON, message: string) => new SaveContentError(message, undefined, {
+    phase: "collect", block: { index: (next.content ?? []).indexOf(node), type: node.type ?? "unknown" },
+    action: "Enter the required content or delete the empty block/item.",
+  });
   const keys = [...new Set(nodes.map(sourcePathOf))];
   for (const key of keys) {
     const group = nodes.filter(node => sourcePathOf(node) === key);
@@ -111,120 +115,124 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     paths.forEach(path => used.add(path));
     if (paths.length === 0) {
       for (const node of group) {
-        const insert = insertEdit(node);
-        if (insert.block === "paragraph" && inlineText(insert.content).length === 0) {
-          throw saveError(node, "empty paragraph cannot be saved");
-        }
-        if (insert.block === "heading" && inlineText(insert.content).length === 0) {
-          throw saveError(node, "empty heading cannot be saved. Enter text or delete this block.");
-        }
-        if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
-          throw saveError(node, "admonition body cannot be empty");
-        }
-        if (insert.block === "quote" && inlineText(insert.content).trim().length === 0) {
-          throw saveError(node, "quote cannot be empty");
-        }
-        if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
-          throw saveError(node, EMPTY_FOOTNOTE);
-        }
-        if (insert.block === "equation" && insert.latex.length === 0) {
-          throw saveError(node, "empty equation LaTeX cannot be saved");
-        }
-        if (insert.block === "figure") assertFigureContent(insert);
-        if (insert.block === "table" && insert.rows.flat().every(content => inlineText(content).length === 0)) {
-          throw saveError(node, "empty table cannot be saved");
-        }
-        if (insert.block === "list" && hasEmptyListItem(insert.list)) {
-          throw saveError(node, EMPTY_LIST_ITEM);
-        }
-        insertOf.set(node, inserts.length);
-        inserts.push(insert);
+        atEditorBlock(next, node, () => {
+          const insert = insertEdit(node);
+          if (insert.block === "paragraph" && inlineText(insert.content).length === 0) {
+            throw saveError(node, "empty paragraph cannot be saved");
+          }
+          if (insert.block === "heading" && inlineText(insert.content).length === 0) {
+            throw saveError(node, "empty heading cannot be saved. Enter text or delete this block.");
+          }
+          if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
+            throw saveError(node, "admonition body cannot be empty");
+          }
+          if (insert.block === "quote" && inlineText(insert.content).trim().length === 0) {
+            throw saveError(node, "quote cannot be empty");
+          }
+          if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
+            throw saveError(node, EMPTY_FOOTNOTE);
+          }
+          if (insert.block === "equation" && insert.latex.length === 0) {
+            throw saveError(node, "empty equation LaTeX cannot be saved");
+          }
+          if (insert.block === "figure") assertFigureContent(insert);
+          if (insert.block === "table" && insert.rows.flat().every(content => inlineText(content).length === 0)) {
+            throw saveError(node, "empty table cannot be saved");
+          }
+          if (insert.block === "list" && hasEmptyListItem(insert.list)) {
+            throw saveError(node, EMPTY_LIST_ITEM);
+          }
+          insertOf.set(node, inserts.length);
+          inserts.push(insert);
+        });
       }
       continue;
     }
     const node = group[0];
-    const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
-    if (paths.length > 1) {
-      merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
-    } else if (block.block === "heading" && block.editable) {
-      const level = headingLevel(node);
-      if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
-      const content = headingInline(node);
-      if (!sameInline(content, block.content)) {
-        if (inlineText(content).length === 0) throw saveError(node, "empty heading text cannot be saved");
-        headings.push({ path: block.path, content });
+    atEditorBlock(next, node, () => {
+      const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
+      if (paths.length > 1) {
+        merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
+      } else if (block.block === "heading" && block.editable) {
+        const level = headingLevel(node);
+        if (level !== block.level) headingLevels.push({ path: block.path, from: block.level, to: level });
+        const content = headingInline(node);
+        if (!sameInline(content, block.content)) {
+          if (inlineText(content).length === 0) throw saveError(node, "empty heading text cannot be saved");
+          headings.push({ path: block.path, content });
+        }
+      } else if (block.block === "paragraph" && editableParagraph(block)) {
+        if (group.length > 1) {
+          splits.push({ path: block.path, parts: group.map(paragraphInline) });
+          return;
+        }
+        const content = paragraphInline(node);
+        if (sameInline(content, block.content)) return;
+        if (inlineText(content).length === 0) throw saveError(node, "empty paragraph cannot be saved. Enter text or delete this block.");
+        paragraphs.push({ path: block.path, content });
+      } else if (block.block === "equation") {
+        const latex = equationLatex(node);
+        if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
+        const label = blockLabel(node);
+        if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
+      } else if (block.block === "figure" && block.editable) {
+        const label = blockLabel(node);
+        if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
+        const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: captionValue(block.caption.content) };
+        const to = figureContent(node);
+        if (to.imageUrl === from.imageUrl && to.imageAlt === from.imageAlt &&
+            sameInline(figureCaptionContent(to.caption), block.caption.content)) return;
+        assertFigureContent(to);
+        figures.push({ path: block.path, from, to });
+      } else if (block.block === "admonition" && block.editable) {
+        const variant = String(node.attrs?.variant ?? "");
+        const content = paragraphInline(node);
+        const edit: AdmonitionEdit = { path: block.path };
+        if (variant !== block.variant && isAdmonitionVariant(variant)) edit.variant = variant;
+        if (!sameInline(content, block.content)) {
+          if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
+          edit.content = content;
+        }
+        if (edit.variant || edit.content) admonitions.push(edit);
+      } else if (block.block === "quote" && block.editable) {
+        const content = paragraphInline(node);
+        if (sameInline(content, block.content)) return;
+        if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
+        quotes.push({ path: block.path, content });
+      } else if (block.block === "footnote" && block.editable) {
+        const content = paragraphInline(node);
+        if (sameInline(content, block.content)) return;
+        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE);
+        footnotes.push({ path: block.path, content });
+      } else if (block.block === "target") {
+        const label = targetLabel(node);
+        if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
+      } else if (block.block === "code") {
+        const code = codeContent(node);
+        if (code.language !== block.language || code.code !== block.code) codes.push({ path: block.path, code });
+      } else if (block.block === "list") {
+        const list = listContent(node);
+        if (sameList(list, block)) return;
+        if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM);
+        lists.push({ path: block.path, list });
+      } else if (block.block === "table") {
+        const label = blockLabel(node);
+        if (label !== (block.label ?? "")) labels.push({ path: block.path, from: block.label ?? "", to: label });
+        const caption = tableCaption(node);
+        if (!sameInline(caption, block.caption ?? [])) tableCaptions.push({ path: block.path, content: caption });
+        const next = tableCells(node);
+        const shape = tableShape(tableCells(toTiptapBlock(block)), next);
+        block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
+          const content = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.content;
+          if (cell.editable && content !== undefined && !sameInline(content, cell.content)) cells.push({ path: cell.path, content });
+        }));
+        const unchanged = (axis: (number | null)[], count: number) => axis.length === count && axis.every((from, index) => from === index);
+        if (shape.align || !unchanged(shape.rows, block.rows.length) || !unchanged(shape.columns, block.rows[0]?.cells.length ?? 0)) {
+          tables.push({ path: block.path, ...shape, cells: next.flatMap((row, rowIndex) => row.flatMap((cell, column) =>
+            (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.content.length ? [{ row: rowIndex, column, content: cell.content }] : [])) });
+        }
       }
-    } else if (block.block === "paragraph" && editableParagraph(block)) {
-      if (group.length > 1) {
-        splits.push({ path: block.path, parts: group.map(paragraphInline) });
-        continue;
-      }
-      const content = paragraphInline(node);
-      if (sameInline(content, block.content)) continue;
-      if (inlineText(content).length === 0) throw saveError(node, "empty paragraph cannot be saved. Enter text or delete this block.");
-      paragraphs.push({ path: block.path, content });
-    } else if (block.block === "equation") {
-      const latex = equationLatex(node);
-      if (latex !== block.latex) equations.push({ path: block.path, from: block.latex, to: latex });
-      const label = blockLabel(node);
-      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
-    } else if (block.block === "figure" && block.editable) {
-      const label = blockLabel(node);
-      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
-      const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: captionValue(block.caption.content) };
-      const to = figureContent(node);
-      if (to.imageUrl === from.imageUrl && to.imageAlt === from.imageAlt &&
-          sameInline(figureCaptionContent(to.caption), block.caption.content)) continue;
-      assertFigureContent(to);
-      figures.push({ path: block.path, from, to });
-    } else if (block.block === "admonition" && block.editable) {
-      const variant = String(node.attrs?.variant ?? "");
-      const content = paragraphInline(node);
-      const edit: AdmonitionEdit = { path: block.path };
-      if (variant !== block.variant && isAdmonitionVariant(variant)) edit.variant = variant;
-      if (!sameInline(content, block.content)) {
-        if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
-        edit.content = content;
-      }
-      if (edit.variant || edit.content) admonitions.push(edit);
-    } else if (block.block === "quote" && block.editable) {
-      const content = paragraphInline(node);
-      if (sameInline(content, block.content)) continue;
-      if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
-      quotes.push({ path: block.path, content });
-    } else if (block.block === "footnote" && block.editable) {
-      const content = paragraphInline(node);
-      if (sameInline(content, block.content)) continue;
-      if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE);
-      footnotes.push({ path: block.path, content });
-    } else if (block.block === "target") {
-      const label = targetLabel(node);
-      if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
-    } else if (block.block === "code") {
-      const code = codeContent(node);
-      if (code.language !== block.language || code.code !== block.code) codes.push({ path: block.path, code });
-    } else if (block.block === "list") {
-      const list = listContent(node);
-      if (sameList(list, block)) continue;
-      if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM);
-      lists.push({ path: block.path, list });
-    } else if (block.block === "table") {
-      const label = blockLabel(node);
-      if (label !== (block.label ?? "")) labels.push({ path: block.path, from: block.label ?? "", to: label });
-      const caption = tableCaption(node);
-      if (!sameInline(caption, block.caption ?? [])) tableCaptions.push({ path: block.path, content: caption });
-      const next = tableCells(node);
-      const shape = tableShape(tableCells(toTiptapBlock(block)), next);
-      block.rows.forEach((row, rowIndex) => row.cells.forEach((cell, index) => {
-        const content = next[shape.rows.indexOf(rowIndex)]?.[shape.columns.indexOf(index)]?.content;
-        if (cell.editable && content !== undefined && !sameInline(content, cell.content)) cells.push({ path: cell.path, content });
-      }));
-      const unchanged = (axis: (number | null)[], count: number) => axis.length === count && axis.every((from, index) => from === index);
-      if (shape.align || !unchanged(shape.rows, block.rows.length) || !unchanged(shape.columns, block.rows[0]?.cells.length ?? 0)) {
-        tables.push({ path: block.path, ...shape, cells: next.flatMap((row, rowIndex) => row.flatMap((cell, column) =>
-          (shape.rows[rowIndex] === null || shape.columns[column] === null) && cell.content.length ? [{ row: rowIndex, column, content: cell.content }] : [])) });
-      }
-    }
+    });
   }
   const deletes = document.blocks.filter(block => !used.has(pathKey(block.path))).map(block => block.path);
   const counts = new Map<string, number>();
@@ -360,7 +368,7 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
     const paths = snapshotPaths(key);
     if (paths.length === 0) {
       for (const node of group) {
-        insertEdit(node);
+        atEditorBlock(next, node, () => insertEdit(node));
       }
       continue;
     }
@@ -369,7 +377,7 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
       throw new Error("only editable paragraphs can merge");
     }
     if (group.length > 1 && originals[0]!.type !== "paragraph") throw new Error("block insertion is not allowed");
-    for (const node of group) assertBlockChange(originals[0], node);
+    for (const node of group) atEditorBlock(next, node, () => assertBlockChange(originals[0], node));
   }
   const deleted = new Set(deletedPathsOf(next));
   // A new document's empty starting paragraph is no snapshot block: replacing it deletes nothing.
@@ -477,7 +485,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     }
     const align = grid[0].map(cell => cell.align || null) as ("left" | "center" | "right" | null)[];
     if (grid.some(row => row.some((cell, column) => (cell.align || null) !== align[column]))) {
-      throw new Error("table alignment must be uniform within each column");
+      throw new SaveContentError("table alignment must be uniform within each column", undefined, { phase: "collect", action: "Set alignment for the whole column using the table controls." });
     }
     const caption = tableCaption(node);
     const label = blockLabel(node);
@@ -511,7 +519,8 @@ function captionValue(content: InlineContent[]): FigureContent["caption"] {
 
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
-  if (error) throw new Error(error);
+  if (error) throw new SaveContentError(error, undefined, { phase: "collect",
+    action: "Review the Figure image, alt text and caption in its Edit form." });
 }
 
 function headingLevel(node: TiptapJSON): number {
@@ -600,7 +609,7 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     // An editable admonition may change to another standard kind.
     if (!isAdmonitionVariant(String(afterAttrs.variant ?? ""))) throw new Error("admonition kind is not a standard MyST kind");
     const content = paragraphInline(after);
-    if (inlineText(content).trim().length === 0) throw new Error("admonition body cannot be empty");
+    if (inlineText(content).trim().length === 0) throw new SaveContentError("admonition body cannot be empty", undefined, { phase: "collect", action: "Enter text in the admonition or delete this block." });
     return;
   }
   if (beforeType === "quote") {
@@ -657,17 +666,25 @@ type TableCellShape = { editable: boolean; header: boolean; text: string; conten
 
 /** The cell grid of a table node; editable cells hold inline content without line breaks. */
 function tableCells(node: TiptapJSON): TableCellShape[][] {
-  return (node.content ?? []).map((row) => {
+  return (node.content ?? []).map((row, rowIndex) => {
     if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
-    return (row.content ?? []).map((cell) => {
-      const header = cell.attrs?.header === true;
-      const align = String(cell.attrs?.align ?? "");
-      const source = String(cell.attrs?.[TABLE_CELL_SOURCE_ATTR] ?? "");
-      if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], source };
-      if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
-      const content = paragraphInline(cell);
-      if (hasBreak(content)) throw new Error("a table cell cannot contain line breaks");
-      return { editable: true, header, align, text: "", content, source };
+    return (row.content ?? []).map((cell, column) => {
+      try {
+        const header = cell.attrs?.header === true;
+        const align = String(cell.attrs?.align ?? "");
+        const source = String(cell.attrs?.[TABLE_CELL_SOURCE_ATTR] ?? "");
+        if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], source };
+        if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
+        const content = paragraphInline(cell);
+        if (hasBreak(content)) throw new SaveContentError("a table cell cannot contain line breaks", undefined, {
+          phase: "collect", action: "Remove the line breaks from this table cell.", cell: { row: rowIndex, column } });
+        return { editable: true, header, align, text: "", content, source };
+      } catch (error) {
+        throw new SaveContentError(error instanceof Error ? error.message : String(error), undefined, {
+          cause: error, phase: "collect", cell: { row: rowIndex, column },
+          ...(error instanceof SaveContentError ? { action: error.action } : {}),
+        });
+      }
     });
   });
 }
@@ -682,7 +699,7 @@ type TableShape = Pick<TableShapeEdit, "rows" | "columns" | "align">;
  */
 function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape {
   const width = is[0]?.length ?? 0;
-  if (width === 0 || is.some(row => row.length !== width)) throw new Error("table rows must have the same number of cells");
+  if (width === 0 || is.some(row => row.length !== width)) throw new SaveContentError("table rows must have the same number of cells", undefined, { phase: "collect", action: "Use the table row/column controls to give every row the same number of cells." });
   const snapshot = (cells: TableCellShape[], part: number) => {
     const found = new Set(cells.flatMap(cell => cell.source ? [Number(cell.source.split(",")[part])] : []));
     if (found.size > 1) throw new Error("table cells can only move as whole rows or columns");
@@ -701,7 +718,7 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape
   is.forEach((cells, rowIndex) => cells.forEach((cell, index) => {
     const from = rows[rowIndex];
     const to = columns[index];
-    if (cell.align !== align[index]) throw new Error("table alignment must be uniform within each column");
+    if (cell.align !== align[index]) throw new SaveContentError("table alignment must be uniform within each column", undefined, { phase: "collect", action: "Set alignment for the whole column using the table controls." });
     if (from !== null && to !== null) {
       const old = was[from][to];
       if (cell.source !== `${from},${to}` || cell.editable !== old.editable || cell.header !== old.header || (!old.editable && cell.text !== old.text)) {
@@ -718,7 +735,7 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape
 /** Heading content is paragraph inline content without line breaks. */
 function headingInline(node: TiptapJSON): InlineContent[] {
   const content = paragraphInline(node);
-  if (hasBreak(content)) throw new Error("a heading cannot contain line breaks");
+  if (hasBreak(content)) throw new SaveContentError("a heading cannot contain line breaks", undefined, { phase: "collect", action: "Remove line breaks from the heading or convert it to a paragraph." });
   return content;
 }
 
@@ -747,7 +764,7 @@ export function tableCaption(node: TiptapJSON): InlineContent[] {
 /** A section label target always has a label; removing it removes the block. */
 function targetLabel(node: TiptapJSON): string {
   const label = blockLabel(node);
-  if (label.length === 0) throw new Error("a section label cannot be empty; delete it instead");
+  if (label.length === 0) throw new SaveContentError("a section label cannot be empty; delete it instead", undefined, { phase: "collect", action: "Enter a section label or delete the label target." });
   return label;
 }
 
@@ -798,4 +815,16 @@ function describeType(value: TiptapJSON | undefined): string {
     return `"${value.type}"`;
   }
   return "unknown node";
+}
+
+/** Keep submitted block/cell coordinates even when preflight fails before Host replay. */
+function atEditorBlock<T>(document: TiptapJSON, node: TiptapJSON, apply: () => T): T {
+  try { return apply(); }
+  catch (error) {
+    const detail = error instanceof SaveContentError ? error : undefined;
+    throw new SaveContentError(detail?.reason ?? (error instanceof Error ? error.message : String(error)), undefined, {
+      cause: error, phase: "collect", block: { index: (document.content ?? []).indexOf(node), type: node.type ?? "unknown" },
+      ...(detail ? { action: detail.action, cell: detail.cell } : {}),
+    });
+  }
 }

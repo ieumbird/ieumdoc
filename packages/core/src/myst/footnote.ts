@@ -136,17 +136,26 @@ export function endnotesInPlace(document: MystDocument): boolean {
  * reread them.
  */
 export function footnoteWriteError(document: MystDocument): string | undefined {
-  if (typeof document[DROPPED_FOOTNOTE_FIELD] === "string") return document[DROPPED_FOOTNOTE_FIELD];
+  return footnoteWriteIssue(document)?.reason;
+}
+
+export function footnoteWriteIssue(document: MystDocument): { reason: string; action: string; path?: number[] } | undefined {
+  const action = "Check the footnote reference and definition. Keep one definition per referenced label; add the missing definition or remove an unused reference/definition.";
+  if (typeof document[DROPPED_FOOTNOTE_FIELD] === "string") return { reason: document[DROPPED_FOOTNOTE_FIELD], action };
   const defined = new Set<string>();
-  for (const label of footnoteDefinitions(document)) {
-    if (defined.has(label)) return REPEATED(label);
+  for (const [index, node] of document.children.entries()) {
+    if (node.type !== "footnoteDefinition") continue;
+    const label = String(node.label);
+    if (defined.has(label)) return { reason: REPEATED(label), action, path: [index] };
     defined.add(label);
   }
   const referenced = new Set(footnoteReferences(document));
   const missing = [...referenced].find(label => !defined.has(label));
-  if (missing !== undefined) return `footnote reference [^${missing}] has no definition`;
+  if (missing !== undefined) return { reason: `footnote reference [^${missing}] has no definition`, action,
+    path: [document.children.findIndex(node => footnoteReferences(node).includes(missing))] };
   const unused = [...defined].find(label => !referenced.has(label));
-  if (unused !== undefined) return UNREFERENCED(unused);
+  if (unused !== undefined) return { reason: UNREFERENCED(unused), action,
+    path: [document.children.findIndex(node => node.type === "footnoteDefinition" && String(node.label) === unused)] };
   return undefined;
 }
 

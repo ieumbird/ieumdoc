@@ -2,6 +2,7 @@ import { inlineMarkKey, projectInlineContent, type InlineContent } from "../inli
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
+import { DocumentWriteError } from "../write-error.ts";
 
 /** Fail closed when Markdown cannot persist the requested inline semantics.
  * In particular, trailing breaks and whitespace-only split results are not
@@ -11,7 +12,7 @@ export function assertPersistentParagraph(node: MystNode): void {
   if (!content || !semanticUnits(content).some((unit) =>
     unit.kind === "math" || unit.kind === "reference" || unit.kind === "footnote" || unit.kind === "code" ||
     (unit.kind === "text" && unit.text.trim().length > 0))) {
-    throw new Error("persistent paragraph must contain non-empty text");
+    throw new DocumentWriteError("persistent paragraph must contain non-empty text", { action: "Enter text or delete this block." });
   }
   const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
   const markdown = serializeFor({ type: "root", children: [node] }, failure);

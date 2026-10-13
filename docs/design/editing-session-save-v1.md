@@ -1,7 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (Endnotes v4·빈 Figure 복합 Save replay, caption 파싱 뒤 미주 원문·fail-closed 보호; 관련 단위·browser 회귀).
+- Last verified: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
 ## Save acknowledgement
@@ -26,6 +26,25 @@ The Host stores no sessions. This request contract is a local adapter detail, no
 - A pending Figure, with or without caption or label, is included in Save/Source and restored on Reload. Apply → Undo → Redo restores both the Figure and collected payload. Insertion, Apply and subsequent image connection follow [Figure authoring](figure-authoring-v1.md). Save acknowledgement still covers only the submitted applied snapshot, including when an image is connected while a Save is in flight.
 - Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
+
+## Save failure guidance (#220, phase 1)
+
+Save reports the first encountered failure in the existing message area: the submitted block
+number/kind, the reason and a correction or recovery action. Editor collection preserves block
+and, when identified, table row/column coordinates even when it fails before sending a request.
+Host replay carries opening-snapshot locators; the Editor resolves them against the submitted
+snapshot, including split paragraphs, inserted blocks and moved table cells. A final Core write
+issue refers to the replayed document and is mapped back to that submitted snapshot. Later input
+never changes the reported location. Document-wide failures remain document-wide when no
+specific location was identified; unknown exceptions offer inspection/reporting guidance rather
+than asserting a user-content cause.
+
+The Host returns additive `failure` information (phase/action/location) alongside the existing
+`error`/`target` fields. Revision conflicts, file access/write failures and request failures are
+distinct from content failures. A missing/unreadable response or invalid acknowledgement leaves
+Save unacknowledged and says that the file may already have been saved; inspect the disk version
+before deciding to save again or discard/reload. Failures keep local edits, drafts and history.
+This phase adds no persistent logs, diagnostics history, report export or automatic retry.
 
 ## Switching and recovery
 

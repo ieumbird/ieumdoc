@@ -42,6 +42,7 @@ import {
 import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
+import { DocumentWriteError } from "./write-error.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
@@ -218,8 +219,8 @@ export function updateHeadingInlineContent(document: MystDocument, path: NodePat
 /** Heading content is non-empty supported inline content without line breaks. */
 function headingContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (containsBreak(content)) throw new Error("a heading cannot contain line breaks");
-  if (inlineContentText(content).length === 0) throw new Error("empty heading cannot be saved");
+  if (containsBreak(content)) throw new DocumentWriteError("a heading cannot contain line breaks", { action: "Remove line breaks from the heading or convert it to a paragraph." });
+  if (inlineContentText(content).length === 0) throw new DocumentWriteError("empty heading cannot be saved", { action: "Enter text or delete this heading." });
   return concatenateInlineContent(content);
 }
 
@@ -235,7 +236,7 @@ export function insertAdmonition(
   if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
   assertInlineContent(content);
   if (inlineContentText(content).trim().length === 0) {
-    throw new Error("admonition body must contain non-empty text");
+    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
   }
   const normalizedContent = concatenateInlineContent(content);
   const admonition: MystNode = {
@@ -285,7 +286,7 @@ export function updateQuoteInlineContent(document: MystDocument, path: NodePath,
 
 function quoteContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (inlineContentText(content).trim().length === 0) throw new Error("quote must contain non-empty text");
+  if (inlineContentText(content).trim().length === 0) throw new DocumentWriteError("quote must contain non-empty text", { action: "Enter text or delete this quote." });
   return concatenateInlineContent(content);
 }
 
@@ -365,7 +366,7 @@ export function updateFootnoteDefinition(document: MystDocument, path: NodePath,
 
 function footnoteContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (inlineContentText(content).trim().length === 0) throw new Error("footnote definition must contain non-empty text");
+  if (inlineContentText(content).trim().length === 0) throw new DocumentWriteError("footnote definition must contain non-empty text", { action: "Enter the footnote text or remove its reference and definition." });
   const hasFootnote = (items: InlineContent[]): boolean =>
     items.some(item => item.kind === "footnote" || ("children" in item && hasFootnote(item.children)));
   if (hasFootnote(content)) throw new Error("a footnote definition cannot contain footnote references");
@@ -438,7 +439,7 @@ function normalizeList(list: ListContent): ListContent {
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new Error("list item must be an object");
     assertInlineContent(item.content);
-    if (!hasVisibleContent(item.content)) throw new Error("list item must contain non-empty text");
+    if (!hasVisibleContent(item.content)) throw new DocumentWriteError("list item must contain non-empty text", { action: "Enter text in the empty list item or remove it." });
     const content = concatenateInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
@@ -518,7 +519,7 @@ function assertCodeBlockRoundTrip(document: MystDocument, index: number, content
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */
 export function insertEquation(document: MystDocument, index: number, latex: string): MystDocument {
   if (latex.length === 0) {
-    throw new Error("empty equation LaTeX cannot be saved");
+    throw new DocumentWriteError("empty equation LaTeX cannot be saved", { action: "Enter LaTeX or delete this equation." });
   }
   const equation: MystNode = {
     type: "math",
@@ -607,10 +608,10 @@ function tableCellInput(cell: TableCellInput): InlineContent[] {
   assertInlineContent(content);
   const text = inlineContentText(content);
   if (containsBreak(content) || /[\r\n]/.test(text)) {
-    throw new Error("table cell text cannot contain line breaks");
+    throw new DocumentWriteError("table cell text cannot contain line breaks", { action: "Remove line breaks from this table cell." });
   }
   if (text !== text.trim()) {
-    throw new Error("table cell text cannot start or end with whitespace");
+    throw new DocumentWriteError("table cell text cannot start or end with whitespace", { action: "Remove leading and trailing whitespace from this table cell." });
   }
   // An empty cell has no children, as MyST parses it.
   return concatenateInlineContent(content).filter((item) => item.kind !== "text" || item.text.length > 0);
@@ -852,7 +853,7 @@ function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" 
     throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
   }
   if (targetIdentifiers(document, except).has(identifier)) {
-    throw new Error(`label ${JSON.stringify(label)} already names another target in this document`);
+    throw new DocumentWriteError(`label ${JSON.stringify(label)} already names another target in this document`, { action: "Choose a unique label or remove the duplicate label from the other target." });
   }
   return identifier;
 }
@@ -885,7 +886,7 @@ export function validateFigure(figure: FigureContent, label = ""): string | unde
 
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
-  if (error) throw new Error(error);
+  if (error) throw new DocumentWriteError(error, { action: "Review the Figure image, alt text and caption in its Edit form." });
   assertInlineContent(figureCaptionContent(figure.caption));
 }
 
@@ -981,7 +982,7 @@ export function convertBlock(document: MystDocument, path: NodePath, to: BlockCo
     throw new Error(`${current.type} at [${path.join(",")}] has content that conversion cannot preserve`);
   }
   if (to.block === "heading" && containsBreak(content)) {
-    throw new Error("a heading cannot contain line breaks");
+    throw new DocumentWriteError("a heading cannot contain line breaks", { action: "Remove line breaks from the heading or convert it to a paragraph." });
   }
 
   const next = cloneDocument(document);
@@ -1015,7 +1016,7 @@ export function updateEquationLatex(
     throw new Error(`equation LaTeX does not match at [${path.join(",")}]`);
   }
   if (to.length === 0) {
-    throw new Error("empty equation LaTeX cannot be saved");
+    throw new DocumentWriteError("empty equation LaTeX cannot be saved", { action: "Enter LaTeX or delete this equation." });
   }
 
   const next = cloneDocument(document);
@@ -1077,7 +1078,7 @@ export function updateAdmonitionInlineContent(
   assertInlineContent(content);
   if (path.length !== 1) throw new Error("admonition edits require a top-level path");
   if (inlineContentText(content).trim().length === 0) {
-    throw new Error("admonition body must contain non-empty text");
+    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
   }
   const next = cloneDocument(document);
   const node = getNode(next, path);
@@ -1197,6 +1198,11 @@ export function insertHardBreak(document: MystDocument, path: NodePath, offset: 
 export function splitParagraph(document: MystDocument, path: NodePath, offset: number): MystDocument {
   assertTopLevelPath(path);
   const content = paragraphContent(document, path);
+  if (offset === 0 || offset === inlineContentLength(content)) {
+    throw new DocumentWriteError("split offset would create an empty paragraph that cannot be saved", {
+      action: "Enter text in each paragraph or delete the empty paragraph.",
+    });
+  }
   assertInteriorOffset(content, offset);
   const [left, right] = splitInlineContent(content, offset);
   const next = cloneDocument(document);

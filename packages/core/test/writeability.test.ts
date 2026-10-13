@@ -4,6 +4,7 @@ import test from "node:test";
 // Imported by package name, exactly as CLI and Editor Host consume it.
 import {
   canonicalWriteError,
+  canonicalWriteIssue,
   parse,
   removeBlock,
   serialize,
@@ -58,6 +59,28 @@ test("documents the canonical writer cannot preserve report why, without writing
     assert.match(error!, reason, name);
     assert.doesNotMatch(error!, /\n\s+at /, `${name}: no stack trace`);
   }
+});
+
+test("canonical write issues preserve block locations for writer diagnostics, references and semantic loss", () => {
+  for (const [source, reason, path] of [
+    ["# Title\n\nPress {kbd}`Ctrl` now.\n", /keyboard/, [1]],
+    ["# Title\n\nSee {term}`glossary term`.\n", /cross-reference/, [1]],
+    ["# Title\n\n:::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /container/, [1]],
+  ] as const) {
+    const document = parse(source);
+    const before = structuredClone(document);
+    const issue = canonicalWriteIssue(document);
+    assert.ok(issue);
+    assert.match(issue.reason, reason);
+    assert.deepEqual(issue.path, path);
+    assert.ok(issue.action);
+    assert.equal(issue.reason, canonicalWriteError(document));
+    assert.deepEqual(document, before);
+  }
+  const missing = updateParagraphInlineContent(parse("# Title\n\nBody.\n"), [1], [{ kind: "footnote", label: "lost" }]);
+  const issue = canonicalWriteIssue(missing);
+  assert.match(issue?.reason ?? "", /no definition/);
+  assert.deepEqual(issue?.path, [1]);
 });
 
 test("preflight and serialize give the same verdict and reason on every fixture", () => {
