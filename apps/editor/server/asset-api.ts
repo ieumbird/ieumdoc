@@ -5,6 +5,8 @@ import path from "node:path";
 import { ASSET_FORMATS, ASSET_TYPES, isAssetMime, MAX_ASSET_BYTES, type AssetMime } from "../shared/asset-policy.ts";
 import type { AssetResponse, AssetRollbackRequest } from "../shared/asset-protocol.ts";
 import { loadDocumentFile, resolveDocumentPath, resolveMediaPath } from "./document-api.ts";
+import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
+import { readRequestBody, RequestBodyError } from "./request-body.ts";
 
 const ASSET_PATH = /^\.\/assets\/image-[a-f0-9-]{36}\.(png|jpg|gif|webp)$/;
 const UNSUPPORTED = `Only ${ASSET_FORMATS} images are supported.`;
@@ -94,9 +96,9 @@ const FORMATS: Record<AssetMime, { name: string; complete(bytes: Buffer): boolea
   } },
 };
 
-function documentScope(locator: string, writable: boolean): { document: string; root: string } {
+function documentScope(locator: string, writable: boolean, access: FileAccess): { document: string; root: string } {
   if (typeof locator !== "string" || !locator.trim() || locator.includes("\0")) throw new AssetError("A valid document locator is required.");
-  const document = resolveDocumentPath(locator);
+  const document = resolveDocumentPath(locator, access);
   const root = fs.realpathSync(path.dirname(document));
   const actual = fs.realpathSync(document);
   const relative = path.relative(root, actual);
@@ -104,15 +106,15 @@ function documentScope(locator: string, writable: boolean): { document: string; 
     throw new AssetError("Document symlink escapes its directory.");
   }
   if (writable) {
-    const loaded = loadDocumentFile(document);
+    const loaded = loadDocumentFile(document, access);
     if (loaded.writeError) throw new AssetError(`Document is read-only: ${loaded.writeError}`);
     fs.accessSync(actual, fs.constants.W_OK);
   }
   return { document, root };
 }
 
-function assetDirectory(root: string, create: boolean): string {
-  const directory = path.join(root, "assets");
+function assetDirectory(root: string, create: boolean, access: FileAccess): string {
+  const directory = accessPath(path.join(root, "assets"), access, create);
   if (create) {
     try { fs.mkdirSync(directory); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
@@ -124,21 +126,23 @@ function assetDirectory(root: string, create: boolean): string {
   return directory;
 }
 
-function inspectAsset(file: string, expectedOwner?: fs.Stats): { identity: string; owner: fs.Stats; hash: string } {
+function inspectAsset(file: string, expectedOwner: fs.Stats | undefined, access: FileAccess): { identity: string; owner: fs.Stats; hash: string } {
+  accessPath(file, access);
   const stat = fs.lstatSync(file);
   if (!stat.isFile() || stat.isSymbolicLink()) throw new AssetError("Asset file changed; rollback refused.");
-  if (expectedOwner) assertOwnedFile(file, expectedOwner);
+  if (expectedOwner) assertOwnedFile(file, expectedOwner, access);
   const fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
   try {
     const opened = fs.fstatSync(fd);
     if (opened.dev !== stat.dev || opened.ino !== stat.ino || opened.birthtimeMs !== stat.birthtimeMs) throw new AssetError("Asset file changed during validation.");
     const hash = createHash("sha256").update(fs.readFileSync(fd)).digest("hex");
-    assertOwnedFile(file, opened);
+    assertOwnedFile(file, opened, access);
     return { identity: `${opened.dev}:${opened.ino}:${opened.birthtimeMs}:${opened.size}:${hash}`, owner: opened, hash };
   } finally { fs.closeSync(fd); }
 }
 
-function assertOwnedFile(file: string, owner: fs.Stats, unchanged = false): void {
+function assertOwnedFile(file: string, owner: fs.Stats, access: FileAccess, unchanged = false): void {
+  accessPath(file, access);
   const current = fs.lstatSync(file);
   if (!current.isFile() || current.isSymbolicLink() || current.dev !== owner.dev || current.ino !== owner.ino || current.birthtimeMs !== owner.birthtimeMs ||
       (unchanged && (current.size !== owner.size || current.mtimeMs !== owner.mtimeMs || current.ctimeMs !== owner.ctimeMs))) {
@@ -146,10 +150,10 @@ function assertOwnedFile(file: string, owner: fs.Stats, unchanged = false): void
   }
 }
 
-function unlinkOwnedFile(file: string, owner: fs.Stats, root: string, directoryId: fs.Stats, unchanged = false): void {
-  const current = fs.statSync(assetDirectory(root, false));
+function unlinkOwnedFile(file: string, owner: fs.Stats, root: string, directoryId: fs.Stats, access: FileAccess, unchanged = false): void {
+  const current = fs.statSync(assetDirectory(root, false, access));
   if (current.dev !== directoryId.dev || current.ino !== directoryId.ino) throw new AssetError("Asset directory changed; cleanup refused.");
-  try { assertOwnedFile(file, owner, unchanged); fs.unlinkSync(file); }
+  try { assertOwnedFile(file, owner, access, unchanged); fs.unlinkSync(file); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
 }
 
@@ -168,64 +172,64 @@ function readReceipt(token: string, key: Buffer): Receipt {
   return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Receipt;
 }
 
-/** The signing key belongs to the dev Host lifetime, never to an Editor session. */
-export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer): AssetResponse {
+/** The signing key belongs to the Host process lifetime, never to an Editor session. */
+export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): AssetResponse {
   validateImage(mime, bytes); // Rejected input must not create even a directory/temp file.
-  const scope = documentScope(locator, true);
-  const directory = assetDirectory(scope.root, true);
+  const scope = documentScope(locator, true, access);
+  const directory = assetDirectory(scope.root, true, access);
   const directoryId = fs.statSync(directory);
   const temporary = path.join(directory, `.image-${randomUUID()}.tmp`);
   let fd: number | undefined, owner: fs.Stats | undefined, ownsTemporary = false, published: string | undefined;
   try {
-    fd = fs.openSync(temporary, "wx", 0o600);
+    fd = fs.openSync(accessPath(temporary, access, true), "wx", 0o600);
     ownsTemporary = true;
     owner = fs.fstatSync(fd);
     fs.writeFileSync(fd, bytes);
     fs.fsyncSync(fd);
     fs.closeSync(fd); fd = undefined;
-    const current = fs.statSync(assetDirectory(scope.root, false));
+    const current = fs.statSync(assetDirectory(scope.root, false, access));
     if (current.dev !== directoryId.dev || current.ino !== directoryId.ino) throw new AssetError("Asset directory changed during write.");
-    assertOwnedFile(temporary, owner);
+    assertOwnedFile(temporary, owner, access);
     // A hard link publishes the completed bytes atomically and fails on EEXIST.
     // Unlike rename on POSIX, it cannot overwrite another file on a name collision.
     for (let attempt = 0; attempt < 5; attempt++) {
       const destination = path.join(directory, `image-${randomUUID()}.${ASSET_TYPES[mime]}`);
-      try { fs.linkSync(temporary, destination); published = destination; break; }
+      try { fs.linkSync(accessPath(temporary, access), accessPath(destination, access, true)); published = destination; break; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
     }
     if (!published) throw new AssetError("Could not allocate a unique asset filename.");
-    assertOwnedFile(published, owner);
-    unlinkOwnedFile(temporary, owner, scope.root, directoryId); ownsTemporary = false;
+    assertOwnedFile(published, owner, access);
+    unlinkOwnedFile(temporary, owner, scope.root, directoryId, access); ownsTemporary = false;
     const relative = `./assets/${path.basename(published)}`;
-    const verified = inspectAsset(published, owner);
+    const verified = inspectAsset(published, owner, access);
     if (verified.owner.size !== bytes.length || verified.hash !== createHash("sha256").update(bytes).digest("hex")) throw new AssetError("Asset content changed during publication.");
     return { path: relative, rollbackToken: signReceipt({ document: scope.document, path: relative, identity: verified.identity }, key) };
   } catch (error) {
     if (published && owner) {
-      const verified = inspectAsset(published, owner);
+      const verified = inspectAsset(published, owner, access);
       if (verified.hash !== createHash("sha256").update(bytes).digest("hex")) throw new AssetError(`Asset content changed; cleanup refused for assets/${path.basename(published)}.`);
-      unlinkOwnedFile(published, verified.owner, scope.root, directoryId, true);
+      unlinkOwnedFile(published, verified.owner, scope.root, directoryId, access, true);
     }
     throw error;
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
     if (ownsTemporary && owner) {
-      try { unlinkOwnedFile(temporary, owner, scope.root, directoryId); }
+      try { unlinkOwnedFile(temporary, owner, scope.root, directoryId, access); }
       catch (error) { throw new AssetError(`Asset write failed. Temporary cleanup failed for assets/${path.basename(temporary)}: ${error instanceof Error ? error.message : String(error)}`); }
     }
   }
 }
 
 /** No arbitrary delete API: only a signed receipt for this exact, unchanged created file. */
-export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer): void {
+export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): void {
   if (typeof request?.path !== "string" || !ASSET_PATH.test(request.path)) throw new AssetError("Invalid relative asset path.");
   const receipt = readReceipt(request.rollbackToken, key);
-  const scope = documentScope(request.documentPath, false);
+  const scope = documentScope(request.documentPath, false, access);
   if (receipt.document !== scope.document || receipt.path !== request.path) throw new AssetError("Asset rollback receipt does not match this request.");
-  assetDirectory(scope.root, false);
-  const file = resolveMediaPath(request.path, scope.document);
+  assetDirectory(scope.root, false, access);
+  const file = resolveMediaPath(request.path, scope.document, access);
   try {
-    if (inspectAsset(file).identity !== receipt.identity) throw new AssetError("Asset file changed; rollback refused.");
+    if (inspectAsset(file, undefined, access).identity !== receipt.identity) throw new AssetError("Asset file changed; rollback refused.");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
     throw error;
@@ -234,23 +238,23 @@ export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer): 
   // original between validation and rename, retain and exclusively restore it.
   // The quarantine name is unguessable and never created beforehand: on Windows,
   // renaming over a just-created placeholder fails with EPERM while a scanner holds it.
-  const directoryId = fs.statSync(assetDirectory(scope.root, false));
+  const directoryId = fs.statSync(assetDirectory(scope.root, false, access));
   const quarantine = path.join(scope.root, "assets", `.rollback-${randomUUID()}.tmp`);
   let moved = false;
   try {
     try { fs.lstatSync(quarantine); throw new AssetError("Rollback quarantine name is in use; rollback refused."); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-    fs.renameSync(file, quarantine); moved = true;
-    const verified = inspectAsset(quarantine);
+    fs.renameSync(accessPath(file, access), accessPath(quarantine, access, true)); moved = true;
+    const verified = inspectAsset(quarantine, undefined, access);
     if (verified.identity !== receipt.identity) throw new AssetError("Asset file changed before rollback deletion.");
-    unlinkOwnedFile(quarantine, verified.owner, scope.root, directoryId, true);
+    unlinkOwnedFile(quarantine, verified.owner, scope.root, directoryId, access, true);
   } catch (error) {
     if (moved) {
       try {
-        const owner = fs.lstatSync(quarantine);
-        assetDirectory(scope.root, false);
-        fs.linkSync(quarantine, file); // Exclusive: never overwrite a later file at the original path.
-        unlinkOwnedFile(quarantine, owner, scope.root, directoryId);
+        const owner = fs.lstatSync(accessPath(quarantine, access));
+        assetDirectory(scope.root, false, access);
+        fs.linkSync(accessPath(quarantine, access), accessPath(file, access, true)); // Exclusive: never overwrite a later file at the original path.
+        unlinkOwnedFile(quarantine, owner, scope.root, directoryId, access);
       } catch (restoreError) {
         throw new AssetError(`Rollback failed; retained asset may be at assets/${path.basename(quarantine)}: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
       }
@@ -259,23 +263,7 @@ export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer): 
   }
 }
 
-function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0, failed = false;
-    req.on("data", (chunk: Buffer) => {
-      if (failed) return;
-      size += chunk.length;
-      if (size > limit) { failed = true; chunks.length = 0; reject(new AssetError(`Request exceeds the ${limit === MAX_ASSET_BYTES ? `${MAX_ASSET_BYTES / 1024 / 1024} MiB image` : "rollback"} limit.`, 413)); }
-      else chunks.push(chunk);
-    });
-    req.on("end", () => { if (!failed) resolve(Buffer.concat(chunks)); });
-    req.on("aborted", () => reject(new AssetError("Asset upload was interrupted.")));
-    req.on("error", reject);
-  });
-}
-
-export async function handleAssetRequest(req: IncomingMessage, res: ServerResponse, key: Buffer): Promise<void> {
+export async function handleAssetRequest(req: IncomingMessage, res: ServerResponse, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): Promise<void> {
   const json = (status: number, body: unknown) => {
     res.statusCode = status;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -288,15 +276,15 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
       if (Number(req.headers["content-length"]) > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
       const locator = new URL(req.url ?? "", "http://localhost").searchParams.get("path");
       if (!locator) throw new AssetError("A document locator is required.");
-      const bytes = await readBytes(req, MAX_ASSET_BYTES);
-      json(201, createImageAsset(locator, mime, bytes, key));
+      const bytes = await readRequestBody(req, MAX_ASSET_BYTES);
+      json(201, createImageAsset(locator, mime, bytes, key, access));
     } else if (req.method === "DELETE") {
-      const body = JSON.parse((await readBytes(req, 8192)).toString("utf8")) as AssetRollbackRequest;
-      rollbackImageAsset(body, key);
+      const body = JSON.parse((await readRequestBody(req, 8192)).toString("utf8")) as AssetRollbackRequest;
+      rollbackImageAsset(body, key, access);
       res.statusCode = 204; res.end();
     } else { res.statusCode = 405; res.end(); }
   } catch (error) {
     req.resume();
-    json(error instanceof AssetError ? error.status : 400, { error: error instanceof Error ? error.message : String(error) });
+    json(error instanceof AssetError || error instanceof RequestBodyError ? error.status : fileErrorStatus(error), { error: fileErrorMessage(error, access) });
   }
 }

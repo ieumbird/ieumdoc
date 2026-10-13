@@ -5,6 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, serialize } from "@ieumdoc/core";
 import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
+import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import {
   applyBlockSource,
   readModel,
@@ -32,8 +34,8 @@ import type {
 /** Internal file helpers may replay directly against a supplied disk snapshot. HTTP always requires a session. */
 type FileSaveRequest = SupportedEdits & { revision?: string; base?: SaveRequest["base"] };
 
-function errorPayload(error: unknown): DocumentErrorResponse {
-  return { error: error instanceof Error ? error.message : String(error),
+function errorPayload(error: unknown, access: FileAccess = LOCAL_FILE_ACCESS): DocumentErrorResponse {
+  return { error: fileErrorMessage(error, access),
     ...(error instanceof SaveContentError && error.target ? { target: error.target } : {}) };
 }
 
@@ -58,9 +60,9 @@ export const DOCUMENT_DIR = path.join(editorRoot, "document");
 
 const DEFAULT_DOCUMENT_PATH = path.join(DOCUMENT_DIR, "technical-document.md");
 
-export function resolveDocumentPath(requestedPath?: string): string {
+export function resolveDocumentPath(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS, create = false): string {
   const candidate = requestedPath?.trim() || DEFAULT_DOCUMENT_PATH;
-  const resolved = path.resolve(candidate);
+  const resolved = path.resolve(accessPath(candidate, access, create));
   if (path.extname(resolved).toLowerCase() !== ".md") {
     throw new Error("document path must point to a .md file");
   }
@@ -69,17 +71,17 @@ export function resolveDocumentPath(requestedPath?: string): string {
 
 export const documentRevision = textRevision;
 
-export function loadDocumentFile(requestedPath?: string): DocumentFileResponse {
-  const filePath = resolveDocumentPath(requestedPath);
+export function loadDocumentFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): DocumentFileResponse {
+  const filePath = resolveDocumentPath(requestedPath, access);
   const source = readFileSync(filePath, "utf8");
   return { path: filePath, source, ...readModel(source), revision: documentRevision(source) };
 }
 
-export function createDocumentFile(requestedPath?: string): DocumentFileResponse {
+export function createDocumentFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): DocumentFileResponse {
   if (!requestedPath?.trim()) {
     throw new Error("document path is required");
   }
-  const filePath = resolveDocumentPath(requestedPath);
+  const filePath = resolveDocumentPath(requestedPath, access, true);
   const parentDirectory = path.dirname(filePath);
   try {
     if (!statSync(parentDirectory).isDirectory()) {
@@ -90,24 +92,25 @@ export function createDocumentFile(requestedPath?: string): DocumentFileResponse
     throw new Error("parent directory does not exist");
   }
   try {
-    writeFileSync(filePath, EMPTY_DOCUMENT_MARKDOWN, { encoding: "utf8", flag: "wx" });
+    writeFileSync(accessPath(filePath, access, true), EMPTY_DOCUMENT_MARKDOWN, { encoding: "utf8", flag: "wx" });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
       throw new Error("file already exists");
     }
     throw error;
   }
-  return loadDocumentFile(filePath);
+  return loadDocumentFile(filePath, access);
 }
 
 export function saveDocumentFile(
   requestedPath: string | undefined,
   request: FileSaveRequest,
+  access: FileAccess = LOCAL_FILE_ACCESS,
 ): SaveResponse & { path: string; markdown: string } {
-  const filePath = resolveDocumentPath(requestedPath);
+  const filePath = resolveDocumentPath(requestedPath, access);
   const saved = commitDocumentSave(
-    () => readFileSync(filePath, "utf8"),
-    (markdown) => replaceDocumentFile(filePath, markdown, request.revision),
+    () => readFileSync(accessPath(filePath, access), "utf8"),
+    (markdown) => replaceDocumentFile(accessPath(filePath, access), markdown, request.revision),
     request,
   );
   return { ...saved, path: filePath };
@@ -128,8 +131,8 @@ function replaceDocumentFile(filePath: string, markdown: string, revision: strin
  * The canonical Markdown this save request would write, through the same Core
  * save path. The file is only read, never written.
  */
-export function previewDocumentFile(requestedPath: string | undefined, request: FileSaveRequest): SourceResponse {
-  const filePath = resolveDocumentPath(requestedPath);
+export function previewDocumentFile(requestedPath: string | undefined, request: FileSaveRequest, access: FileAccess = LOCAL_FILE_ACCESS): SourceResponse {
+  const filePath = resolveDocumentPath(requestedPath, access);
   if (request.base) {
     // A preview describes this session, even after an external conflict. Validate its
     // acknowledged revision without writing or requiring the disk to remain unchanged.
@@ -179,11 +182,18 @@ export async function handleDocumentRequest(
   req: IncomingMessage,
   res: ServerResponse,
   next: () => void,
+  access: FileAccess = LOCAL_FILE_ACCESS,
+  bodyLimit = Infinity,
 ): Promise<void> {
+  const readBody = async (request: IncomingMessage) => (await readRequestBody(request, bodyLimit)).toString("utf8");
+  const failure = (error: unknown) => sendJson(res,
+    error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status : fileErrorStatus(error),
+    errorPayload(error, access));
   const requestUrl = new URL(req.url ?? "", "http://localhost");
   const url = requestUrl.pathname;
   if (url.startsWith("/document/")) {
-    serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined);
+    if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
+    serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined, access, req.method === "HEAD");
     return;
   }
   if (url === "/api/figure-validation") {
@@ -195,7 +205,7 @@ export async function handleDocumentRequest(
     try {
       sendJson(res, 200, { error: validateFigureRequest(JSON.parse(await readBody(req))) ?? null });
     } catch (error) {
-      sendJson(res, 400, errorPayload(error));
+      failure(error);
     }
     return;
   }
@@ -208,7 +218,7 @@ export async function handleDocumentRequest(
     try {
       sendJson(res, 200, applyBlockSource(JSON.parse(await readBody(req)) as BlockSourceRequest));
     } catch (error) {
-      sendJson(res, 400, errorPayload(error));
+      failure(error);
     }
     return;
   }
@@ -220,9 +230,9 @@ export async function handleDocumentRequest(
     }
     try {
       const request = saveRequestOf(JSON.parse(await readBody(req)));
-      sendJson(res, 200, previewDocumentFile(request.path, request));
+      sendJson(res, 200, previewDocumentFile(request.path, request, access));
     } catch (error) {
-      sendJson(res, error instanceof DocumentConflictError ? 409 : 400, errorPayload(error));
+      failure(error);
     }
     return;
   }
@@ -233,9 +243,9 @@ export async function handleDocumentRequest(
       return;
     }
     try {
-      sendJson(res, 200, url === "/api/folder-places" ? folderPlaces() : browseFolder(requestUrl.searchParams.get("path") ?? undefined));
+      sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access) : browseFolder(requestUrl.searchParams.get("path") ?? undefined, access));
     } catch (error) {
-      sendJson(res, 400, errorPayload(error));
+      failure(error);
     }
     return;
   }
@@ -248,12 +258,12 @@ export async function handleDocumentRequest(
     try {
       if (req.method === "POST") {
         const body = JSON.parse(await readBody(req)) as { parent?: unknown; name?: unknown };
-        sendJson(res, 201, createFolder(typeof body.parent === "string" ? body.parent : undefined, typeof body.name === "string" ? body.name : undefined));
+        sendJson(res, 201, createFolder(typeof body.parent === "string" ? body.parent : undefined, typeof body.name === "string" ? body.name : undefined, access));
         return;
       }
-      sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined));
+      sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined, access));
     } catch (error) {
-      sendJson(res, 400, errorPayload(error));
+      failure(error);
     }
     return;
   }
@@ -264,19 +274,22 @@ export async function handleDocumentRequest(
 
   try {
     if (req.method === "GET") {
-      sendJson(res, 200, loadDocumentFile(requestUrl.searchParams.get("path") ?? undefined));
+      const requestedPath = requestUrl.searchParams.get("path") ?? undefined;
+      if (access && !requestedPath?.trim()) {
+        sendJson(res, 200, { start: true, allowedRoots: access.roots });
+      } else sendJson(res, 200, loadDocumentFile(requestedPath, access));
       return;
     }
     if (req.method === "PUT") {
       const body = JSON.parse(await readBody(req)) as { path?: unknown };
-      const created = createDocumentFile(typeof body.path === "string" ? body.path : undefined);
+      const created = createDocumentFile(typeof body.path === "string" ? body.path : undefined, access);
       sendJson(res, 201, created);
       return;
     }
     if (req.method === "POST") {
       const request = saveRequestOf(JSON.parse(await readBody(req)));
       try {
-        const saved = saveDocumentFile(request.path, request);
+        const saved = saveDocumentFile(request.path, request, access);
         sendJson(res, 200, { revision: saved.revision } satisfies SaveResponse);
       } catch (error) {
         if (error instanceof DocumentConflictError) {
@@ -290,7 +303,7 @@ export async function handleDocumentRequest(
     res.statusCode = 405;
     res.end();
   } catch (error) {
-    sendJson(res, 400, errorPayload(error));
+    failure(error);
   }
 }
 
@@ -324,10 +337,10 @@ const entryOrder = new Intl.Collator(undefined, { numeric: true });
  * hidden entries and symlinks are left out, and a requested folder must stay inside the chosen
  * one, symlinks resolved. Nothing is remembered between requests.
  */
-export function listFolder(requestedRoot: string | undefined, requestedPath?: string): FolderResponse {
+export function listFolder(requestedRoot: string | undefined, requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): FolderResponse {
   if (!requestedRoot?.trim()) throw new Error("folder path is required");
-  const root = path.resolve(requestedRoot.trim());
-  const folder = requestedPath?.trim() ? path.resolve(requestedPath.trim()) : root;
+  const root = path.resolve(accessPath(requestedRoot.trim(), access));
+  const folder = path.resolve(accessPath(requestedPath?.trim() || root, access));
   if (!isInside(root, folder)) throw new Error("folder is outside the chosen folder");
   return readFolder(folder, () => {
     if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
@@ -339,14 +352,15 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
  * One level of any folder, for choosing which folder to open: the same entries as `listFolder`,
  * and the folders from the filesystem root down to it. Only names are returned, never content.
  */
-export function browseFolder(requestedPath: string | undefined): FolderBrowseResponse {
+export function browseFolder(requestedPath: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): FolderBrowseResponse {
   if (!requestedPath?.trim()) throw new Error("folder path is required");
-  const folder = path.resolve(requestedPath.trim());
+  const folder = path.resolve(accessPath(requestedPath.trim(), access));
+  const boundary = access?.boundary(folder);
   return readFolder(folder, () => {
     const crumbs: FolderCrumb[] = [];
     for (let current = folder; ; current = path.dirname(current)) {
-      const root = path.dirname(current) === current;
-      crumbs.unshift({ name: root ? current.replace(/[\\/]+$/, "") || current : path.basename(current), path: current });
+      const root = boundary ? path.relative(boundary, current) === "" : path.dirname(current) === current;
+      crumbs.unshift({ name: root && !boundary ? current.replace(/[\\/]+$/, "") || current : path.basename(current) || current, path: current });
       if (root) break;
     }
     return { path: folder, crumbs };
@@ -354,7 +368,8 @@ export function browseFolder(requestedPath: string | undefined): FolderBrowseRes
 }
 
 /** Where choosing a folder can start: the home and Documents folders, then each drive or `/`. */
-export function folderPlaces(): FolderPlacesResponse {
+export function folderPlaces(access: FileAccess = LOCAL_FILE_ACCESS): FolderPlacesResponse {
+  if (access) return { places: access.roots.map(root => ({ kind: "root", name: path.basename(root) || root, path: access.resolve(root) })) };
   const home = os.homedir();
   const documents = path.join(home, "Documents");
   const drives = process.platform === "win32"
@@ -373,7 +388,7 @@ export function folderPlaces(): FolderPlacesResponse {
  * Creates one folder inside an existing folder; an existing file or folder is never replaced.
  * The name is a single portable name, so the folder can be listed and moved between systems.
  */
-export function createFolder(requestedParent: string | undefined, requestedName: string | undefined): FolderCreateResponse {
+export function createFolder(requestedParent: string | undefined, requestedName: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): FolderCreateResponse {
   if (!requestedParent?.trim()) throw new Error("folder path is required");
   const name = requestedName ?? "";
   if (!name.trim()) throw new Error("folder name is required");
@@ -383,8 +398,8 @@ export function createFolder(requestedParent: string | undefined, requestedName:
   if (/[<>:"|?*\u0000-\u001f]/.test(name)) throw new Error("folder name cannot contain < > : \" | ? * or control characters");
   if (/[. ]$/.test(name)) throw new Error("folder name cannot end with a dot or space");
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(name)) throw new Error("folder name is reserved on Windows");
-  const parent = path.resolve(requestedParent.trim());
-  const folder = path.join(parent, name);
+  const parent = path.resolve(accessPath(requestedParent.trim(), access));
+  const folder = accessPath(path.join(parent, name), access, true);
   try {
     if (!statSync(parent).isDirectory()) throw new Error("folder path must point to a directory");
     fs.mkdirSync(folder);
@@ -433,9 +448,9 @@ function isInside(root: string, target: string): boolean {
   return !(relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative));
 }
 
-export function resolveMediaPath(assetPath: string, documentPath?: string): string {
+export function resolveMediaPath(assetPath: string, documentPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): string {
   const decodedPath = decodeURIComponent(assetPath);
-  const documentFile = resolveDocumentPath(documentPath);
+  const documentFile = resolveDocumentPath(documentPath, access);
   const documentDirectory = path.dirname(documentFile);
   if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath) || path.win32.isAbsolute(decodedPath) || /^[A-Za-z]:/.test(decodedPath)) {
     throw new Error("media path must be relative to the document");
@@ -456,24 +471,24 @@ export function resolveMediaPath(assetPath: string, documentPath?: string): stri
   if (actual === ".." || actual.startsWith(`..${path.sep}`) || path.isAbsolute(actual)) {
     throw new Error("media symlink escapes the document directory");
   }
-  return resolved;
+  return accessPath(resolved, access, true);
 }
 
-function serveMedia(assetPath: string, res: ServerResponse, documentPath?: string): void {
+function serveMedia(assetPath: string, res: ServerResponse, documentPath?: string, access: FileAccess = LOCAL_FILE_ACCESS, head = false): void {
   let file: string;
   try {
-    file = resolveMediaPath(assetPath, documentPath);
-  } catch {
-    res.statusCode = 400;
+    file = resolveMediaPath(assetPath, documentPath, access);
+  } catch (error) {
+    res.statusCode = fileErrorStatus(error);
     res.end();
     return;
   }
   try {
-    const data = readFileSync(file);
+    const data = readFileSync(accessPath(file, access));
     res.statusCode = 200;
     res.setHeader("Content-Type", MEDIA_TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.end(data);
+    res.end(head ? undefined : data);
   } catch {
     res.statusCode = 404;
     res.end();
@@ -484,13 +499,4 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
-  });
 }

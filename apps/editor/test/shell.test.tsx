@@ -5,6 +5,7 @@ import type { FolderEntry } from "../shared/document-protocol.ts";
 import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { createOutlineStore } from "../src/outline.ts";
+import { visibleRecentFolders } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
@@ -14,6 +15,13 @@ import { TopBar } from "../src/shell/TopBar.tsx";
 
 const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
+
+test("restricted Host recent folders hide other roots, parent traversal and prefix siblings", () => {
+  const recent = ["C:\\docs", "c:/DOCS/sub", "C:\\docs-other", "C:\\docs\\..\\private", "/srv/docs/a", "/srv/Docs/b"];
+  assert.deepEqual(visibleRecentFolders(recent), recent);
+  assert.deepEqual(visibleRecentFolders(recent, ["C:\\docs", "/srv/docs"]), ["C:\\docs", "c:/DOCS/sub", "/srv/docs/a"]);
+  assert.deepEqual(visibleRecentFolders(recent, []), []);
+});
 
 test("document path splits for display without changing the address", () => {
   assert.deepEqual(splitDocumentPath("C:\\docs\\guide.md"), { directory: "C:\\docs\\", name: "guide.md" });

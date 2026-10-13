@@ -45,6 +45,9 @@ export const STABLE_SCENARIOS = [
   "desktop-updates",
 ];
 
+/** Production HTTP has a different startup and filesystem policy; run it against its own Host. */
+export const HTTP_SCENARIOS = ["http-host"];
+
 /** Select before starting a server probe or browser; an invalid/empty shard must fail. */
 export function selectBrowserScenarios(args: readonly string[]): {
   scenarios: string[];
@@ -54,6 +57,9 @@ export function selectBrowserScenarios(args: readonly string[]): {
   const screenshots = args.includes("--screenshots");
   const shards = args.filter(arg => arg.startsWith("--shard"));
   const requested = args.filter(arg => arg !== "--screenshots" && !arg.startsWith("--shard"));
+  if (requested.some(name => HTTP_SCENARIOS.includes(name)) && requested.some(name => !HTTP_SCENARIOS.includes(name))) {
+    throw new Error("Run HTTP Host scenarios separately from Vite scenarios.");
+  }
   if (shards.length > 1) throw new Error("Specify --shard only once.");
   if (shards.length) {
     const match = /^--shard=([1-9]\d*)\/([1-9]\d*)$/.exec(shards[0]!);
@@ -70,8 +76,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files", "footnotes"].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|footnotes --screenshots");
+  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files", "footnotes", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|footnotes|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

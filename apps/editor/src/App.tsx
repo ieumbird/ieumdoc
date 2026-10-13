@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
-import { readDocumentWidth, readRecentFolders, rememberRecentFolder, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
+import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -76,6 +76,8 @@ export function App() {
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
+  const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
+  const visibleRecent = visibleRecentFolders(recentFolders, allowedRoots);
   const [newDialog, setNewDialog] = useState(false);
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
@@ -149,6 +151,7 @@ export function App() {
     try {
       const next = await requestDocument("GET", requestedPath);
       if ("start" in next) {
+        setAllowedRoots(next.allowedRoots);
         setStart(next);
         setStatus("Ready");
         return "";
@@ -502,7 +505,7 @@ export function App() {
           ) : null}
           {!document && start ? (
             <DocumentStart
-              recent={recentFolders}
+              recent={visibleRecent}
               sample={start.sample}
               busy={busy}
               onOpenFolder={(returnFocus) => {
@@ -567,7 +570,8 @@ export function App() {
       <FolderDialog
         open={folderDialog}
         initialPath={folderTree.state?.root ?? splitDocumentPath(openedPath).directory}
-        recent={recentFolders}
+        recent={visibleRecent}
+        restricted={allowedRoots !== undefined}
         browse={browseHostFolder}
         places={folderPlaces}
         onOpen={openFolder}
@@ -665,7 +669,8 @@ async function requestDocument(
   }
   // Only the first request, which names no document, may start without one.
   if (response.ok && method === "GET" && !filePath && payload.start === true) {
-    return { start: true, ...(typeof payload.sample === "string" ? { sample: payload.sample } : {}) };
+    return { start: true, ...(typeof payload.sample === "string" ? { sample: payload.sample } : {}),
+      ...(Array.isArray(payload.allowedRoots) && payload.allowedRoots.every(root => typeof root === "string") ? { allowedRoots: payload.allowedRoots } : {}) };
   }
   if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);

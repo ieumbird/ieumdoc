@@ -26,6 +26,18 @@ export function writeDocumentWidth(width: DocumentWidth): void {
 const RECENT_FOLDERS_KEY = "ieumdoc.recentFolders";
 const RECENT_FOLDER_LIMIT = 5;
 
+/** Display filtering only; the Host still authorizes each filesystem request. */
+export function visibleRecentFolders(recent: string[], roots?: readonly string[]): string[] {
+  if (!roots) return recent;
+  const normalize = (value: string) => {
+    const windows = /^[a-z]:[\\/]|^\\\\/i.test(value);
+    const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
+    return windows ? normalized.toLowerCase() : normalized;
+  };
+  return recent.filter(folder => !folder.replaceAll("\\", "/").split("/").some(part => part === ".." || part === ".") &&
+    roots.some(root => normalize(folder) === normalize(root) || normalize(folder).startsWith(`${normalize(root)}/`)));
+}
+
 /** Folders opened in this browser, newest first. */
 export function readRecentFolders(): string[] {
   try {

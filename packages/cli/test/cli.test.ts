@@ -32,6 +32,18 @@ const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
 
+test("serve help explains the boundary and invalid invocation never starts a listener", () => {
+  const help = run(["serve", "--help"]);
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /--root.*--root/);
+  assert.match(help.stdout, /127\.0\.0\.1/);
+  for (const args of [[], ["--port", "0"], ["--port", "1.5"], ["--port", "5180", "--port", "5181"], ["--unknown", "x"], ["--root"]]) {
+    const result = run(["serve", ...args]);
+    assert.notEqual(result.status, 0, args.join(" "));
+    assert.doesNotMatch(result.stdout, /IeumDoc HTTP:/);
+  }
+});
+
 test("insert-block accepts Core inline JSON and rejects ambiguous input without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-inline-"));
   const file = path.join(dir, "document.md");

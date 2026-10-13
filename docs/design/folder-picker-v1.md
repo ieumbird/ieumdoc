@@ -1,11 +1,11 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (#190 폴더 중심 파일 탐색; folder-navigation/new-document와 전체 browser suite; New folder Host·picker·sidebar 경로).
+- Last verified: 2026-10-13 (Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
 - Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
 
-The Vite development adapter and Windows Desktop Host both reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
+Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
 
 ## Behavior
 
@@ -17,6 +17,10 @@ The Vite development adapter and Windows Desktop Host both reuse this picker and
   leave the sidebar and document unchanged.
 - Home, Documents when present, and filesystem roots come from the Host. The Host supplies
   one level of folder/Markdown names and breadcrumbs; it remembers no browsing state.
+- HTTP instead offers only configured allowed roots, with breadcrumbs/Up bounded by the most specific
+  containing root. Paths name server folders. The path field can choose another allowed root.
+  Recent folders outside current roots are hidden without deleting the preferences; Host validation
+  remains authoritative for every request. No roots are merged into a Workspace.
 - Recently opened folders are browser preferences, retained only after a successful Open.
   They do not restore a chosen sidebar folder on reload and never enter a document or Host
   configuration. Quoted paths copied from Explorer are accepted.
