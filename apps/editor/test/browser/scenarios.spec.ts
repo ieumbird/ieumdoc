@@ -10,7 +10,7 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { openDocument } from "./navigation.ts";
 
-const url = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5173";
+const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
 const screenshots = process.env.IEUMDOC_BROWSER_SCREENSHOTS === "true";
 const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));

@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 import { randomBytes } from "node:crypto";
+import { LOCAL_FILE_ACCESS } from "./server/file-access.ts";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
@@ -23,7 +24,7 @@ export default defineConfig({
           const localUrl = requestUrl.startsWith(base) ? `/${requestUrl.slice(base.length)}` : requestUrl;
           const url = localUrl.split("?")[0];
           if (url === "/api/asset") {
-            void server.ssrLoadModule("/server/asset-api.ts").then(mod => mod.handleAssetRequest(req, res, assetSigningKey)).catch((error: unknown) => {
+            void server.ssrLoadModule("/server/asset-api.ts").then(mod => mod.handleAssetRequest(req, res, assetSigningKey, LOCAL_FILE_ACCESS)).catch((error: unknown) => {
               res.statusCode = 500;
               res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
@@ -38,7 +39,7 @@ export default defineConfig({
           void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
             const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
               .handleDocumentRequest;
-            return handle(req, res, next);
+            return handle(req, res, next, LOCAL_FILE_ACCESS);
           }).catch((error: unknown) => {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json; charset=utf-8");

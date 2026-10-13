@@ -22,7 +22,7 @@
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
 - Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. IeumDoc이 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
-- `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter와 ADR-0004의 Desktop Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
+- `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter, ADR-0004의 Desktop Host, ADR-0005의 HTTP Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 

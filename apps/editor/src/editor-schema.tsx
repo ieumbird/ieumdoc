@@ -376,13 +376,14 @@ const Divider = Node.create({
   },
 });
 
-const Figure = Node.create({
+const Figure = Node.create<{ documentPath?: string }>({
   name: "figure",
   group: "block",
   content: "(text | hardBreak | inlineMath | crossReference | footnoteReference)*",
   isolating: true,
   selectable: true,
   draggable: false,
+  addOptions() { return { documentPath: undefined }; },
   addAttributes() {
     return blockAttrs({
       label: hiddenAttr(""),
@@ -397,7 +398,7 @@ const Figure = Node.create({
   },
   renderHTML({ node, HTMLAttributes }) {
     return ["figure", { ...HTMLAttributes, "data-figure": "" },
-      ...(node.attrs.imageUrl ? [["img", { src: node.attrs.imageUrl, alt: node.attrs.imageAlt }]] : []), ["figcaption", 0]];
+      ...(node.attrs.imageUrl ? [["img", { src: resolveFigureSource(node.attrs.imageUrl, this.options.documentPath), alt: node.attrs.imageAlt }]] : []), ["figcaption", 0]];
   },
   addNodeView() {
     return ReactNodeViewRenderer(FigureView);
@@ -430,7 +431,7 @@ function equationNode(onDraftChange?: DraftListener) {
 }
 
 function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator) {
-  return Figure.extend({
+  return Figure.configure({ documentPath }).extend({
     addNodeView() {
       return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure));
     },

@@ -8,6 +8,9 @@
     "ieumdoc": "./src/cli.ts"
   },
   "scripts": {
+    "build": "tsx scripts/build.ts",
+    "package": "pnpm build && npm pack ./dist --pack-destination ./dist --ignore-scripts",
+    "test:packaged": "tsx --test test/packaged.test.ts",
     "test": "tsx --test test/cli.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
@@ -16,6 +19,7 @@
     "@ieumdoc/file-commit": "workspace:*"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "@types/node": "^24.5.2",
     "tsx": "^4.23.15",
     "typescript": "7.0.2"

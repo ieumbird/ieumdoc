@@ -2,11 +2,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { REPOSITORY_ROOT } from "./fixtures.ts";
-import { selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
+import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
+import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
 
 try {
   const { scenarios, screenshots, shard } = selectBrowserScenarios(process.argv.slice(2));
+  if (scenarios.some(name => HTTP_SCENARIOS.includes(name))) {
+    if (!process.env.IEUMDOC_BROWSER_URL && !existsSync(path.join(REPOSITORY_ROOT, "packages/cli/dist/cli.mjs"))) {
+      throw new Error("Build the production HTTP Host first: pnpm --filter @ieumdoc/cli build");
+    }
+    process.env.IEUMDOC_BROWSER_HOST = "http";
+    prepareBrowserFixtures();
+  }
   const unknown = scenarios.filter(name => !existsSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`)));
   if (unknown.length) throw new Error(`Unknown scenario: ${unknown.join(", ")}\nStable: ${STABLE_SCENARIOS.join(", ")}`);
   if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios`);

@@ -11,6 +11,7 @@ type FolderDialogProps = {
   /** Where browsing starts, usually the open document's folder. */
   initialPath: string;
   recent: string[];
+  restricted?: boolean;
   browse(path: string): Promise<FolderBrowseResponse>;
   places(): Promise<FolderPlace[]>;
   /** Resolves to an error message, or "" once the folder is open. */
@@ -24,7 +25,7 @@ type FolderDialogProps = {
 
 type Listing = { directory: string; result?: FolderBrowseResponse; error?: string };
 
-const PLACE_ICONS = { home: House, documents: FileText, drive: HardDrive };
+const PLACE_ICONS = { home: House, documents: FileText, drive: HardDrive, root: Folder };
 
 const endsWithSeparator = (value: string) => /[\\/]$/.test(value);
 const separatorOf = (value: string) => (value.includes("\\") ? "\\" : "/");
@@ -37,7 +38,7 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * the list shows the folder up to its last separator, filtered by what follows it; Open opens
  * exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, initialPath, recent, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
+export function FolderDialog({ open, initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
   const [input, setInput] = useState("");
   const [listing, setListing] = useState<Listing>({ directory: "" });
   const [highlight, setHighlight] = useState(-1);
@@ -180,7 +181,7 @@ export function FolderDialog({ open, initialPath, recent, browse, places, onOpen
         finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
           <DialogTitle>Open folder</DialogTitle>
-          <DialogDescription>Choose a folder to list in the sidebar.</DialogDescription>
+          <DialogDescription>{restricted ? "Choose an allowed folder on the server to list in the sidebar." : "Choose a folder to list in the sidebar."}</DialogDescription>
         </DialogHeader>
         <div className="form-field">
           <label className="form-label" htmlFor="folder-path">Folder path</label>

@@ -32,7 +32,7 @@ pnpm --filter @ieumdoc/editor build
 - 영속적인 문서 의미 변경은 editor-neutral Core operation이 소유한다. 새로운 주요 operation은 얇은 CLI command로도 제공하며, 생략하면 이유를 기록한다.
 - Editor는 Markdown 의미를 따로 구현하지 않고 Core의 read model과 operation을 사용한다. CLI도 얇은 인터페이스로 유지한다.
 - Tiptap/ProseMirror 타입과 문서 모델은 `apps/editor` 안에 둔다. 하나의 문서 편집 상태를 사용한다.
-- `apps/editor/server`의 stateless 파일 handler는 개발 adapter와 Desktop Host가 공유한다. 제품 backend나 장기 persistence 결정으로 확대하지 않는다.
+- `apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 공유한다. 제품 backend나 장기 persistence 결정으로 확대하지 않는다.
 - 지원하지 않는 의미를 보존할 수 없으면 공식 write path는 fail-closed로 거부한다.
 
 상세 제약은 [AGENTS.md](AGENTS.md#architectural-constraints)와 [ADRs](docs/README.md#architecture-decisions)가 기준이다.
@@ -58,11 +58,18 @@ pnpm --filter @ieumdoc/editor build
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
+| HTTP Host / CLI distribution | HTTP boundary tests, CLI package + offline `test:packaged`, production `pnpm browser:test http-host`; Windows/Linux CI. 공유 handler 변경은 기존 Vite/Desktop 회귀도 검증 |
 | Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/design/editor-visual-language-v1.md#reviewing-a-visual-change)) |
 | Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression |
 | Desktop/update/release | Desktop tests/typecheck, clean Windows package + artifact verification, packaged regression; updater/installer 변경은 actual install/update regression도 실행 |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
+
+## HTTP Host builds
+
+`pnpm --filter @ieumdoc/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @ieumdoc/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
+
+Windows/Linux CI는 이 세 검사를 수행하고 tarball을 Artifact로 제공한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
 
 ## Windows Desktop builds and releases
 

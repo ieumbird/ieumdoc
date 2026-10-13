@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { parse, serialize } from "@ieumdoc/core";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SCRATCH_DIRS, SOURCE_DIRS } from "./browser/fixtures.ts";
-import { selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
+import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
 
 const testDir = path.join(REPOSITORY_ROOT, "apps", "editor", "test");
 const documentDir = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
@@ -29,8 +29,8 @@ function withTmp(run: (tmp: string) => void): void {
 
 test("every scratch directory a browser scenario opens is prepared", () => {
   const scenarios = readdirSync(testDir).filter((name) => name.endsWith(".browser.js"));
-  assert.deepEqual([...STABLE_SCENARIOS].sort(), scenarios.map(name => name.replace(".browser.js", "")).sort(),
-    "the stable suite covers every browser scenario exactly once");
+  assert.deepEqual([...STABLE_SCENARIOS, ...HTTP_SCENARIOS].sort(), scenarios.map(name => name.replace(".browser.js", "")).sort(),
+    "Vite and production HTTP suites cover every browser scenario exactly once");
   const prepared = Object.values(SCRATCH_DIRS).flatMap((dir) => dir.scenarios);
   for (const scenario of scenarios) {
     const source = readFileSync(path.join(testDir, scenario), "utf8");

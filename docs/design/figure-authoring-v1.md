@@ -41,6 +41,8 @@ Insertion is one undo step and opens no form: the caret starts in the new Figure
 
 Edit opens the properties of any editable Figure. Apply accepts any combination of label, caption and image through Core validation, all-empty included. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
 
+Relative image sources remain unchanged in document attributes and Markdown. Both the live NodeView and the editor's HTML serializer resolve the displayed image through the Host media URL, so production HTTP does not request a document asset as an Editor build asset.
+
 ## CLI and readiness
 
 ```bash

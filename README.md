@@ -80,6 +80,7 @@ Architecture decisions:
 - [ADR-0002: Document persistence and semantic ownership](docs/adr/0002-document-persistence-semantic-ownership.md)
 - [ADR-0003: Document addressing and identity boundary](docs/adr/0003-document-addressing-identity-boundary.md)
 - [ADR-0004: Desktop Host and distribution](docs/adr/0004-desktop-host-distribution.md)
+- [ADR-0005: Standalone HTTP Host](docs/adr/0005-http-host.md)
 
 ## Getting started
 
@@ -127,6 +128,19 @@ pnpm --filter @ieumdoc/editor build
 
 관련 browser regression과 수동 확인은 [검증 안내](docs/test/README.md)에 있습니다.
 
+### Standalone HTTP Editor
+
+서버에서 production Editor와 파일 API를 함께 실행할 수 있습니다. 배포물을 만든 뒤에는 Node.js `>=24.21.0 <25`만 필요하며, Vite나 Electron을 띄우지 않습니다.
+
+```powershell
+pnpm --filter @ieumdoc/cli package
+node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\document"
+```
+
+기본 주소는 `http://127.0.0.1:5180`입니다. `--root`는 서버가 접근을 허용하는 기존 폴더 목록이며, **Open Folder에서 그중 하나 또는 하위 폴더를 선택**합니다. 처음에는 문서를 열지 않습니다. Linux에서도 서버 경로로 같은 명령을 사용합니다.
+
+`packages/cli/dist/*.tgz`를 다른 PC에 복사해 offline 설치할 수 있습니다. 내장 인증은 없으므로 원격 접속에는 접근 제어된 프록시/사설망과 명시적 `--public-origin`이 필요합니다. 설치·프록시 설정·파일 경계·지원 범위는 [HTTP Host contract](docs/design/http-host-v1.md)를 따릅니다. CI/local 산출물이며 npm registry 게시나 NAS 자동 배포는 제공하지 않습니다.
+
 ### Windows Desktop
 
 일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.2)의 **Assets**에서 `IeumDoc-Setup-0.0.1-beta.2.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 이 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
@@ -149,7 +163,7 @@ IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한
 
 ## Project status and non-goals
 
-현재 Beta 배포 버전은 `0.0.1-beta.2`이며 배포 위치는 [GitHub Prerelease](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.2)입니다. 초기 Beta는 CI에서 검증한 unsigned Windows x64 installer로 공개하며 설치 시 Windows 경고가 나타날 수 있습니다. 서명된 릴리즈와 Stable 공개는 후속 작업입니다. 패키징과 업데이트는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)에 따라 구현되었습니다. `apps/editor/server`의 stateless 파일 handler는 Vite와 Desktop이 재사용하며 장기 backend 결정이 아닙니다.
+현재 Beta 배포 버전은 `0.0.1-beta.2`이며 배포 위치는 [GitHub Prerelease](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.2)입니다. 초기 Beta는 CI에서 검증한 unsigned Windows x64 installer로 공개하며 설치 시 Windows 경고가 나타날 수 있습니다. 서명된 릴리즈와 Stable 공개는 후속 작업입니다. 패키징과 업데이트는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)에 따라 구현되었습니다. `apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 재사용하며 장기 backend 결정이 아닙니다.
 
 **Planned direction:** AI/MCP integration과 broader automation, cross-document identity, transclusion·requirement semantics는 후속 설계 대상입니다. [Desktop/VS Code spikes](docs/README.md#historical-reviews-and-spikes)는 당시 실험 근거입니다. Desktop 제품 채택의 현재 authority는 ADR-0004이며 공개 출시와는 구분합니다.
 
