@@ -49,9 +49,9 @@ Choose a folder, then a Markdown file in the sidebar. Open, New file/folder, Sav
 
 Every document read/create/save/preview, folder list/browse/create, media read and asset upload/rollback passes the same root policy. Block-source and Figure validation perform no filesystem access. Static Editor assets are a separate fixed build directory, never a requested document directory.
 
-- Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling.
+- Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling: the matching prefix of the resolved target must be the pinned root directory itself, so names that JavaScript case folding equates but the filesystem keeps distinct (for example KELVIN SIGN and `k` on NTFS) are rejected.
 - Existing targets must resolve to regular files/directories. New leaves require an existing allowed real parent; dangling links cannot be replaced. Exclusive file/folder creation and overwrite refusal remain in force.
-- Symlink/junction targets outside all roots are rejected. A link into another allowed root does not relax narrower per-document media, folder or asset rules.
+- Symlink/junction targets outside all roots are rejected. A missing name behind such a link is rejected the same way, so responses do not reveal what exists outside. A link into another allowed root does not relax narrower per-document media, folder or asset rules.
 - Startup pins each root's real path and filesystem identity. A missing, moved or replaced root fails closed until the operator checks configuration and restarts.
 - NUL, device paths, drive-relative locators and Windows alternate streams are rejected. Responses suppress raw filesystem errors that could reveal out-of-bound resolved paths.
 - Asset receipts are bound to the process signing key and uploaded file identity/content. Restart invalidates receipts; there is no asset/session registry or automatic orphan cleanup.

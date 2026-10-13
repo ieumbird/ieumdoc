@@ -24,6 +24,14 @@ function locator(value: string): string {
   return path.resolve(value.trim());
 }
 
+/** The real path of the nearest existing ancestor. */
+function realParent(target: string): string {
+  for (let folder = path.dirname(target); ; folder = path.dirname(folder)) {
+    try { return fs.realpathSync(folder); }
+    catch (error) { if (path.dirname(folder) === folder) throw error; }
+  }
+}
+
 /** Fixed operator roots, not the folder currently selected in the Editor. */
 export class RootAccess {
   readonly roots: readonly string[];
@@ -56,6 +64,20 @@ export class RootAccess {
     }
   }
 
+  /**
+   * Windows path comparison lowercases in JavaScript, which equates names NTFS keeps distinct
+   * (KELVIN SIGN and "k"). The matching prefix must therefore be the pinned root directory itself.
+   */
+  private contains(real: string): boolean {
+    return this.entries.some(entry => {
+      if (!inside(entry.real, real)) return false;
+      let folder = real;
+      while (path.relative(entry.real, folder) && path.dirname(folder) !== folder) folder = path.dirname(folder);
+      const stat = fs.statSync(folder);
+      return stat.dev === entry.dev && stat.ino === entry.ino;
+    });
+  }
+
   /** Check before any filesystem I/O; an absent leaf is allowed only beneath an existing parent. */
   resolve(value: string, create = false): string {
     const target = locator(value);
@@ -69,6 +91,8 @@ export class RootAccess {
       const stat = fs.statSync(real);
       if (!stat.isFile() && !stat.isDirectory()) throw new FileAccessError("Only regular files and directories are supported.");
     } catch (error) {
+      // Even whether a name exists behind an outside link is not revealed.
+      if (!this.contains(realParent(target))) throw new FileAccessError();
       if (!create || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       try { fs.lstatSync(target); throw new FileAccessError("A new file cannot replace a symlink."); }
       catch (leafError) { if ((leafError as NodeJS.ErrnoException).code !== "ENOENT") throw leafError; }
@@ -76,7 +100,7 @@ export class RootAccess {
       if (!fs.statSync(parent).isDirectory()) throw new FileAccessError("Parent must be an existing directory.");
       real = path.join(parent, path.basename(target));
     }
-    if (!this.entries.some(entry => inside(entry.real, real))) throw new FileAccessError();
+    if (!this.contains(real)) throw new FileAccessError();
     // Keep the locator: existing per-document media/asset rules must still see symlinks.
     return target;
   }
