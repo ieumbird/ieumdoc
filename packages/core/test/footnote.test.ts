@@ -28,6 +28,9 @@ const SOURCE = [
   "",
 ].join("\n");
 
+// A caption's nested parse can re-enable the source tokenizer's footnote tail rule.
+const SOURCE_WITH_FIGURE = SOURCE.replace("Another paragraph.", ":::{figure}\n\nReserved.\n:::\n\nAnother paragraph.");
+
 // Canonical Markdown of SOURCE: the body, then the endnotes in first-reference order.
 const PLACED = [
   "# Title",
@@ -77,7 +80,8 @@ test("footnote references are editable inline content and definitions follow the
   assert.equal(serialize(edited), PLACED.replace("Text with", "Edited. Text with"));
 });
 
-test("a footnote definition shows its own source and the references it holds", () => {
+test("a footnote definition shows its own source and references after Figure caption parsing", () => {
+  parse(SOURCE_WITH_FIGURE);
   const blocks = getEditableDocument(parse(SOURCE)).blocks;
   assert.deepEqual(footnoteBlock(blocks, "n").original, { kind: "footnoteDefinition (footnoteReference)", text: "[^n]: The note, see[^inner].", line: 5 });
   assert.deepEqual(footnoteBlock(blocks, "n").footnotes, ["inner"]);
@@ -106,7 +110,8 @@ test("body blocks move and insert before the endnotes, which keep their place", 
   assert.equal(serialize(inserted), PLACED.replace("Tail.\n", "Tail.\n\n## Notes\n\nEnd.\n"));
 });
 
-test("canonical write refuses footnotes MyST would drop or reread, naming the footnote", () => {
+test("canonical write refuses footnotes MyST would drop or reread after Figure caption parsing", () => {
+  parse(SOURCE_WITH_FIGURE);
   const refused: [string, RegExp][] = [
     ["A[^a].\n\n[^a]: Kept.\n\n[^orphan]: Never referenced.\n", /\[\^orphan\] has no reference/],
     ["A[^a].\n\n[^a]: First.\n\n[^a]: Second.\n", /\[\^a\] is defined more than once/],
