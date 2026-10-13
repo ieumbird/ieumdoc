@@ -147,6 +147,14 @@ async (page, { screenshots = false, openDocument }) => {
   };
   await page.getByText('Alpha. Unsaved', {exact:true}).click();
   await page.keyboard.press('End');
+  // Prepare a paragraph edit for the restart guard. Chromium can move its DOM caret before
+  // ProseMirror receives selectionchange; typing then would replace the still-selected table.
+  await page.waitForFunction(() => {
+    const selection = document.querySelector('.document-editor').editor.state.selection;
+    return selection.empty && selection.$from.parent.type.name === 'paragraph' &&
+      selection.$from.parent.textContent === 'Alpha. Unsaved' &&
+      selection.$from.parentOffset === selection.$from.parent.content.size;
+  });
   await page.keyboard.type(' Saved');
   let releaseSave;
   const saveGate = new Promise(resolve => { releaseSave = resolve; });
