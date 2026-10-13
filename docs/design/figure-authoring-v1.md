@@ -1,7 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (empty Figure persistence and insertion, [#171](https://github.com/ieumbird/ieumdoc/issues/171); verification results are recorded in the implementation PR).
+- Last verified: 2026-10-13 (empty Figure persistence and link-reference warnings compared with Core/CLI/Editor code and existing regression coverage).
 - Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
 ## Scope and completion
@@ -58,7 +58,7 @@ pnpm ieumdoc check doc.md --format json
 
 `inspect` adds `contentKind` to Figure JSON and `content=none|image|other` to text. Existing fields remain. `check` reports pending Figure paths and labels in `readiness.pendingFigures`, or warnings on stderr in text mode. Existing validation/writeability/reference fields and exit codes stay intact: pending alone is writable and exits 0. This is a warning about incomplete content, not a complete publication certification; asset existence and exporters are not checked. Save and format remain allowed. Official MyST can diagnose pending Figures as errors while its build still exits 0; this MVP does not implement Publish/Export.
 
-The prior spike remains historical evidence in [PR #150](https://github.com/ieumbird/ieumdoc/pull/150); its experimental code is not merged here. Missing-target diagnosis for `[](#label)` remains a separate existing gap tracked in [#151](https://github.com/ieumbird/ieumdoc/issues/151). Role references keep their existing diagnosis. This MVP preserves both reference forms in canonical source and uses the existing numbered role-reference UI.
+Core and CLI `check` diagnose missing targets for both `[](#label)` links and role references ([#151](https://github.com/ieumbird/ieumdoc/issues/151), implemented in [PR #166](https://github.com/ieumbird/ieumdoc/pull/166)). Unresolved references are warnings, stay as written and do not block a lossless canonical write; [Section references](section-references-v1.md#scope) defines the diagnosis contract. The existing numbered role-reference UI remains. The prior spike remains historical evidence in [PR #150](https://github.com/ieumbird/ieumdoc/pull/150); its experimental code is not merged here.
 
 ## Visual verification
 
