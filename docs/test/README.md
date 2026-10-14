@@ -1,10 +1,10 @@
 # Verification
 
-변경 유형별 최소 검증은 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다.
+변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
 ## 자동 검증
 
-저장소 루트에서 실행한다.
+저장소 루트에서 변경 유형에 필요한 명령을 선택한다. 패키지 선택 실행은 예를 들어 `pnpm --filter @ieumdoc/core test`를 사용한다.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -29,10 +29,14 @@ runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 
 
 ## Production HTTP regression
 
+로컬에서는 관련 HTTP boundary tests와 아래 HTTP browser 시나리오를 실행한다. CLI 패키징·배포 경계를 바꿀 때 `package`·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows/Linux HTTP CI에 맡긴다.
+
 ```bash
+pnpm --filter @ieumdoc/cli build
+pnpm browser:test http-host
+# CLI 패키징·배포 경계 변경 시 추가 실행
 pnpm --filter @ieumdoc/cli package
 pnpm --filter @ieumdoc/cli test:packaged
-pnpm browser:test http-host
 ```
 
 The archive test installs outside the checkout with no runtime dependencies and runs Node-only CLI/serve, real writes, port conflict and shutdown. The separate HTTP browser scenario starts the built Host with two scratch roots and verifies real Save/Reload, New file/folder, images, dirty/draft guards, revision conflict and SVG script blocking. Do not combine it with Vite scenarios. Windows uses the existing persistent browser profile. `--screenshots` saves optional wide/narrow manual captures under `tmp/http-host-capture/`.
@@ -41,7 +45,7 @@ HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filte
 
 ## Windows Desktop regression
 
-Windows x64에서 실행한다. `package`와 아래 tests는 공개 Release를 만들지 않는다.
+Windows x64에서 아래 명령 중 변경 영역의 tests/typecheck·browser 회귀를 선택한다. 패키징·설치/업데이트·배포 경계 변경 시 관련 `test:update`·`package`·release 자산 검증·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows Desktop CI에 맡긴다. `package`와 아래 tests는 공개 Release를 만들지 않는다.
 
 ```bash
 pnpm --filter @ieumdoc/desktop test
