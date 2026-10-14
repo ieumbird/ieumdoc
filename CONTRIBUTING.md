@@ -74,12 +74,12 @@ CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)�
 | `docs/**`, 루트·하위 `*.md`, `.github/ISSUE_TEMPLATE/**`만 변경 | 없음 (아래 패키지·공용 경로에 속하는 Markdown은 해당 경로 규칙 우선) |
 | `packages/cli/**` | http |
 | `apps/editor/**`, `packages/core/**`, `packages/file-commit/**` | browser, http, desktop |
-| `apps/desktop/**` | desktop + `test:update` |
+| `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
 | 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
 
-패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 2개 shard, http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
+패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 2개 shard, http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
 
-필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, browser/http/desktop은 성공 또는 경로 규칙에 따른 skipped만 허용한다. 실패·취소는 통과하지 않는다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push 실행은 커밋별로 유지한다.
+필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push 실행은 커밋별로 유지한다.
 
 ## HTTP Host builds
 

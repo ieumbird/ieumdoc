@@ -50,8 +50,12 @@ jobs:
               - 'apps/editor/**'
               - 'packages/core/**'
               - 'packages/file-commit/**'
+            # The install/update e2e drives these Editor update surfaces.
             update:
               - 'apps/desktop/**'
+              - 'apps/editor/shared/desktop-bridge.ts'
+              - 'apps/editor/src/shell/SettingsDialog.tsx'
+              - 'apps/editor/src/shell/MessageArea.tsx'
             shared:
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -295,14 +299,19 @@ jobs:
           BROWSER_RESULT: ${{ needs.browser.result }}
           DESKTOP_RESULT: ${{ needs.desktop.result }}
           HTTP_RESULT: ${{ needs.http.result }}
+          BROWSER_SELECTED: ${{ needs.changes.outputs.browser }}
+          DESKTOP_SELECTED: ${{ needs.changes.outputs.desktop }}
+          HTTP_SELECTED: ${{ needs.changes.outputs.http }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" || "$QUALITY_RESULT" != "success" ]]; then
             echo "Required checks did not succeed: changes=$CHANGES_RESULT quality=$QUALITY_RESULT"
             exit 1
           fi
-          for result in "$BROWSER_RESULT" "$HTTP_RESULT" "$DESKTOP_RESULT"; do
-            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "Selected checks did not succeed: browser=$BROWSER_RESULT http=$HTTP_RESULT desktop=$DESKTOP_RESULT"
+          # A selected job must succeed; only a job the path rules left out may be skipped.
+          for check in "browser:$BROWSER_SELECTED:$BROWSER_RESULT" "http:$HTTP_SELECTED:$HTTP_RESULT" "desktop:$DESKTOP_SELECTED:$DESKTOP_RESULT"; do
+            IFS=: read -r name selected result <<< "$check"
+            if [[ "$selected" == "true" && "$result" != "success" ]] || [[ "$selected" != "true" && "$result" != "skipped" ]]; then
+              echo "$name: selected=$selected result=$result"
               exit 1
             fi
           done
