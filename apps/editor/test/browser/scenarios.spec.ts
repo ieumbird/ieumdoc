@@ -9,6 +9,7 @@ import { classifyConsoleErrors } from "./console-errors.ts";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { openDocument } from "./navigation.ts";
+import { withBlockHover } from "./hover.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
@@ -128,7 +129,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument }) => Promise<unknown>;
-    await scenario(page, { screenshots, openDocument });
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; withBlockHover: typeof withBlockHover }) => Promise<unknown>;
+    await scenario(page, { screenshots, openDocument, withBlockHover });
   });
 }

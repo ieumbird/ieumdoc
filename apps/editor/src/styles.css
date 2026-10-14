@@ -1411,11 +1411,28 @@ ol.list { list-style: decimal; }
   cursor: not-allowed;
 }
 
-/* While dragging: the block being moved is tinted, and the line sits in the gap it will land in. */
+.block-hover-outline,
 .block-drag-source {
   position: absolute;
   left: var(--layout-document-gutter);
   right: var(--layout-document-inline-padding);
+  pointer-events: none;
+}
+
+/* Expand the measured block rectangle without changing content layout or pointer targets. */
+.block-hover-outline {
+  left: calc(var(--layout-document-gutter) - var(--space-block-hover-inline));
+  right: calc(var(--layout-document-inline-padding) - var(--space-block-hover-inline));
+  border-radius: var(--id-radius-block-hover);
+  box-shadow: inset 0 0 0 var(--size-block-hover-outline) var(--id-color-block-hover-outline);
+}
+
+@media (hover: none) {
+  .block-hover-outline { display: none; }
+}
+
+/* While dragging: the block being moved is tinted, and the line sits in the gap it will land in. */
+.block-drag-source {
   border-radius: var(--id-radius-sm);
   background: var(--id-color-interaction-soft);
   mix-blend-mode: multiply;

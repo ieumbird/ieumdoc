@@ -23,6 +23,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
   const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean }[]>([]);
   const [active, setActive] = useState(-1);
+  const [hovered, setHovered] = useState(-1);
   const [dropTop, setDropTop] = useState<number | null>(null);
   const [moving, setMoving] = useState<{ top: number; height: number } | null>(null);
   useLayoutEffect(() => {
@@ -34,6 +35,30 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
         if (element instanceof HTMLElement) result.push(element.getBoundingClientRect());
       });
       return result;
+    };
+    let pointer: { x: number; y: number } | null = null;
+    let scrollFrame: number | null = null;
+    // The block row includes its gutter controls; selection never supplies a hover extent.
+    const updateHovered = (rects?: DOMRect[]) => {
+      const point = pointer;
+      if (!point || drag.current) {
+        setHovered(-1);
+        return;
+      }
+      const bounds = host.getBoundingClientRect();
+      if (point.x < bounds.left || point.x > bounds.right || point.y < bounds.top || point.y > bounds.bottom) {
+        setHovered(-1);
+        return;
+      }
+      setHovered((rects ?? rectangles()).findIndex(rect => point.y >= rect.top && point.y <= rect.bottom));
+    };
+    const leave = () => { pointer = null; setHovered(-1); };
+    const scroll = () => {
+      if (!pointer || drag.current || scrollFrame !== null) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        updateHovered();
+      });
     };
     // A dragged body block lands in the body: the endnotes after it keep their own order.
     const bodyRectangles = () => {
@@ -50,13 +75,17 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
         return {top: rect.top - top, height: rect.height, endnote,
           name: endnote ? "endnote" : node.type.name.replace(/Block$/, "").toLowerCase()};
       }));
+      updateHovered(rects);
     };
     const transaction = () => {
       update();
       setActive(editor.state.selection.$from.index(0));
     };
     const hover = (event: MouseEvent) => {
-      setActive(rectangles().findIndex(rect => event.clientY >= rect.top - 8 && event.clientY <= rect.bottom + 8));
+      pointer = { x: event.clientX, y: event.clientY };
+      const rects = rectangles();
+      updateHovered(rects);
+      setActive(rects.findIndex(rect => event.clientY >= rect.top - 8 && event.clientY <= rect.bottom + 8));
     };
     const over = (event: DragEvent) => {
       if (!drag.current) return;
@@ -67,7 +96,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       const target = blockDropTarget(bodyRectangles(), event.clientY, drag.current.index);
       setDropTop(target ? target.line - host.getBoundingClientRect().top : null);
     };
-    const end = () => { drag.current = null; setDropTop(null); setMoving(null); };
+    const end = () => { drag.current = null; setDropTop(null); setMoving(null); leave(); };
     let dropped = false;
     const drop = (event: DragEvent) => {
       const source = drag.current;
@@ -93,6 +122,9 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
     // A minimum-height paper can stay fixed while fonts, images or NodeViews resize the content.
     resize.observe(editor.view.dom);
     host.addEventListener("mousemove", hover);
+    host.addEventListener("mouseleave", leave);
+    window.addEventListener("blur", leave);
+    window.addEventListener("scroll", scroll, true);
     // Capture before ProseMirror's native content drag/drop handler.
     host.addEventListener("dragover", over, true);
     host.addEventListener("drop", drop, true);
@@ -102,6 +134,10 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       editor.off("transaction", transaction);
       resize.disconnect();
       host.removeEventListener("mousemove", hover);
+      host.removeEventListener("mouseleave", leave);
+      window.removeEventListener("blur", leave);
+      window.removeEventListener("scroll", scroll, true);
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
       host.removeEventListener("dragover", over, true);
       host.removeEventListener("drop", drop, true);
       host.removeEventListener("dragend", finish);
@@ -136,6 +172,9 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
           }}>⠿</Button>
       </div>;
     })}
+    {!moving && blocks[hovered] && <div className="block-hover-outline" data-testid="block-hover-outline" aria-hidden="true"
+      style={{top: `calc(${blocks[hovered].top}px - var(--space-block-hover-block))`,
+        height: `calc(${blocks[hovered].height}px + 2 * var(--space-block-hover-block))`}} />}
     {moving && <div className="block-drag-source" data-testid="block-drag-source" style={moving} />}
     {dropTop !== null && <div className="block-drop-line" data-testid="block-drop-line" style={{top: dropTop}} />}
   </div>;
