@@ -8,7 +8,7 @@ import { getSchema } from "@tiptap/core";
 import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
 import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
-import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
+import { deleteBlock, insertFigureAfter, updateFigure } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   appliedDocument,
@@ -196,7 +196,7 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   // Apply commits only after Core's persistent validation through the Host accepts the value.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*label: nextLabel \}[\s\S]*view\.dispatch\(closeHistory\(view\.state\.tr\.replaceWith/);
+  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(updateFigure\(view\.state, latestPosition, \{ \.\.\.attributes, label: nextLabel \}, captionContent\)\)/);
   assert.match(app, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });
@@ -232,7 +232,7 @@ test("Figure Apply participates in the structure guard and undo/redo", () => {
   state.doc.forEach((node, pos) => { if (node.attrs.sourcePath === FIGURE) position = pos; });
   const figure = state.doc.nodeAt(position)!;
   const changed = schema.nodeFromJSON(setFigure(figure.toJSON() as TiptapJSON, CHANGED));
-  state = state.apply(state.tr.replaceWith(position, position + figure.nodeSize, changed));
+  state = state.apply(updateFigure(state, position, { imageUrl: CHANGED.imageUrl, imageAlt: CHANGED.imageAlt }, changed.content));
   assert.equal(state.doc.nodeAt(position)?.textContent, CHANGED.caption);
   const identityTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, sourcePath: "forged" });
   assert.equal(state.apply(identityTr).doc, state.doc);

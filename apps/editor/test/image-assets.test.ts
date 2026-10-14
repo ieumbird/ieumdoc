@@ -12,6 +12,7 @@ import { EditorState, Plugin, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { imageAssetsPlugin } from "../src/image-assets.ts";
+import { insertFigureAfter, updateFigure } from "../src/block-commands.ts";
 import { collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -432,7 +433,7 @@ test("Host failure preserves document; rollback failure reports the remaining pa
   assert.match(errors.join(" "), /rollback failed.*\.\/assets\/image-created\.png.*delete denied/i);
 });
 
-test("pending upload maps its block through typing and leaves the newer caret alone", async t => {
+test("pending upload maps its block through typing, preserves the newer caret and cancels a changed empty Figure", async t => {
   const { doc } = fixture(t);
   let resolve!: (created: { path: string; rollbackToken: string }) => void;
   const e = imageEditor(doc, () => {}, {
@@ -446,6 +447,29 @@ test("pending upload maps its block through typing and leaves the newer caret al
   assert.equal(e.view.state.doc.child(1).type.name, "figure");
   assert.equal(e.view.state.selection.from, 3);
   assert.equal(e.view.state.doc.firstChild!.textContent, "before Alpha.");
+
+  // A Figure fill cannot become an insertion or overwrite a newer value while awaiting the Host.
+  for (const change of ["caption", "label", "image", "delete"] as const) {
+    const errors: string[] = [];
+    const rolledBack: string[] = [];
+    const filling = imageEditor(doc, reason => errors.push(reason), {
+      create: () => new Promise(done => { resolve = done; }),
+      rollback: async created => { rolledBack.push(created.path); },
+    });
+    filling.view.dispatch(insertFigureAfter(filling.view.state, 0));
+    filling.paste();
+    const position = filling.view.state.doc.firstChild!.nodeSize;
+    if (change === "caption") filling.view.dispatch(filling.view.state.tr.insertText("New caption", position + 1));
+    if (change === "label") filling.view.dispatch(updateFigure(filling.view.state, position, { label: "fig-new" }));
+    if (change === "image") filling.view.dispatch(updateFigure(filling.view.state, position, { imageUrl: "./newer.png" }));
+    if (change === "delete") filling.view.dispatch(filling.view.state.tr.delete(position, position + filling.view.state.doc.nodeAt(position)!.nodeSize));
+    const changed = filling.view.state.doc.toJSON();
+    resolve({ path: "./assets/image-cancelled.png", rollbackToken: "receipt" });
+    await filling.finished();
+    assert.deepEqual(filling.view.state.doc.toJSON(), changed, `${change} cancels the fill without changing the newer document`);
+    assert.deepEqual(rolledBack, ["./assets/image-cancelled.png"]);
+    assert.match(errors.join(" "), /cancelled/);
+  }
 });
 
 test("upload completion leaves focus in a draft input outside the document", async t => {
