@@ -37,16 +37,29 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       return result;
     };
     let pointer: { x: number; y: number } | null = null;
+    let scrollFrame: number | null = null;
     // The block row includes its gutter controls; selection never supplies a hover extent.
-    const updateHovered = (rects = rectangles()) => {
+    const updateHovered = (rects?: DOMRect[]) => {
       const point = pointer;
+      if (!point || drag.current) {
+        setHovered(-1);
+        return;
+      }
       const bounds = host.getBoundingClientRect();
-      setHovered(point && !drag.current && point.x >= bounds.left && point.x <= bounds.right &&
-        point.y >= bounds.top && point.y <= bounds.bottom ? rects.findIndex(rect =>
-        point.y >= rect.top && point.y <= rect.bottom) : -1);
+      if (point.x < bounds.left || point.x > bounds.right || point.y < bounds.top || point.y > bounds.bottom) {
+        setHovered(-1);
+        return;
+      }
+      setHovered((rects ?? rectangles()).findIndex(rect => point.y >= rect.top && point.y <= rect.bottom));
     };
     const leave = () => { pointer = null; setHovered(-1); };
-    const scroll = () => updateHovered();
+    const scroll = () => {
+      if (!pointer || drag.current || scrollFrame !== null) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        updateHovered();
+      });
+    };
     // A dragged body block lands in the body: the endnotes after it keep their own order.
     const bodyRectangles = () => {
       let end = editor.state.doc.childCount;
@@ -70,8 +83,9 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
     };
     const hover = (event: MouseEvent) => {
       pointer = { x: event.clientX, y: event.clientY };
-      updateHovered();
-      setActive(rectangles().findIndex(rect => event.clientY >= rect.top - 8 && event.clientY <= rect.bottom + 8));
+      const rects = rectangles();
+      updateHovered(rects);
+      setActive(rects.findIndex(rect => event.clientY >= rect.top - 8 && event.clientY <= rect.bottom + 8));
     };
     const over = (event: DragEvent) => {
       if (!drag.current) return;
@@ -123,6 +137,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       host.removeEventListener("mouseleave", leave);
       window.removeEventListener("blur", leave);
       window.removeEventListener("scroll", scroll, true);
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
       host.removeEventListener("dragover", over, true);
       host.removeEventListener("drop", drop, true);
       host.removeEventListener("dragend", finish);
