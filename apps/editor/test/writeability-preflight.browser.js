@@ -16,10 +16,44 @@ async (page, { openDocument }) => {
   const snapshot = () => editor.evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON()}));
   const activePath = await page.getByTestId('current-file').getAttribute('title');
   const before = await snapshot();
-  await openDocument(page, rejectedPath);
-  await page.getByText(refusal.error, {exact:true}).first().waitFor();
-  assert(await page.getByTestId('current-file').getAttribute('title') === activePath, 'Rejected Open installed another document');
-  assert(await snapshot() === before, 'Rejected Open changed the document or selection');
+  const alert = page.getByRole('dialog', {name:'Cannot open document', exact:true});
+  const writes = [];
+  page.on('request', request => { if (request.method() !== 'GET' && request.url().split('?')[0].endsWith('/api/document')) writes.push(request); });
+  const assertAlert = async (name, failure) => {
+    await alert.waitFor();
+    const text = await alert.innerText();
+    assert(text.includes(name) && text.includes(failure.issue.reason) && text.includes(failure.issue.action), 'Open Alert lost the filename, Core reason or action');
+    assert(text.includes('Your current document has not changed.'), 'Open Alert did not explain state retention');
+    assert(await page.getByTestId('error').count() === 0, 'Open Alert duplicated the top error');
+    assert(await alert.getByRole('button').count() === 1, 'Open Alert needs one confirmation button');
+    await page.keyboard.press('Control+s'); await page.evaluate(() => new Promise(requestAnimationFrame));
+    assert(writes.length === 0, 'Save request escaped the Open Alert');
+  };
+  for (const [name, code] of [['blocked-markdown.md','native-marker'], ['unsupported-syntax.md','native-content']]) {
+    const file = rejectedPath.replace('blocked-markdown.md', name);
+    const failure = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
+    assert(failure.code === code, 'Wrong native rejection fixture');
+    if (code === 'native-marker') await openDocument(page, file);
+    else await page.getByRole('treeitem', {name,exact:true}).click();
+    await assertAlert(name, failure);
+    if (code === 'native-marker') await alert.getByRole('button', {name:'OK',exact:true}).click();
+    else await page.keyboard.press('Escape');
+    await alert.waitFor({state:'detached'});
+    await page.getByRole('treeitem', {name,exact:true}).evaluate(el => {
+      if (document.activeElement !== el) throw Error('Open Alert did not return focus to the sidebar file');
+    });
+    assert(await page.getByTestId('current-file').getAttribute('title') === activePath, 'Rejected Open installed another document');
+    assert(await snapshot() === before, 'Rejected Open changed the document or selection');
+  }
+
+  // A filesystem failure keeps the existing top error, even when its text resembles a native reason.
+  await page.route('**/api/document?*', route => route.fulfill({status:403, json:{error:'Permission denied. A native document requires leading frontmatter with ieumdoc: 1'}}));
+  try {
+    await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
+    await page.getByTestId('error').filter({hasText:'Permission denied.'}).waitFor();
+    assert(await alert.count() === 0, 'Non-native failure showed the Open Alert');
+    assert(await snapshot() === before, 'Filesystem failure changed the editor');
+  } finally { await page.unroute('**/api/document?*'); }
 
   const paragraph = editor.locator('p.paragraph').filter({hasText:'The current reference is calculated'});
   await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.type(' Unsaved.');
@@ -27,6 +61,15 @@ async (page, { openDocument }) => {
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + draft');
   const local = await snapshot();
+  // Open still protects unsaved content and drafts before requesting any file.
+  let reads = 0;
+  await page.route('**/api/document?*', route => { reads++; return route.fulfill({status:400, json:refusal}); });
+  try {
+    await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
+    await page.getByTestId('error').filter({hasText:'Save or discard the current changes'}).waitFor();
+    assert(reads === 0 && await alert.count() === 0, 'Dirty Open bypassed its existing guard');
+    assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Guarded Open changed local work');
+  } finally { await page.unroute('**/api/document?*'); }
   // The on-disk file has become unsupported: replay its real Core error at the same locator.
   await page.route('**/api/document?*', route => route.request().method() === 'GET'
     ? route.fulfill({status:400, json:refusal}) : route.continue());
@@ -36,6 +79,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
     await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor({state:'detached'});
     await page.getByText(refusal.error, {exact:true}).first().waitFor();
+    assert(await alert.count() === 0, 'Reload changed to Open Alert behavior');
     assert(await snapshot() === local, 'Rejected Reload discarded local document or selection');
     assert(await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Rejected Reload discarded the unapplied draft');
     assert(await page.getByTestId('status').innerText() === 'Open failed', 'Rejected Reload did not report failure');
@@ -52,6 +96,19 @@ async (page, { openDocument }) => {
   await page.getByText(refusal.error, {exact:true}).first().waitFor();
   assert(await editor.count() === 0, 'Initial failure installed an editor');
   await page.unroute('**/api/document');
+
+  // Start without a document, then reject the existing sample through real Host admission.
+  await page.route('**/api/document', route => route.fulfill({json:{start:true, sample:rejectedPath}}));
+  await page.reload();
+  const sampleButton = page.getByRole('button', {name:'Open sample document', exact:true});
+  await sampleButton.click();
+  await alert.waitFor();
+  assert((await alert.innerText()).includes('No document was opened.'), 'Rejected sample claimed an existing document');
+  assert(await editor.count() === 0 && await page.getByTestId('notice').count() === 0 && await page.getByTestId('error').count() === 0, 'Rejected sample installed a document or duplicate message');
+  await alert.getByRole('button', {name:'OK', exact:true}).click();
+  await alert.waitFor({state:'detached'});
+  assert(await sampleButton.evaluate(el => document.activeElement === el), 'Rejected sample did not return focus to its button');
+  await page.unroute('**/api/document');
   await page.reload(); await ready();
-  return {openPreservesState:true, reloadPreservesInputAndDraft:true, initialFailureHasNoDocument:true};
+  return {openAlertAndFocus:true, nonNativeTopError:true, openPreservesState:true, reloadPreservesInputAndDraft:true, initialFailureHasNoDocument:true};
 }
