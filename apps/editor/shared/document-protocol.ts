@@ -190,8 +190,8 @@ export type BlockSourceRequest = BlockSourceEdit & {
 /** The replaced block as Core projects it, at its snapshot path. */
 export type BlockSourceResponse = { block: EditableBlock };
 
-/** One entry of a folder listing: a regular sub-folder or a regular `.md` file. */
-export type FolderEntry = { name: string; kind: "folder" | "document"; path: string };
+/** One entry of a folder listing: a regular sub-folder, or a regular `.md` file (an image file when choosing an image). */
+export type FolderEntry = { name: string; kind: "folder" | "document" | "image"; path: string };
 
 /**
  * One level of a folder the user chose (`root`). `path` is the listed folder inside it and

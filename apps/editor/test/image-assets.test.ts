@@ -14,7 +14,7 @@ import { imageAssetsPlugin } from "../src/image-assets.ts";
 import { collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
-import { createImageAsset, handleAssetRequest, rollbackImageAsset } from "../server/asset-api.ts";
+import { chooseImageAsset, createImageAsset, handleAssetRequest, rollbackImageAsset } from "../server/asset-api.ts";
 import { resolveMediaPath } from "../server/document-api.ts";
 
 // A complete 1x1 PNG, rather than a filename/signature-only pseudo image.
@@ -303,6 +303,47 @@ test("unwritable Core snapshots and abnormal document locators cannot create ass
   fs.writeFileSync(doc, "# Blocked\n\nPress {kbd}`Ctrl` now.\n");
   assert.throws(() => createImageAsset(doc, "image/png", PNG, key), /read-only/);
   assert.equal(fs.existsSync(assets), false);
+});
+
+test("a chosen image inside the document's folder is linked in place; one elsewhere is copied like a paste", t => {
+  const { root, doc, assets } = fixture(t);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-choice-outside-"));
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  const choose = (source: string) => chooseImageAsset({ documentPath: doc, source }, key);
+  fs.mkdirSync(path.join(root, "figures 1"));
+  fs.writeFileSync(path.join(root, "figures 1", "회로도.png"), PNG);
+  fs.writeFileSync(path.join(root, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
+  assert.deepEqual(choose(path.join(root, "figures 1", "회로도.png")), { path: "./figures 1/회로도.png" });
+  assert.deepEqual(choose(path.join(root, "diagram.svg")), { path: "./diagram.svg" });
+  // The media route decodes the URL-encoded path the Editor requests, once.
+  fs.writeFileSync(path.join(root, "100%.png"), PNG);
+  assert.deepEqual(choose(path.join(root, "100%.png")), { path: "./100%.png" });
+  assert.equal(resolveMediaPath("100%25.png", doc), path.join(root, "100%.png"));
+  assert.equal(fs.existsSync(assets), false, "Linking writes nothing");
+  // A name the media route refuses to serve is copied instead of linked.
+  fs.writeFileSync(path.join(root, "a%2e.png"), PNG);
+  const unservable = choose(path.join(root, "a%2e.png"));
+  assert.match(unservable.path, /^\.\/assets\/image-[a-f0-9-]+\.png$/);
+  rollbackImageAsset({ documentPath: doc, path: unservable.path, rollbackToken: unservable.rollbackToken! }, key);
+
+  for (const [name, bytes] of [["photo.jpeg", JPEG], ["diagram.svg", "<svg/>"], ["fake.png", JPEG], ["notes.txt", "x"]] as const) {
+    fs.writeFileSync(path.join(outside, name), bytes);
+  }
+  const copied = choose(path.join(outside, "photo.jpeg"));
+  assert.match(copied.path, /^\.\/assets\/image-[a-f0-9-]+\.jpg$/);
+  assert.deepEqual(fs.readFileSync(path.resolve(root, copied.path)), JPEG);
+  rollbackImageAsset({ documentPath: doc, path: copied.path, rollbackToken: copied.rollbackToken! }, key);
+  assert.deepEqual(fs.readdirSync(assets), []);
+  assert.throws(() => choose(path.join(outside, "diagram.svg")), /can be copied/);
+  assert.throws(() => choose(path.join(outside, "fake.png")), /complete PNG/);
+  for (const source of [path.join(outside, "notes.txt"), outside, ""]) assert.throws(() => choose(source), /Choose a|Choose an/);
+  assert.throws(() => choose(path.join(outside, "missing.png")), /does not exist/);
+  assert.deepEqual(fs.readdirSync(assets), []);
+
+  // A link inside the folder that resolves outside it is copied, never served through the link.
+  fs.symlinkSync(outside, path.join(root, "linked"), process.platform === "win32" ? "junction" : "dir");
+  assert.match(choose(path.join(root, "linked", "photo.jpeg")).path, /^\.\/assets\/image-[a-f0-9-]+\.jpg$/);
+  assert.equal(fs.readFileSync(doc, "utf8"), "# Images\n\nKeep this text.\n");
 });
 
 function imageEditor(doc: string, reject: (reason: string) => void, host: Parameters<typeof imageAssetsPlugin>[0]["host"], extra: Plugin[] = []) {

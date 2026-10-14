@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
-import { ArrowUp, ChevronRight, FileText, Folder, FolderPlus, HardDrive, House } from "lucide-react";
+import { ArrowUp, ChevronRight, FileText, Folder, FolderPlus, HardDrive, House, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import type { FolderBrowseResponse, FolderPlace } from "../../shared/document-protocol.ts";
+import type { FolderBrowseResponse, FolderEntry, FolderPlace } from "../../shared/document-protocol.ts";
 import { childPath, splitDocumentPath, unquotePath } from "./document-path.ts";
 
 type FolderDialogProps = {
   open: boolean;
+  /** An image picker lists images beside the folders, and Open chooses an image file. */
+  choose?: "folder" | "image";
   /** Where browsing starts, usually the open document's folder. */
   initialPath: string;
   recent: string[];
   restricted?: boolean;
   browse(path: string): Promise<FolderBrowseResponse>;
   places(): Promise<FolderPlace[]>;
-  /** Resolves to an error message, or "" once the folder is open. */
+  /** Resolves to an error message, or "" once the folder is open or the image chosen. */
   onOpen(path: string): Promise<string>;
-  /** Creates a folder inside `parent`; resolves to an error message, or "" once it exists. */
-  onCreateFolder(parent: string, name: string): Promise<string>;
+  /** Creates a folder inside `parent`; resolves to an error message, or "" once it exists. Absent, there is no New folder. */
+  onCreateFolder?(parent: string, name: string): Promise<string>;
   /** The control that opened the dialog, which gets focus back when it closes. */
   returnFocus?: RefObject<HTMLElement | null>;
   onClose(): void;
@@ -34,11 +36,11 @@ const inside = (folder: string) => (endsWithSeparator(folder) ? folder : folder 
 const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[\\/]+$/, "")).name || folder;
 
 /**
- * Choose a folder on the Host without leaving IeumDoc. The path field is the single source:
- * the list shows the folder up to its last separator, filtered by what follows it; Open opens
- * exactly the typed path. Moving into a folder never opens it.
+ * Choose a folder, or an image, on the Host without leaving IeumDoc. The path field is the single
+ * source: the list shows the folder up to its last separator, filtered by what follows it; Open
+ * opens exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
+export function FolderDialog({ open, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
   const [input, setInput] = useState("");
   const [listing, setListing] = useState<Listing>({ directory: "" });
   const [highlight, setHighlight] = useState(-1);
@@ -59,8 +61,12 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
   const directory = cut < 0 ? "" : path.slice(0, cut + 1);
   const partial = path.slice(cut + 1).toLowerCase();
   const result = listing.directory === directory ? listing.result : undefined;
-  const folders = result?.entries.filter(entry => entry.kind === "folder" && entry.name.toLowerCase().startsWith(partial)) ?? [];
-  const documents = result?.entries.filter(entry => entry.kind === "document").length ?? 0;
+  const image = choose === "image";
+  // Choosing an image needs an image the listing shows; a typed folder is a place to look.
+  const named = partial ? result?.entries.find(entry => entry.name.toLowerCase() === partial) : undefined;
+  const ready = image ? named?.kind === "image" : Boolean(path);
+  const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && entry.name.toLowerCase().startsWith(partial)) ?? [];
+  const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
 
@@ -107,6 +113,16 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
     field.current?.focus();
   };
 
+  // An image becomes the typed path, ready to choose; a folder is entered.
+  const enter = (entry: FolderEntry) => {
+    if (entry.kind === "folder") return go(entry.path);
+    if (pending) return;
+    setInput(entry.path);
+    setHighlight(-1);
+    setError("");
+    field.current?.focus();
+  };
+
   const cancelCreate = () => {
     setCreating(false);
     setNewName("");
@@ -116,7 +132,7 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
 
   const createFolder = async (event: FormEvent) => {
     event.preventDefault();
-    if (!result || createPending) return;
+    if (!result || createPending || !onCreateFolder) return;
     const name = newName.trim();
     if (!name || name === "." || name === ".." || /[\\/]/.test(name)) {
       setCreateError("Enter a folder name without a directory path.");
@@ -133,7 +149,7 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
   };
 
   const submit = async () => {
-    if (!path || pending) return;
+    if (!ready || pending) return;
     setPending(true);
     const message = await onOpen(path);
     setPending(false);
@@ -145,19 +161,20 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
     if (pending || event.nativeEvent.isComposing) return;
     const atEnd = event.currentTarget.selectionStart === input.length && event.currentTarget.selectionEnd === input.length;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      if (folders.length === 0) return;
+      if (options.length === 0) return;
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setHighlight(index => (index < 0 ? (step > 0 ? 0 : folders.length - 1) : (index + step + folders.length) % folders.length));
+      setHighlight(index => (index < 0 ? (step > 0 ? 0 : options.length - 1) : (index + step + options.length) % options.length));
     } else if ((event.key === "Tab" && !event.shiftKey) || (event.key === "ArrowRight" && atEnd)) {
       // Complete into the highlighted (or only, or first) match.
-      const match = folders[Math.max(highlight, 0)];
+      const match = options[Math.max(highlight, 0)];
       if (!match || (event.key === "Tab" && !partial && highlight < 0)) return;
       event.preventDefault();
-      go(match.path);
+      enter(match);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      void submit();
+      if (image && named?.kind === "folder") go(named.path);
+      else void submit();
     } else if (event.key === "Backspace" && atEnd && endsWithSeparator(path) && parent) {
       event.preventDefault();
       go(parent.path);
@@ -165,11 +182,13 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
   };
 
   const target = folderName(path);
-  const meta = !directory ? "Type a folder path or choose a starting place."
+  const noun = image ? ["image", "images"] : ["Markdown file", "Markdown files"];
+  const meta = !directory ? `Type ${image ? "an image" : "a folder"} path or choose a starting place.`
     : listing.directory === directory && listing.error ? listing.error
     : !result ? "Reading…"
-    : [folders.length === 0 ? (partial ? "No matching folders" : "No sub-folders") : "",
-      partial ? "" : `${documents} Markdown ${documents === 1 ? "file" : "files"} here`].filter(Boolean).join(" · ");
+    : [options.length === 0 ? (partial ? (image ? "No matching folders or images" : "No matching folders") : "No sub-folders") : "",
+      partial ? "" : `${files} ${noun[files === 1 ? 0 : 1]} here`].filter(Boolean).join(" · ");
+  const pathLabel = image ? "Image path" : "Folder path";
   return (
     <Dialog open={open} onOpenChange={(next, details) => {
       if (next || pending) return;
@@ -180,29 +199,31 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
       <DialogContent className="folder-picker sm:max-w-[var(--layout-folder-picker-width)]" showCloseButton={!pending}
         finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
-          <DialogTitle>Open folder</DialogTitle>
-          <DialogDescription>{restricted ? "Choose an allowed folder on the server to list in the sidebar." : "Choose a folder to list in the sidebar."}</DialogDescription>
+          <DialogTitle>{image ? "Choose image" : "Open folder"}</DialogTitle>
+          <DialogDescription>{image
+            ? (restricted ? "Choose an image on the server for this Figure." : "Choose an image for this Figure.")
+            : (restricted ? "Choose an allowed folder on the server to list in the sidebar." : "Choose a folder to list in the sidebar.")}</DialogDescription>
         </DialogHeader>
         <div className="form-field">
-          <label className="form-label" htmlFor="folder-path">Folder path</label>
+          <label className="form-label" htmlFor="folder-path">{pathLabel}</label>
           <div className="folder-picker-field">
-            <Folder aria-hidden="true" />
+            {image ? <ImageIcon aria-hidden="true" /> : <Folder aria-hidden="true" />}
             <input
               ref={field}
               id="folder-path"
               data-testid="folder-path"
               className="folder-picker-input"
               role="combobox"
-              aria-label="Folder path"
+              aria-label={pathLabel}
               aria-describedby={error ? "open-folder-error" : undefined}
-              aria-expanded={folders.length > 0}
+              aria-expanded={options.length > 0}
               aria-controls="folder-picker-list"
               aria-activedescendant={highlight >= 0 ? `folder-option-${highlight}` : undefined}
               aria-autocomplete="list"
               value={input}
               onChange={event => { setInput(event.target.value); setHighlight(-1); setError(""); }}
               onKeyDown={keyDown}
-              placeholder="Folder path"
+              placeholder={pathLabel}
               spellCheck={false}
               autoComplete="off"
               disabled={pending}
@@ -227,11 +248,13 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
               <ArrowUp aria-hidden="true" />
               Up
             </Button>
-            <Button ref={newFolderButton} type="button" variant="outline" size="sm" title={result ? `New folder in ${result.path}` : undefined}
-              disabled={!result || pending} onClick={() => { setCreating(true); setCreateError(""); }}>
-              <FolderPlus aria-hidden="true" />
-              New folder
-            </Button>
+            {onCreateFolder ? (
+              <Button ref={newFolderButton} type="button" variant="outline" size="sm" title={result ? `New folder in ${result.path}` : undefined}
+                disabled={!result || pending} onClick={() => { setCreating(true); setCreateError(""); }}>
+                <FolderPlus aria-hidden="true" />
+                New folder
+              </Button>
+            ) : null}
           </div>
         </div>
         {creating ? (
@@ -255,8 +278,8 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
             {createError ? <p id="new-folder-error" className="text-sm text-destructive" role="alert" data-testid="new-error">{createError}</p> : null}
           </form>
         ) : null}
-        <ul ref={list} id="folder-picker-list" className="folder-picker-list" role="listbox" aria-label="Folders">
-          {folders.map((entry, index) => (
+        <ul ref={list} id="folder-picker-list" className="folder-picker-list" role="listbox" aria-label={image ? "Folders and images" : "Folders"}>
+          {options.map((entry, index) => (
             <li
               key={entry.path}
               id={`folder-option-${index}`}
@@ -265,11 +288,11 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
               className="folder-picker-option"
               title={entry.path}
               onMouseDown={event => event.preventDefault()}
-              onClick={() => go(entry.path)}
+              onClick={() => enter(entry)}
             >
-              <Folder aria-hidden="true" />
+              {entry.kind === "folder" ? <Folder aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
               <span>{entry.name}</span>
-              <ChevronRight aria-hidden="true" />
+              {entry.kind === "folder" ? <ChevronRight aria-hidden="true" /> : null}
             </li>
           ))}
         </ul>
@@ -309,10 +332,10 @@ export function FolderDialog({ open, initialPath, recent, restricted, browse, pl
         ) : null}
         {error ? <p id="open-folder-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
         <div className="folder-picker-footer">
-          <p>Documents open and save in their original location.</p>
+          <p>{image ? "Images outside the document's folder are copied into its assets folder." : "Documents open and save in their original location."}</p>
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onClose}>Cancel</Button>
-          <Button type="button" size="sm" data-testid="folder-open" title={path} disabled={!path || pending} onClick={() => void submit()}>
-            <span>{path ? `Open “${target}”` : "Open"}</span>
+          <Button type="button" size="sm" data-testid="folder-open" title={path} disabled={!ready || pending} onClick={() => void submit()}>
+            <span>{ready ? `${image ? "Use" : "Open"} “${target}”` : image ? "Use" : "Open"}</span>
           </Button>
         </div>
       </DialogContent>

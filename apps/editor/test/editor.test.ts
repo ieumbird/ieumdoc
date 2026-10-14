@@ -757,6 +757,12 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     }
     assert.ok(browseFolder(dir).entries.some(entry => entry.path === outside));
     assert.throws(() => browseFolder(""), /folder path is required/);
+    // Choosing an image lists images where the folder picker lists Markdown files.
+    for (const file of ["photo.JPG", "diagram.svg", ".hidden.png"]) writeFileSync(path.join(chosen, file), "x\n");
+    assert.deepEqual(browseFolder(chosen).entries.map(entry => `${entry.kind}:${entry.name}`),
+      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
+    assert.deepEqual(browseFolder(chosen, undefined, "image").entries.map(entry => `${entry.kind}:${entry.name}`),
+      ["folder:guides", "image:diagram.svg", "image:photo.JPG"]);
 
     const places = folderPlaces().places;
     assert.ok(places.some(place => place.kind === "home" && fs.statSync(place.path).isDirectory()));

@@ -3,7 +3,7 @@ import { closeHistory } from "@tiptap/pm/history";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS, isAssetMime, MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
-import type { AssetResponse } from "../shared/asset-protocol.ts";
+import type { AssetResponse, ImageChoiceRequest, ImageChoiceResponse } from "../shared/asset-protocol.ts";
 import { insertFigureAfter } from "./block-commands.ts";
 import { isInternalClipboard } from "./document-interaction.ts";
 
@@ -38,6 +38,18 @@ const browserHost: AssetHost = {
     }
   },
 };
+
+/** Links an image chosen on the Host, or copies it into assets/ with a rollback receipt. */
+export async function chooseHostImage(documentPath: string, source: string): Promise<ImageChoiceResponse> {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/asset`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentPath, source } satisfies ImageChoiceRequest),
+  });
+  const body = await response.json() as Partial<ImageChoiceResponse> & { error?: string };
+  if (!response.ok || typeof body.path !== "string") throw new Error(body.error ?? `request failed (${response.status})`);
+  return { path: body.path, ...(typeof body.rollbackToken === "string" ? { rollbackToken: body.rollbackToken } : {}) };
+}
+
+export const rollbackAsset = (created: AssetResponse, documentPath: string) => browserHost.rollback(created, documentPath);
 
 /** Upload state lives only in the engine plugin; mapped positions are never persistent IDs. */
 export function imageAssetsPlugin(options: Options): Plugin {

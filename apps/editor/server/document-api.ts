@@ -63,7 +63,8 @@ export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Y
 
 const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
 
-const MEDIA_TYPES: Record<string, string> = {
+/** Media a document can show from beside it, by extension; also what choosing an image lists. */
+export const MEDIA_TYPES: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
 };
 
@@ -269,7 +270,8 @@ export async function handleDocumentRequest(
       return;
     }
     try {
-      sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access) : browseFolder(requestUrl.searchParams.get("path") ?? undefined, access));
+      sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access)
+        : browseFolder(requestUrl.searchParams.get("path") ?? undefined, access, requestUrl.searchParams.get("files") === "image" ? "image" : "document"));
     } catch (error) {
       failure(error);
     }
@@ -368,7 +370,7 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
   const root = path.resolve(accessPath(requestedRoot.trim(), access));
   const folder = path.resolve(accessPath(requestedPath?.trim() || root, access));
   if (!isInside(root, folder)) throw new Error("folder is outside the chosen folder");
-  return readFolder(folder, () => {
+  return readFolder(folder, "document", () => {
     if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
     return { root, path: folder, ...(path.relative(root, folder) === "" ? {} : { parent: path.dirname(folder) }) };
   });
@@ -376,13 +378,14 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
 
 /**
  * One level of any folder, for choosing which folder to open: the same entries as `listFolder`,
- * and the folders from the filesystem root down to it. Only names are returned, never content.
+ * and the folders from the filesystem root down to it. Choosing an image lists images instead of
+ * Markdown files. Only names are returned, never content.
  */
-export function browseFolder(requestedPath: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): FolderBrowseResponse {
+export function browseFolder(requestedPath: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS, files: FileKind = "document"): FolderBrowseResponse {
   if (!requestedPath?.trim()) throw new Error("folder path is required");
   const folder = path.resolve(accessPath(requestedPath.trim(), access));
   const boundary = access?.boundary(folder);
-  return readFolder(folder, () => {
+  return readFolder(folder, files, () => {
     const crumbs: FolderCrumb[] = [];
     for (let current = folder; ; current = path.dirname(current)) {
       const root = boundary ? path.relative(boundary, current) === "" : path.dirname(current) === current;
@@ -448,14 +451,20 @@ function isDirectory(candidate: string): boolean {
   }
 }
 
+type FileKind = Exclude<FolderEntry["kind"], "folder">;
+const fileKinds: Record<FileKind, (extension: string) => boolean> = {
+  document: extension => extension === ".md",
+  image: extension => Object.hasOwn(MEDIA_TYPES, extension),
+};
+
 /** Reads one level after `check` accepts the folder; filesystem failures become plain messages. */
-function readFolder<T>(folder: string, check: () => T): T & { entries: FolderEntry[] } {
+function readFolder<T>(folder: string, files: FileKind, check: () => T): T & { entries: FolderEntry[] } {
   try {
     if (!statSync(folder).isDirectory()) throw new Error("folder path must point to a directory");
     const result = check();
     const entries = fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry): FolderEntry[] => {
       if (entry.name.startsWith(".")) return [];
-      const kind = entry.isDirectory() ? "folder" : entry.isFile() && path.extname(entry.name).toLowerCase() === ".md" ? "document" : undefined;
+      const kind = entry.isDirectory() ? "folder" : entry.isFile() && fileKinds[files](path.extname(entry.name).toLowerCase()) ? files : undefined;
       return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
     });
     entries.sort((a, b) => (a.kind === b.kind ? entryOrder.compare(a.name, b.name) : a.kind === "folder" ? -1 : 1));
