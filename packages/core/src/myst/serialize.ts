@@ -42,9 +42,9 @@ export function serialize(document: MystDocument): string {
   const footnotes = footnoteWriteIssue(document);
   if (footnotes) throw new SemanticLossError(footnotes.reason, footnotes);
   const tree = cloneDocument(document);
-  const originalBlocks = [...tree.children];
+  const originalIndex = new Map(tree.children.map((node, index) => [node, index]));
   tree.children = endnotePlacement(tree);
-  const blockPaths = tree.children.map(node => [originalBlocks.indexOf(node)]);
+  const blockPaths = tree.children.map(node => [originalIndex.get(node)!]);
   const expected = semanticFingerprint(tree);
   tree.children = tree.children.map((node, index) => {
     try {

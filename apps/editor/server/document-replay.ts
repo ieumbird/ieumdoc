@@ -79,6 +79,7 @@ function editAt<T>(target: OrderItem, apply: () => T, cell?: SaveContentError["c
     if (error instanceof SaveContentError && error.target) throw error;
     const issue = writeIssueOf(error);
     throw new SaveContentError(issue.reason, target, { cause: error, cell,
+      line: error instanceof SaveContentError ? error.line : issue.line,
       action: error instanceof SaveContentError ? error.action : issue.action });
   }
 }
@@ -509,7 +510,7 @@ export function saveEdits(
   } catch (error) {
     const issue = writeIssueOf(error);
     const target = issue.path?.length ? locators[issue.path[0]] : undefined;
-    throw new SaveContentError(issue.reason, target, { cause: error, phase: "serialize", action: issue.action });
+    throw new SaveContentError(issue.reason, target, { cause: error, phase: "serialize", action: issue.action, line: issue.line });
   }
   return { markdown };
 }

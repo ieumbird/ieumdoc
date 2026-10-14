@@ -30,8 +30,12 @@ The Host stores no sessions. This request contract is a local adapter detail, no
 ## Save failure guidance (#220, phase 1)
 
 Save reports the first encountered failure in the existing message area: the submitted block
-number/kind, the reason and a correction or recovery action. Editor collection preserves block
-and, when identified, table row/column coordinates even when it fails before sending a request.
+number/kind, the reason and a correction or recovery action. The reason identifies the cause;
+the separate action supplies the correction without repeating it in the reason. Core-provided
+source line numbers survive Host replay and final serialization failures and appear alongside
+the submitted block location; they refer to source positions, not current rendered lines.
+Editor collection preserves block and, when identified, table row/column coordinates even when
+it fails before sending a request.
 Host replay carries opening-snapshot locators; the Editor resolves them against the submitted
 snapshot, including split paragraphs, inserted blocks and moved table cells. A final Core write
 issue refers to the replayed document and is mapped back to that submitted snapshot. Later input

@@ -630,7 +630,12 @@ test("new heading inserts save and reload through Core semantics", () => {
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "heading", attrs: { sourcePath: "new:empty-heading", level: 1 } });
-  assert.throws(() => collectSupportedEdits(editable, empty), /empty heading cannot be saved/);
+  assert.throws(() => collectSupportedEdits(editable, empty), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.equal(saveErrorMessage(error, empty),
+      "Block 2 (heading): empty heading cannot be saved. Enter text or delete this block.");
+    return true;
+  });
   assert.throws(
     () => saveEdits("Intro\n", {
       headings: [],
@@ -917,6 +922,11 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
       assert.equal(failure.failure.phase, "serialize");
       assert.deepEqual(failure.target, { path: [1], part: 0 });
       assert.ok(failure.failure.action);
+      if (name === "keyboard.md") {
+        assert.equal(failure.failure.line, 3);
+        assert.match(saveErrorMessage(new SaveContentError(failure.error, failure.target, failure.failure),
+          toTiptapDocument(loaded.document)), /^Block 2 \(readonlyParagraph\), source line 3:/);
+      }
       assert.deepEqual(readFileSync(file), before, name);
     }
   } finally {
@@ -1277,7 +1287,12 @@ test("empty paragraph and empty heading saves are rejected", () => {
   );
   const emptied = clone(toTiptapDocument(editable));
   blockAt(emptied, "8").content = [];
-  assert.throws(() => collectSupportedEdits(editable, emptied), /empty paragraph cannot be saved/);
+  assert.throws(() => collectSupportedEdits(editable, emptied), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.equal(saveErrorMessage(error, emptied),
+      "Block 9 (paragraph): empty paragraph cannot be saved. Enter text or delete this block.");
+    return true;
+  });
   assert.throws(() => saveEdits(source, { paragraphs: [{ path: [8], content: [] }] }), (error: unknown) => {
     assert.ok(error instanceof SaveContentError);
     assert.deepEqual(error.target, { path: [8], part: 0 });

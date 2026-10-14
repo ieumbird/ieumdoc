@@ -104,9 +104,9 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const insertOf = new Map<TiptapJSON, number>();
   const used = new Set<string>();
   const nodes = (next.content ?? []).filter(node => !isSessionPlaceholder(node));
-  const saveError = (node: TiptapJSON, message: string) => new SaveContentError(message, undefined, {
+  const saveError = (node: TiptapJSON, message: string, action = "Enter the required content or delete the empty block/item.") => new SaveContentError(message, undefined, {
     phase: "collect", block: { index: (next.content ?? []).indexOf(node), type: node.type ?? "unknown" },
-    action: "Enter the required content or delete the empty block/item.",
+    action,
   });
   const keys = [...new Set(nodes.map(sourcePathOf))];
   for (const key of keys) {
@@ -121,7 +121,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "empty paragraph cannot be saved");
           }
           if (insert.block === "heading" && inlineText(insert.content).length === 0) {
-            throw saveError(node, "empty heading cannot be saved. Enter text or delete this block.");
+            throw saveError(node, "empty heading cannot be saved.", "Enter text or delete this block.");
           }
           if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
             throw saveError(node, "admonition body cannot be empty");
@@ -130,7 +130,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "quote cannot be empty");
           }
           if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
-            throw saveError(node, EMPTY_FOOTNOTE);
+            throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
           }
           if (insert.block === "equation" && insert.latex.length === 0) {
             throw saveError(node, "empty equation LaTeX cannot be saved");
@@ -140,7 +140,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "empty table cannot be saved");
           }
           if (insert.block === "list" && hasEmptyListItem(insert.list)) {
-            throw saveError(node, EMPTY_LIST_ITEM);
+            throw saveError(node, EMPTY_LIST_ITEM, "Enter text or remove the item.");
           }
           insertOf.set(node, inserts.length);
           inserts.push(insert);
@@ -168,7 +168,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
         }
         const content = paragraphInline(node);
         if (sameInline(content, block.content)) return;
-        if (inlineText(content).length === 0) throw saveError(node, "empty paragraph cannot be saved. Enter text or delete this block.");
+        if (inlineText(content).length === 0) throw saveError(node, "empty paragraph cannot be saved.", "Enter text or delete this block.");
         paragraphs.push({ path: block.path, content });
       } else if (block.block === "equation") {
         const latex = equationLatex(node);
@@ -202,7 +202,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "footnote" && block.editable) {
         const content = paragraphInline(node);
         if (sameInline(content, block.content)) return;
-        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE);
+        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
         footnotes.push({ path: block.path, content });
       } else if (block.block === "target") {
         const label = targetLabel(node);
@@ -213,7 +213,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "list") {
         const list = listContent(node);
         if (sameList(list, block)) return;
-        if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM);
+        if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM, "Enter text or remove the item.");
         lists.push({ path: block.path, list });
       } else if (block.block === "table") {
         const label = blockLabel(node);
@@ -420,7 +420,7 @@ function codeContent(node: TiptapJSON): CodeBlockContent {
   return { language, code };
 }
 
-const EMPTY_FOOTNOTE = "footnote definition cannot be empty. Enter its text or delete the footnote.";
+const EMPTY_FOOTNOTE = "footnote definition cannot be empty.";
 
 function footnoteLabel(node: TiptapJSON): string {
   const label = node.attrs?.label;
@@ -428,7 +428,7 @@ function footnoteLabel(node: TiptapJSON): string {
   return label;
 }
 
-const EMPTY_LIST_ITEM = "empty list item cannot be saved. Enter text or remove the item.";
+const EMPTY_LIST_ITEM = "empty list item cannot be saved.";
 
 function hasEmptyListItem(list: ListContent): boolean {
   return list.items.some(item => inlineText(item.content).trim().length === 0 || (item.list !== undefined && hasEmptyListItem(item.list)));
