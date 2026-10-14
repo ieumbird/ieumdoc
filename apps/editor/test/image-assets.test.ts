@@ -401,6 +401,27 @@ test("image paste inserts a Core-backed Figure as one independent Undo event", a
   assert.equal(fs.readdirSync(assets).length, 1);
 });
 
+test("image paste fills a pending Figure without moving its caption caret, as one Undo event", async t => {
+  const { doc } = fixture(t);
+  const errors: string[] = [];
+  const e = imageEditor(doc, reason => errors.push(reason), {
+    create: async () => ({ path: "./assets/image-filled.png", rollbackToken: "receipt" }),
+    rollback: async () => { throw new Error("Accepted fill must not roll back"); },
+  });
+  e.view.dispatch(insertFigureAfter(e.view.state, 0));
+  const position = e.view.state.doc.firstChild!.nodeSize;
+  const caption = e.view.state.tr.insertText("Reserved caption", position + 1);
+  e.view.dispatch(caption.setSelection(TextSelection.create(caption.doc, position + 5)));
+  const before = e.view.state;
+  e.paste(); await e.finished();
+  assert.deepEqual(errors, []);
+  assert.equal(e.view.state.doc.nodeAt(position)?.attrs.imageUrl, "./assets/image-filled.png");
+  assert.deepEqual(e.view.state.selection.toJSON(), before.selection.toJSON(), "Fill retains the original caret offset inside the Figure caption");
+  assert.equal(e.view.state.selection.$from.parent, e.view.state.doc.nodeAt(position));
+  assert.equal(undo(e.view.state, tr => e.view.dispatch(tr)), true);
+  assert.deepEqual(e.view.state.doc.toJSON(), before.doc.toJSON(), "One Undo restores the pending Figure and its caption");
+});
+
 test("rejected Figure insertion rolls back its created asset and retains the document", async t => {
   const { doc, assets } = fixture(t);
   const errors: string[] = [];

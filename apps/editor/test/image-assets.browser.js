@@ -228,6 +228,10 @@ async (page, { openDocument }) => {
   // Paste in a reserved caption and drop on a completely empty frame fill that Figure (#212).
   // Repeat each gesture on its completed Figure: the existing image must never be overwritten.
   const semanticJSON = value => JSON.stringify(value, (key, item) => key === 'sourcePath' ? undefined : item);
+  const caret = () => page.locator('.document-editor').evaluate(el => {
+    const selection = el.editor.state.selection;
+    return {parent:selection.$from.parent.type.name, sourcePath:selection.$from.parent.attrs.sourcePath, from:selection.from, to:selection.to};
+  });
   const historyKey = async key => {
     await page.locator('.document-editor').evaluate(el => el.editor.view.focus());
     await page.keyboard.press(key);
@@ -247,9 +251,16 @@ async (page, { openDocument }) => {
     const beforeFill = await documentJSON();
     const index = beforeFill.content.findIndex(node => node.type === 'figure' && !node.attrs.imageUrl);
     const target = figures.first();
+    let pasteCaret;
     const sendImage = async () => {
       if (gesture === 'paste') {
         await target.getByTestId('figure-caption-content').click();
+        await page.locator('.document-editor').evaluate(el => {
+          let position;
+          el.editor.state.doc.forEach((node, offset) => { if (position === undefined && node.type === el.editor.schema.nodes.figure) position = offset + 5; });
+          el.editor.commands.setTextSelection(position); el.editor.view.focus();
+        });
+        pasteCaret = await caret();
         await page.evaluate(async source => {
           const png = await (new Function(`return (${source})()`))();
           await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
@@ -275,6 +286,8 @@ async (page, { openDocument }) => {
       return image?.complete && image.naturalWidth === 8;
     });
     const filled = await documentJSON();
+    const filledCaret = gesture === 'paste' ? await caret() : undefined;
+    if (gesture === 'paste') assert(pasteCaret.parent === 'figure' && JSON.stringify(filledCaret) === JSON.stringify(pasteCaret), `Paste fill keeps the caret at its original Figure caption position: ${JSON.stringify({before:pasteCaret, after:filledCaret})}`);
     const expected = JSON.parse(JSON.stringify(beforeFill));
     expected.content[index].attrs.imageUrl = filled.content[index].attrs.imageUrl;
     assert(expected.content[index].attrs.imageUrl.startsWith('./assets/'), `${gesture} fills the reserved Figure`);

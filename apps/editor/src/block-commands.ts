@@ -353,7 +353,8 @@ export function updateFigure(
 ): Transaction {
   const figure = state.doc.nodeAt(position);
   if (figure?.type.name !== "figure") throw new Error("Figure target changed.");
-  const replacement = figure.type.create({ ...figure.attrs, ...attributes }, caption ?? figure.content);
+  if (caption === undefined) return closeHistory(state.tr.setNodeMarkup(position, undefined, { ...figure.attrs, ...attributes }));
+  const replacement = figure.type.create({ ...figure.attrs, ...attributes }, caption);
   return closeHistory(state.tr.replaceWith(position, position + figure.nodeSize, replacement));
 }
 
