@@ -11,6 +11,8 @@
 
 body {
   margin: 0;
+  /* Overrides the base layer's white `bg-background`, which would hide the root canvas. */
+  background: var(--id-color-canvas);
 }
 
 button {
