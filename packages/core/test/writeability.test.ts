@@ -102,8 +102,8 @@ test("preflight follows the current snapshot through Core operations", () => {
   const frontMatter = parse("---\ntitle: Example\n---\n\n# Heading\n\nBody.\n");
   const unrelatedEdit = updateParagraphInlineContent(frontMatter, [2], [{ kind: "text", text: "Changed." }]);
   assert.equal(canonicalWriteError(unrelatedEdit), undefined);
-  // Removal is an explicit Core operation, including repair of an unwritable document.
-  assert.equal(canonicalWriteError(removeBlock(frontMatter, 0)), undefined);
+  // Body removal keeps metadata writable. Internal fragments can still remove unsupported body blocks.
+  assert.equal(canonicalWriteError(removeBlock(frontMatter, 2)), undefined);
   const blocked = parse("Press {kbd}`Ctrl` now.\n\nBody.\n");
   assert.match(canonicalWriteError(blocked) ?? "", /keyboard/);
   assert.equal(canonicalWriteError(removeBlock(blocked, 0)), undefined);

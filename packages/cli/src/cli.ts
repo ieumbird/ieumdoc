@@ -87,6 +87,7 @@ type ParsedArgs = {
   format: OutputFormat;
 };
 
+const BODY_INDEX_NOTE = "Block 0 is the document metadata; body blocks start at 1 (also the first index in a path).";
 const PATH_NOTE = [
   "Paths identify nodes in the current document snapshot.",
   "Structural edits may change them.",
@@ -140,6 +141,7 @@ const COMMANDS: CommandSpec[] = [
       "All document edit commands, including format, are allowed; create, check, inspect, serve,",
       "apply-batch and per-operation if-revision are forbidden.",
       "Paths and indexes use the preceding step's canonical, reparsed snapshot; no automatic tracking.",
+      BODY_INDEX_NOTE,
       "Each step applies Core, validates and canonically serializes, then parses again for the next step.",
       "--if-revision checks the original once, before Core operations (64 lowercase hexadecimal characters).",
       "Only the final result is committed, against the original revision. Any failure exits 1 without writing.",
@@ -222,6 +224,7 @@ const COMMANDS: CommandSpec[] = [
       "Other Core commands may support additional text operations.",
       "",
       ...PATH_NOTE,
+      "Metadata is not listed. " + BODY_INDEX_NOTE,
     ],
   },
   {
@@ -1024,7 +1027,9 @@ function commandHelp(name: string): string {
   const spec = findCommand(name);
   if (!spec) return topLevelHelp();
   const editing = isEditCommand(name);
+  const addressed = /--(?:at|path|from) <(?:index|heading index|table)/.test(spec.usage);
   return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>]" : ""}`, "", ...spec.details,
+    ...(editing && addressed ? ["", BODY_INDEX_NOTE] : []),
     ...(editing ? ["", ...REVISION_NOTE] : []), ""].join("\n");
 }
 

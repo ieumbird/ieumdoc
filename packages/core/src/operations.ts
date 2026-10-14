@@ -39,14 +39,14 @@ import {
   supportedFootnoteContent,
 } from "./myst/footnote.ts";
 import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
-import { parse } from "./myst/parse.ts";
+import { FRONT_MATTER_FIELD, parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { DocumentWriteError } from "./write-error.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
 } from "./myst/table.ts";
-import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
+import { assertBodyIndex, cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -67,6 +67,8 @@ export function replaceText(document: MystDocument, from: string, to: string): M
 }
 
 export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number): MystDocument {
+  assertBodyIndex(document, fromIndex);
+  assertBodyIndex(document, toIndex);
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -90,6 +92,8 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
  * definitions are in no section and stay with the endnotes.
  */
 export function moveSection(document: MystDocument, heading: number, to: number): MystDocument {
+  assertBodyIndex(document, heading);
+  assertBodyIndex(document, to);
   const markers = sectionMarkers(document);
   const { start, end } = sectionRange(markers, heading);
   if (!Number.isInteger(to) || !sectionBoundaries(markers).includes(to)) {
@@ -112,6 +116,7 @@ export function moveSection(document: MystDocument, heading: number, to: number)
  * reference is refused, naming it, because canonical write would refuse the document.
  */
 export function removeSection(document: MystDocument, heading: number): MystDocument {
+  assertBodyIndex(document, heading);
   const { start, end } = sectionRange(sectionMarkers(document), heading);
   const inSection = sectionContent(document, start, end);
   const orphaned = orphanedEndnotes(endnoteBlocks(document), inSection);
@@ -152,6 +157,7 @@ function assertCanonicalBlockBoundaries(document: MystDocument): void {
 }
 
 export function insertBlock(document: MystDocument, index: number, block: MystNode): MystDocument {
+  assertBodyIndex(document, index);
   if (!block || typeof block.type !== "string" || block.type.length === 0) {
     throw new Error("insertBlock requires a block with a type");
   }
@@ -327,6 +333,7 @@ type InlineUpdate = (document: MystDocument, path: NodePath, content: InlineCont
 
 /** The editable inline content a footnote reference can be inserted in, and its update. */
 function footnoteTarget(document: MystDocument, path: NodePath): { content: InlineContent[]; update: InlineUpdate } | undefined {
+  assertBodyIndex(document, path[0]);
   const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (path.length === 3 && block?.block === "table") {
     const cell = block.rows[path[1]]?.cells[path[2]];
@@ -836,8 +843,7 @@ export function insertTarget(document: MystDocument, index: number, label: strin
   }
   if (label.length === 0) throw new Error("a target needs a label");
   newLabelIdentifier(document, "Target", label);
-  const next = cloneDocument(document);
-  next.children.splice(index, 0, { type: "mystTarget", label });
+  const next = insertBlock(document, index, { type: "mystTarget", label });
   assertLabelRoundTrip(next, index, label, "Target cannot be preserved through canonical round-trip");
   return next;
 }
@@ -1122,6 +1128,7 @@ export function updateAdmonitionVariant(document: MystDocument, path: NodePath, 
 }
 
 export function removeBlock(document: MystDocument, index: number): MystDocument {
+  assertBodyIndex(document, index);
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -1191,8 +1198,10 @@ export function splitParagraph(document: MystDocument, path: NodePath, offset: n
 /** Concatenate the current and previous top-level paragraphs; add no space. */
 export function mergeParagraphWithPrevious(document: MystDocument, path: NodePath): MystDocument {
   assertTopLevelPath(path);
-  if (path[0] <= 0) throw new Error("merge requires a previous paragraph");
   const current = paragraphContent(document, path);
+  if (path[0] <= 0 || document.children[path[0] - 1]?.[FRONT_MATTER_FIELD] === true) {
+    throw new Error("merge requires a previous paragraph");
+  }
   const previous = paragraphContent(document, [path[0] - 1]);
   const next = cloneDocument(document);
   next.children[path[0] - 1].children = inlineContentToNodes(concatenateInlineContent(previous, current));

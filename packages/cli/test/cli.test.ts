@@ -305,6 +305,9 @@ test("command help is available from help and --help", () => {
 
   const insert = run(["help", "insert-block"]);
   assert.match(insert.stdout, /The current implementation inserts a Paragraph block only/);
+  for (const command of ["insert-block", "move-block", "remove-block", "update-node-text", "move-section", "remove-section", "apply-batch"]) {
+    assert.match(run(["help", command]).stdout, /body blocks start at 1/);
+  }
   assert.equal(run(["insert-block", "-h"]).stdout, insert.stdout);
 
   for (const command of ["format", "update-heading", "insert-block"]) {
@@ -314,6 +317,7 @@ test("command help is available from help and --help", () => {
     assert.match(help.stdout, /do not print a new revision/);
   }
   assert.match(run(["help", "inspect"]).stdout, /revision.*original UTF-8 text/);
+  assert.match(run(["help", "inspect"]).stdout, /Metadata is not listed. Block 0 is the document metadata; body blocks start at 1/);
   assert.doesNotMatch(run(["help", "create"]).stdout, /--if-revision/);
   const batch = run(["help", "apply-batch"]);
   assert.equal(batch.status, 0);
@@ -1526,6 +1530,27 @@ test("native create and admission keep existing files intact and report structur
     assert.equal(result.error.code, "native-marker");
     assert.equal(result.error.line, 1);
     assert.equal(result.nodes, undefined);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("single and batch metadata edits report the Core guidance and preserve original bytes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-metadata-"));
+  const file = path.join(dir, "empty.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const message = "block 0 is the document metadata; body blocks start at 1";
+  try {
+    assert.equal(run(["create", file]).status, 0);
+    const original = readFileSync(file);
+    assert.deepEqual(run(["insert-block", file, "--at", "0", "--text", "Hello"]),
+      { status: 1, stdout: "", stderr: `${message}\n` });
+    assert.deepEqual(readFileSync(file), original);
+    writeFileSync(operationsFile, JSON.stringify([
+      { command: "insert-block", at: 1, text: "Unsaved draft" },
+      { command: "insert-heading", at: 0, level: 1, text: "Title" },
+    ]));
+    assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile]),
+      { status: 1, stdout: "", stderr: `operation 2 (insert-heading): ${message}; nothing was written\n` });
+    assert.deepEqual(readFileSync(file), original);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
