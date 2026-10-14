@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
+- Last verified: 2026-10-14 (#215: CLI batch sequential-byte equivalence, original preservation, revision/output and commit conflict regressions. #214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -147,7 +147,18 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - Revision 인자는 정확히 64자리 소문자 hex여야 한다. 형식이 잘못되면 `--if-revision must be 64 lowercase hexadecimal characters`를 stderr에 출력하고 exit 1로 종료한다. 값 누락·중복은 기존 공통 옵션 오류(`missing --if-revision`, `duplicate option: --if-revision`)로 거부한다.
 - `edit()`는 원본을 읽은 직후 revision을 비교한다. 다르면 Core parse/operation 전에 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일 바이트를 보존한다. 새 전용 exit code는 없다.
 - 사전조건 통과 후에도 위 File commit 계약을 유지한다. `commitFile`의 baseline은 이번 요청이 읽은 원본의 revision이므로 검증부터 커밋 사이 외부 변경도 기존 `FileChangedError` 경계에서 거부한다. 마지막 확인과 rename 사이의 기존 TOCTOU 한계는 그대로다.
-- 변경 명령은 성공 후 새 revision을 출력하지 않는다. 후속 변경 전 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻는다. [ADR-0003](../adr/0003-document-addressing-identity-boundary.md)에 따라 NodePath는 현재 snapshot의 locator이며, 구조 변경 후 오래된 경로가 다른 유효 블록을 가리켜도 추측으로 재지정하지 않는다.
+- 단건 변경 명령은 성공 후 새 revision을 출력하지 않는다. 후속 변경 전 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻는다. [ADR-0003](../adr/0003-document-addressing-identity-boundary.md)에 따라 NodePath는 현재 snapshot의 locator이며, 구조 변경 후 오래된 경로가 다른 유효 블록을 가리켜도 추측으로 재지정하지 않는다.
+
+### CLI batch application (#215)
+
+- `apply-batch <file> --operations <json-file> [--if-revision <revision>] [--format json]`은 한 문서에 기존 Core operation을 순서대로 적용하는 CLI orchestration이다. Core 의미 처리나 Markdown/AST 로직을 별도로 구현하지 않는다. 단건 명령과 같은 옵션 해석·Core operation 생성 함수를 공유한다.
+- 입력은 비어 있지 않은 JSON 배열이며 각 원소는 `{ "command": "<변경 명령명>", ...options }`다. 키는 기존 플래그에서 `--`를 뺀 이름이다. 스칼라는 플래그 문자열과 같은 의미이며, JSON 옵션(`content`, `caption-content`, `cells`, `list`, `insert-table`의 `align`)은 객체/배열을 직접 받거나 기존 JSON 문자열을 받는다. 필수·허용·상호 배타 옵션 검사는 단건과 같다. stdin(`-`)은 지원하지 않는다.
+- `isEditCommand`인 모든 단건 변경 명령(`format` 포함)을 허용한다. `create`, `check`, `inspect`, `serve`, 중첩 `apply-batch`와 operation 내부의 `if-revision` 및 허용되지 않은 키를 거부한다. 배열이 아닌 입력과 빈 배열, 잘못된 JSON도 exit 1로 거부한다.
+- 파일 원본을 한 번 읽고, 배치 전체의 `--if-revision`을 그 원본에 대해 위 #214와 같은 규칙으로 Core parse/operation 전에 한 번 확인한다. Revision 불일치는 첫 operation의 오류로 표시한다.
+- 각 단계는 적용 → `validateStructure` → canonical serialize → 다시 parse 순서다. 후속 NodePath와 인덱스는 **직전 단계의 canonical 재파싱 snapshot** 기준이며 자동 추적·재지정하지 않는다. 따라서 같은 단건 명령을 순서대로 실행한 최종 파일 바이트와 일치한다. 각주 정의의 canonical 이동도 단계 사이에 반영된다.
+- 중간 결과는 메모리에만 두고, 마지막에 최초 원본 revision으로 `commitFile`을 한 번 호출한다. 옵션·Core·검증·serialize·revision·커밋 실패 시 배치의 부분 결과를 쓰지 않고 exit 1로 종료한다. 외부 write는 덮어쓰지 않으며 위 File commit의 TOCTOU 한계는 동일하다.
+- 오류는 stderr에 `operation <1-based index> (<command>): <원래 오류>; nothing was written`을 출력한다. 원소 오류는 해당 index, 최초 원본 read/parse·revision 오류는 첫 index, 최종 커밋 오류는 마지막 index에 연결한다. JSON 전체 파싱이나 최상위 옵션처럼 index를 알 수 없는 오류는 원래 오류 뒤에 `; nothing was written`을 붙인다. 실패 시 stdout은 비어 있다.
+- 성공 시 text 모드는 출력이 없다. `--format json`은 stdout 한 줄에 `{"ok":true,"command":"apply-batch","applied":N,"revision":"<커밋한 내용의 textRevision>"}`을 출력한다. 단건 변경 명령 출력은 유지한다. 별도 후속 요청 전에는 `inspect`로 새 revision과 경로를 함께 얻는다.
 
 ### Folder listing v1 (#112)
 

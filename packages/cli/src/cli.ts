@@ -128,6 +128,26 @@ const CODE_NOTE = [
 const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
   {
+    name: "apply-batch",
+    summary: "Apply document edits in order with one atomic file commit",
+    usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--format json]",
+    details: [
+      "--operations is a non-empty JSON array of { command, ...options }; stdin (-) is not supported.",
+      "Use existing flag names without -- as keys. Scalars have the same meaning as flag strings.",
+      "JSON options (content, caption-content, cells, list, and insert-table align) accept objects/arrays",
+      "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
+      "All document edit commands, including format, are allowed; create, check, inspect, serve,",
+      "apply-batch and per-operation if-revision are forbidden.",
+      "Paths and indexes use the preceding step's canonical, reparsed snapshot; no automatic tracking.",
+      "Each step applies Core, validates and canonically serializes, then parses again for the next step.",
+      "--if-revision checks the original once, before Core operations (64 lowercase hexadecimal characters).",
+      "Only the final result is committed, against the original revision. Any failure exits 1 without writing.",
+      "Step errors: operation <1-based index> (<command>): <original error>; nothing was written.",
+      "JSON success: {\"ok\":true,\"command\":\"apply-batch\",\"applied\":N,\"revision\":\"<result revision>\"}.",
+      "Text success prints nothing. Run inspect again for paths before a later request.",
+    ],
+  },
+  {
     name: "create",
     summary: "Create an empty IeumDoc native document",
     usage: "ieumdoc create <file>",
@@ -639,25 +659,23 @@ function main(argv: string[]): number {
     if (ifRevision !== undefined && ifRevision !== revision) {
       throw new Error("revision mismatch; run inspect again; nothing was written");
     }
-    const document = change(parse(source));
-    validateStructure(document);
-    commitFile(path, serialize(document), revision);
+    commitFile(path, serializeChange(parse(source), change), revision);
+  }
+
+  if (command === "apply-batch") {
+    const result = applyBatch(file, flag(flags, "--operations"), ifRevision);
+    if (format === "json") process.stdout.write(`${JSON.stringify(result)}\n`);
+    return 0;
+  }
+  if (isEditCommand(command)) {
+    edit(file, changeFor(command, flags));
+    return 0;
   }
 
   switch (command) {
     case "create": {
       if (path.extname(file).toLowerCase() !== ".md") throw new Error("document path must point to a .md file");
       writeFileSync(file, serialize(createDocument()), { encoding: "utf8", flag: "wx" });
-      return 0;
-    }
-    case "insert-hard-break":
-    case "split-paragraph": {
-      const operation = command === "insert-hard-break" ? insertHardBreak : splitParagraph;
-      edit(file, (document) => operation(document, pathFlag(flags), intFlag(flags, "--offset")));
-      return 0;
-    }
-    case "merge-paragraph": {
-      edit(file, (document) => mergeParagraphWithPrevious(document, pathFlag(flags)));
       return 0;
     }
     case "check": {
@@ -700,72 +718,78 @@ function main(argv: string[]): number {
       process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
       return 0;
     }
+    default:
+      process.stderr.write(topLevelHelp());
+      return 2;
+  }
+}
+
+type Change = (document: Document) => Document;
+
+/** Share flag interpretation and Core operations between single edits and batch steps. */
+function changeFor(command: string, flags: string[]): Change {
+  switch (command) {
+    case "insert-hard-break":
+    case "split-paragraph": {
+      const operation = command === "insert-hard-break" ? insertHardBreak : splitParagraph;
+      return (document) => operation(document, pathFlag(flags), intFlag(flags, "--offset"));
+    }
+    case "merge-paragraph": {
+      return (document) => mergeParagraphWithPrevious(document, pathFlag(flags));
+    }
     case "format": {
-      edit(file, (document) => document);
-      return 0;
+      return (document) => document;
     }
     case "replace-text": {
-      edit(file, (document) => replaceText(document, flag(flags, "--from"), flag(flags, "--to")));
-      return 0;
+      return (document) => replaceText(document, flag(flags, "--from"), flag(flags, "--to"));
     }
     case "insert-block": {
       const text = optionalFlag(flags, "--text");
       const content = optionalFlag(flags, "--content");
       if ((text === undefined) === (content === undefined)) throw new Error("insert-block requires exactly one of --text or --content");
-      edit(file, (document) => insertParagraph(document, intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content")));
-      return 0;
+      return (document) => insertParagraph(document, intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content"));
     }
     case "insert-heading": {
-      edit(file, (document) => insertHeading(
+      return (document) => insertHeading(
         document,
         intFlag(flags, "--at"),
         intFlag(flags, "--level"),
         textOrContent(flags),
-      ));
-      return 0;
+      );
     }
     case "update-heading": {
-      edit(file, (document) => updateHeadingInlineContent(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
+      return (document) => updateHeadingInlineContent(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-admonition": {
-      edit(file, (document) => insertAdmonition(document, intFlag(flags, "--at"), variantFlag(flags), [
+      return (document) => insertAdmonition(document, intFlag(flags, "--at"), variantFlag(flags), [
         { kind: "text", text: flag(flags, "--text") },
-      ]));
-      return 0;
+      ]);
     }
     case "insert-quote": {
-      edit(file, (document) => insertQuote(document, intFlag(flags, "--at"), textOrContent(flags)));
-      return 0;
+      return (document) => insertQuote(document, intFlag(flags, "--at"), textOrContent(flags));
     }
     case "update-quote": {
-      edit(file, (document) => updateQuoteInlineContent(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
+      return (document) => updateQuoteInlineContent(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-footnote": {
-      edit(file, (document) => insertFootnote(document, pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags)));
-      return 0;
+      return (document) => insertFootnote(document, pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags));
     }
     case "update-footnote": {
-      edit(file, (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
+      return (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-divider": {
-      edit(file, (document) => insertDivider(document, intFlag(flags, "--at")));
-      return 0;
+      return (document) => insertDivider(document, intFlag(flags, "--at"));
     }
     case "update-admonition-variant": {
-      edit(file, (document) => updateAdmonitionVariant(document, pathFlag(flags), variantFlag(flags)));
-      return 0;
+      return (document) => updateAdmonitionVariant(document, pathFlag(flags), variantFlag(flags));
     }
     case "update-heading-level": {
-      edit(file, (document) => updateHeadingLevel(
+      return (document) => updateHeadingLevel(
         document,
         pathFlag(flags),
         intFlag(flags, "--from"),
         intFlag(flags, "--to"),
-      ));
-      return 0;
+      );
     }
     case "convert-block": {
       const to = flag(flags, "--to");
@@ -773,31 +797,28 @@ function main(argv: string[]): number {
       if ((to === "heading") !== flags.includes("--level")) {
         throw new Error("--level is required with --to heading and not allowed with --to paragraph");
       }
-      edit(file, (document) => convertBlock(document, pathFlag(flags),
-        to === "heading" ? { block: "heading", level: intFlag(flags, "--level") } : { block: "paragraph" }));
-      return 0;
+      return (document) => convertBlock(document, pathFlag(flags),
+        to === "heading" ? { block: "heading", level: intFlag(flags, "--level") } : { block: "paragraph" });
     }
     case "insert-equation": {
-      edit(file, (document) => insertEquation(
+      return (document) => insertEquation(
         document,
         intFlag(flags, "--at"),
         flag(flags, "--latex"),
-      ));
-      return 0;
+      );
     }
     case "insert-figure": {
       const at = intFlag(flags, "--at");
       const label = optionalFlag(flags, "--label") ?? "";
       // One Core-backed edit and one file replacement, also when it sets the label.
-      edit(file, (document) => {
+      return (document) => {
         const inserted = insertFigure(document, at, {
           imageUrl: optionalFlag(flags, "--image") ?? "",
           imageAlt: optionalFlag(flags, "--alt") ?? "",
           caption: captionInput(flags) ?? "",
         });
         return label.length > 0 ? updateLabel(inserted, [at], label) : inserted;
-      });
-      return 0;
+      };
     }
     case "update-figure": {
       const changes = {
@@ -808,132 +829,162 @@ function main(argv: string[]): number {
       if (Object.values(changes).every((value) => value === undefined)) {
         throw new Error("update-figure requires --image, --alt, --caption, or --caption-content");
       }
-      edit(file, (document) => updateFigure(document, pathFlag(flags), changes));
-      return 0;
+      return (document) => updateFigure(document, pathFlag(flags), changes);
     }
     case "insert-table": {
-      edit(file, (document) => insertTable(document, intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align")));
-      return 0;
+      return (document) => insertTable(document, intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align"));
     }
     case "insert-list": {
-      edit(file, (document) => insertList(document, intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list")));
-      return 0;
+      return (document) => insertList(document, intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list"));
     }
     case "update-list": {
-      edit(file, (document) => updateList(document, pathFlag(flags), jsonFlag<ListContent>(flags, "--list")));
-      return 0;
+      return (document) => updateList(document, pathFlag(flags), jsonFlag<ListContent>(flags, "--list"));
     }
     case "insert-code-block": {
-      edit(file, (document) => insertCodeBlock(document, intFlag(flags, "--at"), {
+      return (document) => insertCodeBlock(document, intFlag(flags, "--at"), {
         language: optionalFlag(flags, "--language") ?? "",
         code: flag(flags, "--code"),
-      }));
-      return 0;
+      });
     }
     case "update-code-block": {
       const changes = { language: optionalFlag(flags, "--language"), code: optionalFlag(flags, "--code") };
       if (changes.language === undefined && changes.code === undefined) {
         throw new Error("update-code-block requires --language or --code");
       }
-      edit(file, (document) => updateCodeBlock(document, pathFlag(flags), changes));
-      return 0;
+      return (document) => updateCodeBlock(document, pathFlag(flags), changes);
     }
     case "insert-table-row": {
-      edit(file, (document) => insertTableRow(document, pathFlag(flags), intFlag(flags, "--at")));
-      return 0;
+      return (document) => insertTableRow(document, pathFlag(flags), intFlag(flags, "--at"));
     }
     case "insert-table-column": {
-      edit(file, (document) => insertTableColumn(document, pathFlag(flags), intFlag(flags, "--at")));
-      return 0;
+      return (document) => insertTableColumn(document, pathFlag(flags), intFlag(flags, "--at"));
     }
     case "remove-table-row": {
-      edit(file, (document) => removeTableRow(document, pathFlag(flags), intFlag(flags, "--at")));
-      return 0;
+      return (document) => removeTableRow(document, pathFlag(flags), intFlag(flags, "--at"));
     }
     case "remove-table-column": {
-      edit(file, (document) => removeTableColumn(document, pathFlag(flags), intFlag(flags, "--at")));
-      return 0;
+      return (document) => removeTableColumn(document, pathFlag(flags), intFlag(flags, "--at"));
     }
     case "move-table-row": {
-      edit(file, (document) => moveTableRow(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
-      return 0;
+      return (document) => moveTableRow(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to"));
     }
     case "move-table-column": {
-      edit(file, (document) => moveTableColumn(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to")));
-      return 0;
+      return (document) => moveTableColumn(document, pathFlag(flags), intFlag(flags, "--from"), intFlag(flags, "--to"));
     }
     case "update-table-alignment": {
       const align = flag(flags, "--align");
       if (!["left", "center", "right", "none"].includes(align)) throw new Error("--align must be left, center, right or none");
-      edit(file, (document) => updateTableColumnAlignment(document, pathFlag(flags), intFlag(flags, "--column"),
-        align === "none" ? null : align as "left" | "center" | "right"));
-      return 0;
+      return (document) => updateTableColumnAlignment(document, pathFlag(flags), intFlag(flags, "--column"),
+        align === "none" ? null : align as "left" | "center" | "right");
     }
     case "update-heading-numbering": {
       const enabled = flag(flags, "--enabled");
       if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
-      edit(file, (document) => updateHeadingNumbering(document, enabled === "true"));
-      return 0;
+      return (document) => updateHeadingNumbering(document, enabled === "true");
     }
     case "update-table-caption": {
-      edit(file, (document) => updateTableCaption(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
+      return (document) => updateTableCaption(document, pathFlag(flags), textOrContent(flags));
     }
     case "update-table-cell": {
-      edit(file, (document) => updateTableCell(document, pathFlag(flags), textOrContent(flags)));
-      return 0;
+      return (document) => updateTableCell(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-target": {
-      edit(file, (document) => insertTarget(document, intFlag(flags, "--at"), flag(flags, "--label")));
-      return 0;
+      return (document) => insertTarget(document, intFlag(flags, "--at"), flag(flags, "--label"));
     }
     case "remove-block": {
-      edit(file, (document) => removeBlock(document, intFlag(flags, "--at")));
-      return 0;
+      return (document) => removeBlock(document, intFlag(flags, "--at"));
     }
     case "move-section": {
-      edit(file, (document) => moveSection(document, intFlag(flags, "--from"), intFlag(flags, "--to")));
-      return 0;
+      return (document) => moveSection(document, intFlag(flags, "--from"), intFlag(flags, "--to"));
     }
     case "remove-section": {
-      edit(file, (document) => removeSection(document, intFlag(flags, "--at")));
-      return 0;
+      return (document) => removeSection(document, intFlag(flags, "--at"));
     }
     case "move-block": {
-      edit(file, (document) => moveBlock(document, intFlag(flags, "--from"), intFlag(flags, "--to")));
-      return 0;
+      return (document) => moveBlock(document, intFlag(flags, "--from"), intFlag(flags, "--to"));
     }
     case "update-node-text": {
-      edit(
-        file,
-        (document) => updateNodeTextAtPath(
-          document,
-          pathFlag(flags),
-          flag(flags, "--from"),
-          flag(flags, "--to"),
-        ),
+      return (document) => updateNodeTextAtPath(
+        document,
+        pathFlag(flags),
+        flag(flags, "--from"),
+        flag(flags, "--to"),
       );
-      return 0;
     }
     case "update-equation-latex": {
-      edit(
-        file,
-        (document) => updateEquationLatex(
-          document,
-          pathFlag(flags),
-          flag(flags, "--from"),
-          flag(flags, "--to"),
-        ),
+      return (document) => updateEquationLatex(
+        document,
+        pathFlag(flags),
+        flag(flags, "--from"),
+        flag(flags, "--to"),
       );
-      return 0;
     }
     case "update-label": {
-      edit(file, (document) => updateLabel(document, pathFlag(flags), flag(flags, "--label")));
-      return 0;
+      return (document) => updateLabel(document, pathFlag(flags), flag(flags, "--label"));
     }
     default:
-      process.stderr.write(topLevelHelp());
-      return 2;
+      throw new Error(`not a document edit command: ${command}`);
+  }
+}
+
+function serializeChange(document: Document, change: Change): string {
+  const changed = change(document);
+  validateStructure(changed);
+  return serialize(changed);
+}
+
+/** Adapt JSON options to the existing CLI flag parser, without interpreting document semantics. */
+function batchChange(operation: unknown): Change {
+  if (operation === null || typeof operation !== "object" || Array.isArray(operation)) {
+    throw new Error("operation must be an object with a command");
+  }
+  const { command, ...options } = operation as Record<string, unknown>;
+  if (typeof command !== "string") throw new Error("command must be a string");
+  if (!findCommand(command) || !isEditCommand(command)) {
+    throw new Error(`not a document edit command: ${command}`);
+  }
+  const tokens: string[] = [];
+  for (const [key, value] of Object.entries(options)) {
+    const name = `--${key}`;
+    if (!COMMAND_OPTIONS[command].includes(name)) throw new Error(`unknown option: ${name}`);
+    const json = ["content", "caption-content", "cells", "list"].includes(key)
+      || (command === "insert-table" && key === "align");
+    if (!json && value !== null && typeof value === "object") {
+      throw new Error(`${name} must be a scalar`);
+    }
+    tokens.push(name, json && typeof value !== "string" ? JSON.stringify(value) : String(value));
+  }
+  return changeFor(command, parseCommandArgs(command, ["batch-document", ...tokens]).flags);
+}
+
+function applyBatch(file: string, operationsFile: string, ifRevision: string | undefined) {
+  if (operationsFile === "-") throw new Error("--operations requires a JSON file; stdin is not supported");
+  const operations: unknown = JSON.parse(readFile(operationsFile));
+  if (!Array.isArray(operations) || operations.length === 0) {
+    throw new Error("--operations must be a non-empty JSON array");
+  }
+  let index = 0;
+  try {
+    const source = readFile(file);
+    const revision = textRevision(source);
+    if (ifRevision !== undefined && ifRevision !== revision) {
+      throw new Error("revision mismatch; run inspect again");
+    }
+    let document = parse(source);
+    let result = source;
+    for (index = 0; index < operations.length; index += 1) {
+      result = serializeChange(document, batchChange(operations[index]));
+      // Single CLI calls reparse canonical output: endnotes and locators can move here.
+      document = parse(result);
+    }
+    index = operations.length - 1;
+    commitFile(file, result, revision);
+    return { ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(result) };
+  } catch (error) {
+    const operation = operations[index];
+    const command = operation !== null && typeof operation === "object" && "command" in operation
+      && typeof operation.command === "string" ? operation.command : "<unknown>";
+    throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -957,7 +1008,7 @@ function topLevelHelp(): string {
     "Commands:",
     ...COMMANDS.map((command) => `  ${command.name.padEnd(width)}  ${command.summary}`),
     "",
-    "Document edits (including format, excluding create):",
+    "Single document edits (including format, excluding create; see help apply-batch for batches):",
     ...REVISION_NOTE,
     "",
     "Run:",
@@ -976,6 +1027,7 @@ function commandHelp(name: string): string {
 }
 
 const COMMAND_OPTIONS: Record<string, readonly string[]> = {
+  "apply-batch": ["--operations", "--if-revision", "--format"],
   "insert-hard-break": ["--path", "--offset"],
   "split-paragraph": ["--path", "--offset"],
   "merge-paragraph": ["--path"],
@@ -1025,7 +1077,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
 };
 
 function isEditCommand(command: string): boolean {
-  return COMMAND_OPTIONS[command] !== undefined && !["create", "check", "inspect"].includes(command);
+  return Object.hasOwn(COMMAND_OPTIONS, command) && !["create", "check", "inspect", "apply-batch"].includes(command);
 }
 
 function parseCommandArgs(command: string, args: string[]): ParsedArgs {
@@ -1352,7 +1404,10 @@ function reportError(args: string[], error: unknown): number {
   if (args[0] === "check" && args.includes("--format") && args[args.indexOf("--format") + 1] === "json") {
     process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
       error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
-  } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  } else {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}${args[0] === "apply-batch" && !message.endsWith("; nothing was written") ? "; nothing was written" : ""}\n`);
+  }
   return 1;
 }
 

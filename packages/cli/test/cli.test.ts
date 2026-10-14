@@ -73,20 +73,111 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
   writeFileSync(file, nativeSource("# Title\n"));
   try {
     const args = ["insert-block", file, "--at", "2", "--text", INSERTED];
-    const inspected = run(["inspect", file, "--format", "json"]);
-    assert.equal(inspected.status, 0, inspected.stderr);
-    const changed = runProcess([...args, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
-      ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
-    });
-    assert.equal(changed.status, 1, changed.stderr);
-    assert.match(changed.stderr, /changed after it was read; nothing was written/);
-    assert.deepEqual(readFileSync(file), external);
-    assert.deepEqual(readdirSync(dir), ["document.md"]);
+    const operations = path.join(dir, "operations.json");
+    writeFileSync(operations, JSON.stringify([{ command: "insert-block", at: 2, text: INSERTED }]));
+    for (const invocation of [args, ["apply-batch", file, "--operations", operations, "--format", "json"]]) {
+      writeFileSync(file, nativeSource("# Title\n"));
+      const inspected = run(["inspect", file, "--format", "json"]);
+      assert.equal(inspected.status, 0, inspected.stderr);
+      const changed = runProcess([...invocation, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
+        ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
+      });
+      assert.equal(changed.status, 1, changed.stderr);
+      assert.equal(changed.stdout, "");
+      assert.match(changed.stderr, /changed after it was read; nothing was written\n$/);
+      if (invocation[0] === "apply-batch") assert.match(changed.stderr, /^operation 1 \(insert-block\): /);
+      assert.deepEqual(readFileSync(file), external);
+      assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
+    }
 
     const saved = run(args);
     assert.equal(saved.status, 0, saved.stderr);
     assert.equal(readFileSync(file, "utf8"), serialize(insertParagraph(parse(external.toString("utf8")), 2, INSERTED)));
-    assert.deepEqual(readdirSync(dir), ["document.md"]);
+    assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("apply-batch matches sequential file bytes across canonical endnote and path changes and reports the committed revision", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-"));
+  const file = path.join(dir, "batch.md");
+  const single = path.join(dir, "single.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const source = nativeSource("# Report\r\n\r\n## Method\r\n\r\nClaim[^a].\r\n\r\n[^a]: Evidence.\r\n\r\n## Results\r\n\r\nMeasured values.\r\n");
+  const content = [{ kind: "strong", children: [{ kind: "text", text: "Draft" }] }];
+  const operations = [
+    { command: "insert-heading", at: 2, level: 2, content },
+    // First write places the endnote last: Results is now path 5, not the original path 6.
+    { command: "update-heading", path: "5", text: "Verified results" },
+    { command: "move-block", from: 5, to: 2 },
+    { command: "remove-block", at: 3 },
+  ];
+  try {
+    writeFileSync(file, source);
+    writeFileSync(single, source);
+    writeFileSync(operationsFile, JSON.stringify(operations));
+    for (const args of [
+      ["insert-heading", "--at", "2", "--level", "2", "--content", JSON.stringify(content)],
+      ["update-heading", "--path", "5", "--text", "Verified results"],
+      ["move-block", "--from", "5", "--to", "2"],
+      ["remove-block", "--at", "3"],
+    ]) {
+      const result = run([args[0], single, ...args.slice(1)]);
+      assert.deepEqual(result, { status: 0, stdout: "", stderr: "" });
+    }
+    const result = run(["apply-batch", file, "--operations", operationsFile,
+      "--if-revision", textRevision(source), "--format", "json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    const saved = readFileSync(file);
+    assert.deepEqual(saved, readFileSync(single));
+    assert.match(saved.toString("utf8"), /# Report\n\n## Verified results\n\n## Method/);
+    assert.equal(result.stdout, `${JSON.stringify({ ok: true, command: "apply-batch", applied: operations.length,
+      revision: textRevision(saved.toString("utf8")) })}\n`);
+    writeFileSync(operationsFile, JSON.stringify([{ command: "format" }]));
+    assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile]), { status: 0, stdout: "", stderr: "" });
+    assert.deepEqual(readFileSync(file), saved);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("apply-batch preserves original bytes for step errors, invalid input and stale revisions", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-failure-"));
+  const file = path.join(dir, "document.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal ✓\r\n"));
+  const first = { command: "insert-heading", at: 2, level: 2, text: "Draft" };
+  try {
+    writeFileSync(file, original);
+    for (const [operations, message] of [
+      [[first, { command: "update-heading", path: "999", text: "Missing" }], /^operation 2 \(update-heading\): /],
+      [[first, { command: "insert-heading", at: 3, text: "Missing level" }], /^operation 2 \(insert-heading\): missing --level/],
+      [[first, { command: "insert-block", at: 3, text: "A\n\nB" }], /^operation 2 \(insert-block\): .*round-trip/],
+      [[first, { command: "format", "if-revision": textRevision(original.toString("utf8")) }], /^operation 2 \(format\): unknown option: --if-revision/],
+      [[{ command: "format", typo: true }], /^operation 1 \(format\): unknown option: --typo/],
+      ...["create", "check", "inspect", "serve", "apply-batch"].map(command => [
+        [{ command }], new RegExp(`^operation 1 \\(${command}\\): not a document edit command: ${command}`),
+      ]),
+      [[first, null], /^operation 2 \(<unknown>\): operation must be an object/],
+      [[first, { command: { toString: null } }], /^operation 2 \(<unknown>\): command must be a string/],
+      [[], /non-empty JSON array/],
+      [{ command: "format" }, /non-empty JSON array/],
+    ] as [unknown, RegExp][]) {
+      writeFileSync(operationsFile, JSON.stringify(operations));
+      const failed = run(["apply-batch", file, "--operations", operationsFile, "--format", "json"]);
+      assert.equal(failed.status, 1, failed.stderr);
+      assert.equal(failed.stdout, "");
+      assert.match(failed.stderr, message);
+      assert.match(failed.stderr, /; nothing was written\n$/);
+      assert.deepEqual(readFileSync(file), original);
+    }
+    writeFileSync(operationsFile, "[{");
+    const malformed = run(["apply-batch", file, "--operations", operationsFile]);
+    assert.equal(malformed.status, 1);
+    assert.match(malformed.stderr, /; nothing was written\n$/);
+    writeFileSync(operationsFile, JSON.stringify([{ command: "update-heading", path: "999", text: "Invalid path" }]));
+    const stale = run(["apply-batch", file, "--operations", operationsFile, "--if-revision", "0".repeat(64)]);
+    assert.equal(stale.status, 1);
+    assert.equal(stale.stderr, "operation 1 (update-heading): revision mismatch; run inspect again; nothing was written\n");
+    assert.deepEqual(readFileSync(file), original);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -171,6 +262,7 @@ test("ieumdoc help exits successfully", () => {
       "update-table-alignment",
       "update-table-cell",
       "update-label",
+      "apply-batch",
     ]) {
       assert.equal(help.includes(name), true, name);
     }
@@ -213,6 +305,12 @@ test("command help is available from help and --help", () => {
   }
   assert.match(run(["help", "inspect"]).stdout, /revision.*original UTF-8 text/);
   assert.doesNotMatch(run(["help", "create"]).stdout, /--if-revision/);
+  const batch = run(["help", "apply-batch"]);
+  assert.equal(batch.status, 0);
+  assert.equal(run(["apply-batch", "--help"]).stdout, batch.stdout);
+  assert.match(batch.stdout, /preceding step's canonical, reparsed snapshot; no automatic tracking/);
+  assert.match(batch.stdout, /operation <1-based index>/);
+  assert.match(batch.stdout, /objects\/arrays/);
 });
 
 test("CLI insert-heading persists a Core heading", () => {
