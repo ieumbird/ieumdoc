@@ -73,8 +73,7 @@
 
 ## Verification
 
-- [Native document next-release notice](releases/native-documents-next.md) — Draft; breaking compatibility notice, no release publication.
-
+- [v0.0.1-beta.4 release and verification record](releases/v0.0.1-beta.4.md) — Draft; 네이티브 문서 전환 호환성 안내, 배포 범위·검증 계획과 알려진 제한. 공개 전 후보.
 - [v0.0.1-beta.3 release and verification record](releases/v0.0.1-beta.3.md) — Historical; 공개 자산, CI, 실제 GitHub beta.2→beta.3 업데이트와 알려진 제한.
 - [v0.0.1-beta.2 release and verification record](releases/v0.0.1-beta.2.md) — Historical; 공개 자산, CI와 실제 GitHub 업데이트 검증 근거.
 

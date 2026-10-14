@@ -54,7 +54,7 @@ Ordinary Markdown images, task lists, unsupported roles/directives, attributes o
 
 Files use UTF-8 and canonical LF line endings. CRLF/mixed input is normalized. A leading UTF-8 BOM is removed; U+FEFF elsewhere is content. Straight and curly quotes retain their meaning. Canonical output is semantic preservation, not byte preservation. Literal dollars and context-sensitive math retain the existing MyST boundary corrections.
 
-Desktop supplies its native sample in `sample-native-v1` on first use and uses it as the sample target. Existing `sample` folders and user-modified copies are not overwritten. The next-release compatibility notice is [Native document change](../releases/native-documents-next.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
+Desktop supplies its native sample in `sample-native-v1` on first use and uses it as the sample target. Existing `sample` folders and user-modified copies are not overwritten. The compatibility notice is in the [v0.0.1-beta.4 release record](../releases/v0.0.1-beta.4.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
 
 ## Verification
 
