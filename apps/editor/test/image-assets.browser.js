@@ -157,15 +157,17 @@ async (page, { openDocument }) => {
   };
   const chooseOutside = async () => {
     await page.getByRole('button', {name:'Choose…', exact:true}).click();
-    await pathField.fill(outsidePhoto); await pathField.press('Enter');
-    await picker.waitFor({state:'hidden'});
+    await pathField.fill(outsidePhoto);
+    await picker.getByRole('option', {name:'photo.png', exact:true}).waitFor();
+    await pathField.press('Enter');
+    await picker.waitFor({state:'hidden', timeout:10000});
     return imageField.inputValue();
   };
   await editFigure(0);
   const before = await imageField.inputValue();
   await page.getByRole('button', {name:'Choose…', exact:true}).click();
   await picker.waitFor();
-  await page.keyboard.press('Escape'); await picker.waitFor({state:'hidden'});
+  await page.keyboard.press('Escape'); await picker.waitFor({state:'hidden', timeout:10000});
   assert(await imageField.inputValue() === before, 'Cancelling the picker keeps the Image field');
   await page.getByRole('button', {name:'Choose…', exact:true}).click();
   // A typed folder path is a place to look, never a choice; Enter enters it.
@@ -175,7 +177,7 @@ async (page, { openDocument }) => {
   await pathField.press('Enter');
   await picker.getByRole('option', {name:'diagram.svg', exact:true}).click();
   await picker.getByRole('button', {name:'Use “diagram.svg”', exact:true}).click();
-  await picker.waitFor({state:'hidden'});
+  await picker.waitFor({state:'hidden', timeout:10000});
   assert(await imageField.inputValue() === './figures/diagram.svg', 'An image beside the document is linked by its relative path');
   assert(await page.evaluate(() => document.activeElement?.textContent) === 'Choose…', 'Closing the picker returns focus to Choose…');
   await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
