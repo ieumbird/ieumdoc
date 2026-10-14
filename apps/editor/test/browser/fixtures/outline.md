@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Outline guide
 
 ## Section 1

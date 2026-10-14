@@ -31,8 +31,8 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
     assert.equal(canonical, expected);
     assert.deepEqual(original, before, "serialization must not mutate its input");
     // Opening-source locations and spelling are provenance, not semantics.
-    assert.deepEqual(getEditableDocument(reparsed).blocks.map(({ original, ...block }) => block),
-      getEditableDocument(original).blocks.map(({ original, ...block }) => block));
+    assert.deepEqual(getEditableDocument(reparsed).blocks,
+      getEditableDocument(original).blocks);
     assert.deepEqual(inspectDocument(reparsed), inspectDocument(original));
     assert.equal(serialize(reparsed), canonical);
 
@@ -78,7 +78,6 @@ test("CSV-table parsing treats prototype-like headers as ordinary cells", () => 
   const canonical = serialize(document);
   assert.ok(canonical.includes("alpha"));
   assert.ok(canonical.includes("beta"));
-  assert.deepEqual(getEditableDocument(parse(canonical)), getEditableDocument(document));
   assert.equal(serialize(parse(canonical)), canonical);
 });
 

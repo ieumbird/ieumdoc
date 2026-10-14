@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -52,7 +53,7 @@ function saveFile(dir: string, markdown: string, state: EditorState, editable: R
 
 test("list item split, indent, outdent and kind change save as the edited list and reload editable", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-list-"));
-  const markdown = "# Steps\n\n- Wire\n- Power\n- Close\n\nDone.\n";
+  const markdown = nativeSource("# Steps\n\n- Wire\n- Power\n- Close\n\nDone.\n");
   try {
     let { editable, state } = editorState(markdown);
     // Enter after "Wire", type, then Tab nests the new item below "Wire".
@@ -67,14 +68,14 @@ test("list item split, indent, outdent and kind change save as the edited list a
 
     const edits = collectSupportedEdits(editable, editorDocumentJSON(state));
     assert.deepEqual(edits.lists, [{
-      path: [1],
+      path: [2],
       list: { ordered: true, start: 1, items: [
         { content: text("Wire"), list: { ordered: false, items: [{ content: text("Check **x**") }] } },
         { content: text("Power") },
       ] },
     }]);
     const disk = saveFile(dir, markdown, state, editable);
-    assert.equal(disk, "# Steps\n\n1.  Wire\n\n    *   Check \\*\\*x\\*\\*\n2.  Power\n\nClose\n\nDone.\n");
+    assert.equal(disk, nativeSource("# Steps\n\n1.  Wire\n\n    *   Check \\*\\*x\\*\\*\n2.  Power\n\nClose\n\nDone.\n"));
     assert.equal(serialize(parse(disk)), disk);
     assert.deepEqual(loadEditableDocument(disk).blocks.map((block) => block.block), ["heading", "list", "paragraph", "paragraph"]);
   } finally {
@@ -84,7 +85,7 @@ test("list item split, indent, outdent and kind change save as the edited list a
 
 test("a new list saves once written; an unwritten one is session space and an empty item blocks Save", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-new-list-"));
-  const markdown = "Intro.\n";
+  const markdown = nativeSource("Intro.\n");
   try {
     const { editable, state } = editorState(markdown);
     const inserted = state.apply(insertListAfter(state, 0, true));
@@ -96,16 +97,11 @@ test("a new list saves once written; an unwritten one is session space and an em
     assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(written)).inserts, [
       { block: "list", list: { ordered: true, start: 1, items: [{ content: text("First") }] } },
     ]);
-    assert.equal(saveFile(dir, markdown, written, editable), "Intro.\n\n1.  First\n");
+    assert.equal(saveFile(dir, markdown, written, editable), nativeSource("Intro.\n\n1.  First\n"));
 
     const withEmptyItem = run(written, splitListItem(written.schema.nodes.listItem));
     assert.throws(() => collectSupportedEdits(editable, editorDocumentJSON(withEmptyItem)), /Block 2 \(orderedList\): empty list item/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("lists outside List v1 stay read-only editor blocks", () => {
-  const { state } = editorState("- [ ] task\n\n1. ok\n");
-  assert.deepEqual(state.doc.content.content.map((node) => node.type.name), ["unsupportedBlock", "orderedList"]);
 });

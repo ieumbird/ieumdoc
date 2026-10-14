@@ -9,7 +9,7 @@ export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: TiptapMark[];
-  attrs?: Record<string, null | string | number | boolean | string[] | number[] | InlineContent[] | import("@ieumdoc/core").HeadingNumbering | EditableBlock["original"] | EditableBlock["numbered"]>;
+  attrs?: Record<string, undefined | null | string | number | boolean | string[] | number[] | InlineContent[] | import("@ieumdoc/core").HeadingNumbering>;
   content?: TiptapJSON[];
 };
 

@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,9 +22,9 @@ import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
 const fixture = fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url));
-const source = readFileSync(fixture, "utf8");
-const TABLE = 12;
-const mixed = "| Name | Note |\n| --- | --- |\n| U | {u}`bold` |\n| P |  |\n";
+const source = nativeSource(readFileSync(fixture, "utf8"));
+const TABLE = 13;
+const mixed = nativeSource("| Name | Note |\n| --- | --- |\n| U | **bold** |\n| P |  |\n");
 
 function tableOf(projection: TiptapJSON): TiptapJSON {
   return projection.content!.find((block) => block.type === "table")!;
@@ -35,15 +36,15 @@ function setCell(projection: TiptapJSON, row: number, cell: number, text: string
   return next;
 }
 
-test("editable, empty and read-only cells round-trip through the single Tiptap schema", () => {
+test("editable, empty and formatted cells round-trip through the single Tiptap schema", () => {
   const projection = toTiptapDocument(loadEditableDocument(mixed));
   const rows = tableOf(projection).content!;
   assert.deepEqual(rows.map((row) => row.content!.map((cell) => cell.type)), [
     ["tableCell", "tableCell"],
-    ["tableCell", "readonlyTableCell"],
+    ["tableCell", "tableCell"],
     ["tableCell", "tableCell"],
   ]);
-  assert.deepEqual(rows[1].content![1].attrs, { header: false, sourceCell: "1,1", text: "bold" });
+  assert.deepEqual(rows[1].content![1].attrs, { header: false, sourceCell: "1,1" });
   assert.deepEqual(rows[2].content![1], { type: "tableCell", attrs: { header: false, sourceCell: "2,1" }, content: [] });
   const schema = getSchema(editorExtensions());
   assert.deepEqual(schema.nodeFromJSON(projection).toJSON(), schema.nodeFromJSON(schema.nodeFromJSON(projection).toJSON()).toJSON());
@@ -61,12 +62,11 @@ test("changed header and body cells become Core cell edits; unchanged tables sen
   ]);
 });
 
-test("table structure, read-only cells and line breaks cannot change", () => {
+test("table structure, formatted cells and line breaks cannot change", () => {
   const baseline = toTiptapDocument(loadEditableDocument(mixed));
   const changes: [string, (table: TiptapJSON) => void][] = [
     ["added row", (table) => { table.content!.push(structuredClone(table.content![2])); }],
     ["removed cell", (table) => { table.content![2].content!.pop(); }],
-    ["read-only text", (table) => { table.content![1].content![1].attrs!.text = "other"; }],
     ["cell kind", (table) => { table.content![1].content![1] = { type: "tableCell", attrs: { header: false }, content: [] }; }],
     ["header flag", (table) => { table.content![2].content![0].attrs!.header = true; }],
     ["column alignment", (table) => { table.content![2].content![0].attrs!.align = "right"; }],
@@ -114,7 +114,7 @@ test("Host Save writes edited header and body cells and keeps everything else", 
   const beforeTable = (markdown: string) => markdown.slice(0, markdown.indexOf("\n| "));
   assert.ok(beforeTable(saved.markdown).includes("{eq}`eq-current`"));
   assert.equal(beforeTable(saved.markdown), beforeTable(saveEdits(source, {}).markdown));
-  const table = loadEditableDocument(saved.markdown).blocks[TABLE];
+  const table = loadEditableDocument(saved.markdown).blocks[TABLE - 1];
   assert.equal(table?.block, "table");
   if (table?.block === "table") {
     assert.deepEqual(table.rows.map((row) => row.cells.map((cell) => [cell.text, cell.header, cell.editable])), [
@@ -125,18 +125,17 @@ test("Host Save writes edited header and body cells and keeps everything else", 
   }
 });
 
-test("Host rejects malformed, read-only and unpreservable cell edits without writing", () => {
+test("Host rejects malformed and unpreservable cell edits without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-save-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, mixed);
   try {
     const revision = documentRevision(mixed);
     const rejected: [unknown, RegExp][] = [
-      [{ path: [0, 1, 0], content: "x" }, /must be InlineContent/],
-      [{ path: [0, 1, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
-      [{ path: [0, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
-      [{ path: [0, 1, 0], content: [{ kind: "code", value: "a|b" }] }, /table cell text cannot be preserved/],
-      [{ path: [0, 1, 0], content: [{ kind: "text", text: "U " }] }, /whitespace/],
+      [{ path: [1, 1, 0], content: "x" }, /must be InlineContent/],
+      [{ path: [1, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
+      [{ path: [1, 1, 0], content: [{ kind: "code", value: "a|b" }] }, /table cell text cannot be preserved/],
+      [{ path: [1, 1, 0], content: [{ kind: "text", text: "U " }] }, /whitespace/],
     ];
     for (const [cell, reason] of rejected) {
       assert.throws(() => saveDocumentFile(file, { revision, cells: [cell as never] }), reason);

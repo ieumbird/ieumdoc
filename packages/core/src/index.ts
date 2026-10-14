@@ -7,8 +7,8 @@
 import type { Document } from "./document.ts";
 import { inspectDocument as inspectTree } from "./document.ts";
 import { getEditableDocument as editableTree } from "./editable.ts";
-import { parse as parseTree } from "./myst/parse.ts";
-import { canonicalWriteError as canonicalWriteErrorTree, canonicalWriteIssue as canonicalWriteIssueTree, serialize as serializeTree } from "./myst/serialize.ts";
+import { createDocument as createNativeDocument, parseNativeDocument as parseTree, serializeNativeDocument as serializeTree,
+  canonicalWriteError as canonicalWriteErrorTree, canonicalWriteIssue as canonicalWriteIssueTree } from "./myst/native.ts";
 import type { MystDocument } from "./myst/tree.ts";
 import * as operations from "./operations.ts";
 import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
@@ -17,6 +17,8 @@ import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/hea
 import { endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
+export { NativeDocumentError } from "./myst/native.ts";
+export type { NativeDocumentErrorCode } from "./myst/native.ts";
 export { writeIssueOf } from "./write-error.ts";
 export type { WriteIssue } from "./write-error.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
@@ -48,6 +50,7 @@ function fence<F>(implementation: F): Fenced<F> {
 }
 
 export const parse = fence(parseTree);
+export const createDocument = fence(createNativeDocument);
 export const serialize = fence(serializeTree);
 /** Why canonical write (serialize) would refuse the document, or undefined when it is writable. */
 export const canonicalWriteError = fence(canonicalWriteErrorTree);
@@ -87,7 +90,6 @@ export const updateList = fence(operations.updateList);
 export const insertCodeBlock = fence(operations.insertCodeBlock);
 export const updateCodeBlock = fence(operations.updateCodeBlock);
 export const removeBlock = fence(operations.removeBlock);
-export const replaceBlockSource = fence(operations.replaceBlockSource);
 export const updateNodeTextAtPath = fence(operations.updateNodeTextAtPath);
 export const updateHeadingLevel = fence(operations.updateHeadingLevel);
 export const convertBlock = fence(operations.convertBlock);

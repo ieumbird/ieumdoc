@@ -98,20 +98,6 @@ test("a plain admonition of a standard kind projects its supported inline body a
   }
 });
 
-test("only one-paragraph admonitions of a standard MyST kind are editable", () => {
-  for (const markdown of [
-    ":::{admonition} Title\nBody\n:::\n",
-    ":::{note}\n:class: custom\nBody\n:::\n",
-    ":::{note}\nOne\n\nTwo\n:::\n",
-  ]) {
-    const block = getEditableDocument(parse(markdown)).blocks[0];
-    assert.equal(block?.block, "admonition");
-    if (block?.block !== "admonition") continue;
-    assert.equal(block.editable, false, markdown);
-    assert.equal(block.content.length, 0, markdown);
-    assert.ok(block.text.length > 0, markdown);
-  }
-});
 
 test("admonition inline update preserves variant and inline semantics through canonical round-trip", () => {
   const original = parse(":::{warning}\nBefore **bold** and *italic*, [manual](https://a.example), $x$\\\nnext.\n:::\n");
@@ -138,7 +124,7 @@ test("admonition inline update preserves variant and inline semantics through ca
   assert.deepEqual(reloaded.content, content);
 });
 
-test("a heading with supported inline content is editable; line breaks and unsupported inline stay read-only", () => {
+test("a heading with supported inline content is editable", () => {
   const heading = getEditableDocument(parse("# Plain **bold** and $x$ title\n")).blocks[0];
   assert.equal(heading?.block, "heading");
   if (heading?.block !== "heading") return;
@@ -148,10 +134,6 @@ test("a heading with supported inline content is editable; line breaks and unsup
     { kind: "text", text: "Plain " }, { kind: "strong", children: [{ kind: "text", text: "bold" }] },
     { kind: "text", text: " and " }, { kind: "math", value: "x" }, { kind: "text", text: " title" },
   ]);
-  for (const markdown of ["Two\\\nlines\n===\n", "# See {ref}`Intro <intro>`\n"]) {
-    const readonly = getEditableDocument(parse(markdown)).blocks[0];
-    assert.deepEqual(readonly?.block === "heading" && [readonly.editable, readonly.content], [false, []], markdown);
-  }
 });
 
 test("formatted caption exposes supported inline content", () => {
@@ -162,19 +144,4 @@ test("formatted caption exposes supported inline content", () => {
   if (formattedCaption?.block !== "figure") return;
   assert.equal(formattedCaption.caption.editable, true);
   assert.deepEqual(formattedCaption.caption.content, [{ kind: "strong", children: [{ kind: "text", text: "bold caption" }] }]);
-});
-
-test("read-only projections expose source and kind without making source a write path", () => {
-  const source = "# Title\n\n![alt](./x.png \"Title\")\n\nInline ![alt](./x.png) image.\n\nBody.\n";
-  const document = parse(source);
-  const image = getEditableDocument(document).blocks[1];
-  assert.equal(image.block, "unsupported");
-  assert.deepEqual(image.original, { kind: "Markdown image", text: '![alt](./x.png "Title")', line: 3 });
-  const paragraph = getEditableDocument(document).blocks[2];
-  assert.equal(paragraph.block, "paragraph");
-  assert.equal(paragraph.block === "paragraph" && paragraph.editable, false);
-  assert.equal(paragraph.original?.text, "Inline ![alt](./x.png) image.");
-  // Returned source is display data: modifying it cannot alter the opaque Document.
-  image.original!.text = "changed display only";
-  assert.equal(serialize(document), source);
 });

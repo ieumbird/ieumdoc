@@ -28,8 +28,6 @@ import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
-  BLOCK_SOURCES_ATTR,
-  blockSourcesOf,
   DELETED_PATHS_ATTR,
   figureContent,
   isNewBlockPath,
@@ -40,8 +38,6 @@ import {
   tableCaption,
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlockNode,
-  withBlockSourceNodes,
-  type AppliedBlockSources,
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button } from "@/components/ui/button.tsx";
@@ -50,7 +46,7 @@ import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { TableCellFocus, TableTools } from "./table-tools.tsx";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
-export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Source";
+export type DraftKind = "Equation" | "Figure" | "Table" | "Section label";
 export type DraftListener = (kind: DraftKind, path: string, active: boolean) => void;
 
 /** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
@@ -63,7 +59,6 @@ export type ImageChooser = (documentPath: string, returnFocus: RefObject<HTMLEle
 
 /** Core's block source replacement through the Host: the block a source makes at a snapshot path,
  * after the session's other applied sources. Rejects with Core's reason. */
-export type BlockSourceApplier = (path: string, source: string, applied: AppliedBlockSources) => Promise<EditableBlock>;
 
 /** An open Equation form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
@@ -102,8 +97,7 @@ function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
 }
 
 function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute> {
-  // `numbered`: the snapshot's numbered targets where they differ from the block kind's default.
-  return { sourcePath: hiddenAttr(""), original: { default: null, rendered: false }, numbered: { default: null, rendered: false }, headingLevels: { default: null, rendered: false }, footnotes: { default: null, rendered: false }, ...attrs };
+  return { sourcePath: hiddenAttr(""), ...attrs };
 }
 
 // A heading holds the paragraph's inline content except line breaks, which Markdown headings cannot.
@@ -229,46 +223,6 @@ const InlineCode = Code.extend({
 const SubscriptMark = Subscript.extend({ excludes: "subscript superscript" });
 const SuperscriptMark = Superscript.extend({ excludes: "subscript superscript" });
 
-const ReadonlyHeading = Node.create({
-  name: "readonlyHeading",
-  group: "block",
-  atom: true,
-  selectable: true,
-  draggable: false,
-  addAttributes() {
-    return blockAttrs({ level: hiddenAttr(1), text: hiddenAttr("") });
-  },
-  parseHTML() {
-    return [{ tag: "h1[data-readonly-heading]" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ["h1", { ...HTMLAttributes, "data-readonly-heading": "" }];
-  },
-  addNodeView() {
-    return ReactNodeViewRenderer(ReadonlyHeadingView);
-  },
-});
-
-const ReadonlyParagraph = Node.create({
-  name: "readonlyParagraph",
-  group: "block",
-  atom: true,
-  selectable: true,
-  draggable: false,
-  addAttributes() {
-    return blockAttrs({ text: hiddenAttr("") });
-  },
-  parseHTML() {
-    return [{ tag: "p[data-readonly-paragraph]" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ["p", { ...HTMLAttributes, "data-readonly-paragraph": "" }];
-  },
-  addNodeView() {
-    return ReactNodeViewRenderer(ReadonlyParagraphView);
-  },
-});
-
 const Admonition = Node.create({
   name: "admonition",
   group: "block",
@@ -278,7 +232,7 @@ const Admonition = Node.create({
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ variant: hiddenAttr("note"), text: hiddenAttr(""), editable: hiddenAttr(false) });
+    return blockAttrs({ variant: hiddenAttr("note") });
   },
   parseHTML() {
     return [{ tag: "aside[data-admonition]" }];
@@ -292,7 +246,7 @@ const Admonition = Node.create({
 });
 
 // Quote v1: one paragraph of inline content, edited like a simple admonition body. Enter leaves
-// the quote; Shift+Enter is a line break. Other quotes are unsupported (read-only) blocks.
+// the quote; Shift+Enter is a line break. Native admission rejects other quotes.
 const Quote = Node.create({
   name: "quote",
   group: "block",
@@ -317,7 +271,7 @@ const Quote = Node.create({
 });
 
 // Footnotes v2: a definition holding one paragraph of inline content, edited like a quote. It
-// holds no footnote references; other definitions are read-only (unsupported) blocks.
+// holds no footnote references; native admission rejects other definitions.
 const FootnoteDefinition = Node.create({
   name: "footnoteDefinition",
   group: "block",
@@ -393,8 +347,6 @@ const Figure = Node.create<{ documentPath?: string }>({
       label: hiddenAttr(""),
       imageUrl: hiddenAttr(""),
       imageAlt: hiddenAttr(""),
-      caption: hiddenAttr(""),
-      editable: hiddenAttr(false),
     });
   },
   parseHTML() {
@@ -455,7 +407,7 @@ function createEquationNodeView(onDraftChange?: DraftListener) {
 }
 
 // A Markdown table lives in the single document state: editable cells hold supported
-// inline content without line breaks; other cells are read-only leaves. Commands add, remove and
+// inline content without line breaks; native admission rejects other cells. Commands add, remove and
 // move whole rows (below the header row) and columns, and set column alignment; snapshot cells
 // carry their opening position. The structure guard rejects any other change to the grid.
 const headerAttr: Attribute = { default: false, rendered: false, parseHTML: (element) => element.tagName === "TH" };
@@ -485,7 +437,6 @@ const Table = Node.create({
         "data-source-path": String(node.attrs.sourcePath ?? ""),
       },
       ["table", { class: "table" }, ["tbody", 0]],
-      ...(node.attrs.original ? [originalDOM(node.attrs.original)] : []),
     ];
   },
 });
@@ -521,7 +472,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const apply = () => {
     const invalid = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? "Caption must be a single line without surrounding spaces." : undefined);
     if (invalid) { setError(invalid); return; }
-    updateAttributes({ label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [], numbered: null });
+    updateAttributes({ label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [] });
     close();
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
@@ -533,7 +484,6 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     </div></div>
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[]) }} /> : null}
-    <OriginalContent node={node} editor={editor} getPos={getPos} />
     {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="outline" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
@@ -597,120 +547,10 @@ function cellAlignmentStyle(node: ProseMirrorNode): string {
   return ["left", "center", "right"].includes(node.attrs.align) ? `text-align: ${node.attrs.align}` : "";
 }
 
-function originalDOM(original: NonNullable<EditableBlock["original"]>): DOMOutputSpec {
-  return ["details", { class: "original-content", contenteditable: "false" },
-    ["summary", {}, originalSummary(original)],
-    ["pre", {}, original.text]];
-}
-
-/** Replace the block at `position` with the block an applied source made, and record the source,
- * as one undo step. */
-export function blockSourceTransaction(state: EditorState, position: number, path: string, source: string, block: EditableBlock): Transaction {
-  const current = state.doc.nodeAt(position)!;
-  return closeHistory(state.tr.replaceWith(position, position + current.nodeSize, state.schema.nodeFromJSON(toTiptapBlockNode(block)))
-    .setDocAttribute(BLOCK_SOURCES_ATTR, { ...blockSourcesOf({ attrs: state.doc.attrs }), [path]: { source, block } }));
-}
-
-function originalSummary(original: NonNullable<EditableBlock["original"]>): string {
-  return `${original.kind} · Read-only content · ${original.line === undefined ? "Applied source" : `Original line ${original.line}`}`;
-}
-
-/** A read-only block's source. Edit source applies a new source through Core in one undoable step. */
-function OriginalContent({ node, editor, getPos }: Pick<ReactNodeViewProps, "node" | "editor" | "getPos">) {
-  const original = node.attrs.original as EditableBlock["original"];
-  const [draft, setDraft] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLTextAreaElement>(null);
-  const openedNode = useRef<ProseMirrorNode | null>(null);
-  const validation = useRef(0);
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-  const editing = draft !== null;
-  const path = String(node.attrs.sourcePath ?? "");
-  const options = blockSourceOptions(editor);
-  const onDraftChange = options?.onDraftChange;
-  const dirty = busy || (editing && draft !== original?.text);
-  useEffect(() => {
-    onDraftChange?.("Source", path, dirty);
-    return () => onDraftChange?.("Source", path, false);
-  }, [path, dirty, onDraftChange]);
-  useEffect(() => () => { validation.current++; }, []);
-  useEffect(() => { if (editing) input.current?.focus(); }, [editing]);
-  if (!original) return null;
-  const applier = options?.apply;
-  // The draft starts from the block's source, so it must still be the block that source made.
-  const sources = blockSourcesOf({ attrs: editor.state.doc.attrs });
-  const baseline = options?.baseline && withBlockSourceNodes(options.baseline(), sources).content?.find(block => block.attrs?.sourcePath === path);
-  const unchanged = Boolean(baseline) && editor.schema.nodeFromJSON(baseline).eq(node);
-  const close = () => { validation.current++; setBusy(false); setDraft(null); setError(""); editor.commands.focus(); };
-  const replacementError = () => {
-    const position = editor.isDestroyed ? undefined : getPos();
-    const current = typeof position === "number" ? editor.state.doc.nodeAt(position) : null;
-    if (!current || !openedNode.current?.eq(current)) return "This block changed. Undo its edits, or Cancel and reopen source editing.";
-    if (options?.hasOtherDraft?.("Source", path)) return "Apply or Cancel this block's other property edit before applying its source.";
-    return undefined;
-  };
-  const apply = async () => {
-    if (draft === null || !applier || busy) return;
-    const invalid = replacementError();
-    if (invalid) { setError(invalid); return; }
-    const request = ++validation.current;
-    setBusy(true);
-    setError("");
-    try {
-      const block = await applier(path, draft, sources);
-      if (request !== validation.current) return;
-      const changed = replacementError() ?? (draftRef.current !== draft ||
-        JSON.stringify(blockSourcesOf({ attrs: editor.state.doc.attrs })) !== JSON.stringify(sources)
-        ? "Source changed during validation. Apply again." : undefined);
-      if (changed) { setError(changed); return; }
-      const position = getPos();
-      if (typeof position !== "number") return;
-      editor.view.dispatch(blockSourceTransaction(editor.state, position, path, draft, block));
-      // Typing right after Apply starts its own undo step.
-      editor.view.dispatch(closeHistory(editor.state.tr));
-      close();
-    } catch (cause) {
-      if (request === validation.current) setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      if (request === validation.current) setBusy(false);
-    }
-  };
-  return <details className="original-content" contentEditable={false}>
-    <summary>{originalSummary(original)}</summary>
-    {editing ? (
-      <form className="block-properties-form" data-testid="block-source-editor"
-        onSubmit={(event) => { event.preventDefault(); void apply(); }}
-        onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); close(); } }}>
-        <label className="form-field">
-          <span>MyST source</span>
-          <textarea ref={input} className="equation-input" aria-label="Block MyST source" data-testid="block-source-input"
-            value={draft} onChange={(event) => { setDraft(event.target.value); setError(""); }} />
-        </label>
-        {error ? <Notice tone="error" data-testid="block-source-error">{error}</Notice> : null}
-        <div className="form-actions">
-          <Button type="submit" size="sm" disabled={busy} data-testid="block-source-apply">Apply</Button>
-          <Button type="button" size="sm" variant="outline" onClick={close} data-testid="block-source-cancel">Cancel</Button>
-        </div>
-      </form>
-    ) : (
-      <>
-        <pre>{original.text}</pre>
-        {editor.isEditable && applier ? <>
-          <Button size="sm" variant="outline" disabled={!unchanged} data-testid="block-source-edit"
-            onClick={() => { openedNode.current = node; setDraft(original.text); setError(""); }}>Edit source</Button>
-          {unchanged ? null : <p className="block-popover-note">Undo this block's edits, or Save and Reload, to edit its source.</p>}
-        </> : null}
-      </>
-    )}
-  </details>;
-}
-
 const TableRow = Node.create({
   name: "tableRow",
   allowGapCursor: false,
-  content: "(tableCell | readonlyTableCell)+",
+  content: "tableCell+",
   parseHTML() {
     return [{ tag: "tr" }];
   },
@@ -735,32 +575,9 @@ const TableCell = Node.create({
   },
 });
 
-const ReadonlyTableCell = Node.create({
-  name: "readonlyTableCell",
-  atom: true,
-  selectable: false,
-  addAttributes() {
-    return {
-      header: headerAttr,
-      align: hiddenAttr(""),
-      [TABLE_CELL_SOURCE_ATTR]: { default: "", rendered: false },
-      text: { default: "", rendered: false, parseHTML: (element) => element.textContent ?? "" },
-    };
-  },
-  parseHTML() {
-    return [{ tag: "th[data-readonly-cell]" }, { tag: "td[data-readonly-cell]" }];
-  },
-  renderHTML({ node }) {
-    return [
-      node.attrs.header ? "th" : "td",
-      { "data-readonly-cell": "", "data-readonly": "true", contenteditable: "false", style: cellAlignmentStyle(node) },
-      String(node.attrs.text ?? ""),
-    ];
-  },
-});
-
 // A `(label)=` section label: it names the heading after it for {ref} references.
-const LabelTarget = Node.create({
+const LabelTarget = Node.create<{ onDraftChange?: DraftListener }>({
+  addOptions() { return {}; },
   name: "labelTarget",
   group: "block",
   atom: true,
@@ -797,7 +614,7 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
   const [draft, setDraft] = useState(label);
   const [error, setError] = useState("");
   const path = String(node.attrs.sourcePath ?? "");
-  const onDraftChange = blockSourceOptions(editor)?.onDraftChange;
+  const onDraftChange = editor.extensionManager.extensions.find(extension => extension.name === "labelTarget")?.options.onDraftChange as DraftListener | undefined;
   const dirty = editing && draft !== label;
   useEffect(() => {
     onDraftChange?.("Section label", path, dirty);
@@ -834,31 +651,6 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
   );
 }
 
-const UnsupportedBlock = Node.create({
-  name: "unsupportedBlock",
-  group: "block",
-  atom: true,
-  selectable: true,
-  draggable: false,
-  addAttributes() {
-    // `footnote`: the label of the footnote a definition block defines.
-    return blockAttrs({ text: hiddenAttr(""), footnote: hiddenAttr("") });
-  },
-  parseHTML() {
-    return [{ tag: "p[data-unsupported-block]" }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ["p", { ...HTMLAttributes, "data-unsupported-block": "" }];
-  },
-  addNodeView() {
-    return ReactNodeViewRenderer(UnsupportedView, {
-      attrs: ({ node }) => ({ "data-footnote-definition": node.attrs.footnote ? "true" : "false" }),
-    });
-  },
-});
-
-// Inline math is an atomic inline node holding its LaTeX source; bold, italic and
-// link marks apply to it like to text. Clicking it opens a small source form.
 const InlineMath = Node.create({
   name: "inlineMath",
   group: "inline",
@@ -896,7 +688,7 @@ const ParagraphHardBreak = Extension.create({
       const { state } = this.editor;
       const parent = state.selection.$from.parent;
       const editableInlineParent = parent.type.name === "paragraph" ||
-        parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || (parent.type.name === "admonition" && parent.attrs.editable === true);
+        parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "admonition";
       // A selected inline math node is not replaced by a break.
       if (!editableInlineParent || state.selection instanceof NodeSelection) return true;
       // A break ends inline code; code is text only.
@@ -971,30 +763,11 @@ const ParagraphMerge = Extension.create({
   },
 });
 
-type BlockSourceOptions = {
-  hasActiveDraft?: () => boolean;
-  apply?: BlockSourceApplier;
-  baseline?: () => TiptapJSON;
-  onDraftChange?: DraftListener;
-  hasOtherDraft?: (kind: DraftKind, path: string) => boolean;
-};
-
-function blockSourceOptions(editor: Editor): BlockSourceOptions | undefined {
-  return editor.extensionManager.extensions.find(extension => extension.name === "blockSourceEditing")?.options;
-}
-
-/** Applied block sources are editor document state; Apply asks Core through the Host. */
-const BlockSourceEditing = Extension.create<BlockSourceOptions>({
-  name: "blockSourceEditing",
-  addOptions() { return { apply: undefined, baseline: undefined }; },
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: { [BLOCK_SOURCES_ATTR]: { default: null, rendered: false } } }]; },
-});
-
 export function editorExtensions(
   onDraftChange?: DraftListener,
   documentPath?: string,
   validateFigure?: FigureValidator,
-  blockSource?: BlockSourceOptions,
+  hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
 ): Extensions {
   return [
@@ -1024,15 +797,13 @@ export function editorExtensions(
       underline: false,
     }),
     DocumentNumbering,
-    Endnotes.configure({ canOrder: () => !blockSource?.hasActiveDraft?.() }),
+    Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
     ParagraphHardBreak,
     ParagraphSplit,
     ParagraphMerge,
     SourcedParagraph,
     SourcedHeading,
-    ReadonlyHeading,
-    ReadonlyParagraph,
     SourcedCodeBlock,
     InlineCode,
     SubscriptMark,
@@ -1050,14 +821,11 @@ export function editorExtensions(
     tableNode(onDraftChange),
     TableRow,
     TableCell,
-    ReadonlyTableCell,
-    LabelTarget,
-    UnsupportedBlock,
+    LabelTarget.configure({ onDraftChange }),
     InlineMath,
     CrossReference,
     FootnoteReference,
     MarkdownInputRules,
-    BlockSourceEditing.configure({ ...blockSource, onDraftChange }),
   ];
 }
 
@@ -1069,13 +837,10 @@ export function createEditorExtensions(
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
-  applyBlockSource?: BlockSourceApplier,
-  hasOtherDraft?: BlockSourceOptions["hasOtherDraft"],
-  hasActiveDraft?: BlockSourceOptions["hasActiveDraft"],
+  hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
 ): Extensions {
-  const baselineOf = typeof baseline === "function" ? baseline : () => baseline;
-  return [...editorExtensions(onDraftChange, documentPath, validateFigure, { apply: applyBlockSource, baseline: baselineOf, hasOtherDraft, hasActiveDraft }, chooseImage),
+  return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject)];
 }
@@ -1120,8 +885,8 @@ function commandDeletions(transaction: Transaction, declared: string[]): string[
 }
 
 /** The snapshot baseline with the document's applied block sources in place. */
-function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON), doc: ProseMirrorNode): TiptapJSON {
-  return withBlockSourceNodes(typeof baseline === "function" ? baseline() : baseline, blockSourcesOf({ attrs: doc.attrs }));
+function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON)): TiptapJSON {
+  return typeof baseline === "function" ? baseline() : baseline;
 }
 
 export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Plugin {
@@ -1134,11 +899,11 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
       },
     },
     // Engine edits are accepted only if the normalized result has a semantic
-    // save representation. This retains read-only and table/inline validation.
+    // save representation. This retains table/inline validation.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
       try {
-        const base = sessionBaseline(baseline, transaction.doc);
+        const base = sessionBaseline(baseline);
         const next = normalizeEngineDocument(base, {
           ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
         }, transaction.before.childCount !== transaction.doc.childCount);
@@ -1149,7 +914,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
     },
     appendTransaction(transactions, old, state) {
       if (!transactions.some(tr => tr.docChanged)) return null;
-      const normalized = normalizeEngineDocument(sessionBaseline(baseline, state.doc), state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
+      const normalized = normalizeEngineDocument(sessionBaseline(baseline), state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
       const tr = state.tr;
       state.doc.forEach((node, pos, index) => {
         const attrs = normalized.content![index].attrs!;
@@ -1160,42 +925,8 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
   });
 }
 
-function ReadonlyHeadingView({ node, editor, getPos }: ReactNodeViewProps) {
-  const Heading = headingTag(node.attrs.level);
-  return (
-    <NodeViewWrapper
-      as="div"
-      className="heading-readonly"
-      data-block="readonly-heading"
-      data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
-      contentEditable={false}
-    >
-      <Heading className="heading">{String(node.attrs.text ?? "")}</Heading>
-      <OriginalContent node={node} editor={editor} getPos={getPos} />
-    </NodeViewWrapper>
-  );
-}
-
-function ReadonlyParagraphView({ node, editor, getPos }: ReactNodeViewProps) {
-  return (
-    <NodeViewWrapper
-      as="div"
-      className="paragraph paragraph-readonly"
-      data-block="readonly-paragraph"
-      data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
-      contentEditable={false}
-    >
-      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}{String(node.attrs.text ?? "")}
-      <OriginalContent node={node} editor={editor} getPos={getPos} />
-    </NodeViewWrapper>
-  );
-}
-
 function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
   const variant = String(node.attrs.variant ?? "note");
-  const editable = node.attrs.editable === true;
   const label = isAdmonitionVariant(variant) ? ADMONITION_LABELS[variant] : variant;
   return (
     <NodeViewWrapper
@@ -1204,24 +935,15 @@ function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
       data-block="admonition"
       data-variant={variant}
       data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly={editable ? "false" : "true"}
-      contentEditable={editable ? undefined : false}
     >
-      <p className="admonition-label" contentEditable={false}>{label}{editable ? "" : " · Read-only"}</p>
-      {editable
-        ? <NodeViewContent className="admonition-body" data-testid="admonition-body" />
-        : <p className="admonition-body" data-testid="admonition-body">{String(node.attrs.text ?? "")}</p>}
-      <OriginalContent node={node} editor={editor} getPos={getPos} />
+      <p className="admonition-label" contentEditable={false}>{label}</p>
+      <NodeViewContent className="admonition-body" data-testid="admonition-body" />
     </NodeViewWrapper>
   );
 }
 
 function figureAttrs(node: ProseMirrorNode): FigureContent {
-  return node.attrs.editable === true ? figureContent(node.toJSON() as TiptapJSON) : {
-    imageUrl: String(node.attrs.imageUrl ?? ""),
-    imageAlt: String(node.attrs.imageAlt ?? ""),
-    caption: String(node.attrs.caption ?? ""),
-  };
+  return figureContent(node.toJSON() as TiptapJSON);
 }
 
 function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
@@ -1240,7 +962,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   const imageFailed = !!src && failedSource === src;
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const editableFigure = node.attrs.editable === true && view.editable;
+  const editableFigure = view.editable;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [labelDraft, setLabelDraft] = useState(label);
@@ -1393,8 +1115,6 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       data-editing={editing}
       data-selected={selected}
       data-source-path={sourcePath}
-      data-readonly={editableFigure ? "false" : "true"}
-      contentEditable={editableFigure ? undefined : false}
     >
       <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? "Figure", label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
@@ -1414,10 +1134,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
           No content yet
         </div>
       ) : null}
-      {editableFigure
-        ? <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
-        : <figcaption className="caption" data-number={numbered}>{String(node.attrs.caption ?? "")}</figcaption>}
-      <OriginalContent node={node} editor={editor} getPos={getPos} />
+      <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
           Edit
@@ -1797,24 +1514,6 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
   );
 }
 
-function UnsupportedView({ node, editor, getPos }: ReactNodeViewProps) {
-  const footnote = String(node.attrs.footnote ?? "");
-  return (
-    <NodeViewWrapper
-      as="div"
-      className={footnote ? "unsupported footnote-definition" : "unsupported"}
-      data-block="unsupported"
-      data-source-path={String(node.attrs.sourcePath ?? "")}
-      data-readonly="true"
-      contentEditable={false}
-    >
-      {node.attrs.original ? null : <span className="block-kind">Read-only </span>}
-      {footnote ? <EndnoteNumber editor={editor} label={footnote} /> : null}{String(node.attrs.text ?? "")}
-      <OriginalContent node={node} editor={editor} getPos={getPos} />
-    </NodeViewWrapper>
-  );
-}
-
 /** A definition's computed number; return to the invoking reference when one is remembered. */
 function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
   const number = useEndnoteNumber(editor, label);
@@ -1832,8 +1531,8 @@ const DocumentNumbering = Extension.create({
   addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
-      const blocks: { block: string; level?: number; headingLevels?: number[] }[] = [];
-      state.doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level), headingLevels: node.attrs.headingLevels }));
+      const blocks: { block: string; level?: number }[] = [];
+      state.doc.forEach(node => blocks.push({ block: node.type.name, level: Number(node.attrs.level) }));
       const numbers = headingNumbers(blocks, state.doc.attrs.headingNumbering as HeadingNumbering | null);
       const decorations: Decoration[] = [];
       state.doc.forEach((node, pos, index) => { if (numbers[index]) decorations.push(Decoration.node(pos, pos + node.nodeSize, { "data-heading-number": numbers[index]! })); });

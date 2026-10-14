@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,11 +24,11 @@ import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits, validateFigureRequest } from "../server/document-replay.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
-const source = readFileSync(
+const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
   "utf8",
-);
-const FIGURE = "6";
+));
+const FIGURE = "7";
 const ORIGINAL = {
   imageUrl: "./diagram.svg",
   imageAlt: "Control block diagram",
@@ -65,10 +66,8 @@ function figureOf(document: EditableDocument, index: number) {
 
 test("Figure projection carries editable properties and its label", () => {
   const figure = blockAt(toTiptapDocument(loadEditableDocument(source)), FIGURE);
-  assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: ORIGINAL.imageAlt, editable: true });
+  assert.deepEqual(figure.attrs, { sourcePath: FIGURE, label: "fig-control", imageUrl: ORIGINAL.imageUrl, imageAlt: ORIGINAL.imageAlt });
   assert.deepEqual(figure.content, [{ type: "text", text: ORIGINAL.caption }]);
-  const readonly = toTiptapDocument(loadEditableDocument(":::{figure} ./a.png\n{u}`V`\n:::\n"));
-  assert.equal(readonly.content?.[0]?.attrs?.editable, false);
 });
 
 test("image, alt text, caption and label are the editable Figure attributes", () => {
@@ -77,26 +76,21 @@ test("image, alt text, caption and label are the editable Figure attributes", ()
   setFigure(blockAt(changed, FIGURE), CHANGED);
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, changed));
   assert.deepEqual(collectSupportedEdits(loadEditableDocument(source), changed).figures, [
-    { path: [6], from: ORIGINAL, to: CHANGED },
+    { path: [7], from: ORIGINAL, to: CHANGED },
   ]);
 
   const relabeled = clone(baseline);
   blockAt(relabeled, FIGURE).attrs!.label = "fig-other";
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, relabeled));
   assert.deepEqual(collectSupportedEdits(loadEditableDocument(source), relabeled).labels, [
-    { path: [6], from: "fig-control", to: "fig-other" },
+    { path: [7], from: "fig-control", to: "fig-other" },
   ]);
-  for (const [key, value] of [["editable", false], ["sourcePath", "new:x"]] as const) {
+  for (const [key, value] of [["sourcePath", "new:x"]] as const) {
     const identity = clone(baseline);
     blockAt(identity, FIGURE).attrs![key] = value;
     assert.throws(() => assertSupportedDocumentChange(baseline, identity), /figure identity|block deletion is not allowed/);
   }
 
-  const readonlySource = ":::{figure} ./a.png\n{u}`V`\n:::\n";
-  const readonly = toTiptapDocument(loadEditableDocument(readonlySource));
-  const flattened = clone(readonly);
-  flattened.content![0].attrs!.caption = "flattened";
-  assert.throws(() => assertSupportedDocumentChange(readonly, flattened), /read-only block changed/);
 });
 
 test("Figure validity is enforced before Save and by the Core write path", () => {
@@ -115,22 +109,17 @@ test("Figure validity is enforced before Save and by the Core write path", () =>
   for (const to of [{ ...CHANGED, imageUrl: "" }, { ...CHANGED, caption: "% comment" }]) {
     assert.throws(() => commitDocumentSave(() => source, () => writes++, {
       revision: documentRevision(source),
-      figures: [{ path: [6], from: ORIGINAL, to }],
+      figures: [{ path: [7], from: ORIGINAL, to }],
     }));
   }
-  // Stale, partial, non-Figure and read-only targets never write.
+  // Stale, partial, non-Figure targets never write.
   for (const figures of [
-    [{ path: [6], from: { ...ORIGINAL, caption: "stale" }, to: CHANGED }],
-    [{ path: [6], from: ORIGINAL, to: { imageUrl: "./x.svg" } as never }],
-    [{ path: [0], from: ORIGINAL, to: CHANGED }],
+    [{ path: [7], from: { ...ORIGINAL, caption: "stale" }, to: CHANGED }],
+    [{ path: [7], from: ORIGINAL, to: { imageUrl: "./x.svg" } as never }],
+    [{ path: [1], from: ORIGINAL, to: CHANGED }],
   ]) {
     assert.throws(() => commitDocumentSave(() => source, () => writes++, { revision: documentRevision(source), figures }));
   }
-  const readonlySource = ":::{figure} ./a.png\n{u}`V`\n:::\n";
-  assert.throws(() => commitDocumentSave(() => readonlySource, () => writes++, {
-    revision: documentRevision(readonlySource),
-    figures: [{ path: [0], from: { imageUrl: "./a.png", imageAlt: "", caption: "V" }, to: CHANGED }],
-  }), /figure edit is not allowed/);
   assert.equal(writes, 0);
 });
 
@@ -140,11 +129,11 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   setFigure(blockAt(projection, FIGURE), CHANGED);
   projection.content!.unshift(projection.content!.splice(6, 1)[0]);
   const edits = collectSupportedEdits(editable, projection);
-  assert.deepEqual(edits.figures, [{ path: [6], from: ORIGINAL, to: CHANGED }]);
+  assert.deepEqual(edits.figures, [{ path: [7], from: ORIGINAL, to: CHANGED }]);
   assert.ok(edits.order);
   const saved = saveEdits(source, edits);
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
-  assert.match(saved.markdown, /^:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
+  assert.match(saved.markdown, /^---\nieumdoc: 1\n---\n\n:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 
   // Clearing optional properties keeps the Figure and its label.
@@ -155,14 +144,14 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
 });
 
 test("new Figure inserts save and reload through Core semantics", () => {
-  const editable = loadEditableDocument("Intro\n");
+  const editable = loadEditableDocument(nativeSource("Intro\n"));
   const next = toTiptapDocument(editable);
   const figure = { imageUrl: "./plot.svg", imageAlt: "Plot", caption: "Measured plot." };
   next.content!.push(setFigure({ type: "figure", attrs: { sourcePath: "new:figure", label: "", editable: true } }, figure));
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.inserts, [{ block: "figure", ...figure }]);
-  const saved = saveEdits("Intro\n", edits);
-  assert.equal(saved.markdown, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
+  const saved = saveEdits(nativeSource("Intro\n"), edits);
+  assert.equal(saved.markdown, nativeSource("Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n"));
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "", ...figure });
 
   // A new Figure can carry a label; persistent blocks cannot become Figures.
@@ -170,9 +159,9 @@ test("new Figure inserts save and reload through Core semantics", () => {
   labeled.content!.push(setFigure({ type: "figure", attrs: { sourcePath: "new:labeled", label: "fig-x", editable: true } }, figure));
   const labeledEdits = collectSupportedEdits(editable, labeled);
   assert.deepEqual(labeledEdits.inserts, [{ block: "figure", ...figure, label: "fig-x" }]);
-  assert.match(saveEdits("Intro\n", labeledEdits).markdown, /:::\{figure\} \.\/plot\.svg\n:name: fig-x\n/);
+  assert.match(saveEdits(nativeSource("Intro\n"), labeledEdits).markdown, /:::\{figure\} \.\/plot\.svg\n:name: fig-x\n/);
   const conversion = toTiptapDocument(editable);
-  conversion.content![0] = setFigure({ type: "figure", attrs: { sourcePath: "0", label: "", editable: true } }, figure);
+  conversion.content![0] = setFigure({ type: "figure", attrs: { sourcePath: "1", label: "", editable: true } }, figure);
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
 });
 
@@ -182,7 +171,7 @@ test("Figure delete and reorder keep other blocks and Core semantics", () => {
   deleted.content = deleted.content!.filter((node) => node.attrs?.sourcePath !== FIGURE);
   deleted.attrs = { deletedPaths: [FIGURE] };
   const edits = collectSupportedEdits(editable, deleted);
-  assert.deepEqual(edits.deletes, [[6]]);
+  assert.deepEqual(edits.deletes, [[7]]);
   const saved = saveEdits(source, edits);
   assert.equal(loadEditableDocument(saved.markdown).blocks.some((block) => block.block === "figure"), false);
   assert.equal(loadEditableDocument(saved.markdown).blocks.length, editable.blocks.length - 1);
@@ -226,7 +215,7 @@ test("the Host Figure validation endpoint returns Core's persistent validation",
   assert.throws(() => validateFigureRequest({ imageUrl: "./a.svg" } as never), /must be strings/);
   // The same value is rejected by the Save path, so Apply and Save agree.
   assert.throws(() => saveEdits(source, {
-    figures: [{ path: [6], from: ORIGINAL, to: { ...CHANGED, caption: "% comment" } }],
+    figures: [{ path: [7], from: ORIGINAL, to: { ...CHANGED, caption: "% comment" } }],
   }), /canonical round-trip|not canonical/);
 });
 
@@ -245,7 +234,7 @@ test("Figure Apply participates in the structure guard and undo/redo", () => {
   const changed = schema.nodeFromJSON(setFigure(figure.toJSON() as TiptapJSON, CHANGED));
   state = state.apply(state.tr.replaceWith(position, position + figure.nodeSize, changed));
   assert.equal(state.doc.nodeAt(position)?.textContent, CHANGED.caption);
-  const identityTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, editable: false });
+  const identityTr = state.tr.setNodeMarkup(position, undefined, { ...state.doc.nodeAt(position)!.attrs, sourcePath: "forged" });
   assert.equal(state.apply(identityTr).doc, state.doc);
   assert.equal(rejected, 1);
   assert.equal(undo(state, (transaction) => { state = state.apply(transaction); }), true);
@@ -259,9 +248,9 @@ test("Figure Apply participates in the structure guard and undo/redo", () => {
   assert.equal(rejected, 1);
 });
 
-const DRAFT_SOURCE = "Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n";
-const PENDING_MARKDOWN = "Intro\n\n:::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n\n" +
-  "The controller structure is shown in [](#fig-pfc-control).\n";
+const DRAFT_SOURCE = nativeSource("Intro\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n");
+const PENDING_MARKDOWN = nativeSource("Intro\n\n:::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n\n" +
+  "The controller structure is shown in [Figure](#fig-pfc-control).\n");
 
 function editorState(markdown: string) {
   const schema = getSchema(editorExtensions());
@@ -303,7 +292,7 @@ test("an inserted Figure is saved as an empty place before any input, through un
   assert.notDeepEqual(appliedDocument(editorDocumentJSON(state)).content, appliedDocument(opening).content);
   const emptyEdits = collectSupportedEdits(editable, editorDocumentJSON(state));
   assert.deepEqual(emptyEdits.inserts, [{ block: "figure", imageUrl: "", imageAlt: "", caption: "" }]);
-  const emptyMarkdown = "Intro\n\n:::{figure}\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n";
+  const emptyMarkdown = nativeSource("Intro\n\n:::{figure}\n:::\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n");
   assert.equal(saveEdits(DRAFT_SOURCE, emptyEdits).markdown, emptyMarkdown);
   assert.deepEqual(figureOf(loadEditableDocument(emptyMarkdown), 1), { label: "", imageUrl: "", imageAlt: "", caption: "" });
 
@@ -329,19 +318,19 @@ test("an inserted Figure is saved as an empty place before any input, through un
 
   // A label alone, or a caption alone, is an Apply that saves.
   for (const [figure, label, markdown] of [
-    [{ ...pending, caption: "" }, "fig-pfc-control", "Intro\n\n:::{figure}\n:name: fig-pfc-control\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n"],
-    [pending, "", "Intro\n\n:::{figure}\n\nPFC Current Control Architecture\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n"],
+    [{ ...pending, caption: "" }, "fig-pfc-control", "Intro\n\n:::{figure}\n:name: fig-pfc-control\n:::\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"],
+    [pending, "", "Intro\n\n:::{figure}\n\nPFC Current Control Architecture\n:::\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"],
   ] as const) {
     let single = editorState(DRAFT_SOURCE).state;
     single = applyFigure(single.apply(insertFigureAfter(single, 0)), figure, label);
-    assert.equal(saveEdits(DRAFT_SOURCE, collectSupportedEdits(editable, editorDocumentJSON(single))).markdown, markdown);
+    assert.equal(saveEdits(DRAFT_SOURCE, collectSupportedEdits(editable, editorDocumentJSON(single))).markdown, nativeSource(markdown));
   }
 });
 
 test("a reopened pending Figure connects and removes an image, and its deletion undoes", () => {
   const editable = loadEditableDocument(PENDING_MARKDOWN);
   const figure = toTiptapDocument(editable).content![1];
-  assert.deepEqual([figure.attrs?.imageUrl, figure.attrs?.label, figure.attrs?.editable], ["", "fig-pfc-control", true]);
+  assert.deepEqual([figure.attrs?.imageUrl, figure.attrs?.label], ["", "fig-pfc-control"]);
   assert.equal(isSessionPlaceholder(figure), false);
   const opened = editorState(PENDING_MARKDOWN);
   let state = opened.state;
@@ -350,8 +339,8 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
     current.apply(current.tr.setNodeMarkup(position, undefined, { ...current.doc.nodeAt(position)!.attrs, imageUrl, imageAlt }));
   state = connect(state, "./pfc-control.svg", "PFC current control diagram");
   const connected = saveEdits(PENDING_MARKDOWN, collectSupportedEdits(editable, editorDocumentJSON(state)));
-  assert.equal(connected.markdown, "Intro\n\n:::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\n" +
-    "PFC Current Control Architecture\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  assert.equal(connected.markdown, nativeSource("Intro\n\n:::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\n" +
+    "PFC Current Control Architecture\n:::\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"));
   const imageEditable = loadEditableDocument(connected.markdown);
   let removed = editorState(connected.markdown).state;
   removed = connect(removed, "", "");
@@ -359,28 +348,28 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
 
   state = state.apply(deleteBlock(state, 1));
   assert.equal(saveEdits(PENDING_MARKDOWN, collectSupportedEdits(editable, editorDocumentJSON(state))).markdown,
-    "Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+    nativeSource("Intro\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"));
   state = step(state, undo);
   const restored = state.doc.nodeAt(position)!;
   assert.deepEqual([restored.attrs.label, restored.attrs.imageUrl, restored.textContent], ["fig-pfc-control", "./pfc-control.svg", "PFC Current Control Architecture"]);
   assert.equal(opened.rejected(), 0);
   // Host replay clears changed labels before reassigning them in one Save. A
   // temporary empty label-only Figure must not block a valid atomic label swap.
-  const labelOnlySource = ":::{figure}\n:name: fig-a\n:::\n\n:::{figure}\n:name: fig-b\n:::\n";
+  const labelOnlySource = nativeSource(":::{figure}\n:name: fig-a\n:::\n\n:::{figure}\n:name: fig-b\n:::\n");
   const swapped = saveEdits(labelOnlySource, { labels: [
-    { path: [0], from: "fig-a", to: "fig-b" }, { path: [1], from: "fig-b", to: "fig-a" },
+    { path: [1], from: "fig-a", to: "fig-b" }, { path: [2], from: "fig-b", to: "fig-a" },
   ] });
-  assert.equal(swapped.markdown, ":::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
-  assert.equal(saveEdits(labelOnlySource, { labels: [{ path: [0], from: "fig-a", to: "" }] }).markdown,
-    ":::{figure}\n:::\n\n:::{figure}\n:name: fig-b\n:::\n");
+  assert.equal(swapped.markdown, nativeSource(":::{figure}\n:name: fig-b\n:::\n\n:::{figure}\n:name: fig-a\n:::\n"));
+  assert.equal(saveEdits(labelOnlySource, { labels: [{ path: [1], from: "fig-a", to: "" }] }).markdown,
+    nativeSource(":::{figure}\n:::\n\n:::{figure}\n:name: fig-b\n:::\n"));
   // Caption and label edits can temporarily leave an empty pending Figure between operations.
   for (const [opening, from, to, beforeLabel, afterLabel] of [
     [":::{figure}\n:name: fig-a\n:::\n", "", "Caption", "fig-a", ""],
     [":::{figure}\n\nCaption\n:::\n", "Caption", "", "", "fig-a"],
   ] as const) {
-    const result = saveEdits(opening, {
-      figures: [{ path: [0], from: { imageUrl: "", imageAlt: "", caption: from }, to: { imageUrl: "", imageAlt: "", caption: to } }],
-      labels: [{ path: [0], from: beforeLabel, to: afterLabel }],
+    const result = saveEdits(nativeSource(opening), {
+      figures: [{ path: [1], from: { imageUrl: "", imageAlt: "", caption: from }, to: { imageUrl: "", imageAlt: "", caption: to } }],
+      labels: [{ path: [1], from: beforeLabel, to: afterLabel }],
     });
     assert.equal(canonicalWriteError(parse(result.markdown)), undefined);
     assert.deepEqual(figureOf(loadEditableDocument(result.markdown), 0), { label: afterLabel, imageUrl: "", imageAlt: "", caption: to });
@@ -389,8 +378,8 @@ test("a reopened pending Figure connects and removes an image, and its deletion 
 });
 
 test("a Figure inserted with an image file is saved with it", () => {
-  const editable = loadEditableDocument("Intro\n");
-  let { state } = editorState("Intro\n");
+  const editable = loadEditableDocument(nativeSource("Intro\n"));
+  let { state } = editorState(nativeSource("Intro\n"));
   state = state.apply(insertFigureAfter(state, 0, undefined, { imageUrl: "./pasted.png", imageAlt: "" }));
-  assert.equal(saveEdits("Intro\n", collectSupportedEdits(editable, editorDocumentJSON(state))).markdown, "Intro\n\n:::{figure} ./pasted.png\n:::\n");
+  assert.equal(saveEdits(nativeSource("Intro\n"), collectSupportedEdits(editable, editorDocumentJSON(state))).markdown, nativeSource("Intro\n\n:::{figure} ./pasted.png\n:::\n"));
 });

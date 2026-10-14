@@ -23,8 +23,6 @@ export type {
   SupportedEdits,
 } from "../shared/document-protocol.ts";
 export {
-  BLOCK_SOURCES_ATTR,
-  blockSourcesOf,
   isNewBlockPath,
   NEW_BLOCK_PREFIX,
   paragraphContent,
@@ -32,9 +30,6 @@ export {
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlockNode,
   toTiptapDocument,
-  withBlockSourceNodes,
-  withBlockSources,
-  type AppliedBlockSources,
 } from "./tiptap-projection.ts";
 export {
   appliedDocument,

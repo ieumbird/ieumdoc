@@ -11,10 +11,10 @@
 export type SectionMarker = number | "target" | "endnote" | null;
 
 /** Classifies a read-model block (Core's EditableBlock, or an editor block of the same shape). */
-export function sectionMarker(block: { block: string; level?: number; original?: { kind: string } }): SectionMarker {
+export function sectionMarker(block: { block: string; level?: number }): SectionMarker {
   if (block.block === "heading" && typeof block.level === "number") return block.level;
   if (block.block === "footnote") return "endnote";
-  return block.block === "target" || (block.block === "unsupported" && block.original?.kind === "mystTarget") ? "target" : null;
+  return block.block === "target" ? "target" : null;
 }
 
 /** Where the body ends: the endnotes after it are in no section. */

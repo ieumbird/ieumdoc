@@ -5,6 +5,10 @@
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
 
+## Native sample
+
+The default bundled sample is copied once to `sample-native-v1` under the user data directory. Existing `sample` directories and modified copies are preserved. The sample follows [Native document support](document-support-v1.md).
+
 ## Scope and completion
 
 The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, new autosave/recovery, cloud account or second editor state.
@@ -40,7 +44,7 @@ Before the first public release, local development versions can be reset. A prev
 
 - Check 15 seconds after launch, then every 6 hours; retry a failed check after 30 minutes. Manual Check for updates is immediate. Only one check is in flight; errors never block editing.
 - Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
-- Restart to update disables window input and asks the live Editor whether work is saved. Dirty document content, unapplied property/block-source drafts, Save, asset handling, Source generation and document switching refuse. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
+- Restart to update disables window input and asks the live Editor whether work is saved. Dirty document content, unapplied property drafts, Save, asset handling, Source generation and document switching refuse. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
 
 ## Verification and signing

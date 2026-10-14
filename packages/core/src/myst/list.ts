@@ -11,7 +11,7 @@ const hasOnly = (node: MystNode, fields: Set<string>) => Object.keys(node).every
 /**
  * List v1 authoring supports bullet and numbered lists whose items hold one paragraph of
  * supported inline content, optionally followed by one nested list. Task items, items with
- * several paragraphs or other blocks stay read-only so an edit never flattens them.
+ * several paragraphs or other blocks are rejected by native admission.
  * `spread` is recorded as myst-parser produces it for every Markdown list.
  */
 export function supportedListContent(node: MystNode): ListContent | undefined {

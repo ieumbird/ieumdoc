@@ -47,7 +47,7 @@ function firstDocument(): FirstDocument {
   const argument = process.argv.slice(app.isPackaged ? 1 : 2)
     .find((value) => value.toLowerCase().endsWith(".md") && existsSync(value) && statSync(value).isFile());
   if (argument) return { document: path.resolve(argument) };
-  const sampleDir = path.join(app.getPath("userData"), "sample");
+  const sampleDir = path.join(app.getPath("userData"), "sample-native-v1");
   const sample = path.join(sampleDir, "technical-document.md");
   if (!existsSync(sample)) {
     mkdirSync(sampleDir, { recursive: true });

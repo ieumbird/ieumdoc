@@ -112,7 +112,7 @@ test("display equations and cross-references are unchanged", () => {
   assert.equal(getNode(reparsed, [index + 1]).type, "math");
   assert.equal(getNode(reparsed, [index + 1]).label, "eq-current");
   assert.equal(getNode(reparsed, [2, 3]).type, "crossReference");
-  assert.equal(paragraph(reparsed, 2)?.editable, false);
+  assert.equal(paragraph(reparsed, 2)?.editable, true);
 });
 
 test("inline math that cannot be preserved is rejected before any change", () => {

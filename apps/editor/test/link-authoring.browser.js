@@ -100,6 +100,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved', {exact:true}).waitFor();
   const saved = await markdown();
   const expected = [
+    '---', 'ieumdoc: 1', '---', '',
     '# Links',
     '',
     'See [OPENAI](https://openai.com/research) for **bold docs text** for details. Updated.',

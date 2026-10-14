@@ -1,8 +1,8 @@
 import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
-  canonicalWriteIssue,
   endnotesInPlace,
   getEditableDocument,
+  inspectDocument,
   isAdmonitionVariant,
   inlineContentLength,
   insertAdmonition,
@@ -23,7 +23,6 @@ import {
   insertParagraph,
   parse,
   removeBlock,
-  replaceBlockSource,
   serialize,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -55,12 +54,8 @@ import {
   type InlineContent,
   type NodePath,
   writeIssueOf,
-  type WriteIssue,
 } from "@ieumdoc/core";
 import type {
-  BlockSourceEdit,
-  BlockSourceRequest,
-  BlockSourceResponse,
   OrderItem,
   SupportedEdits,
 } from "../shared/document-protocol.ts";
@@ -85,18 +80,16 @@ function editAt<T>(target: OrderItem, apply: () => T, cell?: SaveContentError["c
 }
 
 /** The read model, canonical writeability and endnote placement of one parsed snapshot. */
-export function readModel(source: string): { document: EditableDocument; writeError: string | null; writeIssue?: WriteIssue; endnotesInPlace: boolean } {
+export function readModel(source: string): { document: EditableDocument; endnotesInPlace: boolean } {
   const document = parse(source);
-  const issue = canonicalWriteIssue(document);
-  return { document: getEditableDocument(document), writeError: issue?.reason ?? null,
-    ...(issue ? { writeIssue: issue } : {}), endnotesInPlace: endnotesInPlace(document) };
+  return { document: getEditableDocument(document), endnotesInPlace: endnotesInPlace(document) };
 }
 
 export function saveEdits(
   source: string,
   edits: SupportedEdits,
 ): { markdown: string } {
-  let document = applySources(parse(source), edits.sources ?? []);
+  let document = parse(source);
   const editable = getEditableDocument(document);
   for (const edit of edits.headings ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
@@ -416,7 +409,9 @@ export function saveEdits(
   }
   // Locators address this save's source snapshot, then each split result.
   // Core alone performs every persistent move, merge, content update and split.
-  const locators: Locator[] = editable.blocks.map(block => ({ path: block.path, part: 0 }));
+  const locators: Locator[] = inspectDocument(document).map(block => ({ path: [block.index], part: 0 }));
+  const bodyPaths = new Set(editable.blocks.map(block => block.path.join(",")));
+  const metadata = locators.filter(item => "path" in item && !bodyPaths.has(item.path.join(",")));
   const move = (from: number, to: number) => {
     document = moveBlock(document, from, to);
     locators.splice(to, 0, locators.splice(from, 1)[0]);
@@ -487,9 +482,10 @@ export function saveEdits(
     locators.push({ insert });
   }
   if (edits.order !== undefined) {
-    if (!Array.isArray(edits.order) || edits.order.length !== locators.length) throw new Error("invalid block order");
+    if (!Array.isArray(edits.order) || edits.order.length + metadata.length !== locators.length) throw new Error("invalid block order");
+    const order = [...metadata, ...edits.order];
     const expected = new Set(locators.map(locatorKey));
-    for (const item of edits.order) {
+    for (const item of order) {
       if ("insert" in item) {
         if (!Number.isInteger(item.insert) || !expected.delete(locatorKey(item))) throw new Error("invalid block order");
         continue;
@@ -497,7 +493,7 @@ export function saveEdits(
       assertPath(item.path, "order");
       if (item.path.length !== 1 || !Number.isInteger(item.part) || !expected.delete(locatorKey(item))) throw new Error("invalid block order");
     }
-    for (const [to, item] of edits.order.entries()) {
+    for (const [to, item] of order.entries()) {
       const from = locators.findIndex(locator => locatorKey(locator) === locatorKey(item));
       if (from !== to) move(from, to);
     }
@@ -513,31 +509,6 @@ export function saveEdits(
     throw new SaveContentError(issue.reason, target, { cause: error, phase: "serialize", action: issue.action, line: issue.line });
   }
   return { markdown };
-}
-
-/** Replace read-only opening blocks with applied MyST source, in place: their locators stay valid. */
-function applySources(opening: Document, sources: BlockSourceEdit[]): Document {
-  if (sources.length === 0) return opening;
-  const blocks = getEditableDocument(opening).blocks;
-  let document = opening;
-  for (const edit of sources) {
-    document = editAt({ path: edit.path, part: 0 }, () => {
-      assertPath(edit.path, "block source");
-      if (edit.path.length !== 1 || !blockAt({ blocks }, edit.path)?.original || typeof edit.source !== "string") {
-        throw new Error(`block source edit is not allowed at [${edit.path.join(",")}]`);
-      }
-      return replaceBlockSource(document, edit.path[0], edit.source);
-    });
-  }
-  return document;
-}
-
-/** The block an Editor Apply makes: the session's applied sources, then this one, on its opening snapshot. */
-export function applyBlockSource(request: BlockSourceRequest): BlockSourceResponse {
-  if (typeof request?.base !== "string") throw new Error("invalid session source");
-  const others = Array.isArray(request.sources) ? request.sources : [];
-  const document = applySources(parse(request.base), [...others, { path: request.path, source: request.source }]);
-  return { block: getEditableDocument(document).blocks[request.path[0]] };
 }
 
 type Locator = OrderItem;

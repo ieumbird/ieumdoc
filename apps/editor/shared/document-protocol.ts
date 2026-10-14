@@ -8,7 +8,7 @@ import type {
   ListContent,
   NodePath,
 } from "@ieumdoc/core";
-import type { WriteIssue } from "@ieumdoc/core";
+import type { NativeDocumentErrorCode, WriteIssue } from "@ieumdoc/core";
 import type { SaveFailure } from "./save-error.ts";
 
 // Browser Editor/local Host data contract, not a Core operation or backend architecture.
@@ -113,19 +113,11 @@ export type InsertEdit =
   /** A `(label)=` target, labeling the block after it (a section heading in the Editor). */
   | { block: "target"; label: string };
 
-/** New MyST source for a read-only snapshot block; Core replaces the block in place. */
-export type BlockSourceEdit = {
-  path: NodePath;
-  source: string;
-};
-
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
-  /** Applied first, so the other edits address the replaced blocks at the same locators. */
-  sources?: BlockSourceEdit[];
   order?: OrderItem[];
   headings?: HeadingEdit[];
   headingLevels?: HeadingLevelEdit[];
@@ -161,8 +153,6 @@ export type DocumentFileResponse = {
   document: EditableDocument;
   revision: string;
   /** Why Core cannot write this snapshot as canonical Markdown, or null when Save can. */
-  writeError: string | null;
-  writeIssue?: WriteIssue;
   /** False when the source writes footnote definitions elsewhere than after the body in endnote
    * order: the first Save moves them there, as Source shows. Opening never writes. */
   endnotesInPlace: boolean;
@@ -179,16 +169,7 @@ export type SaveResponse = Pick<DocumentFileResponse, "revision">;
 
 export type SourceResponse = { markdown: string };
 
-export type DocumentErrorResponse = { error: string; target?: OrderItem; failure?: SaveFailure };
-
-/** Apply one block source to the session's opening snapshot after its other applied sources. */
-export type BlockSourceRequest = BlockSourceEdit & {
-  base: string;
-  sources?: BlockSourceEdit[];
-};
-
-/** The replaced block as Core projects it, at its snapshot path. */
-export type BlockSourceResponse = { block: EditableBlock };
+export type DocumentErrorResponse = { error: string; code?: NativeDocumentErrorCode; issue?: WriteIssue; target?: OrderItem; failure?: SaveFailure };
 
 /** One entry of a folder listing: a regular sub-folder, or a regular `.md` file (an image file when choosing an image). */
 export type FolderEntry = { name: string; kind: "folder" | "document" | "image"; path: string };

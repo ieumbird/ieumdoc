@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -52,7 +53,7 @@ function saveFile(dir: string, markdown: string, state: EditorState, editable: R
 
 test("code block text and language edits save as the edited fence and reload editable", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-code-"));
-  const markdown = "# Setup\n\n```sh\nnpm i\n```\n\nDone.\n";
+  const markdown = nativeSource("# Setup\n\n```sh\nnpm i\n```\n\nDone.\n");
   try {
     let { editable, state } = editorState(markdown);
     assert.equal(state.doc.child(1).type.name, "codeBlock");
@@ -65,13 +66,13 @@ test("code block text and language edits save as the edited fence and reload edi
     state = state.apply(state.tr.setNodeAttribute(blockPos, "language", "bash"));
 
     const edits = collectSupportedEdits(editable, editorDocumentJSON(state));
-    assert.deepEqual(edits.codes, [{ path: [1], code: { language: "bash", code: "npm i\n\n  npm test" } }]);
+    assert.deepEqual(edits.codes, [{ path: [2], code: { language: "bash", code: "npm i\n\n  npm test" } }]);
     const disk = saveFile(dir, markdown, state, editable);
-    assert.equal(disk, "# Setup\n\n```bash\nnpm i\n\n  npm test\n```\n\nDone.\n");
+    assert.equal(disk, nativeSource("# Setup\n\n```bash\nnpm i\n\n  npm test\n```\n\nDone.\n"));
     assert.equal(serialize(parse(disk)), disk);
     const reloaded = loadEditableDocument(disk).blocks;
     assert.deepEqual(reloaded.map((block) => block.block), ["heading", "code", "paragraph"]);
-    assert.deepEqual(reloaded[1], { block: "code", path: [1], language: "bash", code: "npm i\n\n  npm test" });
+    assert.deepEqual(reloaded[1], { block: "code", path: [2], language: "bash", code: "npm i\n\n  npm test" });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -79,7 +80,7 @@ test("code block text and language edits save as the edited fence and reload edi
 
 test("a new code block saves once written; an unwritten one is session space", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-new-code-"));
-  const markdown = "Intro.\n";
+  const markdown = nativeSource("Intro.\n");
   try {
     const { editable, state } = editorState(markdown);
     const inserted = state.apply(insertCodeBlockAfter(state, 0));
@@ -94,30 +95,26 @@ test("a new code block saves once written; an unwritten one is session space", (
     assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(written)).inserts, [
       { block: "code", language: "js", code: "const x = 1" },
     ]);
-    assert.equal(saveFile(dir, markdown, written, editable), "Intro.\n\n```js\nconst x = 1\n```\n");
+    assert.equal(saveFile(dir, markdown, written, editable), nativeSource("Intro.\n\n```js\nconst x = 1\n```\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("code blocks outside Code block v1 stay read-only editor blocks", () => {
-  const { state } = editorState("```{code-block} js\n:caption: Cap\nx\n```\n\n```js\ny\n```\n");
-  assert.deepEqual(state.doc.content.content.map((node) => node.type.name), ["unsupportedBlock", "codeBlock"]);
-});
 
 test("inline code applies and removes through Core as canonical Markdown", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-inline-code-"));
-  const markdown = "Run npm i now.\n";
+  const markdown = nativeSource("Run npm i now.\n");
   try {
     const { editable, state } = editorState(markdown);
     const { from, to } = textRange(state, "npm i");
     const marked = state.apply(state.tr.addMark(from, to, state.schema.marks.code.create()));
     const edits = collectSupportedEdits(editable, editorDocumentJSON(marked));
     assert.deepEqual(edits.paragraphs, [
-      { path: [0], content: [{ kind: "text", text: "Run " }, { kind: "code", value: "npm i" }, { kind: "text", text: " now." }] },
+      { path: [1], content: [{ kind: "text", text: "Run " }, { kind: "code", value: "npm i" }, { kind: "text", text: " now." }] },
     ]);
     const disk = saveFile(dir, markdown, marked, editable);
-    assert.equal(disk, "Run `npm i` now.\n");
+    assert.equal(disk, nativeSource("Run `npm i` now.\n"));
 
     // Removing the mark returns the paragraph to plain text.
     const reopened = editorState(disk);

@@ -83,7 +83,7 @@ async page => {
     await paragraph.dblclick();
     await page.getByTestId('selection-toolbar').waitFor();
     await page.getByTestId('selection-toolbar').getByRole('button',{name:'Bold'}).click();
-    result.boldApplied = await page.locator('[data-source-path="8"] strong').count() === 1;
+    result.boldApplied = await page.locator('[data-source-path="9"] strong').count() === 1;
     await page.keyboard.press('Control+z');
 
     // Keyboard: Tab from a text selection enters the toolbar. Moving through it, Shift+Tab and Escape
@@ -93,7 +93,7 @@ async page => {
       const {editor} = document.querySelector('.document-editor');
       const {from, to} = editor.state.selection;
       return JSON.stringify({from, to, undo: editor.can().undo(), redo: editor.can().redo(),
-        status: document.querySelector('[data-testid="status"]').textContent, bold: document.querySelectorAll('[data-source-path="8"] strong').length});
+        status: document.querySelector('[data-testid="status"]').textContent, bold: document.querySelectorAll('[data-source-path="9"] strong').length});
     });
     const backInEditor = async () => {
       await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
@@ -193,13 +193,17 @@ async page => {
     result.draftSurvivesDelete = await page.getByTestId('equation-latex').inputValue() === 'x + 2';
     await page.getByTestId('equation-cancel').click();
 
-    // Keyboard deletion uses engine history. Unsupported copying still produces an expiring notice.
+    // Keyboard deletion uses engine history. Unsupported external paste produces an expiring notice.
     await page.locator('[data-block="figure"] img').click();
     await page.keyboard.press('Delete');
     result.figureDeletedByKeyboard = await page.locator('[data-block="figure"]').count() === 0;
     await page.keyboard.press('Control+z');
-    await page.keyboard.press('Control+a');
-    await page.keyboard.press('Control+c');
+    await paragraph.click();
+    await page.locator('.document-editor').evaluate(el => {
+      const data = new DataTransfer();
+      data.setData('text/html', '<table><tr><td colspan="2">Merged cell</td></tr></table>');
+      el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
+    });
     await page.getByTestId('notice').waitFor();
     result.noticeInMessageArea = await page.locator('[data-testid="message-area"] [data-testid="notice"]').count() === 1;
     result.figureKept = await page.locator('[data-block="figure"]').count() === 1;

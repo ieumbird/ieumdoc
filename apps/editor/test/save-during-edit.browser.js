@@ -18,8 +18,8 @@ async page => {
     }
     if (requests.length === 2) {
       const response = JSON.parse(JSON.stringify(loaded));
-      const paragraph = response.document.blocks.find(block => block.path[0] === 8);
-      paragraph.content = request.paragraphs.find(edit => edit.path[0] === 8).content;
+      const paragraph = response.document.blocks.find(block => block.path[0] === 9);
+      paragraph.content = request.paragraphs.find(edit => edit.path[0] === 9).content;
       paragraph.text = paragraph.content.map(item => item.text).join('');
       return route.fulfill({json:{...response,revision:'second-revision'}});
     }

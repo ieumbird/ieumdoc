@@ -24,7 +24,7 @@ async (page, { openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '# Tables\n\nIntro paragraph.\n\n| Name | Value |\n| ---- | ----- |\n| U    | AC    |\n';
+  const fresh = '---\nieumdoc: 1\n---\n\n# Tables\n\nIntro paragraph.\n\n| Name | Value |\n| ---- | ----- |\n| U    | AC    |\n';
   if (await read() !== fresh) throw new Error('Scratch document is not a fresh tables.md copy');
   const open = async () => {
     await openDocument(page, file);
@@ -139,7 +139,7 @@ async (page, { openDocument }) => {
   result.rowAndColumnAdded = JSON.stringify(await grid(existing)) ===
     JSON.stringify([['#Name', '#', '#Value'], ['U', '', 'AC'], ['P', 'W', '']]);
   result.firstSave = await save();
-  result.firstFile = await read() === '# Tables\n\nIntro paragraph.\n\n' +
+  result.firstFile = await read() === '---\nieumdoc: 1\n---\n\n# Tables\n\nIntro paragraph.\n\n' +
     '| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n' +
     '| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n| P    | W |       |\n';
 

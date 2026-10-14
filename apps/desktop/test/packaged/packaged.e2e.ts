@@ -22,7 +22,7 @@ if (!existsSync(exe)) throw new Error(`Package the app first: ${exe} is missing.
 function profile(name: string): string {
   const folder = path.join(work, "profiles", name);
   mkdirSync(folder, { recursive: true });
-  for (const file of ["preferences.json", "logs/desktop.log", "logs/desktop.log.old", "sample/technical-document.md", "sample/diagram.svg"]) {
+  for (const file of ["preferences.json", "logs/desktop.log", "logs/desktop.log.old", "sample-native-v1/technical-document.md", "sample-native-v1/diagram.svg"]) {
     rmSync(path.join(folder, file), { force: true });
   }
   return folder;
@@ -90,7 +90,11 @@ async function closeApp(app: ElectronApplication): Promise<void> {
 }
 
 test("started without a document, it opens none; the sample opens with its figure from ieumdoc://app when chosen", async () => {
-  const { app, page, requests } = await launch(profile("sample"));
+  const userData = profile("sample");
+  const oldSample = path.join(userData, "sample", "technical-document.md");
+  mkdirSync(path.dirname(oldSample), { recursive: true });
+  writeFileSync(oldSample, "User-modified legacy sample.\n");
+  const { app, page, requests } = await launch(userData);
   try {
     assert.equal(page.url(), "ieumdoc://app/index.html");
     const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
@@ -101,9 +105,10 @@ test("started without a document, it opens none; the sample opens with its figur
     assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
     await page.getByRole("button", { name: "Open sample document", exact: true }).click();
     await page.locator(".ProseMirror h1").first().waitFor();
-    assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample[\\/]technical-document\.md$/);
+    assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]technical-document\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Converter Control");
     assert.equal(await figuresLoaded(page), true);
+    assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "native sample never overwrites old user copies");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
     const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));
     assert.deepEqual(foreign, [], "every request stays inside the app");

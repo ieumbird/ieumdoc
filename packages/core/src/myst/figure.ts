@@ -21,7 +21,7 @@ export function figureContentKind(node: MystNode): FigureContentKind {
 /**
  * Figure authoring supports `image` optionally followed by one supported inline
  * `caption` paragraph, or that caption alone for a pending Figure (imageUrl "").
- * Legends and unsupported inline content are read-only so an edit never flattens them.
+ * Legends and unsupported inline content are rejected by native admission.
  */
 export function supportedFigureContent(node: MystNode): FigureContent | undefined {
   if (!isFigure(node)) return undefined;

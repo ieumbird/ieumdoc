@@ -18,7 +18,7 @@ async page => {
       const next = clone(saved.document.blocks);
       next.push({
         block: 'equation',
-        path: [next.length],
+        path: [next.length + 1],
         latex: inserted.latex,
         label: '',
         editable: true,

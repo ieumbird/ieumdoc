@@ -19,7 +19,7 @@ type HeadingChoice = { heading: number; title: string };
 
 const KIND: Record<ReferenceRole, string> = { eq: "Equation", numref: "Figure", ref: "Section" };
 const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig.", ref: "§" };
-const HEADINGS = new Set(["heading", "readonlyHeading"]);
+const HEADINGS = new Set(["heading"]);
 
 /**
  * The equation, figure and table numbers of each top-level block of the current editor
@@ -28,7 +28,7 @@ const HEADINGS = new Set(["heading", "readonlyHeading"]);
  */
 export function blockNumbers(doc: ProseMirrorNode): NumberedTargets[] {
   const blocks: NumberedTargets[] = [];
-  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.attrs.caption, numbered: node.attrs.numbered as NumberedTargets | null })));
+  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.attrs.caption })));
   return targetNumbers(blocks);
 }
 
@@ -53,7 +53,7 @@ export function numberText(kind: NumberedKind, number: number): string {
   return kind === "equation" ? `(${number})` : String(number);
 }
 
-/** A heading's text, editable or read-only. */
+/** A native heading's text. */
 function headingText(node: ProseMirrorNode): string {
   return node.type.name === "heading" ? node.textContent : String(node.attrs.text ?? "");
 }
@@ -224,7 +224,7 @@ export function insertReference(editor: Editor, range: { from: number; to: numbe
   const $to = state.doc.resolve(range.to);
   const parent = $from.parent;
   if (!$from.sameParent($to) || !(parent.type.name === "paragraph" ||
-      parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true))) return false;
+      parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "admonition")) return false;
   const marks = (range.from === range.to ? state.storedMarks ?? $from.marks() : $from.marksAcross($to) ?? [])
     .filter((mark) => mark.type.name !== "link");
   const tr = state.tr;

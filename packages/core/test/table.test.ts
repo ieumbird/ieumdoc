@@ -30,18 +30,18 @@ function cells(document: MystDocument, index: number) {
   return block.block === "table" ? block.rows.map((row) => row.cells.map(({ text, header, editable }) => ({ text, header, editable }))) : [];
 }
 
-test("cells of supported inline content and empty cells are editable; other cells stay read-only", () => {
+test("cells of supported inline content and empty cells are editable", () => {
   assert.deepEqual(cells(parse(technical), TABLE), [
     [{ text: "Port", header: true, editable: true }, { text: "Type", header: true, editable: true }],
     [{ text: "U", header: false, editable: true }, { text: "AC", header: false, editable: true }],
     [{ text: "P", header: false, editable: true }, { text: "DC", header: false, editable: true }],
   ]);
-  const mixed = parse("| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) | {ref}`Intro <intro>` |\n");
-  assert.deepEqual(cells(mixed, 0)[1].map((cell) => cell.editable), [true, true, true, true, false]);
+  const mixed = parse("| A | B | C | D | E |\n| --- | --- | --- | --- | --- |\n|  | **b** | $x$ | [l](u) | {ref}`intro` |\n");
+  assert.deepEqual(cells(mixed, 0)[1].map((cell) => cell.editable), [true, true, true, true, true]);
   const block = getEditableDocument(mixed).blocks[0];
   assert.deepEqual(block.block === "table" && block.rows[1].cells.map((cell) => cell.content), [
     [], [{ kind: "strong", children: [{ kind: "text", text: "b" }] }], [{ kind: "math", value: "x" }],
-    [{ kind: "link", url: "u", children: [{ kind: "text", text: "l" }] }], [],
+    [{ kind: "link", url: "u", children: [{ kind: "text", text: "l" }] }], [{ kind: "reference", role: "ref", label: "intro" }],
   ]);
 });
 
@@ -116,12 +116,7 @@ test("updateTableCell fails closed without mutating the document", () => {
     assert.throws(() => updateTableCell(document, path, text), reason, `${path} ${JSON.stringify(text)}`);
   }
   assert.deepEqual(document, before);
-  const readonlyCell = parse("| A |\n| --- |\n| {ref}`B <b>` |\n");
-  assert.throws(() => updateTableCell(readonlyCell, [0, 1, 0], "b"), /not editable/);
-  // Table directives are not Markdown tables and stay read-only.
-  const directive = parse(":::{list-table}\n* - a\n:::\n");
-  assert.equal(getEditableDocument(directive).blocks[0]?.block, "unsupported");
-  assert.throws(() => updateTableCell(directive, [0, 0, 0], "b"), /not editable/);
+
 });
 
 const texts = (document: MystDocument, index: number) => cells(document, index).map((row) => row.map((cell) => cell.text));
@@ -208,21 +203,15 @@ test("aligned tables retain column semantics across cell edits and row/column in
   assert.equal(serialize(parse(markdown)), markdown);
 });
 
-test("table rows and columns can be removed and moved, keeping read-only cells and alignment", () => {
-  const source = "| A | B | C |\n| :-- | :-: | --: |\n| a1 | {ref}`Intro <intro>` | c1 |\n| a2 | b2 | c2 |\n";
-  let document = moveTableRow(parse(source), [0], 2, 1);
-  document = moveTableColumn(document, [0], 0, 2);
-  let markdown = serialize(document);
-  assert.equal(markdown, "|           B          |  C | A  |\n| :------------------: | -: | :- |\n|          b2          | c2 | a2 |\n| {ref}`Intro <intro>` | c1 | a1 |\n");
-  assert.equal(serialize(parse(markdown)), markdown);
-  assert.deepEqual(cells(parse(markdown), 0)[2].map(cell => cell.editable), [false, true, true]);
-  document = removeTableColumn(removeTableRow(document, [0], 2), [0], 1);
-  markdown = serialize(document);
-  assert.equal(markdown, "|  B  | A  |\n| :-: | :- |\n|  b2 | a2 |\n");
-  // A header row alone is a GFM table.
-  const header = serialize(removeTableRow(document, [0], 1));
-  assert.equal(serialize(parse(header)), header);
-  assert.deepEqual(cells(parse(header), 0).map(row => row.map(cell => cell.text)), [["B", "A"]]);
+test("table rows and columns move and remove supported cells with column alignment", () => {
+  const source = "| A | B | C |\n| :-- | :-: | --: |\n| a1 | **b1** | c1 |\n| a2 | b2 | c2 |\n";
+  let document = moveTableColumn(moveTableRow(parse(source), [0], 2, 1), [0], 0, 2);
+  assert.deepEqual(texts(document, 0), [["B", "C", "A"], ["b2", "c2", "a2"], ["b1", "c1", "a1"]]);
+  const block = getEditableDocument(document).blocks[0];
+  assert.deepEqual(block.block === "table" && block.rows[0].cells.map(cell => cell.align), ["center", "right", "left"]);
+  document = removeTableColumn(removeTableRow(document, [0], 1), [0], 2);
+  assert.deepEqual(texts(document, 0), [["B", "C"], ["b1", "c1"]]);
+  assert.equal(serialize(parse(serialize(document))), serialize(document));
 });
 
 test("updateTableColumnAlignment sets or clears a column's alignment on every row", () => {
@@ -280,7 +269,5 @@ test("table captions and labels survive cell, grid and alignment edits, and can 
   // Label-only tables must not recurse when first adding or changing the label.
   assert.match(serialize(updateLabel(plain, [0], "tbl-only")), /:name: tbl-only/);
   assert.throws(() => updateTableCaption(plain, [0], " two lines\ncaption"), /line breaks|whitespace/);
-  const unsupported = parse(":::{table} Cap\n:enumerated: false\n| A |\n|---|\n| 1 |\n:::\n");
-  assert.equal(getEditableDocument(unsupported).blocks[0].block, "unsupported");
-  assert.throws(() => updateTableCaption(unsupported, [0], "change"), /editable table/);
+
 });

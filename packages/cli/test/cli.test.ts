@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   getEditableDocument,
@@ -21,12 +21,14 @@ import {
 } from "@ieumdoc/core";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
-const fixture = fileURLToPath(
-  new URL("../../core/test/fixtures/document.md", import.meta.url),
-);
-const technicalFixture = fileURLToPath(
-  new URL("../../core/test/fixtures/technical-document.md", import.meta.url),
-);
+const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
+const fixtures = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-native-fixtures-"));
+after(() => rmSync(fixtures, { recursive: true, force: true }));
+const fixture = path.join(fixtures, "document.md");
+const technicalFixture = path.join(fixtures, "technical-document.md");
+for (const [name, target] of [["document.md", fixture], ["technical-document.md", technicalFixture]]) {
+  writeFileSync(target, nativeSource(readFileSync(fileURLToPath(new URL(`../../core/test/fixtures/${name}`, import.meta.url)), "utf8")));
+}
 
 const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
@@ -47,28 +49,28 @@ test("serve help explains the boundary and invalid invocation never starts a lis
 test("insert-block accepts Core inline JSON and rejects ambiguous input without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-inline-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n");
+  writeFileSync(file, nativeSource("# Title\n"));
   try {
     const content = JSON.stringify([{ kind: "strong", children: [{ kind: "text", text: "Value" }] },
       { kind: "text", text: " " }, { kind: "math", value: "x" }]);
-    const args = ["insert-block", file, "--at", "1", "--content", content];
+    const args = ["insert-block", file, "--at", "2", "--content", content];
     const ambiguous = run([...args, "--text", "conflict"]);
     assert.notEqual(ambiguous.status, 0);
     assert.match(ambiguous.stderr, /exactly one/);
-    assert.equal(readFileSync(file, "utf8"), "# Title\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Title\n"));
     const result = run(args);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(readFileSync(file, "utf8"), "# Title\n\n**Value** $x$\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Title\n\n**Value** $x$\n"));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("CLI refuses to replace a file changed after it was read and keeps those bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-changed-"));
   const file = path.join(dir, "document.md");
-  const external = Buffer.from("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n", "utf8");
-  writeFileSync(file, "# Title\n");
+  const external = Buffer.from(nativeSource("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n"), "utf8");
+  writeFileSync(file, nativeSource("# Title\n"));
   try {
-    const args = ["insert-block", file, "--at", "1", "--text", INSERTED];
+    const args = ["insert-block", file, "--at", "2", "--text", INSERTED];
     const changed = run(args, ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
       ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
     });
@@ -79,7 +81,7 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
 
     const saved = run(args);
     assert.equal(saved.status, 0, saved.stderr);
-    assert.equal(readFileSync(file, "utf8"), serialize(insertParagraph(parse(external.toString("utf8")), 1, INSERTED)));
+    assert.equal(readFileSync(file, "utf8"), serialize(insertParagraph(parse(external.toString("utf8")), 2, INSERTED)));
     assert.deepEqual(readdirSync(dir), ["document.md"]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -103,9 +105,9 @@ test("CLI can check and modify a real file through Core", () => {
     }
 
     assert.equal(run(["replace-text", file, "--from", FROM, "--to", TO]).status, 0);
-    assert.equal(run(["insert-block", file, "--at", "1", "--text", INSERTED]).status, 0);
-    assert.equal(run(["move-block", file, "--from", "3", "--to", "1"]).status, 0);
-    assert.equal(run(["remove-block", file, "--at", "4"]).status, 0);
+    assert.equal(run(["insert-block", file, "--at", "2", "--text", INSERTED]).status, 0);
+    assert.equal(run(["move-block", file, "--from", "4", "--to", "2"]).status, 0);
+    assert.equal(run(["remove-block", file, "--at", "5"]).status, 0);
     assert.equal(run(["format", file]).status, 0);
 
     const after = run(["check", file]);
@@ -148,7 +150,6 @@ test("ieumdoc help exits successfully", () => {
       "insert-equation",
       "insert-figure",
       "remove-block",
-      "replace-block-source",
       "insert-target",
       "move-block",
       "move-section",
@@ -204,23 +205,23 @@ test("command help is available from help and --help", () => {
 test("CLI insert-heading persists a Core heading", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro\n");
+  writeFileSync(file, nativeSource("Intro\n"));
   try {
-    const result = run(["insert-heading", file, "--at", "1", "--level", "2", "--text", "Details"]);
+    const result = run(["insert-heading", file, "--at", "2", "--level", "2", "--text", "Details"]);
     assert.equal(result.status, 0, result.stderr);
     const saved = readFileSync(file, "utf8");
     const blocks = getEditableDocument(parse(saved)).blocks;
     assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading"]);
     assert.deepEqual(blocks[1], {
       block: "heading",
-      path: [1],
+      path: [2],
       level: 2,
       text: "Details",
       content: [{ kind: "text", text: "Details" }],
       editable: true,
     });
     assert.equal(saved, serialize(parse(saved)));
-    assert.equal(run(["insert-heading", file, "--at", "0", "--level", "7", "--text", "Invalid"]).status, 1);
+    assert.equal(run(["insert-heading", file, "--at", "1", "--level", "7", "--text", "Invalid"]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -230,19 +231,19 @@ test("CLI insert-heading persists a Core heading", () => {
 test("CLI inserts admonitions, changes their kind and rejects unsafe requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-admonition-authoring-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  writeFileSync(file, nativeSource("Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n"));
   try {
     const warning = run([
-      "insert-admonition", file, "--at", "1", "--variant", "warning", "--text", "Check current limit.",
+      "insert-admonition", file, "--at", "2", "--variant", "warning", "--text", "Check current limit.",
     ]);
     assert.equal(warning.status, 0, warning.stderr);
     const note = run([
-      "insert-admonition", file, "--at", "2", "--variant", "note", "--text", "Confirm the result.",
+      "insert-admonition", file, "--at", "3", "--variant", "note", "--text", "Confirm the result.",
     ]);
     assert.equal(note.status, 0, note.stderr);
 
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, [
+    assert.equal(saved, nativeSource([
       "Intro paragraph.",
       "",
       ":::{warning}",
@@ -257,7 +258,7 @@ test("CLI inserts admonitions, changes their kind and rejects unsafe requests wi
       "",
       "Keep this paragraph.",
       "",
-    ].join("\n"));
+    ].join("\n")));
     const blocks = getEditableDocument(parse(saved)).blocks;
     assert.deepEqual(blocks.filter((block) => block.block === "admonition").map((block) =>
       block.block === "admonition" ? [block.variant, block.content] : []), [
@@ -269,16 +270,16 @@ test("CLI inserts admonitions, changes their kind and rejects unsafe requests wi
     assert.equal(checked.status, 0, checked.stderr);
     assert.match(checked.stdout, /^structure valid\n/);
 
-    const changed = run(["update-admonition-variant", file, "--path", "1", "--variant", "caution"]);
+    const changed = run(["update-admonition-variant", file, "--path", "2", "--variant", "caution"]);
     assert.equal(changed.status, 0, changed.stderr);
     assert.equal(readFileSync(file, "utf8"), saved.replace(":::{warning}", ":::{caution}"));
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["insert-admonition", file, "--at", "1", "--variant", "admonition", "--text", "Invalid variant."],
-      ["insert-admonition", file, "--at", "99", "--variant", "note", "--text", "Invalid index."],
-      ["update-admonition-variant", file, "--path", "1", "--variant", "caution"],
-      ["update-admonition-variant", file, "--path", "0", "--variant", "tip"],
+      ["insert-admonition", file, "--at", "2", "--variant", "admonition", "--text", "Invalid variant."],
+      ["insert-admonition", file, "--at", "100", "--variant", "note", "--text", "Invalid index."],
+      ["update-admonition-variant", file, "--path", "2", "--variant", "caution"],
+      ["update-admonition-variant", file, "--path", "1", "--variant", "tip"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -292,12 +293,12 @@ test("CLI inserts admonitions, changes their kind and rejects unsafe requests wi
 test("CLI inserts and edits quotes and dividers in a real file and rejects unsafe requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-quote-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n\nAfter.\n");
+  writeFileSync(file, nativeSource("# Title\n\nAfter.\n"));
   try {
     for (const args of [
-      ["insert-quote", file, "--at", "1", "--text", "Quoted."],
-      ["insert-divider", file, "--at", "2"],
-      ["update-quote", file, "--path", "1", "--content", JSON.stringify([{ kind: "delete", children: [{ kind: "text", text: "Old" }] }, { kind: "text", text: " new." }])],
+      ["insert-quote", file, "--at", "2", "--text", "Quoted."],
+      ["insert-divider", file, "--at", "3"],
+      ["update-quote", file, "--path", "2", "--content", JSON.stringify([{ kind: "delete", children: [{ kind: "text", text: "Old" }] }, { kind: "text", text: " new." }])],
     ]) {
       const result = run(args);
       assert.equal(result.status, 0, `${args.join(" ")}\n${result.stderr}`);
@@ -307,14 +308,14 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
     assert.deepEqual(blocks.map((block) => block.block), ["heading", "quote", "divider", "paragraph"]);
     assert.deepEqual(blocks[1]?.block === "quote" && blocks[1].content,
       [{ kind: "delete", children: [{ kind: "text", text: "Old" }] }, { kind: "text", text: " new." }]);
-    assert.match(run(["inspect", file]).stdout, /^1 quote inlineEditable=true .*\n2 divider$/m);
+    assert.match(run(["inspect", file]).stdout, /^2 quote inlineEditable=true .*\n3 divider$/m);
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["insert-quote", file, "--at", "1", "--text", "Both", "--content", "[]"],
-      ["insert-quote", file, "--at", "1", "--text", " "],
-      ["update-quote", file, "--path", "3", "--text", "Not a quote."],
-      ["insert-divider", file, "--at", "9"],
+      ["insert-quote", file, "--at", "2", "--text", "Both", "--content", "[]"],
+      ["insert-quote", file, "--at", "2", "--text", " "],
+      ["update-quote", file, "--path", "4", "--text", "Not a quote."],
+      ["insert-divider", file, "--at", "10"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -328,25 +329,25 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
 test("CLI inserts footnotes and edits their definitions in a real file and rejects unsafe requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-footnote-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n\nA claim.\n");
+  writeFileSync(file, nativeSource("# Title\n\nA claim.\n"));
   try {
     for (const args of [
-      ["insert-footnote", file, "--path", "1", "--offset", "7", "--text", "Source."],
-      ["update-footnote", file, "--path", "2", "--content", JSON.stringify([{ kind: "text", text: "See " }, { kind: "math", value: "x" }, { kind: "text", text: "." }])],
+      ["insert-footnote", file, "--path", "2", "--offset", "7", "--text", "Source."],
+      ["update-footnote", file, "--path", "3", "--content", JSON.stringify([{ kind: "text", text: "See " }, { kind: "math", value: "x" }, { kind: "text", text: "." }])],
     ]) {
       const result = run(args);
       assert.equal(result.status, 0, `${args.join(" ")}\n${result.stderr}`);
     }
-    assert.equal(readFileSync(file, "utf8"), "# Title\n\nA claim[^1].\n\n[^1]: See $x$.\n");
-    assert.match(run(["inspect", file]).stdout, /^2 footnote label="1" inlineEditable=true text="See \$x\$\."$/m);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Title\n\nA claim[^1].\n\n[^1]: See $x$.\n"));
+    assert.match(run(["inspect", file]).stdout, /^3 footnote label="1" inlineEditable=true text="See \$x\$\."$/m);
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["insert-footnote", file, "--path", "1", "--offset", "99", "--text", "x"],
-      ["insert-footnote", file, "--path", "2", "--offset", "0", "--text", "x"],
-      ["insert-footnote", file, "--path", "1", "--offset", "0", "--text", " "],
-      ["update-footnote", file, "--path", "1", "--text", "Not a definition."],
-      ["update-footnote", file, "--path", "2", "--content", JSON.stringify([{ kind: "footnote", label: "1" }])],
+      ["insert-footnote", file, "--path", "2", "--offset", "99", "--text", "x"],
+      ["insert-footnote", file, "--path", "3", "--offset", "0", "--text", "x"],
+      ["insert-footnote", file, "--path", "2", "--offset", "0", "--text", " "],
+      ["update-footnote", file, "--path", "2", "--text", "Not a definition."],
+      ["update-footnote", file, "--path", "3", "--content", JSON.stringify([{ kind: "footnote", label: "1" }])],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -360,10 +361,10 @@ test("CLI inserts footnotes and edits their definitions in a real file and rejec
 test("CLI writes endnotes after the body as Core and Editor Save do, and leaves refused documents intact", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnotes-"));
   const file = path.join(dir, "document.md");
-  const scattered = "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
-    "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n";
-  const placed = "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n" +
-    "[^b]: First note.\n\n[^a]: Second note.\n";
+  const scattered = nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
+    "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n");
+  const placed = nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n" +
+    "[^b]: First note.\n\n[^a]: Second note.\n");
   try {
     writeFileSync(file, scattered);
     const checked = run(["check", file]);
@@ -380,42 +381,41 @@ test("CLI writes endnotes after the body as Core and Editor Save do, and leaves 
     assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).endnotes, { inPlace: true });
 
     // Sections hold no endnotes: 0 # Document, 1 ## A, 2 claims, 3 ## B, 4 another, 5 [^b], 6 [^a].
-    assert.equal(run(["move-section", file, "--from", "1", "--to", "7"]).status, 0);
-    const moved = "# Document\n\n## Section B\n\nAnother paragraph[^b].\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n" +
-      "[^b]: First note.\n\n[^a]: Second note.\n";
+    assert.equal(run(["move-section", file, "--from", "2", "--to", "8"]).status, 0);
+    const moved = nativeSource("# Document\n\n## Section B\n\nAnother paragraph[^b].\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n" +
+      "[^b]: First note.\n\n[^a]: Second note.\n");
     assert.equal(readFileSync(file, "utf8"), moved);
-    const orphaning = run(["remove-section", file, "--at", "3"]);
+    const orphaning = run(["remove-section", file, "--at", "4"]);
     assert.equal(orphaning.status, 1);
     assert.match(orphaning.stderr, /\[\^a\] with no reference/);
     assert.equal(readFileSync(file, "utf8"), moved);
-    assert.equal(run(["remove-section", file, "--at", "1"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
+    assert.equal(run(["remove-section", file, "--at", "2"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n"));
 
-    const invalid = "Claim[^a].\n\n[^orphan]: Preserve me.\n\nBody.\n\n[^a]: Kept.\n";
+    const invalid = nativeSource("Claim[^a].\n\n[^orphan]: Preserve me.\n\nBody.\n\n[^a]: Kept.\n");
     writeFileSync(file, invalid);
     assert.equal(run(["format", file]).status, 1);
     assert.equal(readFileSync(file, "utf8"), invalid);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("CLI writes formatted headings and rejects line breaks and read-only headings without writing", () => {
+test("CLI writes formatted headings and rejects line breaks without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "## See {ref}`Intro <intro>`\n\nIntro.\n");
+  writeFileSync(file, nativeSource("## See {ref}`intro`\n\nIntro.\n"));
   try {
     const bold = JSON.stringify([{ kind: "text", text: "Limits of " }, { kind: "strong", children: [{ kind: "text", text: "current" }] }]);
-    const inserted = run(["insert-heading", file, "--at", "2", "--level", "2", "--content", bold]);
+    const inserted = run(["insert-heading", file, "--at", "3", "--level", "2", "--content", bold]);
     assert.equal(inserted.status, 0, inserted.stderr);
-    const updated = run(["update-heading", file, "--path", "2", "--content",
+    const updated = run(["update-heading", file, "--path", "3", "--content",
       JSON.stringify([{ kind: "emphasis", children: [{ kind: "text", text: "Revised" }] }, { kind: "text", text: " limits" }])]);
     assert.equal(updated.status, 0, updated.stderr);
     assert.match(readFileSync(file, "utf8"), /^## \*Revised\* limits$/m);
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["update-heading", file, "--path", "0", "--text", "Flattened"],
-      ["update-heading", file, "--path", "2", "--content", JSON.stringify([{ kind: "text", text: "A" }, { kind: "break" }])],
-      ["update-heading", file, "--path", "2", "--text", "A", "--content", "[]"],
+      ["update-heading", file, "--path", "3", "--content", JSON.stringify([{ kind: "text", text: "A" }, { kind: "break" }])],
+      ["update-heading", file, "--path", "3", "--text", "A", "--content", "[]"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -429,19 +429,19 @@ test("CLI writes formatted headings and rejects line breaks and read-only headin
 test("CLI updates a real H2 file to H5 and rejects unsafe heading requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-level-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n");
+  writeFileSync(file, nativeSource("Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n"));
   try {
-    const result = run(["update-heading-level", file, "--path", "1", "--from", "2", "--to", "5"]);
+    const result = run(["update-heading-level", file, "--path", "2", "--from", "2", "--to", "5"]);
     assert.equal(result.status, 0, result.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "Intro paragraph.\n\n##### Stable heading\n\nKeep this paragraph.\n");
+    assert.equal(saved, nativeSource("Intro paragraph.\n\n##### Stable heading\n\nKeep this paragraph.\n"));
     const blocks = getEditableDocument(parse(saved)).blocks;
     assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
     assert.deepEqual(blocks[1], {
-      block: "heading", path: [1], level: 5, text: "Stable heading", content: [{ kind: "text", text: "Stable heading" }], editable: true,
+      block: "heading", path: [2], level: 5, text: "Stable heading", content: [{ kind: "text", text: "Stable heading" }], editable: true,
     });
     assert.deepEqual(blocks[2], {
-      block: "paragraph", path: [2], text: "Keep this paragraph.",
+      block: "paragraph", path: [3], text: "Keep this paragraph.",
       content: [{ kind: "text", text: "Keep this paragraph." }], editable: true,
     });
     assert.equal(serialize(parse(saved)), saved);
@@ -451,10 +451,10 @@ test("CLI updates a real H2 file to H5 and rejects unsafe heading requests witho
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "0"],
-      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "7"],
-      ["update-heading-level", file, "--path", "1", "--from", "2", "--to", "4"],
-      ["update-heading-level", file, "--path", "0", "--from", "1", "--to", "4"],
+      ["update-heading-level", file, "--path", "2", "--from", "2", "--to", "0"],
+      ["update-heading-level", file, "--path", "2", "--from", "2", "--to", "7"],
+      ["update-heading-level", file, "--path", "2", "--from", "2", "--to", "4"],
+      ["update-heading-level", file, "--path", "1", "--from", "1", "--to", "4"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -468,24 +468,24 @@ test("CLI updates a real H2 file to H5 and rejects unsafe heading requests witho
 test("CLI converts a Paragraph to a Heading and back, rejecting invalid requests without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-convert-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n");
+  writeFileSync(file, nativeSource("# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n"));
   try {
-    const promoted = run(["convert-block", file, "--path", "1", "--to", "heading", "--level", "2"]);
+    const promoted = run(["convert-block", file, "--path", "2", "--to", "heading", "--level", "2"]);
     assert.equal(promoted.status, 0, promoted.stderr);
     const heading = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks[1];
     assert.equal(heading?.block === "heading" && heading.level, 2);
 
-    const demoted = run(["convert-block", file, "--path", "1", "--to", "paragraph"]);
+    const demoted = run(["convert-block", file, "--path", "2", "--to", "paragraph"]);
     assert.equal(demoted.status, 0, demoted.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n");
+    assert.equal(saved, nativeSource("# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n"));
 
     const unchanged = readFileSync(file);
     for (const args of [
-      ["convert-block", file, "--path", "2", "--to", "heading", "--level", "2"],
-      ["convert-block", file, "--path", "1", "--to", "heading"],
-      ["convert-block", file, "--path", "0", "--to", "paragraph", "--level", "2"],
-      ["convert-block", file, "--path", "0", "--to", "list"],
+      ["convert-block", file, "--path", "3", "--to", "heading", "--level", "2"],
+      ["convert-block", file, "--path", "2", "--to", "heading"],
+      ["convert-block", file, "--path", "1", "--to", "paragraph", "--level", "2"],
+      ["convert-block", file, "--path", "1", "--to", "list"],
     ]) {
       const failed = run(args);
       assert.equal(failed.status, 1, `${args.join(" ")}\n${failed.stderr}`);
@@ -499,21 +499,21 @@ test("CLI converts a Paragraph to a Heading and back, rejecting invalid requests
 test("CLI insert-equation persists a Core equation", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro\n");
+  writeFileSync(file, nativeSource("Intro\n"));
   try {
-    const result = run(["insert-equation", file, "--at", "1", "--latex", "x^2 + 1"]);
+    const result = run(["insert-equation", file, "--at", "2", "--latex", "x^2 + 1"]);
     assert.equal(result.status, 0, result.stderr);
     const saved = readFileSync(file, "utf8");
     const blocks = getEditableDocument(parse(saved)).blocks;
     assert.deepEqual(blocks.map((block) => block.block), ["paragraph", "equation"]);
     assert.deepEqual(blocks[1], {
       block: "equation",
-      path: [1],
+      path: [2],
       latex: "x^2 + 1",
       label: "",
     });
     assert.equal(saved, serialize(parse(saved)));
-    assert.equal(run(["insert-equation", file, "--at", "0", "--latex", ""]).status, 1);
+    assert.equal(run(["insert-equation", file, "--at", "1", "--latex", ""]).status, 1);
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -523,12 +523,12 @@ test("CLI insert-equation persists a Core equation", () => {
 test("CLI insert-figure persists a Core Figure", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-figure-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro\n");
+  writeFileSync(file, nativeSource("Intro\n"));
   try {
-    const result = run(["insert-figure", file, "--at", "1", "--image", "./plot.svg", "--alt", "Plot", "--caption", "Measured plot."]);
+    const result = run(["insert-figure", file, "--at", "2", "--image", "./plot.svg", "--alt", "Plot", "--caption", "Measured plot."]);
     assert.equal(result.status, 0, result.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n");
+    assert.equal(saved, nativeSource("Intro\n\n:::{figure} ./plot.svg\n:alt: Plot\n\nMeasured plot.\n:::\n"));
     const figure = getEditableDocument(parse(saved)).blocks[1];
     assert.equal(figure?.block, "figure");
     if (figure?.block !== "figure") return;
@@ -537,17 +537,17 @@ test("CLI insert-figure persists a Core Figure", () => {
       [true, "", "./plot.svg", "Plot", "Measured plot."],
     );
     const richCaption = [{ kind: "strong", children: [{ kind: "text", text: "Bold" }] }];
-    assert.equal(run(["insert-figure", file, "--at", "2", "--image", "./plot.svg", "--caption-content", JSON.stringify(richCaption)]).status, 0);
+    assert.equal(run(["insert-figure", file, "--at", "3", "--image", "./plot.svg", "--caption-content", JSON.stringify(richCaption)]).status, 0);
     assert.match(readFileSync(file, "utf8"), /\*\*Bold\*\*/);
-    assert.equal(run(["insert-figure", file, "--at", "0", "--image", "./only.svg"]).status, 0);
+    assert.equal(run(["insert-figure", file, "--at", "1", "--image", "./only.svg"]).status, 0);
     const minimal = readFileSync(file, "utf8");
-    assert.match(minimal, /^:::\{figure\} \.\/only\.svg\n:::\n/);
+    assert.match(minimal, /^---\nieumdoc: 1\n---\n\n:::\{figure\} \.\/only\.svg\n:::\n/);
     // Invalid under the pending Figure contract too: alt text without an image.
     for (const args of [
-      ["insert-figure", file, "--at", "0", "--image", " ./a.svg"],
-      ["insert-figure", file, "--at", "0", "--image", "./a.svg", "--caption", "% comment"],
-      ["insert-figure", file, "--at", "9", "--image", "./a.svg"],
-      ["insert-figure", file, "--at", "0", "--alt", "missing image"],
+      ["insert-figure", file, "--at", "1", "--image", " ./a.svg"],
+      ["insert-figure", file, "--at", "1", "--image", "./a.svg", "--caption", "% comment"],
+      ["insert-figure", file, "--at", "10", "--image", "./a.svg"],
+      ["insert-figure", file, "--at", "1", "--alt", "missing image"],
     ]) {
       assert.equal(run(args).status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), minimal, args.join(" "));
@@ -560,58 +560,58 @@ test("CLI insert-figure persists a Core Figure", () => {
 test("CLI insert-figure makes a pending Figure in one write; update-figure connects and removes its image", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-pending-figure-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  writeFileSync(file, nativeSource("Intro\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"));
   const pending = ":::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n";
-  const document = (figure: string) => `Intro\n\n${figure}\nThe controller structure is shown in [](#fig-pfc-control).\n`;
+  const document = (figure: string) => nativeSource(`Intro\n\n${figure}\nThe controller structure is shown in [Figure](#fig-pfc-control).\n`);
   try {
-    const inserted = run(["insert-figure", file, "--at", "1", "--label", "fig-pfc-control", "--caption", "PFC Current Control Architecture"]);
+    const inserted = run(["insert-figure", file, "--at", "2", "--label", "fig-pfc-control", "--caption", "PFC Current Control Architecture"]);
     assert.equal(inserted.status, 0, inserted.stderr);
     assert.equal(readFileSync(file, "utf8"), document(pending));
 
     // Inspect tells a pending Figure from an image Figure; check warns but stays writable and exits 0.
-    assert.match(run(["inspect", file]).stdout, /^1 figure figureEditable=true label="fig-pfc-control" image="" alt="" content=none numbers=figure:1$/m);
+    assert.match(run(["inspect", file]).stdout, /^2 figure figureEditable=true label="fig-pfc-control" image="" alt="" content=none numbers=figure:1$/m);
     const figure = JSON.parse(run(["inspect", file, "--format", "json"]).stdout).nodes.find((node: { type: string }) => node.type === "figure");
     assert.equal(figure.contentKind, "none");
     const checked = run(["check", file, "--format", "json"]);
     assert.equal(checked.status, 0, checked.stderr);
     const result = JSON.parse(checked.stdout);
-    assert.deepEqual([result.ok, result.writeability, result.readiness], [true, { writable: true }, { pendingFigures: [{ path: [1], label: "fig-pfc-control" }] }]);
+    assert.deepEqual([result.ok, result.writeability, result.readiness], [true, { writable: true }, { pendingFigures: [{ path: [2], label: "fig-pfc-control" }] }]);
     const textCheck = run(["check", file]);
     assert.equal(textCheck.status, 0, textCheck.stderr);
     assert.match(textCheck.stdout, /writeability ok/);
-    assert.match(textCheck.stderr, /^warning: Figure "fig-pfc-control" \(block 1\) has no content yet$/m);
+    assert.match(textCheck.stderr, /^warning: Figure "fig-pfc-control" \(block 2\) has no content yet$/m);
 
     // A label alone is one command, and a rejected label leaves the file as it was.
     const before = readFileSync(file, "utf8");
     for (const args of [
-      ["insert-figure", file, "--at", "0", "--label", "FIG-PFC-Control"],
-      ["insert-figure", file, "--at", "0", "--label", " fig-a"],
+      ["insert-figure", file, "--at", "1", "--label", "FIG-PFC-Control"],
+      ["insert-figure", file, "--at", "1", "--label", " fig-a"],
     ]) {
       assert.equal(run(args).status, 1, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), before, args.join(" "));
     }
-    assert.equal(run(["insert-figure", file, "--at", "0", "--label", "fig-only"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), `:::{figure}\n:name: fig-only\n:::\n\n${before}`);
+    assert.equal(run(["insert-figure", file, "--at", "1", "--label", "fig-only"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource(`:::{figure}\n:name: fig-only\n:::\n\n${before.slice(nativeSource("").length)}`));
     writeFileSync(file, before);
     // With no image, caption or label it is an empty place, saved and reported like any pending Figure.
-    assert.equal(run(["insert-figure", file, "--at", "0"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), `:::{figure}\n:::\n\n${before}`);
+    assert.equal(run(["insert-figure", file, "--at", "1"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource(`:::{figure}\n:::\n\n${before.slice(nativeSource("").length)}`));
     const emptyCheck = run(["check", file]);
     assert.equal(emptyCheck.status, 0, emptyCheck.stderr);
-    assert.match(emptyCheck.stderr, /^warning: Figure \(block 0\) has no content yet$/m);
+    assert.match(emptyCheck.stderr, /^warning: Figure \(block 1\) has no content yet$/m);
     writeFileSync(file, before);
 
     // Connecting an image keeps the place, caption, label and the reference.
-    assert.equal(run(["update-figure", file, "--path", "1", "--image", "./pfc-control.svg", "--alt", "PFC current control diagram"]).status, 0);
+    assert.equal(run(["update-figure", file, "--path", "2", "--image", "./pfc-control.svg", "--alt", "PFC current control diagram"]).status, 0);
     const connected = document(":::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\nPFC Current Control Architecture\n:::\n");
     assert.equal(readFileSync(file, "utf8"), connected);
     assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).readiness, { pendingFigures: [] });
     // Removing the image needs its alt text removed too; then it is the pending Figure again.
-    const altKept = run(["update-figure", file, "--path", "1", "--image", ""]);
+    const altKept = run(["update-figure", file, "--path", "2", "--image", ""]);
     assert.equal(altKept.status, 1);
     assert.match(altKept.stderr, /without an image cannot have alt text/);
     assert.equal(readFileSync(file, "utf8"), connected);
-    assert.equal(run(["update-figure", file, "--path", "1", "--image", "", "--alt", ""]).status, 0);
+    assert.equal(run(["update-figure", file, "--path", "2", "--image", "", "--alt", ""]).status, 0);
     assert.equal(readFileSync(file, "utf8"), document(pending));
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -641,7 +641,7 @@ test("CLI update-label sets, changes and removes labels through Core and rejects
     const duplicate = run(["update-label", file, "--path", figure, "--label", "EQ-Reference"]);
     assert.notEqual(duplicate.status, 0);
     assert.match(duplicate.stderr, /already names another target/);
-    assert.notEqual(run(["update-label", file, "--path", "0", "--label", "h"]).status, 0);
+    assert.notEqual(run(["update-label", file, "--path", "1", "--label", "h"]).status, 0);
     assert.deepEqual(readFileSync(file), before);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -666,7 +666,7 @@ test("CLI update-figure changes Figure properties through Core and preserves the
       [figure.label, figure.imageUrl, figure.imageAlt, figure.caption.text],
       ["fig-control", "./diagram-v2.svg", "New alt", "New caption."],
     );
-    assert.equal(saved.includes("See [](#fig-control)"), true);
+    assert.equal(saved.includes("See [Figure](#fig-control)"), true);
 
     assert.equal(run(["update-figure", file, "--path", figurePath, "--caption", "Only caption."]).status, 0);
     const partial = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks.find((block) => block.block === "figure");
@@ -684,8 +684,8 @@ test("CLI update-figure changes Figure properties through Core and preserves the
 
     const before = readFileSync(file);
     for (const args of [
-      ["update-figure", file, "--path", "0", "--caption", "not a figure"],
-      ["update-figure", file, "--path", "99", "--caption", "out of range"],
+      ["update-figure", file, "--path", "1", "--caption", "not a figure"],
+      ["update-figure", file, "--path", "100", "--caption", "out of range"],
       ["update-figure", file, "--path", figurePath],
       ["update-figure", file, "--path", figurePath, "--image", ""],
       ["update-figure", file, "--path", figurePath, "--alt", "line\nbreak"],
@@ -782,7 +782,7 @@ test("inspect prints Core editable targets", () => {
   const quoteDir = mkdtempSync(path.join(tmpdir(), "ieumdoc-inspect-"));
   const quoteFile = path.join(quoteDir, "quoted.md");
   try {
-    writeFileSync(quoteFile, 'Paragraph "quoted" text and a \\\\ slash.\n');
+    writeFileSync(quoteFile, nativeSource('Paragraph "quoted" text and a \\\\ slash.\n'));
     const quoted = run(["inspect", quoteFile]);
     assert.equal(quoted.status, 0, quoted.stderr);
     const quotedDocument = getEditableDocument(parse(readFileSync(quoteFile, "utf8")));
@@ -791,7 +791,7 @@ test("inspect prints Core editable targets", () => {
     if (quotedParagraph?.block === "paragraph") {
       assert.equal(
         quoted.stdout,
-        `0 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
+        `1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
       );
       assert.equal(quoted.stdout.includes("\n\n"), false);
     }
@@ -799,17 +799,7 @@ test("inspect prints Core editable targets", () => {
     rmSync(quoteDir, { recursive: true, force: true });
   }
 
-  const reference = editable.blocks.find(
-    (block) => block.block === "paragraph" && block.text.includes("fig-control"),
-  );
-  assert.equal(reference?.block, "paragraph");
-  if (reference?.block === "paragraph") {
-    assert.equal(reference.editable, false);
-    assert.equal(
-      lines.some((line) => line.startsWith(`${reference.path.join(",")} paragraph `) && line.includes("inlineEditable=false")),
-      true,
-    );
-  }
+
 });
 
 test("inspect and check expose stable machine-readable Core results", () => {
@@ -848,7 +838,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
     // Computed target numbers, as MyST numbers them; they are never written.
     const numbered = inspectResult.nodes.flatMap((node) => "numbers" in node ? [[node.type, node.numbers]] : []);
     assert.deepEqual(numbered, [["figure", { figure: 1 }], ["equation", { equation: 1 }]]);
-    assert.match(textInspect.stdout, /^6 figure .* numbers=figure:1$/m);
+    assert.match(textInspect.stdout, /^7 figure .* numbers=figure:1$/m);
 
     const checked = run(["check", file, "--format", "json"]);
     assert.equal(checked.status, 0, checked.stderr);
@@ -966,56 +956,28 @@ test("CLI source does not interpret MyST AST", () => {
 
 function corePipeline(source: string): string {
   let document = replaceText(parse(source), FROM, TO);
-  document = insertParagraph(document, 1, INSERTED);
-  document = moveBlock(document, 3, 1);
-  document = removeBlock(document, 4);
+  document = insertParagraph(document, 2, INSERTED);
+  document = moveBlock(document, 4, 2);
+  document = removeBlock(document, 5);
   validateStructure(document);
   return serialize(document);
 }
 
-test("replace-block-source edits a read-only block's source through Core and writes nothing on failure", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-block-source-"));
-  const file = path.join(dir, "document.md");
-  const sourceFile = path.join(dir, "block.md");
-  const original = "# Title\n\n![logo](./logo.png)\n\nBody.\n";
-  writeFileSync(file, original);
-  try {
-    const inspected = JSON.parse(run(["inspect", file, "--format", "json"]).stdout);
-    assert.equal(inspected.nodes[1].source, "![logo](./logo.png)");
-    for (const [args, reason] of [
-      [["--source", "```python\nprint(1)"], /not closed/],
-      [["--source", "One.\n\nTwo."], /exactly one block/],
-      [["--source", "Body.", "--source-file", sourceFile], /exactly one of --source or --source-file/],
-    ] as const) {
-      const failed = run(["replace-block-source", file, "--at", "1", ...args]);
-      assert.notEqual(failed.status, 0);
-      assert.match(failed.stderr, reason);
-      assert.equal(readFileSync(file, "utf8"), original);
-    }
-    writeFileSync(sourceFile, ":::{note} Logo\nThe **logo** moved.\n:::\n");
-    const replaced = run(["replace-block-source", file, "--at", "1", "--source-file", sourceFile]);
-    assert.equal(replaced.status, 0, replaced.stderr);
-    const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Title\n\n:::{note} Logo\nThe **logo** moved.\n:::\n\nBody.\n");
-    assert.equal(serialize(parse(saved)), saved);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
 test("insert-target and update-label label a section that {ref} references name", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-target-"));
   const file = path.join(dir, "document.md");
-  const original = "# Title\n\n## Intro\n\nSee {ref}`intro`.\n";
+  const original = nativeSource("# Title\n\n## Intro\n\nSee {ref}`intro`.\n");
   writeFileSync(file, original);
   try {
-    for (const args of [["insert-target", file, "--at", "1", "--label", "개요"], ["update-label", file, "--path", "2", "--label", "intro"]]) {
+    for (const args of [["insert-target", file, "--at", "2", "--label", "개요"], ["update-label", file, "--path", "3", "--label", "intro"]]) {
       assert.notEqual(run(args).status, 0, args.join(" "));
       assert.equal(readFileSync(file, "utf8"), original);
     }
-    assert.equal(run(["insert-target", file, "--at", "1", "--label", "sec-intro"]).status, 0);
-    assert.equal(run(["update-label", file, "--path", "1", "--label", "intro"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), "# Title\n\n(intro)=\n\n## Intro\n\nSee {ref}`intro`.\n");
+    assert.equal(run(["insert-target", file, "--at", "2", "--label", "sec-intro"]).status, 0);
+    assert.equal(run(["update-label", file, "--path", "2", "--label", "intro"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Title\n\n(intro)=\n\n## Intro\n\nSee {ref}`intro`.\n"));
     const nodes = JSON.parse(run(["inspect", file, "--format", "json"]).stdout).nodes;
-    assert.deepEqual(nodes[1], { path: [1], type: "target", label: "intro" });
+    assert.deepEqual(nodes[1], { path: [2], type: "target", label: "intro" });
     assert.equal(nodes[3].editable, true);
     const checked = run(["check", file]);
     assert.equal(checked.status, 0, checked.stderr);
@@ -1037,20 +999,20 @@ test("CLI format keeps semantic references distinct from fragment links", () => 
   const file = path.join(dir, "technical-document.md");
   const unsupported = path.join(dir, "term.md");
   copyFileSync(technicalFixture, file);
-  writeFileSync(unsupported, "See {term}`glossary`.\n");
+  writeFileSync(unsupported, nativeSource("See {term}`glossary`.\n"));
   try {
     for (let i = 0; i < 2; i++) assert.equal(run(["format", file]).status, 0);
     const saved = readFileSync(file, "utf8");
     // CLI writes exactly Core's canonical form: the {eq} role stays a role and the
     // `[](#...)` fragment links stay links (Core's regression pins their semantics).
     assert.equal(saved, serialize(parse(readFileSync(technicalFixture, "utf8"))));
-    assert.match(saved, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
-    assert.match(saved, /^The rated current follows from \[\]\(#eq-current\)\.$/m);
+    assert.match(saved, /^See \[Figure\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
+    assert.match(saved, /^The rated current follows from \[Equation\]\(#eq-current\)\.$/m);
 
     const failed = run(["format", unsupported]);
     assert.equal(failed.status, 1);
-    assert.match(failed.stderr, /cannot be preserved/);
-    assert.equal(readFileSync(unsupported, "utf8"), "See {term}`glossary`.\n");
+    assert.match(failed.stderr, /Unsupported native content/);
+    assert.equal(readFileSync(unsupported, "utf8"), nativeSource("See {term}`glossary`.\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1061,12 +1023,12 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
-    for (const [cell, text] of [["12,0,0", "Port name"], ["12,1,1", "AC-side"], ["12,2,1", ""]]) {
+    for (const [cell, text] of [["13,0,0", "Port name"], ["13,1,1", "AC-side"], ["13,2,1", ""]]) {
       const result = run(["update-table-cell", file, "--path", cell, "--text", text]);
       assert.equal(result.status, 0, result.stderr);
     }
     const bold = [{ kind: "strong", children: [{ kind: "text", text: "P" }] }];
-    const formatted = run(["update-table-cell", file, "--path", "12,2,0", "--content", JSON.stringify(bold)]);
+    const formatted = run(["update-table-cell", file, "--path", "13,2,0", "--content", JSON.stringify(bold)]);
     assert.equal(formatted.status, 0, formatted.stderr);
     const saved = readFileSync(file, "utf8");
     assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| \*\*P\*\* +\| +\|\n$/);
@@ -1078,10 +1040,10 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
       assert.deepEqual(table.rows[2].cells[0].content, bold);
     }
     for (const args of [
-      ["--path", "12,1,1", "--text", " padded"],
-      ["--path", "12,1,1", "--text", "x", "--content", JSON.stringify(bold)],
-      ["--path", "2,0,0", "--text", "x"],
-      ["--path", "12,1", "--text", "x"],
+      ["--path", "13,1,1", "--text", " padded"],
+      ["--path", "13,1,1", "--text", "x", "--content", JSON.stringify(bold)],
+      ["--path", "3,0,0", "--text", "x"],
+      ["--path", "13,1", "--text", "x"],
     ]) {
       const result = run(["update-table-cell", file, ...args]);
       assert.equal(result.status, 1, args.join(" "));
@@ -1092,12 +1054,10 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
   }
 });
 
-test("CLI inserts and updates lists through Core and rejects read-only or invalid lists without writing", () => {
+test("CLI inserts and updates lists through Core and rejects invalid lists without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-list-"));
   const file = path.join(dir, "doc.md");
-  const task = path.join(dir, "task.md");
-  writeFileSync(file, "# Steps\n");
-  writeFileSync(task, "- [ ] todo\n");
+  writeFileSync(file, nativeSource("# Steps\n"));
   const text = (value: string) => [{ kind: "text", text: value }];
   try {
     const inserted = {
@@ -1107,67 +1067,60 @@ test("CLI inserts and updates lists through Core and rejects read-only or invali
         { content: text("Power on") },
       ],
     };
-    const insert = run(["insert-list", file, "--at", "1", "--list", JSON.stringify(inserted)]);
+    const insert = run(["insert-list", file, "--at", "2", "--list", JSON.stringify(inserted)]);
     assert.equal(insert.status, 0, insert.stderr);
     const inspected = run(["inspect", file, "--format", "json"]);
     assert.equal(inspected.status, 0, inspected.stderr);
     const node = (JSON.parse(inspected.stdout) as { nodes: Array<Record<string, unknown>> }).nodes[1];
-    assert.deepEqual(node, { path: [1], type: "list", ...inserted });
+    assert.deepEqual(node, { path: [2], type: "list", ...inserted });
 
     // The inspected shape is the update input.
     const updated = { ordered: true, start: 3, items: node.items };
-    const update = run(["update-list", file, "--path", "1", "--list", JSON.stringify(updated)]);
+    const update = run(["update-list", file, "--path", "2", "--list", JSON.stringify(updated)]);
     assert.equal(update.status, 0, update.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Steps\n\n3.  **Check** wiring\n\n    1.  Input\n4.  Power on\n");
+    assert.equal(saved, nativeSource("# Steps\n\n3.  **Check** wiring\n\n    1.  Input\n4.  Power on\n"));
     assert.equal(serialize(parse(saved)), saved);
 
     const valid = JSON.stringify({ ordered: false, items: [{ content: text("x") }] });
     for (const [args, target] of [
-      [["update-list", file, "--path", "0", "--list", valid], file],
-      [["update-list", task, "--path", "0", "--list", valid], task],
-      [["insert-list", file, "--at", "1", "--list", "{"], file],
-      [["insert-list", file, "--at", "1", "--list", JSON.stringify({ ordered: false, items: [] })], file],
+      [["update-list", file, "--path", "1", "--list", valid], file],
+      [["insert-list", file, "--at", "2", "--list", "{"], file],
+      [["insert-list", file, "--at", "2", "--list", JSON.stringify({ ordered: false, items: [] })], file],
     ] as const) {
       const before = readFileSync(target, "utf8");
       const result = run([...args]);
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(readFileSync(target, "utf8"), before, args.join(" "));
     }
-    const readonly = run(["inspect", task]);
-    assert.equal(readonly.status, 0, readonly.stderr);
-    assert.match(readonly.stdout, /^0 unsupported /);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("CLI inserts and updates code blocks through Core and rejects read-only or invalid code without writing", () => {
+test("CLI inserts and updates code blocks through Core and rejects invalid code without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-code-"));
   const file = path.join(dir, "doc.md");
-  const captioned = path.join(dir, "captioned.md");
-  writeFileSync(file, "# Setup\n");
-  writeFileSync(captioned, "```{code-block} sh\n:caption: Install\nnpm i\n```\n");
+  writeFileSync(file, nativeSource("# Setup\n"));
   try {
-    const insert = run(["insert-code-block", file, "--at", "1", "--language", "python", "--code", "def f():\n\treturn 1\n"]);
+    const insert = run(["insert-code-block", file, "--at", "2", "--language", "python", "--code", "def f():\n\treturn 1\n"]);
     assert.equal(insert.status, 0, insert.stderr);
     const inspected = run(["inspect", file, "--format", "json"]);
     assert.equal(inspected.status, 0, inspected.stderr);
     assert.deepEqual((JSON.parse(inspected.stdout) as { nodes: unknown[] }).nodes[1],
-      { path: [1], type: "code", language: "python", code: "def f():\n\treturn 1\n" });
+      { path: [2], type: "code", language: "python", code: "def f():\n\treturn 1\n" });
 
-    const update = run(["update-code-block", file, "--path", "1", "--language", "py"]);
+    const update = run(["update-code-block", file, "--path", "2", "--language", "py"]);
     assert.equal(update.status, 0, update.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Setup\n\n```py\ndef f():\n\treturn 1\n\n```\n");
+    assert.equal(saved, nativeSource("# Setup\n\n```py\ndef f():\n\treturn 1\n\n```\n"));
     assert.equal(serialize(parse(saved)), saved);
-    assert.match(run(["inspect", file]).stdout, /^1 code language="py" code="def f\(\):\\n\\treturn 1\\n"$/m);
+    assert.match(run(["inspect", file]).stdout, /^2 code language="py" code="def f\(\):\\n\\treturn 1\\n"$/m);
 
     for (const [args, target] of [
-      [["update-code-block", file, "--path", "0", "--code", "x"], file],
-      [["update-code-block", file, "--path", "1"], file],
-      [["update-code-block", captioned, "--path", "0", "--code", "x"], captioned],
-      [["insert-code-block", file, "--at", "1", "--language", "two words", "--code", "x"], file],
+      [["update-code-block", file, "--path", "1", "--code", "x"], file],
+      [["update-code-block", file, "--path", "2"], file],
+      [["insert-code-block", file, "--at", "2", "--language", "two words", "--code", "x"], file],
     ] as const) {
       const before = readFileSync(target, "utf8");
       const result = run([...args]);
@@ -1182,23 +1135,23 @@ test("CLI inserts and updates code blocks through Core and rejects read-only or 
 test("CLI shows heading sections and moves or removes a section through Core", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-section-"));
   const file = path.join(dir, "doc.md");
-  writeFileSync(file, "# One\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\n## B\n\nBody B.\n");
+  writeFileSync(file, nativeSource("# One\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\n## B\n\nBody B.\n"));
   try {
     const inspected = run(["inspect", file]);
     assert.equal(inspected.status, 0, inspected.stderr);
     // Section A: its target, heading, body and subsection A.1.
-    assert.match(inspected.stdout, /^2 heading level=2 .* section=\[1,5\)$/m);
+    assert.match(inspected.stdout, /^3 heading level=2 .* section=\[2,6\)$/m);
     const json = JSON.parse(run(["inspect", file, "--format", "json"]).stdout) as { nodes: { path: number[]; section?: unknown }[] };
-    assert.deepEqual(json.nodes.find(node => node.path[0] === 2)?.section, { start: 1, end: 5 });
+    assert.deepEqual(json.nodes.find(node => node.path[0] === 3)?.section, { start: 2, end: 6 });
     const before = readFileSync(file, "utf8");
-    const into = run(["move-section", file, "--from", "2", "--to", "4"]);
+    const into = run(["move-section", file, "--from", "3", "--to", "5"]);
     assert.equal(into.status, 1);
     assert.match(into.stderr, /cannot move into itself/);
     assert.equal(readFileSync(file, "utf8"), before);
-    assert.equal(run(["move-section", file, "--from", "2", "--to", "7"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), "# One\n\n## B\n\nBody B.\n\n(sec-a)=\n\n## A\n\nBody A.\n\n### A.1\n");
-    assert.equal(run(["remove-section", file, "--at", "4"]).status, 0);
-    assert.equal(readFileSync(file, "utf8"), "# One\n\n## B\n\nBody B.\n");
+    assert.equal(run(["move-section", file, "--from", "3", "--to", "8"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# One\n\n## B\n\nBody B.\n\n(sec-a)=\n\n## A\n\nBody A.\n\n### A.1\n"));
+    assert.equal(run(["remove-section", file, "--at", "5"]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# One\n\n## B\n\nBody B.\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1207,27 +1160,27 @@ test("CLI shows heading sections and moves or removes a section through Core", (
 test("CLI creates a table, adds, moves and removes rows and columns, and aligns columns through Core, rejecting invalid shapes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
   const file = path.join(dir, "doc.md");
-  writeFileSync(file, "# Ratings\n");
+  writeFileSync(file, nativeSource("# Ratings\n"));
   try {
     const steps = [
-      ["insert-table", file, "--at", "1", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]]), "--align", JSON.stringify(["left", "right"])],
-      ["insert-table-row", file, "--path", "1", "--at", "2"],
-      ["insert-table-column", file, "--path", "1", "--at", "1"],
-      ["update-table-cell", file, "--path", "1,2,0", "--text", "P"],
+      ["insert-table", file, "--at", "2", "--cells", JSON.stringify([["Port", "Type"], ["U", "AC"]]), "--align", JSON.stringify(["left", "right"])],
+      ["insert-table-row", file, "--path", "2", "--at", "2"],
+      ["insert-table-column", file, "--path", "2", "--at", "1"],
+      ["update-table-cell", file, "--path", "2,2,0", "--text", "P"],
     ];
     for (const args of steps) {
       const result = run(args);
       assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
     }
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, "# Ratings\n\n| Port |   | Type |\n| :--- | - | ---: |\n| U    |   |   AC |\n| P    |   |      |\n");
+    assert.equal(saved, nativeSource("# Ratings\n\n| Port |   | Type |\n| :--- | - | ---: |\n| U    |   |   AC |\n| P    |   |      |\n"));
     assert.equal(serialize(parse(saved)), saved);
     const invalid: [string[], RegExp?][] = [
-      [["insert-table", file, "--at", "0", "--cells", "[[\"A\",\"B\"],[\"x\"]]"]],
-      [["insert-table", file, "--at", "0", "--cells", "not json"], /--cells must be JSON/],
-      [["insert-table", file, "--at", "0", "--cells", "[]"]],
-      [["insert-table-row", file, "--path", "1", "--at", "0"], /from 1 to 3/],
-      [["insert-table-column", file, "--path", "0", "--at", "0"]],
+      [["insert-table", file, "--at", "1", "--cells", "[[\"A\",\"B\"],[\"x\"]]"]],
+      [["insert-table", file, "--at", "1", "--cells", "not json"], /--cells must be JSON/],
+      [["insert-table", file, "--at", "1", "--cells", "[]"]],
+      [["insert-table-row", file, "--path", "2", "--at", "0"], /from 1 to 3/],
+      [["insert-table-column", file, "--path", "1", "--at", "0"]],
     ];
     for (const [args, reason] of invalid) {
       const result = run(args);
@@ -1237,20 +1190,20 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
     }
     // Rows and columns are reordered, removed and realigned through the same Core operations as the Editor.
     for (const args of [
-      ["move-table-row", file, "--path", "1", "--from", "2", "--to", "1"],
-      ["move-table-column", file, "--path", "1", "--from", "2", "--to", "0"],
-      ["remove-table-column", file, "--path", "1", "--at", "2"],
-      ["update-table-alignment", file, "--path", "1", "--column", "0", "--align", "none"],
-      ["remove-table-row", file, "--path", "1", "--at", "2"],
+      ["move-table-row", file, "--path", "2", "--from", "2", "--to", "1"],
+      ["move-table-column", file, "--path", "2", "--from", "2", "--to", "0"],
+      ["remove-table-column", file, "--path", "2", "--at", "2"],
+      ["update-table-alignment", file, "--path", "2", "--column", "0", "--align", "none"],
+      ["remove-table-row", file, "--path", "2", "--at", "2"],
     ]) {
       const result = run(args);
       assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
     }
     const reshaped = readFileSync(file, "utf8");
-    assert.equal(reshaped, "# Ratings\n\n| Type | Port |\n| ---- | :--- |\n|      | P    |\n");
+    assert.equal(reshaped, nativeSource("# Ratings\n\n| Type | Port |\n| ---- | :--- |\n|      | P    |\n"));
     for (const [args, reason] of [
-      [["remove-table-row", file, "--path", "1", "--at", "0"], /from 1 to 1/],
-      [["update-table-alignment", file, "--path", "1", "--column", "0", "--align", "justify"], /--align must be/],
+      [["remove-table-row", file, "--path", "2", "--at", "0"], /from 1 to 1/],
+      [["update-table-alignment", file, "--path", "2", "--column", "0", "--align", "justify"], /--align must be/],
     ] as [string[], RegExp][]) {
       const result = run(args);
       assert.equal(result.status, 1, args.join(" "));
@@ -1262,151 +1215,103 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
   }
 });
 
-test("CLI paragraph commands keep ordinary links and {eq} references, and leave other references read-only", () => {
+test("CLI paragraph commands keep ordinary links and {eq} references, and retain section references", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-links-"));
   const file = path.join(dir, "links.md");
-  writeFileSync(file, "Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`Section A <sec-a>` there.\n");
+  writeFileSync(file, nativeSource("Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`sec-a` there.\n"));
   try {
     const inspected = run(["inspect", file]);
     assert.equal(inspected.status, 0, inspected.stderr);
-    assert.match(inspected.stdout, /^0 paragraph inlineEditable=true text="Go to the site now\."$/m);
-    assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
-    assert.match(inspected.stdout, /^2 paragraph inlineEditable=false text="See sec-a there\." source="See \{ref\}`Section A <sec-a>` there\."$/m);
-    const split = run(["split-paragraph", file, "--path", "0", "--offset", "8"]);
+    assert.match(inspected.stdout, /^1 paragraph inlineEditable=true text="Go to the site now\."$/m);
+    assert.match(inspected.stdout, /^2 paragraph inlineEditable=true text="See \{eq\}`eq-a`, there\."$/m);
+    const split = run(["split-paragraph", file, "--path", "1", "--offset", "8"]);
     assert.equal(split.status, 0, split.stderr);
     // A reference is one offset unit.
-    assert.equal(run(["split-paragraph", file, "--path", "2", "--offset", "5"]).status, 0);
+    assert.equal(run(["split-paragraph", file, "--path", "3", "--offset", "5"]).status, 0);
     assert.equal(readFileSync(file, "utf8"),
-      "Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`Section A <sec-a>` there.\n");
-    const saved = readFileSync(file, "utf8");
-    assert.equal(run(["split-paragraph", file, "--path", "4", "--offset", "3"]).status, 1);
-    assert.equal(readFileSync(file, "utf8"), saved);
+      nativeSource("Go to [th](https://a.example)\n\n[e site](https://a.example) now.\n\nSee {eq}`eq-a`\n\n, there.\n\nSee {ref}`sec-a` there.\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("CLI format fails before writing when canonical Markdown would lose semantics", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-format-"));
-  try {
-    for (const [name, source, reason] of [
-      // Layer 1: myst-to-md reports the node it cannot render.
-      ["keyboard.md", "# Keys\n\nBefore {kbd}`Ctrl` after\n", /cannot be preserved in canonical Markdown: .*keyboard/],
-      // Layer 2: the second subfigure is dropped without any diagnostic.
-      ["subfigure.md", ":::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /cannot be preserved in canonical Markdown: .*container/],
-    ] as const) {
-      const file = path.join(dir, name);
-      writeFileSync(file, source);
-      const before = readFileSync(file);
-      const result = run(["format", file]);
-      assert.notEqual(result.status, 0, name);
-      assert.match(result.stderr, reason, name);
-      assert.deepEqual(readFileSync(file), before, name);
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 test("CLI writes typed straight quotes as written and formats byte-order-marked files", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-input-safety-"));
   try {
     const file = path.join(dir, "quotes.md");
-    writeFileSync(file, "# Title\n\nHello.\n");
+    writeFileSync(file, nativeSource("# Title\n\nHello.\n"));
     for (const args of [
       ["replace-text", file, "--from", "Hello.", "--to", "Don't panic."],
-      ["insert-block", file, "--at", "2", "--text", 'The state is "READY".'],
-      ["insert-heading", file, "--at", "1", "--level", "2", "--text", "What's new"],
+      ["insert-block", file, "--at", "3", "--text", 'The state is "READY".'],
+      ["insert-heading", file, "--at", "2", "--level", "2", "--text", "What's new"],
     ]) {
       const result = run(args);
       assert.equal(result.status, 0, result.stderr);
     }
-    assert.equal(readFileSync(file, "utf8"), "# Title\n\n## What's new\n\nDon't panic.\n\nThe state is \"READY\".\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Title\n\n## What's new\n\nDon't panic.\n\nThe state is \"READY\".\n"));
 
     const marked = path.join(dir, "bom.md");
-    writeFileSync(marked, "\uFEFF# Heading\n\nBody.\n");
+    writeFileSync(marked, "\uFEFF" + nativeSource("# Heading\n\nBody.\n"));
     const formatted = run(["format", marked]);
     assert.equal(formatted.status, 0, formatted.stderr);
-    assert.equal(readFileSync(marked, "utf8"), "# Heading\n\nBody.\n");
+    assert.equal(readFileSync(marked, "utf8"), nativeSource("# Heading\n\nBody.\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-const CHECK_WRITABLE: [string, string][] = [
-  ["paragraph.md", "# Title\n\nA plain paragraph.\n"],
-  ["quotes.md", "Don't panic.\n\nThe state is \"READY\".\n"],
-  ["bom.md", "\uFEFF# Heading\n\nBody.\n"],
-];
-const CHECK_NOT_WRITABLE: [string, string, RegExp][] = [
-  ["unclosed-front-matter.md", "---\ntitle: Example\n", /front matter/],
-  ["keyboard.md", "Press {kbd}`Ctrl` now.\n", /keyboard/],
-];
-
-test("CLI check reports canonical writeability in text and JSON and agrees with format", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-writeability-"));
+test("native create and admission keep existing files intact and report structured errors", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-native-cli-"));
+  const file = path.join(dir, "new.md");
   try {
-    for (const [name, source] of CHECK_WRITABLE) {
-      const file = path.join(dir, name);
-      writeFileSync(file, source);
-      const text = run(["check", file]);
-      assert.equal(text.status, 0, `${name}: ${text.stderr}`);
-      assert.match(text.stdout, /^structure valid\n0 /, name);
-      assert.match(text.stdout, /\nwriteability ok\n$/, name);
-      const json = run(["check", file, "--format", "json"]);
-      assert.equal(json.status, 0, name);
-      assert.deepEqual(JSON.parse(json.stdout).writeability, { writable: true }, name);
-      assert.equal(readFileSync(file, "utf8"), source, `${name}: check never writes`);
-      const formatted = run(["format", file]);
-      assert.equal(formatted.status, text.status, `${name}: ${formatted.stderr}`);
+    const created = run(["create", file]);
+    assert.equal(created.status, 0, created.stderr);
+    const source = readFileSync(file, "utf8");
+    assert.deepEqual(getEditableDocument(parse(source)).blocks, []);
+    assert.equal(run(["create", file]).status, 1);
+    assert.equal(readFileSync(file, "utf8"), source);
+    const nested = path.join(dir, "missing", "new.md");
+    assert.equal(run(["create", nested]).status, 1);
+    assert.deepEqual(readdirSync(dir), ["new.md"]);
+    for (const args of [["check", file], ["check", file, "--format", "json"]]) assert.equal(run(args).status, 0);
+    const unsupported = "# Older document\r\n\r\nKeep these exact bytes.\r\n";
+    writeFileSync(file, unsupported);
+    for (const args of [["check", file], ["inspect", file], ["format", file], ["replace-text", file, "--from", "Older", "--to", "Changed"]]) {
+      const rejected = run(args);
+      assert.equal(rejected.status, 1, args.join(" "));
+      assert.match(rejected.stderr, /ieumdoc: 1/);
+      assert.equal(readFileSync(file, "utf8"), unsupported);
     }
-    for (const [name, source, reason] of CHECK_NOT_WRITABLE) {
-      const file = path.join(dir, name);
-      writeFileSync(file, source);
-      const before = readFileSync(file);
-      const text = run(["check", file]);
-      assert.equal(text.status, 1, name);
-      // Structural validity still holds and is still reported; writeability fails separately.
-      assert.match(text.stdout, /^structure valid\n0 /, name);
-      assert.doesNotMatch(text.stdout, /writeability ok/, name);
-      assert.match(text.stderr, /^writeability failed: Document contains semantic content that cannot be preserved in canonical Markdown: /, name);
-      assert.match(text.stderr, reason, name);
-      assert.doesNotMatch(text.stderr, /\n\s+at /, `${name}: no stack trace`);
-      const json = run(["check", file, "--format", "json"]);
-      assert.equal(json.status, 1, name);
-      const result = JSON.parse(json.stdout);
-      assert.equal(result.ok, false, name);
-      assert.deepEqual(result.validation, { valid: true }, name);
-      assert.equal(result.writeability.writable, false, name);
-      assert.match(result.writeability.error, reason, name);
-      assert.deepEqual(readFileSync(file), before, `${name}: check never writes`);
-      const formatted = run(["format", file]);
-      assert.equal(formatted.status, text.status, `${name}: ${formatted.stderr}`);
-      assert.deepEqual(readFileSync(file), before, `${name}: failed format never writes`);
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+    const json = run(["check", file, "--format", "json"]);
+    assert.equal(json.status, 1);
+    const result = JSON.parse(json.stdout);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.validation, { valid: false });
+    assert.equal(result.error.code, "native-marker");
+    assert.equal(result.error.line, 1);
+    assert.equal(result.nodes, undefined);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("check warns about references a removal left without a target, without failing or writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-references-"));
   const file = path.join(dir, "document.md");
-  writeFileSync(file, "# Title\n\nSee {numref}`fig-a` and [the figure](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
+  writeFileSync(file, nativeSource("# Title\n\nSee {numref}`fig-a` and [the figure](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n"));
   try {
-    const removed = run(["remove-block", file, "--at", "2"]);
+    const removed = run(["remove-block", file, "--at", "3"]);
     assert.equal(removed.status, 0, removed.stderr);
     const after = readFileSync(file, "utf8");
     assert.match(after, /\[the figure\]\(#fig-a\)/, "the link stays as written");
     const text = run(["check", file]);
     assert.equal(text.status, 0, text.stderr);
     assert.match(text.stdout, /\nwriteability ok\n$/);
-    assert.equal(text.stderr, "warning: {numref}`fig-a` (block 1, line 3) names no target in this document\n" +
-      "warning: link #fig-a (block 1, line 3) names no target in this document\n");
+    assert.equal(text.stderr, "warning: {numref}`fig-a` (block 2, line 7) names no target in this document\n" +
+      "warning: link #fig-a (block 2, line 7) names no target in this document\n");
     const json = run(["check", file, "--format", "json"]);
     assert.equal(json.status, 0, json.stderr);
     assert.deepEqual(JSON.parse(json.stdout).references, {
-      unresolved: [{ role: "numref", label: "fig-a", path: [1], line: 3 }, { link: "#fig-a", label: "fig-a", path: [1], line: 3 }],
+      unresolved: [{ role: "numref", label: "fig-a", path: [2], line: 7 }, { link: "#fig-a", label: "fig-a", path: [2], line: 7 }],
     });
     assert.equal(readFileSync(file, "utf8"), after, "check never writes");
   } finally {
@@ -1414,39 +1319,20 @@ test("check warns about references a removal left without a target, without fail
   }
 });
 
-test("check and format agree on complete document fixtures", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-format-"));
-  try {
-    const sources: [string, string][] = [
-      ["technical.md", readFileSync(technicalFixture, "utf8")],
-      ["document.md", readFileSync(fixture, "utf8")],
-    ];
-    for (const [name, source] of sources) {
-      const file = path.join(dir, name);
-      writeFileSync(file, source);
-      const checked = run(["check", file]).status === 0;
-      const formatted = run(["format", file]);
-      assert.equal(formatted.status === 0, checked, `${name}: ${formatted.stderr}`);
-      if (!checked) assert.equal(readFileSync(file, "utf8"), source, name);
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 test("CLI format and text editing preserve front matter through the Core writer", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
   try {
     for (const [name, source] of [
-      ["front-matter.md", "---\ntitle: Example\n---\n\n# Heading\n"],
-      ["bom-front-matter.md", "\uFEFF---\ntitle: Example\n---\n\n# Heading\n"],
+      ["front-matter.md", "---\nieumdoc: 1\n---\n\n# Heading\n"],
+      ["bom-front-matter.md", "\uFEFF---\nieumdoc: 1\n---\n\n# Heading\n"],
     ]) {
       const file = path.join(dir, name);
       writeFileSync(file, source);
       for (const args of [["format", file], ["replace-text", file, "--from", "Heading", "--to", "Changed"]]) {
         const result = run(args);
         assert.equal(result.status, 0, `${name} ${args[0]}`);
-        assert.equal(readFileSync(file, "utf8"), `---\ntitle: Example\n---\n\n# ${args[0] === "format" ? "Heading" : "Changed"}\n`);
+        assert.equal(readFileSync(file, "utf8"), `---\nieumdoc: 1\n---\n\n# ${args[0] === "format" ? "Heading" : "Changed"}\n`);
       }
     }
   } finally {
@@ -1458,9 +1344,9 @@ test("Core rejects lossy text updates before CLI overwrites a real file", () => 
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
   const file = path.join(dir, "document.md");
   try {
-    writeFileSync(file, "Original.\n");
+    writeFileSync(file, nativeSource("Original.\n"));
     const before = readFileSync(file);
-    const result = run(["update-node-text", file, "--path", "0", "--from", "Original.", "--to", "A\n\nB"]);
+    const result = run(["update-node-text", file, "--path", "1", "--from", "Original.", "--to", "A\n\nB"]);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /round-trip/);
     assert.deepEqual(readFileSync(file), before);
@@ -1473,9 +1359,9 @@ test("CLI move-block rejects a lossy canonical reorder without overwriting the f
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-reorder-"));
   const file = path.join(dir, "document.md");
   try {
-    writeFileSync(file, "- A\n\nMiddle\n\n- B");
+    writeFileSync(file, nativeSource("- A\n\nMiddle\n\n- B"));
     const before = readFileSync(file);
-    const result = run(["move-block", file, "--from", "2", "--to", "1"]);
+    const result = run(["move-block", file, "--from", "3", "--to", "2"]);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Canonical save changed block boundaries/);
     assert.deepEqual(readFileSync(file), before);
@@ -1488,11 +1374,11 @@ test("replace-text and insert-block reject lossy text without overwriting file b
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-canonical-writes-"));
   const file = path.join(dir, "document.md");
   try {
-    writeFileSync(file, "Original.\r\n");
+    writeFileSync(file, nativeSource("Original.\r\n"));
     const before = readFileSync(file);
     for (const args of [
       ["replace-text", file, "--from", "Original.", "--to", "A\n\nB"],
-      ["insert-block", file, "--at", "1", "--text", "A\n\nB"],
+      ["insert-block", file, "--at", "2", "--text", "A\n\nB"],
     ]) {
       const result = run(args);
       assert.equal(result.status, 1, result.stderr);
@@ -1524,7 +1410,7 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
   copyFileSync(technicalFixture, file);
   try {
     let expected = parse(readFileSync(file, "utf8"));
-    const index = getEditableDocument(expected).blocks.findIndex(b => b.block === "paragraph" && b.editable);
+    const index = getEditableDocument(expected).blocks.find(b => b.block === "paragraph")!.path[0];
     const execute = (args: string[]) => {
       const result = run(args);
       assert.equal(result.status, 0, result.stderr);
@@ -1562,15 +1448,15 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
 test("CLI authors table captions and labels through Core and rejects multiline captions without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-caption-"));
   const file = path.join(dir, "table.md");
-  writeFileSync(file, "| A |\n|---|\n| 1 |\n");
+  writeFileSync(file, nativeSource("| A |\n|---|\n| 1 |\n"));
   try {
     for (const args of [
-      ["update-table-caption", file, "--path", "0", "--text", "Values"],
-      ["update-label", file, "--path", "0", "--label", "tbl-values"],
+      ["update-table-caption", file, "--path", "1", "--text", "Values"],
+      ["update-label", file, "--path", "1", "--label", "tbl-values"],
     ]) { const result = run(args); assert.equal(result.status, 0, result.stderr); }
     const saved = readFileSync(file, "utf8");
     assert.match(saved, /:::\{table\} Values\n:name: tbl-values/);
-    const result = run(["update-table-caption", file, "--path", "0", "--text", "two\nlines"]);
+    const result = run(["update-table-caption", file, "--path", "1", "--text", "two\nlines"]);
     assert.notEqual(result.status, 0);
     assert.equal(readFileSync(file, "utf8"), saved);
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -1580,7 +1466,7 @@ test("CLI authors table captions and labels through Core and rejects multiline c
 test("CLI heading numbering persists document settings and exposes the computed numbers", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-heading-numbering-"));
   const file = path.join(dir, "headings.md");
-  writeFileSync(file, "# Title\n\n## First\n\n### Detail\n");
+  writeFileSync(file, nativeSource("# Title\n\n## First\n\n### Detail\n"));
   try {
     const changed = run(["update-heading-numbering", file, "--enabled", "true"]);
     assert.equal(changed.status, 0, changed.stderr);

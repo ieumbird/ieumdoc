@@ -48,7 +48,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
         const node = editor.state.doc.child(index);
         const endnote = endnoteLabel(node) !== undefined;
         return {top: rect.top - top, height: rect.height, endnote,
-          name: endnote ? "endnote" : node.type.name.replace(/^readonly/, "").replace(/Block$/, "").toLowerCase()};
+          name: endnote ? "endnote" : node.type.name.replace(/Block$/, "").toLowerCase()};
       }));
     };
     const transaction = () => {

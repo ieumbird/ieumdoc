@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Math
 
 The current is $i_d$ and the voltage is **$v_{dc}$**.

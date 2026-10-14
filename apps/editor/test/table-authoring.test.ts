@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
@@ -27,7 +28,7 @@ import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
 const text = (value: string) => [{ kind: "text" as const, text: value }];
-const mixed = "Intro.\n\n| Name | Note |\n| --- | --- |\n| U | {u}`bold` |\n| P |  |\n";
+const mixed = nativeSource("Intro.\n\n| Name | Note |\n| --- | --- |\n| U | **bold** |\n| P |  |\n");
 const TABLE = 1;
 
 function editorState(source: string) {
@@ -52,7 +53,7 @@ function grid(state: EditorState, index = TABLE): string[][] {
   const rows: string[][] = [];
   state.doc.child(index).forEach(row => {
     const cells: string[] = [];
-    row.forEach(cell => cells.push(cell.type.name === "readonlyTableCell" ? `(${cell.attrs.text})` : cell.textContent));
+    row.forEach(cell => cells.push(cell.textContent));
     rows.push(cells);
   });
   return rows;
@@ -71,7 +72,7 @@ function caretIn(state: EditorState, row: number, column: number, index = TABLE)
 
 const cellOf = (state: EditorState) => ({ row: state.selection.$from.index(1), column: state.selection.$from.index(2) });
 
-test("handle targets reuse commands outside the table, preserving read-only cells and one-step undo", () => {
+test("handle targets reuse commands outside the table, preserving formatted cells and one-step undo", () => {
   let { document, state, rejected } = editorState(mixed);
   // The caret stays in Intro, while the handle addresses a different row/column.
   state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
@@ -82,9 +83,9 @@ test("handle targets reuse commands outside the table, preserving read-only cell
   assert.ok(state.doc.eq(opening));
   state = apply(state, alignTableColumn(state, TABLE, "right", { row: 1, column: 1 }));
   state = apply(state, moveTableColumn(state, TABLE, -1, { row: 1, column: 1 }));
-  assert.deepEqual(grid(state), [["Note", "Name"], ["(bold)", "U"], ["", "P"]]);
+  assert.deepEqual(grid(state), [["Note", "Name"], ["bold", "U"], ["", "P"]]);
   const saved = saveEdits(mixed, collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON));
-  assert.match(saved.markdown, /\{u\}`bold`/);
+  assert.match(saved.markdown, /\*\*bold\*\*/);
   assert.deepEqual(rejected, []);
   assert.equal(BLOCK_COMMANDS.find(command => command.id === "table-row-delete")!.enabled(state, TABLE, { row: 0, column: 0 }), false);
   assert.throws(() => addTableRowBelow(state, TABLE, { row: 99, column: 0 }), /invalid table cell target/);
@@ -126,7 +127,7 @@ test("a new table has a header row and two body rows of three columns, and saves
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
   assert.deepEqual(edits.inserts, [{ block: "table", rows: [[text("Port"), [], []], [text("U"), [], []], [[], [], []]] }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note      |\n| ---- | --------- |\n| U    | {u}`bold` |\n| P    |           |\n");
+  assert.equal(saved.markdown, nativeSource("Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note     |\n| ---- | -------- |\n| U    | **bold** |\n| P    |          |\n"));
   assert.equal(loadEditableDocument(saved.markdown).blocks[1]?.block, "table");
 });
 
@@ -145,12 +146,12 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
   // Row below the caret's row, with the caret moving into it.
   state = caretIn(state, 1, 0);
   state = apply(state, addTableRowBelow(state, TABLE));
-  assert.deepEqual(grid(state), [["Name", "Note"], ["U", "(bold)"], ["", ""], ["P", ""]]);
+  assert.deepEqual(grid(state), [["Name", "Note"], ["U", "bold"], ["", ""], ["P", ""]]);
   assert.deepEqual(cellOf(state), { row: 2, column: 0 });
   state = apply(state, state.tr.insertText("I"));
   // Column right of the caret's column; the header cell is a header.
   state = apply(state, addTableColumnRight(state, TABLE));
-  assert.deepEqual(grid(state), [["Name", "", "Note"], ["U", "", "(bold)"], ["I", "", ""], ["P", "", ""]]);
+  assert.deepEqual(grid(state), [["Name", "", "Note"], ["U", "", "bold"], ["I", "", ""], ["P", "", ""]]);
   assert.deepEqual(cellOf(state), { row: 2, column: 1 });
   assert.equal(state.doc.child(TABLE).child(0).child(1).attrs.header, true);
   state = apply(state, state.tr.insertText("x"));
@@ -160,26 +161,24 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
   assert.deepEqual(cellOf(state), { row: 4, column: 0 });
   state = apply(outside(state), addTableColumnRight(outside(state), TABLE));
   assert.deepEqual(cellOf(state), { row: 0, column: 3 });
-  assert.deepEqual(grid(state), [["Name", "", "Note", ""], ["U", "", "(bold)", ""], ["I", "x", "", ""], ["P", "", "", ""], ["", "", "", ""]]);
+  assert.deepEqual(grid(state), [["Name", "", "Note", ""], ["U", "", "bold", ""], ["I", "x", "", ""], ["P", "", "", ""], ["", "", "", ""]]);
   // A snapshot cell edited in the same session keeps its snapshot path.
   state = apply(caretIn(state, 3, 0), caretIn(state, 3, 0).tr.insertText("Q"));
   assert.equal(rejected.length, 0);
 
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.deepEqual(edits.cells, [{ path: [TABLE, 2, 0], content: text("QP") }]);
+  assert.deepEqual(edits.cells, [{ path: [TABLE + 1, 2, 0], content: text("QP") }]);
   assert.deepEqual(edits.tables, [{
-    path: [TABLE],
+    path: [TABLE + 1],
     rows: [0, 1, null, 2, null],
     columns: [0, null, 1, null],
     cells: [{ row: 2, column: 0, content: text("I") }, { row: 2, column: 1, content: text("x") }],
   }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, "Intro.\n\n| Name |   | Note      |   |\n| ---- | - | --------- | - |\n| U    |   | {u}`bold` |   |\n| I    | x |           |   |\n| QP   |   |           |   |\n|      |   |           |   |\n");
+  assert.equal(saved.markdown, nativeSource("Intro.\n\n| Name |   | Note     |   |\n| ---- | - | -------- | - |\n| U    |   | **bold** |   |\n| I    | x |          |   |\n| QP   |   |          |   |\n|      |   |          |   |\n"));
   const table = loadEditableDocument(saved.markdown).blocks[TABLE];
   assert.ok(table?.block === "table");
-  assert.deepEqual(table.rows.map(row => row.cells.map(cell => cell.editable)), [
-    [true, true, true, true], [true, true, false, true], [true, true, true, true], [true, true, true, true], [true, true, true, true],
-  ]);
+  assert.deepEqual(table.rows[1].cells[2].content, [{ kind: "strong", children: [{ kind: "text", text: "bold" }] }]);
 });
 
 test("adding a row or column is one undo step and leaves nothing to save once undone", () => {
@@ -231,23 +230,23 @@ test("rows and columns move and are removed at the caret, columns are realigned,
   let { document, state, rejected } = editorState(mixed);
   const before = state.doc;
   state = apply(state, moveTableRow(caretIn(state, 2, 0), TABLE, -1));
-  assert.deepEqual(grid(state), [["Name", "Note"], ["P", ""], ["U", "(bold)"]]);
+  assert.deepEqual(grid(state), [["Name", "Note"], ["P", ""], ["U", "bold"]]);
   assert.deepEqual(cellOf(state), { row: 1, column: 0 });
   state = apply(state, moveTableColumn(state, TABLE, 1));
-  assert.deepEqual(grid(state), [["Note", "Name"], ["", "P"], ["(bold)", "U"]]);
+  assert.deepEqual(grid(state), [["Note", "Name"], ["", "P"], ["bold", "U"]]);
   assert.deepEqual(cellOf(state), { row: 1, column: 1 });
   state = apply(state, alignTableColumn(state, TABLE, "center"));
   state = apply(state, removeTableRow(state, TABLE));
-  assert.deepEqual(grid(state), [["Note", "Name"], ["(bold)", "U"]]);
+  assert.deepEqual(grid(state), [["Note", "Name"], ["bold", "U"]]);
   assert.deepEqual(rejected, []);
   // The read-only cell moved with its row and column; its source is unchanged.
   let edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.deepEqual(edits.tables, [{ path: [TABLE], rows: [0, 1], columns: [1, 0], align: [null, "center"], cells: [] }]);
-  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Note      | Name |\n| --------- | :--: |\n| {u}`bold` |   U  |\n");
+  assert.deepEqual(edits.tables, [{ path: [TABLE + 1], rows: [0, 1], columns: [1, 0], align: [null, "center"], cells: [] }]);
+  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n| Note     | Name |\n| -------- | :--: |\n| **bold** |   U  |\n"));
   // Removing a column takes its cells, read-only ones included.
   state = apply(state, removeTableColumn(caretIn(state, 0, 0), TABLE));
   edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.equal(saveEdits(mixed, edits).markdown, "Intro.\n\n| Name |\n| :--: |\n|   U  |\n");
+  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n| Name |\n| :--: |\n|   U  |\n"));
   // Each command is one undo step.
   for (let step = 0; step < 5; step++) undo(state, tr => { state = state.apply(tr); });
   assert.ok(state.doc.eq(before));
@@ -255,20 +254,20 @@ test("rows and columns move and are removed at the caret, columns are realigned,
 
 test("Host rejects table edits that do not match the snapshot table", () => {
   const rejected: [unknown, RegExp][] = [
-    [{ path: [0], rows: [0, null], columns: [0] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1, 2], columns: [0, 0], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [1, 0, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [null, 0, 1, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1, 2], columns: [], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1, 2], columns: [0, 1], align: ["justify", null], cells: [] }, /table edit is not allowed/],
-    [{ path: [TABLE], rows: [0, 1, 2, null], columns: [0, 1], cells: [{ row: 1, column: 0, content: text("x") }] }, /was not added/],
+    [{ path: [1], rows: [0, null], columns: [0] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [0, 1, 2], columns: [0, 0], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [1, 0, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [null, 0, 1, 2], columns: [0, 1], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [0, 1, 2], columns: [], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [0, 1, 2], columns: [0, 1], align: ["justify", null], cells: [] }, /table edit is not allowed/],
+    [{ path: [TABLE + 1], rows: [0, 1, 2, null], columns: [0, 1], cells: [{ row: 1, column: 0, content: text("x") }] }, /was not added/],
   ];
   for (const [table, reason] of rejected) {
     assert.throws(() => saveEdits(mixed, { tables: [table as never] }), reason);
   }
 });
 test("aligned table insertion keeps the displayed grid consistent with Core Save", () => {
-  const source = "Intro.\n\n| L | R |\n|:--|--:|\n| a | b |\n";
+  const source = nativeSource("Intro.\n\n| L | R |\n|:--|--:|\n| a | b |\n");
   let { document, state, rejected } = editorState(source);
   state = apply(state, addTableRowBelow(caretIn(state, 1, 0), TABLE));
   state = apply(state, addTableColumnRight(state, TABLE));
@@ -286,7 +285,7 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
 
 
 test("caption and label edits and newly captioned tables save through Core in the same session", () => {
-  const source = "| A |\n|---|\n| 1 |\n";
+  const source = nativeSource("| A |\n|---|\n| 1 |\n");
   const document = loadEditableDocument(source);
   const next = toTiptapDocument(document);
   next.content![0].attrs!.caption = text("Values");
@@ -295,6 +294,6 @@ test("caption and label edits and newly captioned tables save through Core in th
   const saved = saveEdits(source, edits);
   assert.match(saved.markdown, /:::\{table\} Values\n:name: tbl-values/);
   assert.deepEqual(collectSupportedEdits(loadEditableDocument(saved.markdown), toTiptapDocument(loadEditableDocument(saved.markdown))), { headings: [], paragraphs: [] });
-  const inserted = saveEdits("", { order: [{ insert: 0 }], inserts: [{ block: "table", rows: [[text("A")], [text("1")]], caption: text("New"), label: "tbl-new" }] });
+  const inserted = saveEdits(nativeSource(""), { order: [{ insert: 0 }], inserts: [{ block: "table", rows: [[text("A")], [text("1")]], caption: text("New"), label: "tbl-new" }] });
   assert.match(inserted.markdown, /:::\{table\} New\n:name: tbl-new/);
 });

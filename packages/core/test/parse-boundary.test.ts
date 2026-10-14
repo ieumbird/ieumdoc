@@ -122,7 +122,7 @@ test("closed front matter remains metadata when the body changes", () => {
     const document = parse(`${bom}${metadata}\n# Heading\n`);
     const edited = updateNodeTextAtPath(document, [1], "Heading", "Changed");
     assert.equal(persisted(edited).markdown, `${metadata}\n# Changed\n`);
-    assert.equal(getEditableDocument(document).blocks[0].original?.kind, "Front matter");
+    assert.equal(getEditableDocument(document).blocks[0].block, "heading");
   }
   for (const source of [
     "---\ntitle: Unclosed\n", "---\n\n# Heading\n\nBody.\n",
@@ -143,8 +143,8 @@ test("front matter detection follows the parser, not a leading-dash heuristic", 
   ]) {
     const document = parse(source);
     const { reparsed } = persisted(document);
-    assert.deepEqual(getEditableDocument(reparsed).blocks.map(({ original, ...block }) => block),
-      getEditableDocument(document).blocks.map(({ original, ...block }) => block), source);
+    assert.deepEqual(getEditableDocument(reparsed).blocks,
+      getEditableDocument(document).blocks, source);
   }
   // A leading thematic break is not front matter. Canonical Markdown writes it as `---`,
   // which reloads as front matter, so the write fails for that reason, not this one.

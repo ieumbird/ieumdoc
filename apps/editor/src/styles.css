@@ -410,8 +410,7 @@ button {
 }
 
 /* A heading reached from the outline clears the sticky header. */
-.document-editor > .heading,
-.document-editor > .heading-readonly {
+.document-editor > .heading {
   scroll-margin-top: calc(var(--layout-header-row) + var(--space-8));
 }
 
@@ -847,16 +846,6 @@ h6.heading { font-size: var(--font-size-sm); }
   padding: 0;
 }
 
-.paragraph-readonly,
-.heading-readonly {
-  color: var(--id-color-text-readonly);
-  cursor: default;
-}
-
-.paragraph-readonly {
-  white-space: pre-wrap;
-}
-
 .block-kind {
   margin: 0 0 var(--space-2);
   color: var(--id-color-text-muted);
@@ -870,18 +859,10 @@ h6.heading { font-size: var(--font-size-sm); }
   border-radius: var(--id-radius-sm);
 }
 
-[data-readonly="true"] {
-  cursor: default;
-}
-
 .table-block,
 .admonition,
 .figure,
 .equation {
-  margin: var(--space-4) 0;
-}
-
-.document-editor > .unsupported {
   margin: var(--space-4) 0;
 }
 
@@ -1117,10 +1098,6 @@ ol.list { list-style: decimal; }
   cursor: text;
 }
 
-.table [data-readonly-cell] {
-  color: var(--id-color-text-readonly);
-}
-
 .cell {
   display: inline-block;
   min-width: 2rem;
@@ -1234,10 +1211,6 @@ ol.list { list-style: decimal; }
   margin: var(--space-2) 0 0;
   color: var(--id-color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.unsupported {
-  color: var(--id-color-text-subtle);
 }
 
 /* A footnote reference is a superscript reference chip; its definition shows the same number. */
@@ -1900,27 +1873,6 @@ ol.list { list-style: decimal; }
   line-height: var(--line-height-label);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-/* Read-only source is inspectable without turning it into an authoring surface. */
-.original-content {
-  margin-top: var(--space-2);
-  font-family: var(--font-family-sans);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-label);
-}
-.original-content summary {
-  cursor: pointer;
-  text-align: start;
-  color: var(--id-color-text-muted);
-}
-.original-content summary:focus-visible { box-shadow: var(--focus-ring); }
-.original-content pre {
-  margin-top: var(--space-2);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
 }
 
 .table-block { position: relative; }

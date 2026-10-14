@@ -10,6 +10,7 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "writeability-preflight": [{status: 400, pathname: "/api/document", minimum: 3, description: "native document admission failures on Open, Reload and startup"}],
   "http-host": [
     { status: 403, pathname: "/api/folder-browse", minimum: 1, description: "HTTP picker refuses a path outside all allowed roots" },
     { status: 409, pathname: "/api/document", minimum: 1, description: "HTTP Save preserves local input after another writer commits" },
@@ -55,9 +56,6 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   ],
   "admonition-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
-  ],
-  "block-source-editing": [
-    {status: 400, pathname: "/api/block-source", minimum: 1, description: "rejected unclosed block source"},
   ],
   "label-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},

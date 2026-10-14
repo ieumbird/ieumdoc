@@ -1,10 +1,12 @@
 # Block source editing v1
 
-- Status: Implemented
-- Last verified: 2026-10-11 (Core/CLI 및 browser 회귀, 여러 Draft와 stale/late response 입력 보존).
+- Status: Superseded
+- Last verified: 2026-10-14 (supersession and successor link).
 - Scope: Core block replacement and its Editor/CLI adapters; [Document support](document-support-v1.md).
 
-A read-only block's MyST source can be edited in IeumDoc and applied through Core. MyST directives and roles are an open set, so read-only blocks remain however far visual authoring grows. Introduced in #102, this single-block operation is part of the current [Document support contract](document-support-v1.md); whole-document Source remains read-only. It does not need a new ADR: the change is a Core semantic operation that passes the existing validation and canonical write contract (ADR-0002), and the Editor keeps its single document state (ADR-0001).
+This is historical behavior removed by #232 and [ADR-0006](../adr/0006-native-document-boundary.md). Current authority: [Native document support](document-support-v1.md). The implementation, CLI command, Host endpoint and dedicated tests have been removed. The description below records the former contract.
+
+A read-only block's MyST source can be edited in IeumDoc and applied through Core. MyST directives and roles are an open set, so read-only blocks remain however far visual authoring grows. Introduced in #102, this single-block operation was part of the former [Document support contract](document-support-v1.md); whole-document Source remains read-only. It does not need a new ADR: the change is a Core semantic operation that passes the existing validation and canonical write contract (ADR-0002), and the Editor keeps its single document state (ADR-0001).
 
 ## Core
 

@@ -1,10 +1,8 @@
 import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { figureContentKind, supportedFigureContent, type FigureContentKind } from "./myst/figure.ts";
-import { numberedTargets } from "./myst/numbering.ts";
 import { getHeadingNumbering } from "./myst/heading-numbering.ts";
 import type { HeadingNumbering } from "./numbering.ts";
-import { blockTargets, defaultHeadingNumbering, NUMBERED_KINDS, type NumberedTargets } from "./numbering.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./myst/table.ts";
 import { inlineContentText, projectInlineContent, type InlineContent } from "./inline.ts";
 import { supportedAdmonitionContent } from "./myst/admonition.ts";
@@ -14,25 +12,26 @@ import { supportedCodeBlock } from "./myst/code.ts";
 import { supportedListContent } from "./myst/list.ts";
 import { isDivider, supportedQuoteContent } from "./myst/quote.ts";
 import { supportedTargetLabel } from "./myst/reference.ts";
+import { supportedHeadingContent as headingContent } from "./myst/native.ts";
 import { FRONT_MATTER_FIELD } from "./myst/parse.ts";
-import { footnoteReferences, supportedFootnoteContent } from "./myst/footnote.ts";
-import { sourceExcerpt, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
+import { supportedFootnoteContent } from "./myst/footnote.ts";
+import { type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 export type EditableCaption = {
   path: NodePath;
   text: string;
   content: InlineContent[];
-  editable: boolean;
+  editable: true;
 };
 
 export type EditableTableCell = {
   path: NodePath;
   text: string;
-  /** Supported inline content; empty when the cell is empty or read-only. */
+  /** Supported inline content; empty when the cell is empty. */
   content: InlineContent[];
   header: boolean;
-  /** False when the cell holds inline content an edit could not keep. */
-  editable: boolean;
+  /** Native cells contain supported inline content. */
+  editable: true;
   align?: "left" | "center" | "right";
 };
 
@@ -40,23 +39,23 @@ export type EditableTableRow = {
   cells: EditableTableCell[];
 };
 
-export type EditableBlock = (
+export type EditableBlock =
   | {
       block: "heading";
       path: NodePath;
       level: number;
       text: string;
-      /** Supported inline content; empty when the heading is read-only. */
+      /** Supported heading inline content. */
       content: InlineContent[];
-      /** False when the heading holds inline content an edit could not keep. */
-      editable: boolean;
+      /** Native headings contain supported inline content. */
+      editable: true;
     }
   | {
       block: "paragraph";
       path: NodePath;
       text: string;
       content: InlineContent[];
-      editable: boolean;
+      editable: true;
     }
   | {
       block: "admonition";
@@ -64,25 +63,25 @@ export type EditableBlock = (
       variant: string;
       text: string;
       content: InlineContent[];
-      editable: boolean;
+      editable: true;
     }
   | {
-      /** Quote v1: one paragraph of supported inline content; other quotes are read-only. */
+      /** Quote v1: one paragraph of supported inline content. */
       block: "quote";
       path: NodePath;
       text: string;
       content: InlineContent[];
-      editable: boolean;
+      editable: true;
     }
   | {
       /** A footnote definition. Footnotes v2 edits one paragraph of supported inline content
-       * without footnote references; other definitions are read-only. */
+       * without footnote references. */
       block: "footnote";
       path: NodePath;
       label: string;
       text: string;
       content: InlineContent[];
-      editable: boolean;
+      editable: true;
     }
   | {
       /** A plain thematic break (`---`). */
@@ -93,14 +92,14 @@ export type EditableBlock = (
       block: "figure";
       path: NodePath;
       label: string;
-      /** What the Figure shows: "none" for a pending Figure, "image", or "other" content (read-only). */
+      /** What the Figure shows: "none" for a pending Figure, or "image" for an image Figure. */
       contentKind: FigureContentKind;
       /** The image the Figure shows at its top level, if any; empty for a pending Figure. */
       imageUrl: string;
       imageAlt: string;
       caption: EditableCaption;
       /** True when Figure v1 authoring can replace image, alt text and caption without flattening content. */
-      editable: boolean;
+      editable: true;
     }
   | {
       block: "table";
@@ -110,12 +109,12 @@ export type EditableBlock = (
       caption?: InlineContent[];
     }
   | ({
-      /** A List v1 structure; other lists are "unsupported" (read-only). */
+      /** A List v1 structure. */
       block: "list";
       path: NodePath;
     } & ListContent)
   | ({
-      /** A Code block v1 structure; other code-like nodes are "unsupported" (read-only). */
+      /** A Code block v1 structure. */
       block: "code";
       path: NodePath;
     } & CodeBlockContent)
@@ -130,113 +129,60 @@ export type EditableBlock = (
       block: "target";
       path: NodePath;
       label: string;
-    }
-  | {
-      block: "unsupported";
-      path: NodePath;
-      text: string;
-    }) & {
-      /** Source context for visually unsupported content; never used to write. `line` is its
-       * line in the opened file, absent for block source applied since (`replaceBlockSource`). */
-      original?: { kind: string; text: string; line?: number };
-      /** The numbered targets the block holds, only where they differ from its kind's
-       * default (see `blockTargets`). Numbers come from `targetNumbers`. */
-      numbered?: NumberedTargets;
-      /** Nested headings in preserved blocks, in document order; they advance heading counters. */
-      headingLevels?: number[];
-      /** Footnote reference labels in read-only content, in document order; they advance footnote numbers. */
-      footnotes?: string[];
     };
 
 export type EditableDocument = {
   blocks: EditableBlock[];
   headingNumbering?: HeadingNumbering;
-  /** Enabling the default heading policy with this document's retained numbering metadata. */
-  headingNumberingDefault?: HeadingNumbering;
 };
 
 export function getEditableDocument(document: MystDocument): EditableDocument {
-  const numbered = numberedTargets(document);
-  const blocks = (document.children ?? []).map((node, index) => {
-    const block = toBlock(node, [index]);
-    const readonly = block.block === "unsupported" || ("editable" in block && !block.editable) ||
-      (block.block === "table" && block.rows.some(row => row.cells.some(cell => !cell.editable)));
-    const source = readonly ? sourceExcerpt(document, node) : undefined;
-    if (source) block.original = { kind: contentKind(node), ...source };
-    const footnotes = readonly ? footnoteReferences(node) : [];
-    if (footnotes.length) block.footnotes = footnotes;
-    const defaults = blockTargets(block);
-    if (NUMBERED_KINDS.some((kind) => (numbered[index][kind] ?? 0) !== (defaults[kind] ?? 0))) block.numbered = numbered[index];
-    if (block.block !== "heading") {
-      const levels: number[] = [];
-      const visit = (child: MystNode) => {
-        if (child.type === "heading") levels.push(Number(child.depth));
-        child.children?.forEach(visit);
-      };
-      node.children?.forEach(visit);
-      if (levels.length) block.headingLevels = levels;
-    }
-    return block;
-  });
+  const blocks = document.children.flatMap((node, index) => node[FRONT_MATTER_FIELD] === true ? [] : [toBlock(node, [index])]);
   const headingNumbering = getHeadingNumbering(document);
-  const policy = getHeadingNumbering(document, true);
-  const customPolicy = policy && JSON.stringify(policy) !== JSON.stringify(defaultHeadingNumbering(true));
-  return { blocks, ...(headingNumbering ? { headingNumbering } : {}), ...(customPolicy ? { headingNumberingDefault: policy } : {}) };
-}
-
-function contentKind(node: MystNode): string {
-  if (node[FRONT_MATTER_FIELD] !== undefined) return "Front matter";
-  if (node.type === "image") return "Markdown image";
-  const kinds = new Set<string>();
-  const visit = (child: MystNode) => {
-    if (!["text", "paragraph"].includes(child.type)) kinds.add(child.type);
-    child.children?.forEach(visit);
-  };
-  node.children?.forEach(visit);
-  return `${node.type}${kinds.size ? ` (${[...kinds].join(", ")})` : ""}`;
+  return { blocks, ...(headingNumbering ? { headingNumbering } : {}) };
 }
 
 function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (node.type === "heading") {
-    const content = headingContent(node);
+    const content = requireContent(headingContent(node));
     return {
       block: "heading",
       path,
       level: Number(node.depth ?? 1),
       text: toText(node),
-      content: content ?? [],
-      editable: content !== undefined,
+      content,
+      editable: true as const,
     };
   }
   if (node.type === "paragraph") {
-    const content = projectInlineContent(node);
+    const content = requireContent(projectInlineContent(node));
     return {
       block: "paragraph",
       path,
-      text: content ? inlineContentText(content) : paragraphText(node),
-      content: content ?? [],
-      editable: content !== undefined,
+      text: inlineContentText(content),
+      content,
+      editable: true as const,
     };
   }
   if (node.type === "admonition") {
-    const content = supportedAdmonitionContent(node);
+    const content = requireContent(supportedAdmonitionContent(node));
     return {
       block: "admonition",
       path,
       variant: typeof node.kind === "string" && node.kind.length > 0 ? node.kind : "note",
-      text: readableText(node),
-      content: content ?? [],
-      editable: content !== undefined,
+      text: inlineContentText(content),
+      content,
+      editable: true as const,
     };
   }
   if (node.type === "blockquote") {
-    const content = supportedQuoteContent(node);
-    return { block: "quote", path, text: readableText(node), content: content ?? [], editable: content !== undefined };
+    const content = requireContent(supportedQuoteContent(node));
+    return { block: "quote", path, text: inlineContentText(content), content, editable: true as const };
   }
   if (node.type === "footnoteDefinition" && typeof node.label === "string") {
-    const content = supportedFootnoteContent(node);
-    return { block: "footnote", path, label: node.label, text: content ? inlineContentText(content) : readableText(node),
-      content: content ?? [], editable: content !== undefined };
+    const content = requireContent(supportedFootnoteContent(node));
+    return { block: "footnote", path, label: node.label, text: inlineContentText(content),
+      content, editable: true as const };
   }
   if (isDivider(node)) {
     return { block: "divider", path };
@@ -267,16 +213,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (target !== undefined) {
     return { block: "target", path, label: target };
   }
-  return { block: "unsupported", path, text: readableText(node) };
-}
-
-const INLINE_CONTAINERS = new Set(["paragraph", "heading", "caption", "tableCell"]);
-
-/** Display text of unsupported content: inline text as MyST joins it, block children (list items,
- * paragraphs) separated by a space so they never run together. */
-function readableText(node: MystNode): string {
-  if (INLINE_CONTAINERS.has(node.type) || !node.children?.length) return toText(node);
-  return node.children.map(readableText).filter(Boolean).join(" ");
+  throw new Error(`Unsupported native block at [${path.join(",")}]: ${node.type}`);
 }
 
 function figureBlock(node: MystNode, path: NodePath): EditableBlock {
@@ -286,6 +223,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
   const image = imageIndex >= 0 ? children[imageIndex] : undefined;
   const caption = captionIndex >= 0 ? children[captionIndex] : undefined;
   const supported = supportedFigureContent(node);
+  if (!supported) throw new Error("Unsupported native Figure");
   return {
     block: "figure",
     path,
@@ -296,23 +234,23 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
     caption: {
       path: captionIndex >= 0 ? [...path, captionIndex] : path,
       text: caption ? toText(caption) : "",
-      content: supported ? figureCaptionContent(supported.caption) : [],
-      editable: supported !== undefined,
+      content: figureCaptionContent(supported.caption),
+      editable: true as const,
     },
-    editable: supported !== undefined,
+    editable: true as const,
   };
 }
 
 function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   const rows = (tableOf(node)!.children ?? []).map((row, rowIndex) => ({
     cells: (row.children ?? []).map((cell, cellIndex) => {
-      const content = tableCellContent(cell);
+      const content = requireContent(tableCellContent(cell));
       return {
         path: [...path, rowIndex, cellIndex] as NodePath,
         text: toText(cell),
-        content: content ?? [],
+        content,
         header: rowIndex === 0,
-        editable: content !== undefined,
+        editable: true as const,
         ...(["left", "center", "right"].includes(String(cell.align))
           ? { align: cell.align as "left" | "center" | "right" } : {}),
       };
@@ -327,34 +265,9 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   };
 }
 
-function paragraphText(node: MystNode): string {
-  if (node.type === "text") {
-    return typeof node.value === "string" ? node.value : "";
-  }
-  if (node.type === "link") {
-    const inner = (node.children ?? []).map(paragraphText).join("");
-    if (inner.length > 0) return inner;
-    const url = typeof node.url === "string" ? node.url : "";
-    return url.startsWith("#") ? url.slice(1) : url;
-  }
-  if (node.type === "crossReference") {
-    return nodeLabel(node);
-  }
-  return (node.children ?? []).map(paragraphText).join("");
-}
-
-const HEADING_FIELDS = new Set(["type", "depth", "children", "position"]);
-
-/** Editable headings hold non-empty supported inline content without line breaks. */
-function headingContent(node: MystNode): InlineContent[] | undefined {
-  if (!Object.entries(node).every(([key, value]) => HEADING_FIELDS.has(key) || value === undefined)) return undefined;
-  const content = projectInlineContent(node);
-  if (!content || inlineContentText(content).length === 0 || containsBreak(content)) return undefined;
+function requireContent(content: InlineContent[] | undefined): InlineContent[] {
+  if (!content) throw new Error("Unsupported native inline content");
   return content;
-}
-
-function containsBreak(content: InlineContent[]): boolean {
-  return content.some((item) => item.kind === "break" || ("children" in item && containsBreak(item.children)));
 }
 
 function nodeLabel(node: MystNode): string {

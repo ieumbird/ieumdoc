@@ -79,7 +79,7 @@ test("updateFigure changes image URL, alt text and caption and preserves the lab
   // The input snapshot is not mutated and other blocks are untouched.
   assert.equal(semanticFigure(document, FIGURE_PATH[0]).imageUrl, "./diagram.svg");
   assert.equal(getEditableDocument(changed).blocks.length, getEditableDocument(document).blocks.length);
-  assert.match(markdown, /See \[\]\(#fig-control\)/);
+  assert.match(markdown, /See \[Figure\]\(#fig-control\)/);
 });
 
 test("updateFigure updates each property independently", () => {
@@ -174,11 +174,11 @@ test("validateFigure is the persistent validity used by insertFigure", () => {
 const PENDING: FigureContent = { imageUrl: "", imageAlt: "", caption: "PFC Current Control Architecture" };
 
 test("a pending Figure persists its caption and label, and connecting or removing an image keeps them", () => {
-  const start = parse("Intro\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+  const start = parse("Intro\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n");
   const pending = updateLabel(insertFigure(start, 1, PENDING), [1], "fig-pfc-control");
   const { markdown, figure, node } = roundTrip(pending, 1);
   assert.equal(markdown, "Intro\n\n:::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n\n" +
-    "The controller structure is shown in [](#fig-pfc-control).\n");
+    "The controller structure is shown in [Figure](#fig-pfc-control).\n");
   assert.equal(serialize(pending), markdown);
   assert.deepEqual(figure, { editable: true, label: "fig-pfc-control", ...PENDING });
   assert.equal(node.identifier, "fig-pfc-control");
@@ -188,7 +188,7 @@ test("a pending Figure persists its caption and label, and connecting or removin
   const connected = updateFigure(parse(markdown), [1], { imageUrl: "./pfc-control.svg", imageAlt: "PFC current control diagram" });
   const withImage = roundTrip(connected, 1);
   assert.equal(withImage.markdown, "Intro\n\n:::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\n" +
-    "PFC Current Control Architecture\n:::\n\nThe controller structure is shown in [](#fig-pfc-control).\n");
+    "PFC Current Control Architecture\n:::\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n");
   assert.deepEqual([withImage.figure.label, withImage.figure.caption, withImage.node.identifier],
     ["fig-pfc-control", PENDING.caption, "fig-pfc-control"]);
   // Removing the image, and with it the alt text, is the same pending Figure again.
@@ -239,18 +239,6 @@ test("an empty Figure, with no image, caption or label, is a numbered place a do
     "Intro\n\n:::{figure} ./a.png\nCaption\n:::\n");
 });
 
-test("Figures whose content Figure v1 does not author keep failing closed", () => {
-  for (const [markdown, kind] of [
-    [":::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A-->B\n```\n\nFlow.\n:::\n", "other"],
-    [":::{figure}\n:class: wide\n:name: fig-wide\n\nCaption.\n:::\n", "none"],
-    [":::{figure}\n:name: fig-legend\n\nCaption.\n\nLegend paragraph.\n:::\n", "none"],
-  ] as const) {
-    const document = parse(markdown);
-    const block = getEditableDocument(document).blocks[0];
-    assert.equal(block?.block === "figure" && block.contentKind, kind, markdown);
-    assert.ok(canonicalWriteError(document), markdown);
-  }
-});
 
 test("updateFigure rejects non-Figure and invalid paths", () => {
   const document = parse(source);
@@ -259,18 +247,6 @@ test("updateFigure rejects non-Figure and invalid paths", () => {
   assert.throws(() => updateFigure(document, [6, 1], { caption: "x" }), /requires a figure/);
 });
 
-test("updateFigure fails closed for unsupported Figure structures", () => {
-  for (const markdown of [
-    ":::{figure} ./a.png\n{u}`V`\n:::\n",
-    ":::{figure} ./a.png\nCaption\n\nLegend paragraph\n:::\n",
-    ":::{figure} ./a.png\n% comment\n:::\n",
-  ]) {
-    const document = parse(markdown);
-    const block = getEditableDocument(document).blocks[0];
-    assert.equal(block?.block === "figure" && block.editable, false, markdown);
-    assert.throws(() => updateFigure(document, [0], { imageAlt: "x" }), /not editable/);
-  }
-});
 
 test("Figure captions keep supported inline semantics through updates, inserts and canonical reload", () => {
   const caption: import("./core-internal.ts").InlineContent[] = [

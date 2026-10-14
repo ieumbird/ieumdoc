@@ -17,7 +17,7 @@ writeFileSync(path.join(root, "secret.txt"), "outside");
 const documents = path.join(root, "documents");
 mkdirSync(documents);
 const initial = path.join(documents, "first.md");
-writeFileSync(initial, "# First\n\nAlpha.\n");
+writeFileSync(initial, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
 writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
 const handle = createProtocolHandler(editorDir, { document: initial });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
@@ -53,7 +53,7 @@ test("the first document request opens the initial document through the Host han
   assert.equal(response.status, 200);
   const loaded = await response.json() as { path: string; source: string; revision: string };
   assert.equal(loaded.path, initial);
-  assert.equal(loaded.source, "# First\n\nAlpha.\n");
+  assert.equal(loaded.source, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
   const media = await get(`/document/diagram.svg?path=${encodeURIComponent(initial)}`);
   assert.equal(media.status, 200);
   assert.equal(media.headers.get("content-type"), "image/svg+xml");
@@ -74,13 +74,13 @@ test("started without a document, the first request opens none and offers the sa
 test("Save goes through the Host's session checks and Core", async () => {
   const loaded = await (await get("/api/document")).json() as { path: string; source: string; revision: string };
   const save = (body: unknown) => handle(new Request(`${ORIGIN}/api/document`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
-  const edit = { path: [1], content: [{ kind: "text", text: "Alpha, saved from Desktop." }] };
+  const edit = { path: [2], content: [{ kind: "text", text: "Alpha, saved from Desktop." }] };
   const saved = await save({ path: initial, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [edit] });
   assert.equal(saved.status, 200, await saved.clone().text());
-  assert.equal(readFileSync(initial, "utf8"), "# First\n\nAlpha, saved from Desktop.\n");
+  assert.equal(readFileSync(initial, "utf8"), "---\nieumdoc: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
   // The disk revision no longer matches: the existing conflict check answers, and the file stays.
   const stale = await save({ path: initial, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [edit] });
   assert.equal(stale.status, 409);
-  assert.equal(readFileSync(initial, "utf8"), "# First\n\nAlpha, saved from Desktop.\n");
+  assert.equal(readFileSync(initial, "utf8"), "---\nieumdoc: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
   assert.equal((await save({ path: initial })).status, 400);
 });

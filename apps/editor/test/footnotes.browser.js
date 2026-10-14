@@ -51,10 +51,10 @@ async (page, { screenshots = false, openDocument }) => {
 
   // An external file writes [^b] between paragraphs. Opening it writes nothing and is not an edit;
   // the endnotes follow the body, and a notice and Source say what the first Save writes.
-  const written = '# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n' +
-    '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n';
-  const placed = '# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
-    '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n';
+  const written = '---\nieumdoc: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n' +
+    '[^a]: Defined later,\n    on two lines.\n';
+  const placed = '---\nieumdoc: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
+    '[^a]: Defined later,\n    on two lines.\n';
   await open(file);
   assert(await read() === written, 'Opening changed the file');
   assert(await order() === 'heading paragraph paragraph b a', `Opened order: ${await order()}`);
@@ -72,24 +72,13 @@ async (page, { screenshots = false, openDocument }) => {
   result.numberedByFirstReference = true;
 
   await editor.locator('[data-testid="footnote-reference"][data-label="a"] sup').click();
-  const selected = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.node?.attrs.footnote);
+  const selected = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.$from.parent.attrs.label);
   assert(selected === 'a', `Chip went to ${selected}`);
   result.chipGoesToDefinition = true;
 
-  // The read-only definition's source is its own; applying it unchanged changes nothing.
-  const definition = page.locator('.original-content').filter({hasText:'[^a]: Defined later,'});
-  await definition.locator('summary').click();
-  assert(await definition.locator('pre').textContent() === '[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.', 'Definition source');
-  await definition.getByTestId('block-source-edit').click();
-  await definition.getByTestId('block-source-apply').click();
-  await definition.getByTestId('block-source-input').waitFor({state:'detached'});
-  result.definitionSourceApplies = true;
-  // Apply returns focus to the editor, with the definition selected, on the next frame.
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
-
   // The first Save writes the edit and the endnotes after the body; the notice ends with it.
   await editor.locator('p.paragraph', {hasText:'First claim'}).click({position:{x:4, y:8}});
-  // The click replaces the definition's node selection a moment later; typing before would replace the block.
+  // Wait until the caret has moved from the endnote to the paragraph.
   await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.empty);
   await page.keyboard.press('End');
   await page.keyboard.type(' Edited.');
@@ -158,11 +147,11 @@ async (page, { screenshots = false, openDocument }) => {
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
   await save.click();
   await page.getByText('Save failed', {exact:true}).waitFor();
-  assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing');
+  assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing: ' + await page.getByTestId('error').innerText());
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
 
-  // One trailing region, including read-only definitions, from definitions written in three places.
+  // One trailing region, from definitions written in three places.
   await page.reload();
   await ready();
   const regionsFile = fixture('regions.md');
@@ -171,8 +160,8 @@ async (page, { screenshots = false, openDocument }) => {
   const regionsSource = await regionsRead();
   const regionsBody = regionsSource.split('\n\n').filter(part => !part.startsWith('[^') && !part.startsWith('    '));
   const regionsNotes = [
-    '[^b]: An editable note beside a read-only definition.',
-    '[^a]: A note with two paragraphs.\n\n    Its original source stays available.',
+    '[^b]: A note beside another definition.',
+    '[^a]: A short note.',
     '[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.',
     '[^d]: The final note.',
   ];
@@ -183,7 +172,7 @@ async (page, { screenshots = false, openDocument }) => {
   assert(JSON.stringify(await page.getByTestId('outline').locator('button').allInnerTexts()) === '["Notes in context"]', 'Region label entered the Outline');
   const presentation = () => editor.evaluate(element => {
     const {view, state} = element.editor;
-    const isDefinition = node => node.type.name === 'footnoteDefinition' || (node.type.name === 'unsupportedBlock' && node.attrs.footnote);
+    const isDefinition = node => node.type.name === 'footnoteDefinition';
     const notes = [];
     state.doc.forEach((node, pos, index) => {
       if (!isDefinition(node)) return;
@@ -339,8 +328,8 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await orderBecomes('heading paragraph paragraph paragraph a c d b'), 'Redo did not restore reference and endnote order');
   await save.click();
   await saved();
-  const reordered = [regionsBody[0], regionsBody[1].replace('First claim[^b], second[^a], long note[^c] and final note[^d].', 'First claim, second[^a], long note[^c] and final note[^d].[^b]'),
-    ...regionsBody.slice(2), regionsNotes[1], regionsNotes[2], regionsNotes[3], regionsNotes[0]].join('\n\n') + '\n';
+  const reordered = [regionsBody[0], regionsBody[1], regionsBody[2].replace('First claim[^b], second[^a], long note[^c] and final note[^d].', 'First claim, second[^a], long note[^c] and final note[^d].[^b]'),
+    ...regionsBody.slice(3), regionsNotes[1], regionsNotes[2], regionsNotes[3], regionsNotes[0]].join('\n\n') + '\n';
   assert(await regionsRead() === reordered, 'Saved reference order differs: ' + await regionsRead());
   result.referenceOrderUndoRedo = true;
 
@@ -372,7 +361,7 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await order() === 'heading heading paragraph b a', `Last section delete took endnotes: ${await order()}`);
   await save.click();
   await saved();
-  assert(await sectionsRead() === '# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n', 'Section delete saved differently: ' + await sectionsRead());
+  assert(await sectionsRead() === '---\nieumdoc: 1\n---\n\n# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n', 'Section delete saved differently: ' + await sectionsRead());
   result.sectionsHoldNoEndnotes = true;
 
   // Repeated references return to the invoking occurrence after definition and body edits.
@@ -393,29 +382,8 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').getAttribute('aria-label') === 'Endnote 1. Return to the reference.', 'Number has no accessible name');
   await save.click();
   await saved();
-  assert(await reader(fixture('repeat.md'))() === '# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently');
+  assert(await reader(fixture('repeat.md'))() === '---\nieumdoc: 1\n---\n\n# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently');
   result.returnToInvokingReference = true;
 
-  // Source drafts survive a pending reorder; Cancel resumes it.
-  // This fixture's definitions are editable, so use the preserved multi-paragraph definition.
-  await open(regionsFile);
-  const preserved = editor.locator('[data-block="unsupported"]').filter({hasText:'A note with two paragraphs.'}).locator('.original-content');
-  await preserved.locator('summary').click();
-  await preserved.getByTestId('block-source-edit').click();
-  await preserved.getByTestId('block-source-input').fill('[^a]: Draft text.');
-  const tail = editor.locator('p.paragraph', {hasText:'First claim'});
-  await tail.click({position:{x:4, y:8}});
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.$from.parent.type.name === 'paragraph');
-  await page.keyboard.press('Home');
-  await page.keyboard.type('New /endnote');
-  await page.getByRole('menuitem', {name:'Endnote', exact:true}).waitFor();
-  await page.keyboard.press('Enter');
-  await caretIn('1');
-  await page.keyboard.type('New after body.');
-  assert(await preserved.getByTestId('block-source-input').inputValue() === '[^a]: Draft text.', 'Ordering discarded source draft');
-  await preserved.getByTestId('block-source-cancel').click();
-  assert((await presentation()).notes.filter(note => note.startsGroup).length === 1, 'Cancel did not finish ordering');
-  assert(await order() === 'heading paragraph paragraph paragraph 1 a c d b', `Resumed order: ${await order()}`);
-  result.orderingPreservesSourceDraft = true;
   return result;
 }

@@ -43,7 +43,7 @@ test("the packed CLI installs offline outside the checkout and serves both roots
     const entry = path.join(install, "node_modules/@ieumdoc/cli/cli.mjs");
     const installed = JSON.parse(readFileSync(path.join(install, "node_modules/@ieumdoc/cli/package.json"), "utf8"));
     assert.equal(installed.dependencies, undefined, "No runtime install should fetch dependencies");
-    for (const folder of [a, b]) writeFileSync(path.join(folder, "document.md"), "# Title\n\nAlpha.\n");
+    for (const folder of [a, b]) writeFileSync(path.join(folder, "document.md"), "---\nieumdoc: 1\n---\n\n# Title\n\nAlpha.\n");
     const checked = spawnSync(process.execPath, [entry, "check", path.join(a, "document.md")], { cwd, env, encoding: "utf8" });
     assert.equal(checked.status, 0, checked.stderr);
     const formatted = spawnSync(process.execPath, [entry, "format", path.join(a, "document.md")], { cwd, env, encoding: "utf8" });
@@ -65,9 +65,9 @@ test("the packed CLI installs offline outside the checkout and serves both roots
       const loaded = await (await fetch(url + `/api/document?${new URLSearchParams({ path: file })}`)).json();
       const response = await fetch(url + "/api/document", { method: "POST", headers: { Origin: url, "Content-Type": "application/json" },
         body: JSON.stringify({ path: file, revision: loaded.revision, base: { source: loaded.source },
-          paragraphs: [{ path: [1], content: [{ kind: "text", text: "Packed save." }] }] }) });
+          paragraphs: [{ path: [2], content: [{ kind: "text", text: "Packed save." }] }] }) });
       assert.equal(response.status, 200, await response.text());
-      assert.equal(readFileSync(file, "utf8"), "# Title\n\nPacked save.\n");
+      assert.equal(readFileSync(file, "utf8"), "---\nieumdoc: 1\n---\n\n# Title\n\nPacked save.\n");
     }
     const conflict = spawnSync(process.execPath, [entry, "serve", "--port", String(port), "--root", a], { cwd, env, encoding: "utf8", timeout: 10_000 });
     assert.notEqual(conflict.status, 0);

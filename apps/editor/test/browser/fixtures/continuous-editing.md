@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Boundaries
 
 Alpha **bold** and $x$.

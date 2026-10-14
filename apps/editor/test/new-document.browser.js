@@ -49,10 +49,10 @@ async page => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
   const empty = await read();
-  check(empty.source === created.source && empty.source.trim() === '' && empty.document.blocks.length === 0,
+  check(empty.source === created.source && empty.source.trim() === '---\nieumdoc: 1\n---' && empty.document.blocks.length === 0,
     'An empty Save changed the canonical empty file or wrote placeholder content');
   await page.getByRole('button', {name:'Source', exact:true}).click();
-  check((await page.locator('.source-view-text').innerText()).trim() === '', 'The hint leaked into Source');
+  check((await page.locator('.source-view-text').innerText()).trim() === '---\nieumdoc: 1\n---', 'The hint leaked into Source');
   await page.getByRole('button', {name:'Visual', exact:true}).click();
 
   // Width/alignment and Wide preferences are covered by layout-rules. Here the empty surface
@@ -105,7 +105,7 @@ async page => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
   const written = await read();
-  check(written.source.trim() === 'Browser-created paragraph', 'Save did not write only the entered text');
+  check(written.source === '---\nieumdoc: 1\n---\n\nBrowser-created paragraph\n', 'Save did not write only the entered text');
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -148,7 +148,7 @@ async page => {
   check(scrolledEnd.below >= scrolledEnd.end - 1, `No room below the last line: ${JSON.stringify(scrolledEnd)}`);
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
-  check((await read()).source.trimEnd() === ['Browser-created paragraph', ...lines].join('\n\n'),
+  check((await read()).source.trimEnd() === '---\nieumdoc: 1\n---\n\n' + ['Browser-created paragraph', ...lines].join('\n\n'),
     'The end space changed the saved document');
   return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
     blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true,

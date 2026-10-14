@@ -46,9 +46,9 @@ async (page, { openDocument, screenshots = false }) => {
       return route.fulfill({status:409,json:{error:'External change'}});
     }
     const response = clone(files.get(body.path));
-    const paragraph = body.paragraphs?.find(edit => edit.path[0] === 8);
+    const paragraph = body.paragraphs?.find(edit => edit.path[0] === 9);
     if (paragraph) {
-      const target = response.document.blocks.find(block => block.path[0] === 8);
+      const target = response.document.blocks.find(block => block.path[0] === 9);
       target.content = paragraph.content;
       target.text = inlineText(paragraph.content);
     }
@@ -199,7 +199,7 @@ async (page, { openDocument, screenshots = false }) => {
   }
 
   function setParagraph(document, text) {
-    const paragraph = document.blocks.find(block => block.path[0] === 8);
+    const paragraph = document.blocks.find(block => block.path[0] === 9);
     paragraph.content = [{kind:'text',text}];
     paragraph.text = text;
   }

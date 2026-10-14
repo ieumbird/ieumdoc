@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
@@ -8,8 +9,8 @@ import { collectSupportedEdits, type TiptapJSON, toTiptapDocument } from "../src
 import { saveEdits } from "../server/document-replay.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 
-test("the outline lists top-level headings in order, read-only headings included", () => {
-  const markdown = "# Title\n\nIntro.\n\n## Plain section\n\n### **Formatted** section\n\n> ## Not a top-level heading\n\n## Last\n";
+test("the outline lists top-level headings in order", () => {
+  const markdown = nativeSource("# Title\n\nIntro.\n\n## Plain section\n\n### **Formatted** section\n\n> Quoted paragraph\n\n## Last\n");
   const schema = getSchema(editorExtensions());
   const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(markdown)));
   assert.deepEqual(documentOutline(doc).map(item => [item.index, item.level, item.text]), [
@@ -19,7 +20,7 @@ test("the outline lists top-level headings in order, read-only headings included
   const numbered = toTiptapDocument(loadEditableDocument(markdown));
   numbered.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
   assert.deepEqual(documentOutline(schema.nodeFromJSON(numbered)).map(item => item.text), [
-    "Title", "1 Plain section", "1.1 Formatted section", "3 Last",
+    "Title", "1 Plain section", "1.1 Formatted section", "2 Last",
   ]);
 });
 
@@ -36,7 +37,7 @@ test("the section being read is the last heading above the reading line", () => 
 
 
 test("heading numbering follows the single document state and saves as Core metadata", () => {
-  const source = "# Title\n\n## First\n\n### Detail\n";
+  const source = nativeSource("# Title\n\n## First\n\n### Detail\n");
   const opening = loadEditableDocument(source);
   const schema = getSchema(editorExtensions());
   const json = toTiptapDocument(opening);
@@ -51,12 +52,5 @@ test("heading numbering follows the single document state and saves as Core meta
   const without = toTiptapDocument(loadEditableDocument(saved.markdown));
   without.attrs!.headingNumbering = null;
   assert.equal(collectSupportedEdits(loadEditableDocument(saved.markdown), without).headingNumbering, false);
-  // A retained document-wide prefix must agree before Save and after Reload.
-  const customSource = "---\nnumbering:\n  headings: false\n  enumerator: 'S.%s'\n---\n\n# Title\n\n## First\n";
-  const custom = loadEditableDocument(customSource);
-  const customJSON = toTiptapDocument(custom);
-  customJSON.attrs = { headingNumbering: custom.headingNumberingDefault ?? defaultHeadingNumbering(true)! };
-  const customDoc = schema.nodeFromJSON(customJSON);
-  const customSaved = saveEdits(customSource, collectSupportedEdits(custom, customDoc.toJSON() as TiptapJSON));
-  assert.deepEqual(documentOutline(customDoc), documentOutline(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(customSaved.markdown)))));
+
 });

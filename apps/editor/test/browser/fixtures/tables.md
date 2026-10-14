@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Tables
 
 Intro paragraph.

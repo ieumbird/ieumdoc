@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type MystDocument} from './core-internal.ts';
 import {projectInlineContent,inlineContentText,assertInlineContent,inlineContentToNodes} from '../src/inline.ts';
-import { writeIssueOf } from '@ieumdoc/core';
+import { writeIssueOf } from './core-internal.ts';
 
 function stable(d: MystDocument) {
   validateStructure(d);

@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
@@ -14,8 +15,8 @@ import { saveEdits } from "../server/document-replay.ts";
 
 const schema = getSchema(editorExtensions());
 
-// One editable definition and one that holds two paragraphs.
-const source = "# Notes\n\nA claim[^a] and another[^b].\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n";
+// Definitions retain their own labels and snapshot paths.
+const source = nativeSource("# Notes\n\nA claim[^a] and another[^b].\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n");
 
 /** The engine state of a Core snapshot with history, the structure guard and endnote placement, as the Editor runs them. */
 function engine(markdown: string, canOrder?: () => boolean): EditorState {
@@ -43,12 +44,12 @@ const run = (state: EditorState, command: (state: EditorState, dispatch: (tr: Tr
 };
 
 test("an opened document shows Core's order; unchanged Save writes the canonical Markdown Core and the CLI write", () => {
-  const scattered = "# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\nTail.\n";
-  const placed = "# Notes\n\nClaim[^b] and second[^a].\n\nBody resumes.\n\nTail.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\n[^a]: Short note.\n";
+  const scattered = nativeSource("# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\nTail.\n");
+  const placed = nativeSource("# Notes\n\nClaim[^b] and second[^a].\n\nBody resumes.\n\nTail.\n\n[^b]: First paragraph.\n\n[^a]: Short note.\n");
   const editable = loadEditableDocument(scattered);
   const projection = toTiptapDocument(editable);
   // No display reordering and no source-placement state: Core's snapshot is already in this order.
-  assert.deepEqual(projection.content!.map(node => node.attrs?.sourcePath), ["0", "1", "2", "3", "4", "5"]);
+  assert.deepEqual(projection.content!.map(node => node.attrs?.sourcePath), ["1", "2", "3", "4", "5", "6"]);
   assert.deepEqual(projection.content!.map(node => node.attrs?.label ?? node.attrs?.footnote ?? node.type),
     ["heading", "paragraph", "paragraph", "paragraph", "b", "a"]);
   assert.equal(projection.attrs, undefined);
@@ -58,9 +59,9 @@ test("an opened document shows Core's order; unchanged Save writes the canonical
   assert.equal(serialize(parse(scattered)), placed);
   assert.equal(saveEdits(placed, collectSupportedEdits(loadEditableDocument(placed), toTiptapDocument(loadEditableDocument(placed)))).markdown, placed);
   // The document the CLI test formats: Editor Save writes the same bytes as `ieumdoc format`.
-  const sections = "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n";
+  const sections = nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n");
   assert.equal(saveEdits(sections, collectSupportedEdits(loadEditableDocument(sections), toTiptapDocument(loadEditableDocument(sections)))).markdown,
-    "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
+    nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n"));
 });
 
 test("changing reference order moves the endnotes in one undoable step, and Save writes them in that order", () => {
@@ -77,7 +78,7 @@ test("changing reference order moves the endnotes in one undoable step, and Save
   const definition = blockPos(swapped.doc, 3) + swapped.doc.child(3).nodeSize - 1;
   const edited = swapped.apply(swapped.tr.insertText(" Edited.", definition));
   assert.equal(saveEdits(source, collectSupportedEdits(loadEditableDocument(source), editorDocumentJSON(edited))).markdown,
-    "# Notes\n\nNow[^b] then[^a].\n\n[^b]: First paragraph.\n\n    Second paragraph.\n\n[^a]: Short note. Edited.\n");
+    nativeSource("# Notes\n\nNow[^b] then[^a].\n\n[^b]: First paragraph.\n\n[^a]: Short note. Edited.\n"));
   // The placement shares the reference edit's history event.
   const undone = run(run(edited, undo), undo);
   assert.deepEqual(labels(undone.doc), ["heading", "paragraph", "a", "b"]);
@@ -93,9 +94,9 @@ test("a block added after the endnotes joins the body, with the caret, and saves
   assert.deepEqual(labels(next.doc), ["heading", "paragraph", "paragraph", "a", "b"]);
   assert.equal(next.selection.$from.parent.textContent, "Appended.");
   assert.equal(saveEdits(source, collectSupportedEdits(loadEditableDocument(source), editorDocumentJSON(next))).markdown,
-    "# Notes\n\nA claim[^a] and another[^b].\n\nAppended.\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n");
+    nativeSource("# Notes\n\nA claim[^a] and another[^b].\n\nAppended.\n\n[^a]: Short note.\n\n[^b]: First paragraph.\n"));
   // A document without endnotes is left as edited.
-  const plain = engine("# Plain\n\nText.\n");
+  const plain = engine(nativeSource("# Plain\n\nText.\n"));
   const typed = plain.apply(plain.tr.insertText("More ", blockPos(plain.doc, 1) + 1));
   assert.equal(typed.doc.child(1).textContent, "More Text.");
 });
@@ -111,7 +112,7 @@ test("placement waits while a draft is open and resumes when it closes", () => {
 });
 
 test("sections hold no endnotes: deleting keeps them, refuses an orphan, and moving leaves them after the body", () => {
-  const placed = "# Doc\n\n## A\n\nFirst[^b] and[^a].\n\n## B\n\nAnother[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n";
+  const placed = nativeSource("# Doc\n\n## A\n\nFirst[^b] and[^a].\n\n## B\n\nAnother[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
   const command = (id: string) => BLOCK_COMMANDS.find(command => command.id === id)!;
   const state = engine(placed);
   // 0 # Doc · 1 ## A · 2 First · 3 ## B · 4 Another · 5 [^b] · 6 [^a]
@@ -126,14 +127,14 @@ test("sections hold no endnotes: deleting keeps them, refuses an orphan, and mov
   assert.equal(moved.doc.child(1).textContent, "B");
   assert.equal(command("section-down").enabled(moved, 3), false);
   assert.equal(saveEdits(placed, collectSupportedEdits(loadEditableDocument(placed), editorDocumentJSON(deleted))).markdown,
-    "# Doc\n\n## A\n\nFirst[^b] and[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
+    nativeSource("# Doc\n\n## A\n\nFirst[^b] and[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n"));
 });
 
-test("editable definitions project to footnote definition blocks; others stay read-only", () => {
+test("definitions project to labeled footnote definition blocks", () => {
   const blocks = toTiptapDocument(loadEditableDocument(source)).content!;
-  assert.deepEqual(blocks[2], { type: "footnoteDefinition", attrs: { sourcePath: "2", label: "a" }, content: [{ type: "text", text: "Short note." }] });
-  assert.equal(blocks[3].type, "unsupportedBlock");
-  assert.equal(blocks[3].attrs?.footnote, "b");
+  assert.deepEqual(blocks[2], { type: "footnoteDefinition", attrs: { sourcePath: "3", label: "a" }, content: [{ type: "text", text: "Short note." }] });
+  assert.equal(blocks[3].type, "footnoteDefinition");
+  assert.equal(blocks[3].attrs?.label, "b");
   // A definition holds no footnote reference.
   assert.throws(() => schema.nodeFromJSON({ type: "footnoteDefinition", attrs: { label: "a" },
     content: [{ type: "footnoteReference", attrs: { label: "b" } }] }).check());
@@ -148,7 +149,7 @@ test("a new footnote and an edited definition save through Core in their endnote
   blocks.push({ type: "footnoteDefinition", attrs: { sourcePath: "new:footnote", label: "1" }, content: [{ type: "text", text: "New note." }] });
   const saved = saveEdits(source, collectSupportedEdits(editable, next));
   assert.equal(saved.markdown,
-    "# Notes\n\n[^1]A claim[^a] and another[^b].\n\n[^1]: New note.\n\n[^a]: **Edited** note.\n\n[^b]: First paragraph.\n\n    Second paragraph.\n");
+    nativeSource("# Notes\n\n[^1]A claim[^a] and another[^b].\n\n[^1]: New note.\n\n[^a]: **Edited** note.\n\n[^b]: First paragraph.\n"));
   const savedBlock = loadEditableDocument(saved.markdown).blocks[2];
   assert.equal(savedBlock.block === "footnote" && savedBlock.editable, true);
 });

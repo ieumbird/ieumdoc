@@ -99,7 +99,7 @@ async (page, { openDocument, screenshots }) => {
   // Another client commits using the same real API; the Editor's stale baseline must get 409.
   const loaded = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json();
   const external = await page.request.post(origin + '/api/document', { headers:{Origin:origin}, data:{
-    path:fileA, revision:loaded.revision, base:{source:loaded.source}, paragraphs:[{path:[1], content:[{kind:'text', text:'Changed elsewhere.'}]}],
+    path:fileA, revision:loaded.revision, base:{source:loaded.source}, paragraphs:[{path:[2], content:[{kind:'text', text:'Changed elsewhere.'}]}],
   } });
   check(external.status() === 200, 'Concurrent writer commits');
   await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End'); await page.keyboard.type(' Kept local.');

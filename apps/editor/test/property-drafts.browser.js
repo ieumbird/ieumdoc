@@ -1,4 +1,4 @@
-// Draft membership by kind + snapshot locator, and source Apply's destructive replacement boundary.
+// Independent property drafts keep dirty status, focus and discard protection.
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
@@ -32,12 +32,8 @@ async (page, { openDocument }) => {
     return element.editor.view.hasFocus() ? (selection.node ?? selection.$from.node(1))?.type.name : null;
   });
   const table = page.locator('[data-block="table"]');
-  const source = table.locator('.original-content');
   const beginTable = async () => { await table.hover(); await activate(table.getByRole('button', {name:'Edit table', exact:true})); };
-  const beginSource = async () => {
-    if (!await source.evaluate(element => element.open)) await source.locator('summary').click();
-    await source.getByTestId('block-source-edit').click();
-  };
+
 
   await editor.locator('h2').hover();
   await page.getByTestId('label-target-edit').click();
@@ -71,52 +67,5 @@ async (page, { openDocument }) => {
   check(await focusedBlock() === 'labelTarget' && await json() === baseline && await page.getByTestId('status').innerText() === '',
     'Escape did not return focus to its block, or changed the document');
 
-  await beginSource();
-  await source.getByTestId('block-source-input').fill('Replacement paragraph.');
-  await beginTable();
-  await page.getByTestId('table-caption-input').fill('Preserve me');
-  await activate(source.getByTestId('block-source-apply'));
-  await source.getByTestId('block-source-error').waitFor();
-  check(await json() === baseline, 'Source Apply destroyed another draft');
-  check(await page.getByTestId('table-caption-input').inputValue() === 'Preserve me', 'Source Apply lost table draft');
-  await activate(page.getByTestId('table-cancel'));
-  await dirty(); // Same locator, different kind: closing Table must retain Source.
-  await activate(source.getByTestId('block-source-cancel'));
-
-  await beginSource();
-  await source.getByTestId('block-source-input').fill('Stale source replacement.');
-  await beginTable();
-  await page.getByTestId('table-caption-input').fill('Applied caption');
-  await activate(page.getByTestId('table-apply'));
-  const applied = await json();
-  await activate(source.getByTestId('block-source-apply'));
-  await source.getByTestId('block-source-error').waitFor();
-  check(await json() === applied && await page.getByTestId('table-caption').innerText() === 'Applied caption', 'Stale Source Apply overwrote applied table edit');
-  await activate(source.getByTestId('block-source-cancel'));
-  await editor.evaluate(element => element.editor.view.focus());
-  await page.keyboard.press('ControlOrMeta+z');
-  check(await json() === baseline, 'Undo did not restore source eligibility');
-
-  let release;
-  const responseGate = new Promise(resolve => { release = resolve; });
-  let started;
-  const requestStarted = new Promise(resolve => { started = resolve; });
-  await page.route('**/api/block-source', async route => {
-    const response = await route.fetch(); started(); await responseGate; await route.fulfill({response});
-  });
-  try {
-    await beginSource();
-    await source.getByTestId('block-source-input').fill('Submitted source.');
-    await activate(source.getByTestId('block-source-apply'));
-    await requestStarted;
-    await source.getByTestId('block-source-input').fill('Newer source.');
-    await dirty();
-    release();
-    await source.getByTestId('block-source-error').waitFor();
-    check(await json() === baseline && await source.getByTestId('block-source-input').inputValue() === 'Newer source.', 'Delayed Apply lost newer source input');
-    await activate(source.getByTestId('block-source-cancel'));
-  } finally { release(); await page.unroute('**/api/block-source'); }
-  await page.getByTestId('draft-notice').waitFor({state:'detached'});
-  check(await json() === baseline, 'Draft cleanup leaked');
-  return {multipleKinds:true, sameLocator:true, staleApply:true, delayedInput:true, reload:true, beforeunload:true, focus:true};
+  return {multipleKinds:true, reload:true, beforeunload:true, focus:true};
 }

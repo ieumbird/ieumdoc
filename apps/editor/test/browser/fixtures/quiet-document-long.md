@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # 긴 콘텐츠 · Long content
 
 This page exercises local scrolling without moving the document axis. 한글과 English, **bold**, *italic*, and $x + y$ remain readable.

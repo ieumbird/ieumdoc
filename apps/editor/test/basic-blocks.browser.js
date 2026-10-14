@@ -19,7 +19,7 @@ async (page, { openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '# Basic blocks\n\n:::{note}\nKind me.\n:::\n\n> Quote one.\n\nStrike me.\n\nShortcut here\n';
+  const fresh = '---\nieumdoc: 1\n---\n\n# Basic blocks\n\n:::{note}\nKind me.\n:::\n\n> Quote one.\n\nStrike me.\n\nShortcut here\n';
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh basic blocks fixture');
 
   const openScratch = async () => {

@@ -90,7 +90,7 @@ async (page, { openDocument }) => {
   result.savedAndReloaded = await cell('Port name').count() === 1 &&
     await cell('AC-side').locator('strong').count() === 1 && await cell('DC DC-link voltage').locator('strong').count() === 1;
   result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| \*\*AC-side\*\* +\|\n\| P +\| DC \*\*DC-link voltage\*\* \|\n\nAfter table\.\n$/.test(saved);
-  result.otherSemanticsKept = saved.includes('See [](#fig-control) and {eq}`eq-current`.') &&
+  result.otherSemanticsKept = saved.includes('See [Figure](#fig-control) and {eq}`eq-current`.') &&
     saved.includes(':label: eq-current') && saved.includes(':name: fig-control');
   result.headerCellsStayHeaders = await table.locator('th[data-table-cell]').count() === 2;
 
@@ -102,20 +102,12 @@ async (page, { openDocument }) => {
   result.existingFormattedCellReloaded = await cell('AC-side revised').locator('strong').innerText() === 'AC-side revised';
 
   await open(mixed);
-  const readonly = table.locator('[data-readonly-cell]');
-  result.readonlyCellShown = await readonly.count() === 1 && (await readonly.innerText()) === 'V';
-  await readonly.click();
-  await page.keyboard.type('x');
-  result.readonlyCellUnchanged = (await readonly.innerText()) === 'V';
-  // Where Chromium puts the caret after a click on a non-editable cell varies by platform: the
-  // typed text may land in the neighboring editable cell. Undo it so the next step starts clean.
-  await page.keyboard.press('ControlOrMeta+z');
   // An existing formatted cell is editable, and its formatting can be removed.
   await selectCell('bold');
   await page.keyboard.press('ControlOrMeta+b');
   result.boldRemoved = await cell('bold').locator('strong').count() === 0;
   await save();
-  result.formattingRemovedOnDisk = (await markdown(mixed, 'mixed-table.md')).includes('| U    | bold | {u}`V` |');
+  result.formattingRemovedOnDisk = /\| U +\| bold +\| \*\*V\*\* +\|/.test(await markdown(mixed, 'mixed-table.md'));
   result.consoleErrors = problems;
   const failed = Object.entries(result).filter(([key, value]) => key !== 'consoleErrors' && value !== true);
   if (failed.length > 0 || problems.length > 0) throw new Error(`Table cell editing failed: ${JSON.stringify(result)}`);

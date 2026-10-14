@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,13 +11,13 @@ import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../serv
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
-const source = readFileSync(
+const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
   "utf8",
-);
+));
 const canonical = serialize(parse(source));
-const FIGURE = "6";
-const EQUATION = "9";
+const FIGURE = "7";
+const EQUATION = "10";
 const LATEX = String.raw`i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}`;
 
 /** Label edits made in the editor document, as the Editor would submit them. */
@@ -40,8 +41,8 @@ test("Equation and Figure labels change through Save; content and every other li
   const { editable, next } = relabel({ [EQUATION]: "eq-reference", [FIGURE]: "fig-diagram" });
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.labels, [
-    { path: [6], from: "fig-control", to: "fig-diagram" },
-    { path: [9], from: "eq-current", to: "eq-reference" },
+    { path: [7], from: "fig-control", to: "fig-diagram" },
+    { path: [10], from: "eq-current", to: "eq-reference" },
   ]);
   const saved = saveEdits(source, edits);
   assert.equal(saved.markdown, canonical
@@ -52,7 +53,7 @@ test("Equation and Figure labels change through Save; content and every other li
     ["equation", "eq-reference", LATEX],
   ]);
   // References keep their written target; they are not renamed.
-  assert.match(saved.markdown, /See \[\]\(#fig-control\) and \{eq\}`eq-current`\./);
+  assert.match(saved.markdown, /See \[Figure\]\(#fig-control\) and \{eq\}`eq-current`\./);
 
   const removed = saveEdits(source, collectSupportedEdits(...Object.values(relabel({ [EQUATION]: "", [FIGURE]: "" })) as [EditableDocument, TiptapJSON]));
   assert.equal(removed.markdown, canonical.replace(":name: fig-control\n", "").replace(":label: eq-current\n\n", ""));
@@ -71,7 +72,7 @@ test("labels can move between blocks in one Save, but duplicates are rejected", 
 });
 
 test("new Equation and Figure blocks save their labels", () => {
-  const editable = loadEditableDocument("Intro.\n");
+  const editable = loadEditableDocument(nativeSource("Intro.\n"));
   const next = toTiptapDocument(editable);
   next.content!.push(
     { type: "equation", attrs: { sourcePath: "new:eq", latex: "x", label: "eq-new" } },
@@ -82,10 +83,10 @@ test("new Equation and Figure blocks save their labels", () => {
     { block: "equation", latex: "x", label: "eq-new" },
     { block: "figure", imageUrl: "./a.svg", imageAlt: "", caption: "A.", label: "fig-new" },
   ]);
-  assert.equal(saveEdits("Intro.\n", edits).markdown,
-    "Intro.\n\n```{math}\n:label: eq-new\n\nx\n```\n\n:::{figure} ./a.svg\n:name: fig-new\n\nA.\n:::\n");
+  assert.equal(saveEdits(nativeSource("Intro.\n"), edits).markdown,
+    nativeSource("Intro.\n\n```{math}\n:label: eq-new\n\nx\n```\n\n:::{figure} ./a.svg\n:name: fig-new\n\nA.\n:::\n"));
   next.content![2].attrs!.label = "EQ-NEW";
-  assert.throws(() => saveEdits("Intro.\n", collectSupportedEdits(editable, next)), /already names another target/);
+  assert.throws(() => saveEdits(nativeSource("Intro.\n"), collectSupportedEdits(editable, next)), /already names another target/);
 });
 
 test("Source preview shows unsaved label edits; rejected labels fail closed before any write", () => {
@@ -110,7 +111,7 @@ test("Source preview shows unsaved label edits; rejected labels fail closed befo
       [{ path: at("equation").path, from: "eq-reference", to: "eq<a>" }, /cannot be referenced/],
       [{ path: at("equation").path, from: "eq-reference", to: " eq" }, /leading or trailing spaces/],
       [{ path: at("equation").path, from: "stale", to: "eq-a" }, /label does not match/],
-      [{ path: [0], from: "", to: "h" }, /label edit is not allowed/],
+      [{ path: [1], from: "", to: "h" }, /label edit is not allowed/],
     ] as const) {
       const bad = { revision: current.revision, labels: [edit] };
       assert.throws(() => previewDocumentFile(file, bad), reason);
@@ -120,13 +121,4 @@ test("Source preview shows unsaved label edits; rejected labels fail closed befo
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("a read-only Figure keeps its label", () => {
-  const readonlySource = ":::{figure} ./a.png\n:name: fig-a\n\n{u}`V`\n:::\n";
-  const editable = loadEditableDocument(readonlySource);
-  const next = toTiptapDocument(editable);
-  next.content![0].attrs!.label = "fig-b";
-  assert.throws(() => collectSupportedEdits(editable, next), /read-only block changed/);
-  assert.throws(() => saveEdits(readonlySource, { labels: [{ path: [0], from: "fig-a", to: "fig-b" }] }), /label edit is not allowed/);
 });

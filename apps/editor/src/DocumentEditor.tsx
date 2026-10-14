@@ -22,7 +22,6 @@ import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
-  type BlockSourceApplier,
   type FigureValidator,
   type ImageChooser,
   type DraftKind,
@@ -68,7 +67,6 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
 type DocumentEditorProps = {
   document: EditableDocument;
   documentPath: string;
-  readOnly?: boolean;
   onStructuralReject: (reason?: string) => void;
   onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
@@ -79,13 +77,12 @@ type DocumentEditorProps = {
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
   chooseImage?: ImageChooser;
-  applyBlockSource?: BlockSourceApplier;
   /** The heading outline and the section being read, for navigation outside the editor. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, readOnly = false, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, applyBlockSource, onOutlineChange },
+  { document, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   // App remounts this editor for Open/New/Reload; Save keeps its opening projection.
@@ -128,8 +125,6 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       if (current && !current.isDestroyed) current.view.dispatch(current.state.tr.setMeta(ENDNOTE_DRAFT_CLOSED, true));
     });
   }, []);
-  const hasOtherDraft = useCallback((kind: DraftKind, path: string) =>
-    [...activeDrafts.current.values()].some(draft => draft.path === path && draft.kind !== kind), []);
   const moveBlockedHint = (index: number) => {
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
     const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
@@ -138,11 +133,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
   const [editorOptions] = useState<UseEditorOptions>(() => ({
-    editable: !readOnly,
+    editable: true,
     immediatelyRender: true,
     shouldRerenderOnTransaction: true,
     extensions: [
-      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError, applyBlockSource, hasOtherDraft,
+      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError,
         () => activeDrafts.current.size > 0, chooseImage),
       Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
       // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
@@ -178,7 +173,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const editor = useEditor(editorOptions);
   draftEditor.current = editor;
 
-  const empty = !readOnly && editor?.isEmpty && editor.state.doc.childCount === 1 &&
+  const empty = editor?.isEmpty && editor.state.doc.childCount === 1 &&
     editor.state.doc.firstChild?.type.name === "paragraph";
   const focusEnd = (clientY: number): boolean => {
     if (!editor?.isEditable || clientY <= editor.view.dom.getBoundingClientRect().bottom) return false;
@@ -207,7 +202,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       getFocusTarget() { return editor?.isEditable ? editor.view.dom : null; },
       toggleHeadingNumbering() {
         if (!editor || !editor.isEditable) return;
-        const settings = editor.state.doc.attrs.headingNumbering ? null : document.headingNumberingDefault ?? defaultHeadingNumbering(true);
+        const settings = editor.state.doc.attrs.headingNumbering ? null : defaultHeadingNumbering(true);
         editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
       },
       beginSave() {
@@ -229,12 +224,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       revealHeading(item) {
         if (!editor) return;
         const node = editor.state.doc.maybeChild(item.index);
-        if (!node || (node.type.name !== "heading" && node.type.name !== "readonlyHeading")) return;
+        if (!node || node.type.name !== "heading") return;
         let pos = 0;
         for (let i = 0; i < item.index; i++) pos += editor.state.doc.child(i).nodeSize;
-        const selection = node.type.name === "heading"
-          ? TextSelection.create(editor.state.doc, pos + 1)
-          : NodeSelection.create(editor.state.doc, pos);
+        const selection = TextSelection.create(editor.state.doc, pos + 1);
         editor.view.dispatch(editor.state.tr.setSelection(selection));
         editor.view.focus();
         const element = editor.view.nodeDOM(pos);
@@ -250,12 +243,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return editorDocumentJSON(editor.state);
       },
     }),
-    [editor, document.headingNumberingDefault],
+    [editor],
   );
-
-  useEffect(() => {
-    editor?.setEditable(!readOnly);
-  }, [editor, readOnly]);
 
   useEffect(() => {
     if (!editor) return;
@@ -391,7 +380,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       ? { top: coords.bottom - hostRect.top + 4, left: coords.left - hostRect.left }
       : { top: coords.top - hostRect.top - 4, left: coords.left - hostRect.left };
   };
-  const formatting = focused && !readOnly ? formattableSelection(editor.state) : null;
+  const formatting = focused ? formattableSelection(editor.state) : null;
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
@@ -405,13 +394,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
       }}>
       <EditorContent editor={editor} />
-      {!readOnly ? <BlockHandles
+      <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
         moveBlockedHint={moveBlockedHint}
-      /> : null}
+      />
       {referenceDraft && referenceStyle ? (
         <ReferenceForm
           editor={editor}

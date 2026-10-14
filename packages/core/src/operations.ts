@@ -34,10 +34,9 @@ import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
-import { parseBlockSource } from "./myst/block-source.ts";
 import {
   bodyIndex, completeFootnotes, createFootnoteDefinition, endnoteBlocks, endnotePlacement, footnoteLabels, footnoteReferences,
-  footnoteWriteError, supportedFootnoteContent,
+  supportedFootnoteContent,
 } from "./myst/footnote.ts";
 import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
 import { parse } from "./myst/parse.ts";
@@ -47,7 +46,7 @@ import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
 } from "./myst/table.ts";
-import { appendSource, cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
+import { cloneDocument, getNode, type MystDocument, type MystNode, toText } from "./myst/tree.ts";
 
 const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
@@ -130,7 +129,8 @@ function sectionContent(document: MystDocument, start: number, end: number): (in
 }
 
 function sectionMarkers(document: MystDocument) {
-  return getEditableDocument(document).blocks.map(sectionMarker);
+  const markers = new Map(getEditableDocument(document).blocks.map(block => [block.path[0], sectionMarker(block)]));
+  return document.children.map((_, index) => markers.get(index) ?? null);
 }
 
 const BOUNDARY_FAILURE = "Canonical save changed block boundaries; this order cannot be saved";
@@ -139,11 +139,13 @@ function assertCanonicalBlockBoundaries(document: MystDocument): void {
   // `serializeFor` completes the footnotes, adding definitions for references that have none yet,
   // and canonical write places the definitions after the body.
   const complete = completeFootnotes(document);
-  const expectedBlocks = getEditableDocument({ ...complete, children: endnotePlacement(complete) }).blocks;
-  const reloadedBlocks = getEditableDocument(parse(serializeFor(document, BOUNDARY_FAILURE))).blocks;
+  // Completed definitions may contain synthetic self-references. Compare parser block
+  // boundaries directly; these temporary nodes are not native authoring content.
+  const expectedBlocks = endnotePlacement(complete);
+  const reloadedBlocks = parse(serializeFor(document, BOUNDARY_FAILURE)).children;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
-    reloadedBlocks.some((block, index) => block.block !== expectedBlocks[index].block)
+    reloadedBlocks.some((block, index) => block.type !== expectedBlocks[index].type || block.kind !== expectedBlocks[index].kind)
   ) {
     throw new Error(BOUNDARY_FAILURE);
   }
@@ -206,7 +208,7 @@ export function insertHeading(document: MystDocument, index: number, level: numb
 export function updateHeadingInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
   if (path.length !== 1) throw new Error("heading edits require a top-level path");
   const normalized = headingContent(content);
-  const block = getEditableDocument(document).blocks[path[0]];
+  const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (getNode(document, path).type !== "heading" || block?.block !== "heading" || !block.editable) {
     throw new Error(`heading edit is not supported at [${path.join(",")}]`);
   }
@@ -325,7 +327,7 @@ type InlineUpdate = (document: MystDocument, path: NodePath, content: InlineCont
 
 /** The editable inline content a footnote reference can be inserted in, and its update. */
 function footnoteTarget(document: MystDocument, path: NodePath): { content: InlineContent[]; update: InlineUpdate } | undefined {
-  const block = getEditableDocument(document).blocks[path[0]];
+  const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (path.length === 3 && block?.block === "table") {
     const cell = block.rows[path[1]]?.cells[path[2]];
     return cell?.editable ? { content: cell.content, update: updateTableCell } : undefined;
@@ -932,7 +934,7 @@ export function updateHeadingLevel(
     throw new Error("heading level must be an integer from 1 to 6");
   }
   const current = getNode(document, path);
-  const block = getEditableDocument(document).blocks[path[0]];
+  const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (current.type !== "heading" || block?.block !== "heading" || !block.editable) {
     throw new Error(`heading level change is not supported at [${path.join(",")}]`);
   }
@@ -1129,35 +1131,6 @@ export function removeBlock(document: MystDocument, index: number): MystDocument
     throw new Error(`removeBlock index out of range: ${index}`);
   }
   blocks.splice(index, 1);
-  return next;
-}
-
-/**
- * Replace the top-level block at `index` with the one block its MyST `source` parses as,
- * for content the typed operations cannot author. The source is parsed on its own and must
- * be a complete block, it cannot give another target's label, and the whole document must
- * still save as canonical Markdown. A block that Core can author projects as editable.
- */
-export function replaceBlockSource(document: MystDocument, index: number, source: string): MystDocument {
-  if (!Number.isInteger(index) || index < 0 || index >= document.children.length) {
-    throw new Error(`replaceBlockSource index out of range: ${index}`);
-  }
-  const footnotes = document.children.flatMap((node, other) =>
-    other !== index && node.type === "footnoteDefinition" ? [String(node.label)] : []);
-  const fragment = parseBlockSource(source, footnotes);
-  const block = fragment.children[0];
-  const kept = targetIdentifiers(document.children[index]);
-  const others = targetIdentifiers({ type: "root", children: document.children.filter((_, other) => other !== index) });
-  const taken = [...targetIdentifiers(block)].find(identifier => others.has(identifier) && !kept.has(identifier));
-  if (taken) throw new Error(`label ${JSON.stringify(taken)} already names another target in this document`);
-  const next = cloneDocument(document);
-  next.children[index] = block;
-  // The block can define or reference footnotes, so the document's footnotes must stay complete.
-  const footnoteError = footnoteWriteError(next);
-  if (footnoteError) throw new Error(`block source cannot be saved (${footnoteError})`);
-  // Before provenance moves its positions: a diagnostic line in the block is a line of `source`.
-  serializeFor(next, "block source cannot be saved");
-  appendSource(next, fragment);
   return next;
 }
 

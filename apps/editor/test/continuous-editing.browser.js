@@ -236,15 +236,5 @@ async (page, { openDocument }) => {
   assert((await page.locator('body').innerText()).includes('unsupported structure or formatting'), 'A refused heading line break needs a visible reason');
 
   // Read-only source is never replaced by a lossy cut, including ordinary Markdown images.
-  await openSibling('preserved-markdown.md');
-  await select(['Editable body.', 0]);
-  await page.keyboard.press('Control+a');
-  await page.waitForFunction(() => { const e = document.querySelector('.document-editor').editor; return e.state.selection.from === 0 && e.state.selection.to === e.state.doc.content.size; });
-  const readonlyBefore = semantic(await doc());
-  const clipboardBefore = await page.evaluate(() => navigator.clipboard.readText());
-  await page.keyboard.press('Control+x');
-  assert(semantic(await doc()) === readonlyBefore, 'Unsupported cut must keep the original document');
-  assert((await page.locator('body').innerText()).includes('Nothing was removed'), `Unsupported cut must explain its restriction: ${await page.locator('body').innerText()}`);
-  assert(await page.evaluate(() => navigator.clipboard.readText()) === clipboardBefore, 'Unsupported cut must keep the prior clipboard');
-  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, readonlyCutRetained:true};
+  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true};
 }
