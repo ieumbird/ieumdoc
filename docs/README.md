@@ -84,3 +84,4 @@
 | [Test Guide](test/TEST_GUIDE.md) | Implemented | 현재 실행/수동 검토 절차. 테스트 이름·개수의 원본은 runner. |
 <!-- CI scope probe -->
 [broken probe link](does-not-exist.md)
+<!-- second push -->
