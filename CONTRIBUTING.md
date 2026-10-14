@@ -11,7 +11,7 @@ IeumDoc은 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.1-beta.3](https
 
 ## Setup
 
-저장소 루트에서 실행한다.
+저장소 루트에서 실행한다. 아래는 전체 확인 명령이며, 작업별 로컬 필수 검증은 [Verification matrix](#verification-matrix)를 따른다.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -48,7 +48,9 @@ pnpm --filter @ieumdoc/editor build
 
 ## Verification matrix
 
-변경의 고유한 위험에 맞게 검증한다. 모든 변경에 전체 browser suite를 요구하지 않는다. 아래 최소 검증과 별개로 PR의 필수 CI 검사는 통과해야 한다.
+로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
+
+CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 전체 테스트·Editor build·전체 browser 회귀, Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀, Windows Desktop 설치·업데이트·clean package·release 자산 검증·`test:packaged`를 실행하며 aggregate 필수 검사가 모두의 성공을 요구한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
 
 | Change type | Required verification |
 | --- | --- |
@@ -58,10 +60,10 @@ pnpm --filter @ieumdoc/editor build
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
-| HTTP Host / CLI distribution | HTTP boundary tests, CLI package + offline `test:packaged`, production `pnpm browser:test http-host`; Windows/Linux CI. 공유 handler 변경은 기존 Vite/Desktop 회귀도 검증 |
+| HTTP Host / CLI distribution | 관련 HTTP boundary tests와 production `pnpm browser:test http-host` (실제 Save → Reload/충돌). 공유 handler 변경은 관련 handler tests와 Vite browser 회귀도 로컬 실행하며 Desktop packaged 회귀는 CI에 맡김. CLI 배포 경계 변경 시 CLI package + offline `test:packaged`도 로컬 실행; Windows/Linux 검증은 CI |
 | Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/design/editor-visual-language-v1.md#reviewing-a-visual-change)) |
 | Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression |
-| Desktop/update/release | Desktop tests/typecheck, clean Windows package + artifact verification, packaged regression; updater/installer 변경은 actual install/update regression도 실행 |
+| Desktop/update/release | 관련 Desktop tests/typecheck·browser 회귀. 패키징·배포 경계 변경 시 clean Windows package + artifact verification·`test:packaged`도 로컬 실행; updater/installer 변경 시 actual install/update regression도 실행. 해당 경계 변경이 없으면 패키징·설치/업데이트 회귀는 CI |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
 
@@ -69,11 +71,11 @@ pnpm --filter @ieumdoc/editor build
 
 `pnpm --filter @ieumdoc/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @ieumdoc/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
 
-Windows/Linux CI는 이 세 검사를 수행하고 tarball을 Artifact로 제공한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
+Windows/Linux CI는 이 세 검사를 수행하고 tarball을 Artifact로 제공한다. 로컬에서는 관련 boundary tests와 HTTP browser 회귀를 실행한다 (`pnpm --filter @ieumdoc/cli build` 선행). `package`·`test:packaged`는 CLI 패키징·배포 경계를 변경할 때 실행한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
 
 ## Windows Desktop builds and releases
 
-Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 빌드 산출물은 `apps/desktop/build/`와 `apps/desktop/release/`이며 Git에 포함하지 않는다. `package`는 generated release 폴더를 비우고 빌드하며, 항상 `publish: never`다.
+Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 패키징·설치/업데이트·배포 경계를 변경하지 않은 작업에서는 아래 package·자산 검증·packaged 회귀와 install/update 회귀를 필수 Windows Desktop CI에 맡기고, 관련 tests/typecheck·browser 회귀를 로컬 실행한다. 빌드 산출물은 `apps/desktop/build/`와 `apps/desktop/release/`이며 Git에 포함하지 않는다. `package`는 generated release 폴더를 비우고 빌드하며, 항상 `publish: never`다.
 
 ```bash
 pnpm --filter @ieumdoc/desktop package

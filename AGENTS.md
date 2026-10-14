@@ -63,7 +63,7 @@
 
 ## Verification
 
-- 변경한 동작에 필요한 검증과 필수 CI 검사를 수행한다. 무관한 테스트 확장·리팩터링은 하지 않는다. 변경 유형별 최소 검증은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따르며, 문서만 바꾸면 `pnpm docs:check`와 `git diff --check`를 실행한다.
+- 로컬에서는 변경 영역의 대상 검사를 우선하고, PR의 필수 CI 검사는 모두 통과해야 한다. 전체 suite와 패키징·플랫폼별 검증의 로컬 실행 기준은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따른다. 무관한 테스트 확장·리팩터링은 하지 않으며, 문서만 바꾸면 `pnpm docs:check`와 `git diff --check`를 실행한다.
 - 테스트 추가 전 기존 보호 범위와 새로 잡을 결함을 확인한다. 기존 테스트 보완을 우선하며, 고유한 보호 가치가 없으면 추가하지 않는다.
 - 사용자 동작·공개 계약을 검증하고, 변수명·우연한 마크업 형태·임의의 개수를 고정하지 않는다. 명시적인 의존성 경계는 검증한다.
 - 의미 규칙은 Core에서, CLI·브라우저는 각 인터페이스의 고유한 위험과 통합 동작을 검증한다. 같은 결함을 잡는 사례를 계층마다 반복하지 않는다.

@@ -23,6 +23,8 @@ Windows에서 전역 pnpm shim이 실패하면 같은 버전의 `corepack pnpm`�
 
 ## 자동 검증
 
+로컬에서는 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)에 따라 아래 명령 중 관련 패키지 테스트·browser 시나리오를 선택한다. 전체 suite와 패키징·플랫폼별 검증의 실행 기준은 [검증 진입점](README.md)을 따른다.
+
 ```bash
 pnpm docs:check
 pnpm typecheck
@@ -30,7 +32,7 @@ pnpm test                                  # Core, File commit, CLI, Editor, Des
 pnpm --filter @ieumdoc/editor build
 ```
 
-`pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
+필수 CI에서는 `pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
 
 ### Browser regression
 
@@ -40,7 +42,7 @@ pnpm --filter @ieumdoc/editor build
 pnpm editor                                # 필요하면 다른 터미널에서 dev server를 직접 시작
 pnpm browser:test                          # stable 시나리오 전체
 pnpm browser:test footnotes outline        # 이름을 준 시나리오만
-pnpm browser:test --shard=1/2              # CI와 같은 분할. 로컬에서는 두 그룹을 차례로 실행
+pnpm browser:test --shard=1/2              # CI와 같은 분할. 로컬 전체 실행 시 두 그룹을 차례로 실행
 pnpm browser:prepare                       # 수동 검토용 scratch 사본만 다시 만든다
 ```
 
@@ -54,7 +56,7 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 
 ### CI
 
-`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build)과 browser `--shard=1/2`, `--shard=2/2`가 병렬로 돌고, 최종 check는 모두 성공했을 때만 통과한다.
+`.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build), browser `--shard=1/2`·`--shard=2/2`, Windows/Linux HTTP package·browser, Windows Desktop package·자산 검증·설치/업데이트 회귀가 병렬로 돌고, aggregate 필수 check는 모두 성공했을 때만 통과한다.
 
 ## 사람이 직접 볼 것
 
