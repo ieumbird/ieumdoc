@@ -19,6 +19,7 @@ import {
   serialize,
   validateStructure,
 } from "@ieumdoc/core";
+import { textRevision } from "@ieumdoc/file-commit";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
@@ -71,7 +72,9 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
   writeFileSync(file, nativeSource("# Title\n"));
   try {
     const args = ["insert-block", file, "--at", "2", "--text", INSERTED];
-    const changed = run(args, ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const changed = run([...args, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
       ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
     });
     assert.equal(changed.status, 1, changed.stderr);
@@ -200,6 +203,15 @@ test("command help is available from help and --help", () => {
   const insert = run(["help", "insert-block"]);
   assert.match(insert.stdout, /The current implementation inserts a Paragraph block only/);
   assert.equal(run(["insert-block", "-h"]).stdout, insert.stdout);
+
+  for (const command of ["format", "update-heading", "insert-block"]) {
+    const help = run(["help", command]);
+    assert.match(help.stdout, /\[--if-revision <revision>\]/);
+    assert.match(help.stdout, /run inspect again.*new revision and paths/);
+    assert.match(help.stdout, /do not print a new revision/);
+  }
+  assert.match(run(["help", "inspect"]).stdout, /revision.*original UTF-8 text/);
+  assert.doesNotMatch(run(["help", "create"]).stdout, /--if-revision/);
 });
 
 test("CLI insert-heading persists a Core heading", () => {
@@ -820,10 +832,12 @@ test("inspect and check expose stable machine-readable Core results", () => {
     const inspectResult = JSON.parse(inspected.stdout) as {
       ok: boolean;
       command: string;
+      revision: string;
       nodes: Array<{ path: number[]; type: string; level?: number; editable?: boolean; text?: string }>;
     };
     assert.equal(inspectResult.ok, true);
     assert.equal(inspectResult.command, "inspect");
+    assert.equal(inspectResult.revision, textRevision(before.toString("utf8")));
     assert.ok(inspectResult.nodes.length > 0);
     const heading = inspectResult.nodes.find((node) => node.type === "heading");
     assert.ok(heading);
@@ -857,6 +871,18 @@ test("inspect and check expose stable machine-readable Core results", () => {
     assert.equal(explicitTextCheck.status, 0, explicitTextCheck.stderr);
     assert.equal(explicitTextCheck.stdout, textCheck.stdout);
     assert.deepEqual(readFileSync(file), before);
+
+    // The preload changes the disk after the first read: nodes and revision still
+    // describe that single original read, never a later version of the file.
+    const external = nativeSource("## Edited elsewhere\n");
+    const snapshot = run(["inspect", file, "--format", "json"],
+      ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
+        ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file,
+        IEUMDOC_TEST_REPLACEMENT: Buffer.from(external).toString("base64"),
+      });
+    assert.equal(snapshot.status, 0, snapshot.stderr);
+    assert.deepEqual(JSON.parse(snapshot.stdout), inspectResult);
+    assert.equal(readFileSync(file, "utf8"), external);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -875,6 +901,11 @@ test("CLI rejects unknown, duplicate, and unnecessary arguments without writing"
       ["inspect", file, "--format", "yaml"],
       ["check", file, "--format", "json", "--format", "text"],
       ["check", file, "extra"],
+      ["create", file, "--if-revision", textRevision(before.toString("utf8"))],
+      ["inspect", file, "--if-revision", textRevision(before.toString("utf8"))],
+      ["check", file, "--if-revision", textRevision(before.toString("utf8"))],
+      ["format", file, "--if-revision"],
+      ["format", file, "--if-revision", "a".repeat(64), "--if-revision", "b".repeat(64)],
     ]) {
       const result = run(args);
       assert.notEqual(result.status, 0, args.join(" "));
@@ -883,6 +914,83 @@ test("CLI rejects unknown, duplicate, and unnecessary arguments without writing"
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("CLI accepts an inspect revision for edits and format without printing a new revision", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-revision-"));
+  const file = path.join(dir, "document.md");
+  const original = "\uFEFF" + nativeSource("## Target\r\n\r\nBody.\r\n");
+  writeFileSync(file, original);
+  try {
+    const inspected = run(["inspect", file, "--format", "json"]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const snapshot = JSON.parse(inspected.stdout);
+    assert.equal(snapshot.revision, textRevision(original));
+    assert.notEqual(snapshot.revision, textRevision(serialize(parse(original))));
+    const heading = snapshot.nodes.find((node: { type: string }) => node.type === "heading");
+    assert.ok(heading);
+    const updated = run(["update-heading", file, "--path", heading.path.join(","), "--text", "Changed",
+      "--if-revision", snapshot.revision]);
+    assert.equal(updated.status, 0, updated.stderr);
+    assert.equal(updated.stdout, "");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("## Changed\n\nBody.\n"));
+
+    // Refresh the revision for the next write, even when the path stayed the same.
+    const refreshed = run(["inspect", file, "--format", "json"]);
+    assert.equal(refreshed.status, 0, refreshed.stderr);
+    assert.notEqual(JSON.parse(refreshed.stdout).revision, snapshot.revision);
+    const formatted = run(["format", file, "--if-revision", JSON.parse(refreshed.stdout).revision]);
+    assert.equal(formatted.status, 0, formatted.stderr);
+    assert.equal(formatted.stdout, "");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("CLI refuses a stale inspect revision when structural edits retarget a valid path", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-stale-path-"));
+  const file = path.join(dir, "document.md");
+  const original = nativeSource("## Before\n\n## Target\n\n## After\n");
+  try {
+    for (const args of [
+      ["insert-heading", file, "--at", "1", "--level", "2", "--text", "Inserted"],
+      ["remove-block", file, "--at", "1"],
+      ["move-block", file, "--from", "3", "--to", "1"],
+    ]) {
+      writeFileSync(file, original);
+      const inspected = run(["inspect", file, "--format", "json"]);
+      assert.equal(inspected.status, 0, inspected.stderr);
+      const snapshot = JSON.parse(inspected.stdout);
+      const target = snapshot.nodes.find((node: { text?: string }) => node.text === "Target");
+      assert.ok(target);
+      const external = run(args);
+      assert.equal(external.status, 0, external.stderr);
+      const before = readFileSync(file);
+      const retargeted = getEditableDocument(parse(before.toString("utf8"))).blocks
+        .find(block => block.path.join(",") === target.path.join(","));
+      assert.equal(retargeted?.block, "heading");
+      assert.ok(retargeted && "text" in retargeted && retargeted.text !== target.text);
+      const failed = run(["update-heading", file, "--path", target.path.join(","), "--text", "Wrong target",
+        "--if-revision", snapshot.revision]);
+      assert.equal(failed.status, 1, failed.stderr);
+      assert.equal(failed.stderr, "revision mismatch; run inspect again; nothing was written\n");
+      assert.equal(failed.stdout, "");
+      assert.deepEqual(readFileSync(file), before);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("CLI rejects malformed revision arguments without changing file bytes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-invalid-revision-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, nativeSource("## Target\r\n"));
+  const before = readFileSync(file);
+  try {
+    for (const revision of ["", "a".repeat(63), "a".repeat(65), "A".repeat(64), "g".repeat(64), "a".repeat(64) + "\n"]) {
+      const failed = run(["format", file, "--if-revision", revision]);
+      assert.equal(failed.status, 1, failed.stderr);
+      assert.equal(failed.stderr, "--if-revision must be 64 lowercase hexadecimal characters\n");
+      assert.deepEqual(readFileSync(file), before);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("CLI updates Equation LaTeX through Core without partial writes", () => {

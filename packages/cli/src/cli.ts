@@ -92,6 +92,13 @@ const PATH_NOTE = [
   "Structural edits may change them.",
 ];
 
+const REVISION_NOTE = [
+  "Use --if-revision with the revision from ieumdoc inspect <file> --format json.",
+  "Revision must be 64 lowercase hexadecimal characters; a mismatch refuses the edit (exit 1).",
+  "Successful edits do not print a new revision.",
+  "Before each subsequent edit, run inspect again to get the new revision and paths.",
+];
+
 const PARAGRAPH_PATH_NOTE = [
   "Use ieumdoc inspect <file> to find a NodePath in the current snapshot.",
   "Structural edits may change paths; run inspect again after editing.",
@@ -183,6 +190,8 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc inspect <file> [--format <text|json>]",
     details: [
       "Inspect semantic blocks and editable targets.",
+      "JSON includes revision: the SHA-256 of the original UTF-8 text read for this inspect.",
+      ...REVISION_NOTE,
       "",
       "Editability fields describe the current semantic projection.",
       "numbers= (JSON: numbers) gives the computed number of a block's first equation, figure or",
@@ -620,6 +629,20 @@ function main(argv: string[]): number {
     return 2;
   }
   const { file, flags, format } = parseCommandArgs(command, rest);
+  const ifRevision = optionalFlag(flags, "--if-revision");
+
+  /** Apply one Core operation and write the result only over the file as it was read. */
+  function edit(path: string, change: (document: Document) => Document): void {
+    // Both checks use the source the change was made to, never a later read.
+    const source = readFile(path);
+    const revision = textRevision(source);
+    if (ifRevision !== undefined && ifRevision !== revision) {
+      throw new Error("revision mismatch; run inspect again; nothing was written");
+    }
+    const document = change(parse(source));
+    validateStructure(document);
+    commitFile(path, serialize(document), revision);
+  }
 
   switch (command) {
     case "create": {
@@ -934,6 +957,9 @@ function topLevelHelp(): string {
     "Commands:",
     ...COMMANDS.map((command) => `  ${command.name.padEnd(width)}  ${command.summary}`),
     "",
+    "Document edits (including format, excluding create):",
+    ...REVISION_NOTE,
+    "",
     "Run:",
     "  ieumdoc help <command>",
     "",
@@ -944,7 +970,9 @@ function topLevelHelp(): string {
 function commandHelp(name: string): string {
   const spec = findCommand(name);
   if (!spec) return topLevelHelp();
-  return ["Usage:", `  ${spec.usage}`, "", ...spec.details, ""].join("\n");
+  const editing = isEditCommand(name);
+  return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>]" : ""}`, "", ...spec.details,
+    ...(editing ? ["", ...REVISION_NOTE] : []), ""].join("\n");
 }
 
 const COMMAND_OPTIONS: Record<string, readonly string[]> = {
@@ -996,13 +1024,17 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-label": ["--path", "--label"],
 };
 
+function isEditCommand(command: string): boolean {
+  return COMMAND_OPTIONS[command] !== undefined && !["create", "check", "inspect"].includes(command);
+}
+
 function parseCommandArgs(command: string, args: string[]): ParsedArgs {
   const [file, ...tokens] = args;
   if (!file || file.startsWith("-")) {
     throw new Error(`unexpected argument: ${file ?? "<missing file>"}`);
   }
 
-  const allowed = COMMAND_OPTIONS[command] ?? [];
+  const allowed = [...(COMMAND_OPTIONS[command] ?? []), ...(isEditCommand(command) ? ["--if-revision"] : [])];
   const seen = new Set<string>();
   const flags: string[] = [];
   let format: OutputFormat = "text";
@@ -1031,6 +1063,9 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
       }
       format = value;
     } else {
+      if (token === "--if-revision" && (value.length !== 64 || !/^[0-9a-f]{64}$/.test(value))) {
+        throw new Error("--if-revision must be 64 lowercase hexadecimal characters");
+      }
       flags.push(value);
     }
     index += 1;
@@ -1045,10 +1080,12 @@ function inspectFile(file: string): string {
 }
 
 function inspectFileJson(file: string): string {
-  const editable = getEditableDocument(parse(readFile(file)));
+  const source = readFile(file);
+  const editable = getEditableDocument(parse(source));
   return `${JSON.stringify({
     ok: true,
     command: "inspect",
+    revision: textRevision(source),
     nodes: machineNodes(editable),
   })}\n`;
 }
@@ -1239,15 +1276,6 @@ function quote(value: string): string {
 
 function readFile(path: string): string {
   return readFileSync(path, "utf8");
-}
-
-/** Apply one Core operation and write the result only over the file as it was read. */
-function edit(path: string, change: (document: Document) => Document): void {
-  // The revision comes from the source the change was made to, never from a later read.
-  const source = readFile(path);
-  const document = change(parse(source));
-  validateStructure(document);
-  commitFile(path, serialize(document), textRevision(source));
 }
 
 function summarize(document: Document): string {
