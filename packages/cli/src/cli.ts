@@ -224,6 +224,7 @@ const COMMANDS: CommandSpec[] = [
       "Other Core commands may support additional text operations.",
       "",
       ...PATH_NOTE,
+      "Metadata is not listed. " + BODY_INDEX_NOTE,
     ],
   },
   {

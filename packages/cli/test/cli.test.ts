@@ -317,6 +317,7 @@ test("command help is available from help and --help", () => {
     assert.match(help.stdout, /do not print a new revision/);
   }
   assert.match(run(["help", "inspect"]).stdout, /revision.*original UTF-8 text/);
+  assert.match(run(["help", "inspect"]).stdout, /Metadata is not listed. Block 0 is the document metadata; body blocks start at 1/);
   assert.doesNotMatch(run(["help", "create"]).stdout, /--if-revision/);
   const batch = run(["help", "apply-batch"]);
   assert.equal(batch.status, 0);
