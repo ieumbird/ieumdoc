@@ -1,7 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (Choose… image selection with Host unit tests and the `image-assets` browser regression; empty Figure persistence and link-reference warnings compared with Core/CLI/Editor code on 2026-10-13).
+- Last verified: 2026-10-14 (#211 relative-path classification, Host traversal rejection, actual image loading/failure and unchanged Save → Reload paths in Editor tests and `image-assets`; Choose… image selection and existing pending Figure regressions).
 - Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
 ## Scope and completion
@@ -43,7 +43,9 @@ Edit opens the properties of any editable Figure. Apply accepts any combination 
 
 Choose… beside the Image field opens the [folder picker](folder-picker-v1.md#choosing-an-image) to choose an image on the Host, starting in the document's folder ([#208](https://github.com/ieumbird/ieumdoc/issues/208)). It only fills the Image field; Apply validates and commits it like a typed value. An image inside the document's folder fills its relative path, such as `./figures/diagram.svg`, and nothing is copied. One elsewhere is copied into `assets/` as a pasted image is, and the field gets that copy's path. Cancel, choosing again, or the form going away unapplied (Reload, closing the document, deleting the Figure) removes a copy the form made; a copy Apply put in the Figure stays. Closing the picker without choosing leaves the field unchanged. No CLI command is added: choosing is Host navigation, and `update-figure --image` already sets the path.
 
-Relative image sources remain unchanged in document attributes and Markdown. Both the live NodeView and the editor's HTML serializer resolve the displayed image through the Host media URL, so production HTTP does not request a document asset as an Editor build asset.
+Relative image sources remain unchanged in document attributes and Markdown. Both the live NodeView and the editor's HTML serializer resolve document-relative paths through the Host media URL, with or without `./` (`assets/diagram.svg` and `./assets/diagram.svg` display the same image). Sources with a URL scheme, protocol-relative sources (`//host/...`), root-absolute paths and Windows drive/UNC paths retain their existing browser handling. Relative `../` paths still pass through the Host, which rejects access outside the document directory, including encoded traversal and symlink escapes; URL encoding must not let browser dot-segment normalization bypass that check. No path is normalized or prefixed in saved content.
+
+If an image cannot load, the Figure shows `Image could not be loaded. Check the image path or URL.` in the existing error Notice, including at rest and in read-only documents. The broken image is hidden; caption, numbering and properties remain available. Successful loading or changing the source clears the failed-source display state. This state never changes document attributes, dirty state, Source or Save, and adds no Core/CLI asset-existence check.
 
 ## CLI and readiness
 
@@ -71,3 +73,13 @@ The same pending Markdown was opened at master `252de5c` and with this implement
 | ![Pending Figure at master 252de5c](assets/pending-figure-before.png) | ![Editable pending Figure with no-content frame](assets/pending-figure-after.png) |
 
 Screenshots are manual presentation evidence. The `pending-figure` browser regression separately proves actual insertion/Apply/Source/history/Save/Reload and subsequent image connection; `layout-rules` and `quiet-document` check existing geometry and typography.
+
+### Relative paths and load failure (#211)
+
+The same clean `tmp/image-assets/paths.md` was opened before the fix at `2d5b2fb` and after it in this worktree's Vite server on port 5373. Both captures use the same checkout-specific persistent Chrome profile, 1440×1000 viewport, DPR 1, zoom 1, scroll top, no hovered/selected block and loaded Pretendard fonts. The first Figure uses `./assets/diagram.svg`, the second uses `assets/diagram.svg`, and the third uses the missing `assets/missing.png`. Before, the second and third showed broken images without an explanation. After, both valid sources load the same image and only the missing image shows an error Notice, with its caption retained.
+
+| Before | After |
+| --- | --- |
+| ![Bare relative path and missing image fail silently](assets/relative-image-path-before.png) | ![Both relative paths load and the missing image has an error Notice](assets/relative-image-path-after.png) |
+
+These captures are manual evidence, separate from the automated `image-assets` integration checks. The error Notice uses the existing danger text/surface/border and 14/20px UI type; it is visible at rest and adds no controls. The 375px collapsed-sidebar state was also inspected. The existing `figure-authoring`, `pending-figure`, `layout-rules` and `quiet-document` regressions protect properties, pending content and surrounding presentation.

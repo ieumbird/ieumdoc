@@ -37,7 +37,12 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "ieumdoc-b.md", create: () => "# B\n" },
   ], scenarios: ["open-files"] },
   "image-assets": { files: [{ name: "images.md", create: () => "# Images\n\nAlpha.\n\nBeta.\n" },
-    { name: "figures/diagram.svg", create: () => document("diagram.svg").create() }], scenarios: ["image-assets"] },
+    { name: "figures/diagram.svg", create: () => document("diagram.svg").create() },
+    { name: "assets/diagram.svg", create: () => document("diagram.svg").create() },
+    { name: "paths.md", create: () => "# Image paths\n\n" +
+      ":::{figure} ./assets/diagram.svg\n:alt: Explicit relative path\n\nExplicit relative path.\n:::\n\n" +
+      ":::{figure} assets/diagram.svg\n:alt: Bare relative path\n\nBare relative path.\n:::\n\n" +
+      ":::{figure} assets/missing.png\n:alt: Missing image\n\nMissing image.\n:::\n" }], scenarios: ["image-assets"] },
   // An image outside that document's folder, which choosing copies into its assets/.
   "image-assets-outside": { files: [{ name: "photo.png", create: () =>
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") }], scenarios: ["image-assets"] },

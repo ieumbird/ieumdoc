@@ -1039,6 +1039,16 @@ ol.list { list-style: decimal; }
   margin-inline: auto;
 }
 
+.figure img[hidden] {
+  display: none;
+}
+
+.figure-image-error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+}
+
 /* A pending Figure's content place: unfinished, like an unresolved reference (dashed, subtle). */
 .figure-no-content {
   padding: var(--space-8) var(--space-4);
