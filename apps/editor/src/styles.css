@@ -11,6 +11,8 @@
 
 body {
   margin: 0;
+  /* Overrides the base layer's white `bg-background`, which would hide the root canvas. */
+  background: var(--id-color-canvas);
 }
 
 button {
@@ -675,7 +677,8 @@ button {
   padding-bottom: var(--layout-document-end-space);
   padding-left: var(--layout-document-gutter);
   background: var(--id-color-surface);
-  box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle);
+  border-radius: var(--id-radius-paper);
+  box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle), var(--shadow-paper);
 }
 
 /* No document open yet: the same paper offers the choice at the text axis, in UI type. */
