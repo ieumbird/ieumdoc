@@ -323,11 +323,12 @@ export async function handleDocumentRequest(
 
 function saveRequestOf(value: unknown): SaveRequest {
   if (!isObject(value) || typeof value.path !== "string" || !value.path.trim()) throw new Error("document path is required");
-  if (typeof value.revision !== "string" || !/^[a-f0-9]{64}$/.test(value.revision)) throw new Error("invalid document revision");
-  if (!isObject(value.base) || typeof value.base.source !== "string") throw new Error("invalid session source");
-  const savedEdits = value.base.savedEdits === undefined ? undefined : supportedEditsOf(value.base.savedEdits);
-  return { ...supportedEditsOf(value), path: value.path, revision: value.revision,
-    base: { source: value.base.source, ...(savedEdits === undefined ? {} : { savedEdits }) } };
+  const { path, revision, base, ...edits } = value;
+  if (typeof revision !== "string" || !/^[a-f0-9]{64}$/.test(revision)) throw new Error("invalid document revision");
+  if (!isObject(base) || typeof base.source !== "string") throw new Error("invalid session source");
+  const savedEdits = base.savedEdits === undefined ? undefined : supportedEditsOf(base.savedEdits);
+  return { ...supportedEditsOf(edits), path, revision,
+    base: { source: base.source, ...(savedEdits === undefined ? {} : { savedEdits }) } };
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -336,8 +337,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function supportedEditsOf(value: unknown): SupportedEdits {
   if (!isObject(value)) throw new Error("invalid session edits");
-  for (const key of ["headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
-    "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order"] as const) {
+  const arrayFields = ["headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
+    "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order"] as const;
+  for (const key of Object.keys(value)) {
+    if (key !== "headingNumbering" && !arrayFields.some(field => field === key)) throw new Error(`invalid ${key} edits`);
+  }
+  for (const key of arrayFields) {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);
   }
   if (value.headingNumbering !== undefined && typeof value.headingNumbering !== "boolean") throw new Error("invalid heading numbering");
