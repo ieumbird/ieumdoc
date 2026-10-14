@@ -1348,18 +1348,33 @@ function pathFlag(args: string[]): NodePath {
   return path;
 }
 
-try {
-  const args = process.argv.slice(2);
-  if (args[0] === "serve" && !isCommandHelpRequest(args.slice(1))) {
-    const { serve } = await import("./serve.ts");
-    // Source checkout runs use an explicit Editor build; the distributable carries it beside cli.mjs.
-    const editorDir = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "../../../apps/editor/dist/" : "./editor/", import.meta.url));
-    await serve(args.slice(1), editorDir);
-  } else process.exitCode = main(args);
-} catch (error) {
-  if (process.argv[2] === "check" && process.argv.includes("--format") && process.argv[process.argv.indexOf("--format") + 1] === "json") {
+function reportError(args: string[], error: unknown): number {
+  if (args[0] === "check" && args.includes("--format") && args[args.indexOf("--format") + 1] === "json") {
     process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
       error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
   } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
+  return 1;
+}
+
+/** Run a synchronous command with the same output and error status as the executable. */
+export function runCli(args: string[]): number {
+  try {
+    return main(args);
+  } catch (error) {
+    return reportError(args, error);
+  }
+}
+
+if (import.meta.main) {
+  const args = process.argv.slice(2);
+  try {
+    if (args[0] === "serve" && !isCommandHelpRequest(args.slice(1))) {
+      const { serve } = await import("./serve.ts");
+      // Source checkout runs use an explicit Editor build; the distributable carries it beside cli.mjs.
+      const editorDir = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "../../../apps/editor/dist/" : "./editor/", import.meta.url));
+      await serve(args.slice(1), editorDir);
+    } else process.exitCode = runCli(args);
+  } catch (error) {
+    process.exitCode = reportError(args, error);
+  }
 }
