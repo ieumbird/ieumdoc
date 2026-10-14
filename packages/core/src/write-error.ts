@@ -1,0 +1,21 @@
+import type { NodePath } from "./document.ts";
+
+/** Write refusal information, independent of an editor, transport or filesystem. */
+export type WriteIssue = { reason: string; action: string; path?: NodePath; line?: number };
+
+export class DocumentWriteError extends Error {
+  constructor(message: string, readonly location: Omit<WriteIssue, "reason">, options?: ErrorOptions) {
+    super(message, options);
+  }
+}
+
+/** Preserve metadata through operation wrappers without interpreting error strings. */
+export function writeIssueOf(error: unknown): WriteIssue {
+  const reason = error instanceof Error ? error.message : String(error);
+  const seen = new Set<unknown>();
+  for (let cause = error; cause instanceof Error && !seen.has(cause); cause = cause.cause) {
+    seen.add(cause);
+    if (cause instanceof DocumentWriteError) return { reason, ...cause.location };
+  }
+  return { reason, action: "Review the affected content. If the reason does not identify a correction, report this error." };
+}

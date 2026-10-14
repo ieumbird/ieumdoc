@@ -125,7 +125,7 @@ async (page, { openDocument }) => {
   await page.getByTestId('save').click(); await page.getByText('Save failed', {exact:true}).waitFor();
   const invalid = { error: await page.getByTestId('error').innerText(), diskKept: (await read(file)).source === beforeInvalid,
     paragraph: await paragraph().textContent() };
-  if (!invalid.error.includes('Block 2 (paragraph)') || !invalid.diskKept || invalid.paragraph !== '') throw new Error(JSON.stringify(invalid));
+  if (!invalid.error.includes('Block 2 (paragraph)') || !invalid.error.includes('empty paragraph') || !invalid.error.includes('Enter text') || !invalid.diskKept || invalid.paragraph !== '') throw new Error(JSON.stringify(invalid));
   check('invalidContentLocatedAndRetained', true);
   await undo(); await save();
 
@@ -138,6 +138,15 @@ async (page, { openDocument }) => {
   await page.getByText('Save failed', {exact:true}).waitFor();
   check('shortcutFailureShown', (await page.getByTestId('error').innerText()).includes('Temporary save failure'));
   check('failureRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
+  // A malformed response cannot acknowledge Save or promise that the disk was not written.
+  await page.unrouteAll();
+  await page.route('**/api/document', route => route.request().method() === 'POST'
+    ? route.fulfill({status:200, contentType:'text/plain', body:'Not a JSON acknowledgement'}) : route.continue());
+  await page.keyboard.press('Control+s');
+  await page.getByText('Save failed', {exact:true}).waitFor();
+  const unconfirmed = await page.getByTestId('error').innerText();
+  check('unconfirmedSaveExplained', unconfirmed.includes('Save result unconfirmed') && unconfirmed.includes('may already have been saved') && unconfirmed.includes('Keep your edits'));
+  check('unconfirmedRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
   await page.unrouteAll(); await save();
   check('retryWrites', (await read(file)).source.includes('Retry'));
 

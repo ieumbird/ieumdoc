@@ -35,6 +35,9 @@ import {
 import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
+import { SaveContentError } from "../shared/save-error.ts";
+import { saveErrorMessage } from "../src/save-error.ts";
+import { RootAccess } from "../server/file-access.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = fileURLToPath(
@@ -627,7 +630,12 @@ test("new heading inserts save and reload through Core semantics", () => {
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "heading", attrs: { sourcePath: "new:empty-heading", level: 1 } });
-  assert.throws(() => collectSupportedEdits(editable, empty), /empty heading cannot be saved/);
+  assert.throws(() => collectSupportedEdits(editable, empty), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.equal(saveErrorMessage(error, empty),
+      "Block 2 (heading): empty heading cannot be saved. Enter text or delete this block.");
+    return true;
+  });
   assert.throws(
     () => saveEdits("Intro\n", {
       headings: [],
@@ -909,7 +917,16 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
         }),
       });
       assert.equal(response.status, 400, name);
-      assert.match(((await response.json()) as { error: string }).error, reason, name);
+      const failure = await response.json();
+      assert.match(failure.error, reason, name);
+      assert.equal(failure.failure.phase, "serialize");
+      assert.deepEqual(failure.target, { path: [1], part: 0 });
+      assert.ok(failure.failure.action);
+      if (name === "keyboard.md") {
+        assert.equal(failure.failure.line, 3);
+        assert.match(saveErrorMessage(new SaveContentError(failure.error, failure.target, failure.failure),
+          toTiptapDocument(loaded.document)), /^Block 2 \(readonlyParagraph\), source line 3:/);
+      }
       assert.deepEqual(readFileSync(file), before, name);
     }
   } finally {
@@ -940,6 +957,7 @@ test("Host opens complete models and Save acknowledges only the written revision
     assert.deepEqual(opened.document.blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
     assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*keyboard/);
     assert.equal(opened.writeError, canonicalWriteError(parse(source)));
+    assert.deepEqual(opened.writeIssue?.path, [0]);
     const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
     assert.equal(response.status, 200);
     assert.equal(((await response.json()) as { writeError: string | null }).writeError, opened.writeError);
@@ -981,6 +999,44 @@ test("Host opens complete models and Save acknowledges only the written revision
     assert.equal(saved.status, 200);
     assert.deepEqual(await saved.json(), { revision: documentRevision(readFileSync(writable, "utf8")) });
   } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("HTTP Save reports file and revision failures without leaking paths or writing", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-save-failure-"));
+  const file = path.join(dir, "document.md");
+  const original = "# Title\n\nBody.\n";
+  writeFileSync(file, original);
+  const access = new RootAccess([dir]);
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end(), access); });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const request = { path: file, revision: documentRevision(original), base: { source: original },
+      paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }] };
+    const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    });
+    const rename = t.mock.method(fs, "renameSync", () => { throw Object.assign(new Error(`Cannot rename ${file}`), { code: "ENOSPC" }); });
+    const failed = await post(request);
+    assert.equal(failed.status, 400);
+    const failure = await failed.json();
+    assert.equal(failure.failure.phase, "file");
+    assert.match(failure.failure.action, /Free disk space/);
+    assert.equal(failure.target, undefined);
+    assert.ok(!JSON.stringify(failure).includes(file));
+    assert.equal(readFileSync(file, "utf8"), original);
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+    rename.mock.restore();
+    const conflict = await post({ ...request, revision: "0".repeat(64) });
+    assert.equal(conflict.status, 409);
+    assert.equal((await conflict.json()).failure.phase, "revision");
+    assert.equal(readFileSync(file, "utf8"), original);
+  } finally {
+    t.mock.restoreAll();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     rmSync(dir, { recursive: true, force: true });
@@ -1231,7 +1287,45 @@ test("empty paragraph and empty heading saves are rejected", () => {
   );
   const emptied = clone(toTiptapDocument(editable));
   blockAt(emptied, "8").content = [];
-  assert.throws(() => collectSupportedEdits(editable, emptied), /empty paragraph cannot be saved/);
+  assert.throws(() => collectSupportedEdits(editable, emptied), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.equal(saveErrorMessage(error, emptied),
+      "Block 9 (paragraph): empty paragraph cannot be saved. Enter text or delete this block.");
+    return true;
+  });
+  assert.throws(() => saveEdits(source, { paragraphs: [{ path: [8], content: [] }] }), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.deepEqual(error.target, { path: [8], part: 0 });
+    assert.match(error.action, /Enter text or delete/);
+    return true;
+  });
+  const table = loadEditableDocument("# Title\n\n| a | b |\n|--|--|\n| c | d |\n");
+  const broken = clone(toTiptapDocument(table));
+  broken.content![1].content![1].content![1].content = [{ type: "hardBreak" }];
+  assert.throws(() => collectSupportedEdits(table, broken), (error: unknown) => {
+    assert.ok(error instanceof SaveContentError);
+    assert.match(error.message, /line breaks/);
+    assert.deepEqual(error.block, { index: 1, type: "table" });
+    assert.deepEqual(error.cell, { row: 1, column: 1 });
+    assert.match(error.action, /Remove.*line break/);
+    return true;
+  });
+});
+
+test("save error locations follow submitted split blocks and moved table cells", () => {
+  const submitted: TiptapJSON = { type: "doc", content: [
+    { type: "paragraph", attrs: { sourcePath: "0" } },
+    { type: "paragraph", attrs: { sourcePath: "0" } },
+    { type: "table", attrs: { sourcePath: "1" }, content: [
+      { type: "tableRow", content: [{ type: "tableCell", attrs: { sourceCell: "1,1" } }] },
+    ] },
+  ] };
+  assert.match(saveErrorMessage(new SaveContentError("split failed", { path: [0], part: 1 }), submitted), /^Block 2 \(paragraph\)/);
+  assert.match(saveErrorMessage(new SaveContentError("cell failed", { path: [1, 1, 1], part: 0 }), submitted), /^Block 3 \(table\), row 1, column 1/);
+  const unknown = saveErrorMessage(new SaveContentError("unknown serializer error", undefined, { phase: "serialize" }), submitted);
+  assert.match(unknown, /^Document:/);
+  assert.match(unknown, /report this error/);
+  assert.doesNotMatch(unknown, /Block \d/);
 });
 
 test("read-only targets and unsupported headings are rejected by save", () => {

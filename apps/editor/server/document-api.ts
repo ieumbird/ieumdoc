@@ -30,13 +30,33 @@ import type {
   FolderPlacesResponse,
   FolderResponse,
 } from "../shared/document-protocol.ts";
+import type { SaveFailure } from "../shared/save-error.ts";
 
 /** Internal file helpers may replay directly against a supplied disk snapshot. HTTP always requires a session. */
 type FileSaveRequest = SupportedEdits & { revision?: string; base?: SaveRequest["base"] };
 
 function errorPayload(error: unknown, access: FileAccess = LOCAL_FILE_ACCESS): DocumentErrorResponse {
-  return { error: fileErrorMessage(error, access),
-    ...(error instanceof SaveContentError && error.target ? { target: error.target } : {}) };
+  return { error: fileErrorMessage(error instanceof SaveContentError && error.phase === "file" ? error.cause ?? error : error, access),
+    ...(error instanceof SaveContentError ? { target: error.target, failure: {
+      phase: error.phase, action: error.action, target: error.target, block: error.block, cell: error.cell, line: error.line,
+    } } : {}),
+    ...(error instanceof DocumentConflictError ? { failure: { phase: "revision", action:
+      "Keep editing, or copy applied content from Source. Reload only when you are ready to discard local changes." } satisfies SaveFailure } : {}),
+  };
+}
+
+function fileStep<T>(apply: () => T): T {
+  try { return apply(); }
+  catch (error) {
+    if (error instanceof DocumentConflictError) throw error;
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    const action = code === "EACCES" || code === "EPERM" ? "Check file/folder write permission and whether another application has locked the file."
+      : code === "ENOSPC" ? "Free disk space before trying to save again."
+      : code === "EROFS" ? "The filesystem is read-only. Use a writable location."
+      : code === "ENOENT" ? "Check that the document and its parent folder still exist."
+      : "Check the document location, file permissions and available disk space. If the problem persists, report this error.";
+    throw new SaveContentError(error instanceof Error ? error.message : String(error), undefined, { phase: "file", action, cause: error });
+  }
 }
 
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Your edits are kept. Use Source to copy applied content, or Reload to discard local changes and open the disk version.";
@@ -107,10 +127,10 @@ export function saveDocumentFile(
   request: FileSaveRequest,
   access: FileAccess = LOCAL_FILE_ACCESS,
 ): SaveResponse & { path: string; markdown: string } {
-  const filePath = resolveDocumentPath(requestedPath, access);
+  const filePath = fileStep(() => resolveDocumentPath(requestedPath, access));
   const saved = commitDocumentSave(
-    () => readFileSync(accessPath(filePath, access), "utf8"),
-    (markdown) => replaceDocumentFile(accessPath(filePath, access), markdown, request.revision),
+    () => fileStep(() => readFileSync(accessPath(filePath, access), "utf8")),
+    (markdown) => fileStep(() => replaceDocumentFile(accessPath(filePath, access), markdown, request.revision)),
     request,
   );
   return { ...saved, path: filePath };
@@ -151,7 +171,12 @@ export function saveCurrentDocument(
     throw new DocumentConflictError();
   }
   const base = sessionSource(source, request);
-  const saved = saveEdits(base, request);
+  let saved: { markdown: string };
+  try { saved = saveEdits(base, request); }
+  catch (error) {
+    if (error instanceof SaveContentError) throw error;
+    throw new SaveContentError(error instanceof Error ? error.message : String(error), undefined, { cause: error });
+  }
   return { ...saved, revision: documentRevision(saved.markdown) };
 }
 
@@ -187,7 +212,8 @@ export async function handleDocumentRequest(
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => (await readRequestBody(request, bodyLimit)).toString("utf8");
   const failure = (error: unknown) => sendJson(res,
-    error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status : fileErrorStatus(error),
+    error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status
+      : fileErrorStatus(error instanceof SaveContentError && error.phase === "file" ? error.cause : error),
     errorPayload(error, access));
   const requestUrl = new URL(req.url ?? "", "http://localhost");
   const url = requestUrl.pathname;
@@ -293,7 +319,7 @@ export async function handleDocumentRequest(
         sendJson(res, 200, { revision: saved.revision } satisfies SaveResponse);
       } catch (error) {
         if (error instanceof DocumentConflictError) {
-          sendJson(res, 409, { error: error.message });
+          sendJson(res, 409, errorPayload(error, access));
           return;
         }
         throw error;

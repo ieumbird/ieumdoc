@@ -1,6 +1,6 @@
 import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
-  canonicalWriteError,
+  canonicalWriteIssue,
   endnotesInPlace,
   getEditableDocument,
   isAdmonitionVariant,
@@ -54,6 +54,8 @@ import {
   type FigureContent,
   type InlineContent,
   type NodePath,
+  writeIssueOf,
+  type WriteIssue,
 } from "@ieumdoc/core";
 import type {
   BlockSourceEdit,
@@ -62,6 +64,8 @@ import type {
   OrderItem,
   SupportedEdits,
 } from "../shared/document-protocol.ts";
+import { SaveContentError } from "../shared/save-error.ts";
+export { SaveContentError } from "../shared/save-error.ts";
 
 /**
  * SupportedEdits → Core operations: replay an editing session's declarative edits on its
@@ -69,21 +73,23 @@ import type {
  * handling (document-api.ts owns those).
  */
 
-export class SaveContentError extends Error {
-  constructor(message: string, readonly target: OrderItem | undefined, options: ErrorOptions) {
-    super(message, options);
+function editAt<T>(target: OrderItem, apply: () => T, cell?: SaveContentError["cell"]): T {
+  try { return apply(); }
+  catch (error) {
+    if (error instanceof SaveContentError && error.target) throw error;
+    const issue = writeIssueOf(error);
+    throw new SaveContentError(issue.reason, target, { cause: error, cell,
+      line: error instanceof SaveContentError ? error.line : issue.line,
+      action: error instanceof SaveContentError ? error.action : issue.action });
   }
 }
 
-function editAt<T>(target: OrderItem, apply: () => T): T {
-  try { return apply(); }
-  catch (error) { throw new SaveContentError(error instanceof Error ? error.message : String(error), target, { cause: error }); }
-}
-
 /** The read model, canonical writeability and endnote placement of one parsed snapshot. */
-export function readModel(source: string): { document: EditableDocument; writeError: string | null; endnotesInPlace: boolean } {
+export function readModel(source: string): { document: EditableDocument; writeError: string | null; writeIssue?: WriteIssue; endnotesInPlace: boolean } {
   const document = parse(source);
-  return { document: getEditableDocument(document), writeError: canonicalWriteError(document) ?? null, endnotesInPlace: endnotesInPlace(document) };
+  const issue = canonicalWriteIssue(document);
+  return { document: getEditableDocument(document), writeError: issue?.reason ?? null,
+    ...(issue ? { writeIssue: issue } : {}), endnotesInPlace: endnotesInPlace(document) };
 }
 
 export function saveEdits(
@@ -94,165 +100,191 @@ export function saveEdits(
   const editable = getEditableDocument(document);
   for (const edit of edits.headings ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "heading");
-    const block = blockAt(editable, edit.path);
-    if (block?.block !== "heading" || !block.editable) {
-      throw new Error(`heading edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateHeadingInlineContent(document, edit.path, edit.content));
+    editAt(target, () => {
+      assertPath(edit.path, "heading");
+      const block = blockAt(editable, edit.path);
+      if (block?.block !== "heading" || !block.editable) {
+        throw new Error(`heading edit is not allowed at [${edit.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateHeadingInlineContent(document, edit.path, edit.content));
+    });
   }
   for (const edit of edits.headingLevels ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "heading");
-    const block = blockAt(editable, edit.path);
-    if (block?.block !== "heading" || !block.editable) {
-      throw new Error(`heading level change is not allowed at [${edit.path.join(",")}]`);
-    }
-    if (edit.from !== block.level) {
-      throw new Error(`heading level does not match at [${edit.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateHeadingLevel(document, edit.path, edit.from, edit.to));
+    editAt(target, () => {
+      assertPath(edit.path, "heading");
+      const block = blockAt(editable, edit.path);
+      if (block?.block !== "heading" || !block.editable) {
+        throw new Error(`heading level change is not allowed at [${edit.path.join(",")}]`);
+      }
+      if (edit.from !== block.level) {
+        throw new Error(`heading level does not match at [${edit.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateHeadingLevel(document, edit.path, edit.from, edit.to));
+    });
   }
   for (const paragraph of edits.paragraphs ?? []) {
     const target = { path: [paragraph.path[0]], part: 0 };
-    assertPath(paragraph.path, "paragraph");
-    const block = blockAt(editable, paragraph.path);
-    if (block?.block !== "paragraph" || !block.editable) {
-      throw new Error(`paragraph edit is not allowed at [${paragraph.path.join(",")}]`);
-    }
-    if (inlineText(paragraph.content).length === 0) {
-      throw new Error("empty paragraph cannot be saved");
-    }
-    document = editAt(target, () => updateParagraphInlineContent(document, paragraph.path, paragraph.content));
+    editAt(target, () => {
+      assertPath(paragraph.path, "paragraph");
+      const block = blockAt(editable, paragraph.path);
+      if (block?.block !== "paragraph" || !block.editable) {
+        throw new Error(`paragraph edit is not allowed at [${paragraph.path.join(",")}]`);
+      }
+      if (inlineText(paragraph.content).length === 0) {
+        throw new SaveContentError("empty paragraph cannot be saved", undefined, { action: "Enter text or delete this block." });
+      }
+      document = editAt(target, () => updateParagraphInlineContent(document, paragraph.path, paragraph.content));
+    });
   }
   for (const admonition of edits.admonitions ?? []) {
     const target = { path: [admonition.path[0]], part: 0 };
-    assertPath(admonition.path, "admonition");
-    const block = blockAt(editable, admonition.path);
-    if (block?.block !== "admonition" || !block.editable) {
-      throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
-    }
-    const { variant, content } = admonition;
-    if (variant !== undefined) document = editAt(target, () => updateAdmonitionVariant(document, admonition.path, variant));
-    if (content !== undefined) document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, content));
+    editAt(target, () => {
+      assertPath(admonition.path, "admonition");
+      const block = blockAt(editable, admonition.path);
+      if (block?.block !== "admonition" || !block.editable) {
+        throw new Error(`admonition edit is not allowed at [${admonition.path.join(",")}]`);
+      }
+      const { variant, content } = admonition;
+      if (variant !== undefined) document = editAt(target, () => updateAdmonitionVariant(document, admonition.path, variant));
+      if (content !== undefined) document = editAt(target, () => updateAdmonitionInlineContent(document, admonition.path, content));
+    });
   }
   for (const quote of edits.quotes ?? []) {
     const target = { path: [quote.path[0]], part: 0 };
-    assertPath(quote.path, "quote");
-    const block = blockAt(editable, quote.path);
-    if (block?.block !== "quote" || !block.editable) {
-      throw new Error(`quote edit is not allowed at [${quote.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateQuoteInlineContent(document, quote.path, quote.content));
+    editAt(target, () => {
+      assertPath(quote.path, "quote");
+      const block = blockAt(editable, quote.path);
+      if (block?.block !== "quote" || !block.editable) {
+        throw new Error(`quote edit is not allowed at [${quote.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateQuoteInlineContent(document, quote.path, quote.content));
+    });
   }
   for (const footnote of edits.footnotes ?? []) {
     const target = { path: [footnote.path[0]], part: 0 };
-    assertPath(footnote.path, "footnote");
-    const block = blockAt(editable, footnote.path);
-    if (block?.block !== "footnote" || !block.editable) {
-      throw new Error(`footnote edit is not allowed at [${footnote.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateFootnoteDefinition(document, footnote.path, footnote.content));
+    editAt(target, () => {
+      assertPath(footnote.path, "footnote");
+      const block = blockAt(editable, footnote.path);
+      if (block?.block !== "footnote" || !block.editable) {
+        throw new Error(`footnote edit is not allowed at [${footnote.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateFootnoteDefinition(document, footnote.path, footnote.content));
+    });
   }
   for (const edit of edits.lists ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "list");
-    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "list") {
-      throw new Error(`list edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateList(document, edit.path, edit.list));
+    editAt(target, () => {
+      assertPath(edit.path, "list");
+      if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "list") {
+        throw new Error(`list edit is not allowed at [${edit.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateList(document, edit.path, edit.list));
+    });
   }
   for (const edit of edits.codes ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "code block");
-    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "code") {
-      throw new Error(`code block edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateCodeBlock(document, edit.path, edit.code));
+    editAt(target, () => {
+      assertPath(edit.path, "code block");
+      if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "code") {
+        throw new Error(`code block edit is not allowed at [${edit.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateCodeBlock(document, edit.path, edit.code));
+    });
   }
   for (const equation of edits.equations ?? []) {
     const target = { path: [equation.path[0]], part: 0 };
-    assertPath(equation.path, "equation");
-    const block = blockAt(editable, equation.path);
-    if (block?.block !== "equation") {
-      throw new Error(`equation edit is not allowed at [${equation.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateEquationLatex(document, equation.path, equation.from, equation.to));
+    editAt(target, () => {
+      assertPath(equation.path, "equation");
+      const block = blockAt(editable, equation.path);
+      if (block?.block !== "equation") {
+        throw new Error(`equation edit is not allowed at [${equation.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateEquationLatex(document, equation.path, equation.from, equation.to));
+    });
   }
   for (const figure of edits.figures ?? []) {
     const target = { path: [figure.path[0]], part: 0 };
-    assertPath(figure.path, "figure");
-    const block = blockAt(editable, figure.path);
-    if (block?.block !== "figure" || !block.editable) {
-      throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
-    }
-    if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
-        JSON.stringify(figureCaptionContent(figure.from.caption)) !== JSON.stringify(block.caption.content)) {
-      throw new Error(`figure does not match at [${figure.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateFigure(document, figure.path, figureContent(figure.to)));
+    editAt(target, () => {
+      assertPath(figure.path, "figure");
+      const block = blockAt(editable, figure.path);
+      if (block?.block !== "figure" || !block.editable) {
+        throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
+      }
+      if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
+          JSON.stringify(figureCaptionContent(figure.from.caption)) !== JSON.stringify(block.caption.content)) {
+        throw new Error(`figure does not match at [${figure.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateFigure(document, figure.path, figureContent(figure.to)));
+    });
   }
   for (const edit of edits.cells ?? []) {
-    const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "table cell");
-    const [table, row, index] = edit.path;
-    const block = blockAt(editable, [table]);
-    const cell = edit.path.length === 3 && block?.block === "table" ? block.rows[row]?.cells[index] : undefined;
-    if (!cell?.editable) {
-      throw new Error(`table cell edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    if (!Array.isArray(edit.content)) {
-      throw new Error(`table cell content must be InlineContent at [${edit.path.join(",")}]`);
-    }
-    document = editAt(target, () => updateTableCell(document, edit.path, edit.content));
+    const target = { path: edit.path, part: 0 };
+    editAt(target, () => {
+      assertPath(edit.path, "table cell");
+      const [table, row, index] = edit.path;
+      const block = blockAt(editable, [table]);
+      const cell = edit.path.length === 3 && block?.block === "table" ? block.rows[row]?.cells[index] : undefined;
+      if (!cell?.editable) {
+        throw new Error(`table cell edit is not allowed at [${edit.path.join(",")}]`);
+      }
+      if (!Array.isArray(edit.content)) {
+        throw new Error(`table cell content must be InlineContent at [${edit.path.join(",")}]`);
+      }
+      document = editAt(target, () => updateTableCell(document, edit.path, edit.content));
+    });
   }
   // Snapshot cells are edited above at their snapshot paths. Core then removes the absent rows and
   // columns, moves the kept ones into their new order, adds rows and columns in new-grid order,
   // aligns the columns and fills the added cells.
   for (const edit of edits.tables ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
-    assertPath(edit.path, "table");
-    const block = blockAt(editable, edit.path);
-    const width = block?.block === "table" ? block.rows[0]?.cells.length ?? 0 : 0;
-    if (edit.path.length !== 1 || block?.block !== "table" || edit.rows[0] !== 0 ||
-        !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, width) || !Array.isArray(edit.cells) ||
-        (edit.align !== undefined && (!Array.isArray(edit.align) || edit.align.length !== edit.columns.length ||
-          edit.align.some(align => align !== null && !["left", "center", "right"].includes(align))))) {
-      throw new Error(`table edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    const reshape = (axis: (number | null)[], count: number, remove: typeof removeTableRow, move: typeof moveTableRow) => {
-      for (let index = count - 1; index >= 0; index--) {
-        if (!axis.includes(index)) document = editAt(target, () => remove(document, edit.path, index));
+    editAt(target, () => {
+      assertPath(edit.path, "table");
+      const block = blockAt(editable, edit.path);
+      const width = block?.block === "table" ? block.rows[0]?.cells.length ?? 0 : 0;
+      if (edit.path.length !== 1 || block?.block !== "table" || edit.rows[0] !== 0 ||
+          !isTableAxis(edit.rows, block.rows.length) || !isTableAxis(edit.columns, width) || !Array.isArray(edit.cells) ||
+          (edit.align !== undefined && (!Array.isArray(edit.align) || edit.align.length !== edit.columns.length ||
+            edit.align.some(align => align !== null && !["left", "center", "right"].includes(align))))) {
+        throw new Error(`table edit is not allowed at [${edit.path.join(",")}]`);
       }
-      const order = [...Array(count).keys()].filter(index => axis.includes(index));
-      axis.filter(index => index !== null).forEach((index, to) => {
-        const from = order.indexOf(index);
-        if (from === to) return;
-        document = editAt(target, () => move(document, edit.path, from, to));
-        order.splice(to, 0, ...order.splice(from, 1));
-      });
-    };
-    reshape(edit.rows, block.rows.length, removeTableRow, moveTableRow);
-    reshape(edit.columns, width, removeTableColumn, moveTableColumn);
-    for (const [row, from] of edit.rows.entries()) if (from === null) document = insertTableRow(document, edit.path, row);
-    for (const [column, from] of edit.columns.entries()) if (from === null) document = insertTableColumn(document, edit.path, column);
-    for (const [column, align] of (edit.align ?? []).entries()) {
-      document = editAt(target, () => updateTableColumnAlignment(document, edit.path, column, align));
-    }
-    for (const cell of edit.cells) {
-      if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
-        throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
+      const reshape = (axis: (number | null)[], count: number, remove: typeof removeTableRow, move: typeof moveTableRow) => {
+        for (let index = count - 1; index >= 0; index--) {
+          if (!axis.includes(index)) document = editAt(target, () => remove(document, edit.path, index));
+        }
+        const order = [...Array(count).keys()].filter(index => axis.includes(index));
+        axis.filter(index => index !== null).forEach((index, to) => {
+          const from = order.indexOf(index);
+          if (from === to) return;
+          document = editAt(target, () => move(document, edit.path, from, to));
+          order.splice(to, 0, ...order.splice(from, 1));
+        });
+      };
+      reshape(edit.rows, block.rows.length, removeTableRow, moveTableRow);
+      reshape(edit.columns, width, removeTableColumn, moveTableColumn);
+      for (const [row, from] of edit.rows.entries()) if (from === null) document = insertTableRow(document, edit.path, row);
+      for (const [column, from] of edit.columns.entries()) if (from === null) document = insertTableColumn(document, edit.path, column);
+      for (const [column, align] of (edit.align ?? []).entries()) {
+        document = editAt(target, () => updateTableColumnAlignment(document, edit.path, column, align));
       }
-      document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.content));
-    }
+      for (const cell of edit.cells) {
+        if (edit.rows[cell.row] !== null && edit.columns[cell.column] !== null) {
+          throw new Error(`table cell [${cell.row},${cell.column}] was not added`);
+        }
+        document = editAt(target, () => updateTableCell(document, [edit.path[0], cell.row, cell.column], cell.content), { row: cell.row, column: cell.column });
+      }
+    });
   }
   for (const edit of edits.tableCaptions ?? []) {
     const target = { path: edit.path, part: 0 };
-    assertPath(edit.path, "table caption");
-    if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "table" || !Array.isArray(edit.content)) {
-      throw new Error("table caption edit is not allowed");
-    }
-    document = editAt(target, () => updateTableCaption(document, edit.path, edit.content));
+    editAt(target, () => {
+      assertPath(edit.path, "table caption");
+      if (edit.path.length !== 1 || blockAt(editable, edit.path)?.block !== "table" || !Array.isArray(edit.content)) {
+        throw new Error("table caption edit is not allowed");
+      }
+      document = editAt(target, () => updateTableCaption(document, edit.path, edit.content));
+    });
   }
   const labels = edits.labels ?? [];
   for (const edit of labels) {
@@ -326,56 +358,58 @@ export function saveEdits(
     }
     deleted.add(path.join(","));
   }
-  for (const insert of inserts) {
-    if ((insert.block === "equation" || insert.block === "figure") &&
-        insert.label !== undefined && typeof insert.label !== "string") {
-      throw new Error("inserted label must be a string");
-    }
-    if (insert.block === "paragraph") {
+  for (const [insertIndex, insert] of inserts.entries()) {
+    editAt({ insert: insertIndex }, () => {
+      if ((insert.block === "equation" || insert.block === "figure") &&
+          insert.label !== undefined && typeof insert.label !== "string") {
+        throw new Error("inserted label must be a string");
+      }
+      if (insert.block === "paragraph") {
+        if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
+          throw new SaveContentError("empty paragraph cannot be saved", undefined, { action: "Enter text or delete this block." });
+        }
+        return;
+      }
+      if (insert.block === "admonition") {
+        if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be of a standard MyST kind");
+        if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
+          throw new SaveContentError("admonition body cannot be empty", undefined, { action: "Enter text in the admonition or delete this block." });
+        }
+        return;
+      }
+      if (insert.block === "equation") {
+        if (insert.latex.length === 0) {
+          throw new SaveContentError("empty equation LaTeX cannot be saved", undefined, { action: "Enter LaTeX or delete this equation." });
+        }
+        return;
+      }
+      if (insert.block === "figure") {
+        figureContent(insert);
+        return;
+      }
+      if (insert.block === "table") {
+        if (!Array.isArray(insert.rows) || insert.rows.flat().every(content => inlineText(content) === "")) {
+          throw new SaveContentError("empty table cannot be saved", undefined, { action: "Enter content in the table or delete this table." });
+        }
+        return;
+      }
+      if (insert.block === "quote") {
+        if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
+          throw new SaveContentError("quote cannot be empty", undefined, { action: "Enter text or delete this quote." });
+        }
+        return;
+      }
+      // Core validates the label and the content when it inserts the definition.
+      if (insert.block === "footnote") return;
+      // Core validates list and code block content and target labels itself when it inserts them.
+      if (insert.block === "list" || insert.block === "code" || insert.block === "divider" || insert.block === "target") return;
+      if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
+        throw new Error("invalid heading insertion");
+      }
       if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
-        throw new Error("empty paragraph cannot be saved");
+        throw new SaveContentError("empty heading cannot be saved", undefined, { action: "Enter text or delete this block." });
       }
-      continue;
-    }
-    if (insert.block === "admonition") {
-      if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be of a standard MyST kind");
-      if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
-        throw new Error("admonition body cannot be empty");
-      }
-      continue;
-    }
-    if (insert.block === "equation") {
-      if (insert.latex.length === 0) {
-        throw new Error("empty equation LaTeX cannot be saved");
-      }
-      continue;
-    }
-    if (insert.block === "figure") {
-      figureContent(insert);
-      continue;
-    }
-    if (insert.block === "table") {
-      if (!Array.isArray(insert.rows) || insert.rows.flat().every(content => inlineText(content) === "")) {
-        throw new Error("empty table cannot be saved");
-      }
-      continue;
-    }
-    if (insert.block === "quote") {
-      if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
-        throw new Error("quote cannot be empty");
-      }
-      continue;
-    }
-    // Core validates the label and the content when it inserts the definition.
-    if (insert.block === "footnote") continue;
-    // Core validates list and code block content and target labels itself when it inserts them.
-    if (insert.block === "list" || insert.block === "code" || insert.block === "divider" || insert.block === "target") continue;
-    if (insert.block !== "heading" || !Number.isInteger(insert.level) || insert.level < 1 || insert.level > 6) {
-      throw new Error("invalid heading insertion");
-    }
-    if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
-      throw new Error("empty heading cannot be saved");
-    }
+    });
   }
   if ((inserts.length > 0 || deletes.length > 0) && edits.order === undefined) {
     throw new Error("block insertion or deletion requires a block order");
@@ -406,7 +440,8 @@ export function saveEdits(
     let offset = lengths.reduce((sum, length) => sum + length, 0);
     for (let index = lengths.length - 1; index > 0; index--) {
       offset -= lengths[index];
-      document = editAt(target, () => splitParagraph(document, [start], offset));
+      const splitTarget = { path: group.paths[0], part: lengths[index] === 0 ? index : offset === 0 ? 0 : index - 1 };
+      document = editAt(splitTarget, () => splitParagraph(document, [start], offset));
     }
     locators.splice(start, group.paths.length, ...group.parts.map((_, part) => ({path: group.paths[0], part})));
   }
@@ -468,8 +503,15 @@ export function saveEdits(
     }
   }
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
-  validateStructure(document);
-  const markdown = serialize(document);
+  let markdown: string;
+  try {
+    validateStructure(document);
+    markdown = serialize(document);
+  } catch (error) {
+    const issue = writeIssueOf(error);
+    const target = issue.path?.length ? locators[issue.path[0]] : undefined;
+    throw new SaveContentError(issue.reason, target, { cause: error, phase: "serialize", action: issue.action, line: issue.line });
+  }
   return { markdown };
 }
 
@@ -479,11 +521,13 @@ function applySources(opening: Document, sources: BlockSourceEdit[]): Document {
   const blocks = getEditableDocument(opening).blocks;
   let document = opening;
   for (const edit of sources) {
-    assertPath(edit.path, "block source");
-    if (edit.path.length !== 1 || !blockAt({ blocks }, edit.path)?.original || typeof edit.source !== "string") {
-      throw new Error(`block source edit is not allowed at [${edit.path.join(",")}]`);
-    }
-    document = editAt({ path: edit.path, part: 0 }, () => replaceBlockSource(document, edit.path[0], edit.source));
+    document = editAt({ path: edit.path, part: 0 }, () => {
+      assertPath(edit.path, "block source");
+      if (edit.path.length !== 1 || !blockAt({ blocks }, edit.path)?.original || typeof edit.source !== "string") {
+        throw new Error(`block source edit is not allowed at [${edit.path.join(",")}]`);
+      }
+      return replaceBlockSource(document, edit.path[0], edit.source);
+    });
   }
   return document;
 }

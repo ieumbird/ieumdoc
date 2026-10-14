@@ -3,6 +3,7 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {parse,serialize,validateStructure,insertHardBreak,splitParagraph,mergeParagraphWithPrevious,getEditableDocument, type MystDocument} from './core-internal.ts';
 import {projectInlineContent,inlineContentText,assertInlineContent,inlineContentToNodes} from '../src/inline.ts';
+import { writeIssueOf } from '@ieumdoc/core';
 
 function stable(d: MystDocument) {
   validateStructure(d);
@@ -103,6 +104,12 @@ test('unrelated technical semantics survive each operation despite shifted paths
 test("empty and whitespace-only persistent split results are rejected", () => {
   const document: MystDocument = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: " A" }] }] };
   assert.throws(() => splitParagraph(document, [0], 1), /non-empty/);
+  for (const offset of [0, 2]) assert.throws(() => splitParagraph(parse("AB"), [0], offset), (error: unknown) => {
+    const issue = writeIssueOf(error);
+    assert.match(issue.reason, /empty paragraph/);
+    assert.match(issue.action, /Enter text.*delete/);
+    return true;
+  });
 });
 
 test("UTF-16 offsets inside surrogate pairs fail closed before UTF-8 persistence", () => {

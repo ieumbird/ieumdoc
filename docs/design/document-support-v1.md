@@ -1,7 +1,7 @@
 # Document support and preservation v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (Endnotes v4 placement, empty Figure persistence and existing Core/CLI/Editor regression coverage).
+- Last verified: 2026-10-14 (Endnotes v4 placement, empty Figure persistence and existing Core/CLI/Editor regression coverage).
 - Scope: Core read, visual authoring and canonical write boundaries; [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 Issue: #42. Readability, visual authoring, and canonical writeability are separate capabilities.
@@ -21,6 +21,14 @@ Core's read model provides the kind, opening source, and source line for content
 A document Core cannot write opens read-only before any typing. It shows the reason and location, offers the original source for copying, and directs the user to repair the file with an external editor or the existing Core-backed CLI, then Reload. Reload parses the repaired file and reevaluates writeability. No whole-document raw Markdown editing is added; block source editing (#102) replaces one block of a writable document through Core. The existing Save/Source pipeline continues to validate every edited snapshot.
 
 ## Interfaces and verification
+
+Core's `canonicalWriteIssue` gives the same verdict/reason as `canonicalWriteError`, plus a
+correction action and a snapshot-relative block path or original source line when identified.
+`writeIssueOf` retains this information through operation error causes. Neither API writes files
+or depends on an Editor/Host. Existing string-returning preflight and serializer guards remain
+compatible. Open carries this optional issue so the standing read-only message can name the
+affected displayed block; Source still exposes the original Markdown and Reload reevaluates it.
+No new semantic operation or CLI command is introduced by this error-information surface.
 
 Pending Figures use the existing MyST container without an image argument. An empty Figure with no image, caption or label is writable and survives canonical Save → Reload; alt text is forbidden without an image. [Figure authoring](figure-authoring-v1.md) defines persistent validity, the read model, operations, Editor states and CLI readiness warnings. The narrow directive writer retains the complete semantic fingerprint and diagnostic guards; unsupported Mermaid, legends and subfigures keep their fail-closed boundary. Writeability does not certify publication readiness.
 
