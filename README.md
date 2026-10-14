@@ -159,6 +159,8 @@ IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한
 
 **Read-only preservation**은 미지원 내용의 의미를 유지하는 것이고, **block source editing**은 쓰기 가능한 문서의 read-only block 하나를 MyST source로 수정해 Core 검증을 거쳐 Apply하는 기능입니다. 지원되는 결과는 visual editing이 가능해집니다. 문서 전체 Source는 읽기 전용 preview이며, 전체 문서가 unwritable하면 외부 editor 또는 Core-backed CLI로 고친 뒤 Reload합니다.
 
+미지원 block을 보존하는 부분 편집과 block source editing은 [ADR-0006](docs/adr/0006-native-document-boundary.md)에 따라 폐지될 예정입니다. 현재 구현은 아직 위의 기존 동작을 따릅니다.
+
 외부 앱의 rich HTML clipboard에는 별도 import 정책이 적용됩니다. 지원되는 구조로 붙여넣고, 보존하지 못하는 formatting은 안내하며, 표현할 수 없는 구조는 이유와 함께 거부합니다. 자세한 범위는 [Document support](docs/design/document-support-v1.md), [Block source editing](docs/design/block-source-editing-v1.md), [Continuous editing](docs/design/document-editing-v1.md)을 참고합니다.
 
 ## Project status and non-goals
