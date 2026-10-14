@@ -17,6 +17,8 @@ async (page, { openDocument }) => {
   const activePath = await page.getByTestId('current-file').getAttribute('title');
   const before = await snapshot();
   const alert = page.getByRole('dialog', {name:'Cannot open document', exact:true});
+  const writes = [];
+  page.on('request', request => { if (request.method() !== 'GET' && request.url().split('?')[0].endsWith('/api/document')) writes.push(request); });
   const assertAlert = async (name, failure) => {
     await alert.waitFor();
     const text = await alert.innerText();
@@ -24,6 +26,8 @@ async (page, { openDocument }) => {
     assert(text.includes('Your current document has not changed.'), 'Open Alert did not explain state retention');
     assert(await page.getByTestId('error').count() === 0, 'Open Alert duplicated the top error');
     assert(await alert.getByRole('button').count() === 1, 'Open Alert needs one confirmation button');
+    await page.keyboard.press('Control+s'); await page.evaluate(() => new Promise(requestAnimationFrame));
+    assert(writes.length === 0, 'Save request escaped the Open Alert');
   };
   for (const [name, code] of [['blocked-markdown.md','native-marker'], ['unsupported-syntax.md','native-content']]) {
     const file = rejectedPath.replace('blocked-markdown.md', name);
@@ -91,6 +95,19 @@ async (page, { openDocument }) => {
   await page.reload();
   await page.getByText(refusal.error, {exact:true}).first().waitFor();
   assert(await editor.count() === 0, 'Initial failure installed an editor');
+  await page.unroute('**/api/document');
+
+  // Start without a document, then reject the existing sample through real Host admission.
+  await page.route('**/api/document', route => route.fulfill({json:{start:true, sample:rejectedPath}}));
+  await page.reload();
+  const sampleButton = page.getByRole('button', {name:'Open sample document', exact:true});
+  await sampleButton.click();
+  await alert.waitFor();
+  assert((await alert.innerText()).includes('No document was opened.'), 'Rejected sample claimed an existing document');
+  assert(await editor.count() === 0 && await page.getByTestId('notice').count() === 0 && await page.getByTestId('error').count() === 0, 'Rejected sample installed a document or duplicate message');
+  await alert.getByRole('button', {name:'OK', exact:true}).click();
+  await alert.waitFor({state:'detached'});
+  assert(await sampleButton.evaluate(el => document.activeElement === el), 'Rejected sample did not return focus to its button');
   await page.unroute('**/api/document');
   await page.reload(); await ready();
   return {openAlertAndFocus:true, nonNativeTopError:true, openPreservesState:true, reloadPreservesInputAndDraft:true, initialFailureHasNoDocument:true};
