@@ -278,3 +278,4 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
 }
+// CI scope probe
