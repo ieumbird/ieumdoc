@@ -494,11 +494,14 @@ async (page, {screenshots = false} = {}) => {
         const actions = required('.sidebar-folder-actions').getBoundingClientRect();
         const range = document.createRange();
         const glyphs = [];
-        for (let index = 0; index < name.length; index++) {
-          if (/\s/.test(name[index])) continue;
-          range.setStart(label.firstChild, index);
-          range.setEnd(label.firstChild, index + 1);
-          glyphs.push(...range.getClientRects());
+        const textNodes = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        for (let text = textNodes.nextNode(); text; text = textNodes.nextNode()) {
+          for (let index = 0; index < text.length; index++) {
+            if (/\s/.test(text.data[index])) continue;
+            range.setStart(text, index);
+            range.setEnd(text, index + 1);
+            glyphs.push(...range.getClientRects());
+          }
         }
         const buttons = [...required('.sidebar-folder-actions').querySelectorAll('button')];
         const rootStyle = getComputedStyle(document.documentElement);
@@ -510,6 +513,7 @@ async (page, {screenshots = false} = {}) => {
             (rect.left < actions.right && rect.right > actions.left && rect.top < actions.bottom && rect.bottom > actions.top)),
           overflow: header.scrollWidth > header.clientWidth || document.documentElement.scrollWidth > innerWidth,
           actionsAtTop: Math.abs(actions.top - bounds.top) < 0.5,
+          iconAtFirstLine: Math.abs(icon.top + icon.height / 2 - glyphs[0].top - glyphs[0].height / 2) < 0.5,
           reachable: buttons.every(button => {
             const rect = button.getBoundingClientRect();
             return rect.left >= bounds.left && rect.right <= bounds.right + 0.5 &&
@@ -520,7 +524,7 @@ async (page, {screenshots = false} = {}) => {
           expectedGap: parseFloat(rootStyle.getPropertyValue('--space-2')) * parseFloat(rootStyle.fontSize),
         };
       }, name);
-      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.reachable,
+      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.iconAtFirstLine && geometry.reachable,
         `Folder name must be fully visible with reachable actions at ${width}px: ${JSON.stringify(geometry)}`);
       assert(name === 'a' ? geometry.lines === 1 && geometry.compact && Math.abs(geometry.labelGap - geometry.expectedGap) < 0.5 : geometry.lines > 1,
         `Short folder alignment / long folder wrapping at ${width}px: ${JSON.stringify(geometry)}`);

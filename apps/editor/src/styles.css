@@ -190,7 +190,6 @@ button {
 }
 
 .sidebar-folder-header {
-  position: relative;
   display: flow-root;
   flex-shrink: 0;
 }
@@ -214,14 +213,25 @@ button {
 
 .sidebar-folder-name svg {
   position: absolute;
-  top: calc((var(--size-control-compact) - var(--size-icon-slot)) / 2);
-  left: var(--space-3);
+  top: calc((var(--line-height-label) - var(--size-icon-slot)) / 2);
+  left: calc(-1 * (var(--size-icon-slot) + var(--space-2)));
   width: var(--size-icon-slot);
   height: var(--size-icon-slot);
 }
 
 .sidebar-folder-name span {
+  word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+/* Keep the icon with the first word. If they cannot fit beside the actions, move together
+ * below them; a word wider than the full text column still wraps inside this cap. */
+.sidebar-folder-first-word {
+  position: relative;
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  line-height: var(--line-height-label);
 }
 
 .sidebar-folder-actions {
