@@ -134,7 +134,7 @@ pnpm ieumdoc update-heading document.md --path <inspect에서 얻은 경로> --t
 pnpm ieumdoc apply-batch document.md --operations operations.json --if-revision <inspect에서 얻은 revision> --format json
 ```
 
-옵션 키는 기존 플래그에서 `--`를 뺀 이름이며 JSON 옵션은 객체/배열 또는 JSON 문자열을 받습니다. 모든 단건 변경 명령(`format` 포함)을 사용할 수 있고, 중첩 배치·operation별 `if-revision`·비변경 명령은 거부합니다. 각 경로·인덱스는 직전 단계의 canonical 재파싱 결과를 기준으로 하며 자동 추적하지 않습니다. 최초 원본의 revision을 한 번 확인하고 최종 결과만 한 번 커밋합니다. 어느 단계든 실패하면 부분 결과를 쓰지 않고 `operation N (command): <오류>; nothing was written`과 exit 1을 반환합니다. JSON 성공 출력은 `{"ok":true,"command":"apply-batch","applied":3,"revision":"<결과 revision>"}` 한 줄이며 text 모드는 출력이 없습니다. 입력은 비어 있지 않은 JSON 배열 파일이어야 하며 stdin은 지원하지 않습니다. 상세 계약은 [CLI batch application](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)에 있습니다.
+옵션 키는 기존 플래그에서 `--`를 뺀 이름입니다. 스칼라 옵션은 string/number/boolean만, JSON 옵션은 객체/배열/문자열만 허용하며 모든 옵션의 `null` 값은 거부합니다. 모든 단건 변경 명령(`format` 포함)을 사용할 수 있고, 중첩 배치·operation별 `if-revision`·비변경 명령은 거부합니다. 각 경로·인덱스는 직전 단계의 canonical 재파싱 결과를 기준으로 하며 자동 추적하지 않습니다. 최초 원본의 revision을 한 번 확인하고 최종 결과만 한 번 커밋합니다. 실패하면 부분 결과를 쓰지 않고 exit 1을 반환합니다. 각 원소의 입력·옵션·Core 처리·검증·직렬화·재파싱 실패에만 `operation N (command): <오류>; nothing was written`을 출력합니다. 원본 read/parse·revision·최종 커밋 오류는 prefix 없이 단건과 같은 메시지를 출력합니다(예: `revision mismatch; run inspect again; nothing was written`, 커밋 충돌은 `... changed after it was read; nothing was written`). JSON 성공 출력은 `{"ok":true,"command":"apply-batch","applied":3,"revision":"<결과 revision>"}` 한 줄이며 text 모드는 출력이 없습니다. 입력은 비어 있지 않은 JSON 배열 파일이어야 하며 stdin은 지원하지 않습니다. 상세 계약은 [CLI batch application](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)에 있습니다.
 
 ### Visual Editor
 

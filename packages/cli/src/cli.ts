@@ -133,9 +133,10 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--format json]",
     details: [
       "--operations is a non-empty JSON array of { command, ...options }; stdin (-) is not supported.",
-      "Use existing flag names without -- as keys. Scalars have the same meaning as flag strings.",
+      "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
       "JSON options (content, caption-content, cells, list, and insert-table align) accept objects/arrays",
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
+      "JSON options accept objects, arrays or strings only; null option values are rejected.",
       "All document edit commands, including format, are allowed; create, check, inspect, serve,",
       "apply-batch and per-operation if-revision are forbidden.",
       "Paths and indexes use the preceding step's canonical, reparsed snapshot; no automatic tracking.",
@@ -143,6 +144,8 @@ const COMMANDS: CommandSpec[] = [
       "--if-revision checks the original once, before Core operations (64 lowercase hexadecimal characters).",
       "Only the final result is committed, against the original revision. Any failure exits 1 without writing.",
       "Step errors: operation <1-based index> (<command>): <original error>; nothing was written.",
+      "Only step input/options, Core, validation, serialization and reparsing errors have that prefix.",
+      "Batch-wide errors (original read/parse, revision and commit) keep single-command messages without a prefix.",
       "JSON success: {\"ok\":true,\"command\":\"apply-batch\",\"applied\":N,\"revision\":\"<result revision>\"}.",
       "Text success prints nothing. Run inspect again for paths before a later request.",
     ],
@@ -949,8 +952,9 @@ function batchChange(operation: unknown): Change {
     if (!COMMAND_OPTIONS[command].includes(name)) throw new Error(`unknown option: ${name}`);
     const json = ["content", "caption-content", "cells", "list"].includes(key)
       || (command === "insert-table" && key === "align");
-    if (!json && value !== null && typeof value === "object") {
-      throw new Error(`${name} must be a scalar`);
+    if (json ? value === null || !["object", "string"].includes(typeof value)
+      : !["string", "number", "boolean"].includes(typeof value)) {
+      throw new Error(`${name} must be ${json ? "an object, array or string" : "a string, number or boolean"}`);
     }
     tokens.push(name, json && typeof value !== "string" ? JSON.stringify(value) : String(value));
   }
@@ -963,29 +967,27 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
   if (!Array.isArray(operations) || operations.length === 0) {
     throw new Error("--operations must be a non-empty JSON array");
   }
-  let index = 0;
-  try {
-    const source = readFile(file);
-    const revision = textRevision(source);
-    if (ifRevision !== undefined && ifRevision !== revision) {
-      throw new Error("revision mismatch; run inspect again");
-    }
-    let document = parse(source);
-    let result = source;
-    for (index = 0; index < operations.length; index += 1) {
-      result = serializeChange(document, batchChange(operations[index]));
+  const source = readFile(file);
+  const revision = textRevision(source);
+  if (ifRevision !== undefined && ifRevision !== revision) {
+    throw new Error("revision mismatch; run inspect again; nothing was written");
+  }
+  let document = parse(source);
+  let result = source;
+  for (let index = 0; index < operations.length; index += 1) {
+    const operation = operations[index];
+    try {
+      result = serializeChange(document, batchChange(operation));
       // Single CLI calls reparse canonical output: endnotes and locators can move here.
       document = parse(result);
+    } catch (error) {
+      const command = operation !== null && typeof operation === "object" && "command" in operation
+        && typeof operation.command === "string" ? operation.command : "<unknown>";
+      throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`);
     }
-    index = operations.length - 1;
-    commitFile(file, result, revision);
-    return { ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(result) };
-  } catch (error) {
-    const operation = operations[index];
-    const command = operation !== null && typeof operation === "object" && "command" in operation
-      && typeof operation.command === "string" ? operation.command : "<unknown>";
-    throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}`);
   }
+  commitFile(file, result, revision);
+  return { ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(result) };
 }
 
 function findCommand(name: string): CommandSpec | undefined {
@@ -1404,10 +1406,7 @@ function reportError(args: string[], error: unknown): number {
   if (args[0] === "check" && args.includes("--format") && args[args.indexOf("--format") + 1] === "json") {
     process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
       error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
-  } else {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`${message}${args[0] === "apply-batch" && !message.endsWith("; nothing was written") ? "; nothing was written" : ""}\n`);
-  }
+  } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   return 1;
 }
 

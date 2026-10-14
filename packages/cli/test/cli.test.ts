@@ -84,8 +84,7 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
       });
       assert.equal(changed.status, 1, changed.stderr);
       assert.equal(changed.stdout, "");
-      assert.match(changed.stderr, /changed after it was read; nothing was written\n$/);
-      if (invocation[0] === "apply-batch") assert.match(changed.stderr, /^operation 1 \(insert-block\): /);
+      assert.equal(changed.stderr, `${file} changed after it was read; nothing was written\n`);
       assert.deepEqual(readFileSync(file), external);
       assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
     }
@@ -158,6 +157,7 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
       ]),
       [[first, null], /^operation 2 \(<unknown>\): operation must be an object/],
       [[first, { command: { toString: null } }], /^operation 2 \(<unknown>\): command must be a string/],
+      [[first, { command: "insert-figure", at: 2, label: null }], /^operation 2 \(insert-figure\): --label must be a string, number or boolean/],
       [[], /non-empty JSON array/],
       [{ command: "format" }, /non-empty JSON array/],
     ] as [unknown, RegExp][]) {
@@ -166,18 +166,28 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
       assert.equal(failed.status, 1, failed.stderr);
       assert.equal(failed.stdout, "");
       assert.match(failed.stderr, message);
-      assert.match(failed.stderr, /; nothing was written\n$/);
+      if (Array.isArray(operations) && operations.length > 0) assert.match(failed.stderr, /; nothing was written\n$/);
+      else assert.doesNotMatch(failed.stderr, /^operation /);
       assert.deepEqual(readFileSync(file), original);
     }
     writeFileSync(operationsFile, "[{");
     const malformed = run(["apply-batch", file, "--operations", operationsFile]);
     assert.equal(malformed.status, 1);
-    assert.match(malformed.stderr, /; nothing was written\n$/);
+    assert.notEqual(malformed.stderr, "");
+    assert.doesNotMatch(malformed.stderr, /^operation /);
     writeFileSync(operationsFile, JSON.stringify([{ command: "update-heading", path: "999", text: "Invalid path" }]));
     const stale = run(["apply-batch", file, "--operations", operationsFile, "--if-revision", "0".repeat(64)]);
     assert.equal(stale.status, 1);
-    assert.equal(stale.stderr, "operation 1 (update-heading): revision mismatch; run inspect again; nothing was written\n");
+    assert.equal(stale.stderr, "revision mismatch; run inspect again; nothing was written\n");
     assert.deepEqual(readFileSync(file), original);
+    const invalid = path.join(dir, "invalid.md");
+    for (const source of [undefined, "# Missing native marker\n"]) {
+      if (source !== undefined) writeFileSync(invalid, source);
+      const batch = run(["apply-batch", invalid, "--operations", operationsFile]);
+      assert.equal(batch.status, 1);
+      assert.equal(batch.stderr, run(["format", invalid]).stderr);
+      assert.doesNotMatch(batch.stderr, /^operation /);
+    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
