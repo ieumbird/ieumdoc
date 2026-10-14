@@ -133,6 +133,8 @@ type FolderTreeProps = {
 function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpenFolder, onClose }: FolderTreeProps) {
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
+  const folderName = name(tree.root);
+  const firstWord = folderName.match(/^\s*\S+/)?.[0] ?? folderName;
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
   const [focused, setFocused] = useState<string>();
@@ -158,10 +160,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   return (
     <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
       <div className="sidebar-folder-header">
-        <p className="sidebar-folder-name" id="sidebar-folder-label" title={tree.root}>
-          <FolderOpen aria-hidden="true" />
-          <span>{name(tree.root)}</span>
-        </p>
+        {/* Float actions before the name so later lines can use the full text width. */}
         <div className="sidebar-folder-actions">
           <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
             <Plus />
@@ -186,6 +185,9 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <p className="sidebar-folder-name" id="sidebar-folder-label" title={tree.root}>
+          <span><span className="sidebar-folder-first-word"><FolderOpen aria-hidden="true" />{firstWord}</span>{folderName.slice(firstWord.length)}</span>
+        </p>
       </div>
       <ul className="sidebar-tree" role="tree" aria-labelledby="sidebar-folder-label" onKeyDown={keyDown}>
         {items.map(item => {

@@ -463,6 +463,75 @@ async (page, {screenshots = false} = {}) => {
   result.revealsOpenDocument = await row('자료').getAttribute('aria-expanded') === 'true' &&
     await row('추가.md').getAttribute('aria-current') === 'page' && await row('guides').getAttribute('aria-expanded') === 'false';
   await folderMenu('Close folder');
+
+  // Identity is readable without hover, including an unbroken name; short names retain alignment.
+  for (const name of ['a', '한글 English 프로젝트 문서와 설계 자료를 모아둔 아주 긴 폴더 이름 Long Folder Name 2026', 'UnbrokenFolderName'.repeat(7)]) {
+    await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await enterFolder(folder);
+    await option('guides').waitFor();
+    await newFolder.click();
+    await newFolderName.fill(name);
+    await newFolderName.press('Enter');
+    await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
+    await open.click();
+    await dialog.waitFor({state:'detached'});
+    await section.getByTitle([folder, name].join(sep), {exact:true}).waitFor();
+    for (const width of [1440, 1024, 375]) {
+      await page.setViewportSize({width, height:812});
+      await page.mouse.move(width - 2, 2);
+      const geometry = await section.evaluate(async (element, name) => {
+        await document.fonts.ready;
+        const required = selector => {
+          const node = element.querySelector(selector);
+          if (!node) throw Error(`Missing folder header element: ${selector}`);
+          return node;
+        };
+        const header = required('.sidebar-folder-header');
+        const heading = required('.sidebar-folder-name');
+        const label = heading.querySelector('span');
+        const bounds = header.getBoundingClientRect();
+        const icon = heading.querySelector('svg').getBoundingClientRect();
+        const actions = required('.sidebar-folder-actions').getBoundingClientRect();
+        const range = document.createRange();
+        const glyphs = [];
+        const textNodes = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+        for (let text = textNodes.nextNode(); text; text = textNodes.nextNode()) {
+          for (let index = 0; index < text.length; index++) {
+            if (/\s/.test(text.data[index])) continue;
+            range.setStart(text, index);
+            range.setEnd(text, index + 1);
+            glyphs.push(...range.getClientRects());
+          }
+        }
+        const buttons = [...required('.sidebar-folder-actions').querySelectorAll('button')];
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          text: label.textContent,
+          lines: new Set(glyphs.map(rect => rect.top)).size,
+          clipped: glyphs.some(rect => rect.width <= 0 || rect.left < bounds.left || rect.right > bounds.right + 0.5 ||
+            rect.top < bounds.top || rect.bottom > bounds.bottom + 0.5 ||
+            (rect.left < actions.right && rect.right > actions.left && rect.top < actions.bottom && rect.bottom > actions.top)),
+          overflow: header.scrollWidth > header.clientWidth || document.documentElement.scrollWidth > innerWidth,
+          actionsAtTop: Math.abs(actions.top - bounds.top) < 0.5,
+          iconAtFirstLine: Math.abs(icon.top + icon.height / 2 - glyphs[0].top - glyphs[0].height / 2) < 0.5,
+          reachable: buttons.every(button => {
+            const rect = button.getBoundingClientRect();
+            return rect.left >= bounds.left && rect.right <= bounds.right + 0.5 &&
+              button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+          }),
+          compact: Math.abs(bounds.height - actions.height) < 0.5 && Math.abs(icon.top + icon.height / 2 - actions.top - actions.height / 2) < 0.5,
+          labelGap: glyphs[0].left - icon.right,
+          expectedGap: parseFloat(rootStyle.getPropertyValue('--space-2')) * parseFloat(rootStyle.fontSize),
+        };
+      }, name);
+      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.iconAtFirstLine && geometry.reachable,
+        `Folder name must be fully visible with reachable actions at ${width}px: ${JSON.stringify(geometry)}`);
+      assert(name === 'a' ? geometry.lines === 1 && geometry.compact && Math.abs(geometry.labelGap - geometry.expectedGap) < 0.5 : geometry.lines > 1,
+        `Short folder alignment / long folder wrapping at ${width}px: ${JSON.stringify(geometry)}`);
+    }
+    await folderMenu('Close folder');
+  }
+  result.folderNamesReadable = true;
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
   return result;
 }

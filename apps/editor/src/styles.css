@@ -190,43 +190,55 @@ button {
 }
 
 .sidebar-folder-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  display: flow-root;
+  flex-shrink: 0;
 }
 
-/* The displayed folder's identity: its icon and name share the list's icon slot and text start. */
+/* Keep the folder identity's existing starts, 16px icon slot and 8px label gap. */
 .sidebar-folder-name {
-  display: grid;
-  flex: 1;
-  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--space-2);
   min-width: 0;
+  min-height: var(--size-control-compact);
   margin: 0;
-  padding-left: var(--space-3);
+  padding-left: calc(var(--space-3) + var(--size-icon-slot) + var(--space-2));
   color: var(--id-color-text);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-label);
 }
 
+/* Match the compact actions on the first line; following lines keep the UI text rhythm. */
+.sidebar-folder-name::first-line {
+  line-height: var(--size-control-compact);
+}
+
 .sidebar-folder-name svg {
+  position: absolute;
+  top: calc((var(--line-height-label) - var(--size-icon-slot)) / 2);
+  left: calc(-1 * (var(--size-icon-slot) + var(--space-2)));
   width: var(--size-icon-slot);
   height: var(--size-icon-slot);
 }
 
 .sidebar-folder-name span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the icon with the first word. If they cannot fit beside the actions, move together
+ * below them; a word wider than the full text column still wraps inside this cap. */
+.sidebar-folder-first-word {
+  position: relative;
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  line-height: var(--line-height-label);
 }
 
 .sidebar-folder-actions {
   display: flex;
-  flex-shrink: 0;
+  float: right;
   gap: var(--space-1);
+  margin-left: var(--space-2);
 }
 
 .sidebar-tree {
