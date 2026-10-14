@@ -829,8 +829,58 @@ test("relative figure media follows the opened document directory", () => {
       resolveFigureSource("./image.svg", fileA),
       `/document/image.svg?path=${encodeURIComponent(fileA)}`,
     );
-    assert.equal(resolveFigureSource("https://example.com/image.svg", fileA), "https://example.com/image.svg");
-    assert.equal(resolveFigureSource("/assets/image.svg", fileA), "/assets/image.svg");
+    const ordinaryPaths = [
+      ["image.svg", "/document/image.svg"],
+      ["assets/diagram.svg", "/document/assets/diagram.svg"],
+      ["./assets/diagram.svg", "/document/assets/diagram.svg"],
+      ["assets/한글 image#1?.svg", "/document/assets/%ED%95%9C%EA%B8%80%20image%231%3F.svg"],
+    ] as const;
+    const boundaryPaths = [
+      [".", "/document/.%2F", false],
+      ["..", "/document/..%2F", true],
+      ["./..", "/document/..%2F", true],
+      ["../x", "/document/..%2Fx", true],
+      ["a/../x", "/document/a%2F..%2Fx", false],
+      ["a/../../x", "/document/a%2F..%2F..%2Fx", true],
+      ["assets/../image.svg", "/document/assets%2F..%2Fimage.svg", false],
+      ["assets/../../outside.svg", "/document/assets%2F..%2F..%2Foutside.svg", true],
+      ["%2e%2e/x", "/document/%252e%252e/x", true],
+      [".%2e/x", "/document/.%252e/x", true],
+      // Double-encoded text stays a literal in-bound filename after the single transport decode.
+      ["%252e%252e/outside.svg", "/document/%25252e%25252e/outside.svg", false],
+    ] as const;
+    for (const [relative, pathname] of ordinaryPaths) {
+      assert.doesNotMatch(new URL(resolveFigureSource(relative, fileA), "https://editor.example/").pathname, /%2f/i, relative);
+      assert.equal(resolveFigureSource(relative, fileA), `${pathname}?path=${encodeURIComponent(fileA)}`);
+    }
+    for (const [relative, pathname, escapes] of [
+      ...ordinaryPaths.map(([relative, pathname]) => [relative, pathname, false] as const), ...boundaryPaths,
+    ]) {
+      const displayed = resolveFigureSource(relative, fileA);
+      const alternatePrefix = relative.startsWith("./") ? relative.slice(2) : `./${relative}`;
+      assert.equal(displayed, resolveFigureSource(alternatePrefix, fileA), relative);
+      // Keep dot segments inside the media request until the Host checks the boundary.
+      const request = new URL(displayed, "https://editor.example/");
+      assert.ok(request.pathname.startsWith("/document/"), relative);
+      assert.equal(request.pathname, pathname, relative);
+      const mediaPath = request.pathname.slice("/document/".length);
+      if (escapes) assert.throws(() => resolveMediaPath(mediaPath, fileA), /escapes the document directory/);
+      else assert.equal(resolveMediaPath(mediaPath, fileA), path.resolve(aDir, relative));
+    }
+    for (const absolute of ["", "https://example.com/image.svg", "http://example.com/image.svg", "data:image/png;base64,AA==",
+      "blob:https://example.com/id", "file:///C:/image.svg", "custom:image.svg", "//host/image.svg", "/assets/image.svg",
+      "C:\\image.svg", "C:/image.svg", "C:image.svg", "\\\\server\\image.svg", "\\image.svg", "https://"]) {
+      assert.equal(resolveFigureSource(absolute, fileA), absolute);
+    }
+    assert.equal(resolveFigureSource("assets/image.svg"), "/document/assets/image.svg");
+    const schema = getSchema(editorExtensions(undefined, fileA));
+    const figure = schema.nodes.figure.create({ imageUrl: "assets/image.svg", imageAlt: "Diagram" });
+    const html = schema.nodes.figure.spec.toDOM!(figure);
+    assert.ok(Array.isArray(html));
+    const image = html.find(part => Array.isArray(part) && part[0] === "img");
+    assert.ok(Array.isArray(image));
+    assert.equal((image[1] as { src: string }).src, resolveFigureSource(figure.attrs.imageUrl, fileA));
+    assert.equal(figure.attrs.imageUrl, "assets/image.svg", "display resolution never rewrites the attribute");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -220,5 +220,50 @@ async (page, { openDocument }) => {
     view.dispatch(state.tr.delete(from, from + state.doc.nodeAt(from).nodeSize));
   }));
   result.unappliedCopyRemoved = true;
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+
+  // Real document-relative loading, failure feedback and unchanged saved paths (#211).
+  const pathsFile = [root, 'tmp', 'image-assets', 'paths.md'].join(separator);
+  await openDocument(page, pathsFile);
+  await page.waitForFunction(file => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === file, pathsFile, {timeout:5000});
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const pathsJSON = JSON.stringify(await documentJSON());
+  const failure = figures.nth(2).getByRole('alert');
+  const relativeLoaded = () => page.waitForFunction(() => {
+    const images = [...document.querySelectorAll('[data-testid="figure-image"]')];
+    return images.length === 3 && images.slice(0, 2).every(image => image.complete && image.naturalWidth > 0);
+  }, null, {timeout:5000});
+  await relativeLoaded();
+  await failure.getByText('Image could not be loaded. Check the image path or URL.', {exact:true}).waitFor();
+  assert(await figures.nth(2).getByTestId('figure-image').isHidden(), 'Hide the broken icon, retain the caption and failure notice');
+  assert(JSON.stringify(await documentJSON()) === pathsJSON, 'Loading and failure feedback never change the document');
+  assert(!(await page.getByTestId('status').innerText()).includes('Unsaved'), 'Load failure does not make the document dirty');
+  await page.getByTestId('view-source').click({timeout:5000});
+  const source = await page.getByTestId('source-view').locator('pre').textContent({timeout:5000});
+  assert(source.includes(':::{figure} assets/diagram.svg') && source.includes(':::{figure} assets/missing.png') && !source.includes('Image could not be loaded'), 'Source contains the original paths and no display error');
+  await page.getByTestId('view-visual').click({timeout:5000});
+  await relativeLoaded(); await failure.waitFor();
+
+  await figures.nth(1).getByTestId('figure-caption-content').click();
+  await page.keyboard.press('End'); await page.keyboard.type(' Verified.');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  const expectedPaths = ['./assets/diagram.svg', 'assets/diagram.svg', 'assets/missing.png'];
+  const savedPaths = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(pathsFile)}`)).json())
+    .document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
+  assert(JSON.stringify(savedPaths) === JSON.stringify(expectedPaths), 'Save retains typed image paths even when loading fails');
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await relativeLoaded(); await failure.waitFor();
+  assert(JSON.stringify((await documentJSON()).content.filter(node => node.type === 'figure').map(node => node.attrs.imageUrl)) === JSON.stringify(expectedPaths), 'Reload retains the original strings');
+
+  // Fixing a failed source removes its notice and loads the replacement in the same NodeView.
+  await editFigure(2); await imageField.fill('assets/diagram.svg');
+  await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth > 0));
+  await failure.waitFor({state:'detached'});
+  result.relativeSourcesAndLoadFailure = true;
   return result;
 }

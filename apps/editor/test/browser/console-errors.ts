@@ -15,6 +15,7 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     { status: 409, pathname: "/api/document", minimum: 1, description: "HTTP Save preserves local input after another writer commits" },
   ],
   "image-assets": [
+    { status: 404, pathname: "/document/assets/missing.png", queryPath: path.join(REPOSITORY_ROOT, "tmp", "image-assets", "paths.md"), minimum: 1, description: "a missing Figure image shows its load failure" },
     { status: 400, pathname: "/api/asset", minimum: 1, description: "mocked Host write rejection keeps the document unchanged" },
     { status: 403, pathname: "/api/asset", minimum: 1, description: "mocked rollback failure exposes the remaining asset path" },
   ],

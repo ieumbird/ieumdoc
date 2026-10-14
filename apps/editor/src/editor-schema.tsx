@@ -1236,6 +1236,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   const [choosing, setChoosing] = useState(false);
   const applied = figureAttrs(node);
   const src = resolveFigureSource(applied.imageUrl, documentPath);
+  const [failedSource, setFailedSource] = useState<string>();
+  const imageFailed = !!src && failedSource === src;
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const editableFigure = node.attrs.editable === true && view.editable;
@@ -1400,7 +1402,13 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
           Unapplied changes are not saved. Apply to include them, or Cancel.
         </p>
       ) : null}
-      {src ? <img src={src} alt={applied.imageAlt} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure} /> : null}
+      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure}
+        onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
+      {imageFailed ? (
+        <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure}>
+          Image could not be loaded. Check the image path or URL.
+        </Notice>
+      ) : null}
       {editableFigure && !src ? (
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure}>
           No content yet
@@ -1500,10 +1508,16 @@ function removeUnappliedBlock(
 }
 
 export function resolveFigureSource(imageUrl: string, documentPath?: string): string {
-  const isRelative = imageUrl.startsWith("./") || imageUrl.startsWith("../");
-  if (!isRelative) return imageUrl;
+  // URL handles schemes (including Windows drive prefixes); slash/backslash roots are absolute.
+  if (!imageUrl || imageUrl.startsWith("/") || imageUrl.startsWith("\\") || URL.canParse(imageUrl) ||
+    !URL.canParse(imageUrl, "https://ieumdoc.invalid/")) return imageUrl;
   const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
-  const encodedPath = relativePath.split("/").map(encodeURIComponent).join("/");
+  const segments = relativePath.split("/");
+  // Keep normal separators proxy-safe; dot segments must reach the Host without URL normalization.
+  // A trailing slash also protects a standalone . or .. and preserves its resolved location.
+  const encodedPath = segments.some(segment => segment === "." || segment === "..")
+    ? encodeURIComponent(segments.length === 1 ? `${relativePath}/` : relativePath)
+    : segments.map(encodeURIComponent).join("/");
   const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
