@@ -57,6 +57,7 @@ async (page, { openDocument }) => {
   const targetBox = await target.boundingBox();
   await pointAt(targetBox.y + 3);
   await line.waitFor();
+  result.hoverHiddenDuringDrag = !await page.getByTestId('block-hover-outline').isVisible();
   const gap = await target.evaluate(node => ({top: node.previousElementSibling.getBoundingClientRect().bottom, bottom: node.getBoundingClientRect().top}));
   const tintBox = await tint.boundingBox();
   result.movedBlockTinted = Math.abs(tintBox.y - equationBox.y) <= 1 && Math.abs(tintBox.height - equationBox.height) <= 1;

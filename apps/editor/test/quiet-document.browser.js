@@ -79,6 +79,70 @@ async (page, { screenshots = false, openDocument }) => {
   check(Math.abs(inlineMath.actual-inlineMath.expected)<0.1,`Inline math size must follow its token: ${JSON.stringify(inlineMath)}`);
   const initial=await json();
   await rest();
+  const extent = page.getByTestId('block-hover-outline');
+  // Keyboard selection alone reveals no extent; pointer and selection are independent axes.
+  await page.locator('.document-editor').focus();
+  await page.keyboard.press('ArrowDown');
+  check(!await extent.isVisible(), 'Keyboard selection showed a hovered extent');
+  const hoverParagraph = page.locator('.paragraph').first();
+  const textGeometry = () => hoverParagraph.evaluate(n => {
+    const range = document.createRange(); range.selectNodeContents(n);
+    return [...range.getClientRects()].map(r => [r.x, r.y, r.width, r.height]);
+  });
+  const textBeforeHover = await textGeometry();
+  await hoverParagraph.hover();
+  await extent.waitFor();
+  check(JSON.stringify(await textGeometry()) === JSON.stringify(textBeforeHover), 'Hover moved text (expected 0px)');
+  const hoverStyle = await extent.evaluate(n => {
+    const probe = document.createElement('span');
+    probe.style.boxShadow = 'inset 0 0 0 var(--size-block-hover-outline) var(--id-color-block-hover-outline)';
+    probe.style.borderRadius = 'var(--id-radius-block-hover)';
+    probe.style.color = 'var(--id-color-block-hover-outline)';
+    document.body.append(probe);
+    const expected = getComputedStyle(probe), actual = getComputedStyle(n);
+    const result = {shadow:actual.boxShadow, radius:actual.borderRadius, pointer:actual.pointerEvents,
+      expectedShadow:expected.boxShadow, expectedRadius:expected.borderRadius, neutral:expected.color};
+    probe.style.color = 'var(--id-color-interaction)';
+    result.interaction = getComputedStyle(probe).color;
+    probe.remove(); return result;
+  });
+  check(hoverStyle.shadow === hoverStyle.expectedShadow && hoverStyle.radius === hoverStyle.expectedRadius &&
+    hoverStyle.pointer === 'none' && hoverStyle.neutral !== hoverStyle.interaction, `Hover roles/overlay: ${JSON.stringify(hoverStyle)}`);
+  const pointerExtent = await extent.boundingBox();
+  await page.locator('.document-editor').evaluate(n => n.editor.commands.setNodeSelection(0));
+  check(await extent.isVisible() && JSON.stringify(await extent.boundingBox()) === JSON.stringify(pointerExtent) &&
+    JSON.stringify(await textGeometry()) === JSON.stringify(textBeforeHover),
+    'Selection replaced the pointer extent or moved text');
+  // Nested cell content still outlines the whole top-level table, like the gutter handle.
+  for (const [target, block] of [[hoverParagraph, hoverParagraph], [page.locator('.equation'), page.locator('.equation')],
+    [page.getByTestId('figure-image'), page.locator('.figure')],
+    [page.locator('.table [data-table-cell]').first(), page.locator('.table-block')]]) {
+    await target.hover(); await extent.waitFor();
+    const actual = await extent.boundingBox(), expected = await block.boundingBox();
+    check(['x','y','width','height'].every(k => Math.abs(actual[k] - expected[k]) < 0.1),
+      `Hover did not outline the top-level block: ${JSON.stringify({actual,expected})}`);
+  }
+  await hoverParagraph.hover();
+  const paragraphBox = await hoverParagraph.boundingBox();
+  // Leaving the block horizontally inside the paper, entering its gap, or leaving the paper clears it.
+  for (const [x,y] of [[paragraphBox.x + paragraphBox.width + 8, paragraphBox.y + 4],
+    [paragraphBox.x + 4, paragraphBox.y + paragraphBox.height + 2], [0,0]]) {
+    await hoverParagraph.hover(); await extent.waitFor(); await page.mouse.move(x,y);
+    await extent.waitFor({state:'hidden'});
+  }
+  const touchSession = await page.context().newCDPSession(page);
+  try {
+    await touchSession.send('Emulation.setTouchEmulationEnabled', {enabled:true});
+    check(await page.evaluate(() => matchMedia('(hover: none)').matches), 'No-hover emulation did not take effect');
+    await hoverParagraph.hover();
+    check(!await extent.isVisible(), 'No-hover device showed the extent');
+  } finally {
+    await touchSession.send('Emulation.setTouchEmulationEnabled', {enabled:false});
+    await touchSession.detach();
+  }
+  await page.locator('.document-editor').evaluate(n => n.editor.commands.setTextSelection(1));
+  await rest();
+  results.push({hoverStyle, hoverTextShift:0, pointerIndependentOfSelection:true, topLevelCellExtent:true, noHoverHidden:true});
   const metadata=page.locator('.block-metadata');
   const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
   check(metadataState.length===await page.locator('[data-block="figure"], [data-block="equation"], [data-block="table"]').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
@@ -98,6 +162,8 @@ async (page, { screenshots = false, openDocument }) => {
       await page.setViewportSize({width,height:1000});
       await rest();
       await shot(`${width}-rest`);
+      await page.locator('.paragraph').first().hover();
+      await shot(`${width}-paragraph-hover`);
       await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
       await rest();
       await shot(`${width}-collapsed`);
@@ -114,6 +180,10 @@ async (page, { screenshots = false, openDocument }) => {
     await page.getByTestId('figure-image').click();
     check(await page.getByTestId('figure-properties').count()===0,'Selection opened properties');
     check(await page.locator('.figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Selected metadata missing');
+    await page.locator('.figure').hover(); await extent.waitFor();
+    check(await page.locator('.figure').evaluate((n, color) => getComputedStyle(n).outlineColor === color, hoverStyle.interaction) &&
+      await extent.evaluate((n, shadow) => getComputedStyle(n).boxShadow === shadow, hoverStyle.expectedShadow),
+      'Selected Figure must keep its blue outer outline alongside the neutral hover inset');
     if (screenshots) {
       await rest();
       await shot(`${width}-figure-selected`);
@@ -128,6 +198,9 @@ async (page, { screenshots = false, openDocument }) => {
       return {color,outline:getComputedStyle(document.querySelector('.figure')).outlineColor,border:getComputedStyle(input).borderColor,ring:getComputedStyle(input).boxShadow};
     });
     check(colors.outline===colors.color&&colors.border===colors.color&&colors.ring.includes(colors.color),`Interaction role not applied: ${JSON.stringify(colors)}`);
+    await page.locator('.figure').hover(); await extent.waitFor();
+    check(await page.locator('.figure').evaluate((n, color) => getComputedStyle(n).outlineColor === color, colors.color),
+      'Hover obscured the editing Figure outline');
     await page.mouse.move(0,0);
     await shot(`${width}-figure-editing`);
     // The selected outline is an interaction state, not draft ownership.

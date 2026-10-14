@@ -51,6 +51,14 @@ async (page, { openDocument }) => {
   const nested = list.locator(':scope > li').first().locator('ul[data-block="list"] > li');
   await nested.waitFor({state:'visible'});
   const tabNested = await nested.count() === 1 && await nested.innerText() === 'Check';
+  // Hovering a nested item uses the top-level list's gutter extent, never the inner item.
+  await nested.hover();
+  const extent = page.getByTestId('block-hover-outline');
+  await extent.waitFor();
+  const listBox = await list.boundingBox(), extentBox = await extent.boundingBox();
+  if (!['x','y','width','height'].every(k => Math.abs(listBox[k] - extentBox[k]) < 0.1)) {
+    throw new Error(`Nested item hover must outline the top-level list: ${JSON.stringify({listBox,extentBox})}`);
+  }
 
   // Enter twice after "Power": the empty item leaves the list as a paragraph.
   await caretAtEnd('Power');
