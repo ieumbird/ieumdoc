@@ -113,9 +113,9 @@ Figure의 Choose…가 [folder picker](folder-picker-v1.md#choosing-an-image)에
 
 - `GET /api/folder-browse?path=<folder>&files=image`는 Markdown 대신 `kind: "image"` 항목(`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`)을 넣는다. 그 밖의 필터·정렬·crumbs·root 제한은 Folder picker v1과 같다.
 - `POST /api/asset`에 `Content-Type: application/json`의 `{ documentPath, source }`를 보내면 `source` 이미지를 그 문서에 연결한다. 응답은 상대 `path`이며, 복사했을 때만 `rollbackToken`이 붙는다. `source`는 모든 Host 파일 요청처럼 HTTP root 정책을 거친다.
-- `source`가 lexical path와 real path 모두 문서 directory 안이면 아무것도 쓰지 않고 `./`로 시작하는 `/` 구분 상대 경로를 돌려준다. 이 경로는 위 상대 media resolution이 받아들여야 한다. 원래 파일 이름과 위치, SVG가 그대로 유지된다.
+- `source`가 lexical path와 real path 모두 문서 directory 안이면 아무것도 쓰지 않고 `./`로 시작하는 `/` 구분 상대 경로를 돌려준다. 원래 파일 이름과 위치, SVG가 그대로 유지된다. Editor가 요청하는 대로 segment를 URL-encode한 경로를 위 상대 media resolution이 받아들여야 한다. `100%.png`는 그대로 연결하고, `%2e`나 backslash가 든 이름처럼 media route가 제공할 수 없는 이름은 아래처럼 복사한다.
 - 그 밖의 이미지, 문서 directory 안에서 밖을 가리키는 link를 포함해 Host가 읽어 Asset Host Contract v1과 같은 `createImageAsset` 검증·공개·receipt로 `assets/`에 복사한다. MIME은 확장자로 정하고 내용이 그 형식이 아니면 거부한다. SVG는 복사하지 않는다. 문서가 read-only이면 복사도 거부한다.
-- Editor는 form을 Cancel하거나 다른 이미지를 다시 고르면 그 form이 만든 복사본을 같은 receipt로 rollback한다. rollback 실패는 남은 경로와 함께 표시한다. Apply한 복사본의 이후 orphan 처리는 위 정책과 같다.
+- Editor는 form을 Cancel하거나 다른 이미지를 다시 고르거나, Apply 없이 Figure view가 사라지면(Reload, 문서 닫기, Figure 삭제) 그 form이 만든 복사본을 같은 receipt로 rollback한다. Apply는 dispatch 전에 복사본을 문서로 넘기고, 결과 문서가 그 경로를 쓰지 않을 때만 rollback한다. rollback 실패는 남은 경로와 함께 표시한다. Apply한 복사본의 이후 orphan 처리는 위 정책과 같다.
 
 ### File commit v1
 

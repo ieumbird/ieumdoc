@@ -315,7 +315,16 @@ test("a chosen image inside the document's folder is linked in place; one elsewh
   fs.writeFileSync(path.join(root, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
   assert.deepEqual(choose(path.join(root, "figures 1", "회로도.png")), { path: "./figures 1/회로도.png" });
   assert.deepEqual(choose(path.join(root, "diagram.svg")), { path: "./diagram.svg" });
+  // The media route decodes the URL-encoded path the Editor requests, once.
+  fs.writeFileSync(path.join(root, "100%.png"), PNG);
+  assert.deepEqual(choose(path.join(root, "100%.png")), { path: "./100%.png" });
+  assert.equal(resolveMediaPath("100%25.png", doc), path.join(root, "100%.png"));
   assert.equal(fs.existsSync(assets), false, "Linking writes nothing");
+  // A name the media route refuses to serve is copied instead of linked.
+  fs.writeFileSync(path.join(root, "a%2e.png"), PNG);
+  const unservable = choose(path.join(root, "a%2e.png"));
+  assert.match(unservable.path, /^\.\/assets\/image-[a-f0-9-]+\.png$/);
+  rollbackImageAsset({ documentPath: doc, path: unservable.path, rollbackToken: unservable.rollbackToken! }, key);
 
   for (const [name, bytes] of [["photo.jpeg", JPEG], ["diagram.svg", "<svg/>"], ["fake.png", JPEG], ["notes.txt", "x"]] as const) {
     fs.writeFileSync(path.join(outside, name), bytes);

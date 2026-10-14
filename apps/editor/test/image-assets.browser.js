@@ -168,7 +168,11 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Escape'); await picker.waitFor({state:'hidden'});
   assert(await imageField.inputValue() === before, 'Cancelling the picker keeps the Image field');
   await page.getByRole('button', {name:'Choose…', exact:true}).click();
-  await picker.getByRole('option', {name:'figures', exact:true}).click();
+  // A typed folder path is a place to look, never a choice; Enter enters it.
+  await pathField.fill([root, 'tmp', 'image-assets', 'figures'].join(separator));
+  await picker.getByRole('option', {name:'figures', exact:true}).waitFor();
+  assert(await picker.getByTestId('folder-open').isDisabled(), 'A folder path cannot be used as the image');
+  await pathField.press('Enter');
   await picker.getByRole('option', {name:'diagram.svg', exact:true}).click();
   await picker.getByRole('button', {name:'Use “diagram.svg”', exact:true}).click();
   await picker.waitFor({state:'hidden'});
@@ -194,5 +198,27 @@ async (page, { openDocument }) => {
   assert(chosen[0] === './figures/diagram.svg' && chosen[1] === copied, 'Save writes the chosen paths');
   assert((await page.request.get(media(copied))).status() === 200, 'An applied copy is kept');
   result.chooseCopiesOtherImage = true;
+
+  // An unapplied copy is removed when its form goes away without Cancel: Reload, Figure deletion.
+  const discarded = async leave => {
+    await editFigure(0);
+    const copy = await chooseOutside();
+    const deleted = page.waitForResponse(response => response.url().endsWith('/api/asset') && response.request().method() === 'DELETE');
+    await leave();
+    assert((await deleted).status() === 204 && (await page.request.get(media(copy))).status() === 404, 'The unapplied copy is removed');
+  };
+  await discarded(async () => {
+    await page.getByRole('button', {name:'File actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+    await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  });
+  await discarded(() => page.locator('.document-editor').evaluate(el => {
+    const {state, view} = el.editor;
+    let from;
+    state.doc.forEach((node, offset) => { if (from === undefined && node.type.name === 'figure') from = offset; });
+    view.dispatch(state.tr.delete(from, from + state.doc.nodeAt(from).nodeSize));
+  }));
+  result.unappliedCopyRemoved = true;
   return result;
 }

@@ -60,10 +60,11 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   const directory = cut < 0 ? "" : path.slice(0, cut + 1);
   const partial = path.slice(cut + 1).toLowerCase();
-  // A folder path is only a place to look while choosing an image.
-  const ready = Boolean(path) && !(choose === "image" && endsWithSeparator(path));
   const result = listing.directory === directory ? listing.result : undefined;
   const image = choose === "image";
+  // Choosing an image needs an image the listing shows; a typed folder is a place to look.
+  const named = partial ? result?.entries.find(entry => entry.name.toLowerCase() === partial) : undefined;
+  const ready = image ? named?.kind === "image" : Boolean(path);
   const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && entry.name.toLowerCase().startsWith(partial)) ?? [];
   const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
   const crumbs = result?.crumbs ?? [];
@@ -172,7 +173,8 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
       enter(match);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      void submit();
+      if (image && named?.kind === "folder") go(named.path);
+      else void submit();
     } else if (event.key === "Backspace" && atEnd && endsWithSeparator(path) && parent) {
       event.preventDefault();
       go(parent.path);

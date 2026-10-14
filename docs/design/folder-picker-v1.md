@@ -40,7 +40,8 @@ A Figure's Choose… reuses this picker to choose an image file instead of a fol
 ([Figure authoring](figure-authoring-v1.md)). It starts in the open document's folder and lists
 sub-folders and PNG, JPEG, GIF, WebP and SVG files instead of Markdown files; navigation, Recent,
 starting places and the HTTP root limits are unchanged, and there is no New folder. Clicking an image
-makes it the typed path; Use, or Enter, chooses it. A folder path only navigates. The Host then links
+makes it the typed path; Use, or Enter, chooses it. Use is available only for an image the listing
+shows; a typed folder path, with or without a trailing separator, only navigates, and Enter enters it. The Host then links
 or copies the image as the [Asset Host Contract](filesystem-host-boundary-v1.md#image-choice-v1-208)
 describes. An error, such as an unsupported or missing file, keeps the picker open with the path.
 

@@ -1275,11 +1275,13 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       if (input && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
-  const releaseCopy = (kept?: string) => {
+  const releaseCopy = () => {
     const copy = copied.current;
     copied.current = undefined;
-    if (copy && copy.path !== kept) copy.discard?.();
+    copy?.discard?.();
   };
+  // Reload, closing the document or deleting the Figure also leave an unapplied copy unused.
+  useEffect(() => releaseCopy, []);
   const pickImage = async () => {
     if (!chooseImage || !documentPath) return;
     setChoosing(true);
@@ -1345,9 +1347,14 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
     const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
+    // The copy passes to the document before dispatch, which may replace this view.
+    const copy = copied.current;
+    copied.current = undefined;
     // One undo step: undo returns the form's previous value.
     view.dispatch(closeHistory(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement)));
-    releaseCopy(attributes.imageUrl);
+    let used = false;
+    view.state.doc.forEach(block => { used ||= block.type.name === "figure" && block.attrs.imageUrl === copy?.path; });
+    if (!used) copy?.discard?.();
     setEditing(false);
     if (returnFocus) focusBlock(view, getPos);
   };

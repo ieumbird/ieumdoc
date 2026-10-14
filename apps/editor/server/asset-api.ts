@@ -5,7 +5,7 @@ import path from "node:path";
 import { ASSET_FORMATS, ASSET_TYPES, isAssetMime, MAX_ASSET_BYTES, type AssetMime } from "../shared/asset-policy.ts";
 import type { AssetResponse, AssetRollbackRequest, ImageChoiceRequest, ImageChoiceResponse } from "../shared/asset-protocol.ts";
 import { loadDocumentFile, MEDIA_TYPES, resolveDocumentPath, resolveMediaPath } from "./document-api.ts";
-import { accessPath, fileErrorMessage, fileErrorStatus, inside, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
+import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, inside, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 
 const ASSET_PATH = /^\.\/assets\/image-[a-f0-9-]{36}\.(png|jpg|gif|webp)$/;
@@ -237,12 +237,26 @@ export function chooseImageAsset(request: ImageChoiceRequest, key: Buffer, acces
   const directory = path.dirname(scope.document);
   if (inside(directory, file) && inside(scope.root, fs.realpathSync(file))) {
     const relative = `./${path.relative(directory, file).split(path.sep).join("/")}`;
-    resolveMediaPath(relative, scope.document, access); // The rule that serves it must accept it.
-    return { path: relative };
+    if (servable(relative, scope.document, access)) return { path: relative };
   }
   if (!isAssetMime(mime)) throw new AssetError(`Only ${ASSET_FORMATS} images can be copied into assets/. Move the SVG into the document's folder to use it.`);
   if (stat.size > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
   return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access);
+}
+
+/**
+ * The media route accepts the path as the Editor requests it, segments URL-encoded. A name it
+ * cannot serve, such as one holding `%2e` or a backslash, is copied rather than linked.
+ */
+function servable(relative: string, document: string, access: FileAccess): boolean {
+  if (relative.includes("\\")) return false;
+  try {
+    resolveMediaPath(relative.slice(2).split("/").map(encodeURIComponent).join("/"), document, access);
+    return true;
+  } catch (error) {
+    if (error instanceof FileAccessError) throw error;
+    return false;
+  }
 }
 
 /** No arbitrary delete API: only a signed receipt for this exact, unchanged created file. */
