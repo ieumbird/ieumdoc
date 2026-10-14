@@ -152,13 +152,13 @@ export function admonitionTone(variant: string): "note" | "warning" | "danger" {
 const isTable = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "table";
 const isEditableAdmonition = (state: EditorState, index: number) => {
   const node = state.doc.maybeChild(index);
-  return node?.type.name === "admonition" && node.attrs.editable === true;
+  return node?.type.name === "admonition";
 };
 const isHeading = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "heading";
 const isParagraph = (state: EditorState, index: number) => state.doc.maybeChild(index)?.type.name === "paragraph";
 const isTextBlock = (state: EditorState, index: number) => isHeading(state, index) || isParagraph(state, index);
 const isSectionHeading = (state: EditorState, index: number) =>
-  ["heading", "readonlyHeading"].includes(state.doc.maybeChild(index)?.type.name ?? "");
+  state.doc.maybeChild(index)?.type.name === "heading";
 
 export const BLOCK_COMMANDS: BlockCommand[] = [
   {
@@ -750,11 +750,11 @@ export function alignTableColumn(state: EditorState, index: number, align: strin
 function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
   const markers: SectionMarker[] = [];
   doc.forEach(node => {
-    const heading = node.type.name === "heading" || node.type.name === "readonlyHeading";
+    const heading = node.type.name === "heading";
     markers.push(sectionMarker({
       block: heading ? "heading" : endnoteLabel(node) !== undefined ? "footnote"
-        : node.type.name === "unsupportedBlock" ? "unsupported" : node.type.name === "labelTarget" ? "target" : node.type.name,
-      level: Number(node.attrs.level), original: node.attrs.original ?? undefined,
+        : node.type.name === "labelTarget" ? "target" : node.type.name,
+      level: Number(node.attrs.level),
     }));
   });
   return markers;
@@ -871,7 +871,7 @@ export function formattableSelection(state: EditorState): { from: number; to: nu
   const { $from, $to } = selection;
   const parent = $from.parent;
   const editableInlineParent = parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || (parent.type.name === "figure" && parent.attrs.editable === true) || (parent.type.name === "admonition" && parent.attrs.editable === true);
+    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "admonition";
   if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }

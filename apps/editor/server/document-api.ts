@@ -3,12 +3,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, serialize } from "@ieumdoc/core";
+import { createDocument, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
 import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import {
-  applyBlockSource,
   readModel,
   SaveContentError,
   saveEdits,
@@ -16,7 +15,6 @@ import {
 } from "./document-replay.ts";
 
 import type {
-  BlockSourceRequest,
   SaveRequest,
   SupportedEdits,
   DocumentFileResponse,
@@ -36,7 +34,8 @@ import type { SaveFailure } from "../shared/save-error.ts";
 type FileSaveRequest = SupportedEdits & { revision?: string; base?: SaveRequest["base"] };
 
 function errorPayload(error: unknown, access: FileAccess = LOCAL_FILE_ACCESS): DocumentErrorResponse {
-  return { error: fileErrorMessage(error instanceof SaveContentError && error.phase === "file" ? error.cause ?? error : error, access),
+  return { error: error instanceof NativeDocumentError ? error.message : fileErrorMessage(error instanceof SaveContentError && error.phase === "file" ? error.cause ?? error : error, access),
+    ...(error instanceof NativeDocumentError ? { code: error.code, issue: writeIssueOf(error) } : {}),
     ...(error instanceof SaveContentError ? { target: error.target, failure: {
       phase: error.phase, action: error.action, target: error.target, block: error.block, cell: error.cell, line: error.line,
     } } : {}),
@@ -61,7 +60,7 @@ function fileStep<T>(apply: () => T): T {
 
 export const DOCUMENT_CONFLICT_MESSAGE = "Document changed outside the editor. Your edits are kept. Use Source to copy applied content, or Reload to discard local changes and open the disk version.";
 
-const EMPTY_DOCUMENT_MARKDOWN = serialize(parse(""));
+const EMPTY_DOCUMENT_MARKDOWN = serialize(createDocument());
 
 /** Media a document can show from beside it, by extension; also what choosing an image lists. */
 export const MEDIA_TYPES: Record<string, string> = {
@@ -236,19 +235,6 @@ export async function handleDocumentRequest(
     }
     return;
   }
-  if (url === "/api/block-source") {
-    if (req.method !== "POST") {
-      res.statusCode = 405;
-      res.end();
-      return;
-    }
-    try {
-      sendJson(res, 200, applyBlockSource(JSON.parse(await readBody(req)) as BlockSourceRequest));
-    } catch (error) {
-      failure(error);
-    }
-    return;
-  }
   if (url === "/api/document-source") {
     if (req.method !== "POST") {
       res.statusCode = 405;
@@ -350,7 +336,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function supportedEditsOf(value: unknown): SupportedEdits {
   if (!isObject(value)) throw new Error("invalid session edits");
-  for (const key of ["sources", "headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
+  for (const key of ["headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
     "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order"] as const) {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);
   }

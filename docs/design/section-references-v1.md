@@ -18,7 +18,7 @@ Core's section rule already counts targets before a heading as part of that sect
 - `updateLabel` renames one. A target cannot be emptied; remove it with `removeBlock`.
 - Labels follow the existing rules: `labelError`, a MyST identifier, addressable by `{ref}`, and not taken by another target.
 - MyST reads a target line only for 1-100 of `[a-zA-Z0-9|@<>*./_\-+:]`. Other labels, Korean included, would reload as a paragraph. `targetLabelError` restates that rule without the MyST dependency so the Editor can apply it before Save; a Core test pins it to the parser.
-- `{ref}` without display text joins `{eq}` and `{numref}` as editable inline content. Display-text forms (`{ref}`Text <label>``) stay read-only.
+- `{ref}` without display text joins `{eq}` and `{numref}` as editable inline content. Display-text forms (`{ref}`Text <label>``) reject native admission.
 
 ## Editor
 
@@ -31,7 +31,7 @@ Core's section rule already counts targets before a heading as part of that sect
 ## Scope
 
 - Renaming a label does not rename its references, as for other labels.
-- `[](#label)` links stay ordinary links and read-only: Core does not promote links to references.
+- Ordinary `[text](#label)` links stay links; Core does not promote them to references. Empty-text links such as `[](#label)` reject native admission.
 - `check` diagnoses references as MyST resolves them on one page. A link whose URL starts with `#` (`[](#label)` or `[text](#label)`) is a reference: one that names no target is reported like an unresolved role reference (`link` instead of `role` in JSON), stays as written and does not fail the check. Targets are labeled blocks, `(label)=` targets and the implicit IDs MyST gives unlabeled headings (`## Install` → `#install`); a heading with a label has no implicit ID. Links without `#`, including external URLs with a fragment, are never reported.
 - References to targets before blocks other than headings, numbered section references (`{numref}` to a section), display text, and links to other documents are not authored.
 

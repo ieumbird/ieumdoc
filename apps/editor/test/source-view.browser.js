@@ -1,7 +1,7 @@
 // Run with pnpm browser:test source-view.
 // Switches between Visual and the read-only Source view, checks that Source is the canonical
 // Markdown Save would write (including unsaved Visual edits), that the file is only written by
-// Save, that Equation/Figure drafts survive Source, and that unwritable documents show their original Source.
+// Save, that Equation/Figure drafts survive Source.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
 async (page, { openDocument }) => {
@@ -17,7 +17,6 @@ async (page, { openDocument }) => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const dir = [root, 'tmp', 'source-view'].join(separator);
   const technical = [dir, 'technical-document.md'].join(separator);
-  const lossy = [dir, 'keyboard.md'].join(separator);
   const markdown = async (file, name) => {
     const response = await page.request.get(`${origin}/document/${name}?path=${encodeURIComponent(file)}`);
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
@@ -41,7 +40,6 @@ async (page, { openDocument }) => {
 
   const fresh = await markdown(technical, 'technical-document.md');
   const expected = await markdown([dir, 'expected.md'].join(separator), 'expected.md');
-  const lossyBefore = await markdown(lossy, 'keyboard.md');
   if (fresh.includes('SourceMarker') || !fresh.includes('| Port | Type |')) {
     throw new Error('Scratch document is not a fresh technical-document.md copy');
   }
@@ -121,15 +119,6 @@ async (page, { openDocument }) => {
   result.figureDraftRetained = await page.getByTestId('figure-caption').inputValue() === 'Draft caption.';
   await page.getByTestId('figure-cancel').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
-
-  // G. Unwritable documents expose original source without creating an unsaveable edit.
-  await open(lossy);
-  await page.getByTestId('writeability-warning').waitFor();
-  result.unpreservableReadOnly = await page.locator('.document-editor').getAttribute('contenteditable') === 'false';
-  await showSource();
-  result.unpreservableOriginalSource = await sourceText() === lossyBefore &&
-    await sourceView.getByText('Original Markdown · read-only', {exact:true}).count() === 1;
-  result.unpreservableFileUnchanged = await markdown(lossy, 'keyboard.md') === lossyBefore;
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

@@ -128,6 +128,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved', {exact:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
+    '---', 'ieumdoc: 1', '---', '',
     '# Math',
     '',
     'The current is $i_q$ and the voltage is **v\\_{dc}**. Done.',

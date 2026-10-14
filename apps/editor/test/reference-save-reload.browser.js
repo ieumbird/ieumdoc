@@ -18,8 +18,8 @@ async (page, { openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${filePath} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const reference = 'See [](#fig-control) and {eq}`eq-current`.';
-  const link = 'The rated current follows from [](#eq-current).';
+  const reference = 'See [Figure](#fig-control) and {eq}`eq-current`.';
+  const link = 'The rated current follows from [Equation](#eq-current).';
   const before = await markdown();
   if (!before.includes(reference) || !before.includes(link) || before.includes('ReferenceSaveMarker')) {
     throw new Error('Scratch document is not a fresh technical-document.md copy');
@@ -46,8 +46,8 @@ async (page, { openDocument }) => {
     editSavedAndReloaded: article.includes('ReferenceSaveMarker') && saved.includes('ReferenceSaveMarker'),
     semanticReferenceKept: saved.includes(reference),
     fragmentLinkKept: saved.includes(link),
-    referenceNotFlattened: !saved.includes('[](#fig-control) and [](#eq-current)'),
-    referenceParagraphReadOnly: await page.locator('[data-block="readonly-paragraph"]', {hasText:'eq-current'}).count() > 0,
+    referenceNotFlattened: !saved.includes('[Figure](#fig-control) and [Equation](#eq-current)'),
+    referenceParagraphEditable: await page.locator('p.paragraph').filter({hasText:'See Figure'}).count() === 1,
   };
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Reference Save/Reload failed: ${JSON.stringify(result)}`);

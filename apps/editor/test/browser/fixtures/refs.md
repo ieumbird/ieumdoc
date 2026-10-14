@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # References
 
 The current is set by the control law and shown in the diagram.

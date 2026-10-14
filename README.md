@@ -31,7 +31,7 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 - **Table / Figure / Equation**: table cell·행·열·정렬, caption·label·reference, Figure 속성과 수식 편집. Figure·Equation·caption/label이 있는 Table의 번호는 계산해 표시합니다. PNG·JPEG·GIF·WebP 이미지 붙여넣기·drop은 문서 옆 `assets/`에 저장합니다([Asset Host contract](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)).
 - **Pending Figure**: 이미지 없이 caption 또는 label을 Apply해 저장·참조하고, Reload 후 기존 Edit Figure에서 이미지를 연결합니다. CLI 생성·수정·readiness 경고는 [Figure authoring](docs/design/figure-authoring-v1.md)을 참고합니다.
 - **Heading / footnote**: heading reference와 선택 가능한 H2–H6 numbering(H1은 제목), footnote 삽입(`/` Endnote, CLI `insert-footnote`)과 한 문단 definition의 문서 내 편집. MyST footnote는 미주로 표시되고, 모든 저장은 정의를 본문 뒤 첫 참조 순서로 씁니다. 그 밖의 definition은 block source editing으로 고칩니다.
-- **Preservation / Save**: read-only 보존, block source editing, canonical Source preview, 외부 변경의 Save conflict와 미저장 작업 이탈 보호. Save 뒤에도 selection과 Undo/Redo history를 유지합니다.
+- **Preservation / Save**: 네이티브 문서 검증, canonical Source preview, 외부 변경의 Save conflict와 미저장 작업 이탈 보호. Save 뒤에도 selection과 Undo/Redo history를 유지합니다.
 - **Local file navigation**: Markdown 열기·새 파일 생성, 선택한 folder의 한 단계 목록과 하위 folder 이동, 현재 문서 Outline. workspace나 Git UI는 아닙니다.
 
 ## Architecture
@@ -155,13 +155,11 @@ node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\
 
 IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한 Markdown/MyST를 semantic document로 읽고 공식 write path에서 canonical Markdown을 생성합니다. 파일 출력은 UTF-8이며, CRLF와 mixed EOL은 LF로 정규화합니다. formatting과 원래 bytes를 그대로 유지하는 계약은 아닙니다.
 
-지원하지 않는 내용을 조용히 삭제하지 않습니다. 전체 문서의 의미를 canonical output으로 보존할 수 있으면 미지원 block을 read-only로 유지하면서 다른 내용을 편집할 수 있습니다. 보존할 수 없는 문서는 처음부터 read-only로 열리고, 저장은 fail-closed로 거부합니다.
+[ADR-0006](docs/adr/0006-native-document-boundary.md)에 따라 `ieumdoc: 1` 표식과 지원되는 본문을 가진 네이티브 문서만 엽니다. 미지원 내용·메타데이터가 있으면 문서 전체를 거부하며, 기존 편집 내용은 유지합니다. New file 또는 `ieumdoc create <file>`로 새 문서를 만듭니다.
 
-**Read-only preservation**은 미지원 내용의 의미를 유지하는 것이고, **block source editing**은 쓰기 가능한 문서의 read-only block 하나를 MyST source로 수정해 Core 검증을 거쳐 Apply하는 기능입니다. 지원되는 결과는 visual editing이 가능해집니다. 문서 전체 Source는 읽기 전용 preview이며, 전체 문서가 unwritable하면 외부 editor 또는 Core-backed CLI로 고친 뒤 Reload합니다.
+**이전 버전 문서라도 표식이 없으면 거부하며 Migration은 제공하지 않습니다.** 부분 편집·미지원 문서의 read-only 화면·block source editing은 제거되었습니다. 문서 전체 Source는 적용된 내용을 Core로 직렬화한 읽기 전용 preview입니다. [다음 릴리스 안내](docs/releases/native-documents-next.md)를 참고하세요.
 
-미지원 block을 보존하는 부분 편집과 block source editing은 [ADR-0006](docs/adr/0006-native-document-boundary.md)에 따라 폐지될 예정입니다. 현재 구현은 아직 위의 기존 동작을 따릅니다.
-
-외부 앱의 rich HTML clipboard에는 별도 import 정책이 적용됩니다. 지원되는 구조로 붙여넣고, 보존하지 못하는 formatting은 안내하며, 표현할 수 없는 구조는 이유와 함께 거부합니다. 자세한 범위는 [Document support](docs/design/document-support-v1.md), [Block source editing](docs/design/block-source-editing-v1.md), [Continuous editing](docs/design/document-editing-v1.md)을 참고합니다.
+외부 앱의 rich HTML clipboard에는 별도 import 정책이 적용됩니다. 지원되는 구조로 붙여넣고, 보존하지 못하는 formatting은 안내하며, 표현할 수 없는 구조는 이유와 함께 거부합니다. 자세한 범위는 [Document support](docs/design/document-support-v1.md), [Continuous editing](docs/design/document-editing-v1.md)을 참고합니다.
 
 ## Project status and non-goals
 

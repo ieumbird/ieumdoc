@@ -1,8 +1,12 @@
+---
+ieumdoc: 1
+---
+
 # Converter Control
 
 The converter regulates the **DC-link voltage** and *phase current*.
 
-See [](#fig-control) and {eq}`eq-current`.
+See [Figure](#fig-control) and {eq}`eq-current`.
 
 ## Control Structure
 
@@ -28,7 +32,7 @@ The current reference is calculated from the active power command.
 i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}
 ```
 
-The rated current follows from [](#eq-current).
+The rated current follows from [Equation](#eq-current).
 
 ## Ratings
 

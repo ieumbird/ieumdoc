@@ -8,7 +8,7 @@ import {
   updateList,
   type InlineContent,
   type ListContent,
-} from "@ieumdoc/core";
+} from "./core-internal.ts";
 
 const text = (value: string): InlineContent[] => [{ kind: "text", text: value }];
 
@@ -47,16 +47,6 @@ test("Markdown bullet and numbered lists project as editable List v1 content", (
   ]);
 });
 
-test("lists outside List v1 stay read-only", () => {
-  for (const source of [
-    "- [ ] task\n- [x] done\n",
-    "- first paragraph\n\n  second paragraph\n",
-    "- item\n\n  ```\n  code\n  ```\n",
-    "- {term}`glossary`\n",
-  ]) {
-    assert.equal(getEditableDocument(parse(source)).blocks[0]?.block, "unsupported", source);
-  }
-});
 
 test("public Core inserts a nested list with rich items and stable canonical Markdown", () => {
   const document = parse("Intro.\n\nAfter.\n");

@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
@@ -29,7 +30,7 @@ function fixture(t: test.TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-asset-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const doc = path.join(root, "document.md");
-  fs.writeFileSync(doc, "# Images\n\nKeep this text.\n");
+  fs.writeFileSync(doc, nativeSource("# Images\n\nKeep this text.\n"));
   return { root, doc, assets: path.join(root, "assets") };
 }
 
@@ -51,7 +52,7 @@ test("PNG assets have portable paths, unique names, and request-scoped rollback"
   assert.deepEqual(fs.readdirSync(assets), [path.basename(second.path)]);
   // Retry is safe; it does not remove the second request's file.
   rollbackImageAsset({ documentPath: doc, ...first }, key);
-  assert.equal(fs.readFileSync(doc, "utf8"), "# Images\n\nKeep this text.\n");
+  assert.equal(fs.readFileSync(doc, "utf8"), nativeSource("# Images\n\nKeep this text.\n"));
 });
 
 test("JPEG, GIF and WebP assets keep their format's extension and roll back like PNG", t => {
@@ -300,8 +301,8 @@ test("unwritable Core snapshots and abnormal document locators cannot create ass
     assert.throws(() => createImageAsset(locator, "image/png", PNG, key));
     assert.equal(fs.existsSync(assets), false);
   }
-  fs.writeFileSync(doc, "# Blocked\n\nPress {kbd}`Ctrl` now.\n");
-  assert.throws(() => createImageAsset(doc, "image/png", PNG, key), /read-only/);
+  fs.writeFileSync(doc, nativeSource("# Blocked\n\nPress {kbd}`Ctrl` now.\n"));
+  assert.throws(() => createImageAsset(doc, "image/png", PNG, key), /Unsupported native content/);
   assert.equal(fs.existsSync(assets), false);
 });
 
@@ -343,12 +344,12 @@ test("a chosen image inside the document's folder is linked in place; one elsewh
   // A link inside the folder that resolves outside it is copied, never served through the link.
   fs.symlinkSync(outside, path.join(root, "linked"), process.platform === "win32" ? "junction" : "dir");
   assert.match(choose(path.join(root, "linked", "photo.jpeg")).path, /^\.\/assets\/image-[a-f0-9-]+\.jpg$/);
-  assert.equal(fs.readFileSync(doc, "utf8"), "# Images\n\nKeep this text.\n");
+  assert.equal(fs.readFileSync(doc, "utf8"), nativeSource("# Images\n\nKeep this text.\n"));
 });
 
 function imageEditor(doc: string, reject: (reason: string) => void, host: Parameters<typeof imageAssetsPlugin>[0]["host"], extra: Plugin[] = []) {
   const schema = getSchema(editorExtensions());
-  const baseline = toTiptapDocument(loadEditableDocument("Alpha.\n\nBeta.\n"));
+  const baseline = toTiptapDocument(loadEditableDocument(nativeSource("Alpha.\n\nBeta.\n")));
   let pending = false;
   const plugin = imageAssetsPlugin({ documentPath: doc, reject, host, pending: value => { pending = value; } });
   const view = {
@@ -386,7 +387,7 @@ test("image paste inserts a Core-backed Figure as one independent Undo event", a
   assert.equal(figure.type.name, "figure");
   assert.match(figure.attrs.imageUrl, /^\.\/assets\/image-/);
   assert.equal(figure.attrs.imageAlt, "");
-  const saved = saveEdits("Alpha.\n\nBeta.\n", collectSupportedEdits(loadEditableDocument("Alpha.\n\nBeta.\n"), e.view.state.doc.toJSON()));
+  const saved = saveEdits(nativeSource("Alpha.\n\nBeta.\n"), collectSupportedEdits(loadEditableDocument(nativeSource("Alpha.\n\nBeta.\n")), e.view.state.doc.toJSON()));
   assert.match(saved.markdown, /:::\{figure\} \.\/assets\/image-/);
   assert.equal(undo(e.view.state, tr => e.view.dispatch(tr)), true);
   assert.equal(e.view.state.doc.childCount, 2);

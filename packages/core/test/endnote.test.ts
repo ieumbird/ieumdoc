@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   canonicalWriteError, getEditableDocument, insertFootnote, insertParagraph, moveSection, parse, removeSection, serialize,
   updateParagraphInlineContent,
-} from "@ieumdoc/core";
+} from "./core-internal.ts";
 
 // Endnotes v4: canonical Markdown writes every footnote definition after the body, in the order
 // of the first reference to it, whatever placement the source or the tree had.
@@ -39,30 +39,6 @@ test("canonical write moves definitions after the body in first-reference order,
   assert.deepEqual(getEditableDocument(parse(SCATTERED)), getEditableDocument(parse(PLACED)));
 });
 
-test("rich, read-only and nested definitions keep labels and content; order is deterministic", () => {
-  const source = [
-    "Intro[^n] then[^Long-1].", "",
-    "[^inner]: Inner.", "",
-    "[^n]: The note, see[^inner].", "",
-    "Middle with **bold**[^n] again.", "",
-    "[^Long-1]: A longer note", "    with a second line.", "", "    Second paragraph.", "",
-    "Tail.", "",
-  ].join("\n");
-  const markdown = serialize(parse(source));
-  assert.equal(markdown, [
-    "Intro[^n] then[^Long-1].", "",
-    "Middle with **bold**[^n] again.", "",
-    "Tail.", "",
-    "[^n]: The note, see[^inner].", "",
-    "[^Long-1]: A longer note", "    with a second line.", "", "    Second paragraph.", "",
-    "[^inner]: Inner.", "",
-  ].join("\n"));
-  assert.equal(serialize(parse(markdown)), markdown);
-  const blocks = getEditableDocument(parse(source)).blocks;
-  const longNote = blocks.find(block => block.block === "footnote" && block.label === "Long-1")!;
-  // A read-only definition still shows its own written lines.
-  assert.deepEqual(longNote.original, { kind: "footnoteDefinition", text: "[^Long-1]: A longer note\n    with a second line.\n\n    Second paragraph.", line: 9 });
-});
 
 test("changing reference order in the body moves the definitions on write", () => {
   const document = parse(PLACED);

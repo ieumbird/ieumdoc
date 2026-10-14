@@ -139,15 +139,14 @@ test("top bar shows filename while keeping the complete path in its title", () =
   assert.match(html, /title="C:\\docs\\guide.md"/);
   assert.match(html, />guide\.md</);
   assert.doesNotMatch(html, /aria-disabled="true"/);
-  // The disabled Save button keeps focus/hover so its Tooltip is reachable; the tooltip's
-  // own text only mounts in a browser (editor-shell.browser.js).
+  // Without a document, Save is disabled.
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled saveHint="No document is open." onSave={noop} />
+      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
-  assert.match(blocked, /<button\b(?=[^>]*data-testid="save")(?=[^>]*aria-disabled="true")(?=[^>]*tabindex="0")[^>]*>/);
+  assert.match(blocked, /<button\b(?=[^>]*data-testid="save")(?=[^>]*disabled="")[^>]*>/);
 });
 
 test("status presentation distinguishes loaded, dirty, confirmed save and in-flight/error states", () => {
@@ -162,18 +161,6 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
     const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
       view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} /></TooltipProvider>);
     assert.match(html, new RegExp(`role="status"[^>]*>(?:<[^>]+>)*${expected}</`), `${status}, dirty=${unsaved}`);
-  }
-});
-
-test("an unwritable document shows Cannot save in place of the idle states", () => {
-  for (const [status, unsaved, expected] of [
-    ["Ready", false, "Cannot save"], ["Ready", true, "Cannot save"],
-    ["Opening…", false, "Opening…"], ["Open failed", false, "Open failed"],
-  ] as const) {
-    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
-      writable={false} view="visual" onViewChange={noop} saveDisabled saveHint="blocked" onSave={noop} /></TooltipProvider>);
-    assert.match(html, new RegExp(`role="status"[^>]*>(?:<[^>]+>)*${expected}</`), `${status}, dirty=${unsaved}`);
-    assert.match(html, /<button\b(?=[^>]*data-testid="save")(?=[^>]*aria-disabled="true")[^>]*>/);
   }
 });
 

@@ -1,7 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   canonicalWriteError,
+  createDocument,
+  NativeDocumentError,
+  writeIssueOf,
   getEditableDocument,
   ADMONITION_VARIANTS,
   isAdmonitionVariant,
@@ -29,7 +33,6 @@ import {
   parse,
   removeBlock,
   removeSection,
-  replaceBlockSource,
   sectionMarker,
   sectionRange,
   blockTargets,
@@ -117,6 +120,12 @@ const CODE_NOTE = [
 ];
 const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
+  {
+    name: "create",
+    summary: "Create an empty IeumDoc native document",
+    usage: "ieumdoc create <file>",
+    details: ["Create a new .md file in an existing directory. Existing files are never overwritten."],
+  },
   {
     name: "serve",
     summary: "Serve the production Editor inside explicitly allowed folders",
@@ -223,7 +232,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Replace the inline content of one editable top-level Heading.",
       "--content is Core InlineContent JSON (marks, links, inline math and references); headings cannot hold line breaks.",
-      "Headings with unsupported inline content are read-only.",
+      "Headings require supported native inline content.",
       ...PATH_NOTE,
     ],
   },
@@ -262,7 +271,7 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc update-quote <file> --path <index> (--text <text> | --content <json>)",
     details: [
       "Replace the paragraph of one editable top-level Quote.",
-      "Quotes with several paragraphs or other blocks inside are read-only.",
+      "Quotes contain one paragraph of supported native inline content.",
       ...PATH_NOTE,
     ],
   },
@@ -286,8 +295,7 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc update-footnote <file> --path <index> (--text <text> | --content <json>)",
     details: [
       "Replace the paragraph of one editable footnote definition, keeping its label.",
-      "Definitions with several paragraphs or footnote references inside are read-only;",
-      "use replace-block-source for them.",
+      "Definitions contain one paragraph without footnote references.",
       ...PATH_NOTE,
     ],
   },
@@ -358,18 +366,6 @@ const COMMANDS: CommandSpec[] = [
     details: ["Remove a top-level block."],
   },
   {
-    name: "replace-block-source",
-    summary: "Replace a top-level block with its new MyST source through Core",
-    usage: "ieumdoc replace-block-source <file> --at <index> (--source <text> | --source-file <path>)",
-    details: [
-      "Replace one top-level block, typically read-only content, with the block its MyST source parses as.",
-      "The source must be exactly one complete block: an unclosed fence or directive is rejected.",
-      "It cannot give another target's label, and the whole document must still save as canonical Markdown.",
-      "inspect shows each read-only block's current source. Use --source-file for source that starts with --.",
-      ...PATH_NOTE,
-    ],
-  },
-  {
     name: "move-block",
     summary: "Move a top-level block",
     usage: "ieumdoc move-block <file> --from <index> --to <index>",
@@ -424,7 +420,7 @@ const COMMANDS: CommandSpec[] = [
       "Replace the kind, numbering, items and nesting of one editable top-level list.",
       ...LIST_NOTE,
       "inspect --format json shows an editable list's current content in the same shape.",
-      "Task lists and items with several paragraphs or other blocks are read-only.",
+      "Task lists and items with several paragraphs or other blocks are not native content.",
       ...PATH_NOTE,
     ],
   },
@@ -444,7 +440,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Update one editable top-level code block. Omitted properties are unchanged.",
       ...CODE_NOTE,
-      "Code blocks with captions, labels or other directive options are read-only.",
+      "Code blocks with captions, labels or other directive options are not native content.",
       ...PATH_NOTE,
     ],
   },
@@ -473,7 +469,7 @@ const COMMANDS: CommandSpec[] = [
     summary: "Remove a body row from a Markdown table",
     usage: "ieumdoc remove-table-row <file> --path <table> --at <row>",
     details: [
-      "Remove a body row, read-only cells included, from a top-level Markdown table.",
+      "Remove a body row from a top-level Markdown table.",
       "Row 0 is the header row and cannot be removed, so --at is from 1 to the last row.",
       ...PATH_NOTE,
     ],
@@ -534,7 +530,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Replace the whole content of one cell in a top-level Markdown table. Use an empty --text to clear it.",
       "--content is Core InlineContent JSON (marks, links, inline math and references) without line breaks.",
-      "The content must be one line without leading or trailing whitespace. Cells with unsupported inline content are read-only.",
+      "The content must be one line without leading or trailing whitespace. Cells require supported native inline content.",
       ...PATH_NOTE,
     ],
   },
@@ -626,6 +622,11 @@ function main(argv: string[]): number {
   const { file, flags, format } = parseCommandArgs(command, rest);
 
   switch (command) {
+    case "create": {
+      if (path.extname(file).toLowerCase() !== ".md") throw new Error("document path must point to a .md file");
+      writeFileSync(file, serialize(createDocument()), { encoding: "utf8", flag: "wx" });
+      return 0;
+    }
     case "insert-hard-break":
     case "split-paragraph": {
       const operation = command === "insert-hard-break" ? insertHardBreak : splitParagraph;
@@ -867,13 +868,6 @@ function main(argv: string[]): number {
       edit(file, (document) => removeBlock(document, intFlag(flags, "--at")));
       return 0;
     }
-    case "replace-block-source": {
-      const text = optionalFlag(flags, "--source");
-      const sourceFile = optionalFlag(flags, "--source-file");
-      if ((text === undefined) === (sourceFile === undefined)) throw new Error("replace-block-source requires exactly one of --source or --source-file");
-      edit(file, (document) => replaceBlockSource(document, intFlag(flags, "--at"), text ?? readFile(sourceFile!)));
-      return 0;
-    }
     case "move-section": {
       edit(file, (document) => moveSection(document, intFlag(flags, "--from"), intFlag(flags, "--to")));
       return 0;
@@ -957,6 +951,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-hard-break": ["--path", "--offset"],
   "split-paragraph": ["--path", "--offset"],
   "merge-paragraph": ["--path"],
+  create: [],
   check: ["--format"],
   inspect: ["--format"],
   format: [],
@@ -993,7 +988,6 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
   "insert-target": ["--at", "--label"],
-  "replace-block-source": ["--at", "--source", "--source-file"],
   "move-block": ["--from", "--to"],
   "move-section": ["--from", "--to"],
   "remove-section": ["--at"],
@@ -1067,6 +1061,13 @@ type MachineNode = {
   [key: string]: unknown;
 };
 
+/** Convert Core's displayed section offsets to snapshot locators used by CLI operations. */
+function snapshotSection(document: EditableDocument, index: number) {
+  const range = sectionRange(document.blocks.map(sectionMarker), index);
+  return { start: document.blocks[range.start].path[0],
+    end: document.blocks[range.end]?.path[0] ?? (document.blocks.at(-1)?.path[0] ?? 0) + 1 };
+}
+
 function machineNodes(document: EditableDocument): MachineNode[] {
   const markers = document.blocks.map(sectionMarker);
   const numbers = targetNumbers(document.blocks.map(blockTargets));
@@ -1076,9 +1077,9 @@ function machineNodes(document: EditableDocument): MachineNode[] {
     return [{
       ...first,
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
-      ...(typeof markers[index] === "number" ? { section: sectionRange(markers, index) } : {}),
+      ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
-      ...(block.original ? { source: block.original.text } : {}),
+
     }, ...rest];
   });
 }
@@ -1147,7 +1148,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
   if (block.block === "list") {
     return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
   }
-  return [{ ...base, text: block.text }];
+  throw new Error("Unknown native block");
 }
 
 function formatInspect(document: EditableDocument): string {
@@ -1155,13 +1156,11 @@ function formatInspect(document: EditableDocument): string {
   const numbers = targetNumbers(document.blocks.map(blockTargets));
   // A heading's section is its half-open top-level block range [start,end). Numbers are the
   // computed numbers of the block's first equation, figure or table; they are never written.
-  // A read-only block shows its current source, the input replace-block-source edits.
   return document.blocks.flatMap((block, index) => {
     const [first, ...rest] = formatBlock(block);
-    const section = typeof markers[index] === "number" ? sectionRange(markers, index) : undefined;
+    const section = typeof markers[index] === "number" ? snapshotSection(document, index) : undefined;
     const numbered = Object.entries(numbers[index]).map(([kind, number]) => `${kind}:${number}`).join(",");
-    const source = block.original ? ` source=${quote(block.original.text)}` : "";
-    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}${source}`, ...rest];
+    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}`, ...rest];
   }).join("\n");
 }
 
@@ -1213,7 +1212,7 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "target") {
     return [`${path} target label=${quote(block.label)}`];
   }
-  return [`${path} unsupported text=${quote(block.text)}`];
+  throw new Error("Unknown native block");
 }
 
 function formatListItems(list: ListContent, depth: number): string[] {
@@ -1330,6 +1329,9 @@ try {
     await serve(args.slice(1), editorDir);
   } else process.exitCode = main(args);
 } catch (error) {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  if (process.argv[2] === "check" && process.argv.includes("--format") && process.argv[process.argv.indexOf("--format") + 1] === "json") {
+    process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
+      error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
+  } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 }

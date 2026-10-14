@@ -16,11 +16,11 @@ async (page, { openDocument }) => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const dir = [root, 'tmp', 'source-view'].join(separator);
   const documentA = [dir, 'technical-document.md'].join(separator);
-  const documentB = [dir, 'keyboard.md'].join(separator);
+  const documentB = [dir, 'writable.md'].join(separator);
   const created = [dir, 'created-during-preview.md'].join(separator);
   const exists = async (file, name) =>
     (await page.request.get(`${origin}/document/${name}?path=${encodeURIComponent(file)}`)).status() === 200;
-  if (!await exists(documentA, 'technical-document.md') || !await exists(documentB, 'keyboard.md')) {
+  if (!await exists(documentA, 'technical-document.md') || !await exists(documentB, 'writable.md')) {
     throw new Error(`Prepare ${dir} first`);
   }
   if (await exists(created, 'created-during-preview.md')) throw new Error(`Remove ${created} first`);
@@ -34,7 +34,7 @@ async (page, { openDocument }) => {
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await page.getByTestId('folder').waitFor();
-  const otherDocument = page.getByTestId('folder').getByRole('treeitem', {name:'keyboard.md', exact:true});
+  const otherDocument = page.getByTestId('folder').getByRole('treeitem', {name:'writable.md', exact:true});
 
   let release;
   const gate = new Promise(resolve => { release = resolve; });

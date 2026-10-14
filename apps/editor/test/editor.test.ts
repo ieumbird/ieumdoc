@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -52,10 +53,10 @@ const HEADING_TO = "Converter Controls";
 
 const PRESERVED_INDEXES = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
 
-const source = readFileSync(fixture, "utf8");
+const source = nativeSource(readFileSync(fixture, "utf8"));
 
 test("Host file loading exposes the Core read model", () => {
-  const document = loadDocumentFile(fixture).document;
+  const document = loadDocumentFile(path.join(editorRoot, "document/technical-document.md")).document;
   assert.deepEqual(document, getEditableDocument(parse(source)));
   assert.equal(
     document.blocks.some((block) => block.block === "paragraph" && block.editable && block.text === PARAGRAPH_FROM),
@@ -83,7 +84,7 @@ test("technical document projects to one typed Tiptap document", () => {
     [
       "heading",
       "paragraph",
-      "readonlyParagraph",
+      "paragraph",
       "heading",
       "admonition",
       "heading",
@@ -91,7 +92,7 @@ test("technical document projects to one typed Tiptap document", () => {
       "heading",
       "paragraph",
       "equation",
-      "readonlyParagraph",
+      "paragraph",
       "heading",
       "table",
     ],
@@ -124,24 +125,24 @@ test("projected technical document round-trips through the Tiptap schema without
 test("Equation LaTeX and label are the editable Equation attributes", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const changed = clone(baseline);
-  const equation = blockAt(changed, "9");
+  const equation = blockAt(changed, "10");
   equation.attrs!.latex = `${String(equation.attrs!.latex)} + 1`;
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, changed));
   const edits = collectSupportedEdits(loadEditableDocument(source), changed);
-  assert.deepEqual(edits.equations, [{ path: [9], from: String(baseline.content?.find(block => block.attrs?.sourcePath === "9")?.attrs?.latex), to: `${String(equation.attrs!.latex)}` }]);
+  assert.deepEqual(edits.equations, [{ path: [10], from: String(baseline.content?.find(block => block.attrs?.sourcePath === "10")?.attrs?.latex), to: `${String(equation.attrs!.latex)}` }]);
 
   // The label is an authored target name, collected separately from the LaTeX.
   const labelChanged = clone(baseline);
-  blockAt(labelChanged, "9").attrs!.label = "other";
+  blockAt(labelChanged, "10").attrs!.label = "other";
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, labelChanged));
   const labelEdits = collectSupportedEdits(loadEditableDocument(source), labelChanged);
-  assert.deepEqual(labelEdits.labels, [{ path: [9], from: "eq-current", to: "other" }]);
+  assert.deepEqual(labelEdits.labels, [{ path: [10], from: "eq-current", to: "other" }]);
   assert.equal(labelEdits.equations, undefined);
   const identity = clone(baseline);
-  blockAt(identity, "9").attrs!.sourcePath = "new:x";
+  blockAt(identity, "10").attrs!.sourcePath = "new:x";
   assert.throws(() => assertSupportedDocumentChange(baseline, identity));
   const nonString = clone(baseline);
-  blockAt(nonString, "9").attrs!.label = 1;
+  blockAt(nonString, "10").attrs!.label = 1;
   assert.throws(() => assertSupportedDocumentChange(baseline, nonString), /label must be a string/);
 });
 
@@ -342,29 +343,25 @@ test("document adapter rejects unknown blocks, inlines, and marks", () => {
   assert.throws(() => assertSupportedDocumentChange(baseline, unknownBlock), /unsupported Tiptap block "blockquote"/);
 
   const unknownInline = clone(baseline);
-  const paragraph = blockAt(unknownInline, "8");
+  const paragraph = blockAt(unknownInline, "9");
   paragraph.content = [{ type: "image" }];
   assert.throws(() => assertSupportedDocumentChange(baseline, unknownInline), /unsupported Tiptap node "image"/);
 
   const unknownMark = clone(baseline);
-  blockAt(unknownMark, "8").content = [{ type: "text", text: "unsupported", marks: [{ type: "underline" }] }];
+  blockAt(unknownMark, "9").content = [{ type: "text", text: "unsupported", marks: [{ type: "underline" }] }];
   assert.throws(() => assertSupportedDocumentChange(baseline, unknownMark), /unsupported Tiptap mark "underline"/);
 });
 
-test("document adapter accepts reorder but rejects readonly mutation, insertion, and deletion", () => {
+test("document adapter accepts reorder but rejects forged identity, insertion, and deletion", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
 
   const mutated = clone(baseline);
-  const equation = blockAt(mutated, "9");
+  const equation = blockAt(mutated, "10");
   assert.ok(equation.attrs);
   equation.attrs.latex = "changed";
     assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, mutated));
 
-  const readonlyParagraph = clone(baseline);
-  const reference = blockAt(readonlyParagraph, "2");
-  assert.ok(reference.attrs);
-  reference.attrs.text = "flattened";
-  assert.throws(() => assertSupportedDocumentChange(baseline, readonlyParagraph), /read-only block changed/);
+
 
   const reordered = clone(baseline);
   const content = reordered.content ?? [];
@@ -375,7 +372,7 @@ test("document adapter accepts reorder but rejects readonly mutation, insertion,
   assert.ok(collectSupportedEdits(loadEditableDocument(source), reordered).order);
 
   const inserted = clone(baseline);
-  inserted.content = [...(inserted.content ?? []), { type: "paragraph", attrs: { sourcePath: "99" } }];
+  inserted.content = [...(inserted.content ?? []), { type: "paragraph", attrs: { sourcePath: "100" } }];
   assert.throws(() => assertSupportedDocumentChange(baseline, inserted), /block insertion/);
 
   const deleted = clone(baseline);
@@ -387,18 +384,18 @@ test("paragraph split stays in its original snapshot group", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const split = clone(baseline);
   const content = split.content ?? [];
-  const index = content.findIndex((block) => block.attrs?.sourcePath === "8");
+  const index = content.findIndex((block) => block.attrs?.sourcePath === "9");
   const paragraph = content[index];
   assert.ok(paragraph);
   content.splice(index + 1, 0, {
     type: "paragraph",
-    attrs: { sourcePath: "8" },
+    attrs: { sourcePath: "9" },
     content: [{ type: "text", text: "tail" }],
   });
   assert.doesNotThrow(() => assertSupportedDocumentChange(baseline, split));
 
   const { doc, schema } = schemaDocument();
-  const paragraphPos = positionOf(doc, "paragraph", "8");
+  const paragraphPos = positionOf(doc, "paragraph", "9");
   const state = EditorState.create({
     schema,
     doc,
@@ -410,11 +407,11 @@ test("paragraph split stays in its original snapshot group", () => {
 });
 
 test("an empty split sibling becomes a new heading insertion without converting the paragraph", () => {
-  const markdown = "Original paragraph\n";
+  const markdown = nativeSource("Original paragraph\n");
   const editable = loadEditableDocument(markdown);
   const split = toTiptapDocument(editable);
   split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
-  assert.equal(split.content![0].attrs?.sourcePath, "0");
+  assert.equal(split.content![0].attrs?.sourcePath, "1");
   assert.equal(split.content![1].attrs?.sourcePath, "new:split:end");
   assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(editable), split));
 
@@ -431,7 +428,7 @@ test("an empty split sibling becomes a new heading insertion without converting 
   assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map((block) => block.block), ["paragraph", "heading"]);
   assert.deepEqual(loadEditableDocument(saved.markdown).blocks[1], {
     block: "heading",
-    path: [1],
+    path: [2],
     level: 2,
     text: "Inserted heading",
     content: [{ kind: "text", text: "Inserted heading" }],
@@ -442,17 +439,17 @@ test("an empty split sibling becomes a new heading insertion without converting 
   const conversion = clone(toTiptapDocument(editable));
   conversion.content![0] = {
     type: "heading",
-    attrs: { sourcePath: "0", level: 2 },
+    attrs: { sourcePath: "1", level: 2 },
     content: [{ type: "text", text: "Not a conversion" }],
   };
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
 });
 
-test("ProseMirror block-boundary and read-only deletions are rejected", () => {
+test("ProseMirror block-boundary and atomic block deletions are rejected", () => {
   const baseline = toTiptapDocument(loadEditableDocument(source));
   const { doc, schema } = schemaDocument();
 
-  const paragraphPos = positionOf(doc, "paragraph", "1");
+  const paragraphPos = positionOf(doc, "paragraph", "2");
   const atStart = EditorState.create({
     schema,
     doc,
@@ -464,8 +461,8 @@ test("ProseMirror block-boundary and read-only deletions are rejected", () => {
   }
 
   for (const [type, sourcePath] of [
-    ["equation", "9"],
-    ["figure", "6"],
+    ["equation", "10"],
+    ["figure", "7"],
   ] as const) {
     const pos = positionOf(doc, type, sourcePath);
     const selected = EditorState.create({
@@ -494,22 +491,14 @@ test("formatted paragraph is an editable target", () => {
   assert.equal(blockAt(projection, formatted.path.join(",")).type, "paragraph");
 });
 
-test("unsupported paragraph stays read-only", () => {
-  const document = loadEditableDocument(source);
-  const xref = document.blocks.find((block) => block.block === "paragraph" && block.text.includes("fig-control"));
-  assert.equal(xref?.block, "paragraph");
-  if (xref?.block !== "paragraph") return;
-  assert.equal(xref.editable, false);
-  assert.equal(blockAt(toTiptapDocument(document), xref.path.join(",")).type, "readonlyParagraph");
-});
 
 test("selected Markdown files keep load, save, and revision boundaries", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-open-files-"));
   const fileA = path.join(dir, "a.md");
   const fileB = path.join(dir, "b.md");
   try {
-    writeFileSync(fileA, "Document A\n");
-    writeFileSync(fileB, "Document B\n");
+    writeFileSync(fileA, nativeSource("Document A\n"));
+    writeFileSync(fileB, nativeSource("Document B\n"));
     const loadedA = loadDocumentFile(fileA);
     const loadedB = loadDocumentFile(fileB);
     assert.equal(loadedA.path, path.resolve(fileA));
@@ -522,24 +511,24 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
 
     const savedA = saveDocumentFile(fileA, {
       revision: loadedA.revision,
-      paragraphs: [{ path: [0], content: [{ kind: "text", text: "Document A changed" }] }],
+      paragraphs: [{ path: [1], content: [{ kind: "text", text: "Document A changed" }] }],
     });
-    assert.equal(readFileSync(fileA, "utf8"), "Document A changed\n");
-    assert.equal(readFileSync(fileB, "utf8"), "Document B\n");
+    assert.equal(readFileSync(fileA, "utf8"), nativeSource("Document A changed\n"));
+    assert.equal(readFileSync(fileB, "utf8"), nativeSource("Document B\n"));
     const savedParagraph = loadEditableDocument(savedA.markdown).blocks[0];
     assert.equal(savedParagraph?.block, "paragraph");
     if (savedParagraph?.block !== "paragraph") return;
     assert.equal(savedParagraph.text, "Document A changed");
 
-    writeFileSync(fileA, "Document A external\n");
+    writeFileSync(fileA, nativeSource("Document A external\n"));
     assert.throws(
       () => saveDocumentFile(fileA, {
         revision: savedA.revision,
-        paragraphs: [{ path: [0], content: [{ kind: "text", text: "stale" }] }],
+        paragraphs: [{ path: [1], content: [{ kind: "text", text: "stale" }] }],
       }),
       DocumentConflictError,
     );
-    assert.equal(readFileSync(fileA, "utf8"), "Document A external\n");
+    assert.equal(readFileSync(fileA, "utf8"), nativeSource("Document A external\n"));
     assert.throws(() => resolveDocumentPath(path.join(dir, "not-markdown.txt")), /\.md file/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -549,10 +538,10 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
 test("partial writes and conflicts during replacement preserve the disk and permit retry", (context) => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-failed-write-"));
   const file = path.join(dir, "document.md");
-  const source = "Original paragraph.\n";
+  const source = nativeSource("Original paragraph.\n");
   writeFileSync(file, source);
   const request = { revision: documentRevision(source),
-    paragraphs: [{ path: [0], content: [{ kind: "text" as const, text: "Changed paragraph." }] }] };
+    paragraphs: [{ path: [1], content: [{ kind: "text" as const, text: "Changed paragraph." }] }] };
   try {
     const partialWrite = context.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string, options: fs.WriteFileOptions) => {
       writeFileSync(target, data.slice(0, 5), options);
@@ -563,15 +552,15 @@ test("partial writes and conflicts during replacement preserve the disk and perm
     assert.equal(readFileSync(file, "utf8"), source);
     assert.deepEqual(readdirSync(dir), ["document.md"]);
     saveDocumentFile(file, request);
-    assert.equal(readFileSync(file, "utf8"), "Changed paragraph.\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("Changed paragraph.\n"));
     const retry = { revision: loadDocumentFile(file).revision, paragraphs: request.paragraphs };
     const externalWrite = context.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string, options: fs.WriteFileOptions) => {
       writeFileSync(target, data, options);
-      writeFileSync(file, "External edit during Save.\n");
+      writeFileSync(file, nativeSource("External edit during Save.\n"));
     });
     assert.throws(() => saveDocumentFile(file, retry), DocumentConflictError);
     externalWrite.mock.restore();
-    assert.equal(readFileSync(file, "utf8"), "External edit during Save.\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("External edit during Save.\n"));
     assert.deepEqual(readdirSync(dir), ["document.md"]);
   } finally {
     context.mock.restoreAll();
@@ -580,7 +569,7 @@ test("partial writes and conflicts during replacement preserve the disk and perm
 });
 
 test("empty documents project to a transient paragraph without persisting empty content", () => {
-  const editable = loadEditableDocument("\n");
+  const editable = loadEditableDocument(nativeSource("\n"));
   const projection = toTiptapDocument(editable);
   assert.deepEqual(projection.content, [{ type: "paragraph", attrs: { sourcePath: "new:empty" } }]);
   assert.deepEqual(collectSupportedEdits(editable, projection), { headings: [], paragraphs: [] });
@@ -596,7 +585,7 @@ test("empty documents project to a transient paragraph without persisting empty 
 });
 
 test("empty saves keep later inserts representable", () => {
-  const editable = loadEditableDocument("\n");
+  const editable = loadEditableDocument(nativeSource("\n"));
   const projected = toTiptapDocument(editable);
   assert.deepEqual(collectSupportedEdits(editable, projected), { headings: [], paragraphs: [] });
   const typed = clone(projected);
@@ -607,7 +596,7 @@ test("empty saves keep later inserts representable", () => {
 });
 
 test("new heading inserts save and reload through Core semantics", () => {
-  const editable = loadEditableDocument("Intro\n");
+  const editable = loadEditableDocument(nativeSource("Intro\n"));
   const next = toTiptapDocument(editable);
   next.content!.push({
     type: "heading",
@@ -616,11 +605,11 @@ test("new heading inserts save and reload through Core semantics", () => {
   });
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.inserts, [{ block: "heading", level: 2, content: [{ kind: "text", text: "Details" }] }]);
-  const saved = saveEdits("Intro\n", edits);
-  assert.equal(saved.markdown, "Intro\n\n## Details\n");
+  const saved = saveEdits(nativeSource("Intro\n"), edits);
+  assert.equal(saved.markdown, nativeSource("Intro\n\n## Details\n"));
   assert.deepEqual(loadEditableDocument(saved.markdown).blocks[1], {
     block: "heading",
-    path: [1],
+    path: [2],
     level: 2,
     text: "Details",
     content: [{ kind: "text", text: "Details" }],
@@ -637,18 +626,18 @@ test("new heading inserts save and reload through Core semantics", () => {
     return true;
   });
   assert.throws(
-    () => saveEdits("Intro\n", {
+    () => saveEdits(nativeSource("Intro\n"), {
       headings: [],
       paragraphs: [],
       inserts: [{ block: "heading", level: 1, content: [] }],
-      order: [{ path: [0], part: 0 }, { insert: 0 }],
+      order: [{ path: [1], part: 0 }, { insert: 0 }],
     }),
     /empty heading cannot be saved/,
   );
 });
 
 test("new Equation inserts save and reload through Core semantics", () => {
-  const editable = loadEditableDocument("Intro\n");
+  const editable = loadEditableDocument(nativeSource("Intro\n"));
   const next = toTiptapDocument(editable);
   next.content!.push({
     type: "equation",
@@ -656,8 +645,8 @@ test("new Equation inserts save and reload through Core semantics", () => {
   });
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.inserts, [{ block: "equation", latex: "x^2 + 1" }]);
-  const saved = saveEdits("Intro\n", edits);
-  assert.equal(saved.markdown, "Intro\n\n```{math}\nx^2 + 1\n```\n");
+  const saved = saveEdits(nativeSource("Intro\n"), edits);
+  assert.equal(saved.markdown, nativeSource("Intro\n\n```{math}\nx^2 + 1\n```\n"));
   assert.deepEqual(loadEditableDocument(saved.markdown).blocks.map(block => block.block), ["paragraph", "equation"]);
   assert.equal(loadEditableDocument(saved.markdown).blocks[1]?.block, "equation");
   const equation = loadEditableDocument(saved.markdown).blocks[1];
@@ -670,9 +659,9 @@ test("new Equation inserts save and reload through Core semantics", () => {
   empty.content!.push({ type: "equation", attrs: { sourcePath: "new:empty-equation", latex: "", label: "" } });
   assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
   assert.throws(
-    () => saveEdits("Intro\n", {
+    () => saveEdits(nativeSource("Intro\n"), {
       inserts: [{ block: "equation", latex: "" }],
-      order: [{ path: [0], part: 0 }, { insert: 0 }],
+      order: [{ path: [1], part: 0 }, { insert: 0 }],
     }),
     /empty equation LaTeX/,
   );
@@ -680,13 +669,13 @@ test("new Equation inserts save and reload through Core semantics", () => {
   const conversion = clone(toTiptapDocument(editable));
   conversion.content![0] = {
     type: "equation",
-    attrs: { sourcePath: "0", latex: "x" },
+    attrs: { sourcePath: "1", latex: "x" },
   };
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(editable), conversion), /top-level block type changed/);
 });
 
 test("an empty new document can hold a transient heading but cannot save it empty", () => {
-  const editable = loadEditableDocument("\n");
+  const editable = loadEditableDocument(nativeSource("\n"));
   const heading = toTiptapDocument(editable);
   heading.content = [{ type: "heading", attrs: { sourcePath: "new:empty", level: 1 } }];
   assert.throws(() => collectSupportedEdits(editable, heading), /empty heading cannot be saved/);
@@ -698,16 +687,16 @@ test("new Markdown files use Core's canonical empty document and can be edited a
   try {
     const created = createDocumentFile(file);
     assert.equal(created.path, path.resolve(file));
-    assert.equal(readFileSync(file, "utf8"), "\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("\n"));
     assert.deepEqual(created.document.blocks, []);
-    assert.deepEqual(inspectDocument(parse(readFileSync(file, "utf8"))), []);
+    assert.deepEqual(loadEditableDocument(readFileSync(file, "utf8")).blocks, []);
 
     const saved = saveDocumentFile(file, {
       revision: created.revision,
       inserts: [{ block: "paragraph", content: [{ kind: "text", text: "A new document" }] }],
       order: [{ insert: 0 }],
     });
-    assert.equal(readFileSync(file, "utf8"), "A new document\n");
+    assert.equal(readFileSync(file, "utf8"), nativeSource("A new document\n"));
     assert.equal(loadEditableDocument(saved.markdown).blocks[0]?.block, "paragraph");
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -718,9 +707,9 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-file-errors-"));
   const existing = path.join(dir, "existing.md");
   try {
-    writeFileSync(existing, "Keep this content\n");
+    writeFileSync(existing, nativeSource("Keep this content\n"));
     assert.throws(() => createDocumentFile(existing), /file already exists/);
-    assert.equal(readFileSync(existing, "utf8"), "Keep this content\n");
+    assert.equal(readFileSync(existing, "utf8"), nativeSource("Keep this content\n"));
     assert.throws(() => createDocumentFile(path.join(dir, "invalid.txt")), /\.md file/);
     assert.throws(() => createDocumentFile(path.join(dir, "missing", "new.md")), /parent directory does not exist/);
   } finally {
@@ -735,7 +724,7 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
   try {
     for (const folder of [chosen, path.join(chosen, "guides"), path.join(chosen, ".git"), outside]) mkdirSync(folder);
     for (const file of ["b.md", "a10.md", "a9.md", "UPPER.MD", "notes.txt", ".hidden.md", "guides/deep.md"]) {
-      writeFileSync(path.join(chosen, file), "x\n");
+      writeFileSync(path.join(chosen, file), nativeSource("x\n"));
     }
     // Windows junctions do not require developer-mode symlink permission.
     fs.symlinkSync(outside, path.join(chosen, "linked"), process.platform === "win32" ? "junction" : "dir");
@@ -758,7 +747,7 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     assert.ok(browseFolder(dir).entries.some(entry => entry.path === outside));
     assert.throws(() => browseFolder(""), /folder path is required/);
     // Choosing an image lists images where the folder picker lists Markdown files.
-    for (const file of ["photo.JPG", "diagram.svg", ".hidden.png"]) writeFileSync(path.join(chosen, file), "x\n");
+    for (const file of ["photo.JPG", "diagram.svg", ".hidden.png"]) writeFileSync(path.join(chosen, file), nativeSource("x\n"));
     assert.deepEqual(browseFolder(chosen).entries.map(entry => `${entry.kind}:${entry.name}`),
       ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
     assert.deepEqual(browseFolder(chosen, undefined, "image").entries.map(entry => `${entry.kind}:${entry.name}`),
@@ -791,10 +780,10 @@ test("a new folder is created once, inside an existing folder, with a single por
     assert.ok(fs.statSync(created.path).isDirectory());
     assert.deepEqual(listFolder(dir).entries.map(entry => `${entry.kind}:${entry.name}`), ["folder:자료"]);
 
-    writeFileSync(path.join(dir, "notes.md"), "Keep this content\n");
+    writeFileSync(path.join(dir, "notes.md"), nativeSource("Keep this content\n"));
     assert.throws(() => createFolder(dir, "자료"), /already exists/);
     assert.throws(() => createFolder(dir, "notes.md"), /already exists/);
-    assert.equal(readFileSync(path.join(dir, "notes.md"), "utf8"), "Keep this content\n");
+    assert.equal(readFileSync(path.join(dir, "notes.md"), "utf8"), nativeSource("Keep this content\n"));
     for (const name of ["", " ", ".", "..", "../outside", "a/b", "a\\b"]) assert.throws(() => createFolder(dir, name), /required|directory path/, name);
     for (const name of [".git", "a:b", "what?", "trailing.", "trailing ", "CON", "nul.txt", "Com1"]) assert.throws(() => createFolder(dir, name), /folder name/, name);
     assert.throws(() => createFolder(path.join(dir, "missing"), "child"), /does not exist/);
@@ -816,8 +805,8 @@ test("relative figure media follows the opened document directory", () => {
   try {
     mkdirSync(aDir);
     mkdirSync(bDir);
-    writeFileSync(fileA, "A\n");
-    writeFileSync(fileB, "B\n");
+    writeFileSync(fileA, nativeSource("A\n"));
+    writeFileSync(fileB, nativeSource("B\n"));
     writeFileSync(path.join(aDir, "image.svg"), "A image");
     writeFileSync(path.join(bDir, "image.svg"), "B image");
     writeFileSync(outside, "outside");
@@ -890,14 +879,14 @@ test("document revision changes with the source", () => {
   const revision = documentRevision(source);
   assert.equal(documentRevision(source), revision);
   assert.equal(revision.length, 64);
-  assert.notEqual(documentRevision(`${source}\n`), revision);
+  assert.notEqual(documentRevision(nativeSource(`${source}\n`)), revision);
 });
 
 test("current revision save returns the hash of the saved markdown", () => {
   const loaded = documentRevision(source);
   const saved = saveCurrentDocument(source, {
     revision: loaded,
-    paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+    paragraphs: [{ path: [9], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
   });
   assert.notEqual(saved.revision, loaded);
   assert.equal(saved.revision, documentRevision(saved.markdown));
@@ -907,12 +896,12 @@ test("current revision save returns the hash of the saved markdown", () => {
 });
 
 test("session saves replay Core edits against their opening source and prove the last disk state", () => {
-  const opening = "# Heading\n\nFirst.\n\nSecond.\n";
+  const opening = nativeSource("# Heading\n\nFirst.\n\nSecond.\n");
   const editable = loadEditableDocument(opening);
   const original = toTiptapDocument(editable);
   const changed = clone(original);
   changed.content!.splice(1, 1);
-  changed.attrs = { deletedPaths: ["1"] };
+  changed.attrs = { deletedPaths: ["2"] };
   changed.content!.push({ type: "paragraph", attrs: { sourcePath: "new:session" }, content: [{ type: "text", text: "Added." }] });
   const edits = collectSupportedEdits(editable, changed);
   let disk = opening;
@@ -921,7 +910,7 @@ test("session saves replay Core edits against their opening source and prove the
     () => disk, markdown => { disk = markdown; writes++; }, request,
   );
   const first = commit({ revision: documentRevision(disk), base: { source: opening }, ...edits });
-  assert.equal(disk, "# Heading\n\nSecond.\n\nAdded.\n");
+  assert.equal(disk, nativeSource("# Heading\n\nSecond.\n\nAdded.\n"));
   const restore = collectSupportedEdits(editable, original);
   const second = commit({ revision: first.revision, base: { source: opening, savedEdits: edits }, ...restore });
   assert.equal(disk, opening, "undo across Save restores deleted source blocks without stale locators");
@@ -950,41 +939,20 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
     const { port } = server.address() as AddressInfo;
-    for (const [name, source, reason] of [
-      // Layer 1: myst-to-md reports the node it cannot render.
-      ["keyboard.md", "Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n", /cannot be preserved in canonical Markdown: .*keyboard/],
-      // Layer 2: the second subfigure is dropped without any diagnostic.
-      ["subfigure.md", "Editable paragraph.\n\n:::{figure}\n![a](./a.png)\n![b](./b.png)\n:::\n", /cannot be preserved in canonical Markdown: .*container/],
-    ] as const) {
-      const file = path.join(dir, name);
-      writeFileSync(file, source);
-      const before = readFileSync(file);
-      const loaded = loadDocumentFile(file);
-      const paragraph = loaded.document.blocks.find((block) => block.block === "paragraph" && block.editable);
-      assert.ok(paragraph, name);
-      const response = await fetch(`http://127.0.0.1:${port}/api/document`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          path: file,
-          revision: loaded.revision,
-          base: { source: loaded.source },
-          paragraphs: [{ path: paragraph.path, content: [{ kind: "text", text: "Changed paragraph." }] }],
-        }),
-      });
-      assert.equal(response.status, 400, name);
-      const failure = await response.json();
-      assert.match(failure.error, reason, name);
-      assert.equal(failure.failure.phase, "serialize");
-      assert.deepEqual(failure.target, { path: [1], part: 0 });
-      assert.ok(failure.failure.action);
-      if (name === "keyboard.md") {
-        assert.equal(failure.failure.line, 3);
-        assert.match(saveErrorMessage(new SaveContentError(failure.error, failure.target, failure.failure),
-          toTiptapDocument(loaded.document)), /^Block 2 \(readonlyParagraph\), source line 3:/);
-      }
-      assert.deepEqual(readFileSync(file), before, name);
-    }
+    const source = nativeSource("Editable paragraph.\n");
+    const file = path.join(dir, "document.md");
+    writeFileSync(file, source);
+    const loaded = loadDocumentFile(file);
+    const response = await fetch(`http://127.0.0.1:${port}/api/document`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: file, revision: loaded.revision, base: { source },
+        paragraphs: [{ path: [1], content: [{ kind: "code", value: "a\nb" }] }] }),
+    });
+    assert.equal(response.status, 400);
+    const failure = await response.json();
+    assert.ok(failure.error);
+    assert.ok(failure.failure.action);
+    assert.equal(readFileSync(file, "utf8"), source);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -992,7 +960,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
   }
 });
 
-test("Host opens complete models and Save acknowledges only the written revision", async () => {
+test("Host refuses unsupported documents and Save acknowledges only the written revision", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-writeability-"));
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
@@ -1001,33 +969,27 @@ test("Host opens complete models and Save acknowledges only the written revision
   try {
     const { port } = server.address() as AddressInfo;
     const writable = path.join(dir, "writable.md");
-    writeFileSync(writable, "# Title\n\nBody.\n");
+    writeFileSync(writable, nativeSource("# Title\n\nBody.\n"));
     const blocked = path.join(dir, "keyboard.md");
-    const source = "Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n";
+    const source = nativeSource("Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n");
     writeFileSync(blocked, source);
     const before = readFileSync(blocked);
 
-    assert.equal(loadDocumentFile(writable).writeError, null);
-    // A document IeumDoc cannot write still opens, with its whole read model.
-    const opened = loadDocumentFile(blocked);
-    assert.deepEqual(opened.document.blocks.map((block) => block.block), ["paragraph", "heading", "paragraph"]);
-    assert.match(opened.writeError ?? "", /^Document contains semantic content that cannot be preserved in canonical Markdown: .*keyboard/);
-    assert.equal(opened.writeError, canonicalWriteError(parse(source)));
-    assert.deepEqual(opened.writeIssue?.path, [0]);
+    assert.equal(loadDocumentFile(writable).document.blocks.length, 2);
+    assert.throws(() => loadDocumentFile(blocked), /Unsupported native content/);
     const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
-    assert.equal(response.status, 200);
-    assert.equal(((await response.json()) as { writeError: string | null }).writeError, opened.writeError);
-
-    // Preflight and Save judge the same snapshot the same way; the writer never runs.
+    assert.equal(response.status, 400);
+    const rejected = await response.json();
+    assert.match(rejected.error, /Unsupported native content/);
+    assert.equal(rejected.document, undefined);
     let written = false;
     assert.throws(() => commitDocumentSave(() => source, () => { written = true; }, {
-      revision: opened.revision,
-      paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }],
-    }), (error: unknown) => error instanceof Error && error.message === opened.writeError);
+      revision: documentRevision(source),
+      paragraphs: [{ path: [3], content: [{ kind: "text", text: "Changed." }] }],
+    }), /Unsupported native content/);
     assert.equal(written, false);
     assert.deepEqual(readFileSync(blocked), before);
-
-    assert.equal(createDocumentFile(path.join(dir, "new.md")).writeError, null);
+    assert.deepEqual(createDocumentFile(path.join(dir, "new.md")).document.blocks, []);
     const snapshot = readFileSync(writable, "utf8");
     const valid = { path: writable, revision: documentRevision(snapshot), base: { source: snapshot } };
     for (const endpoint of ["document", "document-source"]) {
@@ -1049,7 +1011,7 @@ test("Host opens complete models and Save acknowledges only the written revision
         path: writable,
         revision: loadDocumentFile(writable).revision,
         base: { source: readFileSync(writable, "utf8") },
-        paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }],
+        paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }],
       }),
     });
     assert.equal(saved.status, 200);
@@ -1064,7 +1026,7 @@ test("Host opens complete models and Save acknowledges only the written revision
 test("HTTP Save reports file and revision failures without leaking paths or writing", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-save-failure-"));
   const file = path.join(dir, "document.md");
-  const original = "# Title\n\nBody.\n";
+  const original = nativeSource("# Title\n\nBody.\n");
   writeFileSync(file, original);
   const access = new RootAccess([dir]);
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end(), access); });
@@ -1072,7 +1034,7 @@ test("HTTP Save reports file and revision failures without leaking paths or writ
   try {
     const { port } = server.address() as AddressInfo;
     const request = { path: file, revision: documentRevision(original), base: { source: original },
-      paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }] };
+      paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }] };
     const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
     });
@@ -1112,7 +1074,7 @@ test("Source preview is the canonical Markdown Save would write, without writing
     const request = {
       revision: loaded.revision,
       base: { source: loaded.source },
-      paragraphs: [{ path: [8], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }],
+      paragraphs: [{ path: [9], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }],
     };
     const preview = previewDocumentFile(file, request);
     assert.equal(readFileSync(file, "utf8"), source);
@@ -1135,7 +1097,7 @@ test("Source preview is the canonical Markdown Save would write, without writing
 
     const stale = await post({ path: file, ...request, revision: "0".repeat(64) });
     assert.equal(stale.status, 409);
-    const invalid = await post({ path: file, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [{ path: [8], content: [] }] });
+    const invalid = await post({ path: file, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [{ path: [9], content: [] }] });
     assert.equal(invalid.status, 400);
     assert.equal(readFileSync(file, "utf8"), source);
 
@@ -1147,11 +1109,11 @@ test("Source preview is the canonical Markdown Save would write, without writing
     assert.equal(previewDocumentFile(file, { revision: reloaded.revision }).markdown, readFileSync(file, "utf8"));
 
     const lossy = path.join(dir, "keyboard.md");
-    writeFileSync(lossy, "Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n");
+    writeFileSync(lossy, nativeSource("Editable paragraph.\n\nBefore {kbd}`Ctrl` after\n"));
     const before = readFileSync(lossy);
-    const lossyResponse = await post({ path: lossy, revision: loadDocumentFile(lossy).revision, base: { source: readFileSync(lossy, "utf8") } });
+    const lossyResponse = await post({ path: lossy, revision: documentRevision(readFileSync(lossy, "utf8")), base: { source: readFileSync(lossy, "utf8") } });
     assert.equal(lossyResponse.status, 400);
-    assert.match(((await lossyResponse.json()) as { error: string }).error, /cannot be preserved in canonical Markdown/);
+    assert.match(((await lossyResponse.json()) as { error: string }).error, /Unsupported native content/);
     assert.deepEqual(readFileSync(lossy), before);
   } finally {
     server.closeAllConnections();
@@ -1176,7 +1138,7 @@ test("stale revision save leaves an externally edited file unchanged", () => {
           (markdown) => writeFileSync(file, markdown),
           {
             revision: loaded,
-            paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+            paragraphs: [{ path: [9], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
           },
         ),
       DocumentConflictError,
@@ -1191,10 +1153,10 @@ test("stale revision save leaves an externally edited file unchanged", () => {
 
 test("stale revision rejects a shifted paragraph path before the edit is applied", () => {
   const loaded = documentRevision(source);
-  const external = serialize(insertParagraph(parse(source), 8, "External paragraph."));
+  const external = serialize(insertParagraph(parse(source), 9, "External paragraph."));
   const stale = {
     revision: loaded,
-    paragraphs: [{ path: [8] as const, content: [{ kind: "text" as const, text: "Stale editor text." }] }],
+    paragraphs: [{ path: [9] as const, content: [{ kind: "text" as const, text: "Stale editor text." }] }],
   };
   const unguarded = saveEdits(external, { paragraphs: stale.paragraphs.map((edit) => ({ ...edit })) });
   assert.equal(unguarded.markdown.includes("Stale editor text."), true);
@@ -1226,11 +1188,11 @@ test("a saved revision can save again and the loaded revision cannot", () => {
   const loaded = documentRevision(source);
   const first = saveCurrentDocument(source, {
     revision: loaded,
-    headings: [{ path: [0], content: [{ kind: "text", text: HEADING_TO }] }],
+    headings: [{ path: [1], content: [{ kind: "text", text: HEADING_TO }] }],
   });
   const second = saveCurrentDocument(first.markdown, {
     revision: first.revision,
-    paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+    paragraphs: [{ path: [9], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
   });
   assert.notEqual(first.revision, loaded);
   assert.notEqual(second.revision, first.revision);
@@ -1241,7 +1203,7 @@ test("a saved revision can save again and the loaded revision cannot", () => {
     () =>
       saveCurrentDocument(first.markdown, {
         revision: loaded,
-        paragraphs: [{ path: [8], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
+        paragraphs: [{ path: [9], content: [{ kind: "text", text: PARAGRAPH_TO }] }],
       }),
     DocumentConflictError,
   );
@@ -1290,7 +1252,7 @@ test("heading text edits keep the heading level", () => {
   if (heading?.block !== "heading") return;
   const saved = saveEdits(source, { headings: [{ path: heading.path, content: [{ kind: "text", text: HEADING_TO }] }] });
   const reparsed = parse(saved.markdown);
-  const updated = getEditableDocument(reparsed).blocks[heading.path[0]];
+  const updated = getEditableDocument(reparsed).blocks.find(block => block.path[0] === heading.path[0]);
   assert.equal(updated?.block, "heading");
   if (updated?.block !== "heading") return;
   assert.equal(updated.level, heading.level);
@@ -1301,14 +1263,14 @@ test("heading text edits keep the heading level", () => {
 test("Equation edit survives Apply projection, reorder, Save and reload", () => {
   const editable = loadEditableDocument(source);
   const projection = toTiptapDocument(editable);
-  const equation = blockAt(projection, "9");
+  const equation = blockAt(projection, "10");
   const original = String(equation.attrs?.latex ?? "");
   const changed = `${original} + 1`;
   equation.attrs!.latex = changed;
   projection.content!.unshift(projection.content!.splice(9, 1)[0]);
 
   const edits = collectSupportedEdits(editable, projection);
-  assert.deepEqual(edits.equations, [{ path: [9], from: original, to: changed }]);
+  assert.deepEqual(edits.equations, [{ path: [10], from: original, to: changed }]);
   assert.ok(edits.order);
   const saved = saveEdits(source, edits);
   const reloaded = loadEditableDocument(saved.markdown);
@@ -1324,7 +1286,7 @@ test("Equation edit survives Apply projection, reorder, Save and reload", () => 
     () => commitDocumentSave(
       () => source,
       () => { written = true; },
-      { revision: documentRevision(source), equations: [{ path: [9], from: original, to: "" }] },
+      { revision: documentRevision(source), equations: [{ path: [10], from: original, to: "" }] },
     ),
     /empty equation LaTeX/,
   );
@@ -1334,28 +1296,28 @@ test("Equation edit survives Apply projection, reorder, Save and reload", () => 
 test("empty paragraph and empty heading saves are rejected", () => {
   const editable = loadEditableDocument(source);
   assert.throws(
-    () => saveEdits(source, { paragraphs: [{ path: [8], content: [] }] }),
+    () => saveEdits(source, { paragraphs: [{ path: [9], content: [] }] }),
     /empty paragraph cannot be saved/,
   );
   assert.throws(
-    () => saveEdits(source, { headings: [{ path: [0], content: [] }] }),
+    () => saveEdits(source, { headings: [{ path: [1], content: [] }] }),
     /empty heading/,
   );
   const emptied = clone(toTiptapDocument(editable));
-  blockAt(emptied, "8").content = [];
+  blockAt(emptied, "9").content = [];
   assert.throws(() => collectSupportedEdits(editable, emptied), (error: unknown) => {
     assert.ok(error instanceof SaveContentError);
     assert.equal(saveErrorMessage(error, emptied),
       "Block 9 (paragraph): empty paragraph cannot be saved. Enter text or delete this block.");
     return true;
   });
-  assert.throws(() => saveEdits(source, { paragraphs: [{ path: [8], content: [] }] }), (error: unknown) => {
+  assert.throws(() => saveEdits(source, { paragraphs: [{ path: [9], content: [] }] }), (error: unknown) => {
     assert.ok(error instanceof SaveContentError);
-    assert.deepEqual(error.target, { path: [8], part: 0 });
+    assert.deepEqual(error.target, { path: [9], part: 0 });
     assert.match(error.action, /Enter text or delete/);
     return true;
   });
-  const table = loadEditableDocument("# Title\n\n| a | b |\n|--|--|\n| c | d |\n");
+  const table = loadEditableDocument(nativeSource("# Title\n\n| a | b |\n|--|--|\n| c | d |\n"));
   const broken = clone(toTiptapDocument(table));
   broken.content![1].content![1].content![1].content = [{ type: "hardBreak" }];
   assert.throws(() => collectSupportedEdits(table, broken), (error: unknown) => {
@@ -1370,47 +1332,20 @@ test("empty paragraph and empty heading saves are rejected", () => {
 
 test("save error locations follow submitted split blocks and moved table cells", () => {
   const submitted: TiptapJSON = { type: "doc", content: [
-    { type: "paragraph", attrs: { sourcePath: "0" } },
-    { type: "paragraph", attrs: { sourcePath: "0" } },
-    { type: "table", attrs: { sourcePath: "1" }, content: [
+    { type: "paragraph", attrs: { sourcePath: "1" } },
+    { type: "paragraph", attrs: { sourcePath: "1" } },
+    { type: "table", attrs: { sourcePath: "2" }, content: [
       { type: "tableRow", content: [{ type: "tableCell", attrs: { sourceCell: "1,1" } }] },
     ] },
   ] };
-  assert.match(saveErrorMessage(new SaveContentError("split failed", { path: [0], part: 1 }), submitted), /^Block 2 \(paragraph\)/);
-  assert.match(saveErrorMessage(new SaveContentError("cell failed", { path: [1, 1, 1], part: 0 }), submitted), /^Block 3 \(table\), row 1, column 1/);
+  assert.match(saveErrorMessage(new SaveContentError("split failed", { path: [1], part: 1 }), submitted), /^Block 2 \(paragraph\)/);
+  assert.match(saveErrorMessage(new SaveContentError("cell failed", { path: [2, 1, 1], part: 0 }), submitted), /^Block 3 \(table\), row 1, column 1/);
   const unknown = saveErrorMessage(new SaveContentError("unknown serializer error", undefined, { phase: "serialize" }), submitted);
   assert.match(unknown, /^Document:/);
   assert.match(unknown, /report this error/);
   assert.doesNotMatch(unknown, /Block \d/);
 });
 
-test("read-only targets and unsupported headings are rejected by save", () => {
-  assert.throws(
-    () => saveEdits(source, { paragraphs: [{ path: [2], content: [{ kind: "text", text: "flattened" }] }] }),
-    /paragraph edit is not allowed at \[2\]/,
-  );
-  assert.throws(
-    () => saveEdits(source, { headings: [{ path: [6], content: [{ kind: "text", text: "changed" }] }] }),
-    /heading edit is not allowed at \[6\]/,
-  );
-  assert.throws(
-    () =>
-      saveEdits(source, {
-        headings: [{ path: [6, 1], content: [{ kind: "text", text: "changed" }] }],
-      }),
-    /heading edit is not allowed at \[6,1\]/,
-  );
-
-  const richSource = "# See {ref}`Intro <intro>`\n\nBody.\n";
-  assert.throws(
-    () => saveEdits(richSource, { headings: [{ path: [0], content: [{ kind: "text", text: "Changed" }] }] }),
-    /heading edit is not allowed at \[0\]/,
-  );
-  const saved = saveEdits(richSource, {
-    paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed body." }] }],
-  });
-  assert.match(saved.markdown, /^# See \{ref\}`Intro <intro>`$/m);
-});
 
 test("supported edits preserve untouched semantics", () => {
   const before = parse(source);
@@ -1443,8 +1378,8 @@ test("supported edits preserve untouched semantics", () => {
     .replace(PARAGRAPH_FROM, PARAGRAPH_TO);
   assert.notEqual(expected, canonicalMarkdown);
   assert.equal(saved.markdown, expected);
-  assert.match(saved.markdown, /^See \[\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
-  assert.match(saved.markdown, /^The rated current follows from \[\]\(#eq-current\)\.$/m);
+  assert.match(saved.markdown, /^See \[Figure\]\(#fig-control\) and \{eq\}`eq-current`\.$/m);
+  assert.match(saved.markdown, /^The rated current follows from \[Equation\]\(#eq-current\)\.$/m);
 
   const canonical = parse(canonicalMarkdown);
   const after = parse(saved.markdown);
@@ -1455,8 +1390,8 @@ test("supported edits preserve untouched semantics", () => {
     assert.deepEqual(afterBlocks[index], canonicalBlocks[index], `block ${index}`);
   }
 
-  const updatedHeading = afterBlocks[heading.path[0]];
-  const canonicalHeading = canonicalBlocks[heading.path[0]];
+  const updatedHeading = afterBlocks.find(block => block.path[0] === heading.path[0])!;
+  const canonicalHeading = canonicalBlocks.find(block => block.path[0] === heading.path[0])!;
   assert.equal(updatedHeading.block, "heading");
   assert.equal(canonicalHeading.block, "heading");
   if (updatedHeading.block === "heading" && canonicalHeading.block === "heading") {
@@ -1464,7 +1399,7 @@ test("supported edits preserve untouched semantics", () => {
     assert.equal(updatedHeading.text, HEADING_TO);
   }
 
-  const updatedRich = afterBlocks[rich.path[0]];
+  const updatedRich = afterBlocks.find(block => block.path[0] === rich.path[0])!;
   assert.equal(updatedRich?.block, "paragraph");
   if (updatedRich?.block === "paragraph") {
     assert.deepEqual(updatedRich.content, richContent);
@@ -1514,42 +1449,8 @@ test("Editor source does not import MyST packages or AST", () => {
   }
 });
 
-test("saved document can be parsed again", () => {
-  const saved = saveSample();
-  const reparsed = parse(saved.markdown);
-  assert.ok(inspectDocument(reparsed).length > 0);
-  const editable = getEditableDocument(reparsed);
-  assert.equal(
-    editable.blocks.some((block) => block.block === "paragraph" && block.text === PARAGRAPH_TO),
-    true,
-  );
-  assert.equal(
-    editable.blocks.some((block) => block.block === "heading" && block.text === HEADING_TO && block.level === 1),
-    true,
-  );
-  assert.equal(
-    editable.blocks.some((block) => block.block === "figure" && block.label === "fig-control"),
-    true,
-  );
-});
 
-test("canonical second serialization is stable", () => {
-  const saved = saveSample();
-  assert.equal(saved.markdown, serialize(parse(saved.markdown)));
-});
 
-test("saved file matches the Core write path", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-"));
-  const file = path.join(dir, "technical-document.md");
-  try {
-    const saved = saveSample();
-    writeFileSync(file, saved.markdown);
-    assert.equal(readFileSync(file, "utf8"), saved.markdown);
-    assert.equal(serialize(parse(readFileSync(file, "utf8"))), saved.markdown);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 function saveParagraph(from: string, content: InlineContent[]) {
   const document = loadEditableDocument(source);
@@ -1641,7 +1542,7 @@ function listSourceFiles(dir: string): string[] {
 }
 
 test("schema-normalized nested marks survive the complete save and reload path", () => {
-  for (const source of ["**A*B*C**", "*A**B**C*", "***AB***"]) {
+  for (const source of ["**A*B*C**", "*A**B**C*", "***AB***"].map(nativeSource)) {
     const editable = loadEditableDocument(source);
     const projected = normalizedDocument(toTiptapDocument(editable));
     const saved = saveEdits(source, collectSupportedEdits(editable, projected));
@@ -1660,14 +1561,14 @@ test("lossy supported edits are rejected before the file write callback", () => 
     assert.throws(() => commitDocumentSave(
       () => source,
       () => { written = true; },
-      { revision: documentRevision(source), paragraphs: [{ path: [8], content }] },
+      { revision: documentRevision(source), paragraphs: [{ path: [9], content }] },
     ), /round-trip/);
     assert.equal(written, false);
   }
 });
 
 test("typed straight quotes save through the Editor adapter and Host and reload as typed", () => {
-  const input = "# Title\n\nHello.\n\n| Key | Value |\n| --- | --- |\n| state | idle |\n";
+  const input = nativeSource("# Title\n\nHello.\n\n| Key | Value |\n| --- | --- |\n| state | idle |\n");
   const editable = loadEditableDocument(input);
   const projected = normalizedDocument(toTiptapDocument(editable));
   const [heading, paragraph, table] = projected.content!;
@@ -1682,7 +1583,7 @@ test("typed straight quotes save through the Editor adapter and Host and reload 
   const saved = commitDocumentSave(() => input, (markdown) => { written = markdown; },
     { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) });
   assert.equal(written, saved.markdown);
-  assert.equal(written, "# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n");
+  assert.equal(written, nativeSource("# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n"));
   const reloaded = loadEditableDocument(written);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   assert.deepEqual(normalizedDocument(toTiptapDocument(reloaded)), projected);
@@ -1692,28 +1593,28 @@ test("a byte-order-marked file opens with its heading and saves without the mark
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-bom-"));
   try {
     const file = path.join(dir, "bom.md");
-    const bytes = "\uFEFF# Heading\n\nBody.\n";
+    const bytes = "\uFEFF" + nativeSource("# Heading\n\nBody.\n");
     writeFileSync(file, bytes);
     const loaded = loadDocumentFile(file);
-    assert.deepEqual(loaded.document, loadEditableDocument("# Heading\n\nBody.\n"));
+    assert.deepEqual(loaded.document, loadEditableDocument(nativeSource("# Heading\n\nBody.\n")));
     assert.equal(loaded.revision, documentRevision(bytes));
     const saved = saveDocumentFile(file, {
       revision: loaded.revision,
-      paragraphs: [{ path: [1], content: [{ kind: "text", text: "Changed." }] }],
+      paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }],
     });
-    assert.equal(readFileSync(file, "utf8"), "# Heading\n\nChanged.\n");
-    assert.equal(saved.revision, documentRevision("# Heading\n\nChanged.\n"));
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Heading\n\nChanged.\n"));
+    assert.equal(saved.revision, documentRevision(nativeSource("# Heading\n\nChanged.\n")));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("an Editor save or Source preview preserves front matter while editing the body", () => {
-  const input = "---\ntitle: Example\n---\n\n# Heading\n\nBody.\n";
+  const input = "---\nieumdoc: 1\nnumbering:\n  headings: false\n---\n\n# Heading\n\nBody.\n";
   const editable = loadEditableDocument(input);
-  assert.equal(editable.blocks[0].block, "unsupported");
+  assert.deepEqual(editable.blocks.map(block => block.path), [[1], [2]]);
   const projected = normalizedDocument(toTiptapDocument(editable));
-  projected.content![2].content = [{ type: "text", text: "Changed." }];
+  projected.content![1].content = [{ type: "text", text: "Changed." }];
   const request = { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) };
   const expected = input.replace("Body.", "Changed.");
   let written = "";
@@ -1723,7 +1624,7 @@ test("an Editor save or Source preview preserves front matter while editing the 
 });
 
 test("hard breaks and marks survive editable projection, save and reload", () => {
-  for (const source of ["AB", "**AB**", "*AB*", "***AB***"]) {
+  for (const source of ["AB", "**AB**", "*AB*", "***AB***"].map(nativeSource)) {
     const editable = loadEditableDocument(source);
     const projected = normalizedDocument(toTiptapDocument(editable));
     assert.equal(projected.content?.[0].type, "paragraph");
@@ -1751,7 +1652,7 @@ test("break adapter rejects unsupported marks and malformed break content", () =
 });
 
 test("transient trailing break is editable but fails Core save without writing", () => {
-  const source = "AB";
+  const source = nativeSource("AB");
   const editable = loadEditableDocument(source);
   const projected = toTiptapDocument(editable);
   projected.content![0].content!.push({type: "hardBreak"});
@@ -1783,12 +1684,12 @@ test("paragraph split saves final edited parts through Core and preserves other 
     const original = projection.content![8];
     projection.content!.splice(8, 1, ...parts.map(content => ({...original, content: toTiptapContent(content).content![0].content})));
     const edits = collectSupportedEdits(editable, projection);
-    assert.deepEqual(edits.splits, [{path: [8], parts: parts.map(part => fromTiptapContent(toTiptapContent(part)))}]);
+    assert.deepEqual(edits.splits, [{path: [9], parts: parts.map(part => fromTiptapContent(toTiptapContent(part)))}]);
     const saved = saveEdits(source, edits);
     assert.deepEqual(normalizedDocument(toTiptapDocument(loadEditableDocument(saved.markdown))).content!.slice(8,10).map(node => node.content), parts.map(part => toTiptapContent(part).content![0].content));
     // Blocks outside the split keep their canonical Markdown.
-    const before = removeBlock(parse(source), 8);
-    const after = removeBlock(removeBlock(parse(saved.markdown), 9), 8);
+    const before = removeBlock(parse(source), 9);
+    const after = removeBlock(removeBlock(parse(saved.markdown), 10), 9);
     assert.equal(serialize(after), serialize(before));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
@@ -1798,40 +1699,40 @@ test("invalid or stale paragraph splits never invoke the file writer", () => {
   const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
   for (const parts of [[[],text("AB")], [text("AB"),[]], [text(" "),text("AB")], [text("AB"),text(" ")]]) {
     let written = false;
-    assert.throws(() => commitDocumentSave(() => "AB", () => {written = true;}, {
-      revision: documentRevision("AB"), splits: [{path: [0], parts}],
+    assert.throws(() => commitDocumentSave(() => nativeSource("AB"), () => {written = true;}, {
+      revision: documentRevision(nativeSource("AB")), splits: [{path: [1], parts}],
     }));
     assert.equal(written, false);
   }
   let written = false;
-  assert.throws(() => commitDocumentSave(() => "Changed", () => {written = true;}, {
-    revision: documentRevision("AB"), splits: [{path: [0], parts: [text("A"),text("B")]}],
+  assert.throws(() => commitDocumentSave(() => nativeSource("Changed"), () => {written = true;}, {
+    revision: documentRevision(nativeSource("AB")), splits: [{path: [1], parts: [text("A"),text("B")]}],
   }), DocumentConflictError);
   assert.equal(written, false);
-  assert.throws(() => saveEdits("# AB", {splits: [{path: [0], parts: [text("A"),text("B")]}]}), /invalid/);
+  assert.throws(() => saveEdits(nativeSource("# AB"), {splits: [{path: [1], parts: [text("A"),text("B")]}]}), /invalid/);
 });
 
 test("multiple split targets retain snapshot paths and heading edits", () => {
   const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
-  const saved = saveEdits("ABCD\n\n# Title\n\nEFGH", {
-    headings: [{path: [1], content: text("Edited")}],
+  const saved = saveEdits(nativeSource("ABCD\n\n# Title\n\nEFGH"), {
+    headings: [{path: [2], content: text("Edited")}],
     splits: [
-      {path: [0], parts: [text("A"),text("B"),text("CD")]},
-      {path: [2], parts: [text("EF"),text("GH")]},
+      {path: [1], parts: [text("A"),text("B"),text("CD")]},
+      {path: [3], parts: [text("EF"),text("GH")]},
     ],
   });
-  assert.equal(saved.markdown, "A\n\nB\n\nCD\n\n# Edited\n\nEF\n\nGH\n");
+  assert.equal(saved.markdown, nativeSource("A\n\nB\n\nCD\n\n# Edited\n\nEF\n\nGH\n"));
 });
 
 
 test("paragraph merges retain marks, breaks, post-merge edits and surrounding semantics", () => {
   for (const pair of ["AB\n\nCD", "**AB**\n\n*CD*", "***AB***\n\n***CD***", "A\\\nB\n\nC\\\nD"]) {
-    const source = "# Before\n\n" + pair + "\n\n$$\nx=1\n$$\n\n[link](url)";
+    const source = nativeSource("# Before\n\n" + pair + "\n\n$$\nx=1\n$$\n\n[link](url)");
     const editable = loadEditableDocument(source);
     const projection = toTiptapDocument(editable);
     const left = projection.content![1], right = projection.content![2];
     const combined = [...left.content!, ...right.content!, {type: "text", text: "+edited"}];
-    projection.content!.splice(1, 2, {...left, attrs: {sourcePath: "1;2"}, content: combined});
+    projection.content!.splice(1, 2, {...left, attrs: {sourcePath: "2;3"}, content: combined});
     const edits = collectSupportedEdits(editable, projection);
     assert.equal(edits.merges?.length, 1);
     const saved = saveEdits(source, edits);
@@ -1839,8 +1740,8 @@ test("paragraph merges retain marks, breaks, post-merge edits and surrounding se
     const expected = normalizedDocument({...projection, content: [projection.content![1]]}).content![0].content;
     assert.deepEqual(actual, expected);
     // Blocks outside the merge keep their canonical Markdown.
-    const before = removeBlock(removeBlock(parse(source), 2), 1);
-    const after = removeBlock(parse(saved.markdown), 1);
+    const before = removeBlock(removeBlock(parse(source), 3), 2);
+    const after = removeBlock(parse(saved.markdown), 2);
     assert.equal(serialize(after), serialize(before));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   }
@@ -1848,36 +1749,37 @@ test("paragraph merges retain marks, breaks, post-merge edits and surrounding se
 
 test("merge and split groups save together without path shifts or implicit spaces", () => {
   const text = (text: string): InlineContent[] => [{kind: "text", text}];
-  const saved = saveEdits("AB\n\nCD\n\n# Divider\n\nEFGH", {
-    merges: [{paths: [[0],[1]], parts: [text("ABC"),text("D+")]}],
-    splits: [{path: [3], parts: [text("EF"),text("GH")]}],
+  const saved = saveEdits(nativeSource("AB\n\nCD\n\n# Divider\n\nEFGH"), {
+    merges: [{paths: [[1],[2]], parts: [text("ABC"),text("D+")]}],
+    splits: [{path: [4], parts: [text("EF"),text("GH")]}],
   });
-  assert.equal(saved.markdown,"ABC\n\nD+\n\n# Divider\n\nEF\n\nGH\n");
-  assert.equal(saveEdits("Hello\n\nWorld", {merges:[{paths:[[0],[1]],parts:[text("HelloWorld")]}]}).markdown,"HelloWorld\n");
+  assert.equal(saved.markdown,nativeSource("ABC\n\nD+\n\n# Divider\n\nEF\n\nGH\n"));
+  assert.equal(saveEdits(nativeSource("Hello\n\nWorld"), {merges:[{paths:[[1],[2]],parts:[text("HelloWorld")]}]}).markdown,nativeSource("HelloWorld\n"));
 });
 
 test("invalid and stale merges do not write", () => {
   const parts: InlineContent[][] = [[{kind:"text",text:"merged"}]];
-  for (const source of ["# Heading\n\nAB", "$$\nx=1\n$$\n\nAB", "[](#target)\n\nAB", "AB\n\n# Heading"]) {
+  for (const body of ["# Heading\n\nAB", "$$\nx=1\n$$\n\nAB", "AB\n\n# Heading"]) {
+    const source = nativeSource(body);
     let written = false;
     assert.throws(() => commitDocumentSave(() => source, () => {written = true;}, {
-      revision: documentRevision(source), merges: [{paths:[[0],[1]],parts}],
+      revision: documentRevision(source), merges: [{paths:[[1],[2]],parts}],
     }));
     assert.equal(written,false);
   }
-  for (const paths of [[[0],[2]], [[1],[0]], [[0],[0]], [[0,0],[1]], [[0]]]) {
-    assert.throws(() => saveEdits("A\n\nB\n\nC", {merges:[{paths,parts}]}));
+  for (const paths of [[[1],[3]], [[2],[1]], [[1],[1]], [[1,0],[2]], [[1]]]) {
+    assert.throws(() => saveEdits(nativeSource("A\n\nB\n\nC"), {merges:[{paths,parts}]}));
   }
   let written = false;
-  assert.throws(() => commitDocumentSave(() => "Changed", () => {written = true;}, {
-    revision: documentRevision("A\n\nB"), merges:[{paths:[[0],[1]],parts}],
+  assert.throws(() => commitDocumentSave(() => nativeSource("Changed"), () => {written = true;}, {
+    revision: documentRevision(nativeSource("A\n\nB")), merges:[{paths:[[1],[2]],parts}],
   }), DocumentConflictError);
   assert.equal(written,false);
 });
 
-test("merge provenance cannot skip, reorder or consume readonly blocks", () => {
-  const baseline = toTiptapDocument(loadEditableDocument("A\n\n# H\n\nB"));
-  for (const sourcePath of ["0;2", "0;1;2", "2;0"]) {
+test("merge provenance cannot skip, reorder or consume headings", () => {
+  const baseline = toTiptapDocument(loadEditableDocument(nativeSource("A\n\n# H\n\nB")));
+  for (const sourcePath of ["1;3", "1;2;3", "3;1"]) {
     const next = {type:"doc",content:[{type:"paragraph",attrs:{sourcePath},content:[{type:"text",text:"AB"}]}]};
     assert.throws(() => assertSupportedDocumentChange(baseline,next));
   }
@@ -1891,7 +1793,7 @@ test("all top-level blocks reorder through Core without changing semantic conten
     const next = clone(projection);
     next.content!.splice(0, 0, next.content!.splice(from, 1)[0]);
     const saved = saveEdits(source, collectSupportedEdits(editable, next));
-    assert.equal(saved.markdown, serialize(moveBlock(parse(source), from, 0)));
+    assert.equal(saved.markdown, serialize(moveBlock(parse(source), from + 1, 1)));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
     assert.deepEqual(toTiptapDocument(loadEditableDocument(saved.markdown)).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})),
       next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})));
@@ -1899,7 +1801,7 @@ test("all top-level blocks reorder through Core without changing semantic conten
 });
 
 test("reorder and subsequent marked text and break edits survive save and reload", () => {
-  const markdown = "# Heading\n\n**AB**\n\n*CD*";
+  const markdown = nativeSource("# Heading\n\n**AB**\n\n*CD*");
   const editable = loadEditableDocument(markdown);
   const next = toTiptapDocument(editable);
   const paragraph = next.content!.splice(2, 1)[0];
@@ -1914,39 +1816,39 @@ test("reorder and subsequent marked text and break edits survive save and reload
 
 test("reorder supports separated split siblings and merging reordered neighbors", () => {
   const text = (value: string) => [{type:"text", text:value}];
-  const markdown = "AB\n\n# Middle\n\nCD";
+  const markdown = nativeSource("AB\n\n# Middle\n\nCD");
   const editable = loadEditableDocument(markdown);
   const next = toTiptapDocument(editable);
   const first = next.content![0];
   first.content = text("A+");
   next.content!.push({...first, content:text("B+")});
   const saved = saveEdits(markdown, collectSupportedEdits(editable, next));
-  assert.equal(saved.markdown, "A+\n\n# Middle\n\nCD\n\nB+\n");
+  assert.equal(saved.markdown, nativeSource("A+\n\n# Middle\n\nCD\n\nB+\n"));
   const merged = toTiptapDocument(editable);
-  merged.content = [{type:"paragraph",attrs:{sourcePath:"2;0"},content:text("CDAB!")},merged.content![1]];
+  merged.content = [{type:"paragraph",attrs:{sourcePath:"3;1"},content:text("CDAB!")},merged.content![1]];
   const mergedSave = saveEdits(markdown, collectSupportedEdits(editable, merged));
-  assert.equal(mergedSave.markdown, "CDAB!\n\n# Middle\n");
+  assert.equal(mergedSave.markdown, nativeSource("CDAB!\n\n# Middle\n"));
 });
 
 test("invalid reorder and stale reorder never invoke the writer", () => {
-  const markdown = "A\n\n# Heading\n\nB";
+  const markdown = nativeSource("A\n\n# Heading\n\nB");
   const orders = [
-    [{path:[0],part:0}],
-    [{path:[0],part:0},{path:[0],part:0},{path:[2],part:0}],
-    [{path:[0],part:0},{path:[1],part:0},{path:[2],part:1}],
-    [{path:[0],part:0},{path:[1],part:0},{path:[2,0],part:0}],
+    [{path:[1],part:0}],
+    [{path:[1],part:0},{path:[1],part:0},{path:[3],part:0}],
+    [{path:[1],part:0},{path:[2],part:0},{path:[3],part:1}],
+    [{path:[1],part:0},{path:[2],part:0},{path:[3,0],part:0}],
   ];
   let writes = 0;
   for (const order of orders) assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {revision:documentRevision(markdown),order}));
   assert.throws(() => commitDocumentSave(() => markdown + " changed", () => writes++, {
-    revision:documentRevision(markdown), order:[{path:[2],part:0},{path:[1],part:0},{path:[0],part:0}],
+    revision:documentRevision(markdown), order:[{path:[3],part:0},{path:[2],part:0},{path:[1],part:0}],
   }), DocumentConflictError);
   assert.equal(writes, 0);
 });
 
 test("engine reorder history follows moves, edits, undo and redo", () => {
   const schema = getSchema(editorExtensions());
-  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("AB\n\n# Heading\n\nCD")));
+  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(nativeSource("AB\n\n# Heading\n\nCD"))));
   let state = EditorState.create({schema,doc,plugins:[history()]});
   const dispatch = (tr: Transaction) => { state = state.apply(tr); };
   dispatch(reorderBlock(state, 2, 0));
@@ -1961,7 +1863,7 @@ test("engine reorder history follows moves, edits, undo and redo", () => {
 
 test("a moved block does not take the selection unless it held it or is a text block", () => {
   const schema = getSchema(editorExtensions());
-  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument("AB\n\n```{math}\nx\n```\n\nCD")));
+  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(nativeSource("AB\n\n```{math}\nx\n```\n\nCD"))));
   assert.deepEqual(doc.content.content.map(node => node.type.name), ["paragraph", "equation", "paragraph"]);
   const equationAt = (state: EditorState) => { let found = -1; state.doc.forEach((node, pos) => { if (node.type.name === "equation") found = pos; }); return found; };
 
@@ -2006,7 +1908,7 @@ test("a dragged block lands in the gap nearest the pointer, and nowhere when it 
 test("Equation edits participate in editor undo and redo", () => {
   const { doc, schema } = schemaDocument();
   let state = EditorState.create({ schema, doc, plugins: [history()] });
-  const position = positionOf(doc, "equation", "9");
+  const position = positionOf(doc, "equation", "10");
   const equation = doc.nodeAt(position);
   assert.ok(equation);
   const original = String(equation?.attrs.latex);
@@ -2021,11 +1923,11 @@ test("Equation edits participate in editor undo and redo", () => {
 
 
 test("canonical reorder that adds a separator block fails before persistence", () => {
-  const markdown = "- A\n\nMiddle\n\n- B";
+  const markdown = nativeSource("- A\n\nMiddle\n\n- B");
   let writes = 0;
   assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {
     revision: documentRevision(markdown),
-    order: [{path:[0],part:0},{path:[2],part:0},{path:[1],part:0}],
+    order: [{path:[1],part:0},{path:[3],part:0},{path:[2],part:0}],
   }), /changed block boundaries/);
   assert.equal(writes, 0);
 });

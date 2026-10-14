@@ -78,11 +78,7 @@ test("subscript and superscript never nest and hold no references, footnotes or 
     assert.throws(() => insertParagraph(parse("# Title\n"), 1, [{ kind: "superscript", children: [inner] }]), /references or footnotes/);
   }
 
-  // Written that way they stay read-only with their source, never flattened.
-  const document = parse("{sub}``a{sup}`b` ``\n\nA{sup}`[^n]`\n\n{sub class=\"x\"}`k`\n\n[^n]: Note.\n");
-  const paragraphs = getEditableDocument(document).blocks.filter((block) => block.block === "paragraph");
-  assert.equal(paragraphs.length, 3);
-  assert.ok(paragraphs.every((block) => !block.editable));
+
 });
 
 const FORMATTED_TEXT ="The converter regulates the DC-link voltage and phase current.";
@@ -124,15 +120,6 @@ test("paragraph inline mutation round-trips through parse and serialize", () => 
   assert.equal(serialize(parse(markdown)), markdown);
 });
 
-test("unsupported inline remains read-only", () => {
-  const xref = getEditableDocument(parse(source)).blocks.find(
-    (block) => block.block === "paragraph" && block.text.includes("fig-control"),
-  );
-  assert.equal(xref?.block, "paragraph");
-  if (xref?.block !== "paragraph") return;
-  assert.equal(xref.editable, false);
-  assert.deepEqual(xref.content, []);
-});
 
 function formattedParagraph(document: ReturnType<typeof parse>) {
   const paragraph = getEditableDocument(document).blocks.find(

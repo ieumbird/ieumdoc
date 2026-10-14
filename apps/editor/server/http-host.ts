@@ -10,7 +10,7 @@ import { RootAccess } from "./file-access.ts";
 
 export const MAX_JSON_BYTES = 32 * 1024 * 1024;
 const DOCUMENT_ROUTES = new Set(["/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
-  "/api/document-source", "/api/block-source", "/api/figure-validation"]);
+  "/api/document-source", "/api/figure-validation"]);
 
 export type HttpHostOptions = {
   roots: readonly string[];

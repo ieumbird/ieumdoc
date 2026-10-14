@@ -23,7 +23,7 @@
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
-| Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title, explicit read-only restriction when applicable |
+| Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title |
 | Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Preserved definitions retain their own source disclosure. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
@@ -58,7 +58,7 @@ Keyboard control focus uses a separate 2px ring; a current marker, error boundar
 | Selected | Block selection outline and visible Edit access; selection opens no properties panel. |
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
-| Read-only | Existing restriction is visible; source view stays read-only. |
+| Read-only | Source view stays read-only. Unsupported documents are rejected at admission. |
 | Disabled control | Native disabled controls retain dimming. Focusable `aria-disabled` controls use a muted face, secondary text and structural boundary, preserving their tooltip, focus ring and Base UI activation guard. |
 | No hover device | Gutter and Edit remain visible. |
 

@@ -1,35 +1,58 @@
-# Document support and preservation v1
+# Native document support v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (Endnotes v4 placement, empty Figure persistence and existing Core/CLI/Editor regression coverage).
-- Scope: Core read, visual authoring and canonical write boundaries; [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
-
-Issue: #42. Readability, visual authoring, and canonical writeability are separate capabilities.
+- Last verified: 2026-10-14 (#232 native admission and canonical write boundary).
+- Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 ## Contract
 
-Core owns the verdict for every parsed snapshot. Canonical output still rejects serializer diagnostics and compares the entire reparsed semantic fingerprint, including references and surrounding context. A visually read-only block does not by itself block saving supported edits elsewhere.
+Public `parse(source)` accepts an IeumDoc native document. It validates the marker, metadata and complete semantic structure, then performs canonical write preflight. It never returns a partially supported document. Public `serialize(document)` validates native semantics before and after canonical output. Existing serializer diagnostics, complete semantic fingerprints and round-trip guards remain mandatory. MyST fragment parsing is internal to Core operations and serialization.
 
-IeumDoc canonical Markdown uses LF (`\n`) line endings on every platform, including Windows. CRLF or mixed line endings accepted on input are normalized to LF on canonical write; original line endings are not preserved.
+A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc` and optional `numbering` are allowed. `numbering` accepts only `headings: boolean` and `title: false`; omitting it disables heading numbering. Arbitrary metadata, custom starts, prefixes and per-level settings are unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
 
-The parse boundary keeps typed text as written, because the canonical write guard compares a parse with the reparse of its own output and cannot see what parse itself changes. Core turns off MyST's typographic quote substitution, so straight quotes stay straight and existing curly quotes stay curly. A UTF-8 BOM at the start of a file is an encoding mark, not content: parse drops it and canonical output never writes it. U+FEFF elsewhere in the document remains content.
+```markdown
+---
+ieumdoc: 1
+---
 
-The MyST boundary preserves closed leading front matter, column alignment in Markdown tables, ordinary Markdown images, and task list checkboxes. It uses the existing writer, adapts its input shape, and preserves front matter as front matter. It does not introduce opaque placeholders or bypass semantic verification with raw source. Front matter keeps its complete YAML text, including trailing lines whose meaning depends on block-scalar chomping. Unterminated front matter, ambiguous indented closing markers, and changes that relocate metadata into the body must fail closed. Canonical writes place MyST footnote definitions after the body in first-reference order; reading alone never rewrites the file. Definitions the parse dropped (unreferenced or repeated) fail closed; [Endnotes](footnotes-v1.md) defines the placement and write rules. Unsupported syntax remains subject to the same whole-document guard. A literal `$` in text is written as `\$`, because MyST would otherwise reload `$...$` as inline math; inline math itself is written as `$...$`. It keeps the `{math}` role only where `$...$` would not reload unchanged: a source holding `$` or ending in a backslash, or math right after a line break, where the writer would turn the line ending into a space.
+# My document
 
-Core's read model provides the kind, opening source, and source line for content the visual editor cannot author. This is display provenance only, never an alternate write path. A read-only block's source can be edited and applied through the `replaceBlockSource` Core operation ([Block source editing v1](block-source-editing-v1.md)). Table alignment is projected for display. The editor keeps unsupported content read-only while supported content remains editable when the entire document can be serialized safely.
+Body text.
+```
 
-A document Core cannot write opens read-only before any typing. It shows the reason and location, offers the original source for copying, and directs the user to repair the file with an external editor or the existing Core-backed CLI, then Reload. Reload parses the repaired file and reevaluates writeability. No whole-document raw Markdown editing is added; block source editing (#102) replaces one block of a writable document through Core. The existing Save/Source pipeline continues to validate every edited snapshot.
+`createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
 
-## Interfaces and verification
+## Supported meaning
 
-Core's `canonicalWriteIssue` gives the same verdict/reason as `canonicalWriteError`, plus a
-correction action and a snapshot-relative block path or original source line when identified.
-`writeIssueOf` retains this information through operation error causes. Neither API writes files
-or depends on an Editor/Host. Existing string-returning preflight and serializer guards remain
-compatible. Open carries this optional issue so the standing read-only message can name the
-affected displayed block; Source still exposes the original Markdown and Reload reevaluates it.
-No new semantic operation or CLI command is introduced by this error-information surface.
+Support is decided from Core semantic structure and existing authoring helpers, not source spelling, output-string equality or an Editor `editable` flag.
 
-Pending Figures use the existing MyST container without an image argument. An empty Figure with no image, caption or label is writable and survives canonical Save → Reload; alt text is forbidden without an image. [Figure authoring](figure-authoring-v1.md) defines persistent validity, the read model, operations, Editor states and CLI readiness warnings. The narrow directive writer retains the complete semantic fingerprint and diagnostic guards; unsupported Mermaid, legends and subfigures keep their fail-closed boundary. Writeability does not certify publication readiness.
+| Content | Native boundary |
+| --- | --- |
+| Headings | H1–H6, non-empty supported inline content, no line breaks or additional attributes. |
+| Paragraphs and inline content | Text, strong/emphasis/delete/code, ordinary links with non-empty content, inline math, supported subscript/superscript, footnote references and `{eq}`, `{numref}`, `{ref}` without custom display text. Existing inline nesting/round-trip restrictions apply. Distinct adjacent links with identical targets are unsupported. |
+| Equation | Display math value and optional label; no enumeration overrides or arbitrary attributes. |
+| Figure | Empty/pending or one image, optional alt text, label and one supported inline caption. Alt text requires an image. No legends, subfigures, Mermaid or extra directive/image attributes. |
+| Table | Rectangular GFM table with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. No merged cells, legends or extra directive attributes. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. No tasks or arbitrary nested blocks. |
+| Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
+| Quote, divider, admonition | One supported paragraph in a quote; thematic break; standard admonition kinds with one supported paragraph. No custom titles/options or additional nested blocks. |
+| Footnote and target | One non-empty supported paragraph per definition, no references inside definitions; label targets and semantic references under their existing contracts. |
 
-No new semantic operation is introduced: existing CLI format and editing commands inherit the corrected Core serializer. CLI format persistence and failure without writes verify that boundary. Core regressions cover preservation, context-sensitive failure, source projection, and determinism. Host checks cover canonical save and preflight consistency. Browser checks cover supported body Save → Reload with preserved content, read-only blocking, original source, and repaired-file Reload.
+Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported read-only opening or block source replacement is provided.
+
+## Interfaces and errors
+
+- Core native errors have stable codes `native-marker`, `native-metadata`, `native-content`, a reason, corrective action and a snapshot path/source line where identified. `canonicalWriteIssue` and `writeIssueOf` retain write diagnostics separately from native support failures.
+- CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
+- Shared Host Open/Reload/Save/Source and asset creation use Core admission. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
+- Whole-document Source previews the applied native document through Core without writing. It retains visual editor state and unapplied property drafts. `replaceBlockSource`, CLI `replace-block-source`, Host source-apply/replay and Editor Edit source are removed.
+
+## Canonical output and compatibility
+
+Files use UTF-8 and canonical LF line endings. CRLF/mixed input is normalized. A leading UTF-8 BOM is removed; U+FEFF elsewhere is content. Straight and curly quotes retain their meaning. Canonical output is semantic preservation, not byte preservation. Literal dollars and context-sensitive math retain the existing MyST boundary corrections.
+
+Desktop supplies its native sample in `sample-native-v1` on first use and uses it as the sample target. Existing `sample` folders and user-modified copies are not overwritten. The next-release compatibility notice is [Native document change](../releases/native-documents-next.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
+
+## Verification
+
+Core tests own marker/YAML/support and semantic round-trip rejection. CLI tests own exclusive creation, structured failures and unchanged bytes. Shared Host tests own admission, revision conflicts and atomic file replacement. Browser tests own real Save → Reload, native admission state retention, Source, numbering and independent property drafts. Production HTTP and packaged Desktop tests exercise their deployment boundaries. Parser security and whole-document semantic-loss guards remain in place.

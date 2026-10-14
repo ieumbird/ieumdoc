@@ -10,8 +10,8 @@ import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference"]);
-const COPY_RESTRICTION = "This selection contains read-only content that cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
-const CUT_RESTRICTION = "This selection contains read-only content that cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
+const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
+const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
 export function isInternalClipboard(html: string): boolean {
   return /\bdata-ieumdoc-type\s*=/.test(html);
@@ -42,7 +42,6 @@ function internalPasteError(html: string, schema: Schema): string | undefined {
 
 function portable(node: PMNode): boolean {
   return TYPES.has(node.type.name) &&
-    (!(node.type.name === "admonition" || node.type.name === "figure") || node.attrs.editable === true) &&
     node.content.content.every(portable);
 }
 
@@ -50,7 +49,7 @@ function portable(node: PMNode): boolean {
 function freshSlice(slice: Slice): Slice {
   const copy = (node: PMNode): PMNode => {
     if (node.isText) return node;
-    return node.type.create("sourcePath" in node.attrs ? { ...node.attrs, sourcePath: freshBlockPath(), original: null }
+    return node.type.create("sourcePath" in node.attrs ? { ...node.attrs, sourcePath: freshBlockPath() }
       : TABLE_CELL_SOURCE_ATTR in node.attrs ? { ...node.attrs, [TABLE_CELL_SOURCE_ATTR]: "" } : node.attrs,
       Fragment.fromArray(node.content.content.map(copy)), node.marks);
   };

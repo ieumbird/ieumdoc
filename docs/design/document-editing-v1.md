@@ -23,7 +23,7 @@ persistent changes and canonical semantic validation.
   Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
   H1 keep the heading and focus unchanged. A text selection still uses Tab to
   reach its formatting toolbar; table, list and code Tab behavior is unchanged.
-- Tab/Shift+Tab move between editable table cells, skipping read-only cells;
+- Tab/Shift+Tab move between table cells;
   leaving the first/last cell enters surrounding prose (creating a paragraph at
   a document edge). Enter leaves a table, a Figure caption or a simple admonition.
 - The document end stays reachable. ArrowDown on the last line of a final table
@@ -71,8 +71,7 @@ including reaching the document end, and session identity repair require no CLI 
 Subscript and superscript are InlineContent marks (`subscript`, `superscript`) written as
 the MyST `{sub}` and `{sup}` roles, for text notation such as H{sub}`2`O or m{sup}`2`;
 mathematical meaning belongs in inline math. They never nest in each other and hold no
-references or footnotes. Source that does, or a role with `class`/`label` options, stays
-read-only. Headless callers use the existing `--content` JSON, so no CLI command is added.
+references or footnotes. Source that does, or a role with `class`/`label` options, is rejected at native admission. Headless callers use the existing `--content` JSON, so no CLI command is added.
 
 ## Table cells and Figure captions
 
@@ -87,7 +86,7 @@ A Figure's caption is inline content in the single ProseMirror document, editabl
 in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain
 captions. Metadata Apply keeps rich caption content. Legends and unsupported
-inline elements stay read-only with original source and a visible reason.
+inline elements reject the document at native admission.
 
 ## Table structure
 

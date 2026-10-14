@@ -56,18 +56,6 @@ test("paragraphs with {eq} and {numref} references are editable inline content",
     [text("See "), strong([ref("eq", "eq-a")]), text(" and "), emphasis([ref("numref", "fig-a")]), text(".")]);
 });
 
-test("references outside the v1 subset stay read-only", () => {
-  for (const source of [
-    "See {numref}`Figure %s <fig-a>`.", // custom display text
-    "See {eq}`Eq <eq-a>`.",
-    "See {ref}`Section <sec-a>`.",
-    "See [{eq}`eq-a`](https://x.example).", // a reference inside a link
-    "See [](#eq-a).", // an empty-text fragment link stays what it was
-    "See {term}`x`.",
-  ]) {
-    assert.equal(paragraph(parse(`${source}\n`))?.editable, false, source);
-  }
-});
 
 test("references can be inserted, retargeted and removed around ordinary text", () => {
   const plain = "See the equation and the figure.\n";

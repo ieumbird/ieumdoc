@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 The current $i_d$, then more.
 
 Value: $x$ end.

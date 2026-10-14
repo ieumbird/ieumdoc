@@ -1,3 +1,4 @@
+import { nativeSource } from "../helpers/document.ts";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,36 +27,36 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
-    { name: "a.md", create: () => "# HTTP A\n\nAlpha.\n" },
+    { name: "a.md", create: () => nativeSource("# HTTP A\n\nAlpha.\n") },
     document("diagram.svg"),
     { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__ieumdocSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
   ], scenarios: ["http-host"] },
-  "http-host-b/fixture": { files: [{ name: "b.md", create: () => "# HTTP B\n\nBeta.\n" }], scenarios: ["http-host"] },
+  "http-host-b/fixture": { files: [{ name: "b.md", create: () => nativeSource("# HTTP B\n\nBeta.\n") }], scenarios: ["http-host"] },
   "new-document": { files: [], scenarios: ["new-document"] },
   "open-files": { files: [
-    { name: "ieumdoc-a.md", create: () => "# A\n" },
-    { name: "ieumdoc-b.md", create: () => "# B\n" },
+    { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
+    { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },
   ], scenarios: ["open-files"] },
-  "image-assets": { files: [{ name: "images.md", create: () => "# Images\n\nAlpha.\n\nBeta.\n" },
+  "image-assets": { files: [{ name: "images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") },
     { name: "figures/diagram.svg", create: () => document("diagram.svg").create() },
     { name: "assets/diagram.svg", create: () => document("diagram.svg").create() },
-    { name: "paths.md", create: () => "# Image paths\n\n" +
+    { name: "paths.md", create: () => nativeSource("# Image paths\n\n" +
       ":::{figure} ./assets/diagram.svg\n:alt: Explicit relative path\n\nExplicit relative path.\n:::\n\n" +
       ":::{figure} assets/diagram.svg\n:alt: Bare relative path\n\nBare relative path.\n:::\n\n" +
-      ":::{figure} assets/missing.png\n:alt: Missing image\n\nMissing image.\n:::\n" }], scenarios: ["image-assets"] },
+      ":::{figure} assets/missing.png\n:alt: Missing image\n\nMissing image.\n:::\n") }], scenarios: ["image-assets"] },
   // An image outside that document's folder, which choosing copies into its assets/.
   "image-assets-outside": { files: [{ name: "photo.png", create: () =>
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") }], scenarios: ["image-assets"] },
-  "external-html-paste": { files: [{ name: "external.md", create: () => "# External\n\nAlpha.\n\nOmega.\n" }], scenarios: ["external-html-paste"] },
+  "external-html-paste": { files: [{ name: "external.md", create: () => nativeSource("# External\n\nAlpha.\n\nOmega.\n") }], scenarios: ["external-html-paste"] },
   "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
-    { name: "edge-equation.md", create: () => "$$\nx\n$$\n" },
+    { name: "edge-equation.md", create: () => nativeSource("$$\nx\n$$\n") },
     // Every inline kind a heading, Figure caption and table cell hold (#58).
-    { name: "formatted-clipboard.md", create: () => "## **Bold** *it* {del}`gone` [link](https://example.com) `code` $x$ {eq}`eq-a` {numref}`fig-a`\n\n" +
+    { name: "formatted-clipboard.md", create: () => nativeSource("## **Bold** *it* {del}`gone` [link](https://example.com) `code` $x$ {eq}`eq-a` {numref}`fig-a`\n\n" +
       ":::{figure} diagram.svg\n:alt: Diagram\n\n**Bold** caption with $y$ and [link](https://example.com).\n:::\n\n" +
-      "| **Head** | Plain |\n| --- | --- |\n| *it* `c` $z$ | {eq}`eq-a` |\n\nAfter.\n" },
-    fixture("preserved-markdown.md")], scenarios: ["continuous-editing"] },
+      "| **Head** | Plain |\n| --- | --- |\n| *it* `c` $z$ | {eq}`eq-a` |\n\nAfter.\n") },
+    ], scenarios: ["continuous-editing"] },
   "save-session": {
-    files: [...technical, { name: "session.md", create: () => "# Session\n\nAlpha.\n\nBeta.\n" }],
+    files: [...technical, { name: "session.md", create: () => nativeSource("# Session\n\nAlpha.\n\nBeta.\n") }],
     scenarios: ["save-session"],
   },
   "quiet-document": {
@@ -68,25 +69,20 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "section-reference": {
-    files: [{ name: "sections.md", create: () => "# Guide\n\n## Install\n\nRun the installer.\n\n## Use\n\nSee the install section.\n\n## 개요\n\nKorean heading.\n" }],
+    files: [{ name: "sections.md", create: () => nativeSource("# Guide\n\n## Install\n\nRun the installer.\n\n## Use\n\nSee the install section.\n\n## 개요\n\nKorean heading.\n") }],
     scenarios: ["section-reference"],
-  },
-  "block-source-editing": {
-    files: [document("diagram.svg"), { name: "block-source.md", create: () =>
-      "# Block source\n\n![Diagram](./diagram.svg)\n\n*   [ ] Draft\n*   [x] Review\n\nBody.\n" }],
-    scenarios: ["block-source-editing"],
   },
   "property-drafts": {
     files: [{ name: "drafts.md", create: () =>
-      "# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | {u}`V` |\n\nBody.\n" }],
+      nativeSource("# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | **V** |\n\nBody.\n") }],
     scenarios: ["property-drafts"],
   },
   "code-highlighting": {
-    files: [{ name: "code.md", create: () => "# Code\n\n```js\nconst value = 1;\n```\n\nAfter.\n" }],
+    files: [{ name: "code.md", create: () => nativeSource("# Code\n\n```js\nconst value = 1;\n```\n\nAfter.\n") }],
     scenarios: ["code-highlighting"],
   },
   "writeability-preflight": {
-    files: [fixture("front-matter.md"), fixture("preserved-markdown.md"), fixture("blocked-markdown.md"), document("diagram.svg")],
+    files: [fixture("writable.md"), fixture("blocked-markdown.md")],
     scenarios: ["writeability-preflight"],
   },
   "figure-authoring": {
@@ -99,7 +95,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "pending-figure": {
     files: [document("diagram.svg"), { name: "pending.md", create: () =>
-      "# Pending Figures\n\nIntro.\n\nThe controller structure is shown in [](#fig-pfc-control).\n\nStored reference: {numref}`fig-pfc-control`.\n\nAfter.\n" }],
+      nativeSource("# Pending Figures\n\nIntro.\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n\nStored reference: {numref}`fig-pfc-control`.\n\nAfter.\n") }],
     scenarios: ["pending-figure"],
   },
   "table-cell-editing": { files: [...technical, fixture("mixed-table.md")], scenarios: ["table-cell-editing"] },
@@ -116,43 +112,43 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       ...technical,
       // Source View must equal the canonical Markdown `ieumdoc format` writes, i.e. Core serialize.
       { name: "expected.md", create: () => serialize(parse(readFileSync(path.join(DOCUMENT_DIR, "technical-document.md"), "utf8"))) },
-      fixture("keyboard.md"),
+      fixture("writable.md"),
     ],
     scenarios: ["source-view", "source-view-pending"],
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg"),
     // A table caption holding inline math, a resolved and an unresolved reference (#165), canonical.
-    { name: "caption.md", create: () => "# Caption\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
+    { name: "caption.md", create: () => nativeSource("# Caption\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
       ":::{table} **Bold** with $x^2$, [link](https://example.com), {numref}`fig-a` and {eq}`eq-gone`\n:name: tbl-a\n\n" +
-      "| a | b |\n| - | - |\n| 1 | 2 |\n:::\n" }], scenarios: ["cross-reference"] },
+      "| a | b |\n| - | - |\n| 1 | 2 |\n:::\n") }], scenarios: ["cross-reference"] },
   "footnotes": {
     files: [{ name: "footnotes.md", create: () =>
-      "# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n\n    Second paragraph.\n" },
-      { name: "regions.md", create: () => "# Notes in context\n\nFirst claim[^b], second[^a], long note[^c] and final note[^d].\n\n" +
+      nativeSource("# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n[^a]: Defined later,\n    on two lines.\n") },
+      { name: "regions.md", create: () => nativeSource("# Notes in context\n\nFirst claim[^b], second[^a], long note[^c] and final note[^d].\n\n" +
         "[^c]: 긴 각주도 본문과 구별되면서 읽기 쉬워야 합니다. A longer explanation keeps **bold text**, a [link](https://example.com) and $x^2$ in its original position.\n\n" +
-        "Body resumes between the notes.\n\n[^b]: An editable note beside a read-only definition.\n\n" +
-        "[^a]: A note with two paragraphs.\n\n    Its original source stays available.\n\n" +
-          "Body continues after the group.\n\n[^d]: The final note.\n" },
-        { name: "repeat.md", create: () => "# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n" },
-        { name: "sections.md", create: () => "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
-          "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n" }],
+        "Body resumes between the notes.\n\n[^b]: A note beside another definition.\n\n" +
+        "[^a]: A short note.\n\n" +
+          "Body continues after the group.\n\n[^d]: The final note.\n") },
+        { name: "repeat.md", create: () => nativeSource("# Repeated note\n\nFirst[^x].\n\nSecond[^x] and other[^y].\n\n[^y]: Other note.\n\n[^x]: Shared note.\n") },
+        { name: "sections.md", create: () => nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
+          "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n") }],
     scenarios: ["footnotes", "save-session"],
   },
   "focus-caret": {
-    files: [{ name: "focus.md", create: () => "# Focus\n\nFirst paragraph.\n\nLast paragraph.\n" }],
+    files: [{ name: "focus.md", create: () => nativeSource("# Focus\n\nFirst paragraph.\n\nLast paragraph.\n") }],
     scenarios: ["focus-caret"],
   },
   "desktop-updates": {
-    files: [{ name: "updates.md", create: () => "# Updates\n\nAlpha.\n\n:::{table} Values\n:name: tbl-a\n\n| A |\n| - |\n| 1 |\n:::\n" }],
+    files: [{ name: "updates.md", create: () => nativeSource("# Updates\n\nAlpha.\n\n:::{table} Values\n:name: tbl-a\n\n| A |\n| - |\n| 1 |\n:::\n") }],
     scenarios: ["desktop-updates"],
   },
   "folder-navigation": {
     files: [
-      { name: "index.md", create: () => "# Index\n\nStart here.\n" },
-      { name: "notes.md", create: () => "# Notes\n\nNotes body.\n" },
-      { name: "guides/install.md", create: () => "# Install\n\nInstall body.\n" },
-      { name: "자료/메모.md", create: () => "# 메모\n\n내용.\n" },
+      { name: "index.md", create: () => nativeSource("# Index\n\nStart here.\n") },
+      { name: "notes.md", create: () => nativeSource("# Notes\n\nNotes body.\n") },
+      { name: "guides/install.md", create: () => nativeSource("# Install\n\nInstall body.\n") },
+      { name: "자료/메모.md", create: () => nativeSource("# 메모\n\n내용.\n") },
     ],
     scenarios: ["folder-navigation"],
   },

@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -53,7 +54,7 @@ function positionOf(doc: ProseMirrorNode, sourcePath: string): number {
 }
 
 test("insert command adds one new paragraph after the target and reuses an empty paragraph", () => {
-  const state = EditorState.create({ schema, doc: docOf("AB\n\n# Heading") });
+  const state = EditorState.create({ schema, doc: docOf(nativeSource("AB\n\n# Heading")) });
   const inserted = INSERT_COMMANDS[0].run(state, 0);
   assert.equal(inserted.getMeta(BLOCK_COMMAND_META), true);
   const next = state.apply(inserted);
@@ -67,7 +68,7 @@ test("insert command adds one new paragraph after the target and reuses an empty
 });
 
 test("heading commands insert H1-H6 and place the caret inside the heading", () => {
-  const state = EditorState.create({ schema, doc: docOf("AB") });
+  const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const commands = INSERT_COMMANDS.filter(command => command.id.startsWith("heading-"));
   assert.deepEqual(commands.map(command => command.label), ["Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5", "Heading 6"]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
@@ -80,7 +81,7 @@ test("heading commands insert H1-H6 and place the caret inside the heading", () 
 });
 
 test("shared insert commands include structural blocks and select their new atoms", () => {
-  const state = EditorState.create({ schema, doc: docOf("AB") });
+  const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
     "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5", "Heading 6", "Bulleted list", "Numbered list", "Note", "Warning", "Quote", "Divider", "Code block", "Equation", "Figure", "Table",
   ]);
@@ -102,7 +103,7 @@ test("shared insert commands include structural blocks and select their new atom
 });
 
 test("Equation slash insertion replaces a transient empty paragraph", () => {
-  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const initial = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
   const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/h2"));
   const slash = slashQueryAt(typed);
@@ -114,7 +115,7 @@ test("Equation slash insertion replaces a transient empty paragraph", () => {
 });
 
 test("Figure insertion places the caret in the caption of a new unlabeled editable Figure", () => {
-  const state = EditorState.create({ schema, doc: docOf("AB") });
+  const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   assert.deepEqual(filterInsertCommands("fig").map(command => command.id), ["figure"]);
   assert.deepEqual(filterInsertCommands("image").map(command => command.id), ["figure"]);
   const next = state.apply(insertFigureAfter(state, 0));
@@ -122,15 +123,15 @@ test("Figure insertion places the caret in the caption of a new unlabeled editab
   const figure = next.doc.child(1);
   assert.ok(isNewBlockPath(String(figure.attrs.sourcePath)));
   assert.deepEqual(
-    [figure.attrs.label, figure.attrs.imageUrl, figure.attrs.imageAlt, figure.attrs.caption, figure.attrs.editable],
-    ["", "", "", "", true],
+    [figure.attrs.label, figure.attrs.imageUrl, figure.attrs.imageAlt],
+    ["", "", ""],
   );
   assert.equal(next.selection instanceof TextSelection && next.selection.empty, true);
   assert.equal(next.selection.from, positionOf(next.doc, String(figure.attrs.sourcePath)) + 1);
 });
 
 test("Figure slash insertion replaces a transient empty paragraph but not a persistent one", () => {
-  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const initial = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
   const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/figure"));
   const slash = slashQueryAt(typed);
@@ -144,11 +145,11 @@ test("Figure slash insertion replaces a transient empty paragraph but not a pers
   const persistent = initial.apply(initial.tr.delete(1, 3));
   const inserted = persistent.apply(insertFigureAfter(persistent, 0));
   assert.deepEqual(inserted.doc.content.content.map(node => node.type.name), ["paragraph", "figure"]);
-  assert.equal(inserted.doc.child(0).attrs.sourcePath, "0");
+  assert.equal(inserted.doc.child(0).attrs.sourcePath, "1");
 });
 
 test("heading slash insertion replaces an otherwise-empty paragraph", () => {
-  const initial = EditorState.create({ schema, doc: docOf("AB") });
+  const initial = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const withEmptyParagraph = initial.apply(INSERT_COMMANDS[0].run(initial, 0));
   const typed = withEmptyParagraph.apply(withEmptyParagraph.tr.insertText("/h3"));
   const slash = slashQueryAt(typed);
@@ -162,7 +163,7 @@ test("heading slash insertion replaces an otherwise-empty paragraph", () => {
 });
 
 test("heading slash insertion from an empty split sibling passes the structure guard", () => {
-  const markdown = "Original paragraph";
+  const markdown = nativeSource("Original paragraph");
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   const split = structuredClone(baseline);
   split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
@@ -181,13 +182,13 @@ test("heading slash insertion from an empty split sibling passes the structure g
   state = state.apply(command.run(state, slash.index, slash));
   assert.equal(rejected, 0);
   assert.deepEqual(state.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
-  assert.equal(state.doc.child(0).attrs.sourcePath, "0");
+  assert.equal(state.doc.child(0).attrs.sourcePath, "1");
   assert.equal(state.doc.child(1).attrs.sourcePath, "new:split:end");
   assert.equal(state.doc.child(1).attrs.level, 2);
 });
 
 test("Equation slash insertion from an empty split sibling passes the structure guard", () => {
-  const markdown = "Original paragraph";
+  const markdown = nativeSource("Original paragraph");
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   const split = structuredClone(baseline);
   split.content!.push({ type: "paragraph", attrs: { sourcePath: "new:split:end" } });
@@ -205,13 +206,13 @@ test("Equation slash insertion from an empty split sibling passes the structure 
   state = state.apply(insertEquationAfter(state, slash.index, slash));
   assert.equal(rejected, 0);
   assert.deepEqual(state.doc.content.content.map(node => node.type.name), ["paragraph", "equation"]);
-  assert.equal(state.doc.child(0).attrs.sourcePath, "0");
+  assert.equal(state.doc.child(0).attrs.sourcePath, "1");
   assert.equal(state.doc.child(1).attrs.sourcePath, "new:split:end");
   assert.equal(state.doc.child(1).attrs.latex, "");
 });
 
 test("slash command removes its query and shares the insert command list", () => {
-  let state = EditorState.create({ schema, doc: docOf("AB"), selection: TextSelection.create(docOf("AB"), 3) });
+  let state = EditorState.create({ schema, doc: docOf(nativeSource("AB")), selection: TextSelection.create(docOf(nativeSource("AB")), 3) });
   state = state.apply(state.tr.insertText(" /par"));
   const slash = slashQueryAt(state);
   assert.ok(slash);
@@ -223,7 +224,7 @@ test("slash command removes its query and shares the insert command list", () =>
   assert.equal(next.doc.child(0).textContent, "AB ");
   assert.equal(next.doc.childCount, 2);
 
-  const empty = EditorState.create({ schema, doc: docOf("AB") });
+  const empty = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const emptyNext = empty.apply(INSERT_COMMANDS[0].run(empty, 0));
   const typed = emptyNext.apply(emptyNext.tr.insertText("/"));
   const emptySlash = slashQueryAt(typed)!;
@@ -231,54 +232,54 @@ test("slash command removes its query and shares the insert command list", () =>
   assert.equal(reused.doc.childCount, 2);
   assert.equal(reused.doc.child(1).content.size, 0);
 
-  const inWord = docOf("a/b");
+  const inWord = docOf(nativeSource("a/b"));
   assert.equal(slashQueryAt(EditorState.create({ schema, doc: inWord, selection: TextSelection.create(inWord, 3) })), null);
-  const heading = docOf("# /");
+  const heading = docOf(nativeSource("# /"));
   assert.equal(slashQueryAt(EditorState.create({ schema, doc: heading, selection: TextSelection.create(heading, 2) })), null);
 });
 
 test("selection formatting is offered only for a text selection inside one editable inline block", () => {
-  const doc = docOf("# Title\n\nAB\n\nCD");
+  const doc = docOf(nativeSource("# Title\n\nAB\n\nCD"));
   const at = (from: number, to: number) =>
     formattableSelection(EditorState.create({ schema, doc, selection: TextSelection.create(doc, from, to) }));
-  const paragraph = positionOf(doc, "1");
+  const paragraph = positionOf(doc, "2");
   assert.deepEqual(at(paragraph + 1, paragraph + 3), { from: paragraph + 1, to: paragraph + 3 });
   assert.equal(at(paragraph + 1, paragraph + 1), null);
   // Headings hold formatted text too.
   assert.deepEqual(at(2, 4), { from: 2, to: 4 });
-  assert.equal(at(paragraph + 1, positionOf(doc, "2") + 2), null);
+  assert.equal(at(paragraph + 1, positionOf(doc, "3") + 2), null);
 });
 
 test("delete command declares the removed snapshot blocks and keeps one block", () => {
-  const markdown = "AB\n\n# Heading\n\n$$\nx\n$$";
+  const markdown = nativeSource("AB\n\n# Heading\n\n$$\nx\n$$");
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   const state = EditorState.create({ schema, doc: docOf(markdown), plugins: [history(), structureGuardPlugin(baseline, noop)] });
   assert.equal(DELETE_COMMAND.enabled(state, 2), true);
   let next = state.apply(DELETE_COMMAND.run(state, 2));
-  assert.deepEqual(declaredDeletions(next), ["2"]);
+  assert.deepEqual(declaredDeletions(next), ["3"]);
   // Deleting never rebuilds the top node, so NodeView state survives.
   assert.deepEqual(next.doc.attrs, state.doc.attrs);
   // Undo restores the block; the declaration stays harmless and redo reuses it.
   assert.equal(undo(next, tr => { next = next.apply(tr); }), true);
   assert.equal(next.doc.childCount, 3);
-  assert.deepEqual(declaredDeletions(next), ["2"]);
+  assert.deepEqual(declaredDeletions(next), ["3"]);
   assert.equal(redo(next, tr => { next = next.apply(tr); }), true);
   const json = editorDocumentJSON(next);
   assert.doesNotThrow(() => assertSupportedDocumentChange(toTiptapDocument(loadEditableDocument(markdown)), json));
-  assert.deepEqual(collectSupportedEdits(loadEditableDocument(markdown), json).deletes, [[2]]);
+  assert.deepEqual(collectSupportedEdits(loadEditableDocument(markdown), json).deletes, [[3]]);
 
   // Undeclared loss of the same block is still rejected.
   const lost = structuredClone(json);
   lost.attrs = { deletedPaths: [] };
   assert.throws(() => assertSupportedDocumentChange(toTiptapDocument(loadEditableDocument(markdown)), lost), /block deletion is not allowed/);
 
-  const single = EditorState.create({ schema, doc: docOf("A") });
+  const single = EditorState.create({ schema, doc: docOf(nativeSource("A")) });
   assert.equal(DELETE_COMMAND.enabled(single, 0), false);
   assert.throws(() => DELETE_COMMAND.run(single, 0), /invalid block deletion/);
 });
 
 test("structure guard admits representable engine insertion and deletion as well as block commands", () => {
-  const markdown = "AB\n\n# Heading\n\n$$\nx\n$$";
+  const markdown = nativeSource("AB\n\n# Heading\n\n$$\nx\n$$");
   const doc = docOf(markdown);
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
   let rejected = 0;
@@ -289,23 +290,23 @@ test("structure guard admits representable engine insertion and deletion as well
   assert.equal(accepted(INSERT_COMMANDS[0].run(state, 0)), true);
   assert.equal(rejected, 0);
 
-  const selected = EditorState.create({ schema, doc, selection: NodeSelection.create(doc, positionOf(doc, "2")), plugins: [guard] });
+  const selected = EditorState.create({ schema, doc, selection: NodeSelection.create(doc, positionOf(doc, "3")), plugins: [guard] });
   let removed: Transaction | undefined;
   deleteSelection(selected, tr => { removed = tr; });
   assert.ok(removed);
   const deleted = selected.applyTransaction(removed).state;
   assert.notEqual(deleted, selected);
-  assert.equal(saveEdits(markdown, collectSupportedEdits(loadEditableDocument(markdown), editorDocumentJSON(deleted))).markdown, "AB\n\n# Heading\n");
+  assert.equal(saveEdits(markdown, collectSupportedEdits(loadEditableDocument(markdown), editorDocumentJSON(deleted))).markdown, nativeSource("AB\n\n# Heading\n"));
   const pasted = state.tr.insert(0, schema.nodes.paragraph.create({ sourcePath: "new:pasted" }, schema.text("X")));
   assert.equal(accepted(pasted), true);
   assert.equal(rejected, 0);
 });
 
 test("inserted and deleted blocks save through Core insertParagraph and removeBlock", () => {
-  const markdown = "AB\n\n# Heading\n\nCD\n\n$$\nx\n$$";
+  const markdown = nativeSource("AB\n\n# Heading\n\nCD\n\n$$\nx\n$$");
   const editable = loadEditableDocument(markdown);
   const next = toTiptapDocument(editable);
-  next.attrs = { deletedPaths: ["1", "3"] };
+  next.attrs = { deletedPaths: ["2", "4"] };
   next.content = [
     next.content![0],
     { type: "paragraph", attrs: { sourcePath: "new:1" }, content: [
@@ -317,32 +318,32 @@ test("inserted and deleted blocks save through Core insertParagraph and removeBl
     { type: "paragraph", attrs: { sourcePath: "new:2" }, content: text("Tail") },
   ];
   const edits = collectSupportedEdits(editable, next);
-  assert.deepEqual(edits.deletes, [[1], [3]]);
+  assert.deepEqual(edits.deletes, [[2], [4]]);
   assert.equal(edits.inserts?.length, 2);
-  assert.deepEqual(edits.order, [{ path: [0], part: 0 }, { insert: 0 }, { path: [2], part: 0 }, { insert: 1 }]);
+  assert.deepEqual(edits.order, [{ path: [1], part: 0 }, { insert: 0 }, { path: [3], part: 0 }, { insert: 1 }]);
   const saved = saveEdits(markdown, edits);
-  assert.equal(saved.markdown, "AB\n\n**New**\\\nline\n\nCD\n\nTail\n");
+  assert.equal(saved.markdown, nativeSource("AB\n\n**New**\\\nline\n\nCD\n\nTail\n"));
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   const withoutPaths = (nodes: TiptapJSON[]) => nodes.map(node => ({ ...node, attrs: { ...node.attrs, sourcePath: "" } }));
   assert.deepEqual(withoutPaths(toTiptapDocument(loadEditableDocument(saved.markdown)).content!), withoutPaths(next.content!));
 });
 
 test("new paragraphs and headings split and merge while empty editor paragraphs stay transient", () => {
-  const markdown = "AB\n\nCD";
+  const markdown = nativeSource("AB\n\nCD");
   const editable = loadEditableDocument(markdown);
   const merged = toTiptapDocument(editable);
-  merged.content = [{ type: "paragraph", attrs: { sourcePath: "0;new:1" }, content: text("ABnew") }, merged.content![1]];
+  merged.content = [{ type: "paragraph", attrs: { sourcePath: "1;new:1" }, content: text("ABnew") }, merged.content![1]];
   const mergedEdits = collectSupportedEdits(editable, merged);
-  assert.deepEqual(mergedEdits.paragraphs.map(edit => edit.path), [[0]]);
+  assert.deepEqual(mergedEdits.paragraphs.map(edit => edit.path), [[1]]);
   assert.equal(mergedEdits.inserts, undefined);
-  assert.equal(saveEdits(markdown, mergedEdits).markdown, "ABnew\n\nCD\n");
+  assert.equal(saveEdits(markdown, mergedEdits).markdown, nativeSource("ABnew\n\nCD\n"));
 
   const split = toTiptapDocument(editable);
   split.content!.push(
     { type: "paragraph", attrs: { sourcePath: "new:2" }, content: text("E") },
     { type: "paragraph", attrs: { sourcePath: "new:2" }, content: text("F") },
   );
-  assert.equal(saveEdits(markdown, collectSupportedEdits(editable, split)).markdown, "AB\n\nCD\n\nE\n\nF\n");
+  assert.equal(saveEdits(markdown, collectSupportedEdits(editable, split)).markdown, nativeSource("AB\n\nCD\n\nE\n\nF\n"));
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "paragraph", attrs: { sourcePath: "new:3" } });
@@ -355,16 +356,16 @@ test("new paragraphs and headings split and merge while empty editor paragraphs 
 });
 
 test("invalid inserts and deletes never invoke the writer", () => {
-  const markdown = "A\n\n# Heading\n\nB";
+  const markdown = nativeSource("A\n\n# Heading\n\nB");
   const revision = documentRevision(markdown);
   const paragraph = [{ kind: "text" as const, text: "X" }];
-  const all = [{ path: [0], part: 0 }, { path: [1], part: 0 }, { path: [2], part: 0 }];
+  const all = [{ path: [1], part: 0 }, { path: [2], part: 0 }, { path: [3], part: 0 }];
   const requests = [
     { deletes: [[1]] },
     { inserts: [{ block: "paragraph" as const, content: paragraph }] },
     { deletes: [[7]], order: all },
     { deletes: [[1], [1]], order: [all[0], all[2]] },
-    { deletes: [[0]], paragraphs: [{ path: [0], content: paragraph }], order: [all[1], all[2]] },
+    { deletes: [[0]], paragraphs: [{ path: [1], content: paragraph }], order: [all[1], all[2]] },
     { inserts: [{ block: "paragraph" as const, content: [] }], order: [...all, { insert: 0 }] },
     { inserts: [{ block: "paragraph" as const, content: paragraph }], order: all },
     { deletes: [[1]], order: all },
@@ -377,7 +378,7 @@ test("invalid inserts and deletes never invoke the writer", () => {
 });
 
 test("applied state ignores a new empty paragraph but detects subsequent typing", () => {
-  const baseline = toTiptapDocument(loadEditableDocument("# Heading\n\nAB"));
+  const baseline = toTiptapDocument(loadEditableDocument(nativeSource("# Heading\n\nAB")));
   const state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline) });
   const saved = appliedDocument(editorDocumentJSON(state));
   const withSpace = state.apply(state.tr.insert(state.doc.content.size,
@@ -408,7 +409,7 @@ test("editor shell keeps application UI out of the document editor", () => {
 
 test("heading section commands move past sibling sections and delete a section, saving what Core moveSection/removeSection write", () => {
   // 0 # One · 1 (sec-a)= · 2 ## A · 3 read-only paragraph · 4 ### A.1 · 5 ## B · 6 Body B · 7 # Two
-  const markdown = "# One\n\n(sec-a)=\n## A\n\nRead {u}`only`.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n";
+  const markdown = nativeSource("# One\n\n(sec-a)=\n## A\n\nRead **this**.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n");
   const editable = loadEditableDocument(markdown);
   const baseline = toTiptapDocument(editable);
   let rejected = 0;
@@ -426,16 +427,16 @@ test("heading section commands move past sibling sections and delete a section, 
   let moved = state.apply(command("section-down").run(state, 2));
   assert.deepEqual(moved.doc.content.content.map(node => node.textContent || node.type.name).slice(0, 3), ["One", "B", "Body B."]);
   assert.equal(rejected, 0);
-  assert.equal(saved(moved), serialize(moveSection(parse(markdown), 2, 7)));
+  assert.equal(saved(moved), serialize(moveSection(parse(markdown), 3, 8)));
   assert.equal(undo(moved, tr => { moved = moved.apply(tr); }), true);
   assert.ok(moved.doc.eq(state.doc));
   // Section Two moves above One.
-  assert.equal(saved(state.apply(command("section-up").run(state, 7))), serialize(moveSection(parse(markdown), 7, 0)));
+  assert.equal(saved(state.apply(command("section-up").run(state, 7))), serialize(moveSection(parse(markdown), 8, 1)));
 
   const deleted = state.apply(command("section-delete").run(state, 2));
   assert.equal(rejected, 0);
-  assert.equal(saved(deleted), serialize(removeSection(parse(markdown), 2)));
+  assert.equal(saved(deleted), serialize(removeSection(parse(markdown), 3)));
   // A section spanning the whole document is not deleted: the editor keeps a block.
-  const only = EditorState.create({ schema, doc: docOf("# Only\n\nBody.\n") });
+  const only = EditorState.create({ schema, doc: docOf(nativeSource("# Only\n\nBody.\n")) });
   assert.equal(command("section-delete").enabled(only, 0), false);
 });

@@ -10,7 +10,7 @@ import {
   serialize,
   updateParagraphInlineContent,
   type Document,
-} from "@ieumdoc/core";
+} from "./core-internal.ts";
 
 // Canonical writeability preflight: whether the official write path (serialize) can
 // write a Document without losing semantics, asked before anything is written.
@@ -24,9 +24,6 @@ const WRITABLE: [string, string][] = [
   ["byte order mark", "\uFEFF# Heading\n\nBody.\n"],
   ["front matter", "---\ntitle: Example\n---\n\n# Heading\n"],
   ["aligned table", "| a | b |\n|:--|--:|\n| 1 | 2 |\n"],
-  ["standalone Markdown image", "![alt](./x.png)\n"],
-  ["inline Markdown image", "Before ![alt](./x.png \"Title\") after.\n"],
-  ["task list", "- [ ] todo\n- [x] done\n"],
 ];
 
 const NOT_WRITABLE: [string, string, RegExp][] = [

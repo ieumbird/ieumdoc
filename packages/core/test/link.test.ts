@@ -51,16 +51,6 @@ test("paragraphs with ordinary links are editable inline content", () => {
   ]);
 });
 
-test("unsupported link forms stay read-only", () => {
-  // Supported and unsupported cross-references are covered by cross-reference.test.ts.
-  for (const source of [
-    "See [](#eq-current) here.",
-    "[![img](i.png)](u)",
-    "{download}`./file.zip` text",
-  ]) {
-    assert.equal(paragraph(parse(`${source}\n`))?.editable, false, source);
-  }
-});
 
 test("links can be added, retargeted, retitled, relabeled and removed", () => {
   const source = "See OpenAI for details.\n";

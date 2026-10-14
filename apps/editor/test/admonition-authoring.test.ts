@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +15,7 @@ import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
 const body = "Before **bold** and *italic*, [manual](https://a.example), $x$\\\nnext.";
-const source = `# Title\n\n:::{warning}\n${body}\n:::\n\nOutside paragraph.\n`;
+const source = nativeSource(`# Title\n\n:::{warning}\n${body}\n:::\n\nOutside paragraph.\n`);
 
 function editorState(markdown: string) {
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
@@ -44,12 +45,12 @@ test("admonition body edits pass through Core and preserve inline semantics on r
   const admonition = state.doc.child(1);
   assert.equal(admonition.type.name, "admonition");
   assert.equal(admonition.attrs.variant, "warning");
-  assert.equal(admonition.attrs.editable, true);
+
   const range = textRange(state.doc, "Before");
   const next = state.apply(state.tr.insertText("After", range.from, range.to));
   assert.equal(rejected(), 0);
   const edits = collectSupportedEdits(loadEditableDocument(source), next.doc.toJSON() as TiptapJSON);
-  assert.deepEqual(edits.admonitions, [{ path: [1], content: [
+  assert.deepEqual(edits.admonitions, [{ path: [2], content: [
     { kind: "text", text: "After " },
     { kind: "strong", children: [{ kind: "text", text: "bold" }] },
     { kind: "text", text: " and " },
@@ -63,7 +64,7 @@ test("admonition body edits pass through Core and preserve inline semantics on r
   ] }]);
 
   const saved = saveEdits(source, edits);
-  assert.equal(saved.markdown, [
+  assert.equal(saved.markdown, nativeSource([
     "# Title",
     "",
     ":::{warning}",
@@ -73,7 +74,7 @@ test("admonition body edits pass through Core and preserve inline semantics on r
     "",
     "Outside paragraph.",
     "",
-  ].join("\n"));
+  ].join("\n")));
   const reloaded = loadEditableDocument(saved.markdown).blocks;
   assert.equal(reloaded[1]?.block, "admonition");
   if (reloaded[1]?.block !== "admonition") return;
@@ -96,33 +97,4 @@ test("an admonition kind change and a body edit save together and keep the inlin
   assert.ok(saved.markdown.includes(":::{danger}\nNow **bold** and *italic*"), saved.markdown);
   const savedBlock = loadEditableDocument(saved.markdown).blocks[1];
   assert.equal(savedBlock?.block === "admonition" && savedBlock.editable, true);
-});
-
-test("unsupported admonitions remain read-only and a failed edit never writes the file", () => {
-  const unsupported = [
-    ":::{admonition} Title\nBody\n:::\n",
-    ":::{note}\n:class: custom\nBody\n:::\n",
-    ":::{note}\nOne\n\nTwo\n:::\n",
-  ];
-  for (const markdown of unsupported) {
-    const block = loadEditableDocument(markdown).blocks[0];
-    assert.equal(block?.block, "admonition");
-    if (block?.block !== "admonition") continue;
-    assert.equal(block.editable, false, markdown);
-    assert.throws(() => saveEdits(markdown, {
-      admonitions: [{ path: block.path, content: [{ kind: "text", text: "Changed." }] }],
-    }), /admonition edit is not allowed/);
-  }
-
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-admonition-"));
-  const file = path.join(dir, "warning.md");
-  writeFileSync(file, source);
-  try {
-    const revision = documentRevision(source);
-    const invalid: InlineContent[] = [{ kind: "math", value: "`x$" }];
-    assert.throws(() => saveDocumentFile(file, { revision, admonitions: [{ path: [1], content: invalid }] }), /cannot round-trip/);
-    assert.equal(readFileSync(file, "utf8"), source);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 });

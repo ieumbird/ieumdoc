@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Links
 
 See [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text** for details.

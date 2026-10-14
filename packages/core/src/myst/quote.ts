@@ -6,7 +6,7 @@ const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
 
 /**
  * Quote v1: a block quote holding one paragraph of supported inline content. Quotes with
- * several paragraphs or other blocks inside stay read-only so an edit never drops them.
+ * several paragraphs or other blocks inside are rejected by native admission.
  */
 export function supportedQuoteContent(node: MystNode): InlineContent[] | undefined {
   if (node.type !== "blockquote" || !Object.keys(node).every((key) => QUOTE_FIELDS.has(key))) return undefined;

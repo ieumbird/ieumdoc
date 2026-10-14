@@ -123,7 +123,7 @@ async (page, { openDocument }) => {
     check(pending.contentKind === 'none' && pending.label === 'fig-pfc-control' &&
       pending.caption.text === 'PFC Current Control Architecture' && await figures.count() === 1,
       'Applied pending Figure lost on Reload');
-    check((await read()).includes('[](#fig-pfc-control)') && await reference.getAttribute('data-resolved') === 'true',
+    check((await read()).includes('[Figure](#fig-pfc-control)') && await reference.getAttribute('data-resolved') === 'true',
       'Reload lost the link or numbered reference');
     await figures.first().getByTestId('figure-no-content').click();
     check(await page.getByTestId('figure-properties').count() === 0 && await figures.first().getAttribute('data-selected') === 'true',

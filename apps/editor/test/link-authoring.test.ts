@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +14,7 @@ import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
-const source = "See [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n";
+const source = nativeSource("See [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n");
 const text = (value: string): InlineContent => ({ kind: "text", text: value });
 
 function editorDoc(markdown: string): { baseline: TiptapJSON; doc: ProseMirrorNode; schema: ReturnType<typeof getSchema> } {
@@ -51,14 +52,11 @@ test("paragraphs with ordinary links project to editable paragraphs with link ma
     [{ type: "link", attrs: { href: "https://openai.com", title: null } }]);
   assert.deepEqual(paragraph.content?.find((node) => node.text === "docs")?.marks,
     [{ type: "bold" }, { type: "link", attrs: { href: "https://a.example/docs", title: null } }]);
-  // {eq} references are editable since cross-reference authoring; see cross-reference.test.ts.
-  for (const readonly of ["See {ref}`Section A <sec-a>` here.", "See [](#target) here.", "[a](x)[b](x)"]) {
-    assert.equal(toTiptapDocument(loadEditableDocument(`${readonly}\n`)).content![0].type, "readonlyParagraph", readonly);
-  }
+
 });
 
 test("unchanged link paragraphs send no edit, whatever the mark nesting", () => {
-  for (const markdown of [source, "[**a**](u) and **[b](v)**\n", "[*x* y](u)\n"]) {
+  for (const markdown of [source, nativeSource("[**a**](u) and **[b](v)**\n"), nativeSource("[*x* y](u)\n")]) {
     const document = loadEditableDocument(markdown);
     const projection = toTiptapDocument(document);
     const normalized = getSchema(editorExtensions()).nodeFromJSON(projection).toJSON() as TiptapJSON;
@@ -67,45 +65,45 @@ test("unchanged link paragraphs send no edit, whatever the mark nesting", () => 
 });
 
 test("links are added, retargeted, relabeled and removed through editor transactions", () => {
-  const added = edit("See OpenAI for details.\n", (state) => {
+  const added = edit(nativeSource("See OpenAI for details.\n"), (state) => {
     const { from, to } = range(state.doc, "OpenAI");
     return state.tr.addMark(from, to, state.schema.marks.link.create({ href: "https://openai.com" }));
   });
-  assert.equal(added, "See [OpenAI](https://openai.com) for details.\n");
+  assert.equal(added, nativeSource("See [OpenAI](https://openai.com) for details.\n"));
 
   const retargeted = edit(source, (state) => {
     const { from, to } = range(state.doc, "OpenAI");
     return state.tr.addMark(from, to, state.schema.marks.link.create({ href: "https://openai.com/research" }));
   });
-  assert.equal(retargeted, "See [OpenAI](https://openai.com/research) for **bold [docs](https://a.example/docs) text**.\n");
+  assert.equal(retargeted, nativeSource("See [OpenAI](https://openai.com/research) for **bold [docs](https://a.example/docs) text**.\n"));
 
   const relabeled = edit(source, (state) => {
     const { from, to } = range(state.doc, "OpenAI");
     const link = state.schema.marks.link.create({ href: "https://openai.com" });
     return state.tr.insertText("the OpenAI site", from, to).addMark(from, from + "the OpenAI site".length, link);
   });
-  assert.equal(relabeled, "See [the OpenAI site](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n");
+  assert.equal(relabeled, nativeSource("See [the OpenAI site](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n"));
 
   const removed = edit(source, (state) => {
     const { from, to } = range(state.doc, "docs");
     return state.tr.removeMark(from, to, state.schema.marks.link);
   });
-  assert.equal(removed, "See [OpenAI](https://openai.com) for **bold docs text**.\n");
+  assert.equal(removed, nativeSource("See [OpenAI](https://openai.com) for **bold docs text**.\n"));
 });
 
 test("fragment links stay ordinary links and cross-references stay untouched", () => {
-  const markdown = "See {eq}`eq-current`.\n\nThe [current](#eq-current) reference.\n";
+  const markdown = nativeSource("See {eq}`eq-current`.\n\nThe [current](#eq-current) reference.\n");
   const saved = edit(markdown, (state) => {
     const { from } = range(state.doc, " reference.");
     return state.tr.insertText(" updated", from + " reference".length);
   });
-  assert.equal(saved, "See {eq}`eq-current`.\n\nThe [current](#eq-current) reference updated.\n");
+  assert.equal(saved, nativeSource("See {eq}`eq-current`.\n\nThe [current](#eq-current) reference updated.\n"));
 });
 
 test("Host rejects links Core cannot preserve without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-link-save-"));
   const file = path.join(dir, "links.md");
-  const markdown = "See OpenAI.\n";
+  const markdown = nativeSource("See OpenAI.\n");
   writeFileSync(file, markdown);
   try {
     const revision = documentRevision(markdown);
@@ -115,7 +113,7 @@ test("Host rejects links Core cannot preserve without writing", () => {
       ["https://example.com/a b", /no whitespace/],
       ["https://example.com/한글", /cannot round-trip/],
     ] as const) {
-      assert.throws(() => saveDocumentFile(file, { revision, paragraphs: [{ path: [0], content: link(url) }] }), reason);
+      assert.throws(() => saveDocumentFile(file, { revision, paragraphs: [{ path: [1], content: link(url) }] }), reason);
       assert.equal(readFileSync(file, "utf8"), markdown);
     }
   } finally {

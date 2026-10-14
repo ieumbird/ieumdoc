@@ -2,14 +2,7 @@ import type { TiptapJSON } from "./tiptap-inline.ts";
 import { isSessionPlaceholder } from "./tiptap-edits.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import type { SupportedEdits } from "../shared/document-protocol.ts";
-import type { EditableDocument, WriteIssue } from "@ieumdoc/core";
 import { TABLE_CELL_SOURCE_ATTR } from "./tiptap-projection.ts";
-
-export function writeIssueMessage(issue: WriteIssue, document: EditableDocument): string {
-  const index = issue.path?.length ? document.blocks.findIndex(block => block.path[0] === issue.path![0]) : -1;
-  const location = index >= 0 ? `Block ${index + 1} (${document.blocks[index].block})` : "Document";
-  return `${location}${issue.line ? `, source line ${issue.line}` : ""}: ${issue.reason} ${issue.action}`;
-}
 
 /** Resolve Host snapshot locators against the submitted document, never later user input. */
 export function saveErrorMessage(error: unknown, submitted?: TiptapJSON, edits?: SupportedEdits): string {

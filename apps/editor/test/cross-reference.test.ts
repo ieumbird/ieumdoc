@@ -1,3 +1,4 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,14 +14,14 @@ import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../serv
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 
-const source = [
+const source = nativeSource([
   "# Refs",
   "See {eq}`eq-a` and **{numref}`fig-a`** or [details](#eq-a) with $x$.",
   "See {eq}`missing` here.",
   "```{math}\n:label: eq-a\na\n```",
   ":::{figure} ./d.svg\n:name: fig-a\n:::",
-].join("\n\n") + "\n";
-const REFERENCES = "1";
+].join("\n\n") + "\n");
+const REFERENCES = "2";
 
 function clone(value: TiptapJSON): TiptapJSON {
   return JSON.parse(JSON.stringify(value)) as TiptapJSON;
@@ -48,7 +49,7 @@ test("paragraphs with {eq} and {numref} references project to editable paragraph
   // The ordinary fragment link stays a link mark on text.
   assert.deepEqual(paragraph.content?.find((node) => node.text === "details")?.marks,
     [{ type: "link", attrs: { href: "#eq-a", title: null } }]);
-  assert.equal(blockAt(projection, "2").type, "paragraph");
+  assert.equal(blockAt(projection, "3").type, "paragraph");
   const schema = getSchema(editorExtensions());
   const node = schema.nodeFromJSON(projection);
   assert.deepEqual(schema.nodeFromJSON(node.toJSON()).toJSON(), node.toJSON());
@@ -59,7 +60,7 @@ test("paragraphs with {eq} and {numref} references project to editable paragraph
 test("references can be inserted, retargeted and removed, and text around them edited", () => {
   const base = toTiptapDocument(loadEditableDocument(source));
   const inserted = clone(base);
-  blockAt(inserted, "2").content = [
+  blockAt(inserted, "3").content = [
     { type: "text", text: "See " },
     { type: "crossReference", attrs: { role: "numref", label: "fig-a" } },
     { type: "text", text: " and " },
@@ -121,7 +122,7 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   assert.equal(isResolved(targets, "numref", "fig-a"), true);
   // An unsaved label change is reflected at once.
   const relabeled = clone(projection);
-  blockAt(relabeled, "3").attrs!.label = "eq-b";
+  blockAt(relabeled, "4").attrs!.label = "eq-b";
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
   // Slash items insert a reference to each matching target, then label and reference a heading.
   assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Figure reference: fig-a"]);
@@ -140,7 +141,7 @@ test("unresolved references save unchanged; Source preview shows unsaved referen
     writeFileSync(file, source);
     const loaded = loadDocumentFile(file);
     const next = toTiptapDocument(loaded.document);
-    blockAt(next, "2").content = [
+    blockAt(next, "3").content = [
       { type: "text", text: "See " },
       { type: "crossReference", attrs: { role: "eq", label: "missing" } },
       { type: "text", text: " and " },
@@ -162,14 +163,9 @@ test("unresolved references save unchanged; Source preview shows unsaved referen
   }
 });
 
-test("references outside the v1 subset keep their paragraph read-only", () => {
-  for (const markdown of ["See {numref}`Figure %s <fig-a>`.", "See {ref}`Section A <sec-a>`.", "[{eq}`eq-a`](https://x.example)"]) {
-    assert.equal(toTiptapDocument(loadEditableDocument(`${markdown}\n`)).content![0].type, "readonlyParagraph", markdown);
-  }
-});
 
 test("a section label and a {ref} to its heading save through Core, and renaming the label saves", () => {
-  const markdown = "# Title\n\n## Intro\n\nSee the intro.\n\n## 개요\n";
+  const markdown = nativeSource("# Title\n\n## Intro\n\nSee the intro.\n\n## 개요\n");
   const editable = loadEditableDocument(markdown);
   const baseline = toTiptapDocument(editable);
   const schema = getSchema(editorExtensions());
@@ -187,12 +183,12 @@ test("a section label and a {ref} to its heading save through Core, and renaming
   assert.deepEqual(referenceTargets(state.doc), [{ role: "ref", label: "sec-intro", title: "Intro" }]);
   assert.equal(rejected, 0);
   const saved = saveEdits(markdown, collectSupportedEdits(editable, editorDocumentJSON(state))).markdown;
-  assert.equal(saved, "# Title\n\n(sec-intro)=\n\n## Intro\n\nSee the intro.{ref}`sec-intro`\n\n## 개요\n");
+  assert.equal(saved, nativeSource("# Title\n\n(sec-intro)=\n\n## Intro\n\nSee the intro.{ref}`sec-intro`\n\n## 개요\n"));
 
   const reopened = loadEditableDocument(saved);
   const projection = toTiptapDocument(reopened);
-  blockAt(projection, "1").attrs!.label = "intro";
+  blockAt(projection, "2").attrs!.label = "intro";
   assert.equal(saveEdits(saved, collectSupportedEdits(reopened, projection)).markdown, saved.replace("(sec-intro)=", "(intro)="));
-  blockAt(projection, "1").attrs!.label = "";
+  blockAt(projection, "2").attrs!.label = "";
   assert.throws(() => collectSupportedEdits(reopened, projection), /section label cannot be empty/);
 });

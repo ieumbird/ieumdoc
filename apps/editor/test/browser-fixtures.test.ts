@@ -93,10 +93,9 @@ test("prepared scratch files start as copies of their sources, with the derived 
     ["link-authoring", "links.md"],
     ["cross-reference", "refs.md"],
     ["table-cell-editing", "mixed-table.md"],
-    ["source-view", "keyboard.md"],
+    ["source-view", "writable.md"],
     ["quote-save-reload", "quotes.md"],
-    ["writeability-preflight", "front-matter.md"],
-    ["writeability-preflight", "preserved-markdown.md"],
+    ["writeability-preflight", "writable.md"],
     ["writeability-preflight", "blocked-markdown.md"],
     ["table-authoring", "tables.md"],
   ]) {
@@ -109,9 +108,9 @@ test("prepared scratch files start as copies of their sources, with the derived 
   assert.equal(readFileSync(path.join(tmp, "source-view", "expected.md"), "utf8"),
     serialize(parse(technical.toString("utf8"))));
   // The fixtures are what the scenarios' freshness checks expect.
-  assert.ok(readFileSync(path.join(tmp, "admonition-authoring", "authoring.md"), "utf8").startsWith("# Admonition authoring"));
-  assert.ok(readFileSync(path.join(tmp, "structural-block-authoring", "structural-block-authoring.md"), "utf8").startsWith("# Structural authoring"));
-  assert.ok(readFileSync(path.join(tmp, "inline-math", "split.md"), "utf8").startsWith("The current $i_d$, then more."));
+  assert.ok(readFileSync(path.join(tmp, "admonition-authoring", "authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\n# Admonition authoring"));
+  assert.ok(readFileSync(path.join(tmp, "structural-block-authoring", "structural-block-authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\n# Structural authoring"));
+  assert.ok(readFileSync(path.join(tmp, "inline-math", "split.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\nThe current $i_d$, then more."));
 }));
 
 test("preparing again restores modified scratch files and removes leftovers, and nothing else", () => withTmp((tmp) => {

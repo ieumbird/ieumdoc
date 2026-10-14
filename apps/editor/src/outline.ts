@@ -14,17 +14,15 @@ export type OutlineItem = {
   text: string;
 };
 
-/** Top-level headings in document order, editable or read-only. */
+/** Top-level native headings in document order. */
 export function documentOutline(doc: ProseMirrorNode): OutlineItem[] {
   const items: OutlineItem[] = [];
-  const blocks: { block: string; level: number; headingLevels?: number[] }[] = [];
-  doc.forEach(node => blocks.push({ block: node.type.name === "readonlyHeading" ? "heading" : node.type.name, level: Number(node.attrs.level), headingLevels: node.attrs.headingLevels }));
+  const blocks: { block: string; level: number }[] = [];
+  doc.forEach(node => blocks.push({ block: node.type.name, level: Number(node.attrs.level) }));
   const numbers = headingNumbers(blocks, doc.attrs.headingNumbering as HeadingNumbering | null);
   doc.forEach((node, pos, index) => {
     if (node.type.name === "heading") {
       items.push({ index, pos, level: Number(node.attrs.level) || 1, text: `${numbers[index] ? `${numbers[index]} ` : ""}${node.textContent}` });
-    } else if (node.type.name === "readonlyHeading") {
-      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: `${numbers[index] ? `${numbers[index]} ` : ""}${String(node.attrs.text ?? "")}` });
     }
   });
   return items;

@@ -1,5 +1,5 @@
 import { SaveContentError } from "../shared/save-error.ts";
-import { saveErrorMessage, writeIssueMessage } from "./save-error.ts";
+import { saveErrorMessage } from "./save-error.ts";
 import { useEffect, useRef, useState } from "react";
 import type { EditableBlock, EditableDocument, FigureContent } from "@ieumdoc/core";
 import { DocumentEditor, type DocumentEditorHandle } from "./DocumentEditor.tsx";
@@ -17,10 +17,8 @@ import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar, type DocumentView } from "./shell/TopBar.tsx";
-import { collectSupportedEdits, type AppliedBlockSources, type TiptapJSON } from "./tiptap-document.ts";
+import { collectSupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
 import type {
-  BlockSourceRequest,
-  BlockSourceResponse,
   DocumentFileResponse,
   SaveResponse,
   SourceResponse,
@@ -43,18 +41,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 
-const WRITE_BLOCKED_SAVE_HINT = "IeumDoc cannot save this document. See the message below the top bar.";
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
 
 /** Shown until the first Save of a source whose endnote definitions canonical write moves. */
 const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after the body, in the order of their first reference, keeping each label and text. Source shows the Markdown Save writes.";
-
-/** Shown for the whole session of a document Core cannot write as canonical Markdown. */
-function writeBlockedMessage(reason: string): string {
-  return `Read-only: IeumDoc cannot save this document safely. ${reason} Open Source to inspect or copy the original Markdown. Repair the file in an external editor or with the CLI, then Reload to check it again.`;
-}
 
 export function App() {
   const editorRef = useRef<DocumentEditorHandle>(null);
@@ -104,15 +96,11 @@ export function App() {
   const [documentDirty, setDocumentDirty] = useState(false);
   // Outline changes on scrolling re-render the outline only, never the App and its editor.
   const outlineStore = useRef(createOutlineStore()).current;
-  // Unwritable snapshots are read-only. Reload checks the repaired file through Core;
-  // writable sessions are validated again on every Save/Source request.
-  const [writeError, setWriteError] = useState("");
-  const saveHint = writeError ? WRITE_BLOCKED_SAVE_HINT : undefined;
   // The opened source writes endnote definitions elsewhere than canonical write puts them; the
   // first Save moves them. Opening never writes and does not make the document dirty.
   const [endnotesMove, setEndnotesMove] = useState(false);
   const draftNotice = draftActive
-    ? "Save and Source include applied content only. Block property and source drafts remain unsaved until Apply."
+    ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
@@ -170,7 +158,6 @@ export function App() {
       setStart(null);
       setDocument(next.document);
       sessionBase.current = { source: next.source };
-      setWriteError(next.writeError);
       setEndnotesMove(!next.endnotesInPlace);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -235,7 +222,6 @@ export function App() {
 
   async function save(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
-    if (writeError) return;
     setError("");
     setNotice("");
     setStatus("Saving…");
@@ -266,11 +252,6 @@ export function App() {
    */
   async function showSource(): Promise<void> {
     if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
-    if (writeError) {
-      setSourceMarkdown(sessionBase.current?.source ?? "");
-      setView("source");
-      return;
-    }
     setError("");
     setSourcePending(true);
     try {
@@ -300,7 +281,6 @@ export function App() {
       setStart(null);
       setDocument(next.document);
       sessionBase.current = { source: next.source };
-      setWriteError(next.writeError);
       setEndnotesMove(!next.endnotesInPlace);
       setSourceRevision(next.revision);
       setOpenedPath(next.path);
@@ -446,9 +426,9 @@ export function App() {
         display={{
           headingNumbering,
           onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
-          numberingDisabled: !document || busy || Boolean(writeError) || view !== "visual",
+          numberingDisabled: !document || busy || view !== "visual",
           numberingHint: !document ? "Open a document to change numbering." : busy ? "Wait for the current operation to finish."
-            : writeError ? "This document is read-only." : view !== "visual" ? "Switch to Visual to change heading numbering." : undefined,
+            : view !== "visual" ? "Switch to Visual to change heading numbering." : undefined,
           wide: documentWidth === "wide",
           onToggleWide: toggleDocumentWidth,
         }}
@@ -484,13 +464,10 @@ export function App() {
             documentPath={openedPath}
             status={assetPending ? "Adding image…" : status}
             unsaved={documentDirty || draftActive}
-            writable={!writeError}
             view={view}
             viewDisabled={!document || busy}
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-            saveDisabled={!document || busy ||
-              Boolean(writeError)}
-            saveHint={saveHint}
+            saveDisabled={!document || busy}
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
@@ -503,8 +480,7 @@ export function App() {
             error={error}
             notice={notice}
             draftNotice={draftNotice}
-            documentNotice={endnotesMove && !writeError ? ENDNOTES_MOVE_NOTICE : ""}
-            warning={writeError ? writeBlockedMessage(writeError) : ""}
+            documentNotice={endnotesMove ? ENDNOTES_MOVE_NOTICE : ""}
             update={updateNotice}
             onDismissError={() => setError("")}
             onNoticeExpired={() => setNotice("")}
@@ -517,7 +493,6 @@ export function App() {
         }}>
           {view === "source" ? (
             <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
-              {writeError ? <p className="block-kind">Original Markdown · read-only</p> : null}
               <pre className="source-view-text">{sourceMarkdown}</pre>
             </article>
           ) : null}
@@ -544,7 +519,6 @@ export function App() {
                 key={editorGeneration}
                 ref={editorRef}
                 document={document}
-                readOnly={Boolean(writeError)}
                 documentPath={openedPath}
                 onDraftChange={setDraftActive}
                 onAssetPendingChange={setAssetPending}
@@ -554,7 +528,6 @@ export function App() {
                 onOutlineChange={outlineStore.set}
                 validateFigure={validateFigure}
                 chooseImage={chooseImage}
-                applyBlockSource={(path, source, applied) => applyBlockSource(sessionBase.current?.source ?? "", path, source, applied)}
                 onStructuralReject={(reason) =>
                   setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.")
                 }
@@ -671,10 +644,7 @@ export function App() {
   );
 }
 
-/** Client view model normalizes the Host's null writeability verdict to an empty UI message. */
-type DocumentResponse = Omit<DocumentFileResponse, "writeError"> & {
-  writeError: string;
-};
+type DocumentResponse = DocumentFileResponse;
 
 class SaveConflictError extends SaveContentError {
   constructor(message: string) {
@@ -713,8 +683,6 @@ async function requestDocument(
     document: payload.document,
     revision: payload.revision,
     source: payload.source,
-    writeError: payload.writeIssue && payload.document ? writeIssueMessage(payload.writeIssue, payload.document)
-      : typeof payload.writeError === "string" ? payload.writeError : "",
     endnotesInPlace: payload.endnotesInPlace !== false,
   };
 }
@@ -820,24 +788,6 @@ async function validateFigure(figure: FigureContent, label: string): Promise<str
   const payload = (await response.json()) as { error?: string | null };
   if (!response.ok) throw new Error(payload.error ?? `request failed (${response.status})`);
   return payload.error ?? undefined;
-}
-
-/** Asks the Host to apply a block source through Core on the session's opening snapshot. */
-async function applyBlockSource(base: string, path: string, source: string, applied: AppliedBlockSources): Promise<EditableBlock> {
-  const request: BlockSourceRequest = {
-    base,
-    path: path.split(",").map(Number),
-    source,
-    sources: Object.entries(applied).filter(([key]) => key !== path).map(([key, edit]) => ({ path: key.split(",").map(Number), source: edit.source })),
-  };
-  const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/block-source`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  const payload = (await response.json()) as Partial<BlockSourceResponse> & Partial<DocumentErrorResponse>;
-  if (!response.ok || !payload.block) throw new Error(payload.error ?? `request failed (${response.status})`);
-  return payload.block;
 }
 
 function messageOf(cause: unknown): string {

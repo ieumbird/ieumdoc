@@ -64,8 +64,6 @@ test("supported documents serialize unchanged, deterministically and idempotentl
     "| a | b |\n| --- | --- |\n| 1 | 2 |\n",
     ":::{note}\nBody\n:::\n\n:::{admonition} Title\n:class: tip\nBody\n:::\n",
     "*   one\n*   two\n\n1. first\n2. second\n",
-    // myst-to-md alone drops checkboxes; myst-parser reads them only in tight lists.
-    "- [ ] todo\n- [x] done\n\n1. [x] one\n   - [ ] nested\n   - plain\n2. two\n",
     "(sec-a)=\n\n## A\n\nSee {eq}`eq-a`, {numref}`Figure %s <fig-a>` and {ref}`sec-a`.\n",
   ]) {
     const canonical = serialize(parse(source));
@@ -160,17 +158,12 @@ function node(document: MystDocument, path: number[]): MystNode {
   return path.reduce<MystNode>((current, index) => current.children![index], document);
 }
 
-test("preserved Markdown still rejects changed metadata context and unrepresentable cell alignment", () => {
+test("writer rejects relocated metadata and unrepresentable cell alignment", () => {
   const metadata = parse("---\ntitle: Example\n---\n\nBody.\n");
   metadata.children.reverse();
   assert.throws(() => serialize(metadata), /front matter.*start/);
   const table = parse("| L | R |\n|:--|--:|\n| a | b |\n");
   node(table, [0, 1, 0]).align = "right";
   assert.throws(() => serialize(table), /align/);
-  const source = "---\ntitle: Example\n---\n\n![a](./a.png \"Title\")\n\nInline ![b](./b.png) image.\n\n| L | R |\n|:--|--:|\n| a | b |\n";
-  const original = parse(source);
-  const saved = serialize(original);
-  assert.equal(semanticDifference(semanticFingerprint(original), semanticFingerprint(parse(saved))), undefined);
-  assert.equal(serialize(parse(saved)), saved);
-  assert.throws(() => serialize(parse(source + "\nPress {kbd}`Ctrl`.\n")), /Line .*keyboard/);
+
 });

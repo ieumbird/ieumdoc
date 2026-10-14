@@ -55,7 +55,7 @@ async (page, { openDocument }) => {
   };
 
   const before = await markdown();
-  if (!before.startsWith('The current $i_d$, then more.')) throw new Error('Scratch document is not a fresh split.md copy');
+  if (!before.startsWith('---\nieumdoc: 1\n---\n\nThe current $i_d$, then more.')) throw new Error('Scratch document is not a fresh split.md copy');
   const result = {};
   await open();
   const paragraphs = await editor.locator('p.paragraph').count();
@@ -70,6 +70,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved', {exact:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
+    '---', 'ieumdoc: 1', '---', '',
     'The current $i_d$',
     '',
     ', then more.',

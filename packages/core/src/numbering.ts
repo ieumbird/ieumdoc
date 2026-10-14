@@ -28,7 +28,7 @@ export function defaultHeadingNumbering(enabled: boolean): HeadingNumbering | nu
 }
 
 /** Computed heading numbers in the current block order; no number is authored as text. */
-export function headingNumbers(blocks: { block: string; level?: number; headingLevels?: number[] | null }[], settings?: HeadingNumbering | null): (string | undefined)[] {
+export function headingNumbers(blocks: { block: string; level?: number }[], settings?: HeadingNumbering | null): (string | undefined)[] {
   let counts = [...(settings?.counts ?? [])];
   const increment = (level: number) => {
     if (!settings?.enabled[level - 1]) return undefined;
@@ -41,8 +41,6 @@ export function headingNumbers(blocks: { block: string; level?: number; headingL
   };
   return blocks.map(block => {
     if (block.block === "heading") return increment(block.level ?? 1);
-    // Preserved/read-only blocks can contain headings that still advance MyST's counters.
-    block.headingLevels?.forEach(increment);
     return undefined;
   });
 }
@@ -53,8 +51,7 @@ export function headingNumbers(blocks: { block: string; level?: number; headingL
  * equation per equation block, one figure per figure block, none otherwise. Blocks an interface
  * adds through Core's insert operations have that default.
  */
-export function blockTargets(block: { block: string; numbered?: NumberedTargets | null; label?: string; caption?: unknown }): NumberedTargets {
-  if (block.numbered) return block.numbered;
+export function blockTargets(block: { block: string; label?: string; caption?: unknown }): NumberedTargets {
   if (block.block === "equation") return { equation: 1 };
   if (block.block === "figure") return { figure: 1 };
   if (block.block === "table" && (block.label || (Array.isArray(block.caption) && block.caption.length > 0))) return { table: 1 };

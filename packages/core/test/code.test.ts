@@ -10,7 +10,7 @@ import {
   updateCodeBlock,
   type CodeBlockContent,
   type InlineContent,
-} from "@ieumdoc/core";
+} from "./core-internal.ts";
 
 test("fenced and indented code project as editable Code block v1 content", () => {
   const blocks = getEditableDocument(parse("```python\nprint(1)\n```\n\n    indented\n    code\n")).blocks;
@@ -21,14 +21,6 @@ test("fenced and indented code project as editable Code block v1 content", () =>
   ]);
 });
 
-test("code-like content outside Code block v1 stays read-only", () => {
-  for (const source of [
-    "```{code-block} python\n:caption: Setup\nprint(1)\n```\n",
-    "---\ntitle: Front matter\n---\n\nBody.\n",
-  ]) {
-    assert.equal(getEditableDocument(parse(source)).blocks[0]?.block, "unsupported", source);
-  }
-});
 
 test("public Core inserts and replaces code blocks, keeping whitespace, blank lines and backticks", () => {
   const document = parse("Intro.\n\nAfter.\n");

@@ -4,9 +4,6 @@ import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 import {
-  BLOCK_SOURCES_ATTR,
-  blockSourcesOf,
-  editableParagraph,
   isNewBlockPath,
   markKey,
   NEW_BLOCK_PREFIX,
@@ -15,7 +12,6 @@ import {
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlock,
   toTiptapDocument,
-  withBlockSources,
 } from "./tiptap-projection.ts";
 import type {
   HeadingEdit,
@@ -52,8 +48,6 @@ export function deletedPathsOf(document: TiptapJSON): string[] {
 const KNOWN_BLOCKS = new Set([
   "heading",
   "paragraph",
-  "readonlyHeading",
-  "readonlyParagraph",
   "admonition",
   "quote",
   "footnoteDefinition",
@@ -65,7 +59,6 @@ const KNOWN_BLOCKS = new Set([
   "orderedList",
   "codeBlock",
   "labelTarget",
-  "unsupportedBlock",
 ]);
 
 const LIST_BLOCKS = new Set(["bulletList", "orderedList"]);
@@ -73,16 +66,8 @@ const LIST_BLOCKS = new Set(["bulletList", "orderedList"]);
 /** Text blocks that convert into each other as a new block with a fresh locator. */
 const TEXT_BLOCKS = new Set(["paragraph", "heading", "codeBlock"]);
 
-const READONLY_BLOCKS = new Set([
-  "readonlyHeading",
-  "readonlyParagraph",
-  "unsupportedBlock",
-]);
-
 export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJSON): SupportedEdits & Required<Pick<SupportedEdits, "headings" | "paragraphs">> {
-  const sources = blockSourcesOf(next);
-  // Applied sources replace snapshot blocks in place; the other edits compare with the result.
-  const document = withBlockSources(snapshot, sources);
+  const document = snapshot;
   assertSupportedDocumentChange(toTiptapDocument(document), next);
   const headings: HeadingEdit[] = [];
   const headingLevels: HeadingLevelEdit[] = [];
@@ -161,7 +146,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
           if (inlineText(content).length === 0) throw saveError(node, "empty heading text cannot be saved");
           headings.push({ path: block.path, content });
         }
-      } else if (block.block === "paragraph" && editableParagraph(block)) {
+      } else if (block.block === "paragraph") {
         if (group.length > 1) {
           splits.push({ path: block.path, parts: group.map(paragraphInline) });
           return;
@@ -251,11 +236,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
   const settings = next.attrs?.headingNumbering ?? null;
   const changedSettings = JSON.stringify(settings) !== JSON.stringify(document.headingNumbering ?? null);
-  if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(document.headingNumberingDefault ?? defaultHeadingNumbering(true))) {
+  if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(defaultHeadingNumbering(true))) {
     throw new Error("unsupported heading numbering settings");
   }
   return {
-    ...(Object.keys(sources).length ? { sources: Object.entries(sources).map(([key, { source }]) => ({ path: key.split(",").map(Number), source })) } : {}),
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(reordered ? { order } : {}),
     headings,
@@ -297,10 +281,8 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 /** Compare the applied state that Save acknowledges, excluding editor-only placeholders.
  * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
-  const sources = blockSourcesOf(document);
   const attrs = {
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
-    ...(Object.keys(sources).length ? { [BLOCK_SOURCES_ATTR]: sources } : {}),
   };
   return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }
@@ -319,7 +301,7 @@ let nextEngineLocator = 0;
 export function freshBlockPath(): string { return `${NEW_BLOCK_PREFIX}engine:${++nextEngineLocator}`; }
 
 /** Adapt engine-created blocks to opening-snapshot locators, without changing content.
- * Kept separate from validation: unknown/read-only semantics still fail closed. */
+ * Kept separate from validation: unknown semantics still fail closed. */
 export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, emptySpace = false): TiptapJSON {
   const seen = new Set<string>();
   const content = (next.content ?? []).map(node => {
@@ -332,7 +314,7 @@ export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, 
     if (!key || conversion || duplicate || (emptySpace && emptyParagraph && !isNewBlockPath(key))) {
       // Validate representability before granting a fresh identity.
       insertEdit(node);
-      return { ...node, attrs: { ...node.attrs, sourcePath: freshBlockPath(), original: undefined } };
+      return { ...node, attrs: { ...node.attrs, sourcePath: freshBlockPath() } };
     }
     return node;
   });
@@ -452,7 +434,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   }
   if (node.type === "admonition") {
     const variant = String(node.attrs?.variant ?? "");
-    if (node.attrs?.editable !== true || !isAdmonitionVariant(variant)) {
+    if (!isAdmonitionVariant(variant)) {
       throw new Error("a new admonition must be editable and of a standard MyST kind");
     }
     return { block: "admonition", variant, content: paragraphInline(node) };
@@ -472,15 +454,12 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
   }
   if (node.type === "figure") {
-    if (node.attrs?.editable !== true) {
-      throw new Error("a new figure must be editable");
-    }
     const label = blockLabel(node);
     return { block: "figure", ...figureContent(node), ...(label ? { label } : {}) };
   }
   if (node.type === "table") {
     const grid = tableCells(node);
-    if (grid.some((row, index) => row.some(cell => !cell.editable || cell.header !== (index === 0)))) {
+    if (grid.some((row, index) => row.some(cell => cell.header !== (index === 0)))) {
       throw new Error("a new table holds editable cells, with header cells only in its first row");
     }
     const align = grid[0].map(cell => cell.align || null) as ("left" | "center" | "right" | null)[];
@@ -572,14 +551,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
     // Unsupported Figure structures stay read-only, label included.
-    for (const key of ["sourcePath", "editable"]) {
+    for (const key of ["sourcePath"]) {
       if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
         throw new Error(`figure identity cannot change (${key})`);
       }
-    }
-    if (beforeAttrs.editable !== true) {
-      assertReadonlyUnchanged(before, after);
-      return;
     }
     blockLabel(after);
     figureContent(after);
@@ -597,14 +572,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   if (beforeType === "admonition") {
     const beforeAttrs = before.attrs ?? {};
     const afterAttrs = after.attrs ?? {};
-    for (const key of ["sourcePath", "text", "editable"]) {
+    for (const key of ["sourcePath"]) {
       if (normalizeAttr(beforeAttrs[key]) !== normalizeAttr(afterAttrs[key])) {
         throw new Error(`admonition identity cannot change (${key})`);
       }
-    }
-    if (beforeAttrs.editable !== true) {
-      assertReadonlyUnchanged(before, after);
-      return;
     }
     // An editable admonition may change to another standard kind.
     if (!isAdmonitionVariant(String(afterAttrs.variant ?? ""))) throw new Error("admonition kind is not a standard MyST kind");
@@ -632,10 +603,6 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     targetLabel(after);
     return;
   }
-  if (READONLY_BLOCKS.has(beforeType)) {
-    assertReadonlyUnchanged(before, after);
-    return;
-  }
   if (beforeType === "heading") {
     headingLevel(after);
     headingInline(after);
@@ -648,21 +615,9 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   throw new Error(`unsupported Tiptap block "${beforeType || "unknown"}"`);
 }
 
-function assertReadonlyUnchanged(before: TiptapJSON, after: TiptapJSON): void {
-  const beforeAttrs = before.attrs ?? {};
-  for (const [key, value] of Object.entries(beforeAttrs)) {
-    if (normalizeAttr(value) !== normalizeAttr(after.attrs?.[key])) {
-      throw new Error(`read-only block changed (${before.type ?? "block"} ${key})`);
-    }
-  }
-  if ((after.content ?? []).length > 0) {
-    throw new Error(`read-only block changed (${before.type ?? "block"} content)`);
-  }
-}
-
 /** `source` is a cell's `row,column` in the opening snapshot, empty when it was added since.
  * `text` is a read-only cell's display text; `content` is an editable cell's content. */
-type TableCellShape = { editable: boolean; header: boolean; text: string; content: InlineContent[]; align: string; source: string };
+type TableCellShape = { header: boolean; content: InlineContent[]; align: string; source: string };
 
 /** The cell grid of a table node; editable cells hold inline content without line breaks. */
 function tableCells(node: TiptapJSON): TableCellShape[][] {
@@ -673,12 +628,11 @@ function tableCells(node: TiptapJSON): TableCellShape[][] {
         const header = cell.attrs?.header === true;
         const align = String(cell.attrs?.align ?? "");
         const source = String(cell.attrs?.[TABLE_CELL_SOURCE_ATTR] ?? "");
-        if (cell.type === "readonlyTableCell") return { editable: false, header, align, text: String(cell.attrs?.text ?? ""), content: [], source };
         if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
         const content = paragraphInline(cell);
         if (hasBreak(content)) throw new SaveContentError("a table cell cannot contain line breaks", undefined, {
           phase: "collect", action: "Remove the line breaks from this table cell.", cell: { row: rowIndex, column } });
-        return { editable: true, header, align, text: "", content, source };
+        return { header, align, content, source };
       } catch (error) {
         throw new SaveContentError(error instanceof Error ? error.message : String(error), undefined, {
           cause: error, phase: "collect", cell: { row: rowIndex, column },
@@ -721,10 +675,10 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape
     if (cell.align !== align[index]) throw new SaveContentError("table alignment must be uniform within each column", undefined, { phase: "collect", action: "Set alignment for the whole column using the table controls." });
     if (from !== null && to !== null) {
       const old = was[from][to];
-      if (cell.source !== `${from},${to}` || cell.editable !== old.editable || cell.header !== old.header || (!old.editable && cell.text !== old.text)) {
-        throw new Error("read-only table cells and cell kinds cannot change");
+      if (cell.source !== `${from},${to}` || cell.header !== old.header) {
+        throw new Error("table cell locators and header kinds cannot change");
       }
-    } else if (cell.source || !cell.editable || cell.header !== (rowIndex === 0)) {
+    } else if (cell.source || cell.header !== (rowIndex === 0)) {
       throw new Error("added table cells are editable, with header cells only in the header row");
     }
   }));

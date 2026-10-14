@@ -1,3 +1,7 @@
+---
+ieumdoc: 1
+---
+
 # Converter Control · 제어 설계
 
 문서를 읽는 흐름을 먼저 생각합니다. This document describes a converter control example, with **clear structure**, *measured emphasis*, and a [design resource](https://example.com/design). 수식과 그림은 본문의 일부입니다.

@@ -175,7 +175,7 @@ const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
 
 /**
  * Footnotes v2: the content of a definition holding one paragraph of supported inline content
- * without footnote references. Other definitions are read-only and edited as block source.
+ * without footnote references. Native admission rejects other definitions.
  */
 export function supportedFootnoteContent(node: MystNode): InlineContent[] | undefined {
   if (node.type !== "footnoteDefinition" || typeof node.label !== "string" || node.identifier !== labelIdentifier(node.label) ||

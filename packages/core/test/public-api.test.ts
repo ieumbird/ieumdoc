@@ -20,18 +20,18 @@ function consumerContract(document: Document): void {
   const tree: GenericParent = document;
   void tree;
   // @ts-expect-error consumers cannot build a document from raw MyST nodes
-  serialize({ type: "root", children: [] });
+  assert.throws(() => serialize({ type: "root", children: [] }));
 }
 
 // @ts-expect-error the MyST node alias is not public
 export type RemovedNode = core.DocumentNode;
 
 test("public Core API exposes semantic operations, not MyST tree access", () => {
-  consumerContract(parse("# Title\n"));
-  for (const name of ["getNode", "insertBlock", "cloneDocument"]) {
+  consumerContract(parse("---\nieumdoc: 1\n---\n\n# Title\n"));
+  for (const name of ["getNode", "insertBlock", "cloneDocument", "replaceBlockSource"]) {
     assert.equal(name in core, false, `${name} must not be public`);
   }
-  assert.equal(serialize(parse("# Title\n")), "# Title\n");
+  assert.equal(serialize(parse("---\nieumdoc: 1\n---\n\n# Title\n")), "---\nieumdoc: 1\n---\n\n# Title\n");
 });
 
 test("MyST packages are imported only inside Core's MyST boundary", () => {

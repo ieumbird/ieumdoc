@@ -4,7 +4,7 @@ import type { MystNode } from "./tree.ts";
 /**
  * Editable cells of a top-level Markdown (GFM) table hold supported inline content
  * (marks, links, inline math, references) without line breaks, or nothing. Cells with
- * any other inline node stay read-only so an edit never flattens them.
+ * any other inline node are rejected by native admission.
  */
 export function tableCellContent(cell: MystNode | undefined): InlineContent[] | undefined {
   if (cell?.type !== "tableCell") return undefined;
@@ -51,7 +51,7 @@ export function insertTableColumnNode(table: MystNode, index: number): void {
   table.children!.forEach((row, rowIndex) => row.children!.splice(index, 0, cell([], rowIndex === 0)));
 }
 
-/** Remove a row; its cells, read-only ones included, go with it. */
+/** Remove a row and its cells. */
 export function removeTableRowNode(table: MystNode, index: number): void {
   table.children!.splice(index, 1);
 }
@@ -85,7 +85,7 @@ const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
 /**
  * A `{table}` directive Core can author: a Markdown table with a one-paragraph caption, a label,
- * or both. Other table directives (options, legends, no caption and no label) stay read-only.
+ * or both. Other table directives (options, legends, no caption and no label) are rejected by native admission.
  */
 export function isTableDirective(node: MystNode | undefined): boolean {
   if (node?.type !== "container" || node.kind !== "table") return false;

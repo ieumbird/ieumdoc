@@ -76,7 +76,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
   };
-  const reference = 'See [](#fig-control) and {eq}`eq-current`.';
+  const reference = 'See [Figure](#fig-control) and {eq}`eq-current`.';
   const latex = 'i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}}';
 
   const fresh = await markdown();

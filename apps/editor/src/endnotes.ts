@@ -7,30 +7,28 @@ import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, typ
 
 /**
  * The Editor's endnotes. MyST footnotes keep their syntax and node names (`footnoteReference`,
- * `footnoteDefinition`, and preserved definitions as `unsupportedBlock` with a `footnote` label);
+ * `footnoteDefinition`);
  * the Editor presents their definitions as endnotes: one region after the body, ordered and
  * numbered by Core's endnote policy (`endnoteOrder`). A document Core opens is already in that
  * order, and canonical write places definitions again, so keeping the order while the user
  * edits is presentation: Save never depends on it.
  */
 
-/** The label a top-level block defines as an endnote, editable or preserved; otherwise undefined. */
+/** The label a top-level block defines as an endnote, otherwise undefined. */
 export function endnoteLabel(block: ProseMirrorNode): string | undefined {
   if (block.type.name === "footnoteDefinition") return String(block.attrs.label);
-  return block.type.name === "unsupportedBlock" && block.attrs.footnote ? String(block.attrs.footnote) : undefined;
+  return undefined;
 }
 
 // Blocks are immutable and shared between engine documents, so an unchanged block is read once.
 const referencesOf = new WeakMap<ProseMirrorNode, readonly string[]>();
 
-/** Footnote references a top-level block holds, in document order: inline references in editable
- * content, or the ones Core read in a read-only block. */
+/** Footnote references a top-level block holds, in document order: inline references in native content. */
 function blockReferences(block: ProseMirrorNode): readonly string[] {
   let labels = referencesOf.get(block);
   if (!labels) {
     const found: string[] = [];
-    if (Array.isArray(block.attrs.footnotes)) found.push(...block.attrs.footnotes as string[]);
-    else block.descendants((node) => { if (node.type.name === "footnoteReference") found.push(String(node.attrs.label)); });
+    block.descendants((node) => { if (node.type.name === "footnoteReference") found.push(String(node.attrs.label)); });
     referencesOf.set(block, labels = found);
   }
   return labels;
@@ -162,7 +160,7 @@ function footnoteLabels(doc: ProseMirrorNode): string[] {
   return endnoteBlocks(doc).flatMap(block => [...block.references, ...(block.definition === undefined ? [] : [block.definition])]);
 }
 
-/** Go to the endnote `label`: the caret at the end of an editable one, a read-only one selected;
+/** Go to the endnote `label`: the caret at the end of its definition;
  * false when there is none. Its number returns to `referencePos`. */
 export function revealEndnote(editor: Editor, label: string, referencePos?: number): boolean {
   const { doc } = editor.state;
@@ -170,12 +168,11 @@ export function revealEndnote(editor: Editor, label: string, referencePos?: numb
   let at = 0;
   doc.forEach((block, pos) => { if (!target && endnoteLabel(block) === label) { target = block; at = pos; } });
   if (!target) return false;
-  const selection = target.type.name === "footnoteDefinition"
-    ? TextSelection.create(doc, at + 1 + target.content.size) : NodeSelection.create(doc, at);
+  const selection = TextSelection.create(doc, at + 1 + target.content.size);
   return reveal(editor, selection, at, referencePos === undefined ? undefined : { label, pos: referencePos });
 }
 
-/** Return to the invoking reference, falling back to the first remaining reference or its read-only block. */
+/** Return to the invoking reference, falling back to the first remaining reference . */
 export function revealReference(editor: Editor, label: string): boolean {
   const { doc } = editor.state;
   const point = returnPointKey.getState(editor.state);
@@ -183,10 +180,6 @@ export function revealReference(editor: Editor, label: string): boolean {
   let found: number | undefined;
   doc.forEach((block, pos) => {
     if (found !== undefined || !blockReferences(block).includes(label)) return;
-    if (Array.isArray(block.attrs.footnotes)) {
-      found = pos;
-      return;
-    }
     block.descendants((node, offset) => {
       if (found === undefined && node.type.name === "footnoteReference" && node.attrs.label === label) found = pos + 1 + offset;
       return found === undefined;

@@ -1,3 +1,4 @@
+import { NativeDocumentError } from "@ieumdoc/core";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -106,8 +107,7 @@ function documentScope(locator: string, writable: boolean, access: FileAccess): 
     throw new AssetError("Document symlink escapes its directory.");
   }
   if (writable) {
-    const loaded = loadDocumentFile(document, access);
-    if (loaded.writeError) throw new AssetError(`Document is read-only: ${loaded.writeError}`);
+    loadDocumentFile(document, access);
     fs.accessSync(actual, fs.constants.W_OK);
   }
   return { document, root };
@@ -326,6 +326,6 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
     } else { res.statusCode = 405; res.end(); }
   } catch (error) {
     req.resume();
-    json(error instanceof AssetError || error instanceof RequestBodyError ? error.status : fileErrorStatus(error), { error: fileErrorMessage(error, access) });
+    json(error instanceof AssetError || error instanceof RequestBodyError ? error.status : fileErrorStatus(error), { error: error instanceof NativeDocumentError ? error.message : fileErrorMessage(error, access) });
   }
 }

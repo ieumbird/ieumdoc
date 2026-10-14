@@ -65,7 +65,7 @@ test("relabeling the technical document changes only that block and keeps refere
     assertOthersUnchanged(document, next, index);
     assert.equal((block(parse(serialize(next)), index) as { label: string }).label, label);
     // References are not renamed: they keep their written target.
-    assert.match(serialize(next), /See \[\]\(#fig-control\) and \{eq\}`eq-current`\./);
+    assert.match(serialize(next), /See \[Figure\]\(#fig-control\) and \{eq\}`eq-current`\./);
   }
   // `$$ ... $$ (label)` math records a derived anchor; relabeling it is still lossless.
   const dollar = updateLabel(parse("$$x$$ (eq-a)\n"), [0], "eq-b");

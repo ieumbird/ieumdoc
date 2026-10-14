@@ -13,3 +13,13 @@ export { labelError, labelKey, targetLabelError } from "../src/label.ts";
 export * from "../src/operations.ts";
 export { unresolvedReferences } from "../src/references.ts";
 export { validateStructure } from "../src/validation.ts";
+
+// Semantic unit tests deliberately exercise fragments; native file admission has its own public API tests.
+export { writeIssueOf } from "../src/write-error.ts";
+export { footnoteNumbers, nextFootnoteLabel } from "../src/numbering.ts";
+export type { CodeBlockContent } from "../src/code.ts";
+export type { ListContent } from "../src/list.ts";
+export { endnotesInPlace } from "../src/myst/footnote.ts";
+export { canonicalWriteIssue } from "../src/myst/serialize.ts";
+export { ADMONITION_VARIANTS } from "../src/myst/admonition.ts";
+export type { MystDocument as Document } from "../src/myst/tree.ts";

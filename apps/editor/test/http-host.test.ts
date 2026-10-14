@@ -1,10 +1,11 @@
+import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { loadDocumentFile } from "../server/document-api.ts";
+import { documentRevision, loadDocumentFile } from "../server/document-api.ts";
 import { MAX_JSON_BYTES, startHttpHost } from "../server/http-host.ts";
 import { RootAccess } from "../server/file-access.ts";
 
@@ -16,7 +17,7 @@ async function fixture(t: TestContext, external?: string) {
   const outside = path.join(base, "문서 A-other"), editorDir = path.join(base, "editor");
   for (const dir of [a, b, outside, editorDir]) fs.mkdirSync(dir);
   for (const dir of [a, b, outside]) {
-    fs.writeFileSync(path.join(dir, "document.md"), "# Title\n\nAlpha.\n");
+    fs.writeFileSync(path.join(dir, "document.md"), nativeSource("# Title\n\nAlpha.\n"));
     fs.writeFileSync(path.join(dir, "image.png"), png);
   }
   fs.writeFileSync(path.join(editorDir, "index.html"), "<!doctype html><title>Editor</title>");
@@ -42,7 +43,7 @@ const rawStatus = (url: string, headers: Record<string, string>) => new Promise<
 const saveBody = (file: string, text = "Edited.") => {
   const loaded = loadDocumentFile(file);
   return { path: file, revision: loaded.revision, base: { source: loaded.source },
-    paragraphs: [{ path: [1], content: [{ kind: "text", text }] }] };
+    paragraphs: [{ path: [2], content: [{ kind: "text", text }] }] };
 };
 
 test("HTTP starts with only allowed places and saves both roots through Core and revision checks", async t => {
@@ -59,7 +60,7 @@ test("HTTP starts with only allowed places and saves both roots through Core and
     assert.match(fs.readFileSync(file, "utf8"), /Alpha/);
     assert.equal((await send("/api/document", "POST", body)).status, 200);
     const reopened = await (await send(documentQuery(file))).json();
-    assert.equal(reopened.source, "# Title\n\nEdited.\n");
+    assert.equal(reopened.source, nativeSource("# Title\n\nEdited.\n"));
     assert.equal((await send("/api/document", "POST", body)).status, 409);
     assert.equal(fs.readFileSync(file, "utf8"), reopened.source);
     const created = path.join(root, "new.md");
@@ -75,11 +76,11 @@ test("HTTP starts with only allowed places and saves both roots through Core and
       assert.equal(alternateCase.crumbs.length, 1, "Different casing must still stop at the allowed root");
     }
   }
-  const blocked = path.join(a, "readonly.md"), original = "Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n";
+  const blocked = path.join(a, "readonly.md"), original = nativeSource("Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n");
   fs.writeFileSync(blocked, original);
   const loaded = await (await send(documentQuery(blocked))).json();
-  assert.match(loaded.writeError, /keyboard/);
-  assert.equal((await send("/api/document", "POST", { path: blocked, revision: loaded.revision, base: { source: original } })).status, 400);
+  assert.match(loaded.error, /Unsupported native content/);
+  assert.equal((await send("/api/document", "POST", { path: blocked, revision: documentRevision(original), base: { source: original } })).status, 400);
   assert.equal(fs.readFileSync(blocked, "utf8"), original);
   await host.close();
   await assert.rejects(fetch(url), /fetch failed/);
@@ -145,7 +146,7 @@ test("symlink/junction escapes and replaced roots cannot grant file or asset acc
   fs.renameSync(b, b + "-old");
   fs.symlinkSync(outside, b, process.platform === "win32" ? "junction" : "dir");
   assert.equal((await send(documentQuery(path.join(b, "document.md")))).status, 403);
-  assert.equal(fs.readFileSync(path.join(outside, "document.md"), "utf8"), "# Title\n\nAlpha.\n");
+  assert.equal(fs.readFileSync(path.join(outside, "document.md"), "utf8"), nativeSource("# Title\n\nAlpha.\n"));
 });
 
 test("root validation handles duplicates/nesting and rejects Windows special locators", async t => {

@@ -2,7 +2,6 @@ import type { Ref } from "react";
 import { Ellipsis, LoaderCircle, PanelRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
 export type DocumentView = "visual" | "source";
@@ -13,15 +12,11 @@ type TopBarProps = {
   documentPath: string;
   status: string;
   unsaved?: boolean;
-  /** False when IeumDoc cannot write the open document as canonical Markdown. */
-  writable?: boolean;
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
   onViewChange(view: DocumentView): void;
   saveDisabled: boolean;
-  /** Why Save is unavailable, when the reason is not obvious from the status. */
-  saveHint?: string;
   onSave(): void;
   onReload?(): void;
   reloadDisabled?: boolean;
@@ -39,14 +34,14 @@ type TopBarProps = {
  * tab and on toggles carry the current-item marker, independent of keyboard focus.
  */
 export function TopBar({
-  documentPath, status, unsaved = false, writable = true, view, viewDisabled, onViewChange, saveDisabled, saveHint,
+  documentPath, status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
   const displayStatus = idle
-    ? (!writable ? "Cannot save" : unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved")
+    ? (unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved")
     : status;
   const sourceProps = {
     type: "button" as const,
@@ -66,19 +61,6 @@ export function TopBar({
       Save
       {saving ? <LoaderCircle aria-hidden="true" className="top-bar-save-spinner motion-safe:animate-spin" /> : null}
     </>
-  );
-  const saveButton = (
-    <Button
-      type="button"
-      variant={saveVariant}
-      className="top-bar-save"
-      data-save-state={saveState}
-      aria-busy={saving || undefined}
-      onClick={onSave}
-      disabled={saveDisabled}
-      focusableWhenDisabled={Boolean(saveHint)}
-      data-testid="save"
-    />
   );
   return (
     <header className="top-bar">
@@ -119,18 +101,11 @@ export function TopBar({
           ) : null}
         </div>
         <div className="top-bar-group" role="group" aria-label="File actions">
-          {saveHint ? (
-            <Tooltip>
-              <TooltipTrigger render={saveButton}>{saveLabel}</TooltipTrigger>
-              <TooltipContent>{saveHint}</TooltipContent>
-            </Tooltip>
-          ) : (
             <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
               aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
               title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
               {saveLabel}
             </Button>
-          )}
           {onReload ? (
             <DropdownMenu>
               <DropdownMenuTrigger ref={fileActionsRef}

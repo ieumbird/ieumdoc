@@ -45,13 +45,12 @@ async (page, { openDocument }) => {
   };
 
   const before = await markdown();
-  if (!before.startsWith('# Admonition authoring')) throw new Error('Scratch document is not a fresh authoring.md copy');
+  if (!before.startsWith('---\nieumdoc: 1\n---\n\n# Admonition authoring')) throw new Error('Scratch document is not a fresh authoring.md copy');
   const result = {};
   await open();
-  result.admonitionCount = await admonitions().count() === 6;
-  result.onlySimpleStandardKindsEditable = await editor.locator('aside[data-block="admonition"][data-readonly="false"]').count() === 3;
+  result.admonitionCount = await admonitions().count() === 3;
   result.variantsInitially = JSON.stringify(await admonitions().evaluateAll(nodes => nodes.map(node => node.dataset.variant))) ===
-    JSON.stringify(['warning', 'note', 'note', 'warning', 'note', 'tip']);
+    JSON.stringify(['warning', 'note', 'tip']);
 
   await selectText('Before');
   await page.keyboard.type('After');
@@ -62,6 +61,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved', {exact:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
+    '---', 'ieumdoc: 1', '---', '',
     '# Admonition authoring',
     '',
     'Intro paragraph.',
@@ -75,22 +75,6 @@ async (page, { openDocument }) => {
     'A **simple** note.',
     ':::',
     '',
-    ':::{admonition} Custom title',
-    'Title body remains read-only.',
-    ':::',
-    '',
-    ':::{warning}',
-    ':class: custom',
-    '',
-    'Option body remains read-only.',
-    ':::',
-    '',
-    ':::{note}',
-    'First paragraph.',
-    '',
-    'Second paragraph.',
-    ':::',
-    '',
     ':::{tip}',
     'A tip is a standard kind and stays editable.',
     ':::',
@@ -102,19 +86,13 @@ async (page, { openDocument }) => {
   await open();
   const blocks = admonitions();
   result.reloadedVariants = JSON.stringify(await blocks.evaluateAll(nodes => nodes.map(node => node.dataset.variant))) ===
-    JSON.stringify(['warning', 'note', 'note', 'warning', 'note', 'tip']);
+    JSON.stringify(['warning', 'note', 'tip']);
   result.reloadedInlineSemantics = await blocks.nth(0).locator('strong').count() === 1 &&
     await blocks.nth(0).locator('em').count() === 1 &&
     await blocks.nth(0).locator('a[href="https://a.example"]').count() === 1 &&
     await blocks.nth(0).getByTestId('inline-math').count() === 1 &&
     await blocks.nth(0).locator('br').count() === 1 &&
     await blocks.nth(1).locator('strong', {hasText:'simple'}).count() === 1;
-  result.unsupportedRemainReadOnly = await editor.locator('aside[data-block="admonition"][data-readonly="true"]').count() === 3 &&
-    await blocks.nth(2).getByText('Title body remains read-only.').count() === 1 &&
-    await blocks.nth(3).getByText('Option body remains read-only.').count() === 1 &&
-    await blocks.nth(4).getByText('Second paragraph.').count() === 1 &&
-    // A standard kind such as tip is editable.
-    await blocks.nth(5).getAttribute('data-readonly') === 'false';
   result.otherBlocksPreserved = await editor.locator('h1', {hasText:'Admonition authoring'}).count() === 1 &&
     await editor.locator('p.paragraph', {hasText:'Intro paragraph.'}).count() === 1 &&
     await editor.locator('p.paragraph', {hasText:'End paragraph.'}).count() === 1;

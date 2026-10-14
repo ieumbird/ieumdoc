@@ -5,7 +5,7 @@ import {
 } from "myst-transforms";
 import { VFile } from "vfile";
 import { locateFootnotes } from "./footnote.ts";
-import { rememberSource, type MystDocument } from "./tree.ts";
+import { type MystDocument } from "./tree.ts";
 
 /**
  * Parse boundary. The canonical-write guard compares this parse with the parse of
@@ -34,7 +34,6 @@ export function parse(source: string): MystDocument {
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
   locateFootnotes(document, text, OPTIONS);
-  rememberSource(document, text);
   return document;
 }
 
