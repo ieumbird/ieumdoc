@@ -991,8 +991,25 @@ test("Host refuses unsupported documents and Save acknowledges only the written 
     assert.deepEqual(readFileSync(blocked), before);
     assert.deepEqual(createDocumentFile(path.join(dir, "new.md")).document.blocks, []);
     const snapshot = readFileSync(writable, "utf8");
+    const snapshotBytes = readFileSync(writable);
     const valid = { path: writable, revision: documentRevision(snapshot), base: { source: snapshot } };
     for (const endpoint of ["document", "document-source"]) {
+      for (const field of ["sources", "paragaphs", "path"]) {
+        const unsupported = { [field]: [] };
+        const paragraphs = [{ path: [2], content: [{ kind: "text", text: "Must not be written." }] }];
+        const requests = [
+          ...(field === "path" ? [] : [{ ...valid, ...unsupported }, { ...valid, paragraphs, ...unsupported }]),
+          { ...valid, paragraphs, base: { source: snapshot, savedEdits: unsupported } },
+        ];
+        for (const request of requests) {
+          const rejected = await fetch(`http://127.0.0.1:${port}/api/${endpoint}`, {
+            method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request),
+          });
+          assert.equal(rejected.status, 400, `${endpoint}: ${JSON.stringify(request)}`);
+          assert.deepEqual(await rejected.json(), { error: `invalid ${field} edits` });
+          assert.deepEqual(readFileSync(writable), snapshotBytes);
+        }
+      }
       for (const invalid of [null, {}, { ...valid, path: undefined }, { ...valid, revision: undefined },
         { ...valid, revision: 123 }, { ...valid, base: undefined }, { ...valid, base: { source: 123 } },
         { ...valid, base: { source: snapshot, savedEdits: "invalid" } }, { ...valid, paragraphs: {} },

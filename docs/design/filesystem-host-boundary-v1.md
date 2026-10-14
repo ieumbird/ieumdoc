@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
+- Last verified: 2026-10-14 (#237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -90,6 +90,10 @@ Core는 다음을 알지 않는다.
 - file picker implementation
 
 Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Host가 읽어 온 document source를 의미적으로 처리하고, Host는 그 결과를 canonical document로 저장한다.
+
+### Save request fields
+
+`POST /api/document` accepts `path`, `revision`, `base` and the edit fields emitted by the Editor's `collectSupportedEdits`: `headingNumbering`, `order`, `headings`, `headingLevels`, `paragraphs`, `equations`, `figures`, `cells`, `tables`, `tableCaptions`, `admonitions`, `quotes`, `footnotes`, `lists`, `codes`, `labels`, `splits`, `merges`, `inserts` and `deletes`. `base.savedEdits` accepts only those edit fields. Unsupported or unknown fields in either edit payload, including the removed `sources`, return HTTP 400 `{ error }` before saving and leave the file bytes unchanged. Source preview uses the same request validation.
 
 ### Relative assets
 
