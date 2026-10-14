@@ -1432,3 +1432,4 @@ if (import.meta.main) {
     process.exitCode = reportError(args, error);
   }
 }
+// CI scope probe
