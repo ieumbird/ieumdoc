@@ -71,6 +71,9 @@ async page => {
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', {name:'Reload', exact:true}).waitFor();
     await page.keyboard.press('Escape');
+    // Base UI returns focus after the popup's asynchronous close/unmount completes.
+    await page.getByRole('menu').waitFor({state:'detached', timeout:2000});
+    await fileActions.and(page.locator(':focus')).waitFor({state:'attached', timeout:2000});
     result.fileMenuEscapeReturnsFocus = await isFocused(fileActions);
 
     // Selection toolbar appears only for a paragraph text selection.
