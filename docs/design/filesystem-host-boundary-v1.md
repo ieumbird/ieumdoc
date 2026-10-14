@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#211 relative media transport retains Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
+- Last verified: 2026-10-14 (#211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -94,6 +94,8 @@ Core source나 semantic model에 filesystem path를 넣지 않는다. Core는 Ho
 ### Relative assets
 
 Markdown의 `image.svg`, `assets/image.svg`, `./image.svg` 같은 상대 media는 접두사 유무와 관계없이 열린 `.md` 파일의 directory를 기준으로 resolve한다. 이 resolution은 Host/Editor adapter 책임이며 저장된 경로 문자열을 변경하거나 Core source 또는 semantic model을 filesystem path로 오염시키지 않는다. 표시 규칙과 로드 실패 안내는 [Figure authoring](figure-authoring-v1.md#editor-session-states)을 따른다.
+
+정상 경로는 segment별 URL encoding으로 `/` 구분자를 유지한다. leading `./`를 제외한 literal `.`·`..` segment가 있으면 전체 경로를 인코딩하여 browser가 `/document/` 밖으로 정규화하지 못하게 한다. 단독 `.`·`..`는 요청에만 trailing slash를 붙여 `.%2F`·`..%2F`로 전달한다. Host의 기존 single decode와 `resolveMediaPath`가 원래와 같은 위치로 resolve하거나 거부한다. `%2e` 같은 입력 문자는 추가 인코딩되어 기존 encoded-traversal 검사에 도달한다. 공유 Vite/HTTP/Desktop handler, 경로 접근 범위와 저장 문자열은 변경하지 않는다. Encoded slash를 막는 proxy는 dot-segment 요청을 Host 전에 거부할 수 있으나 정상 이미지 경로에는 encoded slash가 생기지 않는다.
 
 현재 document directory 밖으로 나가는 traversal은 허용하지 않는다. Workspace가 생길 것이라는 가정만으로 이 asset scope를 넓히지 않는다.
 

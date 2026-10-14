@@ -1512,8 +1512,12 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   if (!imageUrl || imageUrl.startsWith("/") || imageUrl.startsWith("\\") || URL.canParse(imageUrl) ||
     !URL.canParse(imageUrl, "https://ieumdoc.invalid/")) return imageUrl;
   const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
-  // Encode the complete path so the browser cannot remove ../ before the Host validates it.
-  const encodedPath = encodeURIComponent(relativePath);
+  const segments = relativePath.split("/");
+  // Keep normal separators proxy-safe; dot segments must reach the Host without URL normalization.
+  // A trailing slash also protects a standalone . or .. and preserves its resolved location.
+  const encodedPath = segments.some(segment => segment === "." || segment === "..")
+    ? encodeURIComponent(segments.length === 1 ? `${relativePath}/` : relativePath)
+    : segments.map(encodeURIComponent).join("/");
   const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
