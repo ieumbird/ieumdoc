@@ -1,11 +1,11 @@
 # ADR-0006: 이음독 네이티브 문서 지원 경계
 
 - Status: Accepted
-- Last verified: 2026-10-14 (decision approved; current contracts/code and in-memory Core/frontmatter probes checked; native boundary not implemented).
+- Last verified: 2026-10-14 (post-#234 implementation status and current design contract/supersession links checked).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#232](https://github.com/ieumbird/ieumdoc/issues/232) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-14
 
-이 문서는 승인된 지원 경계를 기록한다. 구현 완료를 뜻하지 않으며, 현재 동작은 아직 [Document support](../design/document-support-v1.md)와 [Block source editing](../design/block-source-editing-v1.md)의 Implemented 계약을 따른다. 아래 Consequences에 명시한 조항은 후속 구현과 함께 갱신한다.
+이 문서는 승인된 지원 경계를 기록한다. 네이티브 문서 경계는 [#234](https://github.com/ieumbird/ieumdoc/pull/234)에서 구현되었으며, 현재 동작은 [Native document support](../design/document-support-v1.md)의 Implemented 계약을 따른다. [Block source editing](../design/block-source-editing-v1.md)은 Superseded 상태로 당시 계약을 보존한다. 아래 Context와 Evidence는 결정 당시의 계약과 관찰 기록이다.
 
 ## Context
 
@@ -62,11 +62,11 @@ IeumDoc은 **Markdown을 영속 형식으로 쓰는 구조화 기술문서 에�
 
 ## Consequences
 
-- 후속 구현은 [Document support의 Contract](../design/document-support-v1.md#contract) 중 미지원 블록을 보존하면서 나머지를 편집하는 조항과 저장 불가 문서를 읽기 전용으로 여는 조항을 대체한다. 관련 Interfaces and verification의 읽기 전용 수용 전제도 갱신한다. [Block source editing](../design/block-source-editing-v1.md)의 Core·Editor·CLI 범용 교체 계약은 폐지한다. 문서 전체 Source 확인과 공유 초안 보호는 유지한다.
-- 현재 Implemented design 문서는 기존 실행 동작을 설명한다. 이 ADR의 승인만으로 구현 완료나 해당 문서 전체의 폐기를 선언하지 않는다. 동작을 변경하는 후속 PR에서 관련 계약과 검증을 함께 갱신한다.
+- #234 구현에서 미지원 블록을 보존하면서 나머지를 편집하는 조항과 저장 불가 문서를 읽기 전용으로 여는 조항, 인터페이스·검증의 읽기 전용 수용 전제를 [Native document support의 Contract](../design/document-support-v1.md#contract)로 대체했다. [Block source editing](../design/block-source-editing-v1.md)의 Core·Editor·CLI 범용 교체 계약은 폐지되어 Superseded 상태다. 문서 전체 Source 확인과 공유 초안 보호는 유지한다.
+- 이 ADR의 승인만으로 구현 완료나 당시 design 문서 전체의 폐기를 선언한 것은 아니다. 이후 #234에서 동작 변경과 함께 관련 계약과 검증을 갱신했다.
 - 이 정책이 적용된 버전으로 업데이트하면 이전 버전이 만든 문서라도 식별 표식이 없으면 거부되며, 이번 전환에는 Migration이 없다는 점을 릴리스 노트에 명시한다. 공개 beta.3가 있다는 사실과 실사용 문서에 대한 사용자의 판단을 구분한다.
 - [ADR-0004](0004-desktop-host-distribution.md)의 사용자 승인 기반 업데이트를 유지한다. 현재 `autoDownload=false`, `autoInstallOnAppQuit=false`이며 다운로드와 설치는 사용자가 승인한다. 자동 업데이트 확인이나 일반 종료를 설치 승인으로 해석하지 않는다.
-- 배포 샘플은 네이티브 계약을 만족해야 한다. 사용자 폴더에 이미 복사된 기존 샘플을 조용히 덮어쓰거나 표식을 자동 추가하지 않는다. 기존 복사본의 구체적인 안내·제공 방식은 후속 설계에서 정한다.
+- 배포 샘플은 네이티브 계약을 만족해야 한다. 사용자 폴더에 이미 복사된 기존 샘플을 조용히 덮어쓰거나 표식을 자동 추가하지 않는다. 기존 복사본의 구체적인 안내·제공 방식은 [현재 호환성 계약](../design/document-support-v1.md#canonical-output-and-compatibility)에 기록되어 있다.
 
 ## Evidence
 
