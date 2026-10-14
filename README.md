@@ -111,6 +111,15 @@ pnpm ieumdoc help split-paragraph
 
 `help <command>`에서 옵션을 확인합니다. paragraph offset은 UTF-16이고 NodePath는 snapshot locator입니다. `check`는 대상이 없는 `{eq}`/`{numref}`/`{ref}` reference를 warning으로 알립니다. 이 warning만으로 check가 실패하지는 않습니다. 파일을 바꾸는 명령은 fixture가 아닌 문서 사본에서 실행합니다. 명령이 파일을 읽은 뒤 다른 곳에서 바뀌었거나 쓰기 도중 실패하면 원본을 그대로 두고 실패합니다([File commit](docs/design/filesystem-host-boundary-v1.md#file-commit-v1)).
 
+AI·자동화 호출자는 `inspect <file> --format json`의 `revision`과 `nodes`의 경로를 함께 사용합니다. `revision`은 inspect가 읽은 원본 UTF-8 text의 SHA-256(64자리 소문자 hex)입니다. 모든 문서 변경 명령(`format` 포함, `create` 제외)은 선택적 `--if-revision <revision>`을 받으며, 현재 원본과 다르면 Core operation 전에 거부합니다. 생략하면 기존 동작을 유지합니다.
+
+```bash
+pnpm ieumdoc inspect document.md --format json
+pnpm ieumdoc update-heading document.md --path <inspect에서 얻은 경로> --text "New heading" --if-revision <inspect에서 얻은 revision>
+```
+
+변경 명령은 성공 후 새 revision을 출력하지 않습니다. 후속 변경 전에는 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻습니다. 오래된 NodePath를 영속 ID로 사용하거나 새 위치로 추측해 재지정하지 않습니다. 잘못된 revision 인자는 `--if-revision must be 64 lowercase hexadecimal characters`, revision 불일치는 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일을 변경하지 않습니다. 전체 사전조건 계약은 [CLI revision precondition](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214)에 있습니다.
+
 ### Visual Editor
 
 ```bash

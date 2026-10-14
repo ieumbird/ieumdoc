@@ -1,7 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
+- Last verified: 2026-10-14 (#214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
@@ -139,6 +139,15 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - Process 간 lock, fsync/전원 차단 시 영속성, 자동 merge, filesystem watch는 없다. 강제 종료된 process는 temporary sibling을 남길 수 있다.
 - Rename은 새 파일로 교체하므로 owner/group, hard link, Windows의 명시적 ACL과 extended attribute를 유지하지 않는다. 다른 process가 파일을 공유 삭제 없이 열어 두면 Windows에서 rename이 실패할 수 있으며, 이때도 원본은 유지된다.
 - Revision은 decode한 text 기준이므로 invalid UTF-8 byte끼리의 차이는 구별하지 못할 수 있다.
+
+### CLI revision precondition (#214)
+
+- `inspect <file> --format json`은 기존 `ok`, `command`, `nodes`에 `revision`을 추가한다. 파일을 한 번 읽은 동일한 원본 text를 Core parse와 `textRevision(source)`에 사용한다. Revision은 canonical serialization의 hash가 아니며 문서에 기록하지 않는다. Text inspect 출력은 유지한다.
+- 공통 `edit()`를 거치는 모든 문서 변경 명령(`format` 포함)은 선택적 `--if-revision <revision>`을 받는다. `create`, `check`, `inspect`, `serve`는 대상이 아니다. 생략하면 기존 명령 형식과 동작을 유지한다.
+- Revision 인자는 정확히 64자리 소문자 hex여야 한다. 형식이 잘못되면 `--if-revision must be 64 lowercase hexadecimal characters`를 stderr에 출력하고 exit 1로 종료한다. 값 누락·중복은 기존 공통 옵션 오류(`missing --if-revision`, `duplicate option: --if-revision`)로 거부한다.
+- `edit()`는 원본을 읽은 직후 revision을 비교한다. 다르면 Core parse/operation 전에 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일 바이트를 보존한다. 새 전용 exit code는 없다.
+- 사전조건 통과 후에도 위 File commit 계약을 유지한다. `commitFile`의 baseline은 이번 요청이 읽은 원본의 revision이므로 검증부터 커밋 사이 외부 변경도 기존 `FileChangedError` 경계에서 거부한다. 마지막 확인과 rename 사이의 기존 TOCTOU 한계는 그대로다.
+- 변경 명령은 성공 후 새 revision을 출력하지 않는다. 후속 변경 전 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻는다. [ADR-0003](../adr/0003-document-addressing-identity-boundary.md)에 따라 NodePath는 현재 snapshot의 locator이며, 구조 변경 후 오래된 경로가 다른 유효 블록을 가리켜도 추측으로 재지정하지 않는다.
 
 ### Folder listing v1 (#112)
 
