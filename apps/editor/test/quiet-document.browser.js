@@ -163,37 +163,37 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   // Isolate input-device emulation from this page's later resize/selection checks.
   // The probe still uses the actual Editor and unmodified product media rules.
   const mainMedia = await page.evaluate(() => matchMedia('(hover: none)').matches);
+  const mainState = () => page.locator('.document-editor').evaluate(n => JSON.stringify({
+    document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON(),
+    status:document.querySelector('[data-testid="status"]').textContent,
+  }));
+  const beforeProbe = await mainState();
   const noHoverPage = await page.context().newPage();
   try {
     await noHoverPage.goto(page.url());
     await openDocument(noHoverPage, scratch('quiet-document.md'));
-    const touchSession = await page.context().newCDPSession(noHoverPage);
-    const originalMedia = await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches);
-    try {
+    if (!await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches)) {
+      const touchSession = await page.context().newCDPSession(noHoverPage);
       await touchSession.send('Emulation.setTouchEmulationEnabled', {enabled:true});
-      check(await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches), 'No-hover emulation did not take effect');
-      await noHoverPage.locator('.paragraph').first().hover();
-      const hiddenExtent = noHoverPage.getByTestId('block-hover-outline');
-      await hiddenExtent.waitFor({state:'attached'});
-      check(!await hiddenExtent.isVisible() && await hiddenExtent.evaluate(n => getComputedStyle(n).display === 'none'),
-        'Actual no-hover media must suppress the existing extent');
-    } finally {
-      try {
-        await touchSession.send('Emulation.setTouchEmulationEnabled', {enabled:false});
-      } finally {
-        await touchSession.detach();
-      }
-      check(await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches) === originalMedia,
-        'Touch cleanup did not restore the original hover media');
     }
+    check(await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches), 'Probe must have actual no-hover media');
+    check(await page.evaluate(() => matchMedia('(hover: none)').matches) === mainMedia,
+      'Touch emulation leaked into the main page media');
+    await noHoverPage.locator('.paragraph').first().hover();
+    const hiddenExtent = noHoverPage.getByTestId('block-hover-outline');
+    await hiddenExtent.waitFor({state:'attached'});
+    check(!await hiddenExtent.isVisible() && await hiddenExtent.evaluate(n => getComputedStyle(n).display === 'none'),
+      'Actual no-hover media must suppress the existing extent');
   } finally {
+    // Touch emulation belongs to this page; closing it also closes its CDP sessions.
     await noHoverPage.close();
   }
   check(await page.evaluate(() => matchMedia('(hover: none)').matches) === mainMedia,
     'No-hover probe changed the main page media');
+  check(await mainState() === beforeProbe, 'No-hover probe changed the main document, selection or status');
   await page.locator('.document-editor').evaluate(n => n.editor.commands.setTextSelection(1));
   await rest();
-  results.push({noHoverHidden:true, originalMediaRestored:true});
+  results.push({noHoverHidden:true, mainPagePreserved:true});
   const metadata=page.locator('.block-metadata');
   const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
   check(metadataState.length===await page.locator('[data-block="figure"], [data-block="equation"], [data-block="table"]').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
