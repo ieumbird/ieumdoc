@@ -22,7 +22,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
-import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META } from "./block-commands.ts";
+import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
 import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { FootnoteReference } from "./footnote.tsx";
@@ -1066,8 +1066,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       return;
     }
     const { caption, ...attributes } = candidate;
-    const replacement = latest.type.create({ ...latest.attrs, ...attributes, label: nextLabel },
-      view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content);
+    const captionContent = view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content;
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
     const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
@@ -1075,7 +1074,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const copy = copied.current;
     copied.current = undefined;
     // One undo step: undo returns the form's previous value.
-    view.dispatch(closeHistory(view.state.tr.replaceWith(latestPosition, latestPosition + latest.nodeSize, replacement)));
+    view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }, captionContent));
     let used = false;
     view.state.doc.forEach(block => { used ||= block.type.name === "figure" && block.attrs.imageUrl === copy?.path; });
     if (!used) copy?.discard?.();

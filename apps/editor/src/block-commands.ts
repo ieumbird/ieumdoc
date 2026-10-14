@@ -1,4 +1,5 @@
 import { closeHistory } from "@tiptap/pm/history";
+import type { Fragment } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
@@ -341,6 +342,20 @@ export function insertFigureAfter(state: EditorState, index: number, slash?: Sla
     ...image,
   }, slash);
   return tr.setSelection(TextSelection.create(tr.doc, tr.selection.from + 1));
+}
+
+/** Apply Figure properties as one Undo event, retaining omitted attributes and caption. */
+export function updateFigure(
+  state: EditorState,
+  position: number,
+  attributes: Partial<Omit<FigureContent, "caption">> & { label?: string },
+  caption?: Fragment,
+): Transaction {
+  const figure = state.doc.nodeAt(position);
+  if (figure?.type.name !== "figure") throw new Error("Figure target changed.");
+  if (caption === undefined) return closeHistory(state.tr.setNodeMarkup(position, undefined, { ...figure.attrs, ...attributes }));
+  const replacement = figure.type.create({ ...figure.attrs, ...attributes }, caption);
+  return closeHistory(state.tr.replaceWith(position, position + figure.nodeSize, replacement));
 }
 
 /** The new atom block is node-selected so its NodeView opens its authoring UI. */

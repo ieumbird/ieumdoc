@@ -225,6 +225,100 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
 
+  // Paste in a reserved caption and drop on a completely empty frame fill that Figure (#212).
+  // Repeat each gesture on its completed Figure: the existing image must never be overwritten.
+  const semanticJSON = value => JSON.stringify(value, (key, item) => key === 'sourcePath' ? undefined : item);
+  const caret = () => page.locator('.document-editor').evaluate(el => {
+    const selection = el.editor.state.selection;
+    return {parent:selection.$from.parent.type.name, sourcePath:selection.$from.parent.attrs.sourcePath, from:selection.from, to:selection.to};
+  });
+  const historyKey = async key => {
+    await page.locator('.document-editor').evaluate(el => el.editor.view.focus());
+    await page.keyboard.press(key);
+  };
+  for (const gesture of ['paste', 'drop']) {
+    await page.getByText('typed Alpha.', {exact:true}).hover();
+    await page.getByRole('button', {name:/Insert block after paragraph block/}).first().click();
+    await page.getByRole('menuitem', {name:'Paragraph', exact:true}).click();
+    await page.keyboard.type('/figure');
+    await page.getByRole('menuitem', {name:'Figure', exact:true}).click();
+    if (gesture === 'paste') {
+      await editFigure(0);
+      await page.getByTestId('figure-label').fill('fig-reserved');
+      await page.getByTestId('figure-caption').fill('Reserved caption');
+      await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
+    }
+    const beforeFill = await documentJSON();
+    const index = beforeFill.content.findIndex(node => node.type === 'figure' && !node.attrs.imageUrl);
+    const target = figures.first();
+    let pasteCaret;
+    const sendImage = async () => {
+      if (gesture === 'paste') {
+        await target.getByTestId('figure-caption-content').click();
+        await page.locator('.document-editor').evaluate(el => {
+          let position;
+          el.editor.state.doc.forEach((node, offset) => { if (position === undefined && node.type === el.editor.schema.nodes.figure) position = offset + 5; });
+          el.editor.commands.setTextSelection(position); el.editor.view.focus();
+        });
+        pasteCaret = await caret();
+        await page.evaluate(async source => {
+          const png = await (new Function(`return (${source})()`))();
+          await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+        }, blobSource);
+        await page.keyboard.press('Control+v');
+      } else {
+        await select('typed Alpha.');
+        const surface = target.getByTestId(await target.getByTestId('figure-no-content').count() ? 'figure-no-content' : 'figure-image');
+        await surface.scrollIntoViewIfNeeded();
+        const box = await surface.boundingBox();
+        await page.locator('.document-editor').evaluate(async (el, args) => {
+          const png = await (new Function(`return (${args.source})()`))();
+          const data = new DataTransfer(); data.items.add(new File([png], 'image.png', {type:'image/png'}));
+          el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
+        }, {source:blobSource, x:box.x + box.width / 2, y:box.y + box.height / 2});
+      }
+    };
+    const response = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
+    await sendImage(); await response; await waitIdle();
+    await target.getByTestId('figure-image').waitFor();
+    await page.waitForFunction(() => {
+      const image = document.querySelector('[data-block="figure"] [data-testid="figure-image"]');
+      return image?.complete && image.naturalWidth === 8;
+    });
+    const filled = await documentJSON();
+    const filledCaret = gesture === 'paste' ? await caret() : undefined;
+    if (gesture === 'paste') assert(pasteCaret.parent === 'figure' && JSON.stringify(filledCaret) === JSON.stringify(pasteCaret), `Paste fill keeps the caret at its original Figure caption position: ${JSON.stringify({before:pasteCaret, after:filledCaret})}`);
+    const expected = JSON.parse(JSON.stringify(beforeFill));
+    expected.content[index].attrs.imageUrl = filled.content[index].attrs.imageUrl;
+    assert(expected.content[index].attrs.imageUrl.startsWith('./assets/'), `${gesture} fills the reserved Figure`);
+    assert(JSON.stringify(filled) === JSON.stringify(expected), `${gesture} preserves caption, label and position without inserting a Figure`);
+    await historyKey('Control+z');
+    assert(JSON.stringify(await documentJSON()) === JSON.stringify(beforeFill), `One Undo restores the empty Figure after ${gesture}`);
+    await historyKey('Control+Shift+z');
+    assert(JSON.stringify(await documentJSON()) === JSON.stringify(filled), `Redo restores the filled Figure after ${gesture}`);
+
+    const second = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
+    await sendImage(); await second; await waitIdle();
+    const inserted = (await documentJSON()).content;
+    assert(inserted[index + 1]?.type === 'figure' && inserted[index + 1].attrs.imageUrl !== filled.content[index].attrs.imageUrl,
+      `${gesture} on a completed Figure inserts a new image Figure after it`);
+    inserted.splice(index + 1, 1);
+    assert(JSON.stringify(inserted) === JSON.stringify(filled.content), `${gesture} retains the completed Figure and surrounding blocks`);
+    await historyKey('Control+z');
+    await page.getByRole('button', {name:'Save', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+    const saved = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).document.blocks;
+    const savedFigure = saved[index];
+    assert(savedFigure?.block === 'figure' && savedFigure.imageUrl === filled.content[index].attrs.imageUrl &&
+      savedFigure.label === beforeFill.content[index].attrs.label && savedFigure.caption.text === (gesture === 'paste' ? 'Reserved caption' : ''),
+      `Save writes the filled Figure's image, caption, label and position after ${gesture}`);
+    await page.getByRole('button', {name:'File actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    assert(semanticJSON(await documentJSON()) === semanticJSON(filled), `Reload retains the filled Figure after ${gesture}`);
+  }
+  result.fillEmptyFigureAndKeepExistingImage = true;
+
   // Real document-relative loading, failure feedback and unchanged saved paths (#211).
   const pathsFile = [root, 'tmp', 'image-assets', 'paths.md'].join(separator);
   await openDocument(page, pathsFile);

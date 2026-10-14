@@ -1,10 +1,11 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS, isAssetMime, MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import type { AssetResponse, ImageChoiceRequest, ImageChoiceResponse } from "../shared/asset-protocol.ts";
-import { insertFigureAfter } from "./block-commands.ts";
+import { insertFigureAfter, updateFigure } from "./block-commands.ts";
 import { isInternalClipboard } from "./document-interaction.ts";
 
 type AssetHost = {
@@ -53,7 +54,7 @@ export const rollbackAsset = (created: AssetResponse, documentPath: string) => b
 
 /** Upload state lives only in the engine plugin; mapped positions are never persistent IDs. */
 export function imageAssetsPlugin(options: Options): Plugin {
-  type Pending = { anchor: number | null; selectionMoved: boolean } | null;
+  type Pending = { anchor: number | null; selectionMoved: boolean; emptyFigure?: ProseMirrorNode } | null;
   const key = new PluginKey<Pending>("imageAsset");
   const host = options.host ?? browserHost;
   let uploading = false, destroyed = false;
@@ -66,13 +67,18 @@ export function imageAssetsPlugin(options: Options): Plugin {
     try {
       const $pos = view.state.doc.resolve(position);
       const anchor = $pos.depth > 0 ? $pos.before(1) : Math.min(position, view.state.doc.content.size - view.state.doc.lastChild!.nodeSize);
-      view.dispatch(view.state.tr.setMeta(key, { anchor, selectionMoved: false }));
+      const target = view.state.doc.nodeAt(anchor);
+      const emptyFigure = target?.type.name === "figure" && !target.attrs.imageUrl ? target : undefined;
+      view.dispatch(view.state.tr.setMeta(key, { anchor, selectionMoved: false, emptyFigure }));
       created = await host.create(file, options.documentPath);
       const pending = key.getState(view.state);
       if (destroyed || !view.editable || pending?.anchor == null) throw new Error("Image insertion was cancelled because its Editor or target block changed.");
       const index = view.state.doc.resolve(pending.anchor).index(0);
-      const tr = insertFigureAfter(view.state, index, undefined, { imageUrl: created.path, imageAlt: "" });
-      const figure = tr.selection.$from.parent;
+      const image = { imageUrl: created.path, imageAlt: "" };
+      const tr = pending.emptyFigure
+        ? updateFigure(view.state, pending.anchor, image)
+        : insertFigureAfter(view.state, index, undefined, image);
+      const figure = pending.emptyFigure ? tr.doc.nodeAt(pending.anchor)! : tr.selection.$from.parent;
       if (figure.type.name !== "figure") throw new Error("Figure command did not produce an insertion.");
       const sourcePath = figure.attrs.sourcePath;
       // Upload completion must not steal a caret that moved while the request ran.
@@ -118,7 +124,11 @@ export function imageAssetsPlugin(options: Options): Plugin {
         if (meta !== undefined) return meta;
         if (!pending) return null;
         const mapped = pending.anchor == null ? null : tr.mapping.mapResult(pending.anchor, 1);
-        return { anchor: !mapped || mapped.deleted ? null : mapped.pos, selectionMoved: pending.selectionMoved || tr.selectionSet || tr.docChanged };
+        let anchor = !mapped || mapped.deleted ? null : mapped.pos;
+        // Filling is valid only for the unchanged empty Figure that received the gesture.
+        // Once changed/deleted, even Undo must not revive this upload's target.
+        if (anchor !== null && pending.emptyFigure && !tr.doc.nodeAt(anchor)?.eq(pending.emptyFigure)) anchor = null;
+        return { ...pending, anchor, selectionMoved: pending.selectionMoved || tr.selectionSet || tr.docChanged };
       },
     },
     view: () => ({ destroy() { destroyed = true; } }),
