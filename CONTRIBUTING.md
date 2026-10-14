@@ -50,7 +50,7 @@ pnpm --filter @ieumdoc/editor build
 
 로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
 
-CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 전체 테스트·Editor build·전체 browser 회귀, Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀, Windows Desktop 설치·업데이트·clean package·release 자산 검증·`test:packaged`를 실행하며 aggregate 필수 검사가 모두의 성공을 요구한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
+CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality(전체 테스트·typecheck·문서/issue 검사·Editor build)를 실행하고, PR에서는 아래 경로 요약에 따라 추가 job을 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
 
 | Change type | Required verification |
 | --- | --- |
@@ -66,6 +66,20 @@ CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데�
 | Desktop/update/release | 관련 Desktop tests/typecheck·browser 회귀. 패키징·배포 경계 변경 시 clean Windows package + artifact verification·`test:packaged`도 로컬 실행; updater/installer 변경 시 actual install/update regression도 실행. 해당 경계 변경이 없으면 패키징·설치/업데이트 회귀는 CI |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
+
+CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)이며, 다음 표는 요약이다. 여러 경로를 바꾸면 필요한 job의 합집합을 실행한다. `master` push와 PR 이외 이벤트는 경로와 무관하게 전체 job과 `test:update`를 실행한다. **미분류 경로가 하나라도 있으면 전체 실행**한다.
+
+| PR 변경 경로 요약 | quality 외 추가 검증 |
+| --- | --- |
+| `docs/**`, 루트·하위 `*.md`, `.github/ISSUE_TEMPLATE/**`만 변경 | 없음 (아래 패키지·공용 경로에 속하는 Markdown은 해당 경로 규칙 우선) |
+| `packages/cli/**` | http |
+| `apps/editor/**`, `packages/core/**`, `packages/file-commit/**` | browser, http, desktop |
+| `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
+| 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
+
+패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 2개 shard, http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
+
+필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push 실행은 커밋별로 유지한다.
 
 ## HTTP Host builds
 
