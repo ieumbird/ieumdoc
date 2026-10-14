@@ -1,5 +1,5 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
-async (page, { openDocument }) => {
+async (page, { openDocument, withBlockHover }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -19,80 +19,82 @@ async (page, { openDocument }) => {
   await page.getByTestId('folder').getByRole('treeitem',{name:'quiet-document.md',exact:true}).waitFor();
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
   const results=[];
-  for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
-    await page.setViewportSize({width,height:1000});
-    for(const collapsed of [false,true]) {
-      if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-      await page.mouse.move(width-2,2);
-      await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
-      const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
-      if(!rest.length || rest.some(n=>n.opacity!=='0'||n.pointer!=='none')) throw Error('Rest gutter must be invisible and inert');
-      const paragraph=page.locator('.document-editor > .paragraph').first();
-      const before=(await paragraph.boundingBox()).x;
-      await paragraph.hover();
-      const extent=page.getByTestId('block-hover-outline');
-      await extent.waitFor();
-      const contentExtent=await extent.boundingBox();
-      const controls=page.locator('.block-controls.visible').first();
-      for(const button of await controls.getByRole('button').all()) {
-        await button.hover();
-        if(!await extent.isVisible()||JSON.stringify(await extent.boundingBox())!==JSON.stringify(contentExtent))
-          throw Error(`Gutter hover changed extent at ${width}px (collapsed=${collapsed})`);
-      }
-      const controlsBox=await controls.boundingBox();
-      if(controlsBox.x+controlsBox.width>=contentExtent.x)throw Error('Expanded extent covers the gutter');
-      if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
-      const after=(await paragraph.boundingBox()).x;
-      const result=await page.evaluate(({collapsed,width})=>{
-        const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
-        const rect=s=>required(s).getBoundingClientRect();
-        const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
-        const selectors=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'];
-        const starts=selectors.map(s=>rect('.document-editor '+s).left);
-        const controls=rect('.block-controls.visible');
-        const standard=rect('[data-testid="save"]').height;
-        const compactSelectors=['.sidebar-header button','.sidebar-tool','.figure-edit','.equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
-        const compact=compactSelectors.flatMap(selector=>{
-          const nodes=[...document.querySelectorAll(selector)];
-          if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
-          return nodes.map(n=>n.getBoundingClientRect().height);
-        });
-        for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
-          if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
+  await withBlockHover(page, async () => {
+    for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
+      await page.setViewportSize({width,height:1000});
+      for(const collapsed of [false,true]) {
+        if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+        await page.mouse.move(width-2,2);
+        await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
+        const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
+        if(!rest.length || rest.some(n=>n.opacity!=='0'||n.pointer!=='none')) throw Error('Rest gutter must be invisible and inert');
+        const paragraph=page.locator('.document-editor > .paragraph').first();
+        const before=(await paragraph.boundingBox()).x;
+        await paragraph.hover();
+        const extent=page.getByTestId('block-hover-outline');
+        await extent.waitFor();
+        const contentExtent=await extent.boundingBox();
+        const controls=page.locator('.block-controls.visible').first();
+        for(const button of await controls.getByRole('button').all()) {
+          await button.hover();
+          if(!await extent.isVisible()||JSON.stringify(await extent.boundingBox())!==JSON.stringify(contentExtent))
+            throw Error(`Gutter hover changed extent at ${width}px (collapsed=${collapsed})`);
         }
-        // Every sidebar icon is 16px; top-level tree entries share one icon start and one text start.
-        const icons=collapsed?null:[...document.querySelectorAll('.sidebar-folder-name svg,.sidebar-tree-item svg')].map(n=>n.getBoundingClientRect());
-        const rowIcons=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-icon')].map(n=>n.getBoundingClientRect().x);
-        if(icons&&icons.length<2)throw Error('Missing expanded sidebar icons');
-        const labels=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-name')].map(n=>{
-          if(!n.textContent.trim())throw Error('Missing sidebar label');
-          return n.getBoundingClientRect().left;
-        });
-        // Expanded widths are adjustable values; the collapsed rail is fixed.
-        const token=name=>{const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();if(!v.endsWith('rem'))throw Error(`Unexpected ${name}: ${v}`);return parseFloat(v)*parseFloat(getComputedStyle(document.documentElement).fontSize);};
-        const sidebarWidth=rect('.sidebar').width;
-        const expectedSidebar=collapsed?token('--layout-sidebar-rail-width'):token(innerWidth<=1024?'--layout-sidebar-width-narrow':'--layout-sidebar-width');
-        // The document panel starts open (docked) from the 1280px docking width and closed below it,
-        // independently of the 1024px narrow sidebar.
-        const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
-        const panelWidth=panel?Math.min(panel.right,innerWidth+1)-panel.left:0;
-        const expectedPanel=innerWidth<1280?0:token('--layout-document-panel-width');
-        const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
-        const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
-        const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
-        const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
-        const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
-        if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
-        const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
-        return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
-      },{collapsed,width});
-      const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
-      // Below 704px the TopBar intentionally wraps; the sidebar header remains 48px.
-      if(fail||result.sidebarHeader!==48||(width>704&&result.header!==48)||(width<=704&&result.header<=48))throw Error(JSON.stringify(result));
-      results.push({...result,hoverShift:after-before});
-      if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+        const controlsBox=await controls.boundingBox();
+        if(controlsBox.x+controlsBox.width>=contentExtent.x)throw Error('Expanded extent covers the gutter');
+        if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
+        const after=(await paragraph.boundingBox()).x;
+        const result=await page.evaluate(({collapsed,width})=>{
+          const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
+          const rect=s=>required(s).getBoundingClientRect();
+          const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
+          const selectors=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'];
+          const starts=selectors.map(s=>rect('.document-editor '+s).left);
+          const controls=rect('.block-controls.visible');
+          const standard=rect('[data-testid="save"]').height;
+          const compactSelectors=['.sidebar-header button','.sidebar-tool','.figure-edit','.equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
+          const compact=compactSelectors.flatMap(selector=>{
+            const nodes=[...document.querySelectorAll(selector)];
+            if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
+            return nodes.map(n=>n.getBoundingClientRect().height);
+          });
+          for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
+            if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
+          }
+          // Every sidebar icon is 16px; top-level tree entries share one icon start and one text start.
+          const icons=collapsed?null:[...document.querySelectorAll('.sidebar-folder-name svg,.sidebar-tree-item svg')].map(n=>n.getBoundingClientRect());
+          const rowIcons=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-icon')].map(n=>n.getBoundingClientRect().x);
+          if(icons&&icons.length<2)throw Error('Missing expanded sidebar icons');
+          const labels=collapsed?null:[...document.querySelectorAll('.sidebar-tree-item[aria-level="1"] .sidebar-tree-name')].map(n=>{
+            if(!n.textContent.trim())throw Error('Missing sidebar label');
+            return n.getBoundingClientRect().left;
+          });
+          // Expanded widths are adjustable values; the collapsed rail is fixed.
+          const token=name=>{const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();if(!v.endsWith('rem'))throw Error(`Unexpected ${name}: ${v}`);return parseFloat(v)*parseFloat(getComputedStyle(document.documentElement).fontSize);};
+          const sidebarWidth=rect('.sidebar').width;
+          const expectedSidebar=collapsed?token('--layout-sidebar-rail-width'):token(innerWidth<=1024?'--layout-sidebar-width-narrow':'--layout-sidebar-width');
+          // The document panel starts open (docked) from the 1280px docking width and closed below it,
+          // independently of the 1024px narrow sidebar.
+          const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
+          const panelWidth=panel?Math.min(panel.right,innerWidth+1)-panel.left:0;
+          const expectedPanel=innerWidth<1280?0:token('--layout-document-panel-width');
+          const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
+          const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
+          const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
+          const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
+          const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
+          if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
+          const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
+          return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
+        },{collapsed,width});
+        const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
+        // Below 704px the TopBar intentionally wraps; the sidebar header remains 48px.
+        if(fail||result.sidebarHeader!==48||(width>704&&result.header!==48)||(width<=704&&result.header<=48))throw Error(JSON.stringify(result));
+        results.push({...result,hoverShift:after-before});
+        if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      }
     }
-  }
+  });
   // On a phone-width viewport the wrapped TopBar keeps every control inside the viewport, in order:
   // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
   for(const width of [414,375]) {

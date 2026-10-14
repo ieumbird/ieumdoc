@@ -4,7 +4,7 @@
 // a moved Equation or Figure is not opened for editing; undo/redo keep that; and a block with an
 // unapplied draft cannot be moved, so the draft is not lost. Nothing is saved. Scratch files live
 // under the repository's ignored tmp/ directory.
-async (page, { openDocument }) => {
+async (page, { openDocument, withBlockHover }) => {
   await page.unrouteAll();
   // The whole document fits, so nothing scrolls under the pointer mid-drag.
   await page.setViewportSize({width: 1280, height: 1600});
@@ -53,33 +53,38 @@ async (page, { openDocument }) => {
 
   // 1. While dragging the Equation: it is tinted, and the line sits centred in the gap above the target.
   const equationBox = await equation.boundingBox();
-  await grab(equation, /^Move equation block \d+$/);
-  const targetBox = await target.boundingBox();
-  await pointAt(targetBox.y + 3);
-  await line.waitFor();
-  result.hoverHiddenDuringDrag = !await page.getByTestId('block-hover-outline').isVisible();
-  const gap = await target.evaluate(node => ({top: node.previousElementSibling.getBoundingClientRect().bottom, bottom: node.getBoundingClientRect().top}));
-  const tintBox = await tint.boundingBox();
-  result.movedBlockTinted = Math.abs(tintBox.y - equationBox.y) <= 1 && Math.abs(tintBox.height - equationBox.height) <= 1;
-  result.lineCentredInGap = Math.abs(middle(await line.boundingBox()) - (gap.top + gap.bottom) / 2) <= 1;
+  const movedOrder = await withBlockHover(page, async () => {
+    await grab(equation, /^Move equation block \d+$/);
+    // A visible extent before dragging makes the suppression assertion non-vacuous.
+    await page.getByTestId('block-hover-outline').waitFor();
+    const targetBox = await target.boundingBox();
+    await pointAt(targetBox.y + 3);
+    await line.waitFor();
+    result.hoverHiddenDuringDrag = !await page.getByTestId('block-hover-outline').isVisible();
+    const gap = await target.evaluate(node => ({top: node.previousElementSibling.getBoundingClientRect().bottom, bottom: node.getBoundingClientRect().top}));
+    const tintBox = await tint.boundingBox();
+    result.movedBlockTinted = Math.abs(tintBox.y - equationBox.y) <= 1 && Math.abs(tintBox.height - equationBox.height) <= 1;
+    result.lineCentredInGap = Math.abs(middle(await line.boundingBox()) - (gap.top + gap.bottom) / 2) <= 1;
 
-  // 2. Over its own position there is no line, and nothing else is shown as a destination.
-  await pointAt(middle(equationBox));
-  await line.waitFor({state:'detached'});
-  result.noLineInPlace = await line.count() === 0 && await tint.count() === 1;
+    // 2. Over its own position there is no line, and nothing else is shown as a destination.
+    await pointAt(middle(equationBox));
+    await line.waitFor({state:'detached'});
+    result.noLineInPlace = await line.count() === 0 && await tint.count() === 1;
 
-  // 3. Dropping moves it without opening the Equation editor.
-  await pointAt(targetBox.y + 3);
-  await line.waitFor();
-  await page.mouse.up();
-  await tint.waitFor({state:'detached'});
-  const movedOrder = await order();
-  result.equationMoved = movedOrder !== original &&
-    await target.evaluate(node => node.previousElementSibling.querySelector('[data-block="equation"]') !== null);
-  result.equationNotEditing = await equation.getAttribute('data-editing') === 'false' &&
-    await page.getByTestId('equation-editor').count() === 0 && await line.count() === 0;
-  result.saveStillAvailable = await page.getByTestId('status').innerText() === 'Unsaved changes' &&
-    await page.locator('.top-bar [data-testid="save"]').getAttribute('aria-disabled') === null;
+    // 3. Dropping moves it without opening the Equation editor.
+    await pointAt(targetBox.y + 3);
+    await line.waitFor();
+    await page.mouse.up();
+    await tint.waitFor({state:'detached'});
+    const movedOrder = await order();
+    result.equationMoved = movedOrder !== original &&
+      await target.evaluate(node => node.previousElementSibling.querySelector('[data-block="equation"]') !== null);
+    result.equationNotEditing = await equation.getAttribute('data-editing') === 'false' &&
+      await page.getByTestId('equation-editor').count() === 0 && await line.count() === 0;
+    result.saveStillAvailable = await page.getByTestId('status').innerText() === 'Unsaved changes' &&
+      await page.locator('.top-bar [data-testid="save"]').getAttribute('aria-disabled') === null;
+    return movedOrder;
+  });
 
   // 4. The next drag starts right after a drop, and a moved Figure is not selected either, so its
   // properties do not open.

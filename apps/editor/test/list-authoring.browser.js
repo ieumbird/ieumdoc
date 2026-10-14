@@ -1,7 +1,7 @@
 // Run with pnpm browser:test list-authoring.
 // Edits list items with the keyboard (Enter, Tab, Enter on an empty item), inserts a numbered
 // list from the slash menu, saves a scratch Markdown file, and reloads it.
-async (page, { openDocument }) => {
+async (page, { openDocument, withBlockHover }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
@@ -52,22 +52,24 @@ async (page, { openDocument }) => {
   await nested.waitFor({state:'visible'});
   const tabNested = await nested.count() === 1 && await nested.innerText() === 'Check';
   // Hovering a nested item uses the top-level list's gutter extent, never the inner item.
-  await nested.hover();
-  const extent = page.getByTestId('block-hover-outline');
-  await extent.waitFor();
-  const listBox = await list.boundingBox(), extentBox = await extent.boundingBox();
-  const gaps = await extent.evaluate(n => {
-    const probe = document.createElement('span');
-    probe.style.padding = 'var(--space-block-hover-block) var(--space-block-hover-inline)';
-    n.append(probe); const style = getComputedStyle(probe);
-    const result = {inline:parseFloat(style.paddingLeft), block:parseFloat(style.paddingTop)};
-    probe.remove(); return result;
+  await withBlockHover(page, async () => {
+    await nested.hover();
+    const extent = page.getByTestId('block-hover-outline');
+    await extent.waitFor();
+    const listBox = await list.boundingBox(), extentBox = await extent.boundingBox();
+    const gaps = await extent.evaluate(n => {
+      const probe = document.createElement('span');
+      probe.style.padding = 'var(--space-block-hover-block) var(--space-block-hover-inline)';
+      n.append(probe); const style = getComputedStyle(probe);
+      const result = {inline:parseFloat(style.paddingLeft), block:parseFloat(style.paddingTop)};
+      probe.remove(); return result;
+    });
+    const expectedExtent = {x:listBox.x - gaps.inline, y:listBox.y - gaps.block,
+      width:listBox.width + 2 * gaps.inline, height:listBox.height + 2 * gaps.block};
+    if (!['x','y','width','height'].every(k => Math.abs(expectedExtent[k] - extentBox[k]) < 0.1)) {
+      throw new Error(`Nested item hover must outline the top-level list: ${JSON.stringify({listBox,extentBox})}`);
+    }
   });
-  const expectedExtent = {x:listBox.x - gaps.inline, y:listBox.y - gaps.block,
-    width:listBox.width + 2 * gaps.inline, height:listBox.height + 2 * gaps.block};
-  if (!['x','y','width','height'].every(k => Math.abs(expectedExtent[k] - extentBox[k]) < 0.1)) {
-    throw new Error(`Nested item hover must outline the top-level list: ${JSON.stringify({listBox,extentBox})}`);
-  }
 
   // Enter twice after "Power": the empty item leaves the list as a paragraph.
   await caretAtEnd('Power');
