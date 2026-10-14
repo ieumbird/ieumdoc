@@ -37,11 +37,12 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       return result;
     };
     let pointer: { x: number; y: number } | null = null;
-    // Selection can reveal controls, but only the pointer inside a block reveals its extent.
+    // The block row includes its gutter controls; selection never supplies a hover extent.
     const updateHovered = (rects = rectangles()) => {
       const point = pointer;
-      setHovered(point && !drag.current ? rects.findIndex(rect =>
-        point.x >= rect.left && point.x <= rect.right &&
+      const bounds = host.getBoundingClientRect();
+      setHovered(point && !drag.current && point.x >= bounds.left && point.x <= bounds.right &&
+        point.y >= bounds.top && point.y <= bounds.bottom ? rects.findIndex(rect =>
         point.y >= rect.top && point.y <= rect.bottom) : -1);
     };
     const leave = () => { pointer = null; setHovered(-1); };
@@ -157,7 +158,8 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       </div>;
     })}
     {!moving && blocks[hovered] && <div className="block-hover-outline" data-testid="block-hover-outline" aria-hidden="true"
-      style={{top: blocks[hovered].top, height: blocks[hovered].height}} />}
+      style={{top: `calc(${blocks[hovered].top}px - var(--space-block-hover-block))`,
+        height: `calc(${blocks[hovered].height}px + 2 * var(--space-block-hover-block))`}} />}
     {moving && <div className="block-drag-source" data-testid="block-drag-source" style={moving} />}
     {dropTop !== null && <div className="block-drop-line" data-testid="block-drop-line" style={{top: dropTop}} />}
   </div>;

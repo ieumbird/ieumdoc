@@ -1419,8 +1419,10 @@ ol.list { list-style: decimal; }
   pointer-events: none;
 }
 
-/* Inset neutral extent; the blue selected/editing outline stays outside the block. */
+/* Expand the measured block rectangle without changing content layout or pointer targets. */
 .block-hover-outline {
+  left: calc(var(--layout-document-gutter) - var(--space-block-hover-inline));
+  right: calc(var(--layout-document-inline-padding) - var(--space-block-hover-inline));
   border-radius: var(--id-radius-block-hover);
   box-shadow: inset 0 0 0 var(--size-block-hover-outline) var(--id-color-block-hover-outline);
 }

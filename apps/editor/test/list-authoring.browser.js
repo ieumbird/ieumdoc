@@ -56,7 +56,16 @@ async (page, { openDocument }) => {
   const extent = page.getByTestId('block-hover-outline');
   await extent.waitFor();
   const listBox = await list.boundingBox(), extentBox = await extent.boundingBox();
-  if (!['x','y','width','height'].every(k => Math.abs(listBox[k] - extentBox[k]) < 0.1)) {
+  const gaps = await extent.evaluate(n => {
+    const probe = document.createElement('span');
+    probe.style.padding = 'var(--space-block-hover-block) var(--space-block-hover-inline)';
+    n.append(probe); const style = getComputedStyle(probe);
+    const result = {inline:parseFloat(style.paddingLeft), block:parseFloat(style.paddingTop)};
+    probe.remove(); return result;
+  });
+  const expectedExtent = {x:listBox.x - gaps.inline, y:listBox.y - gaps.block,
+    width:listBox.width + 2 * gaps.inline, height:listBox.height + 2 * gaps.block};
+  if (!['x','y','width','height'].every(k => Math.abs(expectedExtent[k] - extentBox[k]) < 0.1)) {
     throw new Error(`Nested item hover must outline the top-level list: ${JSON.stringify({listBox,extentBox})}`);
   }
 

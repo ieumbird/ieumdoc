@@ -9,10 +9,13 @@
   /* Paper corners and gentle elevation; overlays keep their own radius and shadow. */
   --id-radius-paper: 0.375rem;
   --shadow-paper: 0 2px 8px rgb(32 36 44 / 6%);
-  /* Pointer-hovered top-level block extent: a thin neutral inset, separate from blue selection. */
+  /* Pointer-hovered top-level block extent: neutral stroke with breathing room around content. */
   --id-color-block-hover-outline: var(--id-color-border-strong);
   --size-block-hover-outline: 1px;
   --id-radius-block-hover: var(--id-radius-sm);
+  /* Expand only the overlay; keep the gutter handles and neighboring blocks clear. */
+  --space-block-hover-inline: var(--space-2);
+  --space-block-hover-block: var(--space-1);
   /* Document column, outer insets included. Standard keeps a readable measure (736px of text
    * at 1440px); Wide is the user's Wide document preference and is capped by the window. */
   --layout-content-width: 58rem;

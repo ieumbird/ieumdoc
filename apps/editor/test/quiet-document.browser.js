@@ -98,16 +98,19 @@ async (page, { screenshots = false, openDocument }) => {
     probe.style.boxShadow = 'inset 0 0 0 var(--size-block-hover-outline) var(--id-color-block-hover-outline)';
     probe.style.borderRadius = 'var(--id-radius-block-hover)';
     probe.style.color = 'var(--id-color-block-hover-outline)';
+    probe.style.padding = 'var(--space-block-hover-block) var(--space-block-hover-inline)';
     document.body.append(probe);
     const expected = getComputedStyle(probe), actual = getComputedStyle(n);
     const result = {shadow:actual.boxShadow, radius:actual.borderRadius, pointer:actual.pointerEvents,
-      expectedShadow:expected.boxShadow, expectedRadius:expected.borderRadius, neutral:expected.color};
+      expectedShadow:expected.boxShadow, expectedRadius:expected.borderRadius, neutral:expected.color,
+      inlineGap:parseFloat(expected.paddingLeft), blockGap:parseFloat(expected.paddingTop)};
     probe.style.color = 'var(--id-color-interaction)';
     result.interaction = getComputedStyle(probe).color;
     probe.remove(); return result;
   });
   check(hoverStyle.shadow === hoverStyle.expectedShadow && hoverStyle.radius === hoverStyle.expectedRadius &&
-    hoverStyle.pointer === 'none' && hoverStyle.neutral !== hoverStyle.interaction, `Hover roles/overlay: ${JSON.stringify(hoverStyle)}`);
+    hoverStyle.pointer === 'none' && hoverStyle.neutral !== hoverStyle.interaction &&
+    hoverStyle.inlineGap > 0 && hoverStyle.blockGap > 0, `Hover roles/overlay: ${JSON.stringify(hoverStyle)}`);
   const pointerExtent = await extent.boundingBox();
   await page.locator('.document-editor').evaluate(n => n.editor.commands.setNodeSelection(0));
   check(await extent.isVisible() && JSON.stringify(await extent.boundingBox()) === JSON.stringify(pointerExtent) &&
@@ -118,15 +121,37 @@ async (page, { screenshots = false, openDocument }) => {
     [page.getByTestId('figure-image'), page.locator('.figure')],
     [page.locator('.table [data-table-cell]').first(), page.locator('.table-block')]]) {
     await target.hover(); await extent.waitFor();
-    const actual = await extent.boundingBox(), expected = await block.boundingBox();
+    const actual = await extent.boundingBox(), content = await block.boundingBox();
+    const expected = {x:content.x - hoverStyle.inlineGap, y:content.y - hoverStyle.blockGap,
+      width:content.width + 2 * hoverStyle.inlineGap, height:content.height + 2 * hoverStyle.blockGap};
     check(['x','y','width','height'].every(k => Math.abs(actual[k] - expected[k]) < 0.1),
       `Hover did not outline the top-level block: ${JSON.stringify({actual,expected})}`);
   }
   await hoverParagraph.hover();
   const paragraphBox = await hoverParagraph.boundingBox();
-  // Leaving the block horizontally inside the paper, entering its gap, or leaving the paper clears it.
-  for (const [x,y] of [[paragraphBox.x + paragraphBox.width + 8, paragraphBox.y + 4],
-    [paragraphBox.x + 4, paragraphBox.y + paragraphBox.height + 2], [0,0]]) {
+  const rowExtent = await extent.boundingBox();
+  const controls = page.locator('.block-controls').filter({has:page.getByRole('button', {name:/^Move paragraph block \d+$/})}).first();
+  for (const control of [controls.locator('.block-insert'), controls.locator('.block-handle')]) {
+    await control.hover();
+    check(await extent.isVisible() && JSON.stringify(await extent.boundingBox()) === JSON.stringify(rowExtent),
+      'Gutter hover lost or changed the block extent');
+    const controlBox = await control.boundingBox();
+    check(controlBox.x + controlBox.width < rowExtent.x && await control.evaluate(n => {
+      const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return hit === n || n.contains(hit);
+    }), 'Expanded extent covers a gutter control');
+  }
+  check(JSON.stringify(await textGeometry()) === JSON.stringify(textBeforeHover), 'Gutter hover moved text (expected 0px)');
+  const adjacentGaps = await hoverParagraph.evaluate(n => {
+    const r = n.getBoundingClientRect();
+    return [r.top - n.previousElementSibling.getBoundingClientRect().bottom,
+      n.nextElementSibling.getBoundingClientRect().top - r.bottom];
+  });
+  check(adjacentGaps.every(gap => gap > 2 * hoverStyle.blockGap), 'Expanded extents overlap neighboring blocks');
+  // The whole row inside the paper stays active, but gaps and coordinates outside the host do not.
+  await page.mouse.move(paragraphBox.x + paragraphBox.width + hoverStyle.inlineGap, paragraphBox.y + 4);
+  check(await extent.isVisible(), 'Trailing row hover lost the extent');
+  for (const [x,y] of [[paragraphBox.x + 4, paragraphBox.y + paragraphBox.height + 2], [0,0]]) {
     await hoverParagraph.hover(); await extent.waitFor(); await page.mouse.move(x,y);
     await extent.waitFor({state:'hidden'});
   }
@@ -142,7 +167,8 @@ async (page, { screenshots = false, openDocument }) => {
   }
   await page.locator('.document-editor').evaluate(n => n.editor.commands.setTextSelection(1));
   await rest();
-  results.push({hoverStyle, hoverTextShift:0, pointerIndependentOfSelection:true, topLevelCellExtent:true, noHoverHidden:true});
+  results.push({hoverStyle, hoverTextShift:0, gutterHoverRetainsExtent:true, adjacentGaps,
+    pointerIndependentOfSelection:true, topLevelCellExtent:true, noHoverHidden:true});
   const metadata=page.locator('.block-metadata');
   const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
   check(metadataState.length===await page.locator('[data-block="figure"], [data-block="equation"], [data-block="table"]').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');

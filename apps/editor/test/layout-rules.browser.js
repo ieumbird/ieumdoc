@@ -30,8 +30,17 @@ async (page, { openDocument }) => {
       const paragraph=page.locator('.document-editor > .paragraph').first();
       const before=(await paragraph.boundingBox()).x;
       await paragraph.hover();
+      const extent=page.getByTestId('block-hover-outline');
+      await extent.waitFor();
+      const contentExtent=await extent.boundingBox();
       const controls=page.locator('.block-controls.visible').first();
-      await controls.getByRole('button').first().hover();
+      for(const button of await controls.getByRole('button').all()) {
+        await button.hover();
+        if(!await extent.isVisible()||JSON.stringify(await extent.boundingBox())!==JSON.stringify(contentExtent))
+          throw Error(`Gutter hover changed extent at ${width}px (collapsed=${collapsed})`);
+      }
+      const controlsBox=await controls.boundingBox();
+      if(controlsBox.x+controlsBox.width>=contentExtent.x)throw Error('Expanded extent covers the gutter');
       if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
       const after=(await paragraph.boundingBox()).x;
       const result=await page.evaluate(({collapsed,width})=>{
