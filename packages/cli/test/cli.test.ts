@@ -20,6 +20,7 @@ import {
   validateStructure,
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
+import { runCli } from "../src/cli.ts";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
@@ -41,7 +42,7 @@ test("serve help explains the boundary and invalid invocation never starts a lis
   assert.match(help.stdout, /--root.*--root/);
   assert.match(help.stdout, /127\.0\.0\.1/);
   for (const args of [[], ["--port", "0"], ["--port", "1.5"], ["--port", "5180", "--port", "5181"], ["--unknown", "x"], ["--root"]]) {
-    const result = run(["serve", ...args]);
+    const result = runProcess(["serve", ...args]);
     assert.notEqual(result.status, 0, args.join(" "));
     assert.doesNotMatch(result.stdout, /IeumDoc HTTP:/);
   }
@@ -74,7 +75,7 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
     const args = ["insert-block", file, "--at", "2", "--text", INSERTED];
     const inspected = run(["inspect", file, "--format", "json"]);
     assert.equal(inspected.status, 0, inspected.stderr);
-    const changed = run([...args, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
+    const changed = runProcess([...args, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
       ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
     });
     assert.equal(changed.status, 1, changed.stderr);
@@ -132,7 +133,7 @@ test("CLI can check and modify a real file through Core", () => {
 
 test("ieumdoc help exits successfully", () => {
   for (const args of [[], ["help"], ["--help"], ["-h"]] as const) {
-    const result = run([...args]);
+    const result = runProcess([...args]);
     if (args.length === 0) {
       assert.equal(result.status, 2);
       assert.equal(result.stdout, "");
@@ -718,11 +719,11 @@ test("CLI update-figure changes Figure properties through Core and preserves the
 });
 
 test("unknown command exits 2", () => {
-  const result = run(["no-such-command"]);
+  const result = runProcess(["no-such-command"]);
   assert.equal(result.status, 2);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /unknown command: no-such-command/);
-  assert.equal(run(["help", "no-such-command"]).status, 2);
+  assert.equal(runProcess(["help", "no-such-command"]).status, 2);
 });
 
 test("inspect prints Core editable targets", () => {
@@ -875,7 +876,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
     // The preload changes the disk after the first read: nodes and revision still
     // describe that single original read, never a later version of the file.
     const external = nativeSource("## Edited elsewhere\n");
-    const snapshot = run(["inspect", file, "--format", "json"],
+    const snapshot = runProcess(["inspect", file, "--format", "json"],
       ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
         ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file,
         IEUMDOC_TEST_REPLACEMENT: Buffer.from(external).toString("base64"),
@@ -1093,7 +1094,25 @@ test("insert-target and update-label label a section that {ref} references name"
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-function run(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv) {
+// Tests in this file run serially; capture only during the synchronous invocation.
+function run(args: string[]) {
+  const stdoutWrite = process.stdout.write;
+  const stderrWrite = process.stderr.write;
+  let stdout = "";
+  let stderr = "";
+  try {
+    process.stdout.write = (chunk) => { stdout += chunk; return true; };
+    process.stderr.write = (chunk) => { stderr += chunk; return true; };
+    const status = runCli(args);
+    return { status, stdout, stderr };
+  } finally {
+    process.stdout.write = stdoutWrite;
+    process.stderr.write = stderrWrite;
+  }
+}
+
+// Keep process exit delivery, serve, and Node preload/env isolation on the executable path.
+function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
   return spawnSync(process.execPath, [tsxCli, ...nodeArgs, cli, ...args], {
@@ -1377,7 +1396,7 @@ test("native create and admission keep existing files intact and report structur
     assert.equal(created.status, 0, created.stderr);
     const source = readFileSync(file, "utf8");
     assert.deepEqual(getEditableDocument(parse(source)).blocks, []);
-    assert.equal(run(["create", file]).status, 1);
+    assert.equal(runProcess(["create", file]).status, 1);
     assert.equal(readFileSync(file, "utf8"), source);
     const nested = path.join(dir, "missing", "new.md");
     assert.equal(run(["create", nested]).status, 1);
