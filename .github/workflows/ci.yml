@@ -9,7 +9,77 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    name: Detect affected CI jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      browser: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.browser == 'true' }}
+      http: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.http == 'true' }}
+      desktop: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.desktop == 'true' }}
+      update: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.update == 'true' }}
+    steps:
+      # PR files come from the API; other events always run the full suite.
+      - name: Filter pull request paths
+        if: github.event_name == 'pull_request'
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            # Package Markdown may be a fixture or distribution input.
+            browser:
+              - 'apps/editor/**'
+              - 'packages/core/**'
+              - 'packages/file-commit/**'
+            http:
+              - 'packages/cli/**'
+              - 'apps/editor/**'
+              - 'packages/core/**'
+              - 'packages/file-commit/**'
+            desktop:
+              - 'apps/desktop/**'
+              - 'apps/editor/**'
+              - 'packages/core/**'
+              - 'packages/file-commit/**'
+            update:
+              - 'apps/desktop/**'
+            shared:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
+              - 'tsconfig*'
+              - '.github/workflows/**'
+              - 'scripts/**'
+            # An inclusion plus exclusions is required by some-with-excludes.
+            # Any file outside ALL known categories forces the full suite.
+            unknown:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!packages/cli/**'
+              - '!apps/editor/**'
+              - '!packages/core/**'
+              - '!packages/file-commit/**'
+              - '!apps/desktop/**'
+              - '!package.json'
+              - '!pnpm-lock.yaml'
+              - '!pnpm-workspace.yaml'
+              - '!patches/**'
+              - '!tsconfig*'
+              - '!.github/workflows/**'
+              - '!scripts/**'
+
   quality:
     name: Core, CLI, Editor, and Desktop quality
     runs-on: ubuntu-latest
@@ -55,6 +125,8 @@ jobs:
 
   browser:
     name: Editor browser regressions (${{ matrix.shard }}/2)
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -110,6 +182,8 @@ jobs:
 
   http:
     name: HTTP Host package and browser (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.http == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -155,6 +229,8 @@ jobs:
 
   desktop:
     name: Windows Desktop package and update regressions
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
@@ -171,6 +247,7 @@ jobs:
       - run: pnpm --filter @ieumdoc/desktop typecheck
       - run: pnpm --filter @ieumdoc/desktop test
       - name: Install and update through a local test feed
+        if: needs.changes.outputs.update == 'true'
         run: pnpm --filter @ieumdoc/desktop test:update
       - name: Build a clean package from the actual app version
         run: pnpm --filter @ieumdoc/desktop package
@@ -204,20 +281,31 @@ jobs:
 
   quality-and-browser:
     name: Core, CLI, Editor, and browser regressions
-    needs: [quality, browser, desktop, http]
+    needs: [changes, quality, browser, desktop, http]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require all checks to pass
+        if: ${{ always() }}
         shell: bash
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           DESKTOP_RESULT: ${{ needs.desktop.result }}
           HTTP_RESULT: ${{ needs.http.result }}
         run: |
-          if [[ "$QUALITY_RESULT" != "success" || "$BROWSER_RESULT" != "success" || "$DESKTOP_RESULT" != "success" || "$HTTP_RESULT" != "success" ]]; then
-            echo "Required checks did not all succeed: quality=$QUALITY_RESULT browser=$BROWSER_RESULT desktop=$DESKTOP_RESULT http=$HTTP_RESULT"
+          if [[ "$CHANGES_RESULT" != "success" || "$QUALITY_RESULT" != "success" ]]; then
+            echo "Required checks did not succeed: changes=$CHANGES_RESULT quality=$QUALITY_RESULT"
             exit 1
           fi
+          for result in "$BROWSER_RESULT" "$HTTP_RESULT" "$DESKTOP_RESULT"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "Selected checks did not succeed: browser=$BROWSER_RESULT http=$HTTP_RESULT desktop=$DESKTOP_RESULT"
+              exit 1
+            fi
+          done
+      - name: Reject a cancelled workflow
+        if: ${{ cancelled() }}
+        run: exit 1
