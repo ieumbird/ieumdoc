@@ -1,7 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#232 native admission and canonical write boundary).
+- Last verified: 2026-10-14 (#232 native admission and canonical write boundary; #236 explicit Open refusal Alert and state/focus retention).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 ## Contract
@@ -45,6 +45,8 @@ Ordinary Markdown images, task lists, unsupported roles/directives, attributes o
 - Core native errors have stable codes `native-marker`, `native-metadata`, `native-content`, a reason, corrective action and a snapshot path/source line where identified. `canonicalWriteIssue` and `writeIssueOf` retain write diagnostics separately from native support failures.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
 - Shared Host Open/Reload/Save/Source and asset creation use Core admission. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
+- Editor explicit Open (sidebar file selection and the start screen's sample action) shows a modal Alert for Host errors whose code is `native-*`. It names the rejected file, displays Core's reason and corrective action, and states that the current document has not changed (or that no document opened). One OK button or Escape closes it and returns focus to the opening control. The same refusal is not repeated in the top error message. Other Open failures, startup failures and Reload failures retain their existing error presentation. The existing unsaved-work guard still blocks Open before reading another file.
+- Folder browsing lists names without reading or classifying document contents. Open folder remains a folder picker and has no document-opening or admission Alert behavior.
 - Whole-document Source previews the applied native document through Core without writing. It retains visual editor state and unapplied property drafts. `replaceBlockSource`, CLI `replace-block-source`, Host source-apply/replay and Editor Edit source are removed.
 
 ## Canonical output and compatibility

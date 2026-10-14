@@ -82,7 +82,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["code-highlighting"],
   },
   "writeability-preflight": {
-    files: [fixture("writable.md"), fixture("blocked-markdown.md")],
+    files: [fixture("writable.md"), fixture("blocked-markdown.md"),
+      { name: "unsupported-syntax.md", create: () => nativeSource("- [ ] Unsupported task\n") }],
     scenarios: ["writeability-preflight"],
   },
   "figure-authoring": {

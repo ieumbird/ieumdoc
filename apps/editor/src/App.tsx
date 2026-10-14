@@ -85,6 +85,8 @@ export function App() {
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
+  const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string } | null>(null);
+  const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
   const [status, setStatus] = useState("Loading…");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -142,8 +144,8 @@ export function App() {
   busyRef.current = busy;
   const switching = status === "Loading…" || status === "Opening…" || status === "Creating…";
 
-  /** Resolves to an error message for a requested path, or "" on success. */
-  async function load(requestedPath?: string): Promise<string> {
+  /** Resolves to an error message, "" on success, or null for an Open refusal shown in the dialog. */
+  async function load(requestedPath?: string, openReturnFocus?: HTMLElement | null): Promise<string | null> {
     setError("");
     setNotice("");
     setStatus(requestedPath ? "Opening…" : "Loading…");
@@ -170,11 +172,17 @@ export function App() {
       const message = messageOf(cause);
       if (!requestedPath) setError(message);
       setStatus(requestedPath ? "Open failed" : "Load failed");
+      // Only explicit Open uses the Alert. Startup and Reload keep their existing errors.
+      if (requestedPath && openReturnFocus !== undefined && cause instanceof NativeOpenError) {
+        openRefusalReturnFocus.current = openReturnFocus;
+        setOpenRefusal({ path: requestedPath, reason: cause.reason, action: cause.action });
+        return null;
+      }
       return message;
     }
   }
 
-  async function openFile(path: string): Promise<string> {
+  async function openFile(path: string): Promise<string | null> {
     const requestedPath = unquotePath(path);
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
@@ -182,7 +190,7 @@ export function App() {
     if (editorRef.current?.hasUnsavedChanges()) {
       return "Save or discard the current changes before opening another file.";
     }
-    return load(requestedPath);
+    return load(requestedPath, globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null);
   }
 
   /** Lists the folder the user chose; it becomes the sidebar folder on success. */
@@ -304,7 +312,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (folderDialog || newDialog || newFolderDialog || reloadDialog) return;
+    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal) return;
     void save();
   };
   useEffect(() => {
@@ -508,7 +516,7 @@ export function App() {
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
               onOpenSample={(sample) => void openFile(sample).then((message) => {
                 if (message) setError(message);
-                else setNotice("This is the sample document, a copy in IeumDoc's app data.");
+                else if (message === "") setNotice("This is the sample document, a copy in IeumDoc's app data.");
               })}
             />
           ) : null}
@@ -628,6 +636,22 @@ export function App() {
         returnFocus={newFolderButton}
         onClose={() => setNewFolderDialog(false)}
       />
+      <Dialog open={openRefusal !== null} onOpenChange={(open) => { if (!open) setOpenRefusal(null); }}>
+        <DialogContent showCloseButton={false} finalFocus={openRefusalReturnFocus}>
+          <DialogHeader>
+            <DialogTitle>Cannot open document</DialogTitle>
+            <DialogDescription render={<div />} className="grid gap-4 break-words">
+              <p>“{openRefusal ? splitDocumentPath(openRefusal.path).name : ""}” is not a supported IeumDoc document.</p>
+              <p>{openRefusal?.reason}</p>
+              <p>{openRefusal?.action}</p>
+              <p>{document ? "Your current document has not changed." : "No document was opened."}</p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button size="sm" onClick={() => setOpenRefusal(null)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>
         <DialogContent showCloseButton={false} finalFocus={fileActionsToggle}>
           <DialogHeader>
@@ -645,6 +669,9 @@ export function App() {
 }
 
 type DocumentResponse = DocumentFileResponse;
+
+/** The Host's Core admission failure, identified by code rather than message text. */
+class NativeOpenError extends SaveContentError {}
 
 class SaveConflictError extends SaveContentError {
   constructor(message: string) {
@@ -676,6 +703,9 @@ async function requestDocument(
       ...(Array.isArray(payload.allowedRoots) && payload.allowedRoots.every(root => typeof root === "string") ? { allowedRoots: payload.allowedRoots } : {}) };
   }
   if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
+    if (!response.ok && method === "GET" && payload.code?.startsWith("native-")) {
+      throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.target, { action: payload.issue?.action });
+    }
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
   }
   return {
