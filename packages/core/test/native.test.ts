@@ -4,6 +4,7 @@ import {
   createDocument, parse, serialize, getEditableDocument, NativeDocumentError, canonicalWriteIssue,
   insertHeading, insertParagraph, insertFigure, updateHeadingNumbering, removeBlock,
   updateHeadingInlineContent, updateHeadingLevel, insertFootnote, updateParagraphInlineContent, moveBlock,
+  insertTarget, moveSection, removeSection, updateNodeTextAtPath, updateTableCell, mergeParagraphWithPrevious,
 } from "@ieumdoc/core";
 
 const native = (body: string) => `---\nieumdoc: 1\n---\n\n${body}`;
@@ -63,6 +64,28 @@ test("creation and authoring retain the marker, including empty Figures and unre
   assert.match(source, /^---\nieumdoc: 1\nnumbering:\n  headings: true\n  title: false\n---/);
   assert.equal(serialize(parse(source)), source);
   assert.equal(canonicalWriteIssue(document), undefined);
-  assert.throws(() => serialize(removeBlock(document, 0)), NativeDocumentError);
-  assert.match(canonicalWriteIssue(removeBlock(document, 0))?.reason ?? "", /frontmatter/);
+  assert.throws(() => removeBlock(document, 0), /block 0 is the document metadata; body blocks start at 1/);
+});
+
+test("body operations reject metadata indices and paths before mutation or round-trip checks", () => {
+  const empty = createDocument();
+  const document = parse(native("# Title\n\nBody.\n"));
+  const message = "block 0 is the document metadata; body blocks start at 1";
+  for (const operation of [
+    () => insertParagraph(empty, 0, "Hello"),
+    () => insertHeading(empty, 0, 1, "Title"),
+    () => insertTarget(document, 0, "intro"),
+    () => moveBlock(document, 0, 1),
+    () => moveBlock(document, 1, 0),
+    () => mergeParagraphWithPrevious(document, [0]),
+    () => updateNodeTextAtPath(document, [0], "1", "2"),
+    () => updateNodeTextAtPath(document, [0, 0], "1", "2"),
+    () => updateTableCell(document, [0, 0, 0], "Cell"),
+    () => insertFootnote(document, [0], 0, [{ kind: "text", text: "Note" }]),
+    () => moveSection(document, 0, 3),
+    () => moveSection(document, 1, 0),
+    () => removeSection(document, 0),
+  ]) assert.throws(operation, { message });
+  assert.throws(() => mergeParagraphWithPrevious(parse(native("Body.\n")), [1]), /merge requires a previous paragraph/);
+  assert.equal(serialize(document), native("# Title\n\nBody.\n"));
 });
