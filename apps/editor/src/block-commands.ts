@@ -869,7 +869,9 @@ export function slashQueryAt(state: EditorState): SlashQuery | null {
   const { $from } = selection;
   if ($from.depth !== 1 || $from.parent.type.name !== "paragraph") return null;
   const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\n");
-  const match = /(?:^|\s)\/([^\s/]*)$/.exec(before);
+  // Keep a display prefix and its number in one query, including the intermediate space.
+  // Other slash commands still end at whitespace rather than consuming subsequent prose.
+  const match = /(?:^|\s)\/([^\s/]*|(?:Fig\.|Eq\.|Table)[ \t]+\(?\d*\)?)$/i.exec(before);
   if (!match) return null;
   return {
     from: $from.pos - match[1].length - 1,

@@ -215,7 +215,7 @@ async (page, { openDocument }) => {
   await page.getByText('Intro paragraph.', {exact:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /tbl');
-  await page.getByRole('menuitem', {name:'Table reference: tbl-ports'}).click();
+  await page.getByRole('menuitem', {name:'Table 1 · Port values', exact:true}).click();
   const ref = page.getByTestId('cross-reference').filter({hasText:'Table 1'});
   result.tableReferenceShown = await ref.count() === 1;
   await ref.locator('.cross-reference-chip').click();

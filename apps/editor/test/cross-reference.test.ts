@@ -125,13 +125,55 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   blockAt(relabeled, "4").attrs!.label = "eq-b";
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
   // Slash items insert a reference to each matching target, then label and reference a heading.
-  assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Figure reference: fig-a"]);
+  assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Fig. 1 · fig-a"]);
   // "ref" also matches the heading "Refs".
   assert.deepEqual(referenceCommandItems(doc, "ref").map((item) => referenceOfCommand(item.id)),
     [...targets.map(({ role, label }) => ({ role, label })), { heading: 0, title: "" }]);
   // Unlabeled headings are listed only for a search that names sections or their words.
   assert.equal(referenceCommandItems(doc, "").length, targets.length);
   assert.deepEqual(referenceCommandItems(doc, "heading").map((item) => item.label), ["Section reference: Refs"]);
+});
+
+test("reference menu searches captions, displayed numbers and labels without changing target identity or order", () => {
+  const schema = getSchema(editorExtensions());
+  const projection = toTiptapDocument(loadEditableDocument(nativeSource([
+    "(sec-guide)=\n\n## Installation guide",
+    "## Other heading",
+    "```{math}\n:label: eq-buck\n\na = b\n```",
+    ":::{figure}\n:name: fig-first\n:::",
+    ":::{figure}\n:name: fig-control\n\nControl **summary** 동작 요약.\n:::",
+    ":::{table} Port **summary** 측정 요약\n:name: tbl-data\n\n| Cell |\n| --- |\n| Hidden |\n:::",
+  ].join("\n\n"))));
+  const doc = schema.nodeFromJSON(projection);
+  const items = (query: string) => referenceCommandItems(doc, query);
+  const ids = (query: string) => items(query).map(item => item.id);
+  const figure = "reference:numref:fig-control";
+  const table = "reference:numref:tbl-data";
+  assert.deepEqual(ids("SuMmArY"), [figure, table]);
+  assert.deepEqual(items("동작"), [{ id: figure, label: "Fig. 2 · Control summary 동작 요약.", group: "References" }]);
+  assert.deepEqual(items("측정"), [{ id: table, label: "Table 1 · Port summary 측정 요약", group: "References" }]);
+  for (const query of ["Fig. 2", "fIG.", "2", "fig-c"]) assert.ok(ids(query).includes(figure), query);
+  for (const query of ["Eq. 1", "Eq. (1)", "(1)", "eq-b", "Equation"]) {
+    assert.deepEqual(items(query).filter(item => item.id.startsWith("reference:eq:")),
+      [{ id: "reference:eq:eq-buck", label: "Eq. (1) · eq-buck", group: "References" }]);
+  }
+  assert.deepEqual(ids("Table 1"), [table]);
+  assert.deepEqual(ids("1"), ["reference:eq:eq-buck", "reference:numref:fig-first", table]);
+  assert.equal(items("fig-first")[0]?.label, "Fig. 1 · fig-first");
+  assert.deepEqual(referenceOfCommand(items("summary")[0]!.id), { role: "numref", label: "fig-control" });
+  assert.deepEqual(ids("guide"), ["reference:ref:sec-guide"]);
+  assert.equal(items("guide")[0]?.label, "Section reference: Installation guide");
+  assert.deepEqual(ids("other"), ["reference:heading:2"]);
+  assert.deepEqual(ids("Hidden"), []); // Table cells are not captions.
+  assert.deepEqual(ids("ummary"), []); // Word prefixes, as in existing heading search.
+
+  // Use the complete live caption for search, even beyond the displayed summary.
+  const live = schema.nodeFromJSON(projection);
+  const index = projection.content!.findIndex(node => node.attrs?.label === "fig-control");
+  const caption = `${"😀".repeat(81)} searchable`;
+  const updated = live.copy(live.content.replaceChild(index, schema.nodes.figure.create(
+    live.child(index).attrs, schema.text(caption))));
+  assert.equal(referenceCommandItems(updated, "searchable")[0]?.label, `Fig. 2 · ${"😀".repeat(80)}…`);
 });
 
 test("unresolved references save unchanged; Source preview shows unsaved reference edits and matches Save", () => {
