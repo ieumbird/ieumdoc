@@ -26,8 +26,6 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 
 현재 master에 구현된 범위입니다. 블록 종류별 세부 지원 조건은 [문서 색인](docs/README.md#current-implemented-contracts)의 current contract를 따릅니다.
 
-Last verified: 2026-10-15 (footnote 지원 경계의 문서·코드·테스트 대조; 실행 검증을 다시 수행한 것은 아닙니다).
-
 - **Headless Core / CLI**: parse, semantic operation, validation, canonical MyST Markdown. 공식 파일 write는 UTF-8 / LF이며 의미를 보존할 수 없으면 fail-closed로 거부합니다.
 - **Visual Editor**: 하나의 Tiptap/ProseMirror 문서 상태에서 H1–H6, paragraph, nested list, quote, code, divider, standard admonition과 지원되는 inline formatting을 편집합니다. split/join, hard break, selection/clipboard, Undo/Redo, Markdown input shortcut과 block/section 이동을 지원합니다.
 - **Table / Figure / Equation**: table cell·행·열·정렬, caption·label·reference, Figure 속성과 수식 편집. Figure·Equation·caption/label이 있는 Table의 번호는 계산해 표시합니다. PNG·JPEG·GIF·WebP 이미지 붙여넣기·drop은 문서 옆 `assets/`에 저장합니다([Asset Host contract](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)).
