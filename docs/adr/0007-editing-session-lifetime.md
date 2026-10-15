@@ -1,7 +1,7 @@
 # ADR-0007: 편집 세션 수명과 미저장 작업 보호
 
 - Status: Accepted
-- Last verified: 2026-10-15 (decision recorded; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; nothing implemented yet).
+- Last verified: 2026-10-15 (decision recorded and revised after PR #295 review: Host-specific close boundary, recovery guarantee limits; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; nothing implemented yet).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#291](https://github.com/ieumbird/ieumdoc/issues/291) · [#204](https://github.com/ieumbird/ieumdoc/issues/204) · [#272](https://github.com/ieumbird/ieumdoc/issues/272) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-15
 
@@ -32,32 +32,35 @@
 - 기록은 Editor 클라이언트 쪽 로컬 저장소에 둔다. Editor engine 고유의 상태 표현은 `apps/editor` 안에 머문다. `apps/editor/server`의 stateless 파일 Host handler를 영속 저장소로 확장하지 않는다.
 - 다시 열 때 복구 기록이 있으면 복원을 제안한다. 복원한 세션은 기록한 기준 revision에 대한 미저장 세션이며, 이후 Save는 기존 revision 충돌 검사를 그대로 거친다. 성공한 Save나 명시적 버리기는 해당 기록을 지운다.
 - 정상 닫기의 기존 보호(`beforeunload`, Desktop 닫기·업데이트 확인)는 유지한다. 복구 기록을 이유로 닫기 확인을 생략하지 않는다.
+- 복구하지 않는 것은 사용자에게 알린다: Apply하지 않은 속성 초안은 복구되지 않으며, 로컬 저장소 쓰기 실패(할당량 부족 등)로 기록하지 못하면 그 사실을 표시한다. 구체 방식은 후속 설계에서 정한다.
 - Desktop, 웹(Vite), HTTP Host 모두에서 제공한다. 복구 기록은 그 클라이언트에 국한되며 기기·브라우저 간에 공유하지 않는다.
 
 ### 3. 여러 문서를 탭으로 열어 두고, 탭마다 독립된 세션을 가진다
 
 - 여러 문서를 동시에 열 수 있다. 각 탭은 [ADR-0001](0001-single-document-editor-architecture.md)에 따라 문서 하나에 Tiptap/ProseMirror state 하나를 가지며, 열기 snapshot, 승인된 revision, 실행 취소 기록, 초안과 미저장 상태를 독립적으로 유지한다.
 - 탭 사이의 전환은 미저장 처리를 요구하지 않는다. 이미 열린 문서를 다시 열면 그 탭으로 이동한다.
-- 탭이나 창을 닫을 때 미저장 작업이 있으면 아래 4의 확인을 거친다.
+- 문서 탭을 닫을 때 미저장 작업이 있으면 아래 4의 확인을 거친다. 창·브라우저 탭 닫기는 4의 Host별 경계를 따른다.
 
 ### 4. 미저장 작업 처리는 하나의 확인 대화상자를 재사용한다
 
 - 선택지는 **저장 / 저장하지 않음 / 취소**다. 저장하지 않음은 위험 동작으로 표시한다.
 - 저장이 실패하거나(저장 불가 상태, 충돌) 취소하면 세션을 그대로 두고 요청한 동작(다른 문서 열기, 탭·창 닫기)을 진행하지 않는다.
 - Apply하지 않은 속성 초안이 있으면, 저장과 저장하지 않음 모두 그 초안을 잃는다는 점을 대화상자에서 알린다.
-- 탭 도입 전에는 다른 문서를 열 때(#291), 도입 후에는 탭과 창을 닫을 때 같은 확인을 사용한다.
+- 앱 안의 동작에 사용한다: 탭 도입 전에는 다른 문서를 열 때(#291), 도입 후에는 문서 탭을 닫을 때.
+- Desktop 창 닫기는 기존 업데이트 재시작 확인처럼 main·renderer 간 확인을 거쳐 같은 대화상자를 사용할 수 있다.
+- 웹(Vite, HTTP Host)의 브라우저 탭·창 닫기와 새로고침에는 이 대화상자를 쓸 수 없다. `beforeunload`는 브라우저가 소유한 일반 확인창만 표시하며 페이지가 선택지·문구나 비동기 Save를 제공할 수 없다([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event)). 이 경로는 기존 `beforeunload` 확인과 2의 복구 기록으로 보호한다.
 
 ### 후속 작업 순서
 
 1. #291: 4의 확인 대화상자와 다른 문서 열기에 적용.
 2. #204: 탭과 독립 세션, 닫기에 4를 재사용.
 3. 2의 복구 기록. 세션 구조가 정해진 뒤 세션마다 기록한다.
-4. 1의 자동 저장 설정. 1~3과 독립이며 복구 기록이 있으면 기본값 off로도 작업 손실 위험이 남지 않는다.
+4. 1의 자동 저장 설정. 1~3과 독립이다.
 
 ## Rationale
 
 - 파일 쓰기는 Git commit이 아니므로 자동 저장 자체는 SSOT 원칙과 충돌하지 않는다. 기본값을 끄는 이유는 이음독의 Save가 임의 텍스트 저장이 아니라 거부될 수 있는 canonical write이고, CLI·AI 에이전트가 같은 파일을 수정하는 사용 방식에서 충돌이 잦아질 수 있기 때문이다. 실제 사용으로 이 조건을 확인한 뒤 기본값을 다시 판단할 수 있다.
-- 자동 저장은 저장할 수 없거나 충돌한 작업을 지키지 못한다. 그 작업을 지키는 것은 원본과 분리된 복구 기록뿐이므로, 복구를 자동 저장보다 우선한다.
+- 자동 저장은 저장할 수 없거나 충돌한 작업을 지키지 못한다. 그 작업을 지키는 것은 원본과 분리된 복구 기록뿐이므로, 복구를 자동 저장보다 우선한다. 복구 기록은 적용된 편집의 손실 위험을 줄이지만 없애지는 않는다. Apply하지 않은 속성 초안과 기록에 실패한 작업은 1차 범위에서 여전히 잃을 수 있다.
 - 탭을 먼저 결정하면 미저장 처리의 위치(전환이 아니라 닫기)가 정해지고, 확인 대화상자와 복구 기록을 세션 단위로 한 번만 설계하면 된다.
 
 ## Consequences and constraints
