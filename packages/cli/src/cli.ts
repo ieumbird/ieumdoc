@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import fs, { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -72,6 +72,8 @@ import {
   type ListContent,
 } from "@ieumdoc/core";
 import { commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
+import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
+import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
 
 type CommandSpec = {
   name: string;
@@ -210,13 +212,17 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
       "Markdown without losing semantics (the same check format and Editor Save use).",
-      "Exits 1 when it cannot. Asset files are not checked.",
+      "Exits 1 when it cannot.",
       "References ({eq}, {numref}, {ref}, and links such as [](#label) whose URL starts with #)",
       "that name no target in this document, as MyST resolves them (including the implicit IDs",
       "of unlabeled headings), are reported as warnings with their block and line; they do not",
       "fail the check. JSON: references.unresolved, with role or link.",
       "Pending Figures (no content yet) are reported as readiness warnings with their block and",
       "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
+      "Document-relative Figure images that are not regular files or cannot be checked warn with block, label and source",
+      "(JSON: readiness.missingImageFigures). URLs and absolute paths are skipped, as are paths",
+      "the Host refuses (including escapes outside the document directory). No image decoding is done.",
+      "Missing-image warnings do not fail the check or change writes.",
       "Footnote definitions not written after the body in first-reference order are reported as a",
       "note: format and Editor Save write them there (JSON: endnotes.inPlace).",
       "Output format is text by default; JSON is available with --format json.",
@@ -703,7 +709,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "check": {
-      return checkDocument(parse(readFile(file)), format);
+      return checkDocument(parse(readFile(file)), file, format);
     }
     case "inspect": {
       process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
@@ -726,7 +732,7 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
     const resultRevision = textRevision(markdown);
     const document = parse(markdown);
     preflightFileCommit(file, markdown, revision);
-    const status = checkDocument(document, format, { ...result, dryRun: true, revision: resultRevision, markdown,
+    const status = checkDocument(document, file, format, { ...result, dryRun: true, revision: resultRevision, markdown,
       originalWarnings: references.filter(reference => "footnote" in reference) });
     if (status === 0) warnLiteralFootnotes(references);
     return status;
@@ -740,13 +746,26 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
 }
 
 /** Shared check diagnostics and presentation for files and canonical edit previews. */
-function checkDocument(document: Document, format: OutputFormat, preview?: Preview): number {
+function checkDocument(document: Document, file: string, format: OutputFormat, preview?: Preview): number {
   validateStructure(document);
   const writeError = canonicalWriteError(document);
   const unresolved = unresolvedReferences(document);
   // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
-  const pendingFigures = getEditableDocument(document).blocks.flatMap(block =>
+  const blocks = getEditableDocument(document).blocks;
+  const pendingFigures = blocks.flatMap(block =>
     block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
+  const missingImageFigures = blocks.flatMap(block => {
+    if (block.block !== "figure" || block.contentKind !== "image") return [];
+    const source = block.imageUrl;
+    const mediaPath = figureMediaPath(source);
+    if (mediaPath === undefined) return [];
+    let resolved: string;
+    try { resolved = resolveMediaPath(mediaPath, file); }
+    catch { return []; } // Host-refused paths are outside this existence check's scope.
+    try { if (fs.statSync(resolved).isFile()) return []; }
+    catch { /* A stat failure cannot establish a regular file; warn without claiming absence. */ }
+    return [{ path: block.path, label: block.label, source }];
+  });
   const endnotes = { inPlace: endnotesInPlace(document) };
   if (format === "json") {
     process.stdout.write(`${JSON.stringify({
@@ -756,7 +775,7 @@ function checkDocument(document: Document, format: OutputFormat, preview?: Previ
       validation: { valid: true },
       writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
       references: { unresolved },
-      readiness: { pendingFigures },
+      readiness: { pendingFigures, missingImageFigures },
       endnotes,
     })}\n`);
   } else {
@@ -774,6 +793,9 @@ function checkDocument(document: Document, format: OutputFormat, preview?: Previ
     }
     for (const { path, label } of pendingFigures) {
       process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
+    }
+    for (const { path, label, source } of missingImageFigures) {
+      process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) image ${quote(source)} is not a file or could not be checked\n`);
     }
     if (!endnotes.inPlace) process.stderr.write("note: format and Save move footnote definitions after the body, in first-reference order\n");
     if (preview) process.stdout.write(`--- markdown ---\n${preview.markdown}`);

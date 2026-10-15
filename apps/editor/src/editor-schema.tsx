@@ -11,6 +11,7 @@ import { closeHistory } from "@tiptap/pm/history";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
+import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
@@ -1229,16 +1230,8 @@ function removeUnappliedBlock(
 }
 
 export function resolveFigureSource(imageUrl: string, documentPath?: string): string {
-  // URL handles schemes (including Windows drive prefixes); slash/backslash roots are absolute.
-  if (!imageUrl || imageUrl.startsWith("/") || imageUrl.startsWith("\\") || URL.canParse(imageUrl) ||
-    !URL.canParse(imageUrl, "https://ieumdoc.invalid/")) return imageUrl;
-  const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
-  const segments = relativePath.split("/");
-  // Keep normal separators proxy-safe; dot segments must reach the Host without URL normalization.
-  // A trailing slash also protects a standalone . or .. and preserves its resolved location.
-  const encodedPath = segments.some(segment => segment === "." || segment === "..")
-    ? encodeURIComponent(segments.length === 1 ? `${relativePath}/` : relativePath)
-    : segments.map(encodeURIComponent).join("/");
+  const encodedPath = figureMediaPath(imageUrl);
+  if (encodedPath === undefined) return imageUrl;
   const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }

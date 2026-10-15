@@ -899,6 +899,99 @@ test("CLI insert-figure persists a Core Figure", () => {
   }
 });
 
+test("check warns per missing relative Figure image and dry runs check the result beside the target file", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-missing-images-"));
+  const file = path.join(dir, "document.md");
+  const sources = ["./missing.png", "missing.png", "present.png", "./present.png",
+    "한글%20.png", "100%.png", "한글.png", "absent%20.png",
+    "https://example.org/image.png", "data:image/png;base64,AAAA", "//host/image.png",
+    "/image.png", "C:/image.png", "C:\\image.png", "C:image.png", "\\\\host\\image.png",
+    "../outside.png", "%2e%2e/outside.png", "./%2Foutside.png", "sub/../present.png", "assets"];
+  const source = nativeSource(sources.map((source, index) =>
+    `:::{figure} ${source}\n${index === 0 ? ":label: fig-missing\n" : ""}\nCaption\n:::\n`).join("\n"));
+  try {
+    for (const name of ["present.png", "한글%20.png", "100%.png", "한글.png"]) {
+      writeFileSync(path.join(dir, name), "existence only; not decoded");
+    }
+    fs.mkdirSync(path.join(dir, "assets"));
+    writeFileSync(file, source);
+    const expected = [
+      { path: [1], label: "fig-missing", source: "./missing.png" },
+      { path: [2], label: "", source: "missing.png" },
+      { path: [8], label: "", source: "absent%20.png" },
+      { path: [21], label: "", source: "assets" },
+    ];
+    const text = run(["check", file]);
+    assert.equal(text.status, 0, text.stderr);
+    assert.equal(text.stderr, 'warning: Figure "fig-missing" (block 1) image "./missing.png" is not a file or could not be checked\n'
+      + 'warning: Figure (block 2) image "missing.png" is not a file or could not be checked\n'
+      + 'warning: Figure (block 8) image "absent%20.png" is not a file or could not be checked\n'
+      + 'warning: Figure (block 21) image "assets" is not a file or could not be checked\n');
+    const checked = run(["check", file, "--format", "json"]);
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(checked.stderr, "");
+    const result = JSON.parse(checked.stdout);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.writeability, { writable: true });
+    assert.deepEqual(result.readiness, { pendingFigures: [], missingImageFigures: expected });
+
+    // A changed image exists only in the preview, and resolves beside the target, not cwd.
+    const args = ["update-figure", file, "--path", "1", "--image", "present.png", "--dry-run"];
+    const preview = run([...args, "--format", "json"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.deepEqual(JSON.parse(preview.stdout).readiness.missingImageFigures, expected.slice(1));
+    assert.equal(run(args).stderr, text.stderr.split("\n").slice(1).join("\n"));
+    assert.equal(readFileSync(file, "utf8"), source);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("check follows directory links, warning for the directory but accepting a linked regular file", t => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-image-links-"));
+  const file = path.join(dir, "document.md");
+  const assets = path.join(dir, "assets");
+  try {
+    fs.mkdirSync(assets);
+    writeFileSync(path.join(assets, "present.png"), "file");
+    try { fs.symlinkSync(assets, path.join(dir, "linked"), process.platform === "win32" ? "junction" : "dir"); }
+    catch (error) {
+      if (["EPERM", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) {
+        return t.skip("directory symlinks/junctions need extra permission here");
+      }
+      throw error;
+    }
+    const source = nativeSource(":::{figure} linked\n:::\n\n:::{figure} linked/present.png\n:::\n");
+    writeFileSync(file, source);
+    const result = run(["check", file, "--format", "json"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).readiness.missingImageFigures,
+      [{ path: [1], label: "", source: "linked" }]);
+    assert.equal(readFileSync(file, "utf8"), source);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("check warns honestly when an image stat fails without failing or writing", t => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-image-stat-"));
+  const file = path.join(dir, "document.md");
+  const source = nativeSource(":::{figure} present.png\n:::\n");
+  try {
+    writeFileSync(file, source);
+    writeFileSync(path.join(dir, "present.png"), "file");
+    const stat = t.mock.method(fs, "statSync", () => { throw Object.assign(new Error("denied"), { code: "EACCES" }); });
+    try {
+      const text = run(["check", file]);
+      assert.equal(text.status, 0, text.stderr);
+      assert.equal(text.stderr, 'warning: Figure (block 1) image "present.png" is not a file or could not be checked\n');
+      const json = run(["check", file, "--format", "json"]);
+      assert.equal(json.status, 0, json.stderr);
+      const result = JSON.parse(json.stdout);
+      assert.equal(result.ok, true);
+      assert.deepEqual(result.writeability, { writable: true });
+      assert.deepEqual(result.readiness.missingImageFigures, [{ path: [1], label: "", source: "present.png" }]);
+      assert.equal(readFileSync(file, "utf8"), source);
+    } finally { stat.mock.restore(); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI insert-figure makes a pending Figure in one write; update-figure connects and removes its image", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-pending-figure-"));
   const file = path.join(dir, "document.md");
@@ -917,7 +1010,7 @@ test("CLI insert-figure makes a pending Figure in one write; update-figure conne
     const checked = run(["check", file, "--format", "json"]);
     assert.equal(checked.status, 0, checked.stderr);
     const result = JSON.parse(checked.stdout);
-    assert.deepEqual([result.ok, result.writeability, result.readiness], [true, { writable: true }, { pendingFigures: [{ path: [2], label: "fig-pfc-control" }] }]);
+    assert.deepEqual([result.ok, result.writeability, result.readiness], [true, { writable: true }, { pendingFigures: [{ path: [2], label: "fig-pfc-control" }], missingImageFigures: [] }]);
     const textCheck = run(["check", file]);
     assert.equal(textCheck.status, 0, textCheck.stderr);
     assert.match(textCheck.stdout, /writeability ok/);
@@ -944,10 +1037,11 @@ test("CLI insert-figure makes a pending Figure in one write; update-figure conne
     writeFileSync(file, before);
 
     // Connecting an image keeps the place, caption, label and the reference.
+    writeFileSync(path.join(dir, "pfc-control.svg"), "image");
     assert.equal(run(["update-figure", file, "--path", "2", "--image", "./pfc-control.svg", "--alt", "PFC current control diagram"]).status, 0);
     const connected = document(":::{figure} ./pfc-control.svg\n:name: fig-pfc-control\n:alt: PFC current control diagram\n\nPFC Current Control Architecture\n:::\n");
     assert.equal(readFileSync(file, "utf8"), connected);
-    assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).readiness, { pendingFigures: [] });
+    assert.deepEqual(JSON.parse(run(["check", file, "--format", "json"]).stdout).readiness, { pendingFigures: [], missingImageFigures: [] });
     // Removing the image needs its alt text removed too; then it is the pending Figure again.
     const altKept = run(["update-figure", file, "--path", "2", "--image", ""]);
     assert.equal(altKept.status, 1);
@@ -1148,6 +1242,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-machine-contract-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
+  writeFileSync(path.join(dir, "diagram.svg"), "image");
   const before = readFileSync(file);
 
   try {
@@ -1192,7 +1287,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       validation: { valid: true },
       writeability: { writable: true },
       references: { unresolved: [] },
-      readiness: { pendingFigures: [] },
+      readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
     });
     const textCheck = run(["check", file]);
