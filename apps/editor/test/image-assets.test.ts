@@ -123,7 +123,10 @@ test("directory replacement during a write never deletes an unowned replacement 
   t.mock.method(fs, "closeSync", (fd: number) => {
     original(fd);
     if (replacement) return;
+    if (!fs.existsSync(assets)) return;
     const name = fs.readdirSync(assets)[0];
+    // Raw document reads also close descriptors; simulate the race at the asset write.
+    if (!name) return;
     fs.renameSync(assets, path.join(root, "moved-assets"));
     fs.mkdirSync(assets);
     replacement = path.join(assets, name);

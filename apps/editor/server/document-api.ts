@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDocument, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
-import { commitFile, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import {
@@ -93,7 +93,7 @@ export const documentRevision = textRevision;
 
 export function loadDocumentFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath, access);
-  const source = readFileSync(filePath, "utf8");
+  const source = decodeUtf8(readFileSync(filePath));
   return { path: filePath, source, ...readModel(source), revision: documentRevision(source) };
 }
 
@@ -129,7 +129,7 @@ export function saveDocumentFile(
 ): SaveResponse & { path: string; markdown: string } {
   const filePath = fileStep(() => resolveDocumentPath(requestedPath, access));
   const saved = commitDocumentSave(
-    () => fileStep(() => readFileSync(accessPath(filePath, access), "utf8")),
+    () => fileStep(() => decodeUtf8(readFileSync(accessPath(filePath, access)))),
     (markdown) => fileStep(() => replaceDocumentFile(accessPath(filePath, access), markdown, request.revision)),
     request,
   );
@@ -160,7 +160,7 @@ export function previewDocumentFile(requestedPath: string | undefined, request: 
       ? saveEdits(request.base.source, request.base.savedEdits).markdown : request.base.source;
     return { markdown: saveCurrentDocument(previous, request).markdown };
   }
-  return { markdown: saveCurrentDocument(readFileSync(filePath, "utf8"), request).markdown };
+  return { markdown: saveCurrentDocument(decodeUtf8(readFileSync(filePath)), request).markdown };
 }
 
 export function saveCurrentDocument(
@@ -210,7 +210,7 @@ export async function handleDocumentRequest(
   access: FileAccess = LOCAL_FILE_ACCESS,
   bodyLimit = Infinity,
 ): Promise<void> {
-  const readBody = async (request: IncomingMessage) => (await readRequestBody(request, bodyLimit)).toString("utf8");
+  const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
     error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status
       : fileErrorStatus(error instanceof SaveContentError && error.phase === "file" ? error.cause : error),

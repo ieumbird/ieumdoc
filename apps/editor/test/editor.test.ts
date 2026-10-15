@@ -931,6 +931,45 @@ test("session saves replay Core edits against their opening source and prove the
   assert.throws(() => previewDocumentFile("session.md", { ...request, revision: "wrong" }), DocumentConflictError);
 });
 
+test("Host rejects invalid document/request encoding and Source/Save surrogates without acknowledging or changing files", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-encoding-"));
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}`;
+    const file = path.join(dir, "document.md");
+    const source = nativeSource("한글 😀 �\n");
+    writeFileSync(file, source);
+    const loaded = loadDocumentFile(file);
+    const payload = { path: file, revision: loaded.revision, base: { source },
+      paragraphs: [{ path: [1], content: [{ kind: "text", text: "A\uD800B" }] }] };
+    const validJson = JSON.stringify({ ...payload, paragraphs: [{ path: [1], content: [{ kind: "text", text: "A_BYTE_B" }] }] });
+    const [before, after] = validJson.split("_BYTE_");
+    const malformedJson = Buffer.concat([Buffer.from(before), Buffer.from([0xff]), Buffer.from(after)]);
+    for (const route of ["/api/document-source", "/api/document"]) {
+      for (const body of [malformedJson, Buffer.from(JSON.stringify(payload))]) {
+        const response = await fetch(url + route, { method: "POST", body, headers: { "content-type": "application/json" } });
+        assert.equal(response.status, 400);
+        const failure = await response.json();
+        assert.match(failure.error, /Invalid (UTF-8|Unicode)/);
+        assert.equal(failure.revision, undefined);
+        assert.equal(readFileSync(file, "utf8"), source);
+      }
+    }
+    const malformed = Buffer.concat([Buffer.from(source), Buffer.from([0xff])]);
+    writeFileSync(file, malformed);
+    assert.throws(() => loadDocumentFile(file), /Invalid UTF-8/);
+    assert.throws(() => saveDocumentFile(file, { revision: loaded.revision }), /Invalid UTF-8/);
+    assert.deepEqual(readFileSync(file), malformed);
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Host save fails over HTTP before writing when canonical Markdown would lose semantics", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-save-"));
   const server = createServer((req, res) => {

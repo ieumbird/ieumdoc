@@ -56,9 +56,12 @@ async (page, { openDocument, screenshots }) => {
   check((await editor.innerText()).includes('HTTP saved.'), 'Dirty text remains in the Editor');
   await page.getByRole('button', {name:'Dismiss error'}).click();
   await save();
+  await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End');
+  await page.keyboard.insertText(' 한글 😀 �'); await save();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
   check((await editor.innerText()).includes('HTTP saved.'), 'Root A Save survives Reload');
+  check((await editor.innerText()).includes('한글 😀 �'), 'Valid Unicode survives repeated Save and Reload');
   await openDocument(page, fileB); await ready();
   check((await editor.innerText()).includes('Beta.'), 'Root B opens independently');
   await sidebar.getByRole('button', {name:'New folder', exact:true}).click();

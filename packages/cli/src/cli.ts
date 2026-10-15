@@ -70,7 +70,7 @@ import {
   type InlineContent,
   type ListContent,
 } from "@ieumdoc/core";
-import { commitFile, textRevision } from "@ieumdoc/file-commit";
+import { commitFile, decodeUtf8, textRevision } from "@ieumdoc/file-commit";
 
 type CommandSpec = {
   name: string;
@@ -1334,7 +1334,7 @@ function quote(value: string): string {
 }
 
 function readFile(path: string): string {
-  return readFileSync(path, "utf8");
+  return decodeUtf8(readFileSync(path));
 }
 
 function summarize(document: Document): string {

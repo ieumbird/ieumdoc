@@ -3,6 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-14 (#215: CLI batch sequential-byte equivalence, original preservation, revision/output, batch-wide versus step errors, null option rejection and commit conflict regressions. #214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
+- Encoding verification: 2026-10-15 (#271 malformed UTF-8/Unicode refusal, raw-byte revision checks, original preservation and temporary cleanup; Vite/production HTTP repeated Unicode Save → Reload and existing external-conflict regressions).
 - Date: 2026-09-23
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
@@ -127,7 +128,8 @@ Figure의 Choose…가 [folder picker](folder-picker-v1.md#choosing-an-image)에
 
 Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같은 Node 함수 `commitFile`(`packages/file-commit`)로 교체한다. 호출자는 Core validation과 canonical serialization을 마친 UTF-8 / LF Markdown과 baseline revision을 넘긴다. Core는 이 경로나 filesystem을 알지 않는다.
 
-- Revision은 파일을 UTF-8 text로 읽은 내용의 SHA-256이다(`textRevision`). CLI는 Core operation을 적용하기 전에 읽은 원본에서 revision을 얻는다. Editor는 열기 또는 직전 Save로 받은 revision을 보낸다. 저장 직전에 다시 읽은 내용을 baseline으로 삼지 않으며, 숨은 cache나 lock 파일을 두지 않는다.
+- Revision은 실제 파일 바이트의 SHA-256이다. 엄격하게 UTF-8로 읽은 유효한 text의 `textRevision`과 같으며 BOM도 포함한다. CLI·공유 Host는 잘못된 UTF-8 파일·문서 요청 text를 대체문자로 변환하지 않고 거부한다. CLI는 Core operation을 적용하기 전에 읽은 원본에서 revision을 얻는다. Editor는 열기 또는 직전 Save로 받은 revision을 보낸다. 저장 직전에 다시 읽은 내용을 baseline으로 삼지 않으며, 숨은 cache나 lock 파일을 두지 않는다.
+- 최종 `commitFile`도 단독 surrogate가 든 출력 text를 temporary 생성 전에 거부한다. 두 revision 확인은 원본의 raw bytes를 비교하므로 잘못된 UTF-8로 바뀐 외부 파일도 덮어쓰지 않는다. 유효한 한글·emoji·리터럴 U+FFFD는 그대로 UTF-8로 기록하며 기존 LF canonicalization은 Core가 소유한다.
 - 순서: symlink를 real path로 해석 → revision 확인 → 쓰기 권한 확인 → 같은 directory에 고유한 temporary sibling(`.<name>.<UUID>.tmp`)을 exclusive create하여 완성된 내용 기록 → 원본 permission bits 적용 → revision 재확인 → rename으로 교체.
 - 실패하면 원본은 그대로이고 temporary sibling은 삭제한다. Revision 불일치는 `FileChangedError`다. CLI는 그 메시지와 exit 1을, Editor Host는 기존 conflict 메시지와 HTTP 409를 반환한다. Core가 거부한 문서는 이 단계에 도달하지 않는다.
 - Symlink는 link로 남고 대상이 교체된다. Permission bits는 umask와 무관하게 원본 값을 유지한다. 쓰기 권한이 없는 파일은 rename이 가능하더라도 거부한다. 이는 이전 CLI의 in-place write와 같은 결과다. POSIX에서 read-only 파일을 교체하던 Editor Host도 이제 거부한다.

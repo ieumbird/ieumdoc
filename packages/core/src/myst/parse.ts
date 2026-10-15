@@ -6,6 +6,7 @@ import {
 import { VFile } from "vfile";
 import { locateFootnotes } from "./footnote.ts";
 import { type MystDocument } from "./tree.ts";
+import { assertUnicode } from "./unicode.ts";
 
 /**
  * Parse boundary. The canonical-write guard compares this parse with the parse of
@@ -28,6 +29,7 @@ export const OPTIONS = { extensions: { smartquotes: false } };
 export const FRONT_MATTER_FIELD = "(front matter)";
 
 export function parse(source: string): MystDocument {
+  assertUnicode(source);
   const text = source.startsWith("\uFEFF") ? source.slice(1) : source;
   const document = mystParse(text, OPTIONS) as MystDocument;
   markFrontMatter(document, text);
