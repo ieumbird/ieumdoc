@@ -25,7 +25,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, active, report 
       <div hidden={session.view === "source"}>
         <EditorVisibility value={active && session.view === "visual"}>
           <DocumentEditor key={session.editorGeneration} ref={session.editorRef}
-            document={session.document} documentPath={session.openedPath} {...session.editorCallbacks} />
+            document={session.document} initialSnapshot={session.initialEditorSnapshot} documentPath={session.openedPath} {...session.editorCallbacks} />
         </EditorVisibility>
       </div>
     </div>

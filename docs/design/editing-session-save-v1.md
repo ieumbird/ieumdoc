@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
+- Last verified: 2026-10-16 (#296 PR1: internal recovery-capable initialization, Editor snapshot tests and actual initialization/Save replay browser regression; user-facing recovery remains unimplemented).
+- Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
 - Previous verification: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
 - Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
@@ -44,6 +45,41 @@ Malformed UTF-8 document files/request bodies and unpaired Unicode surrogates in
 Save requests include the opening Markdown and the last accepted Core edit payload (`base.source`, `base.savedEdits`). The local Host first compares the requested revision with the actual disk. If the opening source differs from disk, replaying the previous edits through Core must reproduce the disk bytes exactly. Only then does it apply the new payload to the opening source through the existing Core operations and canonical writer. This permits saving Undo/Redo of insertions, deletions, splits, merges and table changes without turning snapshot paths into persistent identities. An arbitrary replacement source or stale checkpoint is rejected.
 
 The Host stores no sessions. This request contract is a local adapter detail, not a backend architecture. Session acknowledgement itself introduces no semantic operation or CLI command. The extra replay costs another Core save evaluation on subsequent saves; it is performed on explicit Save/Source, never per keystroke.
+
+## Internal recovery preparation (#296 PR1)
+
+`DocumentEditor` accepts an optional internal `EditorSnapshot`: current `editorDocument` and
+last acknowledged `savedDocument`. Its snapshot handle copies both without exposing mutable
+internal state. Normal Open/New is unchanged. The opening read-model projection remains the
+structure guard's baseline; restored current content does not become the saved baseline.
+The deletion plugin starts with the current snapshot's declared deletions. All three new-block
+locator allocators reserve values from both snapshots, including locators found only in the
+saved snapshot; existing locators are never renumbered. Reservation validates all paths in both
+snapshots before updating any allocator counter, so a rejected restore leaves subsequent allocation
+unchanged.
+
+`useDocumentSession` can capture and initialize this state together with the opening source/read
+model, path, acknowledged revision, last accepted `savedEdits` and existing endnote-placement
+notice. The collector still uses the opening model and current engine JSON. Save acknowledgement
+still advances only the submitted snapshot; a snapshot captured during Save contains the previous
+acknowledgement until success, and failure changes neither checkpoint. Reload clears the internal
+restored initializer only after a successful read.
+
+Initialization accepts the current Editor schema only. It checks schema content, lossless retention
+of supplied fields/marks, opening locators and declared deletion metadata; it throws an explicit
+`Incompatible editor snapshot` error instead of dropping unsupported content. It does not run the
+canonical collector/writer as a restore gate: empty headings, duplicate labels and invalid Unicode
+can remain applied editor content and still fail Save. Schema-compatible initialization is not a
+claim that arbitrary old/future JSON or inconsistent source/revision/edit checkpoints are recoverable;
+there is no migration or repair. The existing Host replay and canonical checks still govern Save.
+
+Pending image-less Figures are applied content. Snapshots exclude Undo history, selection/scroll,
+unapplied property drafts, in-flight requests and image binary backups. This is Editor-internal
+preparation, with no recorder, IndexedDB, recovery list/prompt, startup behavior, settings or expiry.
+User-facing recovery is **not implemented**. The approved later PR2 retention is **10 days** after
+the last record ([scope decision](https://github.com/ieumbird/ieumdoc/issues/296#issuecomment-6204288317));
+this PR adds no retention field or timer. Autosave remains deferred (#297). No Core/Host semantics
+change or new CLI operation is needed because this only initializes an existing Editor session.
 
 ## Applied content and drafts
 
