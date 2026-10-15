@@ -157,9 +157,10 @@ test("dry runs expose the canonical result and check diagnostics without any fil
       assert.equal(text.status, 0, text.stderr);
       assert.deepEqual(readFileSync(file), original);
       assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
-      const { command, dryRun, revision, markdown, applied, ...diagnostics } = JSON.parse(json.stdout);
+      const { command, dryRun, revision, markdown, applied, originalWarnings, ...diagnostics } = JSON.parse(json.stdout);
       assert.equal(command, invocation[0]);
       assert.equal(dryRun, true);
+      assert.deepEqual(originalWarnings, []);
       assert.equal(typeof markdown, "string");
       assert.equal(revision, textRevision(markdown));
       assert.equal(applied, command === "apply-batch" ? 2 : undefined);
@@ -1796,11 +1797,13 @@ test("check warns about references a removal left without a target, without fail
 });
 
 
-test("check surfaces undefined footnote warnings in text and JSON without failing or writing", () => {
+test("check and edit previews retain original undefined-footnote warnings through literal writes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-footnote-"));
   const file = path.join(dir, "document.md");
+  const operations = path.join(dir, "operations.json");
   const source = nativeSource("Loss [^loss] here.\n");
   writeFileSync(file, source);
+  writeFileSync(operations, JSON.stringify([{ command: "format" }, { command: "format" }]));
   try {
     const text = run(["check", file]);
     assert.equal(text.status, 0, text.stderr);
@@ -1813,6 +1816,31 @@ test("check surfaces undefined footnote warnings in text and JSON without failin
     assert.equal(report.ok, true);
     assert.deepEqual(report.references.unresolved, [{ footnote: true, label: "loss", path: [1], line: 5 }]);
     assert.equal(readFileSync(file, "utf8"), source, "check never writes");
+    const warning = "warning: footnote [^loss] (block 1, line 5) has no definition; written as literal \\[^loss]\n";
+    for (const args of [["format", file], ["apply-batch", file, "--operations", operations]]) {
+      writeFileSync(file, source);
+      const textPreview = run([...args, "--dry-run"]);
+      assert.equal(textPreview.status, 0, textPreview.stderr);
+      assert.equal(textPreview.stderr, warning, "report original intent once, including after two canonical batch steps");
+      assert.deepEqual(readFileSync(file), Buffer.from(source));
+      const jsonPreview = run([...args, "--dry-run", "--format", "json"]);
+      assert.equal(jsonPreview.status, 0, jsonPreview.stderr);
+      assert.equal(jsonPreview.stderr, warning, "JSON also emits the same original-source stderr warning");
+      const preview = JSON.parse(jsonPreview.stdout);
+      assert.equal(preview.ok, true);
+      assert.deepEqual(preview.originalWarnings, report.references.unresolved, "original Core diagnostics retain their shape and locations");
+      assert.deepEqual(preview.references.unresolved, [], "result diagnostics describe the escaped canonical output");
+      assert.equal(preview.revision, textRevision(preview.markdown));
+      assert.match(textPreview.stdout, /writeability ok\n--- markdown ---\n/);
+      assert.ok(textPreview.stdout.endsWith(preview.markdown));
+      assert.deepEqual(readFileSync(file), Buffer.from(source));
+      const written = run(args);
+      assert.equal(written.status, 0, written.stderr);
+      assert.equal(written.stdout, "");
+      assert.equal(written.stderr, textPreview.stderr);
+      assert.deepEqual(readFileSync(file), Buffer.from(preview.markdown));
+      assert.equal(run(["check", file]).stderr, "", "escaped literal no longer warns");
+    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -1853,6 +1881,7 @@ test("CLI writes warn once per original footnote occurrence, keeping literal byt
     assert.equal(refused.status, 1);
     assert.equal(refused.stdout, "");
     assert.doesNotMatch(refused.stderr, /warning:/);
+    assert.deepEqual(run(["insert-block", file, "--at", "0", "--text", "Added.", "--dry-run"]), refused);
     assert.equal(readFileSync(file, "utf8"), source);
     writeFileSync(operationsFile, JSON.stringify([operations[0], { command: "remove-block", at: 999 }]));
     const failed = run(["apply-batch", file, "--operations", operationsFile, "--format", "json"]);
@@ -1860,6 +1889,7 @@ test("CLI writes warn once per original footnote occurrence, keeping literal byt
     assert.equal(failed.stdout, "");
     assert.match(failed.stderr, /operation 2 \(remove-block\):.*nothing was written/);
     assert.doesNotMatch(failed.stderr, /warning:/);
+    assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile, "--format", "json", "--dry-run"]), failed);
     assert.equal(readFileSync(file, "utf8"), source);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

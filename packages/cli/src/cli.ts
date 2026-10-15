@@ -104,6 +104,7 @@ const DRY_RUN_NOTE = [
   "--dry-run runs the same edits and canonical write checks without committing or creating temporary files.",
   "Text prints the result revision, check summary (warnings on stderr), then --- markdown --- and canonical Markdown.",
   "--dry-run --format json prints dryRun, revision, markdown and the same diagnostic fields as check; batches add applied.",
+  "Original undefined-footnote warnings also print on stderr; JSON previews keep their Core entries in originalWarnings (or []).",
   "Failures keep the usual stderr messages and exit 1, including in JSON mode.",
   "Shared read-only checks cover current revision and file permissions; directory writes, disk space and rename locks may still fail on write.",
 ];
@@ -715,7 +716,8 @@ function main(argv: string[]): number {
 }
 
 type EditResult = { command: string; applied?: number };
-type Preview = EditResult & { dryRun: true; revision: string; markdown: string };
+type Preview = EditResult & { dryRun: true; revision: string; markdown: string;
+  originalWarnings: ReturnType<typeof unresolvedReferences> };
 
 /** The only edit write boundary. Preview never enters file-commit's mutation path. */
 function finishEdit(file: string, markdown: string, revision: string, result: EditResult,
@@ -724,7 +726,10 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
     const resultRevision = textRevision(markdown);
     const document = parse(markdown);
     preflightFileCommit(file, markdown, revision);
-    return checkDocument(document, format, { ...result, dryRun: true, revision: resultRevision, markdown });
+    const status = checkDocument(document, format, { ...result, dryRun: true, revision: resultRevision, markdown,
+      originalWarnings: references.filter(reference => "footnote" in reference) });
+    if (status === 0) warnLiteralFootnotes(references);
+    return status;
   }
   commitFile(file, markdown, revision);
   warnLiteralFootnotes(references);
@@ -994,7 +999,7 @@ function serializeChange(document: Document, change: Change): string {
   return serialize(changed);
 }
 
-/** Report original-source intent only after a successful write; operation clones have no evidence. */
+/** Report original-source intent after a successful commit or preview; operation clones have no evidence. */
 function warnLiteralFootnotes(references: ReturnType<typeof unresolvedReferences>): void {
   for (const reference of references) {
     if (!("footnote" in reference)) continue;
