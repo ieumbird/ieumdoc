@@ -71,7 +71,7 @@ import {
   type InlineContent,
   type ListContent,
 } from "@ieumdoc/core";
-import { commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
+import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
 
@@ -1238,6 +1238,10 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     index += 1;
   }
 
+  // Validate every filesystem input before any command can perform I/O.
+  for (const input of [file, ...(command === "apply-batch" ? [flag(flags, "--operations")] : [])]) {
+    assertUnicode(input);
+  }
   return { file, flags, format };
 }
 

@@ -1,3 +1,4 @@
+import { syncBuiltinESMExports } from "node:module";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -37,6 +38,34 @@ for (const [name, target] of [["document.md", fixture], ["technical-document.md"
 const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
+
+test("CLI rejects malformed paths before I/O and accepts valid Unicode names", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
+  try {
+    const valid = path.join(dir, "한글😀�.md");
+    assert.equal(run(["create", valid]).status, 0);
+    assert.equal(run(["check", valid]).status, 0);
+    const original = readFileSync(valid);
+    const mocks = (["readFileSync", "writeFileSync", "existsSync", "statSync", "realpathSync", "openSync"] as const)
+      .map(name => t.mock.method(fs, name, () => { throw new Error(`unexpected ${name}`); }));
+    syncBuiltinESMExports();
+    try {
+      for (const args of [
+        ["check", path.join(dir, "X\uD800Y.md")],
+        ["create", path.join(dir, "C\uDC00D.md")],
+        ["apply-batch", valid, "--operations", path.join(dir, "ops\uD800.json")],
+      ]) {
+        const result = run(args);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /Invalid Unicode: unpaired surrogate/);
+        assert.equal(result.stdout, "");
+      }
+      for (const mock of mocks) assert.equal(mock.mock.callCount(), 0);
+    } finally { for (const mock of mocks) mock.mock.restore(); syncBuiltinESMExports(); }
+    assert.deepEqual(readFileSync(valid), original);
+    assert.deepEqual(readdirSync(dir), [path.basename(valid)]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 
 test("CLI refuses invalid UTF-8 documents/operation files and escaped surrogates without changing disk bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-unicode-"));
