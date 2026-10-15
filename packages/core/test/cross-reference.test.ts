@@ -174,6 +174,19 @@ test("unresolvedReferences reports references that name no target in the documen
     reported.flatMap((reference) => "role" in reference ? [normalizeLabel(reference.label)?.identifier] : []));
 });
 
+test("unresolvedReferences excludes inherited properties while retaining normalized fragment fallback", () => {
+  const document = parse("```{math}\n:label: tostring\nx\n```\n\n" +
+    "{ref}`constructor`, {ref}`__proto__`, [constructor](#constructor), [proto](#__proto__), " +
+    "[missing](#hasOwnProperty), [registered](#toString) and {ref}`TOSTRING`.\n");
+  assert.deepEqual(unresolvedReferences(document), [
+    { role: "ref", label: "constructor", path: [1], line: 6 },
+    { role: "ref", label: "__proto__", path: [1], line: 6 },
+    { link: "#constructor", label: "constructor", path: [1], line: 6 },
+    { link: "#__proto__", label: "__proto__", path: [1], line: 6 },
+    { link: "#hasOwnProperty", label: "hasOwnProperty", path: [1], line: 6 },
+  ]);
+});
+
 test("removing or relabeling a referenced target leaves an unresolved reference to report", () => {
   const document = parse("See {numref}`fig-a` and [](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n");
   assert.deepEqual(unresolvedReferences(document), []);

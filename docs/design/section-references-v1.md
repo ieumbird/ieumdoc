@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Label rename verification: 2026-10-15 (#216 Core/CLI tests, canonical round-trip/refusal checks and source CLI before/after run with all four target kinds; Editor entry is deferred).
+- Registered-target guard verification: 2026-10-15 (PR #300 review; Core rename and unresolved-reference regressions for inherited-property names).
 - Last verified: 2026-10-15 (#281 / PR #286: Editor unit tests cover caption-free chip selectors and punctuation-separated caption words; cross-reference/section-reference browser scenarios verify caption and display-number search, menu names, unchanged reference identity and Save/Reload. Previous `check` link-reference diagnostics verification: 2026-10-11, #151).
 - Scope: In-document MyST heading labels and references, not cross-document identity; [ADR-0003](../adr/0003-document-addressing-identity-boundary.md).
 
@@ -41,6 +42,7 @@ Core's section rule already counts targets before a heading as part of that sect
 - Renaming a label leaves references untouched by default. The explicit opt-in below updates only references that resolved to the selected target before the change.
 - Ordinary `[text](#label)` links stay links; Core does not promote them to references. Empty-text links such as `[](#label)` reject native admission.
 - `check` diagnoses references as MyST resolves them on one page. A link whose URL starts with `#` (`[](#label)` or `[text](#label)`) is a reference: one that names no target is reported like an unresolved role reference (`link` instead of `role` in JSON), stays as written and does not fail the check. Targets are labeled blocks, `(label)=` targets and the implicit IDs MyST gives unlabeled headings (`## Install` → `#install`); a heading with a label has no implicit ID. Links without `#`, including external URLs with a fragment, are never reported.
+- Core deliberately guards MyST's inherited-property lookup: `ReferenceState.getTarget` reads a plain object, so names such as `constructor` and `__proto__` can return inherited values rather than targets. The shared lookup accepts only own entries actually registered by MyST. Those names are unresolved when not registered, are reported by `unresolvedReferences`/CLI `check`, and remain as written without blocking an unrelated opt-in rename. Fragment lookup still tries the raw name, then its normalized identifier; inherited values do not prevent that fallback.
 - The same Core report and CLI `references.unresolved` array include source-only warnings for unescaped `[^label]` text without a definition (`footnote: true` instead of `role`/`link`). The [footnote diagnosis contract](footnotes-v1.md#undefined-reference-diagnostics-290) defines escape handling, non-text exclusions and canonical-write behavior. Reports use top-level paths and container start lines, ordered by block and line; ties keep role/link diagnostics before source-text footnote diagnostics. These warnings do not block writes or change warning-only exit status.
 - References to targets before blocks other than headings, numbered section references (`{numref}` to a section), display text, and links to other documents are not authored.
 

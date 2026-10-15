@@ -58,7 +58,9 @@ export function referenceTargetIndex(document: MystDocument) {
   };
   visit(tree);
   return {
-    lookup: (identifier: string) => state.getTarget(identifier),
+    // MyST's plain-object lookup can return inherited values such as `constructor`.
+    // Only own entries are targets it actually registered; keep its duplicate selection.
+    lookup: (identifier: string) => Object.hasOwn(state.targets, identifier) ? state.getTarget(identifier) : undefined,
     candidates: (identifier: string) => candidates.get(identifier) ?? [],
     path: (node: MystNode) => paths.get(node),
   };

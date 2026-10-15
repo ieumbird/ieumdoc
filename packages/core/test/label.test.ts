@@ -160,6 +160,17 @@ test("opt-in rename follows MyST resolution for all four target kinds and preser
   }
 });
 
+test("opt-in rename preserves unrelated inherited-property references as unresolved", () => {
+  const document = parse("```{math}\n:label: old\nx\n```\n\n{eq}`old`, {ref}`constructor` and {ref}`__proto__`.\n");
+  const original = structuredClone(document);
+  const next = updateLabel(document, [0], "new", updateReferences);
+  const markdown = serialize(next);
+  assert.deepEqual(document, original);
+  assert.equal(markdown, "```{math}\n:label: new\n\nx\n```\n\n{eq}`new`, {ref}`constructor` and {ref}`__proto__`.\n");
+  assert.deepEqual(unresolvedReferences(parse(markdown)).map(({ label }) => label), ["constructor", "__proto__"]);
+  assert.equal(serialize(parse(markdown)), markdown);
+});
+
 test("opt-in rename visits nested references and uses normalized labels without decoding fragments", () => {
   const document = parse([
     "```{math}\n:label: Old Label\nx\n```",
