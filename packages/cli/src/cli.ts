@@ -285,8 +285,9 @@ const COMMANDS: CommandSpec[] = [
       "Replace all matches within that block's individual text nodes.",
       "Matches crossing formatting/text-node boundaries may be left unchanged, still exiting 0 (e.g. a**bc**d, --from abc).",
       "Use update-node-text instead when you know the path; it also substitutes within individual text nodes.",
-      "For formatted content, replace the whole block with structured --content: update-heading or update-quote;",
-      "for a paragraph, use remove-block and insert-block --content in apply-batch."],
+      "For formatted content, replace the whole block with structured --content: update-heading or update-quote.",
+      "For a paragraph in apply-batch, insert-block --content for the new paragraph first, then remove-block on the old one.",
+      "Each intermediate step must be writable (e.g. keep footnote references); check first with --dry-run."],
   },
   {
     name: "insert-block",
