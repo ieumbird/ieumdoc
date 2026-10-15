@@ -57,6 +57,7 @@ test("CLI refuses invalid UTF-8 documents/operation files and escaped surrogates
       assert.equal(result.status, 1);
       assert.match(result.stderr, /Invalid (UTF-8|Unicode)/);
       assert.equal(result.stdout, "");
+      assert.deepEqual(run(["apply-batch", file, "--operations", operations, "--format", "json", "--dry-run"]), result);
       assert.deepEqual(readFileSync(file), original);
     }
     assert.deepEqual(readdirSync(dir).sort(), ["document.md", "ops.json"]);
@@ -93,7 +94,7 @@ test("insert-block accepts Core inline JSON and rejects ambiguous input without 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("CLI refuses to replace a file changed after it was read and keeps those bytes", () => {
+test("CLI writes and dry runs refuse a file changed after it was read and keep those bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-changed-"));
   const file = path.join(dir, "document.md");
   const external = Buffer.from(nativeSource("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n"), "utf8");
@@ -102,7 +103,8 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
     const args = ["insert-block", file, "--at", "2", "--text", INSERTED];
     const operations = path.join(dir, "operations.json");
     writeFileSync(operations, JSON.stringify([{ command: "insert-block", at: 2, text: INSERTED }]));
-    for (const invocation of [args, ["apply-batch", file, "--operations", operations, "--format", "json"]]) {
+    for (const invocation of [args, ["apply-batch", file, "--operations", operations, "--format", "json"]]
+      .flatMap(args => [args, [...args, "--dry-run"]])) {
       writeFileSync(file, nativeSource("# Title\n"));
       const inspected = run(["inspect", file, "--format", "json"]);
       assert.equal(inspected.status, 0, inspected.stderr);
@@ -120,6 +122,106 @@ test("CLI refuses to replace a file changed after it was read and keeps those by
     assert.equal(saved.status, 0, saved.stderr);
     assert.equal(readFileSync(file, "utf8"), serialize(insertParagraph(parse(external.toString("utf8")), 2, INSERTED)));
     assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("dry runs expose the canonical result and check diagnostics without any filesystem mutation", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-run-"));
+  const file = path.join(dir, "document.md");
+  const operations = path.join(dir, "operations.json");
+  const original = Buffer.from(nativeSource("# Report\r\n\r\nSee [missing](#missing). ✓\r\n"));
+  try {
+    writeFileSync(operations, JSON.stringify([
+      { command: "insert-block", at: "end", text: "Preview" },
+      { command: "insert-figure", at: "end", label: "pending" },
+    ]));
+    for (const invocation of [
+      ["apply-batch", file, "--operations", operations],
+      ["insert-figure", file, "--at", "end", "--label", "pending"],
+      ["format", file],
+    ]) {
+      writeFileSync(file, original);
+      const args = [...invocation, "--if-revision", textRevision(original.toString("utf8"))];
+      // Catch transient writes too: a final directory listing alone would miss a cleaned-up sibling.
+      const mutations = ["writeFileSync", "renameSync", "chmodSync", "rmSync"] as const;
+      const mocks = mutations.map(name => t.mock.method(fs, name, () => { throw new Error(`unexpected ${name}`); }));
+      let json;
+      let text;
+      try {
+        json = run([...args, "--format", "json", "--dry-run"]);
+        text = run([...args, "--dry-run"]);
+        for (const mock of mocks) assert.equal(mock.mock.callCount(), 0);
+      } finally { for (const mock of mocks) mock.mock.restore(); }
+      assert.equal(json.status, 0, json.stderr);
+      assert.equal(json.stderr, "");
+      assert.equal(text.status, 0, text.stderr);
+      assert.deepEqual(readFileSync(file), original);
+      assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
+      const { command, dryRun, revision, markdown, applied, ...diagnostics } = JSON.parse(json.stdout);
+      assert.equal(command, invocation[0]);
+      assert.equal(dryRun, true);
+      assert.equal(typeof markdown, "string");
+      assert.equal(revision, textRevision(markdown));
+      assert.equal(applied, command === "apply-batch" ? 2 : undefined);
+      assert.equal(run(args).status, 0);
+      assert.equal(readFileSync(file, "utf8"), markdown, "preview is exactly what the real run writes");
+      const { command: checkCommand, ...checked } = JSON.parse(run(["check", file, "--format", "json"]).stdout);
+      assert.equal(checkCommand, "check");
+      assert.deepEqual(diagnostics, checked);
+      assert.notDeepEqual(checked.references.unresolved, [], "check warnings remain visible");
+      if (command !== "format") assert.notDeepEqual(checked.readiness.pendingFigures, []);
+      const checkText = run(["check", file]);
+      assert.equal(text.stdout, `dry run; nothing was written\nrevision: ${revision}\n${checkText.stdout}--- markdown ---\n${markdown}`);
+      assert.equal(text.stderr, checkText.stderr);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("single dry runs preserve failure messages and reject unsupported or ambiguous preview options", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-failure-"));
+  const file = path.join(dir, "document.md");
+  const original = Buffer.from(nativeSource("Original.\r\n"));
+  try {
+    writeFileSync(file, original);
+    for (const args of [
+      ["format", file, "--if-revision", "0".repeat(64)],
+      ["update-heading", file, "--path", "999", "--text", "Missing"],
+      ["insert-block", file, "--at", "end", "--text", "A\n\nB"],
+    ]) {
+      const real = run(args);
+      assert.equal(real.status, 1, real.stderr);
+      for (const format of ["text", "json"]) {
+        assert.deepEqual(run([...args, "--dry-run", "--format", format]), real);
+      }
+    }
+    for (const args of [
+      ["format", file, "--dry-run", "--dry-run"],
+      ["format", file, "--dry-run", "true"],
+      ["format", file, "--dry-run", "--format", "yaml"],
+      ...["create", "check", "inspect"].map(command => [command, file, "--dry-run"]),
+    ]) assert.equal(run(args).status, 1, args.join(" "));
+    assert.deepEqual(readFileSync(file), original);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("dry runs check target and directory permissions without attempting a commit", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-permission-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, nativeSource("Original.\n"));
+  const access = fs.accessSync;
+  const denied = Object.assign(new Error("permission denied"), { code: "EACCES" });
+  try {
+    for (const target of [fs.realpathSync(file), fs.realpathSync(dir)]) {
+      const permission = t.mock.method(fs, "accessSync", (name: fs.PathLike, mode?: number) => {
+        if (name === target) throw denied;
+        return access(name, mode);
+      });
+      try {
+        const result = run(["format", file, "--dry-run"]);
+        assert.deepEqual(result, { status: 1, stdout: "", stderr: "permission denied\n" });
+        if (target === fs.realpathSync(file)) assert.deepEqual(result, run(["format", file]));
+      } finally { permission.mock.restore(); }
+    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -178,6 +280,9 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
       [[first, { command: "insert-heading", at: 3, text: "Missing level" }], /^operation 2 \(insert-heading\): missing --level/],
       [[first, { command: "insert-block", at: 3, text: "A\n\nB" }], /^operation 2 \(insert-block\): .*round-trip/],
       [[first, { command: "format", "if-revision": textRevision(original.toString("utf8")) }], /^operation 2 \(format\): unknown option: --if-revision/],
+      ...["dry-run", "format"].map(option => [
+        [{ command: "format", [option]: true }], new RegExp(`^operation 1 \\(format\\): unknown option: --${option}`),
+      ]),
       [[{ command: "format", typo: true }], /^operation 1 \(format\): unknown option: --typo/],
       ...["create", "check", "inspect", "serve", "apply-batch"].map(command => [
         [{ command }], new RegExp(`^operation 1 \\(${command}\\): not a document edit command: ${command}`),
@@ -192,6 +297,7 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
       const failed = run(["apply-batch", file, "--operations", operationsFile, "--format", "json"]);
       assert.equal(failed.status, 1, failed.stderr);
       assert.equal(failed.stdout, "");
+      assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile, "--format", "json", "--dry-run"]), failed);
       assert.match(failed.stderr, message);
       if (Array.isArray(operations) && operations.length > 0) assert.match(failed.stderr, /; nothing was written\n$/);
       else assert.doesNotMatch(failed.stderr, /^operation /);
@@ -201,11 +307,13 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
     const malformed = run(["apply-batch", file, "--operations", operationsFile]);
     assert.equal(malformed.status, 1);
     assert.notEqual(malformed.stderr, "");
+    assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile, "--dry-run"]), malformed);
     assert.doesNotMatch(malformed.stderr, /^operation /);
     writeFileSync(operationsFile, JSON.stringify([{ command: "update-heading", path: "999", text: "Invalid path" }]));
     const stale = run(["apply-batch", file, "--operations", operationsFile, "--if-revision", "0".repeat(64)]);
     assert.equal(stale.status, 1);
     assert.equal(stale.stderr, "revision mismatch; run inspect again; nothing was written\n");
+    assert.deepEqual(run(["apply-batch", file, "--operations", operationsFile, "--if-revision", "0".repeat(64), "--dry-run"]), stale);
     assert.deepEqual(readFileSync(file), original);
     const invalid = path.join(dir, "invalid.md");
     for (const source of [undefined, "# Missing native marker\n"]) {
@@ -213,6 +321,7 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
       const batch = run(["apply-batch", invalid, "--operations", operationsFile]);
       assert.equal(batch.status, 1);
       assert.equal(batch.stderr, run(["format", invalid]).stderr);
+      assert.deepEqual(run(["apply-batch", invalid, "--operations", operationsFile, "--dry-run"]), batch);
       assert.doesNotMatch(batch.stderr, /^operation /);
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -342,6 +451,8 @@ test("command help is available from help and --help", () => {
     assert.match(help.stdout, /\[--if-revision <revision>\]/);
     assert.match(help.stdout, /run inspect again.*new revision and paths/);
     assert.match(help.stdout, /do not print a new revision/);
+    assert.match(help.stdout, /--dry-run/);
+    assert.match(help.stdout, /canonical Markdown/);
   }
   assert.match(run(["help", "inspect"]).stdout, /revision.*original UTF-8 text/);
   assert.match(run(["help", "inspect"]).stdout, /Metadata is not listed. Block 0 is the document metadata; body blocks start at 1/);

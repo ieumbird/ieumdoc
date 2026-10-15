@@ -1,4 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -71,7 +73,7 @@ import {
   type InlineContent,
   type ListContent,
 } from "@ieumdoc/core";
-import { commitFile, decodeUtf8, textRevision } from "@ieumdoc/file-commit";
+import { commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 
 type CommandSpec = {
   name: string;
@@ -97,8 +99,15 @@ const PATH_NOTE = [
 const REVISION_NOTE = [
   "Use --if-revision with the revision from ieumdoc inspect <file> --format json.",
   "Revision must be 64 lowercase hexadecimal characters; a mismatch refuses the edit (exit 1).",
-  "Successful edits do not print a new revision.",
+  "Successful writes do not print a new revision for single edits.",
   "Before each subsequent edit, run inspect again to get the new revision and paths.",
+];
+const DRY_RUN_NOTE = [
+  "--dry-run runs the same edits and canonical write checks without committing or creating temporary files.",
+  "Text prints the result revision, check summary (warnings on stderr), then --- markdown --- and canonical Markdown.",
+  "--dry-run --format json prints dryRun, revision, markdown and the same diagnostic fields as check; batches add applied.",
+  "Failures keep the usual stderr messages and exit 1, including in JSON mode.",
+  "Read-only checks cover current revision and file/directory permissions; disk space, rename locks and later I/O may still fail on write.",
 ];
 
 const PARAGRAPH_PATH_NOTE = [
@@ -132,7 +141,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "apply-batch",
     summary: "Apply document edits in order with one atomic file commit",
-    usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--format json]",
+    usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
     details: [
       "--operations is a non-empty JSON array of { command, ...options }; stdin (-) is not supported.",
       "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
@@ -140,7 +149,7 @@ const COMMANDS: CommandSpec[] = [
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
       "JSON options accept objects, arrays or strings only; null option values are rejected.",
       "All document edit commands, including format, are allowed; create, check, inspect, serve,",
-      "apply-batch and per-operation if-revision are forbidden.",
+      "apply-batch and per-operation if-revision, dry-run and format options are forbidden.",
       "Top-level insertions accept at: \"end\", resolved by Core before endnotes on each step's snapshot.",
       "Table row/column positions, removal positions and move destinations remain numeric.",
       "insert-equation accepts label; insert-table accepts caption or caption-content and label, as in single edits.",
@@ -148,12 +157,13 @@ const COMMANDS: CommandSpec[] = [
       BODY_INDEX_NOTE,
       "Each step applies Core, validates and canonically serializes, then parses again for the next step.",
       "--if-revision checks the original once, before Core operations (64 lowercase hexadecimal characters).",
-      "Only the final result is committed, against the original revision. Any failure exits 1 without writing.",
+      "Without --dry-run, only the final result is committed, against the original revision. Any failure exits 1 without writing.",
       "Step errors: operation <1-based index> (<command>): <original error>; nothing was written.",
       "Only step input/options, Core, validation, serialization and reparsing errors have that prefix.",
       "Batch-wide errors (original read/parse, revision and commit) keep single-command messages without a prefix.",
-      "JSON success: {\"ok\":true,\"command\":\"apply-batch\",\"applied\":N,\"revision\":\"<result revision>\"}.",
-      "Text success prints nothing. Run inspect again for paths before a later request.",
+      "Without --dry-run, JSON success: {\"ok\":true,\"command\":\"apply-batch\",\"applied\":N,\"revision\":\"<result revision>\"}.",
+      "Without --dry-run, text success prints nothing. Run inspect again for paths before a later request.",
+      ...DRY_RUN_NOTE,
     ],
   },
   {
@@ -664,9 +674,10 @@ function main(argv: string[]): number {
   }
   const { file, flags, format } = parseCommandArgs(command, rest);
   const ifRevision = optionalFlag(flags, "--if-revision");
+  const dryRun = flags.includes("--dry-run");
 
   /** Apply one Core operation and write the result only over the file as it was read. */
-  function edit(path: string, change: (document: Document) => Document): void {
+  function edit(path: string, change: (document: Document) => Document): number {
     // Both checks use the source the change was made to, never a later read.
     const source = readFile(path);
     const revision = textRevision(source);
@@ -675,18 +686,15 @@ function main(argv: string[]): number {
     }
     const original = parse(source);
     const references = unresolvedReferences(original);
-    commitFile(path, serializeChange(original, change), revision);
-    warnLiteralFootnotes(references);
+    return finishEdit(path, serializeChange(original, change), revision, { command }, dryRun, format, references);
   }
 
   if (command === "apply-batch") {
-    const result = applyBatch(file, flag(flags, "--operations"), ifRevision);
-    if (format === "json") process.stdout.write(`${JSON.stringify(result)}\n`);
-    return 0;
+    const { markdown, revision, applied, references } = applyBatch(file, flag(flags, "--operations"), ifRevision);
+    return finishEdit(file, markdown, revision, { command, applied }, dryRun, format, references);
   }
   if (isEditCommand(command)) {
-    edit(file, changeFor(command, flags));
-    return 0;
+    return edit(file, changeFor(command, flags));
   }
 
   switch (command) {
@@ -696,42 +704,7 @@ function main(argv: string[]): number {
       return 0;
     }
     case "check": {
-      const document = parse(readFile(file));
-      validateStructure(document);
-      const writeError = canonicalWriteError(document);
-      const unresolved = unresolvedReferences(document);
-      // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
-      const pendingFigures = getEditableDocument(document).blocks.flatMap(block =>
-        block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
-      const endnotes = { inPlace: endnotesInPlace(document) };
-      if (format === "json") {
-        process.stdout.write(`${JSON.stringify({
-          ok: writeError === undefined,
-          command: "check",
-          validation: { valid: true },
-          writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
-          references: { unresolved },
-          readiness: { pendingFigures },
-          endnotes,
-        })}\n`);
-      } else {
-        process.stdout.write(`${summarize(document)}\n`);
-        if (writeError === undefined) process.stdout.write("writeability ok\n");
-        else process.stderr.write(`writeability failed: ${writeError}\n`);
-        for (const reference of unresolved) {
-          const { path, line } = reference;
-          const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\``
-            : "link" in reference ? `link ${reference.link}` : `footnote [^${reference.label}]`;
-          const missing = "footnote" in reference ? "has no definition" : "names no target";
-          process.stderr.write(`warning: ${written} (${at}) ${missing} in this document\n`);
-        }
-        for (const { path, label } of pendingFigures) {
-          process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
-        }
-        if (!endnotes.inPlace) process.stderr.write("note: format and Save move footnote definitions after the body, in first-reference order\n");
-      }
-      return writeError === undefined ? 0 : 1;
+      return checkDocument(parse(readFile(file)), format);
     }
     case "inspect": {
       process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
@@ -741,6 +714,72 @@ function main(argv: string[]): number {
       process.stderr.write(topLevelHelp());
       return 2;
   }
+}
+
+type EditResult = { command: string; applied?: number };
+type Preview = EditResult & { dryRun: true; revision: string; markdown: string };
+
+/** The only edit write boundary. Preview never enters file-commit's mutation path. */
+function finishEdit(file: string, markdown: string, revision: string, result: EditResult,
+  dryRun: boolean, format: OutputFormat, references: ReturnType<typeof unresolvedReferences>): number {
+  if (dryRun) {
+    const resultRevision = textRevision(markdown);
+    const document = parse(markdown);
+    const target = fs.realpathSync(file);
+    if (createHash("sha256").update(readFileSync(target)).digest("hex") !== revision) throw new FileChangedError(file);
+    fs.accessSync(target, fs.constants.W_OK);
+    fs.statSync(target);
+    fs.accessSync(path.dirname(target), fs.constants.W_OK | fs.constants.X_OK);
+    return checkDocument(document, format, { ...result, dryRun: true, revision: resultRevision, markdown });
+  }
+  commitFile(file, markdown, revision);
+  warnLiteralFootnotes(references);
+  if (result.command === "apply-batch" && format === "json") {
+    process.stdout.write(`${JSON.stringify({ ok: true, ...result, revision: textRevision(markdown) })}\n`);
+  }
+  return 0;
+}
+
+/** Shared check diagnostics and presentation for files and canonical edit previews. */
+function checkDocument(document: Document, format: OutputFormat, preview?: Preview): number {
+  validateStructure(document);
+  const writeError = canonicalWriteError(document);
+  const unresolved = unresolvedReferences(document);
+  // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
+  const pendingFigures = getEditableDocument(document).blocks.flatMap(block =>
+    block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
+  const endnotes = { inPlace: endnotesInPlace(document) };
+  if (format === "json") {
+    process.stdout.write(`${JSON.stringify({
+      ok: writeError === undefined,
+      command: "check",
+      ...preview,
+      validation: { valid: true },
+      writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
+      references: { unresolved },
+      readiness: { pendingFigures },
+      endnotes,
+    })}\n`);
+  } else {
+    if (preview) process.stdout.write(`dry run; nothing was written\nrevision: ${preview.revision}\n`);
+    process.stdout.write(`${summarize(document)}\n`);
+    if (writeError === undefined) process.stdout.write("writeability ok\n");
+    else process.stderr.write(`writeability failed: ${writeError}\n`);
+    for (const reference of unresolved) {
+      const { path, line } = reference;
+      const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
+      const written = "role" in reference ? `{${reference.role}}\`${reference.label}\``
+        : "link" in reference ? `link ${reference.link}` : `footnote [^${reference.label}]`;
+      const missing = "footnote" in reference ? "has no definition" : "names no target";
+      process.stderr.write(`warning: ${written} (${at}) ${missing} in this document\n`);
+    }
+    for (const { path, label } of pendingFigures) {
+      process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
+    }
+    if (!endnotes.inPlace) process.stderr.write("note: format and Save move footnote definitions after the body, in first-reference order\n");
+    if (preview) process.stdout.write(`--- markdown ---\n${preview.markdown}`);
+  }
+  return writeError === undefined ? 0 : 1;
 }
 
 type Change = (document: Document) => Document;
@@ -1022,9 +1061,7 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
       throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`);
     }
   }
-  commitFile(file, result, revision);
-  warnLiteralFootnotes(references);
-  return { ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(result) };
+  return { markdown: result, revision, applied: operations.length, references };
 }
 
 function findCommand(name: string): CommandSpec | undefined {
@@ -1049,6 +1086,7 @@ function topLevelHelp(): string {
     "",
     "Single document edits (including format, excluding create; see help apply-batch for batches):",
     ...REVISION_NOTE,
+    ...DRY_RUN_NOTE,
     "",
     "Run:",
     "  ieumdoc help <command>",
@@ -1062,17 +1100,17 @@ function commandHelp(name: string): string {
   if (!spec) return topLevelHelp();
   const editing = isEditCommand(name);
   const addressed = /--(?:at|path|from) <(?:index|heading index|table)/.test(spec.usage);
-  return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>]" : ""}`, "", ...spec.details,
+  return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>] [--dry-run [--format <text|json>]]" : ""}`, "", ...spec.details,
     ...(spec.usage.includes("--at <index|end>") ? ["",
       "--at end inserts at the body end before endnote definitions, or after the last body block.",
       "For an empty native document this is index 1. Core resolves the position on the current snapshot.",
       "apply-batch accepts the same position as \"at\": \"end\"."] : []),
     ...(editing && addressed ? ["", BODY_INDEX_NOTE] : []),
-    ...(editing ? ["", ...REVISION_NOTE] : []), ""].join("\n");
+    ...(editing ? ["", ...REVISION_NOTE, ...DRY_RUN_NOTE] : []), ""].join("\n");
 }
 
 const COMMAND_OPTIONS: Record<string, readonly string[]> = {
-  "apply-batch": ["--operations", "--if-revision", "--format"],
+  "apply-batch": ["--operations", "--if-revision", "--dry-run", "--format"],
   "insert-hard-break": ["--path", "--offset"],
   "split-paragraph": ["--path", "--offset"],
   "merge-paragraph": ["--path"],
@@ -1131,7 +1169,8 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     throw new Error(`unexpected argument: ${file ?? "<missing file>"}`);
   }
 
-  const allowed = [...(COMMAND_OPTIONS[command] ?? []), ...(isEditCommand(command) ? ["--if-revision"] : [])];
+  const allowed = [...(COMMAND_OPTIONS[command] ?? []), ...(isEditCommand(command)
+    ? ["--if-revision", "--dry-run", ...(tokens.includes("--dry-run") ? ["--format"] : [])] : [])];
   const seen = new Set<string>();
   const flags: string[] = [];
   let format: OutputFormat = "text";
@@ -1149,6 +1188,7 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     }
     seen.add(token);
     flags.push(token);
+    if (token === "--dry-run") continue;
 
     const value = tokens[index + 1];
     if (value === undefined || value.startsWith("--")) {
