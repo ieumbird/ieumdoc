@@ -94,7 +94,7 @@ test("insert-block accepts Core inline JSON and rejects ambiguous input without 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("CLI writes and dry runs refuse a file changed after it was read and keep those bytes", () => {
+test("CLI writes and dry runs report the same preflight conflict and keep externally changed bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-changed-"));
   const file = path.join(dir, "document.md");
   const external = Buffer.from(nativeSource("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n"), "utf8");
@@ -201,27 +201,6 @@ test("single dry runs preserve failure messages and reject unsupported or ambigu
       ...["create", "check", "inspect"].map(command => [command, file, "--dry-run"]),
     ]) assert.equal(run(args).status, 1, args.join(" "));
     assert.deepEqual(readFileSync(file), original);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test("dry runs check target and directory permissions without attempting a commit", (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-permission-"));
-  const file = path.join(dir, "document.md");
-  writeFileSync(file, nativeSource("Original.\n"));
-  const access = fs.accessSync;
-  const denied = Object.assign(new Error("permission denied"), { code: "EACCES" });
-  try {
-    for (const target of [fs.realpathSync(file), fs.realpathSync(dir)]) {
-      const permission = t.mock.method(fs, "accessSync", (name: fs.PathLike, mode?: number) => {
-        if (name === target) throw denied;
-        return access(name, mode);
-      });
-      try {
-        const result = run(["format", file, "--dry-run"]);
-        assert.deepEqual(result, { status: 1, stdout: "", stderr: "permission denied\n" });
-        if (target === fs.realpathSync(file)) assert.deepEqual(result, run(["format", file]));
-      } finally { permission.mock.restore(); }
-    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -26,6 +26,24 @@ export class FileChangedError extends Error {
   }
 }
 
+function assertRevision(filePath: string, target: string, revision: string): void {
+  if (createHash("sha256").update(fs.readFileSync(target)).digest("hex") !== revision) {
+    throw new FileChangedError(filePath);
+  }
+}
+
+/** Read-only checks shared by previews and commits; does not guarantee later write/rename I/O. */
+export function preflightFileCommit(filePath: string, text: string, revision: string): { target: string; mode: number } {
+  assertUnicode(text);
+  // Preserve a symlink itself by replacing its resolved target.
+  const target = fs.realpathSync(filePath);
+  assertRevision(filePath, target, revision);
+  // A rename needs only directory permission; still refuse a file that cannot be written.
+  fs.accessSync(target, fs.constants.W_OK);
+  const { mode } = fs.statSync(target);
+  return { target, mode };
+}
+
 /**
  * Replace an existing file with UTF-8 text while it still has the revision the caller read.
  * The text is completed in a temporary sibling, the revision is checked again, and the
@@ -33,20 +51,13 @@ export class FileChangedError extends Error {
  * The last check and the rename are separate steps: this is not an atomic compare-and-swap.
  */
 export function commitFile(filePath: string, text: string, revision: string): void {
-  assertUnicode(text);
-  // Preserve a symlink itself by replacing its resolved target.
-  const target = fs.realpathSync(filePath);
-  const unchanged = () => createHash("sha256").update(fs.readFileSync(target)).digest("hex") === revision;
-  if (!unchanged()) throw new FileChangedError(filePath);
-  // A rename needs only directory permission; still refuse a file that cannot be written.
-  fs.accessSync(target, fs.constants.W_OK);
-  const { mode } = fs.statSync(target);
+  const { target, mode } = preflightFileCommit(filePath, text, revision);
   const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
   try {
     fs.writeFileSync(temporary, text, { encoding: "utf8", flag: "wx", mode });
     // The creation mode is reduced by the umask; the replacement keeps the file's own.
     fs.chmodSync(temporary, mode & 0o7777);
-    if (!unchanged()) throw new FileChangedError(filePath);
+    assertRevision(filePath, target, revision);
     fs.renameSync(temporary, target);
   } finally {
     fs.rmSync(temporary, { force: true });

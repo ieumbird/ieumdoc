@@ -1,6 +1,4 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import fs from "node:fs";
-import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -73,7 +71,7 @@ import {
   type InlineContent,
   type ListContent,
 } from "@ieumdoc/core";
-import { commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
 
 type CommandSpec = {
   name: string;
@@ -107,7 +105,7 @@ const DRY_RUN_NOTE = [
   "Text prints the result revision, check summary (warnings on stderr), then --- markdown --- and canonical Markdown.",
   "--dry-run --format json prints dryRun, revision, markdown and the same diagnostic fields as check; batches add applied.",
   "Failures keep the usual stderr messages and exit 1, including in JSON mode.",
-  "Read-only checks cover current revision and file/directory permissions; disk space, rename locks and later I/O may still fail on write.",
+  "Shared read-only checks cover current revision and file permissions; directory writes, disk space and rename locks may still fail on write.",
 ];
 
 const PARAGRAPH_PATH_NOTE = [
@@ -725,11 +723,7 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
   if (dryRun) {
     const resultRevision = textRevision(markdown);
     const document = parse(markdown);
-    const target = fs.realpathSync(file);
-    if (createHash("sha256").update(readFileSync(target)).digest("hex") !== revision) throw new FileChangedError(file);
-    fs.accessSync(target, fs.constants.W_OK);
-    fs.statSync(target);
-    fs.accessSync(path.dirname(target), fs.constants.W_OK | fs.constants.X_OK);
+    preflightFileCommit(file, markdown, revision);
     return checkDocument(document, format, { ...result, dryRun: true, revision: resultRevision, markdown });
   }
   commitFile(file, markdown, revision);
