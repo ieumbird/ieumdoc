@@ -75,8 +75,22 @@ import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevisio
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
 
+const HELP_GROUPS = [
+  "Create and inspect",
+  "Check",
+  "Edit — batch",
+  "Edit — insert blocks",
+  "Edit — text and content",
+  "Edit — structure",
+  "Edit — tables",
+  "Edit — labels, footnotes and numbering",
+  "Format",
+  "Serve",
+] as const;
+
 type CommandSpec = {
   name: string;
+  group: (typeof HELP_GROUPS)[number]; // Display-only top-level help grouping.
   summary: string;
   usage: string;
   details: string[];
@@ -141,6 +155,7 @@ const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
   {
     name: "apply-batch",
+    group: "Edit — batch",
     summary: "Apply document edits in order with one atomic file commit",
     usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
     details: [
@@ -169,12 +184,14 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "create",
+    group: "Create and inspect",
     summary: "Create an empty IeumDoc native document",
     usage: "ieumdoc create <file>",
     details: ["Create a new .md file in an existing directory. Existing files are never overwritten."],
   },
   {
     name: "serve",
+    group: "Serve",
     summary: "Serve the production Editor inside explicitly allowed folders",
     usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]",
     details: [
@@ -188,18 +205,21 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-hard-break",
+    group: "Edit — text and content",
     summary: "Insert a hard break within a supported Paragraph",
     usage: "ieumdoc insert-hard-break <file> --path <indexes> --offset <number>",
     details: ["Insert a line break without creating a new paragraph.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
   },
   {
     name: "split-paragraph",
+    group: "Edit — structure",
     summary: "Split a top-level Paragraph",
     usage: "ieumdoc split-paragraph <file> --path <indexes> --offset <number>",
     details: ["Split a supported top-level paragraph; both sides must be non-empty.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
   },
   {
     name: "merge-paragraph",
+    group: "Edit — structure",
     summary: "Merge a Paragraph with the previous Paragraph",
     usage: "ieumdoc merge-paragraph <file> --path <indexes>",
     details: ["Merge the current top-level paragraph with the immediately previous paragraph.",
@@ -207,6 +227,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "check",
+    group: "Check",
     summary: "Validate a document",
     usage: "ieumdoc check <file> [--format <text|json>]",
     details: [
@@ -231,6 +252,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "inspect",
+    group: "Create and inspect",
     summary: "Inspect semantic blocks and editable targets",
     usage: "ieumdoc inspect <file> [--format <text|json>]",
     details: [
@@ -249,6 +271,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "format",
+    group: "Format",
     summary: "Canonically format a document",
     usage: "ieumdoc format <file>",
     details: ["Canonically format a document. Footnote definitions are written after the body, in the",
@@ -256,12 +279,20 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "replace-text",
-    summary: "Replace text through Core",
+    group: "Edit — text and content",
+    summary: "Replace text in the first matching paragraph or heading",
     usage: "ieumdoc replace-text <file> --from <text> --to <text>",
-    details: ["Replace text through Core."],
+    details: ["Select only the first matching paragraph or heading by rendered text, not throughout the document.",
+      "Replace all matches within that block's individual text nodes.",
+      "Matches crossing formatting/text-node boundaries may be left unchanged, still exiting 0 (e.g. a**bc**d, --from abc).",
+      "Use update-node-text instead when you know the path; it also substitutes within individual text nodes.",
+      "For formatted content, replace the whole block with structured --content: update-heading or update-quote.",
+      "For a paragraph in apply-batch, insert-block --content for the new paragraph first, then remove-block on the old one.",
+      "Each intermediate step must be writable (e.g. keep footnote references); check first with --dry-run."],
   },
   {
     name: "insert-block",
+    group: "Edit — insert blocks",
     summary: "Insert a Paragraph block at a top-level index",
     usage: "ieumdoc insert-block <file> --at <index|end> (--text <text> | --content <json>)",
     details: [
@@ -273,6 +304,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-heading",
+    group: "Edit — insert blocks",
     summary: "Insert a Heading block at a top-level index",
     usage: "ieumdoc insert-heading <file> --at <index|end> --level <1-6> (--text <text> | --content <json>)",
     details: [
@@ -282,17 +314,20 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-heading",
+    group: "Edit — text and content",
     summary: "Replace the text of a Heading, keeping its level",
     usage: "ieumdoc update-heading <file> --path <index> (--text <text> | --content <json>)",
     details: [
-      "Replace the inline content of one editable top-level Heading.",
+      "Replace the entire inline content of one editable top-level Heading, keeping its level.",
       "--content is Core InlineContent JSON (marks, links, inline math and references); headings cannot hold line breaks.",
       "Headings require supported native inline content.",
+      "Use update-node-text instead when substituting text at a known path.",
       ...PATH_NOTE,
     ],
   },
   {
     name: "insert-admonition",
+    group: "Edit — insert blocks",
     summary: "Insert a simple admonition of a standard MyST kind",
     usage: "ieumdoc insert-admonition <file> --at <index|end> --variant <kind> --text <text>",
     details: [
@@ -303,6 +338,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-admonition-variant",
+    group: "Edit — text and content",
     summary: "Change the kind of a simple admonition",
     usage: "ieumdoc update-admonition-variant <file> --path <index> --variant <kind>",
     details: [
@@ -313,6 +349,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-quote",
+    group: "Edit — insert blocks",
     summary: "Insert a Quote at a top-level index",
     usage: "ieumdoc insert-quote <file> --at <index|end> (--text <text> | --content <json>)",
     details: [
@@ -322,16 +359,19 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-quote",
+    group: "Edit — text and content",
     summary: "Replace the text of a Quote",
     usage: "ieumdoc update-quote <file> --path <index> (--text <text> | --content <json>)",
     details: [
-      "Replace the paragraph of one editable top-level Quote.",
+      "Replace the entire paragraph content of one editable top-level Quote.",
       "Quotes contain one paragraph of supported native inline content.",
+      "Use update-node-text instead when substituting text at a known path.",
       ...PATH_NOTE,
     ],
   },
   {
     name: "insert-footnote",
+    group: "Edit — labels, footnotes and numbering",
     summary: "Insert a footnote reference and its definition",
     usage: "ieumdoc insert-footnote <file> --path <indexes> --offset <number> (--text <text> | --content <json>)",
     details: [
@@ -346,6 +386,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-footnote",
+    group: "Edit — labels, footnotes and numbering",
     summary: "Replace the text of a footnote definition",
     usage: "ieumdoc update-footnote <file> --path <index> (--text <text> | --content <json>)",
     details: [
@@ -356,12 +397,14 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-divider",
+    group: "Edit — insert blocks",
     summary: "Insert a divider (thematic break) at a top-level index",
     usage: "ieumdoc insert-divider <file> --at <index|end>",
     details: ["Insert a top-level divider, written as a Markdown thematic break."],
   },
   {
     name: "update-heading-level",
+    group: "Edit — structure",
     summary: "Change an editable Heading's level through Core",
     usage: "ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>",
     details: [
@@ -372,6 +415,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "convert-block",
+    group: "Edit — structure",
     summary: "Convert a Paragraph or Heading to another text block kind",
     usage: "ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]",
     details: [
@@ -384,6 +428,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-equation",
+    group: "Edit — insert blocks",
     summary: "Insert an Equation block at a top-level index",
     usage: "ieumdoc insert-equation <file> --at <index|end> --latex <latex> [--label <label>]",
     details: [
@@ -394,6 +439,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-figure",
+    group: "Edit — insert blocks",
     summary: "Insert a Figure block at a top-level index",
     usage: "ieumdoc insert-figure <file> --at <index|end> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
@@ -405,6 +451,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-figure",
+    group: "Edit — text and content",
     summary: "Update a Figure's image, alt text, or caption through Core",
     usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>]",
     details: [
@@ -417,19 +464,25 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "remove-block",
+    group: "Edit — structure",
     summary: "Remove a top-level block",
     usage: "ieumdoc remove-block <file> --at <index>",
-    details: ["Remove a top-level block."],
+    details: ["Remove one top-level block only. Removing a heading does not remove its section content.",
+      "Use remove-section instead when removing a heading with its content and subsections."],
   },
   {
     name: "move-block",
+    group: "Edit — structure",
     summary: "Move a top-level block",
     usage: "ieumdoc move-block <file> --from <index> --to <index>",
-    details: ["Move a top-level block. Footnote definitions are written after the body in first-reference",
+    details: ["Move one top-level block only; moving a heading does not move its section content.",
+      "Use move-section instead when moving a heading with its content and subsections.",
+      "Footnote definitions are written after the body in first-reference",
       "order wherever they are moved; move a reference to change their order."],
   },
   {
     name: "move-section",
+    group: "Edit — structure",
     summary: "Move a heading's section",
     usage: "ieumdoc move-section <file> --from <heading index> --to <index>",
     details: [
@@ -437,17 +490,21 @@ const COMMANDS: CommandSpec[] = [
       "--to is the start of another section or the block count (the end). Heading levels are kept.",
       "Footnote definitions (endnotes) are in no section and stay after the body.",
       "inspect shows each heading's section as [start,end).",
+      "Use move-block instead when moving just one top-level block.",
     ],
   },
   {
     name: "remove-section",
+    group: "Edit — structure",
     summary: "Remove a heading's section",
     usage: "ieumdoc remove-section <file> --at <heading index>",
     details: ["Remove the section a top-level heading opens: its label targets, content and deeper sections.",
-      "Footnote definitions (endnotes) are kept. Removing the last reference to one is refused without writing."],
+      "Footnote definitions (endnotes) are kept. Removing the last reference to one is refused without writing.",
+      "Use remove-block instead when removing just one top-level block."],
   },
   {
     name: "insert-table",
+    group: "Edit — tables",
     summary: "Insert a Markdown table at a top-level index",
     usage: "ieumdoc insert-table <file> --at <index|end> --cells <json> [--align <json>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
@@ -464,6 +521,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-list",
+    group: "Edit — insert blocks",
     summary: "Insert a bullet or numbered list at a top-level index",
     usage: "ieumdoc insert-list <file> --at <index|end> --list <json>",
     details: [
@@ -473,6 +531,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-list",
+    group: "Edit — text and content",
     summary: "Replace the content of an editable list through Core",
     usage: "ieumdoc update-list <file> --path <index> --list <json>",
     details: [
@@ -485,6 +544,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-code-block",
+    group: "Edit — insert blocks",
     summary: "Insert a fenced code block at a top-level index",
     usage: "ieumdoc insert-code-block <file> --at <index|end> --code <text> [--language <name>]",
     details: [
@@ -494,6 +554,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-code-block",
+    group: "Edit — text and content",
     summary: "Replace the language or code of a code block through Core",
     usage: "ieumdoc update-code-block <file> --path <index> [--language <name>] [--code <text>]",
     details: [
@@ -505,6 +566,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-table-row",
+    group: "Edit — tables",
     summary: "Insert an empty row into a Markdown table",
     usage: "ieumdoc insert-table-row <file> --path <table> --at <row>",
     details: [
@@ -515,6 +577,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-table-column",
+    group: "Edit — tables",
     summary: "Insert an empty column into a Markdown table",
     usage: "ieumdoc insert-table-column <file> --path <table> --at <column>",
     details: [
@@ -525,6 +588,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "remove-table-row",
+    group: "Edit — tables",
     summary: "Remove a body row from a Markdown table",
     usage: "ieumdoc remove-table-row <file> --path <table> --at <row>",
     details: [
@@ -535,6 +599,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "remove-table-column",
+    group: "Edit — tables",
     summary: "Remove a column from a Markdown table",
     usage: "ieumdoc remove-table-column <file> --path <table> --at <column>",
     details: [
@@ -545,6 +610,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "move-table-row",
+    group: "Edit — tables",
     summary: "Move a body row within a Markdown table",
     usage: "ieumdoc move-table-row <file> --path <table> --from <row> --to <row>",
     details: [
@@ -554,6 +620,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "move-table-column",
+    group: "Edit — tables",
     summary: "Move a column within a Markdown table",
     usage: "ieumdoc move-table-column <file> --path <table> --from <column> --to <column>",
     details: [
@@ -563,6 +630,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-table-alignment",
+    group: "Edit — tables",
     summary: "Set or clear the alignment of a Markdown table column",
     usage: "ieumdoc update-table-alignment <file> --path <table> --column <column> --align <left|center|right|none>",
     details: [
@@ -572,18 +640,21 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-heading-numbering",
+    group: "Edit — labels, footnotes and numbering",
     summary: "Enable or disable document heading numbers through Core",
     usage: "ieumdoc update-heading-numbering <file> --enabled <true|false>",
     details: ["H1 remains a title; H2-H6 are numbered automatically. Only numbering settings are written, never heading text."],
   },
   {
     name: "update-table-caption",
+    group: "Edit — tables",
     summary: "Set or remove a table caption through Core",
     usage: "ieumdoc update-table-caption <file> --path <table> (--text <text> | --content <json>)",
     details: ["Set a single-line caption; empty text removes it. A caption or label makes a numbered table directive."],
   },
   {
     name: "update-table-cell",
+    group: "Edit — tables",
     summary: "Replace the content of a Markdown table cell through Core",
     usage: "ieumdoc update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)",
     details: [
@@ -595,10 +666,12 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-node-text",
+    group: "Edit — text and content",
     summary: "Update text at a NodePath through Core",
     usage: "ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>",
     details: [
-      "Update text at a Core NodePath.",
+      "Substitute text at a known Core NodePath.",
+      "Use update-heading or update-quote instead when replacing the entire heading or quote content.",
       "",
       "Use:",
       "  ieumdoc inspect <file>",
@@ -610,6 +683,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-equation-latex",
+    group: "Edit — text and content",
     summary: "Update Equation LaTeX through Core",
     usage: "ieumdoc update-equation-latex <file> --path <indexes> --from <latex> --to <latex>",
     details: [
@@ -620,6 +694,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "insert-target",
+    group: "Edit — labels, footnotes and numbering",
     summary: "Label the next block, typically a section heading, with a (label)= target",
     usage: "ieumdoc insert-target <file> --at <index|end> --label <label>",
     details: [
@@ -630,6 +705,7 @@ const COMMANDS: CommandSpec[] = [
   },
   {
     name: "update-label",
+    group: "Edit — labels, footnotes and numbering",
     summary: "Set, change, or remove an Equation, Figure, Table or target label through Core",
     usage: "ieumdoc update-label <file> --path <index> --label <label> [--update-references <true|false>]",
     details: [
@@ -1125,15 +1201,20 @@ function topLevelHelp(): string {
     "Usage:",
     "  ieumdoc <command> [options]",
     "",
+    "Start here:",
+    "  Before editing, use ieumdoc inspect <file> --format json for current paths and revision.",
+    "  One edit: choose a command below. Multiple edits: use apply-batch.",
+    "  Use --if-revision to guard edits and --dry-run to preview them.",
+    "  Batch paths use each preceding step's result; they are not tracked automatically.",
+    "  Details: ieumdoc help <command>",
+    "",
     "Commands:",
-    ...COMMANDS.map((command) => `  ${command.name.padEnd(width)}  ${command.summary}`),
-    "",
-    "Single document edits (including format, excluding create; see help apply-batch for batches):",
-    ...REVISION_NOTE,
-    ...DRY_RUN_NOTE,
-    "",
-    "Run:",
-    "  ieumdoc help <command>",
+    ...HELP_GROUPS.flatMap((group) => [
+      `  ${group}:`,
+      ...COMMANDS.filter((command) => command.group === group)
+        .map((command) => `    ${command.name.padEnd(width)}  ${command.summary}`),
+      "",
+    ]),
     "",
   ];
   return lines.join("\n");

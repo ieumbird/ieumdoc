@@ -109,6 +109,8 @@ pnpm ieumdoc inspect packages/core/test/fixtures/technical-document.md
 pnpm ieumdoc help split-paragraph
 ```
 
+`help`는 모든 명령을 생성·조회, 검사, 편집(배치·블록 삽입·텍스트/콘텐츠·구조·표·라벨/미주/번호), 포맷, 서버 실행으로 묶어 보여줍니다. 목록 앞의 Start here 안내에 따라 편집 전 `inspect <file> --format json`으로 현재 경로와 revision을 확인하고, 단건은 개별 명령, 여러 수정은 `apply-batch`를 선택합니다. `--if-revision`으로 변경을 보호하고 `--dry-run`으로 미리 확인합니다. 배치 경로는 앞 단계 결과 기준이며 자동 추적되지 않습니다.
+
 `help <command>`에서 옵션을 확인합니다. paragraph offset은 UTF-16이고 NodePath는 snapshot locator입니다. `check`는 대상이 없는 `{eq}`/`{numref}`/`{ref}` reference를 warning으로 알립니다. 이 warning만으로 check가 실패하지는 않습니다. 파일을 바꾸는 명령은 fixture가 아닌 문서 사본에서 실행합니다. 명령이 파일을 읽은 뒤 다른 곳에서 바뀌었거나 쓰기 도중 실패하면 원본을 그대로 두고 실패합니다([File commit](docs/design/filesystem-host-boundary-v1.md#file-commit-v1)).
 
 AI·자동화 호출자는 `inspect <file> --format json`의 `revision`과 `nodes`의 경로를 함께 사용합니다. `revision`은 inspect가 읽은 원본 UTF-8 text의 SHA-256(64자리 소문자 hex)입니다. 모든 문서 변경 명령(`format` 포함, `create` 제외)은 선택적 `--if-revision <revision>`을 받으며, 현재 원본과 다르면 Core operation 전에 거부합니다. 생략하면 기존 동작을 유지합니다.

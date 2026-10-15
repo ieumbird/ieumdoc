@@ -391,37 +391,51 @@ test("ieumdoc help exits successfully", () => {
       assert.match(result.stdout, /IeumDoc CLI/);
     }
     const help = args.length === 0 ? result.stderr : result.stdout;
-    for (const name of [
-      "check",
-      "inspect",
-      "format",
-      "replace-text",
-      "insert-block",
-      "insert-heading",
-      "insert-equation",
-      "insert-figure",
-      "remove-block",
-      "insert-target",
-      "move-block",
-      "move-section",
-      "remove-section",
-      "update-node-text",
-      "update-equation-latex",
-      "update-figure",
-      "insert-table",
-      "insert-table-row",
-      "insert-table-column",
-      "remove-table-row",
-      "remove-table-column",
-      "move-table-row",
-      "move-table-column",
-      "update-table-alignment",
-      "update-table-cell",
-      "update-label",
-      "apply-batch",
-    ]) {
-      assert.equal(help.includes(name), true, name);
+    const expectedGroups: Record<string, string[]> = {
+      "Create and inspect": ["create", "inspect"],
+      "Check": ["check"],
+      "Edit — batch": ["apply-batch"],
+      "Edit — insert blocks": ["insert-block", "insert-heading", "insert-admonition", "insert-quote", "insert-divider", "insert-equation", "insert-figure", "insert-list", "insert-code-block"],
+      "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
+      "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
+      "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
+      "Edit — labels, footnotes and numbering": ["insert-footnote", "update-footnote", "update-heading-numbering", "insert-target", "update-label"],
+      "Format": ["format"],
+      "Serve": ["serve"],
+    };
+    const expectedCommands = Object.values(expectedGroups).flat();
+    const listed: string[] = [];
+    let currentGroup = "";
+    const actualGroups: Record<string, string[]> = {};
+    const commandsStart = help.indexOf("Commands:");
+    assert.notEqual(commandsStart, -1);
+    for (const line of help.slice(commandsStart + "Commands:".length).split("\n")) {
+      const row = line.trim();
+      if (!row) continue;
+      if (row.endsWith(":")) {
+        const heading = row.slice(0, -1);
+        assert.equal(Object.hasOwn(actualGroups, heading), false, `duplicate group: ${heading}`);
+        currentGroup = heading;
+        actualGroups[currentGroup] = [];
+      } else {
+        const command = row.split(/\s+/)[0];
+        assert.ok(currentGroup, `ungrouped command: ${command}`);
+        listed.push(command);
+        actualGroups[currentGroup].push(command);
+      }
     }
+    assert.deepEqual(Object.keys(actualGroups).sort(), Object.keys(expectedGroups).sort());
+    for (const group of Object.keys(expectedGroups)) {
+      assert.deepEqual(actualGroups[group]?.sort(), expectedGroups[group].sort(), group);
+    }
+    assert.equal(new Set(listed).size, listed.length, "every command appears exactly once");
+    assert.deepEqual(listed.sort(), expectedCommands.sort(), "all expected commands remain visible");
+    const guidance = help.replace(/\s+/g, " ");
+    assert.ok(help.indexOf("Start here:") < help.indexOf("Commands:"));
+    assert.match(guidance, /inspect <file> --format json.*current paths and revision/);
+    assert.match(guidance, /One edit:.*command below.*Multiple edits:.*apply-batch/);
+    assert.match(guidance, /--if-revision.*--dry-run/);
+    assert.match(guidance, /Batch paths.*preceding step's result.*not tracked automatically/);
     assert.match(help, /ieumdoc help <command>/);
   }
 });
@@ -443,6 +457,28 @@ test("command help is available from help and --help", () => {
   assert.match(update.stdout, /ieumdoc inspect <file>/);
   assert.match(update.stdout, /current document snapshot/);
   assert.equal(run(["update-node-text", "--help"]).stdout, update.stdout);
+
+  const guidance: Record<string, RegExp[]> = {
+    "replace-text": [/first matching paragraph or heading.*rendered text/, /not throughout the document/,
+      /all matches.*individual text nodes/, /crossing formatting\/text-node boundaries.*unchanged.*exiting 0/,
+      /Use update-node-text instead when/, /it also substitutes within individual text nodes/,
+      /whole block.*structured --content.*update-heading or update-quote/,
+      /paragraph.*apply-batch.*insert-block --content.*first.*then remove-block/i,
+      /intermediate step.*writable.*footnote references.*--dry-run/],
+    "update-heading": [/entire.*content.*Heading/i, /Use update-node-text instead when/],
+    "update-quote": [/entire.*content.*Quote/i, /Use update-node-text instead when/],
+    "update-node-text": [/Substitute text at a known Core NodePath/, /Use update-heading or update-quote instead when replacing the entire/],
+    "move-block": [/one top-level block only/, /Use move-section instead when.*heading with its content and subsections/],
+    "remove-block": [/one top-level block only/, /Use remove-section instead when.*heading with its content and subsections/],
+    "move-section": [/heading.*content and (?:deeper sections|subsections)/i, /Use move-block instead when.*one top-level block/],
+    "remove-section": [/heading.*content and (?:deeper sections|subsections)/i, /Use remove-block instead when.*one top-level block/],
+  };
+  for (const [command, patterns] of Object.entries(guidance)) {
+    const help = run(["help", command]);
+    assert.equal(help.status, 0, help.stderr);
+    for (const pattern of patterns) assert.match(help.stdout.replace(/\s+/g, " "), pattern, command);
+    assert.equal(run([command, "--help"]).stdout, help.stdout);
+  }
 
   const equation = run(["help", "update-equation-latex"]);
   assert.equal(equation.status, 0, equation.stderr);
