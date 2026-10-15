@@ -13,6 +13,7 @@ import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog } from "./shell/SettingsDialog.tsx";
+import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
@@ -41,6 +42,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 
+type SessionContinuation = { kind: "open"; path: string } | { kind: "new"; directory: string };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
@@ -85,6 +87,11 @@ export function App() {
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
+  const [continuation, setContinuation] = useState<SessionContinuation | null>(null);
+  const [continuationPending, setContinuationPending] = useState(false);
+  const continuationRunning = useRef(false);
+  const continuationReturnFocus = useRef<HTMLElement | null>(null);
+  const continuationFocus = useRef<"return" | "editor" | "dialog">("return");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
   const [status, setStatus] = useState("Loading…");
@@ -188,9 +195,56 @@ export function App() {
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
     if (busy) return "Wait for the current operation to finish.";
     if (editorRef.current?.hasUnsavedChanges()) {
-      return "Save or discard the current changes before opening another file.";
+      confirmContinuation({ kind: "open", path: requestedPath });
+      return null;
     }
     return load(requestedPath, globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null);
+  }
+
+  function confirmContinuation(next: SessionContinuation): void {
+    continuationReturnFocus.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+    continuationFocus.current = "return";
+    setContinuation(next);
+  }
+
+  function newFile(): void {
+    if (!folderTree.state) return;
+    if (busy) { setError("Wait for the current operation to finish."); return; }
+    const directory = folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root;
+    if (editorRef.current?.hasUnsavedChanges()) {
+      confirmContinuation({ kind: "new", directory });
+      return;
+    }
+    setNewDirectory(directory);
+    setNewDialog(true);
+  }
+
+  async function continueSession(shouldSave: boolean): Promise<void> {
+    if (!continuation || continuationRunning.current || busy) return;
+    continuationRunning.current = true;
+    setContinuationPending(true);
+    try {
+      if (shouldSave && !await save()) return;
+      // A successful Save acknowledges its snapshot, not later asynchronous transactions.
+      // Read the live document comparison; the user already agreed to lose property drafts.
+      if (shouldSave && editorRef.current?.hasDocumentChanges() !== false) {
+        setStatus("Saved; newer edits pending");
+        return;
+      }
+      if (continuation.kind === "new") {
+        continuationFocus.current = "dialog";
+        setNewDirectory(continuation.directory);
+        setNewDialog(true);
+      } else {
+        const message = await load(continuation.path, continuationReturnFocus.current);
+        if (message) setError(message);
+        continuationFocus.current = message === null ? "dialog" : message ? "return" : "editor";
+      }
+    } finally {
+      setContinuation(null);
+      setContinuationPending(false);
+      continuationRunning.current = false;
+    }
   }
 
   /** Lists the folder the user chose; it becomes the sidebar folder on success. */
@@ -228,8 +282,8 @@ export function App() {
     if (openedPath) folderTree.reveal(openedPath);
   }, [openedPath]);
 
-  async function save(): Promise<void> {
-    if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
+  async function save(): Promise<boolean> {
+    if (!document || !editorRef.current || !openedPath || !sessionBase.current || busy) return false;
     setError("");
     setNotice("");
     setStatus("Saving…");
@@ -245,12 +299,14 @@ export function App() {
       editorRef.current?.finishSave(true);
       const hasPendingUserState = editorRef.current?.hasUnsavedChanges() ?? false;
       setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
+      return true;
     } catch (cause) {
       editorRef.current?.finishSave();
       const failure = cause instanceof SaveContentError ? cause
         : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
       setError(saveErrorMessage(failure, submitted, payload));
       setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");
+      return false;
     }
   }
 
@@ -278,9 +334,8 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be created.";
     if (busy) return "Wait for the current operation to finish.";
-    if (editorRef.current?.hasUnsavedChanges()) {
-      return "Save or discard the current changes before creating another file.";
-    }
+    // New's sole entry point confirms work loss before showing the modal filename form.
+    // Keep the old session until exclusive creation succeeds, including its drafts on failure.
     setError("");
     setNotice("");
     setStatus("Creating…");
@@ -312,7 +367,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal) return;
+    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation) return;
     void save();
   };
   useEffect(() => {
@@ -445,12 +500,7 @@ export function App() {
           dialogReturnFocus.current = returnFocus;
           setFolderDialog(true);
         }}
-        onNew={() => {
-          if (!folderTree.state) return;
-          // New starts in the open document's folder when it is inside the chosen one.
-          setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
-          setNewDialog(true);
-        }}
+        onNew={newFile}
         newFolderButtonRef={newFolderButton}
         onNewFolder={() => {
           if (!folderTree.state) return;
@@ -621,6 +671,18 @@ export function App() {
         createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
         returnFocus={newFileButton}
         onClose={() => { if (!switching) setNewDialog(false); }}
+      />
+      <UnsavedChangesDialog
+        open={continuation !== null}
+        pending={continuationPending}
+        documentName={splitDocumentPath(openedPath).name}
+        hasDrafts={draftActive}
+        finalFocus={() => continuationFocus.current === "dialog" ? false
+          : continuationFocus.current === "editor" ? editorRef.current?.getFocusTarget() ?? true
+          : continuationReturnFocus.current ?? true}
+        onSave={() => void continueSession(true)}
+        onDiscard={() => void continueSession(false)}
+        onCancel={() => { if (!continuationRunning.current) setContinuation(null); }}
       />
       <NewDialog
         kind="folder"

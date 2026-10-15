@@ -46,26 +46,6 @@ async (page, { openDocument }) => {
     await route.continue();
   });
   const currentFile = () => page.getByTestId('current-file').getAttribute('title');
-  // Submits the form directly as well, so the App guard is exercised even if the controls are disabled.
-  const trySubmit = async (open, input, submit, path) => {
-    await open();
-    const dialog = page.getByRole('dialog');
-    await dialog.waitFor();
-    const controlsDisabled = await dialog.getByTestId(input).isDisabled() &&
-      await dialog.getByRole('button', {name:submit, exact:true}).isDisabled();
-    await dialog.getByTestId(input).evaluate((node, value) => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(node, value);
-      node.dispatchEvent(new Event('input', {bubbles:true}));
-      node.form.requestSubmit();
-    }, path);
-    await page.waitForTimeout(300);
-    const stillOnA = await currentFile() === documentA;
-    if (await dialog.isVisible()) {
-      await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
-      await dialog.waitFor({state:'detached'});
-    }
-    return controlsDisabled && stillOnA;
-  };
 
   const result = {};
   try {
@@ -77,8 +57,9 @@ async (page, { openDocument }) => {
     await otherDocument.click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     result.openBlockedWhilePending = await currentFile() === documentA;
-    result.newBlockedWhilePending = await trySubmit(() => page.getByRole('button', {name:'New file in folder', exact:true}).click(),
-      'new-file-name', 'Create', 'created-during-preview');
+    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
+    result.newBlockedWhilePending = await currentFile() === documentA && await page.getByRole('dialog').count() === 0;
     result.newFileNotCreated = !await exists(created, 'created-during-preview.md');
   } finally {
     release();

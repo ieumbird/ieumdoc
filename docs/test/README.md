@@ -69,7 +69,7 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
-`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 변경·Draft·Save 진행 중 전환 거부와 충돌 보존을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴의 수동 비교용 캡처를 저장한다.
+`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 확인의 Save 성공 후 전환·Save 실패/충돌 보존·Don't save의 쓰기 없는 전환·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`의 같은 확인과 기존 New 흐름을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
 
 `editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
 

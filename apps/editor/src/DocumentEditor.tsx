@@ -47,6 +47,8 @@ export type DocumentEditorHandle = {
   toggleHeadingNumbering(): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
+  /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
+  hasDocumentChanges(): boolean;
   hasUnsavedChanges(): boolean;
   /** Move the caret to an outline heading and scroll it to the top of the document view. */
   revealHeading(item: OutlineItem): void;
@@ -221,6 +223,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (!editor) return false;
         return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
+      hasDocumentChanges,
       revealHeading(item) {
         if (!editor) return;
         const node = editor.state.doc.maybeChild(item.index);

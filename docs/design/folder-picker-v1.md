@@ -55,6 +55,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 ## New document in a sidebar folder
 
 - The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Open folder…, Close folder).
+- With unsaved work or property drafts, `+` first shows the shared **Save / Don't save / Cancel** confirmation. Only a successful Save or Don't save opens the filename form. Cancelling the form or a creation failure keeps the old session; a completed Save remains saved. See [Switching and recovery](editing-session-save-v1.md#switching-and-recovery).
 - The New dialog's Location field shows and chooses the destination: the chosen folder and
   every sub-folder listed in the tree so far, expanded or not, named from the chosen folder.
   It starts at the open document's folder when that is inside the chosen folder, otherwise at
@@ -68,7 +69,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
   opens the document and lists its folder again, so it appears in the tree. On close, a successful
   New focuses its first paragraph; Cancel/Escape or a rejected New returns focus to the New button
   (see [Empty document start](editor-visual-language-v1.md#empty-document-start-133)). Existing files, pending
-  operations and unsaved work keep their existing protections. Cancel/Escape writes nothing.
+  operations keep their existing protections. Cancel/Escape in the filename form creates nothing.
 - No workspace state or new Core/CLI operation is needed:
   this change supplies a destination to the existing document-creation flow.
 
