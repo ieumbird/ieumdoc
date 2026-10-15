@@ -52,6 +52,41 @@ test("literal syntax diagnostics exclude prose, escapes, resolved syntax and non
   ]) assert.deepEqual(unresolvedReferences(parse(source)), [], source);
 });
 
+test("valid link display text excludes nested reference shapes while standalone text still warns", () => {
+  for (const [literal, syntax, label] of [
+    ["[details][missing]", "reference-link", "missing"],
+    ["[missing][]", "reference-link", "missing"],
+    ["![alt][missing]", "reference-image", "missing"],
+    ["![missing][]", "reference-image", "missing"],
+  ] as const) {
+    for (const destination of ["(https://example.com)", "[def]"]) {
+      const link = `[Read **${literal}**]${destination}`;
+      const definitions = "\n\n[def]: https://example.com\n";
+      assert.deepEqual(unresolvedReferences(parse(link + definitions)), [], link);
+      assert.deepEqual(unresolvedReferences(parse(`${link}\n\n${literal}${definitions}`)), [
+        { syntax, label, source: literal, path: [1], line: 3 },
+      ], "leaving a valid link restores ordinary reference diagnostics");
+    }
+  }
+  for (const source of [
+    "[Read [details][missing]](https://example.com)",
+    "[Read [x][missing]][def]\n\n[def]: https://example.com",
+  ]) assert.deepEqual(unresolvedReferences(parse(source)), [], source);
+});
+
+test("link display text retains meaningful code and existing footnote diagnostics", () => {
+  for (const destination of ["(https://example.com)", "[def]"]) {
+    const definitions = "\n\n[def]: https://example.com\n";
+    assert.deepEqual(unresolvedReferences(parse(`[Read \`tick]${destination}${definitions}`)), [
+      { syntax: "inline-code", source: "`", path: [0], line: 1 },
+    ]);
+    assert.deepEqual(unresolvedReferences(parse(`[Read \`tick\`]${destination}${definitions}`)), []);
+    assert.deepEqual(unresolvedReferences(parse(`[Read [^missing]]${destination}${definitions}`)), [
+      { footnote: true, label: "missing", path: [0], line: 1 },
+    ]);
+  }
+});
+
 test("literal syntax respects backslash parity and exact backtick run lengths", () => {
   assert.deepEqual(unresolvedReferences(parse("\\\\[a][b] and \\\\`tick")), [
     { syntax: "reference-link", label: "b", source: "[a][b]", path: [0], line: 1 },

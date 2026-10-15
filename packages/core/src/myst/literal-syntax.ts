@@ -63,7 +63,10 @@ export function literalSyntaxDiagnostics(document: MystDocument): (LiteralSyntax
     }
     // Label helpers call skipToken in silent mode. Diagnostics must not make failed
     // references look like real links during that lookahead, or recurse into themselves.
-    if (silent) return false;
+    // Inside a valid link, nested reference shapes are intentional display text.
+    // Keep code and existing footnote diagnostics independent of this exclusion.
+    // markdown-it 13 tracks linkLevel at runtime; the installed typings omit it.
+    if (silent || (state as typeof state & { linkLevel: number }).linkLevel > 0) return false;
     const start = state.pos;
     const image = state.src[start] === "!";
     const opening = start + (image ? 1 : 0);
