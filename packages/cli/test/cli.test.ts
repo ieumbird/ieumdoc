@@ -407,21 +407,24 @@ test("ieumdoc help exits successfully", () => {
     const listed: string[] = [];
     let currentGroup = "";
     const actualGroups: Record<string, string[]> = {};
-    for (const line of help.split("\n")) {
-      const heading = line.trim().replace(/:$/, "");
-      if (Object.hasOwn(expectedGroups, heading)) {
+    const commandsStart = help.indexOf("Commands:");
+    assert.notEqual(commandsStart, -1);
+    for (const line of help.slice(commandsStart + "Commands:".length).split("\n")) {
+      const row = line.trim();
+      if (!row) continue;
+      if (row.endsWith(":")) {
+        const heading = row.slice(0, -1);
         assert.equal(Object.hasOwn(actualGroups, heading), false, `duplicate group: ${heading}`);
         currentGroup = heading;
         actualGroups[currentGroup] = [];
       } else {
-        const command = line.trim().split(/\s+/)[0];
-        if (expectedCommands.includes(command)) {
-          assert.ok(currentGroup, `ungrouped command: ${command}`);
-          listed.push(command);
-          actualGroups[currentGroup].push(command);
-        }
+        const command = row.split(/\s+/)[0];
+        assert.ok(currentGroup, `ungrouped command: ${command}`);
+        listed.push(command);
+        actualGroups[currentGroup].push(command);
       }
     }
+    assert.deepEqual(Object.keys(actualGroups).sort(), Object.keys(expectedGroups).sort());
     for (const group of Object.keys(expectedGroups)) {
       assert.deepEqual(actualGroups[group]?.sort(), expectedGroups[group].sort(), group);
     }
@@ -456,7 +459,11 @@ test("command help is available from help and --help", () => {
   assert.equal(run(["update-node-text", "--help"]).stdout, update.stdout);
 
   const guidance: Record<string, RegExp[]> = {
-    "replace-text": [/first matching paragraph or heading/, /not throughout the document/, /Use update-node-text instead when/],
+    "replace-text": [/first matching paragraph or heading.*rendered text/, /not throughout the document/,
+      /all matches.*individual text nodes/, /crossing formatting\/text-node boundaries.*unchanged.*exiting 0/,
+      /Use update-node-text instead when/, /it also substitutes within individual text nodes/,
+      /whole block.*structured --content.*update-heading or update-quote/,
+      /paragraph.*remove-block and insert-block --content.*apply-batch/],
     "update-heading": [/entire.*content.*Heading/i, /Use update-node-text instead when/],
     "update-quote": [/entire.*content.*Quote/i, /Use update-node-text instead when/],
     "update-node-text": [/Substitute text at a known Core NodePath/, /Use update-heading or update-quote instead when replacing the entire/],
