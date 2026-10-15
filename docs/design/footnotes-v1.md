@@ -1,6 +1,7 @@
 # Endnotes (MyST footnotes)
 
 - Status: Implemented
+- Body-end verification: 2026-10-15 (#280 Core insertion index with/without endnotes and empty native documents; CLI single/batch insertion before definitions).
 - Last verified: 2026-10-15 (ADR-0006 native definition boundary and retained test coverage compared with code/tests; no runtime regressions rerun). Previous verification: 2026-10-13 (endnotes v4: canonical placement in Core, CLI and Editor; `pnpm test`, `pnpm browser:test footnotes`).
 - Current contract: v4 on v2 (#140) and v1 (#119); v3 (#194) source-anchor placement is replaced. Historical filename retained for link stability.
 - Scope: footnote references, endnote placement and numbering, inserting footnotes, in-place editing of supported one-paragraph definitions, sections and fail-closed writes; [Native document support](document-support-v1.md).
@@ -32,6 +33,7 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
   - **Parse** gives each kept definition its own source lines (the text is tokenized once more without the rule that moves definitions) and places the definitions after the body. A parsed document, its read model and its block indexes therefore have canonical order, whatever the source placement.
   - **Canonical write** (`serialize`, used by Save, Source, `format` and every CLI write) places the definitions again before writing and verifying. Operations need not keep definitions in place.
 - **Source placement**: `endnotesInPlace(document)` reports whether a parsed snapshot's definitions are already where canonical write puts them. When false, the first write moves them; nothing is written by reading.
+- **Body end** (#280): public `bodyEndIndex(document)` returns the top-level insertion index before trailing endnote definitions. Without definitions it returns the block count, including metadata; an empty native document returns 1. CLI top-level insertions use it for `--at end`, including `"at": "end"` in batches. Row/column indexes and move destinations remain numeric.
 - **Dropped definitions**: an unreferenced or repeated definition that the parse dropped is recorded on the document. Canonical write refuses that document and names the footnote.
 - **Write rule**: each definition must be referenced and each reference must have a definition, once per label; otherwise the reload would drop or reread them. Example: removing the last reference to `[^n]` makes Save fail with `footnote [^n] has no reference, and MyST drops an unreferenced definition`.
 - **Operation checks**: an operation's round-trip check covers its own blocks. It completes the footnotes on a copy, so a paragraph with a footnote can be checked on its own and a session can pass through an intermediate state. Checks find a body block at its canonical index (`bodyIndex`) and a definition by its label, so a block inserted after the endnotes or a reordered reference does not fail the check.

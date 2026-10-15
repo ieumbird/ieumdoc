@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   canonicalWriteError,
+  bodyEndIndex,
   createDocument,
   NativeDocumentError,
   writeIssueOf,
@@ -140,6 +141,9 @@ const COMMANDS: CommandSpec[] = [
       "JSON options accept objects, arrays or strings only; null option values are rejected.",
       "All document edit commands, including format, are allowed; create, check, inspect, serve,",
       "apply-batch and per-operation if-revision are forbidden.",
+      "Top-level insertions accept at: \"end\", resolved by Core before endnotes on each step's snapshot.",
+      "Table row/column positions, removal positions and move destinations remain numeric.",
+      "insert-equation accepts label; insert-table accepts caption or caption-content and label, as in single edits.",
       "Paths and indexes use the preceding step's canonical, reparsed snapshot; no automatic tracking.",
       BODY_INDEX_NOTE,
       "Each step applies Core, validates and canonically serializes, then parses again for the next step.",
@@ -243,7 +247,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-block",
     summary: "Insert a Paragraph block at a top-level index",
-    usage: "ieumdoc insert-block <file> --at <index> (--text <text> | --content <json>)",
+    usage: "ieumdoc insert-block <file> --at <index|end> (--text <text> | --content <json>)",
     details: [
       "Insert a Paragraph block at a top-level index.",
       "Use --text for plain text or --content for Core InlineContent JSON (marks, math, links and references).",
@@ -254,7 +258,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-heading",
     summary: "Insert a Heading block at a top-level index",
-    usage: "ieumdoc insert-heading <file> --at <index> --level <1-6> (--text <text> | --content <json>)",
+    usage: "ieumdoc insert-heading <file> --at <index|end> --level <1-6> (--text <text> | --content <json>)",
     details: [
       "Insert a Heading block at a top-level index.",
       "Heading levels 1 through 6 are supported. --content is Core InlineContent JSON without line breaks.",
@@ -274,7 +278,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-admonition",
     summary: "Insert a simple admonition of a standard MyST kind",
-    usage: "ieumdoc insert-admonition <file> --at <index> --variant <kind> --text <text>",
+    usage: "ieumdoc insert-admonition <file> --at <index|end> --variant <kind> --text <text>",
     details: [
       "Insert a top-level admonition through Core.",
       ADMONITION_KIND_NOTE,
@@ -294,7 +298,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-quote",
     summary: "Insert a Quote at a top-level index",
-    usage: "ieumdoc insert-quote <file> --at <index> (--text <text> | --content <json>)",
+    usage: "ieumdoc insert-quote <file> --at <index|end> (--text <text> | --content <json>)",
     details: [
       "Insert a top-level block quote holding one paragraph.",
       "Use --text for plain text or --content for Core InlineContent JSON. The quote must contain non-empty text.",
@@ -337,7 +341,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-divider",
     summary: "Insert a divider (thematic break) at a top-level index",
-    usage: "ieumdoc insert-divider <file> --at <index>",
+    usage: "ieumdoc insert-divider <file> --at <index|end>",
     details: ["Insert a top-level divider, written as a Markdown thematic break."],
   },
   {
@@ -365,16 +369,17 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-equation",
     summary: "Insert an Equation block at a top-level index",
-    usage: "ieumdoc insert-equation <file> --at <index> --latex <latex>",
+    usage: "ieumdoc insert-equation <file> --at <index|end> --latex <latex> [--label <label>]",
     details: [
       "Insert an Equation block at a top-level index.",
       "The Equation LaTeX source must be non-empty.",
+      "--label sets the label in the same write, under update-label's validation and duplicate rules.",
     ],
   },
   {
     name: "insert-figure",
     summary: "Insert a Figure block at a top-level index",
-    usage: "ieumdoc insert-figure <file> --at <index> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
+    usage: "ieumdoc insert-figure <file> --at <index|end> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
@@ -428,20 +433,23 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-table",
     summary: "Insert a Markdown table at a top-level index",
-    usage: "ieumdoc insert-table <file> --at <index> --cells <json> [--align <json>]",
+    usage: "ieumdoc insert-table <file> --at <index|end> --cells <json> [--align <json>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
       "Insert a Markdown table at a top-level index.",
       "--cells is a JSON array of rows, each an array of cells; the first row is the header row.",
       "A cell is its text or Core InlineContent JSON. Every row needs the same number of cells. Cells may be empty.",
       "--align is an optional JSON array of left, center, right or null, one per column.",
       "Cell content must be one line without leading or trailing whitespace.",
+      "--caption is single-line text; --caption-content is Core InlineContent JSON. They are mutually exclusive.",
+      "--label follows update-label's validation and duplicate rules; a caption is not required for a label.",
+      "Insertion, caption and label are applied in one write; any failure leaves the original unchanged.",
       "Example: --cells '[[\"Port\",\"Type\"],[\"U\",\"AC\"]]'",
     ],
   },
   {
     name: "insert-list",
     summary: "Insert a bullet or numbered list at a top-level index",
-    usage: "ieumdoc insert-list <file> --at <index> --list <json>",
+    usage: "ieumdoc insert-list <file> --at <index|end> --list <json>",
     details: [
       "Insert a bullet or numbered list, optionally with nested lists, at a top-level index.",
       ...LIST_NOTE,
@@ -462,7 +470,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-code-block",
     summary: "Insert a fenced code block at a top-level index",
-    usage: "ieumdoc insert-code-block <file> --at <index> --code <text> [--language <name>]",
+    usage: "ieumdoc insert-code-block <file> --at <index|end> --code <text> [--language <name>]",
     details: [
       "Insert a fenced code block at a top-level index. The code is kept exactly, including blank lines and indentation.",
       ...CODE_NOTE,
@@ -597,7 +605,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "insert-target",
     summary: "Label the next block, typically a section heading, with a (label)= target",
-    usage: "ieumdoc insert-target <file> --at <index> --label <label>",
+    usage: "ieumdoc insert-target <file> --at <index|end> --label <label>",
     details: [
       "Insert a (label)= target at a top-level index. Before a heading, {ref}`label` references name that section.",
       "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters and must not name another target.",
@@ -753,12 +761,12 @@ function changeFor(command: string, flags: string[]): Change {
       const text = optionalFlag(flags, "--text");
       const content = optionalFlag(flags, "--content");
       if ((text === undefined) === (content === undefined)) throw new Error("insert-block requires exactly one of --text or --content");
-      return (document) => insertParagraph(document, intFlag(flags, "--at"), text ?? jsonFlag<InlineContent[]>(flags, "--content"));
+      return (document) => insertParagraph(document, insertionIndex(document, flags), text ?? jsonFlag<InlineContent[]>(flags, "--content"));
     }
     case "insert-heading": {
       return (document) => insertHeading(
         document,
-        intFlag(flags, "--at"),
+        insertionIndex(document, flags),
         intFlag(flags, "--level"),
         textOrContent(flags),
       );
@@ -767,12 +775,12 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateHeadingInlineContent(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-admonition": {
-      return (document) => insertAdmonition(document, intFlag(flags, "--at"), variantFlag(flags), [
+      return (document) => insertAdmonition(document, insertionIndex(document, flags), variantFlag(flags), [
         { kind: "text", text: flag(flags, "--text") },
       ]);
     }
     case "insert-quote": {
-      return (document) => insertQuote(document, intFlag(flags, "--at"), textOrContent(flags));
+      return (document) => insertQuote(document, insertionIndex(document, flags), textOrContent(flags));
     }
     case "update-quote": {
       return (document) => updateQuoteInlineContent(document, pathFlag(flags), textOrContent(flags));
@@ -784,7 +792,7 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-divider": {
-      return (document) => insertDivider(document, intFlag(flags, "--at"));
+      return (document) => insertDivider(document, insertionIndex(document, flags));
     }
     case "update-admonition-variant": {
       return (document) => updateAdmonitionVariant(document, pathFlag(flags), variantFlag(flags));
@@ -807,17 +815,19 @@ function changeFor(command: string, flags: string[]): Change {
         to === "heading" ? { block: "heading", level: intFlag(flags, "--level") } : { block: "paragraph" });
     }
     case "insert-equation": {
-      return (document) => insertEquation(
-        document,
-        intFlag(flags, "--at"),
-        flag(flags, "--latex"),
-      );
+      return (document) => {
+        const at = insertionIndex(document, flags);
+        const inserted = insertEquation(document, at, flag(flags, "--latex"));
+        const label = optionalFlag(flags, "--label");
+        return label !== undefined ? updateLabel(inserted, [at], label) : inserted;
+      };
     }
     case "insert-figure": {
-      const at = intFlag(flags, "--at");
+      const position = flag(flags, "--at") === "end" ? "end" : intFlag(flags, "--at");
       const label = optionalFlag(flags, "--label") ?? "";
       // One Core-backed edit and one file replacement, also when it sets the label.
       return (document) => {
+        const at = position === "end" ? bodyEndIndex(document) : position;
         const inserted = insertFigure(document, at, {
           imageUrl: optionalFlag(flags, "--image") ?? "",
           imageAlt: optionalFlag(flags, "--alt") ?? "",
@@ -838,16 +848,23 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateFigure(document, pathFlag(flags), changes);
     }
     case "insert-table": {
-      return (document) => insertTable(document, intFlag(flags, "--at"), jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align"));
+      return (document) => {
+        const at = insertionIndex(document, flags);
+        let inserted = insertTable(document, at, jsonFlag(flags, "--cells"), optionalFlag(flags, "--align") === undefined ? undefined : jsonFlag(flags, "--align"));
+        const caption = captionInput(flags);
+        if (caption !== undefined) inserted = updateTableCaption(inserted, [at], caption);
+        const label = optionalFlag(flags, "--label");
+        return label !== undefined ? updateLabel(inserted, [at], label) : inserted;
+      };
     }
     case "insert-list": {
-      return (document) => insertList(document, intFlag(flags, "--at"), jsonFlag<ListContent>(flags, "--list"));
+      return (document) => insertList(document, insertionIndex(document, flags), jsonFlag<ListContent>(flags, "--list"));
     }
     case "update-list": {
       return (document) => updateList(document, pathFlag(flags), jsonFlag<ListContent>(flags, "--list"));
     }
     case "insert-code-block": {
-      return (document) => insertCodeBlock(document, intFlag(flags, "--at"), {
+      return (document) => insertCodeBlock(document, insertionIndex(document, flags), {
         language: optionalFlag(flags, "--language") ?? "",
         code: flag(flags, "--code"),
       });
@@ -895,7 +912,7 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateTableCell(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-target": {
-      return (document) => insertTarget(document, intFlag(flags, "--at"), flag(flags, "--label"));
+      return (document) => insertTarget(document, insertionIndex(document, flags), flag(flags, "--label"));
     }
     case "remove-block": {
       return (document) => removeBlock(document, intFlag(flags, "--at"));
@@ -1029,6 +1046,10 @@ function commandHelp(name: string): string {
   const editing = isEditCommand(name);
   const addressed = /--(?:at|path|from) <(?:index|heading index|table)/.test(spec.usage);
   return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>]" : ""}`, "", ...spec.details,
+    ...(spec.usage.includes("--at <index|end>") ? ["",
+      "--at end inserts at the body end before endnote definitions, or after the last body block.",
+      "For an empty native document this is index 1. Core resolves the position on the current snapshot.",
+      "apply-batch accepts the same position as \"at\": \"end\"."] : []),
     ...(editing && addressed ? ["", BODY_INDEX_NOTE] : []),
     ...(editing ? ["", ...REVISION_NOTE] : []), ""].join("\n");
 }
@@ -1055,10 +1076,10 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
-  "insert-equation": ["--at", "--latex"],
+  "insert-equation": ["--at", "--latex", "--label"],
   "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content", "--label"],
   "update-figure": ["--path", "--image", "--alt", "--caption", "--caption-content"],
-  "insert-table": ["--at", "--cells", "--align"],
+  "insert-table": ["--at", "--cells", "--align", "--caption", "--caption-content", "--label"],
   "insert-list": ["--at", "--list"],
   "update-list": ["--path", "--list"],
   "insert-code-block": ["--at", "--language", "--code"],
@@ -1378,6 +1399,10 @@ function variantFlag(args: string[]): AdmonitionVariant {
 
 function optionalFlag(args: string[], name: string): string | undefined {
   return args.includes(name) ? flag(args, name) : undefined;
+}
+
+function insertionIndex(document: Document, args: string[]): number {
+  return flag(args, "--at") === "end" ? bodyEndIndex(document) : intFlag(args, "--at");
 }
 
 function intFlag(args: string[], name: string): number {

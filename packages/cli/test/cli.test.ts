@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import fs from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
@@ -669,6 +670,105 @@ test("CLI insert-equation persists a Core equation", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("CLI inserts equation labels and table captions/labels with one file write, preserving bytes on refusal", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-insert-properties-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, nativeSource("Intro\n"));
+  const writes = t.mock.method(fs, "writeFileSync");
+  const replacements = t.mock.method(fs, "renameSync");
+  try {
+    for (const args of [
+      ["insert-equation", "--at", "2", "--latex", "x^2 + 1", "--label", "eq-new"],
+      ["insert-table", "--at", "3", "--cells", '[["A"],["1"]]', "--caption", "Values", "--label", "tab-new"],
+    ]) {
+      writes.mock.resetCalls();
+      replacements.mock.resetCalls();
+      assert.deepEqual(run([args[0], file, ...args.slice(1)]), { status: 0, stdout: "", stderr: "" });
+      assert.equal(writes.mock.callCount(), 1);
+      assert.equal(replacements.mock.callCount(), 1);
+    }
+    const saved = readFileSync(file);
+    const blocks = getEditableDocument(parse(saved.toString("utf8"))).blocks;
+    assert.ok(blocks[1].block === "equation" && blocks[1].label === "eq-new" && blocks[1].latex === "x^2 + 1");
+    assert.ok(blocks[2].block === "table" && blocks[2].label === "tab-new");
+    assert.deepEqual(blocks[2].block === "table" && blocks[2].caption, [{ kind: "text", text: "Values" }]);
+    for (const args of [
+      ["insert-equation", "--at", "1", "--latex", "y", "--label"],
+      ["insert-table", "--at", "1", "--cells", '[["B"]]', "--caption", "Other", "--label"],
+    ]) {
+      for (const label of [" bad-label", "EQ-NEW", "tab-new"]) {
+        writes.mock.resetCalls();
+        replacements.mock.resetCalls();
+        const result = run([args[0], file, ...args.slice(1), label]);
+        assert.equal(result.status, 1, result.stderr);
+        assert.equal(writes.mock.callCount(), 0);
+        assert.equal(replacements.mock.callCount(), 0);
+        assert.deepEqual(readFileSync(file), saved);
+      }
+    }
+    // Label-only tables retain the existing Core contract.
+    const labelOnly = run(["insert-table", file, "--at", "1", "--cells", '[["B"]]', "--label", "tab-only"]);
+    assert.equal(labelOnly.status, 0, labelOnly.stderr);
+  } finally {
+    writes.mock.restore();
+    replacements.mock.restore();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI top-level insertions accept end before endnotes, and batches resolve it on each snapshot", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-insert-end-"));
+  const file = path.join(dir, "document.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const original = nativeSource("Claim[^a].\n\n[^a]: Evidence.\n");
+  try {
+    for (const args of [
+      ["insert-block", "--text", "Appended."],
+      ["insert-heading", "--level", "2", "--text", "Appendix"],
+      ["insert-admonition", "--variant", "note", "--text", "Note."],
+      ["insert-quote", "--text", "Quoted."],
+      ["insert-divider"],
+      ["insert-equation", "--latex", "x", "--label", "eq-last"],
+      ["insert-figure", "--label", "fig-last"],
+      ["insert-table", "--cells", '[["A"]]', "--caption", "Last", "--label", "tab-last"],
+      ["insert-list", "--list", '{"ordered":false,"items":[{"content":[{"kind":"text","text":"Item"}]}]}'],
+      ["insert-code-block", "--code", "code"],
+      ["insert-target", "--label", "last"],
+    ]) {
+      writeFileSync(file, original);
+      const result = run([args[0], file, "--at", "end", ...args.slice(1)]);
+      assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
+      const blocks = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks;
+      assert.deepEqual(blocks.map(block => block.path), [[1], [2], [3]]);
+      assert.equal(blocks[2].block, "footnote");
+    }
+    const caption = [{ kind: "strong", children: [{ kind: "text", text: "Rich" }] }];
+    const operations = [
+      { command: "insert-equation", at: "end", latex: "z", label: "eq-batch" },
+      { command: "insert-table", at: "end", cells: [["A"]], "caption-content": caption, label: "tab-batch" },
+    ];
+    writeFileSync(file, original);
+    writeFileSync(operationsFile, JSON.stringify(operations));
+    const result = run(["apply-batch", file, "--operations", operationsFile]);
+    assert.deepEqual(result, { status: 0, stdout: "", stderr: "" });
+    const blocks = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks;
+    assert.deepEqual(blocks.map(block => block.block), ["paragraph", "equation", "table", "footnote"]);
+    assert.ok(blocks[1].block === "equation" && blocks[1].label === "eq-batch");
+    assert.ok(blocks[2].block === "table" && blocks[2].label === "tab-batch");
+    assert.deepEqual(blocks[2].block === "table" && blocks[2].caption, caption);
+    const saved = readFileSync(file);
+    for (const args of [
+      ["insert-table-row", "--path", "3", "--at", "end"],
+      ["insert-table-column", "--path", "3", "--at", "end"],
+      ["move-block", "--from", "1", "--to", "end"],
+      ["insert-table", "--at", "end", "--cells", '[["A"]]', "--caption", "Plain", "--caption-content", "[]"],
+    ]) {
+      assert.equal(run([args[0], file, ...args.slice(1)]).status, 1);
+      assert.deepEqual(readFileSync(file), saved);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("CLI insert-figure persists a Core Figure", () => {

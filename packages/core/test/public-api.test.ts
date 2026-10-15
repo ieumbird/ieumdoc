@@ -34,6 +34,13 @@ test("public Core API exposes semantic operations, not MyST tree access", () => 
   assert.equal(serialize(parse("---\nieumdoc: 1\n---\n\n# Title\n")), "---\nieumdoc: 1\n---\n\n# Title\n");
 });
 
+test("bodyEndIndex locates insertion before endnotes, after body blocks, or at the first body position", () => {
+  const native = (body: string) => parse(`---\nieumdoc: 1\n---\n\n${body}`);
+  assert.equal(core.bodyEndIndex(native("# Report\n\nClaim[^a] and evidence[^b].\n\n[^a]: First.\n\n[^b]: Second.\n")), 3);
+  assert.equal(core.bodyEndIndex(native("# Report\n\nBody.\n")), 3);
+  assert.equal(core.bodyEndIndex(core.createDocument()), 1);
+});
+
 test("MyST packages are imported only inside Core's MyST boundary", () => {
   const root = new URL("../src/", import.meta.url);
   const files = readdirSync(root, { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts"));

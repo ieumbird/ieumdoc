@@ -120,15 +120,21 @@ pnpm ieumdoc update-heading document.md --path <inspect에서 얻은 경로> --t
 
 단건 변경 명령은 성공 후 새 revision을 출력하지 않습니다. 후속 변경 전에는 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻습니다. 오래된 NodePath를 영속 ID로 사용하거나 새 위치로 추측해 재지정하지 않습니다. 잘못된 revision 인자는 `--if-revision must be 64 lowercase hexadecimal characters`, revision 불일치는 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일을 변경하지 않습니다. 전체 사전조건 계약은 [CLI revision precondition](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214)에 있습니다.
 
+수식은 `insert-equation <file> --at end --latex "x^2" --label eq-result`, 표는 `insert-table <file> --at end --cells '[["A"],["1"]]' --caption "Values" --label tab-values`로 삽입과 속성 설정을 한 번의 파일 교체로 완료합니다. 표의 `--caption-content <InlineContent JSON>`은 `--caption`과 상호 배타이며, 캡션 없이 라벨만 지정할 수도 있습니다. 라벨 검증·중복 거부는 Core `updateLabel`과 같고 실패하면 파일을 바꾸지 않습니다.
+
+최상위 본문 삽입 명령(`insert-block`, `insert-heading`, `insert-admonition`, `insert-quote`, `insert-divider`, `insert-equation`, `insert-figure`, `insert-table`, `insert-list`, `insert-code-block`, `insert-target`)의 `--at`은 숫자 인덱스 또는 `end`를 받습니다. `end`는 Core가 계산한 본문 끝, 즉 미주 정의 앞입니다. 미주가 없으면 마지막 본문 뒤, 빈 새 문서에서는 1입니다. 표 행·열의 `--at`, 삭제 위치와 이동 명령의 `--to`는 숫자만 받습니다.
+
 여러 변경은 `apply-batch`로 한 번에 적용합니다. 예를 들어 `operations.json`에 다음을 저장합니다(아래 인덱스는 제목만 있는 문서 기준).
 
 ```json
 [
-  { "command": "insert-heading", "at": 2, "level": 2, "text": "Method" },
+  { "command": "insert-heading", "at": "end", "level": 2, "text": "Method" },
   { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] },
   { "command": "move-block", "from": 2, "to": 1 }
 ]
 ```
+
+배치에서도 수식·표의 새 옵션을 그대로 사용하며, `"at": "end"`는 각 단계의 직전 canonical snapshot을 기준으로 계산합니다.
 
 ```bash
 pnpm ieumdoc apply-batch document.md --operations operations.json --if-revision <inspect에서 얻은 revision> --format json
