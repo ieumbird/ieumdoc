@@ -238,6 +238,22 @@ test("slash command removes its query and shares the insert command list", () =>
   assert.equal(slashQueryAt(EditorState.create({ schema, doc: heading, selection: TextSelection.create(heading, 2) })), null);
 });
 
+test("slash keeps display prefix and number together, while ordinary queries still end at whitespace", () => {
+  for (const query of ["Fig. ", "Fig. 2", "eq. 3", "Eq. (3)", "Table 12"]) {
+    const text = `See /${query}`;
+    const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(text)));
+    const state = EditorState.create({ schema, doc, selection: TextSelection.create(doc, text.length + 1) });
+    const slash = slashQueryAt(state);
+    assert.ok(slash, query);
+    assert.equal(slash.query, query);
+    assert.equal(doc.textBetween(slash.from, slash.to), `/${query}`);
+  }
+  for (const text of ["/paragraph ", "/Fig. 2 more", "/Table data", "a/Fig. 2"]) {
+    const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(text)));
+    assert.equal(slashQueryAt(EditorState.create({ schema, doc, selection: TextSelection.create(doc, text.length + 1) })), null, text);
+  }
+});
+
 test("selection formatting is offered only for a text selection inside one editable inline block", () => {
   const doc = docOf(nativeSource("# Title\n\nAB\n\nCD"));
   const at = (from: number, to: number) =>

@@ -22,4 +22,6 @@ c = d
 
 :::{figure} ./diagram.svg
 :name: fig-a
+
+Converter control summary.
 :::

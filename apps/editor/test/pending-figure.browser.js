@@ -112,7 +112,7 @@ async (page, { openDocument }) => {
     await page.getByText('After.', {exact:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' /fig');
-    await page.getByRole('menuitem', {name:'Figure reference: fig-pfc-control', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Fig. 1 · PFC Current Control Architecture', exact:true}).click();
     const referenceState = {resolved:await reference.getAttribute('data-resolved'), text:await reference.locator('.cross-reference-chip').innerText()};
     check(referenceState.resolved === 'true' && referenceState.text === 'Fig. 1',
       `Pending target is not numbered/resolved: ${JSON.stringify(referenceState)}`);

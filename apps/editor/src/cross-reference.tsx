@@ -9,6 +9,7 @@ import { labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { toTiptapContent } from "./tiptap-inline.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
@@ -187,14 +188,40 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
 /** Slash menu items that insert a reference to each target matching the query, then to each
  * unlabeled heading the query searches for (which inserting the reference labels). */
 export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id: string; label: string; group: string }[] {
-  const needle = query.toLowerCase();
+  const needle = query.toLowerCase().replace(/\s+/g, " ").trim();
   const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().startsWith(needle));
   const titleWords = (title: string) => [title, ...title.split(/\s+/)];
+  // Captions are needed only by this menu, never by the per-chip resolution selectors.
+  // Figure captions are live inline children; table captions use the existing inline projection.
+  const captions = new Map<string, string>();
+  doc.forEach((node) => {
+    const label = String(node.attrs.label ?? "");
+    if (!label || !["figure", "table"].includes(node.type.name)) return;
+    const content = node.type.name === "table" ? doc.type.schema.nodeFromJSON(toTiptapContent(node.attrs.caption ?? [])) : node;
+    const caption = content.textBetween(0, content.content.size, " ",
+      leaf => String(leaf.attrs.value ?? leaf.attrs.label ?? " ")).replace(/\s+/g, " ").trim();
+    if (caption) captions.set(label, caption);
+  });
   const kindName = (target: ReferenceTarget) => target.kind === "table" ? "Table" : KIND[target.role];
+  const display = (target: ReferenceTarget) => referenceDisplay([target], target.role, target.label).text;
+  const menuLabel = (target: ReferenceTarget, caption?: string) => {
+    if (target.role === "ref") return `Section reference: ${target.title ?? target.label}`;
+    const detail = caption ?? target.label;
+    const characters = Array.from(detail);
+    const summary = caption && characters.length > 80 ? `${characters.slice(0, 80).join("")}…` : detail;
+    return target.number === undefined && !caption ? display(target) : `${display(target)} · ${summary}`;
+  };
   return [
     ...referenceTargets(doc)
-      .filter((target) => matches([kindName(target), target.label, ...(target.title ? ["heading", ...titleWords(target.title)] : [])]))
-      .map((target) => ({ id: referenceCommandId(target), label: `${kindName(target)} reference: ${target.title ?? target.label}`, group: "References" })),
+      .filter((target) => {
+        const caption = captions.get(target.label);
+        return matches([kindName(target), target.label, display(target),
+          ...(target.number === undefined ? [] : [String(target.number), `${target.kind === "table" ? "Table" : PREFIX[target.role]} ${target.number}`]),
+          ...(target.role === "eq" && target.number !== undefined ? [numberText("equation", target.number)] : []),
+          ...(caption ? [caption, ...caption.split(/[\s\p{P}]+/u)] : []),
+          ...(target.title ? ["heading", ...titleWords(target.title)] : [])]);
+      })
+      .map((target) => ({ id: referenceCommandId(target), label: menuLabel(target, captions.get(target.label)), group: "References" })),
     // Every heading can be referenced; only a search for sections or a heading's words lists them.
     ...unlabeledHeadings(doc)
       .filter((choice) => needle.length > 0 && ["section", "heading", ...titleWords(choice.title)].some((word) => word.toLowerCase().startsWith(needle)))

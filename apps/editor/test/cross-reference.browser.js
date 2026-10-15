@@ -115,9 +115,16 @@ async (page, { openDocument }) => {
     editor.view.focus();
     if (!editor.view.hasFocus()) throw Error('Editor did not take focus');
   });
-  await page.keyboard.type(' /fig');
-  await page.getByRole('menuitem', {name:'Figure reference: fig-a'}).click();
-  result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/fig');
+  await page.keyboard.type(' /summary');
+  const figureChoice = page.getByRole('menuitem', {name:'Fig. 1 · Converter control summary.', exact:true});
+  await figureChoice.waitFor();
+  result.captionSearchKeepsEditorFocus = await page.locator('.document-editor').evaluate(element => element.editor.view.hasFocus());
+  // Exercise the multiword query through real typing, then insert by the shared keyboard path.
+  for (let i = 0; i < 'summary'.length; i++) await page.keyboard.press('Backspace');
+  await page.keyboard.type('Fig. 1');
+  await figureChoice.waitFor();
+  await page.keyboard.press('Enter');
+  result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/Fig. 1');
 
   // D. Retarget an existing reference; E. remove one back to plain text.
   await editReference(chip(paragraph(1), 'Eq. eq-a'));
@@ -151,7 +158,7 @@ async (page, { openDocument }) => {
     'See {numref}`missing-fig` for later and eq-a.',
     '```{math}\n:label: eq-a\n\na = b\n```',
     '```{math}\n:label: eq-c\n\nc = d\n```',
-    ':::{figure} ./diagram.svg\n:name: fig-a\n:::',
+    ':::{figure} ./diagram.svg\n:name: fig-a\n\nConverter control summary.\n:::',
   ];
   result.sourceShowsUnsavedReferences = expectedLines.every(line => preview.includes(line));
   result.fileUntouchedBeforeSave = await markdown() === fresh;
