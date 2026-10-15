@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- CLI preview verification: 2026-10-15 (#292: shared file-commit preflight, dry-run no-write boundary, failure parity and result/check output; source CLI and Core/CLI/file-commit tests).
 - CLI insertion verification: 2026-10-15 (#280 single-write properties, unchanged-file refusal and per-step batch `end` resolution; Core/CLI tests).
 - Last verified: 2026-10-14 (#215: CLI batch sequential-byte equivalence, original preservation, revision/output, batch-wide versus step errors, null option rejection and commit conflict regressions. #214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
@@ -143,6 +144,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 - Revision은 실제 파일 바이트의 SHA-256이다. 엄격하게 UTF-8로 읽은 유효한 text의 `textRevision`과 같으며 BOM도 포함한다. CLI·공유 Host는 잘못된 UTF-8 파일·문서 요청 text를 대체문자로 변환하지 않고 거부한다. CLI는 Core operation을 적용하기 전에 읽은 원본에서 revision을 얻는다. Editor는 열기 또는 직전 Save로 받은 revision을 보낸다. 저장 직전에 다시 읽은 내용을 baseline으로 삼지 않으며, 숨은 cache나 lock 파일을 두지 않는다.
 - 최종 `commitFile`도 단독 surrogate가 든 출력 text를 temporary 생성 전에 거부한다. 두 revision 확인은 원본의 raw bytes를 비교하므로 잘못된 UTF-8로 바뀐 외부 파일도 덮어쓰지 않는다. 유효한 한글·emoji·리터럴 U+FFFD는 그대로 UTF-8로 기록하며 기존 LF canonicalization은 Core가 소유한다.
+- `preflightFileCommit(filePath, text, revision)`은 출력 Unicode 검사 → symlink real path 해석 → raw-byte revision 확인 → 대상 파일 `W_OK` 검사 → permission mode 읽기의 읽기 전용 경계다. resolved `target`과 실제 교체에 사용할 `mode`를 반환하며 파일을 변경하지 않는다. `commitFile`과 CLI dry run이 같은 함수를 호출한다. 디렉터리 `access` 검사를 새로 추가하지 않으며, 실제 쓰기의 디렉터리 권한 오류는 기존 temporary 생성/rename 단계에서 기존 메시지로 보고한다.
 - 순서: symlink를 real path로 해석 → revision 확인 → 쓰기 권한 확인 → 같은 directory에 고유한 temporary sibling(`.<name>.<UUID>.tmp`)을 exclusive create하여 완성된 내용 기록 → 원본 permission bits 적용 → revision 재확인 → rename으로 교체.
 - 실패하면 원본은 그대로이고 temporary sibling은 삭제한다. Revision 불일치는 `FileChangedError`다. CLI는 그 메시지와 exit 1을, Editor Host는 기존 conflict 메시지와 HTTP 409를 반환한다. Core가 거부한 문서는 이 단계에 도달하지 않는다.
 - Symlink는 link로 남고 대상이 교체된다. Permission bits는 umask와 무관하게 원본 값을 유지한다. 쓰기 권한이 없는 파일은 rename이 가능하더라도 거부한다. 이는 이전 CLI의 in-place write와 같은 결과다. POSIX에서 read-only 파일을 교체하던 Editor Host도 이제 거부한다.
@@ -153,7 +155,6 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - 마지막 revision 확인과 rename 사이에 끼어든 외부 write는 감지하지 못한다(TOCTOU). OS 수준의 atomic compare-and-swap이 아니다.
 - Process 간 lock, fsync/전원 차단 시 영속성, 자동 merge, filesystem watch는 없다. 강제 종료된 process는 temporary sibling을 남길 수 있다.
 - Rename은 새 파일로 교체하므로 owner/group, hard link, Windows의 명시적 ACL과 extended attribute를 유지하지 않는다. 다른 process가 파일을 공유 삭제 없이 열어 두면 Windows에서 rename이 실패할 수 있으며, 이때도 원본은 유지된다.
-- Revision은 decode한 text 기준이므로 invalid UTF-8 byte끼리의 차이는 구별하지 못할 수 있다.
 
 ### CLI revision precondition (#214)
 
@@ -162,7 +163,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - Revision 인자는 정확히 64자리 소문자 hex여야 한다. 형식이 잘못되면 `--if-revision must be 64 lowercase hexadecimal characters`를 stderr에 출력하고 exit 1로 종료한다. 값 누락·중복은 기존 공통 옵션 오류(`missing --if-revision`, `duplicate option: --if-revision`)로 거부한다.
 - `edit()`는 원본을 읽은 직후 revision을 비교한다. 다르면 Core parse/operation 전에 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일 바이트를 보존한다. 새 전용 exit code는 없다.
 - 사전조건 통과 후에도 위 File commit 계약을 유지한다. `commitFile`의 baseline은 이번 요청이 읽은 원본의 revision이므로 검증부터 커밋 사이 외부 변경도 기존 `FileChangedError` 경계에서 거부한다. 마지막 확인과 rename 사이의 기존 TOCTOU 한계는 그대로다.
-- 단건 변경 명령은 성공 후 새 revision을 출력하지 않는다. 후속 변경 전 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻는다. [ADR-0003](../adr/0003-document-addressing-identity-boundary.md)에 따라 NodePath는 현재 snapshot의 locator이며, 구조 변경 후 오래된 경로가 다른 유효 블록을 가리켜도 추측으로 재지정하지 않는다.
+- 단건 변경 명령은 실제 쓰기 성공 후 새 revision을 출력하지 않는다. 후속 변경 전 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻는다. [ADR-0003](../adr/0003-document-addressing-identity-boundary.md)에 따라 NodePath는 현재 snapshot의 locator이며, 구조 변경 후 오래된 경로가 다른 유효 블록을 가리켜도 추측으로 재지정하지 않는다.
 
 ### CLI batch application (#215)
 
@@ -173,9 +174,19 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - `isEditCommand`인 모든 단건 변경 명령(`format` 포함)을 허용한다. `create`, `check`, `inspect`, `serve`, 중첩 `apply-batch`와 operation 내부의 `if-revision` 및 허용되지 않은 키를 거부한다. 배열이 아닌 입력과 빈 배열, 잘못된 JSON도 exit 1로 거부한다.
 - 파일 원본을 한 번 읽고, 배치 전체의 `--if-revision`을 그 원본에 대해 위 #214와 같은 규칙으로 Core parse/operation 전에 한 번 확인한다. Revision 불일치는 operation prefix 없이 단건과 같은 `revision mismatch; run inspect again; nothing was written`으로 표시한다.
 - 각 단계는 적용 → `validateStructure` → canonical serialize → 다시 parse 순서다. 후속 NodePath와 인덱스는 **직전 단계의 canonical 재파싱 snapshot** 기준이며 자동 추적·재지정하지 않는다. 따라서 같은 단건 명령을 순서대로 실행한 최종 파일 바이트와 일치한다. 각주 정의의 canonical 이동도 단계 사이에 반영된다.
-- 중간 결과는 메모리에만 두고, 마지막에 최초 원본 revision으로 `commitFile`을 한 번 호출한다. 옵션·Core·검증·serialize·revision·커밋 실패 시 배치의 부분 결과를 쓰지 않고 exit 1로 종료한다. 외부 write는 덮어쓰지 않으며 위 File commit의 TOCTOU 한계는 동일하다.
+- 중간 결과는 메모리에만 두고, 실제 쓰기 모드는 마지막에 최초 원본 revision으로 `commitFile`을 한 번 호출한다. 옵션·Core·검증·serialize·revision·커밋 실패 시 배치의 부분 결과를 쓰지 않고 exit 1로 종료한다. 외부 write는 덮어쓰지 않으며 위 File commit의 TOCTOU 한계는 동일하다.
 - 각 원소의 입력 검증·옵션 해석·Core operation·validate/serialize·단계별 재파싱 오류에만 stderr에 `operation <1-based index> (<command>): <원래 오류>; nothing was written`을 출력한다. 최초 원본 read/parse·revision 확인과 최종 커밋 오류는 특정 operation에 연결하지 않고 prefix 없이 단건 명령과 동일한 메시지를 출력한다. 커밋 충돌도 기존 `... changed after it was read; nothing was written`을 유지한다. JSON 전체 파싱과 최상위 옵션 오류도 prefix 없이 원래 메시지를 출력한다. 실패 시 stdout은 비어 있다.
-- 성공 시 text 모드는 출력이 없다. `--format json`은 stdout 한 줄에 `{"ok":true,"command":"apply-batch","applied":N,"revision":"<커밋한 내용의 textRevision>"}`을 출력한다. 단건 변경 명령 출력은 유지한다. 별도 후속 요청 전에는 `inspect`로 새 revision과 경로를 함께 얻는다.
+- 실제 쓰기 성공 시 text 모드는 출력이 없다. `--format json`은 stdout 한 줄에 `{"ok":true,"command":"apply-batch","applied":N,"revision":"<커밋한 내용의 textRevision>"}`을 출력한다. 단건 변경 명령 출력은 유지한다. 별도 후속 요청 전에는 `inspect`로 새 revision과 경로를 함께 얻는다.
+
+### CLI dry run (#292)
+
+- `apply-batch`와 모든 단건 문서 변경 명령(`format` 포함)은 값 없는 `--dry-run`을 받는다. Core operation, 구조 검증, canonical serialize와 배치 단계별 재파싱은 실제 쓰기와 같은 경로다. `--if-revision`도 원본에 대해 동일하게 확인한다. 옵션·operation·round-trip/writeability 실패는 실제 실행과 같은 메시지와 exit 1을 유지하며 stdout은 비어 있다. 배치의 operation prefix 규칙도 동일하다.
+- 성공해도 `commitFile`을 호출하지 않으며 target·temporary sibling 생성/쓰기·chmod·rename·삭제를 수행하지 않는다. 결과는 메모리에만 둔다. 실제 쓰기와 같은 `preflightFileCommit`으로 출력 Unicode, symlink 대상의 현재 revision, 파일 쓰기 권한과 mode를 확인한다. 이는 입력과 Core 쓰기 가능성의 사전검증이며, 실제 쓰기를 하지 않고 디렉터리의 생성/rename 권한, 디스크 부족, OS rename 잠금, 이후 권한·파일 변경 등 commit I/O 성공까지 보장할 수는 없다.
+- 결과 canonical Markdown을 다시 parse한 문서에 기존 `check` 로직을 적용한다. text stdout은 `dry run; nothing was written`, `revision: <결과 revision>`, 기존 check 요약, `--- markdown ---` 다음에 canonical Markdown을 출력한다. 경고·note는 check와 같이 stderr에 출력한다. Markdown을 포함하므로 별도 쓰기 없이 실제 적용될 문서를 검토할 수 있다. text 출력 전체는 Markdown 파일 자체가 아니며, 정확한 결과 추출에는 JSON의 `markdown`을 사용한다.
+- 원본에 정의 없는 각주가 있으면 결과 검사와 별도로, 성공한 dry run도 실제 쓰기와 같은 `warnLiteralFootnotes` 경고를 stderr에 출력한다(JSON 모드 포함). `written as literal`은 미리보기의 canonical Markdown 표현을 가리키며 파일을 썼다는 뜻이 아니다. 원본 parse의 진단을 operation 전에 보관하므로 배치도 원본의 각 발생을 한 번씩만 보고한다. 실패한 실행에서는 이 경고를 출력하지 않는다. [각주 진단 계약](footnotes-v1.md#undefined-reference-diagnostics-290)을 따른다.
+- `--dry-run --format json`은 stdout 한 줄에 `ok`, `command`, `dryRun: true`, `revision`(결과 Markdown의 SHA-256), `markdown`과 check의 `validation`, `writeability`, `references`, `readiness`, `endnotes`를 출력한다. 배치는 `applied`도 포함한다. 단건의 `--format`은 dry run에서만 지원한다. 경고는 실패가 아니며 성공 exit code는 0이다. 실패는 기존 편집 명령처럼 stderr 메시지와 exit 1을 사용한다(JSON 오류 envelope를 새로 도입하지 않음).
+- JSON 미리보기는 `originalWarnings` 배열도 포함한다. 원본의 정의 없는 각주만 Core 진단 형식 그대로 담는다(예: `{"footnote":true,"label":"loss","path":[1],"line":5}`); 없으면 `[]`다. `references.unresolved`는 결과 문서의 진단만 유지하므로 canonical escape 후 각주 항목이 사라져도 원본 경고를 잃지 않는다. `check`와 실제 쓰기 JSON에는 이 필드를 추가하지 않는다.
+- `create`는 기존 파일 편집과 별도의 exclusive-create 경로이므로 제외한다. `check`, `inspect`, `serve`도 대상이 아니며 batch operation 안의 `dry-run`/`format` 출력 옵션은 허용하지 않는다. 배치 전체 요청에만 지정한다. 실제 쓰기 모드의 출력 계약은 유지한다. 미리보기 뒤 실제 적용 시 원본 revision을 `--if-revision`으로 전달하고, 실제 쓰기 후에는 `inspect`로 저장된 revision과 경로를 다시 얻는다.
 
 ### Folder listing v1 (#112)
 
