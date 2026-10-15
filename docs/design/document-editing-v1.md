@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Last verified: 2026-10-15 (ADR-0006 native editing boundary compared with code/tests; no runtime regressions rerun). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -35,8 +35,9 @@ persistent changes and canonical semantic validation.
   automatically. NodeView selection alone must not steal navigation focus.
 - The adapter repairs session locators after engine edits. New blocks and
   heading/paragraph conversions use existing Core insert/remove operations;
-  missing source blocks become explicit deletions. Read-only survivors must
-  remain unchanged. No raw Markdown or editor JSON is passed to Core.
+  missing source blocks become explicit deletions. Unsupported blocks reject
+  native admission under [Native document support](document-support-v1.md).
+  No raw Markdown or editor JSON is passed to Core.
 - Clipboard DOM uses ProseMirror serialization/parsing, including typed semantic
   attributes for atoms and table alignment. Supported slices receive fresh
   session locators. Unsupported rich content is rejected before replacement or
@@ -97,8 +98,8 @@ row stays first and a table keeps one column. The block menu applies them to the
 caret's cell in one engine transaction each. Each opening-snapshot cell carries its
 `row,column` as a session-only locator, like a block's `sourcePath` (ADR-0003), so Save
 maps the edited grid to the snapshot. The Host then removes, moves, adds and aligns
-through the same Core operations. Read-only cells move verbatim with their row or
-column. Cell merge has no GFM form and is not supported.
+through the same Core operations. Unsupported cells reject native admission.
+Cell merge has no GFM form and is not supported.
 
 ## Sections
 
@@ -110,7 +111,7 @@ of its own (ADR-0003). One Core rule (`@ieumdoc/core/section`) serves Core `move
 and the Editor. A heading's block menu moves its section past the previous or next
 sibling section, or deletes it, in one engine transaction. Save reuses the existing
 block order and deletion path, and the result matches the Core operation. Heading
-levels never change. Read-only blocks and targets move or are removed verbatim.
+levels never change. Supported label targets move or are removed with their section.
 [Endnote](footnotes-v1.md#core) definitions belong to no section: a section ends at the
 end of the body, moving or deleting it leaves them, and deleting a section that holds the
 last reference to one is refused before anything changes.
