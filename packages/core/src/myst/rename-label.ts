@@ -17,7 +17,9 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
   }
   const before = referenceTargetIndex(document);
   const oldIdentifier = labelIdentifier(current.label);
-  const oldTarget = oldIdentifier ? before.lookup(oldIdentifier) : undefined;
+  const oldLookup = oldIdentifier ? before.lookup(oldIdentifier) : undefined;
+  if (oldLookup?.reason) throw new Error(oldLookup.reason);
+  const oldTarget = oldLookup?.target;
   const targetKey = targetPath.join(".");
   if (!oldIdentifier || !oldTarget?.node || before.candidates(oldIdentifier).length !== 1 ||
       before.path(oldTarget.node)?.join(".") !== targetKey) {
@@ -34,9 +36,10 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
     if (node.type === "crossReference" ||
         node.type === "link" && typeof node.url === "string" && node.url.startsWith("#")) {
       const resolved = resolveReference(node, before.lookup);
-      const resolvedPath = resolved?.node ? before.path(resolved.node) : undefined;
-      if (resolved && !resolvedPath) throw new Error("ambiguous target: reference has no snapshot locator");
-      if (resolved?.node === oldTarget.node) {
+      if (resolved?.reason) throw new Error(resolved.reason);
+      const resolvedPath = resolved?.target?.node ? before.path(resolved.target.node) : undefined;
+      if (resolved?.target && !resolvedPath) throw new Error("ambiguous target: reference has no snapshot locator");
+      if (resolved?.target?.node === oldTarget.node) {
         const reference = getNode(next, at);
         if (node.type === "crossReference") {
           reference.label = label;
@@ -49,14 +52,15 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
   };
   document.children.forEach((node, index) => visit(node, [index]));
   const after = referenceTargetIndex(next);
-  const newTarget = identifier ? after.lookup(identifier) : undefined;
+  const newTarget = identifier ? after.lookup(identifier)?.target : undefined;
   if (!identifier || after.candidates(identifier).length !== 1 ||
       !newTarget?.node || after.path(newTarget.node)?.join(".") !== targetKey) {
     throw new Error("ambiguous target: the new label does not resolve uniquely to the selected target");
   }
   for (const reference of references) {
     const resolved = resolveReference(getNode(next, reference.path), after.lookup);
-    const key = resolved?.node ? after.path(resolved.node)?.join(".") : undefined;
+    if (resolved?.reason) throw new Error(resolved.reason);
+    const key = resolved?.target?.node ? after.path(resolved.target.node)?.join(".") : undefined;
     if (key !== reference.target) {
       throw new Error("rename would change resolution of an unrelated or previously unresolved reference");
     }

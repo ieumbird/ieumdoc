@@ -1985,6 +1985,27 @@ test("check warns about references a removal left without a target, without fail
 });
 
 
+test("check exposes Core's MyST lookup failure reason in text and JSON without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-myst-"));
+  const file = path.join(dir, "document.md");
+  writeFileSync(file, nativeSource("[figure](#toString)\n\n:::{figure} ./a.png\n:name: toString\n\nCaption.\n:::\n"));
+  try {
+    const original = readFileSync(file);
+    const reason = 'MyST target lookup for "toString" hits an inherited Object.prototype property and cannot process references';
+    const text = run(["check", file]);
+    assert.equal(text.status, 0, text.stderr);
+    assert.ok(text.stderr.includes(`warning: link #toString (block 1, line 5) ${reason}\n`));
+    const json = run(["check", file, "--format", "json"]);
+    assert.equal(json.status, 0, json.stderr);
+    const report = JSON.parse(json.stdout);
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.references.unresolved, [
+      { link: "#toString", label: "toString", reason, path: [1], line: 5 },
+    ]);
+    assert.deepEqual(readFileSync(file), original);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("check and edit previews retain original literal-syntax warnings through literal writes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-footnote-"));
   const file = path.join(dir, "document.md");
