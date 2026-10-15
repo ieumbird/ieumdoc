@@ -262,12 +262,12 @@ async (page, { openDocument, screenshots = false }) => {
     await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
     await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== draftWrites) throw new Error('Inactive discard changed B or wrote a draft');
+    await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
     return {start:true, independentSaves:true, savingSwitchGuarded:true, closeCancel:true, closeSave:true, closeDiscard:true, failureRetained:true, conflictRetained:true, newerEditsRetained:true, inactiveClose:true};
   } finally {
+    // The page fixture closes the page and its routes. Do not evaluate in a timed-out page:
+    // that cleanup error would hide the action that originally failed.
     releaseSave?.();
-    await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
-    await page.unroute('**/api/document**');
-    await page.unrouteAll();
   }
 
   function clone(value) {
@@ -311,6 +311,10 @@ async (page, { openDocument, screenshots = false }) => {
 
   async function openPath(page, path) {
     await openDocument(page, path);
+    // A click completes before the Host response activates A. Otherwise a locator action
+    // can retain B's mounted element and wait forever once that tab becomes hidden.
+    await page.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, path);
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   }
 
   async function editParagraph(page, suffix) {
