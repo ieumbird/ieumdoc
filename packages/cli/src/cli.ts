@@ -630,12 +630,16 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "update-label",
     summary: "Set, change, or remove an Equation, Figure, Table or target label through Core",
-    usage: "ieumdoc update-label <file> --path <index> --label <label>",
+    usage: "ieumdoc update-label <file> --path <index> --label <label> [--update-references <true|false>]",
     details: [
       "Set the label (reference target name) of one top-level Equation, Figure or Table. Use an empty --label to remove it.",
       "A (label)= target can be renamed but not emptied; remove it with remove-block.",
       "The label must be one line without leading or trailing spaces, be referenceable, and not name another target in the document.",
-      "References to the old label are not renamed.",
+      "References stay untouched by default (or with --update-references false).",
+      "--update-references true renames an existing non-empty label and its resolved same-document role/fragment references atomically.",
+      "Only labeled Equations, Figures, Tables and section targets immediately before headings support this opt-in.",
+      "Conflicts (including implicit heading IDs), ambiguous targets or reference notation that cannot preserve meaning are refused without writing.",
+      "apply-batch accepts the same option as \"update-references\": true or false.",
       ...PATH_NOTE,
     ],
   },
@@ -1008,7 +1012,12 @@ function changeFor(command: string, flags: string[]): Change {
       );
     }
     case "update-label": {
-      return (document) => updateLabel(document, pathFlag(flags), flag(flags, "--label"));
+      const updateReferences = optionalFlag(flags, "--update-references");
+      if (updateReferences !== undefined && updateReferences !== "true" && updateReferences !== "false") {
+        throw new Error("--update-references must be true or false");
+      }
+      return (document) => updateLabel(document, pathFlag(flags), flag(flags, "--label"),
+        { updateReferences: updateReferences === "true" });
     }
     default:
       throw new Error(`not a document edit command: ${command}`);
@@ -1177,7 +1186,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "remove-section": ["--at"],
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
-  "update-label": ["--path", "--label"],
+  "update-label": ["--path", "--label", "--update-references"],
 };
 
 function isEditCommand(command: string): boolean {

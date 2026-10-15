@@ -19,6 +19,7 @@ import {
   replaceText,
   serialize,
   validateStructure,
+  updateLabel,
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
 import { runCli } from "../src/cli.ts";
@@ -1082,6 +1083,69 @@ test("CLI update-label sets, changes and removes labels through Core and rejects
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("CLI opt-in label rename shares Core, strict boolean options and atomic batch refusal", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-rename-label-"));
+  const file = path.join(dir, "document.md");
+  const operations = path.join(dir, "operations.json");
+  const source = "\uFEFF" + nativeSource("```{math}\n:label: old\nx\n```\n\n{eq}`old` and [keep](#old).\n\n# Taken\n").replaceAll("\n", "\r\n");
+  const original = Buffer.from(source);
+  const args = ["update-label", file, "--path", "1", "--label", "new"];
+  try {
+    const help = run(["help", "update-label"]);
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /--update-references <true\|false>/);
+    assert.match(help.stdout, /"update-references": true or false/);
+    for (const option of [[], ["--update-references", "false"], ["--update-references", "true"]]) {
+      writeFileSync(file, original);
+      const result = run([...args, ...option]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(readFileSync(file, "utf8"), serialize(updateLabel(parse(source), [1], "new",
+        { updateReferences: option.at(-1) === "true" })));
+    }
+    for (const [option, reason] of [
+      [["--update-references"], /missing --update-references/],
+      [["--update-references", "yes"], /must be true or false/],
+      [["--update-references", "true", "--update-references", "false"], /duplicate option/],
+    ] as const) {
+      writeFileSync(file, original);
+      const result = run([...args, ...option]);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, reason);
+      assert.deepEqual(readFileSync(file), original);
+    }
+    writeFileSync(file, original);
+    const refused = run(["update-label", file, "--path", "1", "--label", "taken", "--update-references", "true"]);
+    assert.equal(refused.status, 1);
+    assert.match(refused.stderr, /already names another target/);
+    assert.deepEqual(readFileSync(file), original);
+
+    const step = (label: string, opt: boolean | string | number = true) =>
+      ({ command: "update-label", path: 1, label, "update-references": opt });
+    for (const opt of [true, false]) {
+      writeFileSync(file, original);
+      writeFileSync(operations, JSON.stringify([step("mid", opt), step("new", opt)]));
+      const result = run(["apply-batch", file, "--operations", operations, "--format", "json"]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).applied, 2);
+      const mid = updateLabel(parse(source), [1], "mid", { updateReferences: opt });
+      assert.equal(readFileSync(file, "utf8"), serialize(updateLabel(mid, [1], "new", { updateReferences: opt })));
+    }
+    for (const [steps, reason] of [
+      [[step("mid"), step("taken")], /operation 2 \(update-label\).*already names another target/],
+      [[step("new", "yes")], /must be true or false/],
+      [[step("new", 1)], /must be true or false/],
+    ] as const) {
+      writeFileSync(file, original);
+      writeFileSync(operations, JSON.stringify(steps));
+      const result = run(["apply-batch", file, "--operations", operations]);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, reason);
+      assert.deepEqual(readFileSync(file), original);
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ["document.md", "operations.json"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("CLI update-figure changes Figure properties through Core and preserves the label", () => {
