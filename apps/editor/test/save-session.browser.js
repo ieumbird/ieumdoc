@@ -165,6 +165,38 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
+  const keepEditing = page.getByRole('button', {name:'Keep editing', exact:true});
+  const discard = page.getByRole('button', {name:'Discard and reload', exact:true});
+  check('reloadDefaultsToKeepEditing', await keepEditing.evaluate(element => element === document.activeElement));
+  // Measure rendered colors, not utility classes; all button faces are opaque.
+  const discardAppearance = () => discard.evaluate(element => {
+    const style = getComputedStyle(element), canvas = document.createElement('canvas'), context = canvas.getContext('2d');
+    const rgb = color => {
+      context.clearRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data];
+    };
+    const luminance = color => rgb(color).slice(0, 3).map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; })
+      .reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+    const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    const danger = style.getPropertyValue('--id-color-danger');
+    const ring = [...style.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px/g)]
+      .find(([, color, spread]) => Number(spread) >= 2 && rgb(color)[3] === 255)?.[1];
+    return { danger: JSON.stringify(rgb(style.color)) === JSON.stringify(rgb(danger)), background: style.backgroundColor,
+      textContrast: contrast(style.color, style.backgroundColor), boundaryContrast: contrast(style.borderColor, style.backgroundColor),
+      focusVisible: element.matches(':focus-visible'), ringContrast: ring ? contrast(ring, style.backgroundColor) : 0,
+      opaque: style.opacity === '1' && rgb(style.backgroundColor)[3] === 255 };
+  });
+  const restAppearance = await discardAppearance();
+  check('reloadDiscardUsesDangerAndReadableText', restAppearance.opaque && restAppearance.danger && restAppearance.textContrast >= 4.5 && restAppearance.boundaryContrast >= 3);
+  await discard.hover();
+  const hoverAppearance = await discardAppearance();
+  check('reloadDiscardHoverStaysDangerAndReadable', hoverAppearance.opaque && hoverAppearance.danger && hoverAppearance.background !== restAppearance.background &&
+    hoverAppearance.textContrast >= 4.5 && hoverAppearance.boundaryContrast >= 3);
+  await page.mouse.move(0, 0);
+  await keepEditing.press('Tab');
+  const focusAppearance = await discardAppearance();
+  check('reloadDiscardKeyboardFocusIsVisibleAndReadable', focusAppearance.opaque && focusAppearance.focusVisible &&
+    focusAppearance.ringContrast >= 3 && focusAppearance.danger && focusAppearance.textContrast >= 4.5);
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check('reloadCancelKeepsWork', (await paragraph().innerText()).includes('Local'));
   check('beforeUnloadProtected', await page.evaluate(() => {
@@ -172,7 +204,22 @@ async (page, { openDocument }) => {
   }));
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.getByRole('button', {name:'Discard and reload', exact:true}).click(); await ready();
+  let releaseReload, reloadArrived;
+  const reloadGate = new Promise(resolve => { releaseReload = resolve; });
+  const reloadReceived = new Promise(resolve => { reloadArrived = resolve; });
+  const holdReload = async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    reloadArrived(); await reloadGate; await route.continue();
+  };
+  await page.route('**/api/document**', holdReload);
+  try {
+    await discard.click(); await reloadReceived;
+    const disabledAppearance = await discardAppearance();
+    check('reloadDiscardDisabledRemainsReadable', await discard.isDisabled() && disabledAppearance.opaque && disabledAppearance.textContrast >= 4.5);
+    releaseReload(); await ready();
+  } finally {
+    releaseReload(); await page.unroute('**/api/document**', holdReload);
+  }
   check('reloadUsesDisk', (await paragraph().innerText()) === 'External.');
 
   const blockCount = (await read(file)).document.blocks.length;
