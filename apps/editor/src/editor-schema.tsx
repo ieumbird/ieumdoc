@@ -1180,14 +1180,20 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
 
 /**
  * Closing a block's properties returns keyboard focus to the editor at that block. A selection
- * already inside the block is kept; otherwise the block is selected, so focus does not move the
- * view to an unrelated earlier caret. Selection changes add no history and leave the document.
+ * already inside the block is kept; otherwise the block is selected. Equations have no text
+ * caret: return just after them, using the engine's gap cursor when no adjacent text is available,
+ * so the next input cannot replace the atom. Selection changes add no history or document edits.
  */
 function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps["getPos"]): void {
   const position = getPos();
   const node = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
   const { from, to } = view.state.selection;
-  if (node && typeof position === "number" && (from < position || to > position + node.nodeSize)) {
+  if (node?.type.name === "equation" && typeof position === "number") {
+    const $after = view.state.doc.resolve(position + node.nodeSize);
+    const selection = view.someProp("createSelectionBetween", create => create(view, $after, $after))
+      ?? TextSelection.between($after, $after);
+    view.dispatch(view.state.tr.setSelection(selection));
+  } else if (node && typeof position === "number" && (from < position || to > position + node.nodeSize)) {
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)));
   }
   view.focus();
