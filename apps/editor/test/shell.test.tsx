@@ -153,7 +153,7 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
   for (const [status, unsaved, expected] of [
     ["Ready", false, ""], ["Ready", true, "Unsaved changes"],
     ["Saved", false, "Saved"], ["Saved", true, "Unsaved changes"],
-    ["Saved; newer edits pending", true, "Unsaved changes"],
+    ["Saved; newer edits pending", true, "Saved; newer edits pending"],
     ["Saved; newer edits pending", false, "Saved"], // Newer edits undone back to the saved baseline.
     ["Saving…", true, "Saving…"], ["Save conflict", true, "Save conflict"],
     ["Save failed", true, "Save failed"], ["Load failed", false, "Load failed"],

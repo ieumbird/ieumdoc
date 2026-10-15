@@ -390,7 +390,7 @@ async (page, { openDocument }) => {
     await page.locator('[data-testid="status"][data-operation="Saved; newer edits pending"]').waitFor({state:'attached'});
     hold = undefined;
     await verifySave(captioned, pendingState, 'captionSaveWithPendingEndnote');
-    check('pendingEndnoteStaysDirty', await page.getByTestId('status').innerText() === 'Unsaved changes');
+    check('pendingEndnoteStaysDirty', await page.getByTestId('status').innerText() === 'Saved; newer edits pending');
     const latest = captioned.replace('[^b]: First note.', '[^b]: First note. During save.');
     await preview(latest);
     await saveState(latest, 'pendingEndnoteNextSave');

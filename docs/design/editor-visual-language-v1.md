@@ -87,7 +87,7 @@ The paper's bottom padding is the end space, 35% of the viewport height, so the 
 
 ## Filename and status
 
-TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. The status sits beside the filename (v2). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
+TopBar shows only the filename; long names ellipsize and the complete unchanged path stays in `title`. The status sits beside the filename (v2). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. If applied edits newer than an acknowledged Save snapshot remain, show `Saved; newer edits pending` until they are saved or undone to the saved baseline. A Save with only unapplied property drafts still shows `Unsaved changes`. The status does not imply autosave.
 
 ## Shell and control rules — v3 (2026-10-08), v4 and v4.1 (2026-10-10)
 

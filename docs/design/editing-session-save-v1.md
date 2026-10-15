@@ -4,6 +4,7 @@
 - Last verified: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 - Switching verification: 2026-10-15 (#291: Open/New confirmation, Save failure/conflict, draft retention/loss, pending work and focus browser regressions; real Vite New and production HTTP Save/reopen; 1440/375px dialog captures reviewed, final visual approval remains with the user).
+- PR #301 review verification: 2026-10-15 (delayed Save with programmatically injected applied edits stops Open/New, retains the session and drafts, exposes the pending-edits status, and allows an explicit retry; original `c8aecd9` failed this regression).
 - Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
 ## Save acknowledgement
@@ -58,6 +59,8 @@ This phase adds no persistent logs, diagnostics history, report export or automa
 ## Switching and recovery
 
 Opening another sidebar document or choosing the folder's New file (`+`) with unsaved changes or unapplied drafts offers one **Save / Don't save / Cancel** dialog, following [ADR-0007 section 4](../adr/0007-editing-session-lifetime.md#4-미저장-작업-처리는-하나의-확인-대화상자를-재사용한다). Save uses the existing Save path and continues only after success. A content rejection, conflict or other Save failure closes the confirmation, keeps the session and shows the existing Save error/conflict UI. Don't save continues without writing the current file. Cancel, Escape and outside dismissal leave the session unchanged and return focus to the invoking control. A draft notice explicitly says that both Save and Don't save lose unapplied property drafts; Save includes applied content only.
+
+After a successful Save, Open/New also checks the live applied-document dirty comparison against the acknowledged snapshot. If an asynchronous or programmatic transaction added newer applied edits while Save was pending, the confirmation closes and returns focus to its invoking control without opening a file or the New form. The session and newer edits remain, and the visible status stays **Saved; newer edits pending**, so the user can save again. Unapplied property drafts alone do not block continuing: the confirmation already disclosed their loss. Save acknowledges only its submitted snapshot; no retry or discard happens automatically.
 
 New continues to the existing filename/location dialog after confirmation. Cancelling that dialog or failing to create a file retains the current session (a successful Save is still saved). The current session and drafts are replaced only after the chosen document opens or creation succeeds. Busy, Source-pending and asset-pending operations still refuse switching. The confirmation stays modal with disabled actions during Save/Open; shortcuts cannot bypass it. Successful Open focuses the document, and New retains its existing successful focus handoff.
 

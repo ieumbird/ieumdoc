@@ -225,6 +225,12 @@ export function App() {
     setContinuationPending(true);
     try {
       if (shouldSave && !await save()) return;
+      // A successful Save acknowledges its snapshot, not later asynchronous transactions.
+      // Read the live document comparison; the user already agreed to lose property drafts.
+      if (shouldSave && editorRef.current?.hasDocumentChanges() !== false) {
+        setStatus("Saved; newer edits pending");
+        return;
+      }
       if (continuation.kind === "new") {
         continuationFocus.current = "dialog";
         setNewDirectory(continuation.directory);
@@ -291,8 +297,8 @@ export function App() {
       setEndnotesMove(false);
       if (sessionBase.current) sessionBase.current.savedEdits = payload;
       editorRef.current?.finishSave(true);
-      const hasPendingUserState = editorRef.current?.hasUnsavedChanges() ?? false;
-      setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
+      const hasNewerAppliedEdits = editorRef.current?.hasDocumentChanges() ?? false;
+      setStatus(hasNewerAppliedEdits ? "Saved; newer edits pending" : "Saved");
       return true;
     } catch (cause) {
       editorRef.current?.finishSave();
@@ -514,7 +520,8 @@ export function App() {
         <div className="app-header" ref={header}>
           <TopBar
             documentPath={openedPath}
-            status={assetPending ? "Adding image…" : status}
+            status={assetPending ? "Adding image…"
+              : status === "Saved; newer edits pending" && !documentDirty ? "Saved" : status}
             unsaved={documentDirty || draftActive}
             view={view}
             viewDisabled={!document || busy}
