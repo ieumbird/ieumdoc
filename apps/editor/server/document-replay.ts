@@ -445,10 +445,20 @@ export function saveEdits(
     document = removeBlock(document, index);
     locators.splice(index, 1);
   }
-  for (const [insert, item] of inserts.entries()) {
+  // Create heading destinations before their targets, including newly inserted headings.
+  const insertionOrder = [...inserts.entries()];
+  if (edits.order) insertionOrder.sort((a, b) => Number(a[1].block === "target") - Number(b[1].block === "target"));
+  for (const [insert, item] of insertionOrder) {
     const target = { insert };
-    // New blocks start at the end; the requested order places them.
-    const index = locators.length;
+    // Other new blocks start at the end; the requested order places them.
+    let index = locators.length;
+    if (item.block === "target" && edits.order) {
+      const position = edits.order.findIndex(entry => "insert" in entry && entry.insert === insert);
+      const following = position >= 0 ? edits.order[position + 1] : undefined;
+      const destination = following ? locators.findIndex(entry => locatorKey(entry) === locatorKey(following)) : -1;
+      // Core must see the actual following heading to allow its own implicit ID.
+      if (destination >= 0) index = destination;
+    }
     if (item.block === "paragraph") {
       document = editAt(target, () => insertParagraph(document, index, item.content));
     } else if (item.block === "heading") {
@@ -479,7 +489,7 @@ export function saveEdits(
       const label = item.label;
       document = editAt(target, () => updateLabel(document, [index], label));
     }
-    locators.push({ insert });
+    locators.splice(index, 0, { insert });
   }
   if (edits.order !== undefined) {
     if (!Array.isArray(edits.order) || edits.order.length + metadata.length !== locators.length) throw new Error("invalid block order");

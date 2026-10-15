@@ -1,7 +1,9 @@
 import { isTargetIdentifierNode, normalizeLabel } from "myst-common";
 import { basicTransformations, enumerateTargetsTransform, ReferenceState } from "myst-transforms";
 import { VFile } from "vfile";
-import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
+import type { NodePath } from "../document.ts";
+import { DocumentWriteError } from "../write-error.ts";
+import { cloneDocument, getNode, type MystDocument, type MystNode } from "./tree.ts";
 
 /** The identifier MyST resolves references against, or undefined when the label names nothing. */
 export function labelIdentifier(label: string): string | undefined {
@@ -26,6 +28,25 @@ export function targetIdentifiers(root: MystNode, except?: MystNode): Set<string
   };
   visit(root);
   return identifiers;
+}
+
+/** A label may keep its own target, but must not take any other target's identifier. */
+export function assertLabelAvailable(document: MystDocument, label: string, except?: NodePath): void {
+  const identifier = labelIdentifier(label);
+  if (!identifier) return; // Syntax/addressability validation belongs to the caller.
+  const current = except ? getNode(document, except) : undefined;
+  // Parsed targets attach to the following block during MyST enumeration.
+  const targetPath = current?.type === "mystTarget" && except?.length === 1 &&
+    document.children[except[0] + 1] ? [except[0] + 1] : except;
+  const targetKey = targetPath?.join(".");
+  const targets = referenceTargetIndex(document);
+  // Keep raw targets too: unattached or overridden explicit labels must remain reserved.
+  if (targetIdentifiers(document, current).has(identifier) ||
+      targets.candidates(identifier).some(node => !targetKey || targets.path(node)?.join(".") !== targetKey)) {
+    throw new DocumentWriteError(`label ${JSON.stringify(label)} already names another target (including implicit heading IDs)`, {
+      action: "Choose a label not used by another target, including an unlabeled heading's automatic ID.",
+    });
+  }
 }
 
 /**

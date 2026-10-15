@@ -5,6 +5,8 @@ import {
   getEditableDocument,
   insertEquation,
   insertFigure,
+  insertTable,
+  insertTarget,
   labelError,
   parse,
   serialize,
@@ -13,6 +15,7 @@ import {
   unresolvedReferences,
   type MystDocument,
 } from "./core-internal.ts";
+import { referenceTargetIndex } from "../src/myst/label.ts";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 const EQUATION = 9;
@@ -90,6 +93,9 @@ test("a label must not name another reference target in the document, compared a
   assert.match(serialize(updateLabel(document, [2], "EQ-A")), /:label: EQ-A/);
   // References and ordinary links are not targets.
   assert.match(serialize(updateLabel(parse("See {eq}`eq-x` and [x](#eq-y).\n\n```{math}\nb\n```\n"), [1], "eq-x")), /:label: eq-x/);
+  // MyST attaches explicit targets to ordinary blocks too; keeping their label is valid.
+  const paragraphTarget = parse("(old)=\nParagraph.\n");
+  assert.match(serialize(updateLabel(paragraphTarget, [0], "OLD")), /\(OLD\)=/);
 });
 
 test("labels that cannot be written, referenced or reloaded exactly fail closed", () => {
@@ -118,6 +124,58 @@ test("new Equation and Figure blocks can be labeled", () => {
 });
 
 const updateReferences = { updateReferences: true };
+
+test("all label setters refuse implicit heading IDs without changing the snapshot", () => {
+  const base = parse("## Install\n\nSee [here](#install).\n");
+  const insertions = [
+    (label: string) => updateLabel(insertEquation(base, 2, "x"), [2], label),
+    (label: string) => updateLabel(insertFigure(base, 2, { imageUrl: "", imageAlt: "", caption: "" }), [2], label),
+    (label: string) => updateLabel(insertTable(base, 2, [["A"], ["B"]]), [2], label),
+    (label: string) => insertTarget(base, 2, label),
+  ];
+  const original = structuredClone(base);
+  for (const insert of insertions) {
+    for (const label of ["install", "INSTALL"]) {
+      assert.throws(() => insert(label), /already names another target \(including implicit heading IDs\)/);
+      assert.deepEqual(base, original);
+    }
+    const document = insert("unrelated");
+    const snapshot = structuredClone(document);
+    // Default and opt-in edits share the same target-availability rule.
+    // An unattached target cannot use opt-in rename, so attach it to a heading first.
+    const editable = document.children[2].type === "mystTarget"
+      ? parse(serialize(document) + "\n## Other\n") : document;
+    const editableSnapshot = structuredClone(editable);
+    for (const options of [{}, updateReferences]) {
+      assert.throws(() => updateLabel(editable, [2], "install", options), /already names another target/);
+      assert.deepEqual(editable, editableSnapshot);
+      const renamed = updateLabel(editable, [2], "available", options);
+      assert.equal(serialize(parse(serialize(renamed))), serialize(renamed));
+      const targets = referenceTargetIndex(renamed);
+      assert.deepEqual(targets.path(targets.lookup("install")!.node!), [0]);
+    }
+    assert.deepEqual(document, snapshot);
+  }
+});
+
+test("a section target can keep its own heading's implicit ID, but not another target's ID", () => {
+  const document = parse("## Install\n\n[here](#install) and {ref}`install`.\n\n## Other\n");
+  const original = structuredClone(document);
+  const labeled = insertTarget(document, 0, "INSTALL");
+  for (const next of [labeled, parse(serialize(labeled)), updateLabel(labeled, [0], "install"),
+    updateLabel(labeled, [0], "install", updateReferences)]) {
+    const targets = referenceTargetIndex(next);
+    assert.equal(targets.candidates("install").length, 1);
+    assert.deepEqual(targets.path(targets.lookup("install")!.node!), [1]);
+    assert.deepEqual(unresolvedReferences(next), []);
+  }
+  assert.deepEqual(document, original);
+  assert.throws(() => insertTarget(document, 2, "install"), /already names another target/);
+  // The exception is positional, not a blanket exemption for headings with matching text.
+  assert.throws(() => insertTarget(parse("## Install\n\n## Install\n"), 1, "install"), /already names another target/);
+  assert.throws(() => insertTarget(parse("(install)=\n## Existing\n\n## Install\n"), 2, "install"), /already names another target/);
+  assert.throws(() => insertTarget(parse("(install)=\n## Install\n"), 1, "install"), /already names another target/);
+});
 
 test("opt-in rename follows MyST resolution for all four target kinds and preserves display content", () => {
   for (const target of [

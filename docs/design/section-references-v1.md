@@ -1,6 +1,7 @@
 # Section references v1
 
 - Status: Implemented
+- Label collision verification: 2026-10-15 (#302 Core/CLI tests, Editor save replay/error propagation tests and source CLI before/after).
 - Label rename verification: 2026-10-15 (#216 Core/CLI tests, canonical round-trip/refusal checks and source CLI before/after run with all four target kinds; Editor entry is deferred).
 - Registered-target guard verification: 2026-10-15 (PR #300 review; Core rename and unresolved-reference regressions for inherited-property names).
 - Last verified: 2026-10-15 (#281 / PR #286: Editor unit tests cover caption-free chip selectors and punctuation-separated caption words; cross-reference/section-reference browser scenarios verify caption and display-number search, menu names, unchanged reference identity and Save/Reload. Previous `check` link-reference diagnostics verification: 2026-10-11, #151).
@@ -18,7 +19,8 @@ Core's section rule already counts targets before a heading as part of that sect
 
 - `insertTarget(document, index, label)` inserts a target.
 - `updateLabel` renames one. A target cannot be emptied; remove it with `removeBlock`. Its optional `{ updateReferences: true }` performs the atomic rename described below; omitting it keeps references untouched.
-- Labels follow the existing rules: `labelError`, a MyST identifier, addressable by `{ref}`, and not taken by another target.
+- Labels follow the existing rules: `labelError`, a MyST identifier, addressable by `{ref}`, and not taken by another target. All label-setting paths (labeled Equation/Figure/Table insertion, default and opt-in `updateLabel`, and `insertTarget`) share MyST target enumeration for collision checks, including implicit heading IDs. A conflict returns `label "…" already names another target (including implicit heading IDs)` without changing the input snapshot.
+- A target inserted immediately before a heading may use that same heading's implicit ID: `(install)=` before `## Install` keeps references resolving to that heading. The exemption uses the heading's snapshot location, not its title; another target with that identifier still causes refusal. Explicit labels, including unattached targets, remain reserved.
 - MyST reads a target line only for 1-100 of `[a-zA-Z0-9|@<>*./_\-+:]`. Other labels, Korean included, would reload as a paragraph. `targetLabelError` restates that rule without the MyST dependency so the Editor can apply it before Save; a Core test pins it to the parser.
 - `{ref}` without display text joins `{eq}` and `{numref}` as editable inline content. Display-text forms (`{ref}`Text <label>``) reject native admission.
 
@@ -36,6 +38,7 @@ Core's section rule already counts targets before a heading as part of that sect
 - A heading's block menu adds a label without a reference.
 - A reference chip shows `§` and the heading text, as MyST renders `{ref}`, and goes to the heading.
 - Save expresses labels with the existing insert, delete, order and label edits. A target is renamed, never cleared first, so one Save cannot swap a target's label with another block's.
+- Label property Apply and slash-menu insertion retain their existing draft/transaction behavior; document-wide collisions are reported by the existing Save error UI with Core's reason and correction. The `sec-<slug>` generator avoids explicit labels; a collision with another heading's implicit ID is refused on Save. Save replay inserts new targets at their following block (after creating new headings) so the same-heading exception also works in the Editor.
 
 ## Scope
 
@@ -58,7 +61,7 @@ The operation refuses invalid/unreferenceable labels, new-label conflicts (inclu
 
 Fragment lookup does not percent-decode URLs: `#Old%20Label` does not resolve to `Old Label` and stays untouched. If rewriting a resolved fragment would encode/change the new label on reload (for example a label containing spaces), canonical verification refuses the entire rename rather than leaving a broken reference.
 
-Only existing explicit labels can be renamed in this mode: adding/removing a label is refused. A heading with an explicit `(label)=` already has no implicit ID, so renaming that label does not remove an additional implicit target. Existing `insertTarget`/default `updateLabel` behavior is unchanged; adding a heading label suppresses its implicit ID under MyST's existing rule. Conflicts with those IDs are checked using the original snapshot, even if the edit might otherwise free an ID.
+Only existing explicit labels can be renamed in this mode: adding/removing a label is refused. A heading with an explicit `(label)=` already has no implicit ID, so renaming that label does not remove an additional implicit target. Adding a heading label suppresses its implicit ID under MyST's existing rule. Default and opt-in edits share the collision rule above: conflicts are checked using the original snapshot, with only the selected target exempted.
 
 CLI uses `update-label <file> --path <index> --label <label> --update-references true`; omission or `false` keeps the default. The value follows the existing `--enabled <true|false>` convention, allowing the same option in `apply-batch`: `{"command":"update-label","path":1,"label":"eq-new","update-references":true}`. Keeping this on `update-label` shares its selection, validation, revision, dry-run and atomic commit paths. No separate command or CLI resolver is introduced.
 
