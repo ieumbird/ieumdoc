@@ -1726,6 +1726,54 @@ test("check surfaces undefined footnote warnings in text and JSON without failin
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("CLI writes warn once per original footnote occurrence, keeping literal bytes and stdout", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-write-footnote-"));
+  const file = path.join(dir, "document.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const source = nativeSource("Loss [^loss] and [^loss], \\[^literal].\n\nOther.\n");
+  const canonicalBody = "Loss \\[^loss] and \\[^loss], \\[^literal].\n\nOther.\n";
+  const warning = "warning: footnote [^loss] (block 1, line 5) has no definition; written as literal \\[^loss]\n";
+  const operations = [
+    { command: "insert-block", at: 1, text: "Added [^new]." },
+    { command: "replace-text", from: "Other.", to: "Changed." },
+  ];
+  writeFileSync(operationsFile, JSON.stringify(operations));
+  try {
+    const cases = [
+      { args: ["format", file], expected: nativeSource(canonicalBody) },
+      { args: ["insert-block", file, "--at", "1", "--text", "Added [^new]."],
+        expected: nativeSource("Added \\[^new].\n\n" + canonicalBody) },
+      ...[false, true].map(json => ({
+        args: ["apply-batch", file, "--operations", operationsFile, ...(json ? ["--format", "json"] : [])],
+        expected: nativeSource("Added \\[^new].\n\n" + canonicalBody.replace("Other.", "Changed.")),
+      })),
+    ];
+    for (const { args, expected } of cases) {
+      writeFileSync(file, source);
+      const written = run(args);
+      assert.equal(written.status, 0, written.stderr);
+      assert.equal(written.stderr, warning + warning, "report original occurrences only, before their block moved");
+      assert.equal(written.stdout, args.includes("json")
+        ? JSON.stringify({ ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(expected) }) + "\n"
+        : "");
+      assert.equal(readFileSync(file, "utf8"), expected);
+    }
+    writeFileSync(file, source);
+    const refused = run(["insert-block", file, "--at", "0", "--text", "Added."]);
+    assert.equal(refused.status, 1);
+    assert.equal(refused.stdout, "");
+    assert.doesNotMatch(refused.stderr, /warning:/);
+    assert.equal(readFileSync(file, "utf8"), source);
+    writeFileSync(operationsFile, JSON.stringify([operations[0], { command: "remove-block", at: 999 }]));
+    const failed = run(["apply-batch", file, "--operations", operationsFile, "--format", "json"]);
+    assert.equal(failed.status, 1);
+    assert.equal(failed.stdout, "");
+    assert.match(failed.stderr, /operation 2 \(remove-block\):.*nothing was written/);
+    assert.doesNotMatch(failed.stderr, /warning:/);
+    assert.equal(readFileSync(file, "utf8"), source);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI format and text editing preserve front matter through the Core writer", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
   try {

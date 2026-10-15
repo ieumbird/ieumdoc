@@ -126,6 +126,7 @@ export function unresolvedFootnotes(document: MystDocument): { footnote: true; l
     }
   };
   visit(tokenizer.parse(source.text, {}));
+  if (found.length === 0) return [];
   // Only actual body text counts, including text in lifted directive captions. A
   // directive's tokenized body may instead have become non-text math or code.
   const textRanges = (node: MystNode, range = node.position): NonNullable<MystNode["position"]>[] => {
@@ -133,10 +134,18 @@ export function unresolvedFootnotes(document: MystDocument): { footnote: true; l
     if (node.type === "text") return range ? [range] : [];
     return (node.children ?? []).flatMap(child => textRanges(child, node.position ?? range));
   };
-  const ranges = document.children.map(node => textRanges(node));
+  const lineBlocks = new Map<number, number>();
+  document.children.forEach((node, index) => {
+    for (const range of textRanges(node)) {
+      for (let line = range.start.line; line <= range.end.line; line++) {
+        // Keep the first containing block, as the original range scan did.
+        if (!lineBlocks.has(line)) lineBlocks.set(line, index);
+      }
+    }
+  });
   return found.flatMap(({ label, line }) => {
-    const index = ranges.findIndex(block => block.some(range => range.start.line <= line && line <= range.end.line));
-    return index < 0 ? [] : [{ footnote: true as const, label, path: [index], line }];
+    const index = lineBlocks.get(line);
+    return index === undefined ? [] : [{ footnote: true as const, label, path: [index], line }];
   });
 }
 

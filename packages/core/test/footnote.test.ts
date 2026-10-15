@@ -25,6 +25,8 @@ test("undefined footnote-shaped source warns without changing text or blocking c
   assert.ok(canonical.includes(String.raw`Loss \[^loss]`));
   assert.deepEqual(unresolvedReferences(parse(canonical)), [], "canonical literal text silences the warning");
   assert.equal(serialize(parse(canonical)), canonical);
+  const edited = insertQuote(document, 1, [{ kind: "text", text: "Unrelated edit." }]);
+  assert.deepEqual(unresolvedReferences(edited), [], "operation clones carry no original-source evidence, even for unchanged text");
   const literal = updateParagraphInlineContent(parse("Plain.\n"), [0], [{ kind: "text", text: "[^literal]" }]);
   assert.deepEqual(unresolvedReferences(literal), [], "typed Core text is literal, not source syntax");
 });
