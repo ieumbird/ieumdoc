@@ -25,7 +25,7 @@ const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
 const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
-const [OLD, NEW] = BETA ? ["0.0.1-beta.2", "0.0.1-beta.3"] : ["0.0.1", "0.0.2"];
+const [OLD, NEW] = BETA ? ["0.0.1-beta.3", "0.0.1-beta.4"] : ["0.0.1", "0.0.2"];
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, "IeumDoc");
