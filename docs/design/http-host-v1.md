@@ -1,7 +1,7 @@
 # HTTP Host v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
+- Last verified: 2026-10-15 (ADR-0006 route/validation cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
 - Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
 - Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/ieumbird/ieumdoc/issues/186)).
 
@@ -47,7 +47,7 @@ Choose a folder, then a Markdown file in the sidebar. Open, New file/folder, Sav
 
 ## Filesystem boundary
 
-Every document read/create/save/preview, folder list/browse/create, media read, image choice source and asset upload/rollback passes the same root policy. Block-source and Figure validation perform no filesystem access. Static Editor assets are a separate fixed build directory, never a requested document directory.
+Every document read/create/save/preview, folder list/browse/create, media read, image choice source and asset upload/rollback passes the same root policy. Figure validation performs no filesystem access. Static Editor assets are a separate fixed build directory, never a requested document directory.
 
 - Both the normalized locator and resolved target must lie in the allowed union. Component-aware comparisons reject sibling prefixes and other drives. Windows case/separator behavior follows filesystem path handling: the matching prefix of both the locator and the resolved target must be the pinned root directory itself, so names that JavaScript case folding equates but the filesystem keeps distinct (for example KELVIN SIGN and `k` on NTFS) are rejected.
 - Existing targets must resolve to regular files/directories. New leaves require an existing allowed real parent; dangling links cannot be replaced. Exclusive file/folder creation and overwrite refusal remain in force.
@@ -74,7 +74,7 @@ The listener accepts only configured Host authorities and exact origins. Writes 
 
 | Limit | Value |
 | --- | --- |
-| Document/source/block/Figure JSON bodies | 32 MiB |
+| Document/source/folder/Figure validation JSON bodies | 32 MiB |
 | Image upload | 10 MiB, existing supported MIME types |
 | Asset rollback JSON | 8 KiB |
 | Headers | 16 KiB; 15-second header timeout |

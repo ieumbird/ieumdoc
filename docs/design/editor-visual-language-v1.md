@@ -1,7 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-14 (#225 review fixes: layout-rules, quiet-document, block-move and list-authoring browser checks; gutter/content row hover, adjustable extent expansion, control/neighbor clearance, no-hover suppression, drag priority and 0px text shift; same-state quiet-document Before/After with actual Pretendard glyphs). The #226 paper-surface refinement was previously checked by document/code comparison only. Previous shell verification: 2026-10-13 (#176; [review and verification](../reviews/editor-shell-176-2026-10-13.md)).
+- Last verified: 2026-10-15 (ADR-0006 admission/projection cleanup by code/test comparison; no visual/browser checks rerun). Previous verification: 2026-10-14 (#225 review fixes: layout-rules, quiet-document, block-move and list-authoring browser checks; gutter/content row hover, adjustable extent expansion, control/neighbor clearance, no-hover suppression, drag priority and 0px text shift; same-state quiet-document Before/After with actual Pretendard glyphs). The #226 paper-surface refinement was previously checked by document/code comparison only. Previous shell verification: 2026-10-13 (#176; [review and verification](../reviews/editor-shell-176-2026-10-13.md)).
 - Current contract: v4.6, with the #226 paper-surface refinement and #225 pointer-hover block extent. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12; v4.4 (in-place footnote regions, #185) 2026-10-12. v4.5 (one trailing endnotes region, #194) 2026-10-12. v4.6 (Files/Display tools and File actions, #176) 2026-10-13. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
@@ -24,7 +24,7 @@
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
 | Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
 | Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title |
-| Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Preserved definitions retain their own source disclosure. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
+| Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Each definition is one supported paragraph edited in place; unsupported definitions reject native admission. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
 | Figure / Equation | Transparent at rest; authoring metadata hidden at rest, shown on hover/focus/selection/editing at 12/16px; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
 
@@ -67,7 +67,7 @@ These are independent axes, not a state enum. Visual interactions never write do
 
 ## Empty document start (#133)
 
-A single empty editable paragraph shows `Start writing, or type / to add a block.` at the actual text axis, in the document font and subtle text color. The first `+` stays visible even without hover or focus. Tiptap's Placeholder supplies a decoration; the hint is not content, is not selectable and never appears in Markdown, Source, Save or dirty comparison. Typing hides it; undo to the empty paragraph restores it. Read-only content and non-empty documents do not receive this starting state.
+A single empty editable paragraph shows `Start writing, or type / to add a block.` at the actual text axis, in the document font and subtle text color. The first `+` stays visible even without hover or focus. Tiptap's Placeholder supplies a decoration; the hint is not content, is not selectable and never appears in Markdown, Source, Save or dirty comparison. Typing hides it; undo to the empty paragraph restores it. Source view and non-empty documents do not receive this starting state.
 
 After New succeeds, Base UI's closing focus handoff targets the newly mounted editor, so typing starts immediately. Cancel/Escape, including after rejected creation, returns focus to the New button. Opening or reloading an existing file does not invoke the New handoff. The white space below the actual editor content still places the caret at the end through the existing engine operation.
 
@@ -101,7 +101,6 @@ The shell distinguishes current location, hovered alternatives, pressed/open con
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. Selected uses the interaction axis. |
 | Callouts | Side bar and surface carry the kind; no full outline. |
 | Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
-| Read-only blocks | One indication: the source summary (`kind · Read-only content · line`). No separate label, no uppercase anywhere; `.block-kind` is plain 12px semibold metadata. Read-only text separates block children (`Draft Review`, not `DraftReview`). |
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
 

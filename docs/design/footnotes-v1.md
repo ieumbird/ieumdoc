@@ -1,9 +1,9 @@
 # Endnotes (MyST footnotes)
 
 - Status: Implemented
-- Last verified: 2026-10-13 (endnotes v4: canonical placement in Core, CLI and Editor; `pnpm test`, `pnpm browser:test footnotes`).
+- Last verified: 2026-10-15 (ADR-0006 native definition boundary and retained test coverage compared with code/tests; no runtime regressions rerun). Previous verification: 2026-10-13 (endnotes v4: canonical placement in Core, CLI and Editor; `pnpm test`, `pnpm browser:test footnotes`).
 - Current contract: v4 on v2 (#140) and v1 (#119); v3 (#194) source-anchor placement is replaced. Historical filename retained for link stability.
-- Scope: footnote references, endnote placement and numbering, inserting footnotes, in-place editing of one-paragraph definitions, source-edited other definitions, sections and fail-closed writes; [Block source editing](block-source-editing-v1.md).
+- Scope: footnote references, endnote placement and numbering, inserting footnotes, in-place editing of supported one-paragraph definitions, sections and fail-closed writes; [Native document support](document-support-v1.md).
 
 Issue #119 made paragraphs with footnotes editable and stopped silent loss of definitions MyST would drop. Issue #140 added inserting footnotes and in-place editing of one-paragraph definitions. Issue #194 showed definitions as one endnotes region. Endnotes v4 makes that region the document's placement: every IeumDoc write puts the definitions after the body, in first-reference order.
 
@@ -11,7 +11,8 @@ Issue #119 made paragraphs with footnotes editable and stopped silent loss of de
 
 - An endnote is a MyST footnote: a reference `[^label]` in the body and a definition `[^label]: ...`. The syntax, the labels and the MyST node names (`footnoteReference`, `footnoteDefinition`, inline `{ kind: "footnote" }`) are unchanged. No new syntax or metadata is written.
 - A definition belongs to the document, not to the block or section it is written after. Several references can share one definition.
-- **Endnote order**: the body's blocks first, then the definitions in the order of the first reference to each. References inside definitions follow the body's references, in that order. A definition no reference reaches comes last, in its current order. Numbers 1, 2, 3, ... follow the same reading order; a repeated reference shows the same number. Labels are identifiers, independent of numbers.
+- **Definition content**: a native document permits one non-empty paragraph of supported inline content per definition, without footnote references. Multiple paragraphs, other nested blocks or unsupported inline content reject the entire document at admission; there is no source-editing fallback.
+- **Endnote order**: the body's blocks first, then the definitions in the order of the first reference to each. Numbers 1, 2, 3, ... follow the same reading order; a repeated reference shows the same number. Labels are identifiers, independent of numbers. During editing, a definition with no reference comes last in its current order, but Save refuses it.
 - Canonical Markdown writes the definitions after the body in endnote order, wherever the source or an operation placed them. Non-endnote blocks keep their order and content. Writing the result again gives the same bytes.
 
 ## How MyST reads footnotes
@@ -41,7 +42,6 @@ A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
   - `insertFootnoteDefinition(document, index, label, content)` and `updateFootnoteDefinition(document, path, content)` write a one-paragraph definition. Its text must be non-empty and hold no footnote reference. The label must be unused and stays when the text changes. `[^1]:` with no text is not a definition in MyST, so an empty definition is refused.
   - A new label is `nextFootnoteLabel`: the smallest positive number no footnote uses. Shown numbers follow reference order, so a new footnote before others can show a number different from its label.
 - **Sections**: `sectionMarker` classifies a definition as `endnote`. Definitions after the body are in no section's range, and the end of the body is a section's end. `moveSection` and `removeSection` never move or remove a definition. `removeSection` refuses, before changing anything, a removal that would leave a definition with no reference (`orphanedEndnotes`), naming it.
-- **Block source**: block source is parsed with the document's footnotes as context. A definition stays a definition, and `[^x]` reads as a reference wherever the document defines `x`. Applying a definition's source unchanged leaves the document unchanged.
 
 ## Editor
 
@@ -51,7 +51,7 @@ The Editor presents the Core order; it does not keep a source order of its own.
 - **Placement while editing** (`apps/editor/src/endnotes.ts`): after each document change an appended transaction applies `endnoteOrder` to the top-level blocks, so a reference moved, added or removed moves its definition in the same history event, and selection moves with its block. A document without endnotes is not read further. Each block's references are read once and reused while the block is unchanged; numbers are computed once per engine document. Placement waits while a block holds a dirty/busy property draft whose view it would rebuild, and runs after Apply/Cancel.
 - A reference is an atomic superscript chip that shows its number. Bold and italic apply to it. Clicking it selects the definition and scrolls to it. A chip with no definition shows its label and is marked unresolved.
 - A definition shows the same number. Clicking the number returns to the reference that invoked it; the engine maps that position through later edits and placement. If that reference was deleted or none is remembered, it goes to the first remaining reference. This navigation state is not persisted.
-- A one-paragraph definition is edited in the region with the inline formatting controls; Enter leaves it into body space before the region and Shift+Enter is a line break. It holds no footnote reference. Other definitions are edited with Edit source.
+- A supported one-paragraph definition is edited in the region with the inline formatting controls; Enter leaves it into body space before the region and Shift+Enter is a line break. It holds no footnote reference. Unsupported definitions are rejected at admission under the native contract above.
 - `/` in a paragraph offers **Endnote** before reference targets (`/endnote`, `/footnote`, `/미주` aliases). It replaces the query, and a space before `/`, with a reference chip that keeps bold and italic, and an empty definition in its endnote place that takes the caret; one Undo removes both. Save refuses a definition left empty.
 - Selecting a chip and pressing Backspace removes it. If that leaves a definition unreferenced, Save is refused with the reason.
 - **Gutter controls**: an endnote has no `+` (nothing is inserted after it) and its handle does not drag; the handle opens block actions (Delete). A dragged body block lands in the body, never among the endnotes. A block added after the region (for example by clicking below the document) joins the body end.
@@ -77,7 +77,7 @@ All top-level definitions follow the body in the one editor state. The first has
 
 ## Verification
 
-- Core tests (`footnote.test.ts`, `endnote.test.ts`, `section.test.ts`) cover projection and placement, the #194 example document, idempotence, reference order changes, nested and repeated references, rich and preserved definitions, inserts around and after the endnotes, write refusals, labels, block source, editable definitions, and sections that hold no endnotes.
+- Core tests (`footnote.test.ts`, `endnote.test.ts`, `section.test.ts`) cover projection and placement of supported definitions, scattered source placement, idempotence, reference order changes, references within body formatting and repeated body references, rich one-paragraph definition edits, insertion and labels, empty/reference-containing definition edit refusals, duplicate/unreferenced definitions and incomplete write refusals, and sections that hold no endnotes. `native.test.ts` covers public admission of supported footnotes and rejection of multiple-paragraph definitions.
 - CLI tests cover writes through `format` and section commands with endnotes, `check` placement notes, and refused writes that leave the file's bytes intact.
 - Editor tests cover the Core-order projection, unchanged Save matching Core and the CLI, placement with one Undo step, a block appended after the region, waiting for drafts, sections, insertion and refusals.
 - `pnpm browser:test footnotes` covers Open without writes or dirty state and its notice, Source matching Save, the first Save and repeated Save → Reload, chip numbers and navigation, in-place definition editing, `/` Endnote with Undo/Redo, the refused save after removing a last reference, one trailing region at 1440/768/375px with Outline and selection excluding its label, endnote handles and drops, reference order Undo/Redo, sections, returning to a repeated reference.
