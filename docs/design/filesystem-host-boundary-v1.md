@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- Literal syntax verification: 2026-10-15 (#304: original-source warnings in check, single/batch writes and dry-run JSON; Core/CLI tests and source CLI).
 - CLI preview verification: 2026-10-15 (#292: shared file-commit preflight, dry-run no-write boundary, failure parity and result/check output; source CLI and Core/CLI/file-commit tests).
 - CLI insertion verification: 2026-10-15 (#280 single-write properties, unchanged-file refusal and per-step batch `end` resolution; Core/CLI tests).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
@@ -186,9 +187,9 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - `apply-batch`와 모든 단건 문서 변경 명령(`format` 포함)은 값 없는 `--dry-run`을 받는다. Core operation, 구조 검증, canonical serialize와 배치 단계별 재파싱은 실제 쓰기와 같은 경로다. `--if-revision`도 원본에 대해 동일하게 확인한다. 옵션·operation·round-trip/writeability 실패는 실제 실행과 같은 메시지와 exit 1을 유지하며 stdout은 비어 있다. 배치의 operation prefix 규칙도 동일하다.
 - 성공해도 `commitFile`을 호출하지 않으며 target·temporary sibling 생성/쓰기·chmod·rename·삭제를 수행하지 않는다. 결과는 메모리에만 둔다. 실제 쓰기와 같은 `preflightFileCommit`으로 출력 Unicode, symlink 대상의 현재 revision, 파일 쓰기 권한과 mode를 확인한다. 이는 입력과 Core 쓰기 가능성의 사전검증이며, 실제 쓰기를 하지 않고 디렉터리의 생성/rename 권한, 디스크 부족, OS rename 잠금, 이후 권한·파일 변경 등 commit I/O 성공까지 보장할 수는 없다.
 - 결과 canonical Markdown을 다시 parse한 문서에 기존 `check` 로직을 적용한다. text stdout은 `dry run; nothing was written`, `revision: <결과 revision>`, 기존 check 요약, `--- markdown ---` 다음에 canonical Markdown을 출력한다. 경고·note는 check와 같이 stderr에 출력한다. Markdown을 포함하므로 별도 쓰기 없이 실제 적용될 문서를 검토할 수 있다. text 출력 전체는 Markdown 파일 자체가 아니며, 정확한 결과 추출에는 JSON의 `markdown`을 사용한다.
-- 원본에 정의 없는 각주가 있으면 결과 검사와 별도로, 성공한 dry run도 실제 쓰기와 같은 `warnLiteralFootnotes` 경고를 stderr에 출력한다(JSON 모드 포함). `written as literal`은 미리보기의 canonical Markdown 표현을 가리키며 파일을 썼다는 뜻이 아니다. 원본 parse의 진단을 operation 전에 보관하므로 배치도 원본의 각 발생을 한 번씩만 보고한다. 실패한 실행에서는 이 경고를 출력하지 않는다. [각주 진단 계약](footnotes-v1.md#undefined-reference-diagnostics-290)을 따른다.
+- 원본에 literal syntax 진단(정의 없는 각주·명시적 참조식 링크/이미지 또는 닫히지 않은 코드 opener)이 있으면 결과 검사와 별도로, 성공한 dry run도 실제 쓰기와 같은 `warnLiteralSyntax` 경고를 stderr에 출력한다(JSON 모드 포함). `written as literal`은 미리보기의 canonical Markdown 표현을 가리키며 파일을 썼다는 뜻이 아니다. 원본 parse의 진단을 operation 전에 보관하므로 배치도 원본의 각 발생을 한 번씩만 보고한다. 실패한 실행에서는 이 경고를 출력하지 않는다. [공통 literal syntax 진단 계약](footnotes-v1.md#literal-syntax-diagnostics-290-304)을 따른다.
 - `--dry-run --format json`은 stdout 한 줄에 `ok`, `command`, `dryRun: true`, `revision`(결과 Markdown의 SHA-256), `markdown`과 check의 `validation`, `writeability`, `references`, `readiness`, `endnotes`를 출력한다. 배치는 `applied`도 포함한다. 단건의 `--format`은 dry run에서만 지원한다. 경고는 실패가 아니며 성공 exit code는 0이다. 실패는 기존 편집 명령처럼 stderr 메시지와 exit 1을 사용한다(JSON 오류 envelope를 새로 도입하지 않음).
-- JSON 미리보기는 `originalWarnings` 배열도 포함한다. 원본의 정의 없는 각주만 Core 진단 형식 그대로 담는다(예: `{"footnote":true,"label":"loss","path":[1],"line":5}`); 없으면 `[]`다. `references.unresolved`는 결과 문서의 진단만 유지하므로 canonical escape 후 각주 항목이 사라져도 원본 경고를 잃지 않는다. `check`와 실제 쓰기 JSON에는 이 필드를 추가하지 않는다.
+- JSON 미리보기는 `originalWarnings` 배열도 포함한다. 원본의 모든 source-only 진단을 Core 형식 그대로 담는다(예: `{"footnote":true,"label":"loss","path":[1],"line":5}`); 없으면 `[]`다. `references.unresolved`는 결과 문서의 진단만 유지하므로 canonical escape 후 해당 항목이 사라져도 원본 경고를 잃지 않는다. `check`와 실제 쓰기 JSON에는 이 필드를 추가하지 않는다.
 - `create`는 기존 파일 편집과 별도의 exclusive-create 경로이므로 제외한다. `check`, `inspect`, `serve`도 대상이 아니며 batch operation 안의 `dry-run`/`format` 출력 옵션은 허용하지 않는다. 배치 전체 요청에만 지정한다. 실제 쓰기 모드의 출력 계약은 유지한다. 미리보기 뒤 실제 적용 시 원본 revision을 `--if-revision`으로 전달하고, 실제 쓰기 후에는 `inspect`로 저장된 revision과 경로를 다시 얻는다.
 
 ### Folder listing v1 (#112)

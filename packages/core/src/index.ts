@@ -64,7 +64,7 @@ export const validateStructure = fence(validateTree);
 export const endnotesInPlace = fence(endnotesInPlaceTree);
 /** Top-level insertion index at the end of the body, before endnote definitions. */
 export const bodyEndIndex = fence(bodyEndIndexTree);
-/** References that name no target/definition, including unescaped footnote-shaped parsed
+/** Unresolved references and unescaped literal syntax from parsed
  * source text; reported, never a write rule. Operation-created text is literal. */
 export const unresolvedReferences = fence(unresolvedReferencesTree);
 

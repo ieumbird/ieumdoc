@@ -1,10 +1,10 @@
 import type { NodePath } from "./document.ts";
 import { referenceTargetIndex, resolveReference } from "./myst/label.ts";
-import { unresolvedFootnotes } from "./myst/footnote.ts";
+import { literalSyntaxDiagnostics, type LiteralSyntax } from "./myst/literal-syntax.ts";
 import type { MystDocument, MystNode } from "./myst/tree.ts";
 
-/** A reference whose label names no target or footnote definition in this document. */
-export type UnresolvedReference = (
+/** Unresolved semantic references and source syntax that MyST read as literal text. */
+export type UnresolvedReference = ((
   | {
     /** The reference role as written, such as `eq`, `numref` or `ref`. */
     role: string;
@@ -13,13 +13,10 @@ export type UnresolvedReference = (
     /** A link reference such as `[](#label)`: its URL as written. */
     link: string;
   }
-  | {
-    /** Unescaped `[^label]` source text with no matching footnote definition. */
-    footnote: true;
-  }
 ) & {
   /** The label as written; for a link, its URL after `#`. */
   label: string;
+} | LiteralSyntax) & {
   /** The top-level block that contains the reference. */
   path: NodePath;
   /** 1-based source line where the innermost element holding the reference (a paragraph,
@@ -35,7 +32,7 @@ export type UnresolvedReference = (
  * These are reports, never write rules; links and role references stay as written.
  * Core sees one document: a reference to another page of a
  * MyST project is reported too.
- * Unescaped undefined footnote-shaped text is reported from parsed source evidence;
+ * Unescaped literal syntax is reported from parsed source evidence;
  * operation-created text is literal and has no source syntax to diagnose.
  */
 export function unresolvedReferences(document: MystDocument): UnresolvedReference[] {
@@ -57,7 +54,7 @@ export function unresolvedReferences(document: MystDocument): UnresolvedReferenc
     node.children?.forEach((child) => visit(child, path, line));
   };
   document.children.forEach((block, index) => visit(block, [index], undefined));
-  // Source-only footnote warnings use the same block/line location contract.
-  return [...unresolved, ...unresolvedFootnotes(document)].sort((left, right) =>
+  // Source-only literal warnings use the same block/line location contract.
+  return [...unresolved, ...literalSyntaxDiagnostics(document)].sort((left, right) =>
     left.path[0] - right.path[0] || (left.line ?? 0) - (right.line ?? 0));
 }
