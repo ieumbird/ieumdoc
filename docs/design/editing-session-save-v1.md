@@ -64,11 +64,7 @@ External changes retain the existing revision conflict check. The user can copy 
 
 Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New or Reload dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
 
-Decision: no autosave and no local draft recovery for now.
-
-- Autosave would turn every pause into a canonical write of the Git-tracked SSOT. It would also surface Save validation errors for half-typed content (empty blocks, incomplete tables), and conflicts with external edits, while the user is still typing. Writing to the document is an explicit user action in IeumDoc.
-- Draft recovery would need durable storage of the editor session: the opening source, the acknowledged revision and edits, and the editor state keyed by snapshot locators. That is persistence, and `apps/editor/server` is a development adapter that must not grow into it. A recovered session would also need its own conflict rules against the current disk.
-- `beforeunload` remains the guard against closing or navigating away with unsaved work. Revisit this decision together with the long-term persistence/backend design.
+Current behavior: no autosave and no local draft recovery. `beforeunload` is the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md) accepts the direction that replaces this: an opt-in autosave setting (off by default) through the same Save path, local work recovery kept apart from the file and from `apps/editor/server`, multi-document tabs with independent sessions, and one Save / Don't save / Cancel confirmation. This contract changes as each follow-up is implemented.
 
 Desktop update restarts additionally ask the live Editor about unsaved content/drafts and pending Save/Source/assets/switching through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This does not add autosave or recovery; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
 
