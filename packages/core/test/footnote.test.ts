@@ -4,10 +4,71 @@ import {
   canonicalWriteError, endnotesInPlace, footnoteNumbers, getEditableDocument, insertFootnote,
   insertFootnoteDefinition, insertQuote, nextFootnoteLabel, parse, removeBlock, serialize,
   updateFootnoteDefinition, updateParagraphInlineContent, type InlineContent,
+  unresolvedReferences,
 } from "./core-internal.ts";
 
 const SOURCE = "# Title\n\nText with **a note[^n]** and more[^Long-1].\n\n[^n]: First note.\n\nAnother paragraph.\n\n[^Long-1]: A longer note.\n";
 const PLACED = "# Title\n\nText with **a note[^n]** and more[^Long-1].\n\nAnother paragraph.\n\n[^n]: First note.\n\n[^Long-1]: A longer note.\n";
+
+test("undefined footnote-shaped source warns without changing text or blocking canonical writes", () => {
+  const source = String.raw`Loss [^loss] and **[^loss]**, \[^loss], \\[^even], \\\[^odd], &#91;^entity].` + "\n";
+  const document = parse(source);
+  const before = JSON.stringify(document);
+  assert.deepEqual(unresolvedReferences(document), [
+    { footnote: true, label: "loss", path: [0], line: 1 },
+    { footnote: true, label: "loss", path: [0], line: 1 },
+    { footnote: true, label: "even", path: [0], line: 1 },
+  ]);
+  assert.equal(JSON.stringify(document), before, "diagnosis does not change the tree");
+  assert.equal(canonicalWriteError(document), undefined);
+  const canonical = serialize(document);
+  assert.ok(canonical.includes(String.raw`Loss \[^loss]`));
+  assert.deepEqual(unresolvedReferences(parse(canonical)), [], "canonical literal text silences the warning");
+  assert.equal(serialize(parse(canonical)), canonical);
+  const edited = insertQuote(document, 1, [{ kind: "text", text: "Unrelated edit." }]);
+  assert.deepEqual(unresolvedReferences(edited), [], "operation clones carry no original-source evidence, even for unchanged text");
+  const literal = updateParagraphInlineContent(parse("Plain.\n"), [0], [{ kind: "text", text: "[^literal]" }]);
+  assert.deepEqual(unresolvedReferences(literal), [], "typed Core text is literal, not source syntax");
+});
+
+test("footnote source diagnostics use exact labels and body block/container locations", () => {
+  const source = [
+    "---\nieumdoc: 1\n---", "# Title [^heading]", "A[^ok] and [^OK], [^미주], [^two words], [^].",
+    "> First line\n> **[^quote]**", "- [^item]", "| A | B |\n| - | - |\n| \\[^cell] | [^cell] |",
+    ":::{note}\nText [^note]\n:::", ":::{figure}\nCaption [^caption]\n:::",
+    ":::{table} Caption [^table-caption]\n| A |\n| - |\n| a |\n:::", "[^ok]: Defined.",
+  ].join("\n\n") + "\n";
+  const expected = [
+    { label: "heading", path: [1], line: 5 },
+    { label: "OK", path: [2], line: 7 },
+    { label: "미주", path: [2], line: 7 },
+    { label: "quote", path: [3], line: 9 },
+    { label: "item", path: [4], line: 12 },
+    { label: "cell", path: [5], line: 16 },
+    { label: "note", path: [6], line: 19 },
+    { label: "caption", path: [7], line: 23 },
+    { label: "table-caption", path: [8], line: 26 },
+  ].map(item => ({ footnote: true, ...item }));
+  for (const ending of ["\n", "\r\n"]) {
+    assert.deepEqual(unresolvedReferences(parse("\uFEFF" + source.replaceAll("\n", ending))), expected);
+  }
+  assert.deepEqual(unresolvedReferences(parse("[^ok]: Defined.\n\nLoss [^loss] and [^ok].\n")),
+    [{ footnote: true, label: "loss", path: [0], line: 3 }], "locations use the parsed body order, not source definition placement");
+});
+
+test("footnote source diagnostics exclude non-text syntax and defined labels", () => {
+  const source = [
+    "`[^inline]` and $[^math]$, {math}`[^role]`, {eq}`eq-known`, {sup}`\\[^escaped]`.",
+    "[^link](https://example.com/[^url] \"[^title]\") and ![[^alt]](./image.png).",
+    "```text\n[^fenced]\n```", "    [^indented]", "$$\n[^display]\n$$ (eq-known)",
+    ":::{math}\n[^directive-math]\n:::", ":::{code} text\n[^directive-code]\n:::",
+    ":::{figure} ./[^image-url].png\n:alt: [^image-alt]\nCaption.\n:::",
+    "A[^ok] and [^tab\tlabel] and \\[^unused].", "[^ok]: Definition [^inside].", "[^tab\tlabel]: Tab label.",
+    "[^unused]: Unreferenced definitions still have their existing write error.",
+  ].join("\n\n") + "\n";
+  assert.deepEqual(unresolvedReferences(parse(source)), []);
+  assert.match(canonicalWriteError(parse(source)) ?? "", /has no reference/);
+});
 
 test("footnote references retain inline semantics and definitions follow the body", () => {
   const document = parse(SOURCE);

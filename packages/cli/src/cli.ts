@@ -673,7 +673,10 @@ function main(argv: string[]): number {
     if (ifRevision !== undefined && ifRevision !== revision) {
       throw new Error("revision mismatch; run inspect again; nothing was written");
     }
-    commitFile(path, serializeChange(parse(source), change), revision);
+    const original = parse(source);
+    const references = unresolvedReferences(original);
+    commitFile(path, serializeChange(original, change), revision);
+    warnLiteralFootnotes(references);
   }
 
   if (command === "apply-batch") {
@@ -718,8 +721,10 @@ function main(argv: string[]): number {
         for (const reference of unresolved) {
           const { path, line } = reference;
           const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\`` : `link ${reference.link}`;
-          process.stderr.write(`warning: ${written} (${at}) names no target in this document\n`);
+          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\``
+            : "link" in reference ? `link ${reference.link}` : `footnote [^${reference.label}]`;
+          const missing = "footnote" in reference ? "has no definition" : "names no target";
+          process.stderr.write(`warning: ${written} (${at}) ${missing} in this document\n`);
         }
         for (const { path, label } of pendingFigures) {
           process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
@@ -956,6 +961,16 @@ function serializeChange(document: Document, change: Change): string {
   return serialize(changed);
 }
 
+/** Report original-source intent only after a successful write; operation clones have no evidence. */
+function warnLiteralFootnotes(references: ReturnType<typeof unresolvedReferences>): void {
+  for (const reference of references) {
+    if (!("footnote" in reference)) continue;
+    const { label, path, line } = reference;
+    const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
+    process.stderr.write(`warning: footnote [^${label}] (${at}) has no definition; written as literal \\[^${label}]\n`);
+  }
+}
+
 /** Adapt JSON options to the existing CLI flag parser, without interpreting document semantics. */
 function batchChange(operation: unknown): Change {
   if (operation === null || typeof operation !== "object" || Array.isArray(operation)) {
@@ -993,6 +1008,7 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
     throw new Error("revision mismatch; run inspect again; nothing was written");
   }
   let document = parse(source);
+  const references = unresolvedReferences(document);
   let result = source;
   for (let index = 0; index < operations.length; index += 1) {
     const operation = operations[index];
@@ -1007,6 +1023,7 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
     }
   }
   commitFile(file, result, revision);
+  warnLiteralFootnotes(references);
   return { ok: true, command: "apply-batch", applied: operations.length, revision: textRevision(result) };
 }
 
