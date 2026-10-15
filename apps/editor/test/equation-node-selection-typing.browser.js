@@ -35,6 +35,23 @@ async (page, { openDocument, reloadDocument }) => {
     await page.getByTestId('view-visual').click();
     return result;
   };
+  const emptyPaste = async () => {
+    const result = await editor.evaluate(el => {
+      const e = el.editor;
+      e.state.doc.forEach((node,pos) => {
+        if (node.type.name === 'equation') e.commands.setNodeSelection(pos);
+      });
+      e.view.focus();
+      const state = () => ({document:e.getJSON(), selection:e.state.selection.toJSON(),
+        undo:e.can().undo(), redo:e.can().redo(), focused:e.view.hasFocus()});
+      const before = state();
+      // Real parsing/transform/handlePaste/default-paste pipeline: non-null empty Slice.
+      const handled = e.view.pasteHTML('<!-- data-ieumdoc-type="paragraph" -->');
+      return {before, after:state(), handled};
+    });
+    check(result.handled && same(result.before,result.after),
+      `Empty HTML paste must preserve Equation/label, selection and history: ${JSON.stringify(result)}`);
+  };
   const saveReload = async (expected, before) => {
     const preview = await source();
     const response = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(r.url()));
@@ -88,8 +105,10 @@ async (page, { openDocument, reloadDocument }) => {
       check(same(added.map(text), expected) && added.every(n => n.type === 'paragraph'), `${mode}: expected adjacent text exactly once, got ${JSON.stringify(after)}`);
       const retained = {...after, content:after.content.filter((_,i) => i <= index || i > index + added.length)};
       check(same(retained,before), `${mode}: changed Equation/label or surrounding content`);
+      if (mode === 'typing') await emptyPaste();
       await page.keyboard.press('Control+z');
       check(same(await snapshot(),before), `${mode}: one Undo must restore the original document`);
+      if (mode === 'typing') await emptyPaste();
       await page.keyboard.press('Control+Shift+z');
       check(same(await snapshot(),after), `${mode}: Redo must restore input exactly once`);
       await saveReload(after, before);

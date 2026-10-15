@@ -322,7 +322,8 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           }
           const { selection } = view.state;
           const besideEquation = selection instanceof NodeSelection && selection.node.type.name === "equation";
-          if (besideEquation && !slice.size) return false;
+          // Consume empty accepted content: delegating a non-null empty Slice deletes the selection.
+          if (besideEquation && !slice.size) return true;
           const tr = (besideEquation ? paragraphBeside(view.state, true) : view.state.tr).replaceSelection(slice);
           const labels = new Set<string>();
           let duplicate = false;

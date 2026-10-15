@@ -48,7 +48,9 @@ persistent changes and canonical semantic validation.
   commit/cancellation remain engine-owned. Cancellation may leave an empty
   session paragraph, which canonical Save omits. Accepted clipboard slices also
   go below a node-selected Equation, in one undoable transaction, retaining the
-  existing unsupported-content and duplicate-label checks. Backspace/Delete on a node-selected Equation still use
+  existing unsupported-content and duplicate-label checks. An accepted empty slice
+  is consumed without changing the Equation, label, selection or history, and
+  without creating a paragraph. Backspace/Delete on a node-selected Equation still use
   the engine's normal deletion. Explicitly selecting other nodes still uses
   normal engine replacement behavior.
 - The adapter repairs session locators after engine edits. New blocks and
@@ -183,7 +185,8 @@ composition events, Undo/Redo across Save, and canonical Save/Reload preservatio
 Automated composition events exercise the browser input lifecycle, not an OS IME.
 
 `equation-node-selection-typing` covers actual preview selection, ASCII typing,
-single/multiline plain-text clipboard paste, duplicate-label paste refusal, an
+single/multiline plain-text clipboard paste, duplicate-label paste refusal,
+comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, an
 initial CDP IME keydown followed by `imeSetComposition` updates and commit/cancel,
 ordinary paragraph composition, Undo/Redo, original Equation/label and surrounding
 content preservation, real disk Save/Reload, and explicit Backspace/Delete.
@@ -209,6 +212,15 @@ IME keydown, before that range exists; it does not implement composition text
 handling. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
 handlers before its own keydown handler skips key code 229, while `domchange.ts`
 can invoke `handleTextInput` during composition. Tiptap remains pinned at 3.31.3.
+
+Review follow-up baseline (`9198093`): after typing `QR`, selecting `eq-power`
+and calling `view.pasteHTML('<!-- data-ieumdoc-type="paragraph" -->')` removed
+the Equation/label and changed NodeSelection at 29 to TextSelection at 30.
+The HTML parser produced a non-null empty Slice; returning false delegated it
+to `doPaste`'s default `replaceSelection`. The regression failed on that HEAD.
+The handler now consumes this accepted empty slice without dispatching. The same
+real paste pipeline is tested with existing undo and redo history, preserving
+the full document, selection, focus and the original typing Undo/Redo steps.
 
 ## History
 
