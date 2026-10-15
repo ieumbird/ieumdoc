@@ -1,6 +1,7 @@
 import { createTokenizer } from "myst-parser";
 import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import { endnoteOrder, type EndnoteBlock } from "../numbering.ts";
+import { rememberLiteralSource } from "./literal-syntax.ts";
 import { labelIdentifier } from "./label.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
@@ -26,9 +27,6 @@ const UNREFERENCED = (label: string) => `footnote [^${label}] has no reference, 
 type SourceDefinition = { label: string; start: number; end: number };
 
 const tokenizers = new WeakMap<object, ReturnType<typeof createTokenizer>>();
-// Source-only evidence, outside the semantic tree and canonical-write fingerprint.
-// Operation-created text is literal text; only a parsed source can express unescaped syntax.
-const sources = new WeakMap<MystDocument, { text: string; options: object; defined: Set<string> }>();
 
 /** Footnote definitions as written, in source order, with their 1-based lines. `options` are the parse's. */
 export function sourceDefinitions(text: string, options: object): SourceDefinition[] {
@@ -69,7 +67,7 @@ export function sourceDefinitions(text: string, options: object): SourceDefiniti
  */
 export function locateFootnotes(document: MystDocument, text: string, options: object): void {
   const written = sourceDefinitions(text, options);
-  if (text.includes("[^")) sources.set(document, { text, options, defined: new Set(written.map(item => item.label)) });
+  rememberLiteralSource(document, text, options, new Set(written.map(item => item.label)));
   // The last definition of a label is the one kept.
   const last = new Map(written.map(definition => [definition.label, definition]));
   const kept = new Set<string>();
@@ -87,66 +85,6 @@ export function locateFootnotes(document: MystDocument, text: string, options: o
   const unreferenced = written.find(definition => !kept.has(definition.label));
   if (repeated) document[DROPPED_FOOTNOTE_FIELD] = REPEATED(repeated.label);
   else if (unreferenced) document[DROPPED_FOOTNOTE_FIELD] = UNREFERENCED(unreferenced.label);
-}
-
-/** Undefined reference-shaped source text. MyST's inline positions are container-level,
- * so the tokenizer, not a search of decoded AST text, distinguishes escapes and syntax.
- * This diagnostic-only tokenizer runs the existing rules first: escape, code, math, links
- * and valid footnotes consume their input before the fallback below can see it. */
-export function unresolvedFootnotes(document: MystDocument): { footnote: true; label: string; path: number[]; line: number }[] {
-  const source = sources.get(document);
-  if (!source) return [];
-  const tokenizer = createTokenizer(source.options);
-  tokenizer.inline.ruler.push("undefined_footnote", (state, silent) => {
-    // Match markdown-it-footnote's label grammar: nonempty, no space, LF or closing ].
-    const match = /^\[\^([^\] \n]+)\]/.exec(state.src.slice(state.pos, state.posMax));
-    if (!match || source.defined.has(match[1])) return false;
-    if (!silent) state.push("undefined_footnote", "", 0).content = match[1];
-    state.pos += match[0].length;
-    return true;
-  });
-  type Token = ReturnType<typeof tokenizer.parse>[number];
-  const found: { label: string; line: number }[] = [];
-  const visit = (tokens: Token[], initialLine = 1): void => {
-    let line = initialLine;
-    const skipped: boolean[] = [];
-    for (const token of tokens) {
-      if (token.map) line = token.map[0] + 1;
-      if (token.nesting === 1) {
-        // Role bodies are tokenized even for non-text roles such as {math} and {eq}.
-        skipped.push(token.type === "footnote_open" || token.type === "footnote_reference_open" ||
-          token.type === "parsed_role_open" && !["del", "sub", "sup"].includes(token.info));
-      }
-      if (!skipped.includes(true)) {
-        if (token.type === "undefined_footnote") found.push({ label: token.content, line });
-        // Image children are alt text, not body text.
-        if (token.children && token.type !== "image") visit(token.children, line);
-      }
-      if (token.nesting === -1) skipped.pop();
-    }
-  };
-  visit(tokenizer.parse(source.text, {}));
-  if (found.length === 0) return [];
-  // Only actual body text counts, including text in lifted directive captions. A
-  // directive's tokenized body may instead have become non-text math or code.
-  const textRanges = (node: MystNode, range = node.position): NonNullable<MystNode["position"]>[] => {
-    if (["footnoteDefinition", "code", "inlineCode", "math", "inlineMath", "image", "crossReference"].includes(node.type)) return [];
-    if (node.type === "text") return range ? [range] : [];
-    return (node.children ?? []).flatMap(child => textRanges(child, node.position ?? range));
-  };
-  const lineBlocks = new Map<number, number>();
-  document.children.forEach((node, index) => {
-    for (const range of textRanges(node)) {
-      for (let line = range.start.line; line <= range.end.line; line++) {
-        // Keep the first containing block, as the original range scan did.
-        if (!lineBlocks.has(line)) lineBlocks.set(line, index);
-      }
-    }
-  });
-  return found.flatMap(({ label, line }) => {
-    const index = lineBlocks.get(line);
-    return index === undefined ? [] : [{ footnote: true as const, label, path: [index], line }];
-  });
 }
 
 /** Each top-level block as endnote ordering sees it: the label it defines, and the references it holds. */

@@ -1985,27 +1985,39 @@ test("check warns about references a removal left without a target, without fail
 });
 
 
-test("check and edit previews retain original undefined-footnote warnings through literal writes", () => {
+test("check and edit previews retain original literal-syntax warnings through literal writes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-footnote-"));
   const file = path.join(dir, "document.md");
   const operations = path.join(dir, "operations.json");
-  const source = nativeSource("Loss [^loss] here.\n");
+  const source = nativeSource("Loss [^loss] here.\n\nSee [details][missing].\n\n![missing][]\n\nCode `tick without end.\n");
   writeFileSync(file, source);
   writeFileSync(operations, JSON.stringify([{ command: "format" }, { command: "format" }]));
   try {
     const text = run(["check", file]);
     assert.equal(text.status, 0, text.stderr);
     assert.match(text.stdout, /\nwriteability ok\n$/);
-    assert.equal(text.stderr, "warning: footnote [^loss] (block 1, line 5) has no definition in this document\n");
+    assert.equal(text.stderr, "warning: footnote [^loss] (block 1, line 5) has no definition in this document\n" +
+      'warning: reference link "[details][missing]" (block 2, line 7) has no definition in this document\n' +
+      'warning: reference image "![missing][]" (block 3, line 9) has no definition in this document\n' +
+      'warning: inline code "`" (block 4, line 11) has no closing backtick run; parsed as literal text\n');
     const json = run(["check", file, "--format", "json"]);
     assert.equal(json.status, 0, json.stderr);
     assert.equal(json.stderr, "");
     const report = JSON.parse(json.stdout);
     assert.equal(report.ok, true);
-    assert.deepEqual(report.references.unresolved, [{ footnote: true, label: "loss", path: [1], line: 5 }]);
+    assert.deepEqual(report.references.unresolved, [
+      { footnote: true, label: "loss", path: [1], line: 5 },
+      { syntax: "reference-link", label: "missing", source: "[details][missing]", path: [2], line: 7 },
+      { syntax: "reference-image", label: "missing", source: "![missing][]", path: [3], line: 9 },
+      { syntax: "inline-code", source: "`", path: [4], line: 11 },
+    ]);
     assert.equal(readFileSync(file, "utf8"), source, "check never writes");
-    const warning = "warning: footnote [^loss] (block 1, line 5) has no definition; written as literal \\[^loss]\n";
-    for (const args of [["format", file], ["apply-batch", file, "--operations", operations]]) {
+    const warning = "warning: footnote [^loss] (block 1, line 5) has no definition; written as literal \\[^loss]\n" +
+      'warning: reference link "[details][missing]" (block 2, line 7) has no definition; written as literal text\n' +
+      'warning: reference image "![missing][]" (block 3, line 9) has no definition; written as literal text\n' +
+      'warning: inline code "`" (block 4, line 11) has no closing backtick run; written as literal text\n';
+    for (const args of [["format", file], ["insert-block", file, "--at", "1", "--text", "Added."],
+      ["apply-batch", file, "--operations", operations]]) {
       writeFileSync(file, source);
       const textPreview = run([...args, "--dry-run"]);
       assert.equal(textPreview.status, 0, textPreview.stderr);

@@ -1,6 +1,89 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parse, serialize, type MystNode } from "./core-internal.ts";
+import { canonicalWriteError, getEditableDocument, parse, serialize, unresolvedReferences, type MystNode } from "./core-internal.ts";
+
+test("literal link/image references and unmatched code warn without changing semantic or canonical output", () => {
+  for (const [source, diagnostic] of [
+    ["[details][missing]", { syntax: "reference-link", label: "missing" }],
+    ["[missing][]", { syntax: "reference-link", label: "missing" }],
+    ["![alt][missing]", { syntax: "reference-image", label: "missing" }],
+    ["![missing][]", { syntax: "reference-image", label: "missing" }],
+    ["[**details**][Two words]", { syntax: "reference-link", label: "Two words" }],
+    [String.raw`[a\]b][missing]`, { syntax: "reference-link", label: "missing" }],
+    ["[details][missing]\n[label]: https://example.com", { syntax: "reference-link", label: "missing" }],
+    ["``tick with ` inside", { syntax: "inline-code" }],
+    ["`tick without end.", { syntax: "inline-code" }],
+  ] as const) {
+    const document = parse(`See ${source}\n`);
+    const before = JSON.stringify(document);
+    const model = getEditableDocument(document);
+    const canonical = serialize(document);
+    const expected = [{ ...diagnostic,
+      source: diagnostic.syntax === "inline-code" ? source.match(/^`+/)![0] : source.split("\n")[0], path: [0], line: 1 }];
+    assert.deepEqual(unresolvedReferences(document), expected, source);
+    assert.deepEqual(unresolvedReferences(document), expected, "repeated diagnosis uses the same parse evidence");
+    assert.equal(JSON.stringify(document), before);
+    assert.deepEqual(getEditableDocument(document), model);
+    assert.equal(canonicalWriteError(document), undefined);
+    assert.equal(serialize(document), canonical);
+    assert.deepEqual(unresolvedReferences(parse(canonical)), [], canonical);
+    assert.equal(serialize(parse(canonical)), canonical);
+  }
+});
+
+test("literal syntax diagnostics exclude prose, escapes, resolved syntax and non-text content", () => {
+  for (const source of [
+    "Prose [1], [sic], [label], ![label], [] and [text] [label].",
+    "It costs $5.", "$ and %", "Math $x^2 without end.", "a`", "a `` b", "The ` character.",
+    "\\[text][missing] !\\[alt][missing] \\[label][] !\\[label][] \\`tick and \\$x",
+    "&#91;text][missing] &#96;tick",
+    "[ok][ KNOWN  label ] ![ok][known label]\n\n[Known label]: https://example.com",
+    "[Known][] ![Known][]\n\n[known]: https://example.com",
+    "`[text][missing]` and `` `tick `` and `closed\nacross lines`.",
+    "$[text][missing] `tick$ and $$[text][missing] `tick$$.",
+    "[ok](https://example.com/[text][missing] \"`title\") ![`alt [a][b]](image.png)",
+    "<https://example.com/[text][missing]/`tick> and https://example.com/[text][missing]",
+    "https://example.com/`tick and www.example.com/[text][missing] and https://example.com/[^missing]",
+    "```text\n[text][missing] `tick\n```", "    [text][missing] `tick",
+    ":::{math}\n[text][missing] `tick\n:::", ":::{code} text\n[text][missing] `tick\n:::",
+    "{math}`[text][missing]` and {math}`` `tick ``",
+    ":::{figure} ./[text][missing].png\n:alt: [text][missing] `tick\nCaption.\n:::",
+    "Text[^ok]\n\n[^ok]: [text][missing] `tick",
+  ]) assert.deepEqual(unresolvedReferences(parse(source)), [], source);
+});
+
+test("literal syntax respects backslash parity and exact backtick run lengths", () => {
+  assert.deepEqual(unresolvedReferences(parse("\\\\[a][b] and \\\\`tick")), [
+    { syntax: "reference-link", label: "b", source: "[a][b]", path: [0], line: 1 },
+    { syntax: "inline-code", source: "`", path: [0], line: 1 },
+  ]);
+  assert.deepEqual(unresolvedReferences(parse("\\\\\\[a][b] and \\\\\\`tick")), []);
+  assert.deepEqual(unresolvedReferences(parse("`tick``")), [
+    { syntax: "inline-code", source: "`", path: [0], line: 1 },
+  ]);
+});
+
+test("shared literal diagnostics retain body/container locations and source order", () => {
+  const source = [
+    "---\nieumdoc: 1\n---", "# Heading [h][missing]", "> First line\n> `tick",
+    "- ![alt][missing]", "| A |\n| - |\n| [cell][] |", ":::{note}\n[note][]\n:::",
+    ":::{figure}\n[caption][]\n:::", "Loss [^loss] and [details][missing] and `tick",
+  ].join("\n\n") + "\n";
+  const expected = [
+    { syntax: "reference-link", label: "missing", source: "[h][missing]", path: [1], line: 5 },
+    { syntax: "inline-code", source: "`", path: [2], line: 7 },
+    { syntax: "reference-image", label: "missing", source: "![alt][missing]", path: [3], line: 10 },
+    { syntax: "reference-link", label: "cell", source: "[cell][]", path: [4], line: 14 },
+    { syntax: "reference-link", label: "note", source: "[note][]", path: [5], line: 17 },
+    { syntax: "reference-link", label: "caption", source: "[caption][]", path: [6], line: 21 },
+    { footnote: true, label: "loss", path: [7], line: 24 },
+    { syntax: "reference-link", label: "missing", source: "[details][missing]", path: [7], line: 24 },
+    { syntax: "inline-code", source: "`", path: [7], line: 24 },
+  ];
+  for (const ending of ["\n", "\r\n"]) {
+    assert.deepEqual(unresolvedReferences(parse("\uFEFF" + source.replaceAll("\n", ending))), expected);
+  }
+});
 
 // Issue #12: semantic references are written as their MyST role, so they parse
 // back as `crossReference`. Ordinary `[text](#target)` links are never promoted.

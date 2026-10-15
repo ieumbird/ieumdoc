@@ -106,7 +106,7 @@ const DRY_RUN_NOTE = [
   "--dry-run runs the same edits and canonical write checks without committing or creating temporary files.",
   "Text prints the result revision, check summary (warnings on stderr), then --- markdown --- and canonical Markdown.",
   "--dry-run --format json prints dryRun, revision, markdown and the same diagnostic fields as check; batches add applied.",
-  "Original undefined-footnote warnings also print on stderr; JSON previews keep their Core entries in originalWarnings (or []).",
+  "Original literal-syntax warnings also print on stderr; JSON previews keep their Core entries in originalWarnings (or []).",
   "Failures keep the usual stderr messages and exit 1, including in JSON mode.",
   "Shared read-only checks cover current revision and file permissions; directory writes, disk space and rename locks may still fail on write.",
 ];
@@ -737,12 +737,12 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
     const document = parse(markdown);
     preflightFileCommit(file, markdown, revision);
     const status = checkDocument(document, file, format, { ...result, dryRun: true, revision: resultRevision, markdown,
-      originalWarnings: references.filter(reference => "footnote" in reference) });
-    if (status === 0) warnLiteralFootnotes(references);
+      originalWarnings: references.filter(reference => "footnote" in reference || "syntax" in reference) });
+    if (status === 0) warnLiteralSyntax(references);
     return status;
   }
   commitFile(file, markdown, revision);
-  warnLiteralFootnotes(references);
+  warnLiteralSyntax(references);
   if (result.command === "apply-batch" && format === "json") {
     process.stdout.write(`${JSON.stringify({ ok: true, ...result, revision: textRevision(markdown) })}\n`);
   }
@@ -788,12 +788,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     if (writeError === undefined) process.stdout.write("writeability ok\n");
     else process.stderr.write(`writeability failed: ${writeError}\n`);
     for (const reference of unresolved) {
-      const { path, line } = reference;
-      const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-      const written = "role" in reference ? `{${reference.role}}\`${reference.label}\``
-        : "link" in reference ? `link ${reference.link}` : `footnote [^${reference.label}]`;
-      const missing = "footnote" in reference ? "has no definition" : "names no target";
-      process.stderr.write(`warning: ${written} (${at}) ${missing} in this document\n`);
+      process.stderr.write(`warning: ${referenceWarning(reference)}\n`);
     }
     for (const { path, label } of pendingFigures) {
       process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
@@ -1031,13 +1026,31 @@ function serializeChange(document: Document, change: Change): string {
 }
 
 /** Report original-source intent after a successful commit or preview; operation clones have no evidence. */
-function warnLiteralFootnotes(references: ReturnType<typeof unresolvedReferences>): void {
+function warnLiteralSyntax(references: ReturnType<typeof unresolvedReferences>): void {
   for (const reference of references) {
-    if (!("footnote" in reference)) continue;
-    const { label, path, line } = reference;
-    const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-    process.stderr.write(`warning: footnote [^${label}] (${at}) has no definition; written as literal \\[^${label}]\n`);
+    if ("footnote" in reference || "syntax" in reference) {
+      process.stderr.write(`warning: ${referenceWarning(reference, true)}\n`);
+    }
   }
+}
+
+function referenceWarning(reference: ReturnType<typeof unresolvedReferences>[number], written = false): string {
+  const { path, line } = reference;
+  const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
+  if ("syntax" in reference) {
+    const kind = reference.syntax === "inline-code" ? "inline code"
+      : reference.syntax === "reference-image" ? "reference image" : "reference link";
+    const reason = reference.syntax === "inline-code" ? "has no closing backtick run" : "has no definition";
+    const suffix = written ? "; written as literal text"
+      : reference.syntax === "inline-code" ? "; parsed as literal text" : " in this document";
+    return `${kind} ${quote(reference.source)} (${at}) ${reason}${suffix}`;
+  }
+  if ("footnote" in reference) {
+    const suffix = written ? `; written as literal \\[^${reference.label}]` : " in this document";
+    return `footnote [^${reference.label}] (${at}) has no definition${suffix}`;
+  }
+  const source = "role" in reference ? `{${reference.role}}\`${reference.label}\`` : `link ${reference.link}`;
+  return `${source} (${at}) names no target in this document`;
 }
 
 /** Adapt JSON options to the existing CLI flag parser, without interpreting document semantics. */
