@@ -124,7 +124,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "expected.md", create: () => serialize(parse(readFileSync(path.join(DOCUMENT_DIR, "technical-document.md"), "utf8"))) },
       fixture("writable.md"),
     ],
-    scenarios: ["source-view", "source-view-pending"],
+    scenarios: ["source-view", "source-view-pending", "document-session"],
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg"),

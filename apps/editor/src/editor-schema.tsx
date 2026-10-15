@@ -969,7 +969,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useState("");
   const [validating, setValidating] = useState(false);
-  const validation = useRef(0);
+  const pendingRequest = useRef(0);
   const captionChanged = useRef(false);
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
@@ -1005,12 +1005,20 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     copied.current = undefined;
     copy?.discard?.();
   };
-  // Reload, closing the document or deleting the Figure also leave an unapplied copy unused.
-  useEffect(() => releaseCopy, []);
+  // Reload, closing the document or deleting the Figure invalidates its asynchronous work.
+  useEffect(() => () => {
+    pendingRequest.current++;
+    releaseCopy();
+  }, []);
   const pickImage = async () => {
     if (!chooseImage || !documentPath) return;
+    const request = ++pendingRequest.current;
     setChoosing(true);
     const choice = await chooseImage(documentPath, chooseButton);
+    if (request !== pendingRequest.current || editor.isDestroyed) {
+      choice?.discard?.();
+      return;
+    }
     setChoosing(false);
     if (!choice) return;
     releaseCopy();
@@ -1020,7 +1028,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   };
   const cancel = () => {
     releaseCopy();
-    validation.current++;
+    pendingRequest.current++;
+    setChoosing(false);
     setValidating(false);
     setDraft(applied);
     setLabelDraft(label);
@@ -1043,7 +1052,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       setError(local);
       return;
     }
-    const request = ++validation.current;
+    const request = ++pendingRequest.current;
+    setChoosing(false);
     setValidating(true);
     setError("");
     let message: string | undefined;
@@ -1052,8 +1062,9 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     } catch (cause) {
       message = `Figure validation failed: ${cause instanceof Error ? cause.message : String(cause)}`;
     }
-    // Cancel or a newer Apply supersedes this result.
-    if (request !== validation.current) return;
+    // Cancel, a newer request or NodeView teardown supersedes this result. The editor can be
+    // destroyed before React runs the NodeView's effect cleanup.
+    if (request !== pendingRequest.current || editor.isDestroyed) return;
     setValidating(false);
     if (message) {
       setError(message);

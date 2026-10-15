@@ -9,6 +9,7 @@ export const STABLE_SCENARIOS = [
   "open-files",
   "save-during-edit",
   "save-session",
+  "document-session",
   "equation-insertion",
   "equation-save-during-edit",
   "reference-save-reload",

@@ -222,6 +222,41 @@ async (page, { openDocument }) => {
     view.dispatch(state.tr.delete(from, from + state.doc.nodeAt(from).nodeSize));
   }));
   result.unappliedCopyRemoved = true;
+  // The chooser may finish after its Figure was deleted while the picker was open. The receipt
+  // did not exist at unmount, so the late result itself must discard the unused copy.
+  await editFigure(0);
+  let releaseChoice, copiedChoice;
+  const choiceGate = new Promise(resolve => { releaseChoice = resolve; });
+  const choiceCreated = new Promise(resolve => { copiedChoice = resolve; });
+  await page.route('**/api/asset', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const response = await route.fetch();
+    copiedChoice(await response.json());
+    await choiceGate;
+    await route.fulfill({response});
+  });
+  try {
+    await page.getByRole('button', {name:'Choose…', exact:true}).click();
+    await pathField.fill(outsidePhoto);
+    await picker.getByRole('option', {name:'photo.png', exact:true}).waitFor();
+    await pathField.press('Enter');
+    const receipt = await choiceCreated;
+    await page.locator('.document-editor').evaluate(el => {
+      const {state, view} = el.editor;
+      let position;
+      state.doc.forEach((node, offset) => { if (position === undefined && node.type.name === 'figure') position = offset; });
+      view.dispatch(state.tr.delete(position, position + state.doc.nodeAt(position).nodeSize));
+    });
+    await page.getByTestId('figure-editor').waitFor({state:'detached'});
+    const rollback = page.waitForResponse(response => response.url().endsWith('/api/asset') && response.request().method() === 'DELETE');
+    releaseChoice();
+    assert((await rollback).status() === 204 && (await page.request.get(media(receipt.path))).status() === 404,
+      'A choice delivered after Figure deletion must roll back its unused copy');
+    result.lateChoiceRemoved = true;
+  } finally {
+    releaseChoice();
+    await page.unroute('**/api/asset');
+  }
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
 
