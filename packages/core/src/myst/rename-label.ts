@@ -1,5 +1,5 @@
 import type { NodePath } from "../document.ts";
-import { labelIdentifier, referenceTargetIndex, resolveReference } from "./label.ts";
+import { assertLabelAvailable, labelIdentifier, referenceTargetIndex, resolveReference } from "./label.ts";
 import { parse } from "./parse.ts";
 import { serializeFor } from "./serialize.ts";
 import { getNode, type MystDocument, type MystNode } from "./tree.ts";
@@ -25,9 +25,7 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
   }
   // A conflict in the original snapshot must not be hidden by changing the selected label.
   const identifier = labelIdentifier(label);
-  if (identifier && before.candidates(identifier).some(node => before.path(node)?.join(".") !== targetKey)) {
-    throw new Error(`label ${JSON.stringify(label)} already names another target (including implicit heading IDs)`);
-  }
+  assertLabelAvailable(document, label, path);
   // Do not accidentally repair an unsupported old notation by replacing its label.
   serializeFor(document, "reference notation cannot be rewritten while preserving meaning");
   const next = changeLabel();

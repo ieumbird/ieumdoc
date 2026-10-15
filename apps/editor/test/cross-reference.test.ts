@@ -13,6 +13,7 @@ import { fromTiptapContent } from "../src/tiptap-inline.ts";
 import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
+import { saveErrorMessage } from "../src/save-error.ts";
 
 const source = nativeSource([
   "# Refs",
@@ -271,4 +272,40 @@ test("a section label and a {ref} to its heading save through Core, and renaming
   assert.equal(saveEdits(saved, collectSupportedEdits(reopened, projection)).markdown, saved.replace("(sec-intro)=", "(intro)="));
   blockAt(projection, "2").attrs!.label = "";
   assert.throws(() => collectSupportedEdits(reopened, projection), /section label cannot be empty/);
+});
+
+test("a new heading destination is created before its same-ID section target during Save", () => {
+  const markdown = nativeSource("Keep.\n");
+  const editable = loadEditableDocument(markdown);
+  const next = toTiptapDocument(editable);
+  next.content!.push(
+    { type: "labelTarget", attrs: { sourcePath: "new:target", label: "intro" } },
+    { type: "heading", attrs: { sourcePath: "new:heading", level: 2 }, content: [{ type: "text", text: "Intro" }] },
+  );
+  assert.match(saveEdits(markdown, collectSupportedEdits(editable, next)).markdown, /\(intro\)=\n\n## Intro/);
+});
+
+test("section insertion preserves the same-heading exception and reports generated-label collisions on Save", () => {
+  for (const collision of [false, true]) {
+    const markdown = nativeSource(collision ? "## Intro\n\n## sec-intro\n" : "## Intro\n");
+    const editable = loadEditableDocument(markdown);
+    const schema = getSchema(editorExtensions());
+    const baseline = toTiptapDocument(editable);
+    let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+      plugins: [structureGuardPlugin(baseline, () => assert.fail("representable insertion rejected"))] });
+    state = state.apply(addSectionLabel(state, 0));
+    if (!collision) state = state.apply(state.tr.setNodeMarkup(0, undefined, { ...state.doc.child(0).attrs, label: "intro" }));
+    const submitted = editorDocumentJSON(state);
+    const edits = collectSupportedEdits(editable, submitted);
+    if (collision) {
+      assert.throws(() => saveEdits(markdown, edits), error => {
+        const message = saveErrorMessage(error, submitted, edits);
+        assert.match(message, /already names another target \(including implicit heading IDs\)/);
+        assert.match(message, /Choose a label/);
+        return true;
+      });
+    } else {
+      assert.match(saveEdits(markdown, edits).markdown, /\(intro\)=\n\n## Intro/);
+    }
+  }
 });

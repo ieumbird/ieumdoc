@@ -25,7 +25,7 @@ import {
   supportedFigureContent,
 } from "./myst/figure.ts";
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
-import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
+import { assertLabelAvailable, labelIdentifier } from "./myst/label.ts";
 import { assertReferenceableLabel } from "./myst/reference.ts";
 import { renameLabelReferences } from "./myst/rename-label.ts";
 import { labelError, targetLabelError } from "./label.ts";
@@ -815,7 +815,7 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
   if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure, Table or target at [${path.join(",")}]`);
   if (options.updateReferences === true) return renameLabelReferences(document, path, label, () => updateLabel(document, path, label));
   if (kind === "Target" && label.length === 0) throw new Error("a target cannot be unlabeled; remove the block instead");
-  const identifier = label.length > 0 ? newLabelIdentifier(document, kind, label, current) : undefined;
+  const identifier = label.length > 0 ? newLabelIdentifier(document, kind, label, path) : undefined;
   const next = cloneDocument(document);
   if (kind === "Table") {
     const paragraph = tableCaptionParagraph(current);
@@ -846,7 +846,8 @@ export function insertTarget(document: MystDocument, index: number, label: strin
     throw new Error(`insertTarget index out of range: ${index}`);
   }
   if (label.length === 0) throw new Error("a target needs a label");
-  newLabelIdentifier(document, "Target", label);
+  // This target replaces the following heading's implicit ID, preserving its identity.
+  newLabelIdentifier(document, "Target", label, document.children[index]?.type === "heading" ? [index] : undefined);
   const next = insertBlock(document, index, { type: "mystTarget", label });
   assertLabelRoundTrip(next, index, label, "Target cannot be preserved through canonical round-trip");
   return next;
@@ -854,7 +855,7 @@ export function insertTarget(document: MystDocument, index: number, label: strin
 
 /** The identifier of a label a block may take: one MyST resolves, that its reference role can
  * address through canonical Markdown, and that names no other target than `except`. */
-function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" | "Table" | "Target", label: string, except?: MystNode): string {
+function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" | "Table" | "Target", label: string, except?: NodePath): string {
   const error = kind === "Target" ? targetLabelError(label) : labelError(label);
   if (error) throw new Error(error);
   const identifier = labelIdentifier(label);
@@ -864,9 +865,7 @@ function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" 
   } catch {
     throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
   }
-  if (targetIdentifiers(document, except).has(identifier)) {
-    throw new DocumentWriteError(`label ${JSON.stringify(label)} already names another target in this document`, { action: "Choose a unique label or remove the duplicate label from the other target." });
-  }
+  assertLabelAvailable(document, label, except);
   return identifier;
 }
 

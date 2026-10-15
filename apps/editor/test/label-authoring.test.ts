@@ -10,6 +10,7 @@ import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src
 import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
+import { saveErrorMessage } from "../src/save-error.ts";
 
 const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
@@ -108,6 +109,7 @@ test("Source preview shows unsaved label edits; rejected labels fail closed befo
     const at = (kind: string) => current.document.blocks.find((block) => block.block === kind)!;
     for (const [edit, reason] of [
       [{ path: at("equation").path, from: "eq-reference", to: "fig-control" }, /already names another target/],
+      [{ path: at("equation").path, from: "eq-reference", to: "converter-control" }, /including implicit heading IDs/],
       [{ path: at("equation").path, from: "eq-reference", to: "eq<a>" }, /cannot be referenced/],
       [{ path: at("equation").path, from: "eq-reference", to: " eq" }, /leading or trailing spaces/],
       [{ path: at("equation").path, from: "stale", to: "eq-a" }, /label does not match/],
@@ -115,7 +117,10 @@ test("Source preview shows unsaved label edits; rejected labels fail closed befo
     ] as const) {
       const bad = { revision: current.revision, labels: [edit] };
       assert.throws(() => previewDocumentFile(file, bad), reason);
-      assert.throws(() => saveDocumentFile(file, bad), reason);
+      assert.throws(() => saveDocumentFile(file, bad), error => {
+        assert.match(saveErrorMessage(error), reason);
+        return true;
+      });
       assert.equal(readFileSync(file, "utf8"), saved);
     }
   } finally {

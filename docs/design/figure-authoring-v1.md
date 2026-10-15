@@ -71,7 +71,7 @@ pnpm ieumdoc inspect doc.md --format json
 pnpm ieumdoc check doc.md --format json
 ```
 
-`insert-figure --image`, `--caption` and `--label` are optional; with none of them it inserts an empty Figure. `--label` uses Core label validation in the same edit and single atomic file replacement. `update-figure` preserves omitted fields and the label. Invalid final states and duplicate labels fail without writes.
+`insert-figure --image`, `--caption` and `--label` are optional; with none of them it inserts an empty Figure. `--label` uses Core label validation in the same edit and single atomic file replacement. `update-figure` preserves omitted fields and the label. Invalid final states and label collisions, including another heading's implicit ID under the shared [label rules](section-references-v1.md#core), fail without writes.
 
 `insert-figure --at end` (#280) uses Core `bodyEndIndex` to insert before endnote definitions, or after the last body block when there are none (1 for an empty native document). `apply-batch` accepts the same options with `"at": "end"` and resolves the position on each canonical snapshot. [Equation insertion](document-support-v1.md#interfaces-and-errors) and [table insertion](table-caption-v1.md) follow the same one-edit/one-replacement pattern for optional labels and captions.
 
