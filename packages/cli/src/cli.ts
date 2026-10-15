@@ -217,6 +217,7 @@ const COMMANDS: CommandSpec[] = [
       "that name no target in this document, as MyST resolves them (including the implicit IDs",
       "of unlabeled headings), are reported as warnings with their block and line; they do not",
       "fail the check. JSON: references.unresolved, with role or link.",
+      "MyST inherited-property lookup failures are also warnings, with a reason in text and JSON.",
       "Pending Figures (no content yet) are reported as readiness warnings with their block and",
       "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
       "Document-relative Figure images that are not regular files or cannot be checked warn with block, label and source",
@@ -1050,7 +1051,7 @@ function referenceWarning(reference: ReturnType<typeof unresolvedReferences>[num
     return `footnote [^${reference.label}] (${at}) has no definition${suffix}`;
   }
   const source = "role" in reference ? `{${reference.role}}\`${reference.label}\`` : `link ${reference.link}`;
-  return `${source} (${at}) names no target in this document`;
+  return `${source} (${at}) ${reference.reason ?? "names no target in this document"}`;
 }
 
 /** Adapt JSON options to the existing CLI flag parser, without interpreting document semantics. */

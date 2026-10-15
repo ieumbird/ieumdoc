@@ -40,6 +40,8 @@ export function assertLabelAvailable(document: MystDocument, label: string, exce
     document.children[except[0] + 1] ? [except[0] + 1] : except;
   const targetKey = targetPath?.join(".");
   const targets = referenceTargetIndex(document);
+  const reason = targets.lookup(identifier)?.reason;
+  if (reason) throw new DocumentWriteError(reason, { action: "Choose a label whose normalized identifier is not an Object.prototype property." });
   // Keep raw targets too: unattached or overridden explicit labels must remain reserved.
   if (targetIdentifiers(document, current).has(identifier) ||
       targets.candidates(identifier).some(node => !targetKey || targets.path(node)?.join(".") !== targetKey)) {
@@ -79,13 +81,24 @@ export function referenceTargetIndex(document: MystDocument) {
   };
   visit(tree);
   return {
-    // MyST's plain-object lookup can return inherited values such as `constructor`.
-    // Only own entries are targets it actually registered; keep its duplicate selection.
-    lookup: (identifier: string) => Object.hasOwn(state.targets, identifier) ? state.getTarget(identifier) : undefined,
+    // Inherited values make MyST throw, even if a normalized fallback target exists.
+    // Return a failure (not a miss) so raw fragment lookup cannot skip that failure.
+    lookup: (identifier: string): ReferenceLookup => {
+      if (Object.hasOwn(state.targets, identifier)) return { target: state.getTarget(identifier) };
+      if (identifier in state.targets) return {
+        reason: `MyST target lookup for ${JSON.stringify(identifier)} hits an inherited Object.prototype property and cannot process references`,
+      };
+      return undefined;
+    },
     candidates: (identifier: string) => candidates.get(identifier) ?? [],
     path: (node: MystNode) => paths.get(node),
   };
 }
+
+type ReferenceLookup =
+  | { target: ReturnType<ReferenceState["getTarget"]>; reason?: never }
+  | { target?: never; reason: string }
+  | undefined;
 
 /** Shared role/link lookup order, including MyST's raw-then-normalized fragment lookup. */
 export function resolveReference<T>(node: MystNode, lookup: (identifier: string) => T | undefined): T | undefined {

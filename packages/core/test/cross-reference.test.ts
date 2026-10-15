@@ -174,17 +174,51 @@ test("unresolvedReferences reports references that name no target in the documen
     reported.flatMap((reference) => "role" in reference ? [normalizeLabel(reference.label)?.identifier] : []));
 });
 
-test("unresolvedReferences excludes inherited properties while retaining normalized fragment fallback", () => {
-  const document = parse("```{math}\n:label: tostring\nx\n```\n\n" +
-    "{ref}`constructor`, {ref}`__proto__`, [constructor](#constructor), [proto](#__proto__), " +
-    "[missing](#hasOwnProperty), [registered](#toString) and {ref}`TOSTRING`.\n");
-  assert.deepEqual(unresolvedReferences(document), [
-    { role: "ref", label: "constructor", path: [1], line: 6 },
-    { role: "ref", label: "__proto__", path: [1], line: 6 },
-    { link: "#constructor", label: "constructor", path: [1], line: 6 },
-    { link: "#__proto__", label: "__proto__", path: [1], line: 6 },
-    { link: "#hasOwnProperty", label: "hasOwnProperty", path: [1], line: 6 },
-  ]);
+test("reference diagnosis matches real MyST inherited-property failures and safe normalization", () => {
+  for (const label of [...Object.getOwnPropertyNames(Object.prototype), "TOSTRING", "tostring", "CONSTRUCTOR", "__PROTO__", "fig-new"]) {
+    for (const hasTarget of [false, true]) {
+      for (const kind of ["link", "ref", "numref", "eq"]) {
+        const identifier = normalizeLabel(label)!.identifier;
+        const inheritedIdentifier = ["constructor", "__proto__"].includes(identifier);
+        const fails = inheritedIdentifier || kind === "link" && Object.getOwnPropertyNames(Object.prototype).includes(label);
+        const target = hasTarget ? `:::{figure} ./d.svg\n:name: ${identifier}\n\nCaption.\n:::\n\n` : "";
+        const source = target + (kind === "link" ? `[text](#${label})` : `{${kind}}\`${label}\``) + "\n";
+        const document = parse(source);
+        const original = structuredClone(document);
+        const file = new VFile();
+        const tree = structuredClone(document);
+        basicTransformations(tree as never, file);
+        const state = new ReferenceState("document.md", { vfile: file });
+        enumerateTargetsTransform(tree as never, { state });
+        assert.equal(Object.hasOwn(state.targets, identifier), hasTarget && !inheritedIdentifier, source);
+        const links = () => resolveLinksAndCitationsTransform(tree as never, { state });
+        const roles = () => resolveReferencesTransform(tree as never, file, { state });
+        if (fails) {
+          if (kind === "link") assert.throws(links, /reading 'implicit'/, source);
+          else {
+            links();
+            assert.throws(roles, /reading 'type'/, source);
+          }
+        } else {
+          links();
+          roles();
+          assert.equal(file.messages.length, hasTarget ? 0 : 1, source);
+          if (!hasTarget) assert.match(file.messages[0].message, /No target for internal reference|Cross reference target was not found/);
+        }
+        const problems = unresolvedReferences(document);
+        if (hasTarget && !fails) assert.deepEqual(problems, [], source);
+        else {
+          const lookupName = kind === "link" && label in Object.prototype ? label : identifier;
+          assert.deepEqual(problems, [{
+            ...(kind === "link" ? { link: `#${label}` } : { role: kind }), label,
+            ...(fails ? { reason: `MyST target lookup for ${JSON.stringify(lookupName)} hits an inherited Object.prototype property and cannot process references` } : {}),
+            path: [hasTarget ? 1 : 0], line: hasTarget ? 7 : 1,
+          }], source);
+        }
+        assert.deepEqual(document, original, "diagnosis does not mutate the snapshot");
+      }
+    }
+  }
 });
 
 test("removing or relabeling a referenced target leaves an unresolved reference to report", () => {

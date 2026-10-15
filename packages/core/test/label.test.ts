@@ -152,7 +152,7 @@ test("all label setters refuse implicit heading IDs without changing the snapsho
       const renamed = updateLabel(editable, [2], "available", options);
       assert.equal(serialize(parse(serialize(renamed))), serialize(renamed));
       const targets = referenceTargetIndex(renamed);
-      assert.deepEqual(targets.path(targets.lookup("install")!.node!), [0]);
+      assert.deepEqual(targets.path(targets.lookup("install")!.target!.node!), [0]);
     }
     assert.deepEqual(document, snapshot);
   }
@@ -166,7 +166,7 @@ test("a section target can keep its own heading's implicit ID, but not another t
     updateLabel(labeled, [0], "install", updateReferences)]) {
     const targets = referenceTargetIndex(next);
     assert.equal(targets.candidates("install").length, 1);
-    assert.deepEqual(targets.path(targets.lookup("install")!.node!), [1]);
+    assert.deepEqual(targets.path(targets.lookup("install")!.target!.node!), [1]);
     assert.deepEqual(unresolvedReferences(next), []);
   }
   assert.deepEqual(document, original);
@@ -218,15 +218,61 @@ test("opt-in rename follows MyST resolution for all four target kinds and preser
   }
 });
 
-test("opt-in rename preserves unrelated inherited-property references as unresolved", () => {
-  const document = parse("```{math}\n:label: old\nx\n```\n\n{eq}`old`, {ref}`constructor` and {ref}`__proto__`.\n");
-  const original = structuredClone(document);
-  const next = updateLabel(document, [0], "new", updateReferences);
-  const markdown = serialize(next);
-  assert.deepEqual(document, original);
-  assert.equal(markdown, "```{math}\n:label: new\n\nx\n```\n\n{eq}`new`, {ref}`constructor` and {ref}`__proto__`.\n");
-  assert.deepEqual(unresolvedReferences(parse(markdown)).map(({ label }) => label), ["constructor", "__proto__"]);
-  assert.equal(serialize(parse(markdown)), markdown);
+test("opt-in rename refuses MyST-failing original and resulting references without mutation", () => {
+  const target = ":::{figure} ./d.svg\n:name: old\n\nCaption.\n:::\n\n";
+  for (const [source, label] of [
+    ...["toString", "valueOf", "hasOwnProperty", "constructor", "__proto__"].map(label =>
+      [target + "{numref}`old` and [fig](#old).\n", label]),
+    // An unrelated failure must not survive a successful opt-in rename.
+    ...["{ref}`constructor`", "{numref}`__proto__`", "{eq}`CONSTRUCTOR`", "[bad](#toString)"].map(reference =>
+      [target + `{numref}\`old\` and ${reference}.\n`, "new"]),
+    // Nor may a rename silently repair an old raw-fragment failure.
+    [target.replace(":name: old", ":name: toString") + "[bad](#toString)\n", "new"],
+    [target.replace(":name: old", ":name: constructor"), "new"],
+  ]) {
+    const document = parse(source);
+    const original = structuredClone(document);
+    const canonical = serialize(document);
+    assert.throws(() => updateLabel(document, [0], label, updateReferences), /MyST target lookup.*inherited Object.prototype/);
+    assert.deepEqual(document, original);
+    assert.equal(serialize(document), canonical);
+  }
+});
+
+test("safe normalized roles and fragment spellings remain valid label renames", () => {
+  for (const [label, reference] of [
+    ["toString", "{numref}`old`"], ["valueOf", "{numref}`old`"],
+    ["TOSTRING", "[fig](#old)"], ["tostring", "[fig](#old)"], ["fig-new", "[fig](#old)"],
+  ]) {
+    const document = parse(`:::{figure} ./d.svg\n:name: old\n\nCaption.\n:::\n\n${reference}\n`);
+    const next = updateLabel(document, [0], label, updateReferences);
+    const markdown = serialize(next);
+    assert.ok(markdown.includes(reference.replace("old", label)));
+    assert.deepEqual(unresolvedReferences(next), []);
+    assert.equal(serialize(parse(markdown)), markdown);
+  }
+});
+
+test("all label-setting paths reject identifiers MyST cannot register, but allow safe normalization", () => {
+  const base = parse("## Section\n\n[bad](#toString)\n");
+  const original = structuredClone(base);
+  const insertions = [
+    (label: string) => updateLabel(insertEquation(base, 2, "x"), [2], label),
+    (label: string) => updateLabel(insertFigure(base, 2, { imageUrl: "", imageAlt: "", caption: "" }), [2], label),
+    (label: string) => updateLabel(insertTable(base, 2, [["A"], ["B"]]), [2], label),
+    (label: string) => insertTarget(base, 0, label),
+  ];
+  for (const insert of insertions) {
+    for (const label of ["constructor", "CONSTRUCTOR", "__proto__"]) {
+      assert.throws(() => insert(label), /MyST target lookup.*inherited Object.prototype/);
+      assert.deepEqual(base, original);
+    }
+    const next = insert("toString");
+    const problems = unresolvedReferences(next);
+    assert.equal(problems.length, 1, "the pre-existing link failure remains diagnosed");
+    assert.match("reason" in problems[0] ? problems[0].reason! : "", /inherited Object.prototype/);
+    assert.equal(serialize(parse(serialize(next))), serialize(next));
+  }
 });
 
 test("opt-in rename visits nested references and uses normalized labels without decoding fragments", () => {
