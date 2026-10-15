@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import fs, { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -219,7 +219,7 @@ const COMMANDS: CommandSpec[] = [
       "fail the check. JSON: references.unresolved, with role or link.",
       "Pending Figures (no content yet) are reported as readiness warnings with their block and",
       "label (JSON: readiness.pendingFigures). They do not fail the check or stop Save and format.",
-      "Missing document-relative Figure images warn with block, label and source",
+      "Document-relative Figure images that are not regular files or cannot be checked warn with block, label and source",
       "(JSON: readiness.missingImageFigures). URLs and absolute paths are skipped, as are paths",
       "the Host refuses (including escapes outside the document directory). No image decoding is done.",
       "Missing-image warnings do not fail the check or change writes.",
@@ -762,7 +762,9 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     let resolved: string;
     try { resolved = resolveMediaPath(mediaPath, file); }
     catch { return []; } // Host-refused paths are outside this existence check's scope.
-    return existsSync(resolved) ? [] : [{ path: block.path, label: block.label, source }];
+    try { if (fs.statSync(resolved).isFile()) return []; }
+    catch { /* A stat failure cannot establish a regular file; warn without claiming absence. */ }
+    return [{ path: block.path, label: block.label, source }];
   });
   const endnotes = { inPlace: endnotesInPlace(document) };
   if (format === "json") {
@@ -793,7 +795,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
       process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);
     }
     for (const { path, label, source } of missingImageFigures) {
-      process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) image ${quote(source)} does not exist\n`);
+      process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) image ${quote(source)} is not a file or could not be checked\n`);
     }
     if (!endnotes.inPlace) process.stderr.write("note: format and Save move footnote definitions after the body, in first-reference order\n");
     if (preview) process.stdout.write(`--- markdown ---\n${preview.markdown}`);
