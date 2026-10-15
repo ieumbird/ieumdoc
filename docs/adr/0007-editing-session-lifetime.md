@@ -1,12 +1,12 @@
 # ADR-0007: 편집 세션 수명과 미저장 작업 보호
 
 - Status: Accepted
-- Last verified: 2026-10-16 (#204 implementation status compared with the current Editing session and Save contract).
+- Last verified: 2026-10-16 (decision 1 revised: autosave deferred, #297; #204 implementation status compared with the current Editing session and Save contract).
 - Previous verification: 2026-10-15 (decision recorded and revised after PR #295 review: Host-specific close boundary, recovery guarantee limits; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; #291 Open/New confirmation verified with browser regressions).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#291](https://github.com/ieumbird/ieumdoc/issues/291) · [#204](https://github.com/ieumbird/ieumdoc/issues/204) · [#272](https://github.com/ieumbird/ieumdoc/issues/272) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-15
 
-이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했고, #204에서 독립 탭과 단일 탭 닫기 확인으로 옮겼다. 자동 저장과 복구는 후속 구현 대상이다.
+이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했고, #204에서 독립 탭과 단일 탭 닫기 확인으로 옮겼다. 복구는 후속 구현 대상이다. 1의 자동 저장은 2026-10-16에 보류했다(#297 향후 검토).
 
 ## Context
 
@@ -18,9 +18,11 @@
 
 ## Decision
 
-### 1. 저장은 명시적 동작이 기본이며, 자동 저장은 선택 설정이다
+### 1. 저장은 명시적 동작이며, 자동 저장은 보류한다
 
-- 자동 저장을 설정으로 제공하고 **기본값은 끈다**. 켜면 공식 Save와 같은 경로(Core canonical write, revision 확인, File commit)로 저장한다. 별도의 쓰기 경로를 만들지 않는다.
+2026-10-16 수정: 처음 결정은 자동 저장을 선택 설정(기본 off)으로 제공하는 것이었다. 실제 구현 착수 전에 이를 **보류**하고 [#297](https://github.com/ieumbird/ieumdoc/issues/297)을 향후 검토로 돌렸다. 원본 파일에 쓰는 자동 저장은 명시적 Save와의 경쟁, 입력 중 canonical 재작성, CLI·AI 에이전트의 외부 수정과의 잦은 충돌, 저장 불가 상태의 재시도 같은 타이밍 문제를 Save 경로 전체에 더한다. 기본값을 꺼도 이 유지 비용은 남는다. 2의 복구 기록이 저장할 수 없거나 충돌한 작업까지 지키므로, 자동 저장으로 얻는 추가 이득은 실제 사용에서 필요가 확인될 때 다시 판단한다. 다시 검토할 때 아래 조건을 출발점으로 삼는다.
+
+- 자동 저장을 설정으로 제공한다면 **기본값은 끈다**. 켜면 공식 Save와 같은 경로(Core canonical write, revision 확인, File commit)로 저장한다. 별도의 쓰기 경로를 만들지 않는다.
 - 저장할 수 없는 상태(canonical 검증 거부)에서는 자동 저장을 건너뛰고 미저장 상태를 그대로 표시한다. 입력 중에 저장 오류를 반복해 띄우지 않는다.
 - 외부 변경과 충돌하면 자동 저장을 멈추고 기존 충돌 처리로 넘긴다. 디스크의 변경을 덮어쓰지 않는다.
 - Apply하지 않은 속성 초안은 자동 저장이 적용하지 않는다. 지금의 Save와 같다.
@@ -56,11 +58,11 @@
 1. #291: 4의 확인 대화상자와 다른 문서 열기에 적용.
 2. #204: 탭과 독립 세션, 닫기에 4를 재사용.
 3. 2의 복구 기록. 세션 구조가 정해진 뒤 세션마다 기록한다.
-4. 1의 자동 저장 설정. 1~3과 독립이다.
+4. 1의 자동 저장 설정은 보류한다(#297 향후 검토). 1~3과 독립이다.
 
 ## Rationale
 
-- 파일 쓰기는 Git commit이 아니므로 자동 저장 자체는 SSOT 원칙과 충돌하지 않는다. 기본값을 끄는 이유는 이음독의 Save가 임의 텍스트 저장이 아니라 거부될 수 있는 canonical write이고, CLI·AI 에이전트가 같은 파일을 수정하는 사용 방식에서 충돌이 잦아질 수 있기 때문이다. 실제 사용으로 이 조건을 확인한 뒤 기본값을 다시 판단할 수 있다.
+- 파일 쓰기는 Git commit이 아니므로 자동 저장 자체는 SSOT 원칙과 충돌하지 않는다. 처음에 기본값을 끄기로 한 이유는 이음독의 Save가 임의 텍스트 저장이 아니라 거부될 수 있는 canonical write이고, CLI·AI 에이전트가 같은 파일을 수정하는 사용 방식에서 충돌이 잦아질 수 있기 때문이다. 같은 이유와 타이밍 관리 비용 때문에 자동 저장 자체를 보류했으며, 실제 사용으로 필요가 확인되면 다시 판단한다.
 - 자동 저장은 저장할 수 없거나 충돌한 작업을 지키지 못한다. 그 작업을 지키는 것은 원본과 분리된 복구 기록뿐이므로, 복구를 자동 저장보다 우선한다. 복구 기록은 적용된 편집의 손실 위험을 줄이지만 없애지는 않는다. Apply하지 않은 속성 초안과 기록에 실패한 작업은 1차 범위에서 여전히 잃을 수 있다.
 - 탭을 먼저 결정하면 미저장 처리의 위치(전환이 아니라 닫기)가 정해지고, 확인 대화상자와 복구 기록을 세션 단위로 한 번만 설계하면 된다.
 
@@ -69,4 +71,4 @@
 - [ADR-0002](0002-document-persistence-semantic-ownership.md)의 plain-text Markdown SSOT, Core 의미 소유권, canonical write와 fail-closed 저장을 유지한다. 자동 저장과 복구는 Save 경로나 검증을 약화하지 않는다.
 - 이 결정의 기능은 Editor 세션 동작이며 영속 문서 의미를 바꾸지 않는다. CLI parity 대상이 아니다.
 - 복구 기록은 문서 내용을 사용자 기기에 추가로 남긴다. 저장 위치와 삭제 시점을 사용자에게 설명해야 한다.
-- 탭 수와 메모리 한도, 자동 저장 지연 방식, 복구 기록의 보존 기간·형식은 후속 구현에서 정하고 해당 design 계약에 기록한다.
+- 탭 수와 메모리 한도, 복구 기록의 보존 기간·형식은 후속 구현에서 정하고 해당 design 계약에 기록한다.
