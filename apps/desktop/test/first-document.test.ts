@@ -12,23 +12,26 @@ test("start-up skips malformed paths before I/O and accepts valid Unicode names"
   fs.writeFileSync(valid, "sentinel");
   const exists = t.mock.method(fs, "existsSync");
   const stat = t.mock.method(fs, "statSync");
-  const warning = t.mock.method(console, "error", () => {});
+  const warning = t.mock.fn<(message: string) => void>();
   syncBuiltinESMExports();
   try {
-    assert.deepEqual(firstDocument([path.join(dir, "X\uD800Y.md"), valid], dir, dir), { document: valid });
+    assert.deepEqual(firstDocument([path.join(dir, "X\uD800Y.md"), valid], dir, dir, warning), { document: valid });
     assert.deepEqual(exists.mock.calls.map(call => call.arguments), [[valid]]);
     assert.deepEqual(stat.mock.calls.map(call => call.arguments), [[valid]]);
-    assert.match(String(warning.mock.calls[0].arguments[0]), /Ignoring start-up document: Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(warning.mock.calls.map(call => call.arguments),
+      [["Ignoring start-up document: Invalid Unicode: unpaired surrogate; nothing was written"]]);
     const sampleDir = path.join(dir, "sample-native-v1");
     fs.mkdirSync(sampleDir);
     const sample = path.join(sampleDir, "technical-document.md");
     fs.writeFileSync(sample, "sample");
     exists.mock.resetCalls(); stat.mock.resetCalls();
-    assert.deepEqual(firstDocument([path.join(dir, "X\uDC00Y.md")], dir, dir), { sample });
+    assert.deepEqual(firstDocument([path.join(dir, "X\uDC00Y.md")], dir, dir, warning), { sample });
     assert.deepEqual(exists.mock.calls.map(call => call.arguments), [[sample]]);
     assert.equal(stat.mock.callCount(), 0);
+    assert.deepEqual(warning.mock.calls.map(call => call.arguments), Array(2).fill(
+      ["Ignoring start-up document: Invalid Unicode: unpaired surrogate; nothing was written"]));
   } finally {
-    exists.mock.restore(); stat.mock.restore(); warning.mock.restore();
+    exists.mock.restore(); stat.mock.restore();
     syncBuiltinESMExports();
     fs.rmSync(dir, { recursive: true, force: true });
   }
