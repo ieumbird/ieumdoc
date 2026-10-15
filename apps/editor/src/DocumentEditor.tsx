@@ -87,7 +87,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   { document, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
-  // App remounts this editor for Open/New/Reload; Save keeps its opening projection.
+  // The document session remounts this editor for Open/New/Reload; Save keeps its opening projection.
   const [projection] = useState(() => toTiptapDocument(document));
   const pending = useRef<TiptapJSON | null>(null);
   const saved = useRef<TiptapJSON | null>(null);

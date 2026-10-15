@@ -5,6 +5,7 @@ import type { FolderEntry } from "../shared/document-protocol.ts";
 import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { createOutlineStore } from "../src/outline.ts";
+import { createDocumentSessionLifetime } from "../src/document-session.ts";
 import { visibleRecentFolders } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
@@ -17,6 +18,47 @@ import { TopBar } from "../src/shell/TopBar.tsx";
 const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
 const display = { headingNumbering: false, numberingDisabled: false, onToggleHeadingNumbering: noop, wide: false, onToggleWide: noop };
+
+test("document session lifetime rejects delayed completions after replacement or disposal, independently of other sessions", async () => {
+  const first = createDocumentSessionLifetime();
+  const second = createDocumentSessionLifetime();
+  const oldEditor = first.capture();
+  const otherEditor = second.capture();
+  let complete!: () => void;
+  const response = new Promise<void>(resolve => { complete = resolve; });
+  const completed: string[] = [];
+  const oldCompletion = response.then(() => { if (oldEditor()) completed.push("old"); });
+  const otherCompletion = response.then(() => { if (otherEditor()) completed.push("other"); });
+  first.replace();
+  const replacement = first.capture();
+  complete();
+  await Promise.all([oldCompletion, otherCompletion]);
+  assert.deepEqual(completed, ["other"]);
+  assert.equal(replacement(), true);
+
+  first.dispose();
+  assert.equal(replacement(), false);
+  // React StrictMode may set the hook up again; retired callbacks stay retired.
+  first.activate();
+  assert.equal(oldEditor(), false);
+  assert.equal(replacement(), false);
+  assert.equal(first.capture()(), true);
+  assert.equal(otherEditor(), true);
+});
+
+test("only the latest document read can open a session, without retiring its current editor on failure", () => {
+  const session = createDocumentSessionLifetime();
+  const editor = session.capture();
+  const olderRead = session.beginOpen();
+  const newerRead = session.beginOpen();
+  assert.equal(olderRead(), false);
+  assert.equal(newerRead(), true);
+  // A failed Open leaves the current editor, its callbacks and drafts usable.
+  assert.equal(editor(), true);
+  session.replace();
+  assert.equal(newerRead(), false);
+  assert.equal(editor(), false);
+});
 
 test("restricted Host recent folders hide other roots, parent traversal and prefix siblings", () => {
   const recent = ["C:\\docs", "c:/DOCS/sub", "C:\\docs-other", "C:\\docs\\..\\private", "/srv/docs/a", "/srv/Docs/b"];
