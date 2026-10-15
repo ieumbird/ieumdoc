@@ -124,6 +124,21 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       "# Power\n\nBefore the equation.\n\n```{math}\n:label: eq-power\nP = VI \\cos \\varphi\n```\n\nAfter the equation.\n") }],
     scenarios: ["equation-node-selection-typing"],
   },
+  "block-selection-typing": {
+    files: [{ name: "blocks.md", create: () => nativeSource(
+      "# Block selection typing\n\n" +
+      "Before blocks.\n\n" +
+      "---\n\n" +
+      ":::{figure}\n:name: fig-empty\n:::\n\n" +
+      ":::{table} Values\n:name: tbl-keep\n\n| A | B |\n| - | - |\n| 1 | 2 |\n:::\n\n" +
+      ":::{note}\nKeep this note.\n:::\n\n" +
+      "> Keep this quote.\n\n" +
+      "## Keep this heading\n\n" +
+      "```js\nconst keep = 1;\n```\n\n" +
+      "```{math}\n:label: eq-keep\nE = mc^2\n```\n\n" +
+      "After blocks.\n") }],
+    scenarios: ["block-selection-typing"],
+  },
   "admonition-authoring": { files: [fixture("authoring.md")], scenarios: ["admonition-authoring"] },
   "list-authoring": { files: [fixture("lists.md")], scenarios: ["list-authoring"] },
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },

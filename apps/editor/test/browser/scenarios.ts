@@ -14,6 +14,7 @@ export const STABLE_SCENARIOS = [
   "equation-insertion",
   "equation-save-during-edit",
   "equation-node-selection-typing",
+  "block-selection-typing",
   "reference-save-reload",
   "quote-save-reload",
   "writeability-preflight",

@@ -284,12 +284,12 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           pastedNotice = notice;
           return false;
         },
-        // A node-selected Equation is an atom with no caret. Engine replacement would destroy it
-        // and any label target; match Enter and put the typed character in a new paragraph below.
+        // A node-selected block has no caret inside it. Engine replacement would destroy the block
+        // (and any label target); match Enter and put the typed character in a new paragraph below.
         handleTextInput(view, _from, _to, text) {
           const { state } = view;
           const { selection } = state;
-          if (!(selection instanceof NodeSelection) || selection.node.type.name !== "equation" || !text) {
+          if (!(selection instanceof NodeSelection) || !selection.node.isBlock || !text) {
             return false;
           }
           const tr = paragraphBeside(state, true);
