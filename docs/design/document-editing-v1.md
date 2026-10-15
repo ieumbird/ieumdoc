@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (Equation node-selection typing keeps the block and inserts a paragraph below; #275 property-close typing for Equation/Figure/Table/section label, retained caption/cell caret, native history, Source and real Save/Reload; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Last verified: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -43,7 +43,12 @@ persistent changes and canonical semantic validation.
   heading, keeping the label directly before it. Typing a printable character
   while an Equation is explicitly node-selected does not replace it: a new
   paragraph is created below (same as Enter on a node-selected block) and the
-  typed text goes there. Backspace/Delete on a node-selected Equation still use
+  typed text goes there. An initial IME keydown (`Process`/229) prepares that
+  paragraph before composition starts; subsequent composition updates and
+  commit/cancellation remain engine-owned. Cancellation may leave an empty
+  session paragraph, which canonical Save omits. Accepted clipboard slices also
+  go below a node-selected Equation, in one undoable transaction, retaining the
+  existing unsupported-content and duplicate-label checks. Backspace/Delete on a node-selected Equation still use
   the engine's normal deletion. Explicitly selecting other nodes still uses
   normal engine replacement behavior.
 - The adapter repairs session locators after engine edits. New blocks and
@@ -176,6 +181,34 @@ command is added; pasting is an editor input interaction.
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
 Automated composition events exercise the browser input lifecycle, not an OS IME.
+
+`equation-node-selection-typing` covers actual preview selection, ASCII typing,
+single/multiline plain-text clipboard paste, duplicate-label paste refusal, an
+initial CDP IME keydown followed by `imeSetComposition` updates and commit/cancel,
+ordinary paragraph composition, Undo/Redo, original Equation/label and surrounding
+content preservation, real disk Save/Reload, and explicit Backspace/Delete.
+The CDP path models the keyboard-before-composition ordering described in
+[UI Events](https://www.w3.org/TR/uievents/#events-composition-key-events).
+It does not verify a Windows Korean OS IME, candidate selection, or input methods
+that start composition without a preceding `Process`/229 keydown. Those methods
+still use the engine's default composition path; adjacent-paragraph placement is
+not guaranteed there. Manual Windows Korean IME review remains: select the
+Equation preview, type and commit `한글`, cancel another composition, then check
+single input, Equation/label, Undo/Redo and Save/Reload.
+
+PR #314 review baseline (`3afb44f`): real clipboard paste of `Paste314` replaced
+the selected `eq-power` Equation (`P = VI \\cos \\varphi`) with a paragraph and
+removed its label. CDP composition (`ㅎ` through `한글`), both with and without an
+initial 229 keydown, retained the Equation but appended `한글` to the preceding
+`Before the equation.` paragraph. The strengthened adjacent-paragraph assertion
+failed on that original implementation. During investigation, moving the caret
+at `compositionstart` or routing through gapcursor's `beforeinput` produced
+`ㅎ한글`: Chromium restarted its composing range after the first update. These
+approaches were discarded. The final adapter prepares the caret at the initial
+IME keydown, before that range exists; it does not implement composition text
+handling. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
+handlers before its own keydown handler skips key code 229, while `domchange.ts`
+can invoke `handleTextInput` during composition. Tiptap remains pinned at 3.31.3.
 
 ## History
 

@@ -1,110 +1,150 @@
 // Run with pnpm browser:test equation-node-selection-typing.
-// A node-selected Equation must survive a printable key: typing must not replace the atom,
-// and puts the character in a new paragraph below (same as Enter on a node-selected block).
-async (page, { openDocument }) => {
+// CDP sends the initial IME keydown and Chromium composition/DOM updates;
+// this is not a real Windows Korean OS IME or a keydown-less input method.
+async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
+  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  const origin = page.url().split('/').slice(0, 3).join('/');
+  await ready();
+  const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = loaded.path.includes('\\') ? '\\' : '/';
   const file = [...loaded.path.split(sep).slice(0, -4), 'tmp', 'equation-node-selection-typing', 'power.md'].join(sep);
   await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
-
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
   const check = (ok, message) => { if (!ok) throw new Error(message); };
-
-  const selectEquation = () => editor.evaluate(el => {
-    const {editor} = el;
-    let pos;
-    editor.state.doc.forEach((node, start) => {
-      if (node.type.name === 'equation' && node.attrs.label === 'eq-power' && pos === undefined) pos = start;
+  const snapshot = () => editor.evaluate(el => el.editor.getJSON());
+  const same = (a,b) => JSON.stringify(a) === JSON.stringify(b);
+  const text = node => (node.content ?? []).map(n => n.type === 'hardBreak' ? '\n' : n.text ?? '').join('');
+  const selectEquation = async () => {
+    await equation.locator('[data-testid="equation-preview"]').click({position:{x:8,y:8}});
+    await page.waitForFunction(() => {
+      const e = document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor;
+      return e?.view.hasFocus() && e.state.selection.constructor.name === 'NodeSelection' && e.state.selection.node?.attrs.label === 'eq-power';
     });
-    if (pos === undefined) throw new Error('eq-power Equation not found');
-    editor.commands.setNodeSelection(pos);
-    editor.view.focus();
-  });
-
-  const equationState = () => editor.evaluate(el => {
-    let found;
-    el.editor.state.doc.forEach(node => {
-      if (node.type.name === 'equation' && node.attrs.label === 'eq-power') {
-        found = {latex: node.attrs.latex, label: node.attrs.label};
-      }
-    });
-    return found;
-  });
-
-  const nodeSelected = () => editor.evaluate(el => {
-    const {selection} = el.editor.state;
-    return el.editor.view.hasFocus() &&
-      selection.constructor.name === 'NodeSelection' &&
-      selection.node?.type.name === 'equation' &&
-      selection.node.attrs.label === 'eq-power';
-  });
-
+    check(await equation.getByRole('button', {name:'Edit', exact:true}).isVisible(), 'Selected Equation must show Edit');
+  };
+  const source = async () => {
+    await page.getByTestId('view-source').click();
+    const pre = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre');
+    await pre.waitFor();
+    const result = (await pre.textContent()).replaceAll('\r\n','\n');
+    await page.getByTestId('view-visual').click();
+    return result;
+  };
+  const saveReload = async (expected, before) => {
+    const preview = await source();
+    const response = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(r.url()));
+    await page.getByTestId('save').click();
+    check((await response).status() === 200, 'Real disk Save failed');
+    await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
+    const disk = await page.request.get(`${origin}/document/power.md?path=${encodeURIComponent(file)}`);
+    check(disk.status() === 200 && (await disk.text()).replaceAll('\r\n','\n') === preview, 'Disk differs from Source');
+    check(same(await snapshot(), expected), 'Save changed editor content');
+    await editor.evaluate(el => el.editor.commands.undo());
+    check(same(await snapshot(), before), 'Save lost Undo history');
+    await editor.evaluate(el => el.editor.commands.redo());
+    check(same(await snapshot(), expected), 'Redo after Save changed content');
+    await reloadDocument(page);
+    await ready();
+    check(await source() === preview, 'Actual Reload changed saved content');
+    check(await equation.count() === 1, 'Reload lost Equation');
+  };
   await equation.waitFor();
-  const before = await equationState();
-  check(before?.latex.includes('P = VI') && before.label === 'eq-power',
-    `Expected labeled power Equation before typing, got ${JSON.stringify(before)}`);
+  const original = (await snapshot()).content.find(n => n.type === 'equation');
+  check(original.attrs.label === 'eq-power' && original.attrs.latex.includes('P = VI'), 'Missing original Equation');
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  const cdp = await page.context().newCDPSession(page);
+  const compose = text => cdp.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+  try {
+    for (const mode of ['typing', 'typing-again', 'paste', 'paste-lines', 'composition']) {
+      const before = await snapshot();
+      const index = before.content.findIndex(n => n.type === 'equation');
+      await selectEquation();
+      if (mode === 'typing') await page.keyboard.type('QR');
+      if (mode === 'typing-again') await page.keyboard.type('R');
+      if (mode.startsWith('paste')) {
+        await page.evaluate(value => navigator.clipboard.writeText(value), mode === 'paste' ? 'Paste314' : 'First314\nSecond314');
+        await page.keyboard.press('Control+v');
+      }
+      if (mode === 'composition') {
+        await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+        await compose('ㅎ');
+        await compose('하');
+        // Subsequent IME keydowns must not create more paragraphs or reset composition.
+        await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+        await compose('한');
+        await compose('한ㄱ');
+        await compose('한글');
+        await cdp.send('Input.insertText', {text:'한글'});
+        await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+      }
+      const after = await snapshot();
+      const added = after.content.slice(index + 1, after.content.length - before.content.length + index + 1);
+      const expected = mode === 'typing' ? ['QR'] : mode === 'typing-again' ? ['R'] : mode === 'paste' ? ['Paste314'] : mode === 'paste-lines' ? ['First314','Second314'] : ['한글'];
+      check(same(added.map(text), expected) && added.every(n => n.type === 'paragraph'), `${mode}: expected adjacent text exactly once, got ${JSON.stringify(after)}`);
+      const retained = {...after, content:after.content.filter((_,i) => i <= index || i > index + added.length)};
+      check(same(retained,before), `${mode}: changed Equation/label or surrounding content`);
+      await page.keyboard.press('Control+z');
+      check(same(await snapshot(),before), `${mode}: one Undo must restore the original document`);
+      await page.keyboard.press('Control+Shift+z');
+      check(same(await snapshot(),after), `${mode}: Redo must restore input exactly once`);
+      await saveReload(after, before);
+    }
 
-  // Click the preview (not Edit) so the whole Equation is node-selected, then type.
-  await equation.locator('[data-testid="equation-preview"]').click({position:{x:8,y:8}});
-  await page.waitForFunction(() => {
-    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor;
-    const selection = editor?.state.selection;
-    return editor?.view.hasFocus() && selection?.constructor?.name === 'NodeSelection' &&
-      selection.node?.type.name === 'equation' && selection.node.attrs.label === 'eq-power';
-  });
-  check(await nodeSelected(), 'Clicking the Equation preview must leave a node selection');
-  check(await equation.getByRole('button', {name:'Edit', exact:true}).isVisible(),
-    'Node-selected Equation must show its Edit button');
+    // Redirecting paste must still reject a duplicate target label, without even adding space.
+    await selectEquation();
+    const beforeRejectedPaste = await snapshot();
+    await page.keyboard.press('Control+c');
+    await page.keyboard.press('Control+v');
+    await page.getByText('Pasting would duplicate a Figure or Equation label.', {exact:false}).waitFor();
+    check(same(await snapshot(),beforeRejectedPaste), 'Rejected paste changed Equation or inserted a paragraph');
 
-  await page.keyboard.type('Q');
+    // Cancellation leaves only the empty session paragraph created by the initial IME keydown.
+    const beforeCancel = await snapshot();
+    const index = beforeCancel.content.findIndex(n => n.type === 'equation');
+    await selectEquation();
+    await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+    await compose('ㅎ');
+    await compose('');
+    await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+    const cancelled = await snapshot();
+    check(cancelled.content[index + 1].type === 'paragraph' && text(cancelled.content[index + 1]) === '', 'Cancelled composition retained text');
+    check(same({...cancelled,content:cancelled.content.filter((_,i) => i !== index + 1)},beforeCancel), 'Cancellation changed existing content');
+    await page.keyboard.press('Control+z');
+    check(same(await snapshot(),beforeCancel), 'Undo cancellation must remove only empty session space');
 
-  const after = await equationState();
-  check(after?.latex === before.latex && after?.label === before.label,
-    `Typing on a node-selected Equation replaced it: before=${JSON.stringify(before)} after=${JSON.stringify(after)}`);
-  check(await equation.count() === 1, 'Equation block count changed after typing');
-  check(await equation.locator('[data-testid="equation-preview"]').count() === 1,
-    'Equation preview was lost after typing');
-
-  // Same convention as Enter on a node-selected block: a new paragraph below holds the text.
-  const below = await editor.evaluate(el => {
-    const {doc} = el.editor.state;
-    let equationIndex = -1;
-    const blocks = [];
-    doc.forEach(node => {
-      blocks.push({type: node.type.name, text: node.textContent, label: node.attrs.label ?? '', latex: node.attrs.latex ?? ''});
+    // Ordinary paragraph composition still uses the engine caret and replaces the active range.
+    await editor.evaluate(el => {
+      let pos;
+      el.editor.state.doc.forEach((n,start) => { if (n.textContent === 'Before the equation.') pos=start+n.nodeSize-1; });
+      el.editor.commands.setTextSelection(pos); el.editor.view.focus();
     });
-    equationIndex = blocks.findIndex(block => block.type === 'equation' && block.label === 'eq-power');
-    return {blocks, next: blocks[equationIndex + 1]};
-  });
-  check(below.next?.type === 'paragraph' && below.next.text === 'Q',
-    `Expected a paragraph "Q" immediately below the Equation, got ${JSON.stringify(below.next)}`);
+    await compose('ㄱ'); await compose('글');
+    await cdp.send('Input.insertText', {text:'글'});
+    await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+    const ordinary = await snapshot();
+    const expectedOrdinary = JSON.parse(JSON.stringify(beforeCancel));
+    expectedOrdinary.content.find(n => text(n) === 'Before the equation.').content[0].text += '글';
+    check(same(ordinary,expectedOrdinary), 'Ordinary paragraph composition changed other content or duplicated input');
+    await page.keyboard.press('Control+z');
+    check(same(await snapshot(),beforeCancel), 'Ordinary composition Undo failed');
 
-  // Restore node selection and confirm a second printable character still keeps the Equation.
-  await selectEquation();
-  await page.waitForFunction(() => {
-    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor;
-    const selection = editor?.state.selection;
-    return selection?.constructor?.name === 'NodeSelection' && selection.node?.attrs.label === 'eq-power';
-  });
-  await page.keyboard.type('R');
-  const still = await equationState();
-  check(still?.latex === before.latex && still?.label === before.label,
-    `Second typed character replaced the Equation: ${JSON.stringify(still)}`);
-  const afterSecond = await editor.evaluate(el => {
-    const blocks = [];
-    el.editor.state.doc.forEach(node => {
-      blocks.push({type: node.type.name, text: node.textContent, label: node.attrs.label ?? ''});
-    });
-    const equationIndex = blocks.findIndex(block => block.type === 'equation' && block.label === 'eq-power');
-    return blocks[equationIndex + 1];
-  });
-  check(afterSecond?.type === 'paragraph' && afterSecond.text === 'R',
-    `Expected paragraph "R" below after the second type, got ${JSON.stringify(afterSecond)}`);
+    // Explicit removal remains an engine operation, unlike typing/paste.
+    for (const key of ['Backspace','Delete']) {
+      await editor.evaluate(el => {
+        el.editor.state.doc.forEach((n,pos) => {
+          if (n.type.name === 'equation') el.editor.commands.setNodeSelection(pos);
+        });
+        el.editor.view.focus();
+      });
+      await page.keyboard.press(key);
+      check(!(await snapshot()).content.some(n => n.type === 'equation'), `${key} must remove selected Equation`);
+      await page.keyboard.press('Control+z');
+      check(same(await snapshot(),beforeCancel), `${key} Undo must restore Equation/label`);
+    }
+  } finally { await cdp.detach(); }
 }
