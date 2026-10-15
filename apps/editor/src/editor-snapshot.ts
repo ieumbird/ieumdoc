@@ -77,8 +77,7 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
   }
   try {
     const result = { editorDocument: prepare(snapshot.editorDocument), savedDocument: prepare(snapshot.savedDocument) };
-    reserveBlockPaths(result.editorDocument);
-    reserveBlockPaths(result.savedDocument);
+    reserveBlockPaths(result.editorDocument, result.savedDocument);
     return result;
   } catch (cause) {
     throw new Error(`Incompatible editor snapshot: ${cause instanceof Error ? cause.message : String(cause)}`);

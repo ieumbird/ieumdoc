@@ -1,3 +1,4 @@
+import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
 import { editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
@@ -2137,5 +2138,26 @@ test("restore keeps schema-valid unsaveable content and rejects lossy or corrupt
     mutate(current);
     assert.throws(() => prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument: saved }), /Incompatible editor snapshot/);
     assert.throws(() => prepareEditorSnapshot(schema, opening, { editorDocument: saved, savedDocument: current }), /Incompatible editor snapshot/);
+  }
+});
+
+
+test("failed restore reserves no locators across documents or within traversal", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("Start")));
+  const schema = getSchema(editorExtensions());
+  const baseline = editorDocumentJSON(EditorState.create({ schema, doc: schema.nodeFromJSON(opening) }));
+  const kinds = ["command", "engine", "split"] as const;
+  const suffix = (path: string) => Number(path.split(":").at(-1));
+  for (const invalidIn of ["editorDocument", "savedDocument"] as const) {
+    const before = kinds.map(kind => suffix(allocateBlockPath(kind)));
+    const snapshot = { editorDocument: structuredClone(baseline), savedDocument: structuredClone(baseline) };
+    for (const kind of kinds) {
+      snapshot.editorDocument.content!.push({ type: "paragraph", attrs: {
+        sourcePath: `new:${kind === "command" ? "" : `${kind}:`}${Number.MAX_SAFE_INTEGER - 1}`,
+      } });
+    }
+    snapshot[invalidIn].content!.push({ type: "paragraph", attrs: { sourcePath: `new:${Number.MAX_SAFE_INTEGER}` } });
+    assert.throws(() => prepareEditorSnapshot(schema, opening, snapshot), /Incompatible editor snapshot: Editor locator exceeds the supported range/);
+    assert.deepEqual(kinds.map(kind => suffix(allocateBlockPath(kind))), before.map(value => value + 1), invalidIn);
   }
 });

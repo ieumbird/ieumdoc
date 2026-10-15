@@ -54,7 +54,9 @@ internal state. Normal Open/New is unchanged. The opening read-model projection 
 structure guard's baseline; restored current content does not become the saved baseline.
 The deletion plugin starts with the current snapshot's declared deletions. All three new-block
 locator allocators reserve values from both snapshots, including locators found only in the
-saved snapshot; existing locators are never renumbered.
+saved snapshot; existing locators are never renumbered. Reservation validates all paths in both
+snapshots before updating any allocator counter, so a rejected restore leaves subsequent allocation
+unchanged.
 
 `useDocumentSession` can capture and initialize this state together with the opening source/read
 model, path, acknowledged revision, last accepted `savedEdits` and existing endnote-placement
