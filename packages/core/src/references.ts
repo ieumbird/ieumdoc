@@ -1,8 +1,9 @@
 import type { NodePath } from "./document.ts";
 import { labelIdentifier, referenceTargets } from "./myst/label.ts";
+import { unresolvedFootnotes } from "./myst/footnote.ts";
 import type { MystDocument, MystNode } from "./myst/tree.ts";
 
-/** A cross-reference whose label names no reference target in this document. */
+/** A reference whose label names no target or footnote definition in this document. */
 export type UnresolvedReference = (
   | {
     /** The reference role as written, such as `eq`, `numref` or `ref`. */
@@ -11,6 +12,10 @@ export type UnresolvedReference = (
   | {
     /** A link reference such as `[](#label)`: its URL as written. */
     link: string;
+  }
+  | {
+    /** Unescaped `[^label]` source text with no matching footnote definition. */
+    footnote: true;
   }
 ) & {
   /** The label as written; for a link, its URL after `#`. */
@@ -23,13 +28,15 @@ export type UnresolvedReference = (
 };
 
 /**
- * Cross-references that name no target in this document, in document order, including
+ * References that name no target in this document, by block and source line, including
  * those in read-only content. Both role references ({eq}, {numref}, {ref}) and links whose URL
  * starts with `#` count, as MyST resolves them: by identifier, against labeled blocks, `(label)=`
  * targets and the implicit IDs of unlabeled headings. Other links are never references.
- * An unresolved reference is still valid Markdown and is kept as written, so this is a report,
- * never a write rule; links stay links. Core sees one document: a reference to another page of a
+ * These are reports, never write rules; links and role references stay as written.
+ * Core sees one document: a reference to another page of a
  * MyST project is reported too.
+ * Unescaped undefined footnote-shaped text is reported from parsed source evidence;
+ * operation-created text is literal and has no source syntax to diagnose.
  */
 export function unresolvedReferences(document: MystDocument): UnresolvedReference[] {
   const resolves = referenceTargets(document);
@@ -53,5 +60,7 @@ export function unresolvedReferences(document: MystDocument): UnresolvedReferenc
     node.children?.forEach((child) => visit(child, path, line));
   };
   document.children.forEach((block, index) => visit(block, [index], undefined));
-  return unresolved;
+  // Source-only footnote warnings use the same block/line location contract.
+  return [...unresolved, ...unresolvedFootnotes(document)].sort((left, right) =>
+    left.path[0] - right.path[0] || (left.line ?? 0) - (right.line ?? 0));
 }

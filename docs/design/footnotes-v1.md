@@ -1,6 +1,7 @@
 # Endnotes (MyST footnotes)
 
 - Status: Implemented
+- Diagnostic verification: 2026-10-15 (#290: source-aware undefined-reference warnings; Core semantics and CLI text/JSON integration).
 - Body-end verification: 2026-10-15 (#280 Core insertion index with/without endnotes and empty native documents; CLI single/batch insertion before definitions).
 - Last verified: 2026-10-15 (ADR-0006 native definition boundary and retained test coverage compared with code/tests; no runtime regressions rerun). Previous verification: 2026-10-13 (endnotes v4: canonical placement in Core, CLI and Editor; `pnpm test`, `pnpm browser:test footnotes`).
 - Current contract: v4 on v2 (#140) and v1 (#119); v3 (#194) source-anchor placement is replaced. Historical filename retained for link stability.
@@ -25,7 +26,15 @@ myst-parser 1.7.4 uses markdown-it-footnote, which:
 - moves the kept definitions to the end of the tree;
 - gives definitions no source position, so myst-parser copies a neighbouring block's position.
 
-A `[^label]` with no definition is plain text, even when escaped as `\[^label]`.
+A `[^label]` with no definition and an escaped `\[^label]` both become plain text in the AST. Canonical write escapes that text as `\[^label]`; this preserves its parsed meaning.
+
+## Undefined-reference diagnostics (#290)
+
+- Core `unresolvedReferences(document)` also reports unescaped body-text `[^label]` syntax without a matching definition. Labels match exactly, including case, as markdown-it-footnote does. The label must be nonempty and contain no space, newline or closing `]`; this uses the parser's label grammar rather than the narrower authoring-operation label policy.
+- The warning names the label, top-level block path and 1-based source start line of its containing inline element (paragraph, table row, etc.), following [Section references](section-references-v1.md#scope). Repeated occurrences are reported separately, including those in headings, formatting, quotes, lists, table cells and captions. Definitions themselves are outside this body-text diagnosis.
+- Escaped `\[^label]` is intentional literal text and never warns. Backslash pairs follow the tokenizer's ordinary escape rules. Inline code, code blocks, math, image alt text, link URLs/titles, reference-role targets and other non-text content do not warn. Actual links such as `[^label](url)` remain links; a defined footnote reference does not warn.
+- AST inline positions do not retain character offsets or escapes. Core retains the parsed source outside the semantic AST in a `WeakMap`, then uses the existing MyST tokenizer with a diagnostic fallback after its normal inline rules. Escape, code, math, link and valid-footnote rules consume their own syntax first. Token container lines map back only to actual body text in the parsed snapshot. The AST, read model, semantic fingerprint and canonical writer are unchanged. This is source evidence for parsed snapshots; text supplied through Core operations is already literal text, not Markdown syntax to reinterpret.
+- CLI `check` exposes these warnings in the existing JSON `references.unresolved` array as `{ "footnote": true, "label": "loss", "path": [1], "line": 5 }`, or on stderr as `warning: footnote [^loss] (block 1, line 5) has no definition in this document`. Warnings alone leave `ok: true`, writeability and exit status 0 unchanged. `check` never writes. Save/`format` remain allowed and escape the literal text; checking the canonical output then produces no warning. Add the definition before writing to retain footnote intent, or escape the source explicitly to mark literal text.
 
 ## Core
 
@@ -80,6 +89,7 @@ All top-level definitions follow the body in the one editor state. The first has
 ## Verification
 
 - Core tests (`footnote.test.ts`, `endnote.test.ts`, `section.test.ts`) cover projection and placement of supported definitions, scattered source placement, idempotence, reference order changes, references within body formatting and repeated body references, rich one-paragraph definition edits, insertion and labels, empty/reference-containing definition edit refusals, duplicate/unreferenced definitions and incomplete write refusals, and sections that hold no endnotes. `native.test.ts` covers public admission of supported footnotes and rejection of multiple-paragraph definitions.
+- `footnote.test.ts` also covers source-only missing-reference warnings, escaped/canonical literal text, exact label matching, body/container locations with BOM and LF/CRLF, non-text exclusions, unchanged AST and allowed idempotent writes. CLI tests cover only the diagnostic's text/JSON integration, successful exit and unchanged file bytes.
 - CLI tests cover writes through `format` and section commands with endnotes, `check` placement notes, and refused writes that leave the file's bytes intact.
 - Editor tests cover the Core-order projection, unchanged Save matching Core and the CLI, placement with one Undo step, a block appended after the region, waiting for drafts, sections, insertion and refusals.
 - `pnpm browser:test footnotes` covers Open without writes or dirty state and its notice, Source matching Save, the first Save and repeated Save → Reload, chip numbers and navigation, in-place definition editing, `/` Endnote with Undo/Redo, the refused save after removing a last reference, one trailing region at 1440/768/375px with Outline and selection excluding its label, endnote handles and drops, reference order Undo/Redo, sections, returning to a repeated reference.

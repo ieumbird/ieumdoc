@@ -718,8 +718,10 @@ function main(argv: string[]): number {
         for (const reference of unresolved) {
           const { path, line } = reference;
           const at = line === undefined ? `block ${path[0]}` : `block ${path[0]}, line ${line}`;
-          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\`` : `link ${reference.link}`;
-          process.stderr.write(`warning: ${written} (${at}) names no target in this document\n`);
+          const written = "role" in reference ? `{${reference.role}}\`${reference.label}\``
+            : "link" in reference ? `link ${reference.link}` : `footnote [^${reference.label}]`;
+          const missing = "footnote" in reference ? "has no definition" : "names no target";
+          process.stderr.write(`warning: ${written} (${at}) ${missing} in this document\n`);
         }
         for (const { path, label } of pendingFigures) {
           process.stderr.write(`warning: Figure${label ? ` ${quote(label)}` : ""} (block ${path[0]}) has no content yet\n`);

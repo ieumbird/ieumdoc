@@ -64,7 +64,8 @@ export const validateStructure = fence(validateTree);
 export const endnotesInPlace = fence(endnotesInPlaceTree);
 /** Top-level insertion index at the end of the body, before endnote definitions. */
 export const bodyEndIndex = fence(bodyEndIndexTree);
-/** Cross-references that name no target in this document; reported, never a write rule. */
+/** References that name no target/definition, including unescaped footnote-shaped parsed
+ * source text; reported, never a write rule. Operation-created text is literal. */
 export const unresolvedReferences = fence(unresolvedReferencesTree);
 
 export const insertHardBreak = fence(operations.insertHardBreak);

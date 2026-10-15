@@ -1706,6 +1706,26 @@ test("check warns about references a removal left without a target, without fail
 });
 
 
+test("check surfaces undefined footnote warnings in text and JSON without failing or writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-footnote-"));
+  const file = path.join(dir, "document.md");
+  const source = nativeSource("Loss [^loss] here.\n");
+  writeFileSync(file, source);
+  try {
+    const text = run(["check", file]);
+    assert.equal(text.status, 0, text.stderr);
+    assert.match(text.stdout, /\nwriteability ok\n$/);
+    assert.equal(text.stderr, "warning: footnote [^loss] (block 1, line 5) has no definition in this document\n");
+    const json = run(["check", file, "--format", "json"]);
+    assert.equal(json.status, 0, json.stderr);
+    assert.equal(json.stderr, "");
+    const report = JSON.parse(json.stdout);
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.references.unresolved, [{ footnote: true, label: "loss", path: [1], line: 5 }]);
+    assert.equal(readFileSync(file, "utf8"), source, "check never writes");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI format and text editing preserve front matter through the Core writer", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
   try {
