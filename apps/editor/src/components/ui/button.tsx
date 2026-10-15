@@ -9,6 +9,8 @@ const buttonVariants = cva(
       variant: {
         // The face shares the focus ring's blue, so focus draws a white boundary inside the ring.
         default: "bg-primary text-primary-foreground hover:bg-[var(--id-color-accent-hover)] focus-visible:border-background",
+        destructive:
+          "border-destructive bg-background text-destructive hover:bg-[var(--id-color-surface-danger)] disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
         outline:
           "border-input bg-background hover:bg-accent hover:text-foreground aria-expanded:bg-[var(--id-color-surface-pressed)] aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

@@ -660,7 +660,7 @@ export function App() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" size="sm" disabled={switching} onClick={() => setReloadDialog(false)}>Keep editing</Button>
-            <Button size="sm" disabled={switching} onClick={() => void reloadFromDisk()}>Discard and reload</Button>
+            <Button variant="destructive" size="sm" disabled={switching} onClick={() => void reloadFromDisk()}>Discard and reload</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
