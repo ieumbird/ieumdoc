@@ -7,6 +7,7 @@ import path from "node:path";
 import { ASSET_FORMATS, ASSET_TYPES, isAssetMime, MAX_ASSET_BYTES, type AssetMime } from "../shared/asset-policy.ts";
 import type { AssetResponse, AssetRollbackRequest, ImageChoiceRequest, ImageChoiceResponse } from "../shared/asset-protocol.ts";
 import { loadDocumentFile, MEDIA_TYPES, resolveDocumentPath, resolveMediaPath } from "./document-api.ts";
+import { requestQuery } from "./request-query.ts";
 import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, inside, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 
@@ -310,13 +311,14 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
     res.end(JSON.stringify(body));
   };
   try {
+    const query = requestQuery(req.url ?? "");
     if (req.method === "POST" && /^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] ?? "")) {
       json(200, chooseImageAsset(JSON.parse(decodeUtf8(await readRequestBody(req, 65536))) as ImageChoiceRequest, key, access));
     } else if (req.method === "POST") {
       const mime = req.headers["content-type"] ?? "";
       if (!isAssetMime(mime)) throw new AssetError(UNSUPPORTED);
       if (Number(req.headers["content-length"]) > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
-      const locator = new URL(req.url ?? "", "http://localhost").searchParams.get("path");
+      const locator = query.get("path");
       if (!locator) throw new AssetError("A document locator is required.");
       const bytes = await readRequestBody(req, MAX_ASSET_BYTES);
       json(201, createImageAsset(locator, mime, bytes, key, access));

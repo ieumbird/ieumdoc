@@ -203,7 +203,9 @@ test("HTTP rejects foreign/missing origins, forged hosts and malformed requests;
   assert.equal((await send("/api/document", "GET", undefined, { "Sec-Fetch-Site": "cross-site" })).status, 403);
   assert.equal((await send("/api/document", "POST", {}, { "Content-Type": "text/plain" })).status, 415);
   assert.equal((await send("/api/document", "OPTIONS")).status, 405);
-  for (const route of ["/%GG", "/%00", "/document/%252e%252e/secret", "/api/document?path=x&path=y"]) assert.equal((await send(route)).status, 400);
+  for (const route of ["/%GG", "/%00", "/document/%252e%252e/secret", "/api/document?path=x&path=y",
+    "/api/document?path=x&%70ath=y", "/api/document?path=%ED%A0%80", "/api/folder?root=%FF",
+    "/api/folder-browse?path=%GG", "/api/document?%ED%A0%80=x", "/api/document?path=%"]) assert.equal((await send(route)).status, 400);
   for (const route of ["/missing.js", "/assets/..%2f..%2fsecret", "/api/missing"]) assert.equal((await send(route)).status, 404);
   const html = await send("/");
   assert.equal(html.status, 200);

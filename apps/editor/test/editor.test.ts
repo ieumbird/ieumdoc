@@ -1000,6 +1000,46 @@ test("Host rejects invalid document/request encoding and Source/Save surrogates 
   }
 });
 
+test("shared Host strictly decodes document and media queries without reading replacement names", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-query-encoding-"));
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}`;
+    const replacement = path.join(dir, "X���Y.md");
+    const source = nativeSource("Replacement name sentinel.\n");
+    writeFileSync(replacement, source);
+    writeFileSync(path.join(dir, "image.svg"), "<svg>media sentinel</svg>");
+    const malformed = encodeURIComponent(path.join(dir, "X")) + "%ED%A0%80Y.md";
+    for (const route of ["/api/document", "/document/image.svg"]) {
+      const rejected = await fetch(`${url}${route}?path=${malformed}`);
+      assert.equal(rejected.status, 400);
+      assert.deepEqual(await rejected.json(), { error: "Invalid request query encoding." });
+    }
+    const literal = await fetch(`${url}/api/document?path=${encodeURIComponent(replacement)}`);
+    assert.equal(literal.status, 200);
+    assert.equal((await literal.json()).source, source);
+
+    const name = "한글 + & = 100% �";
+    const file = path.join(dir, `${name}.md`), image = `${name}.svg`;
+    writeFileSync(file, source);
+    writeFileSync(path.join(dir, image), "<svg>Unicode media</svg>");
+    const query = encodeURIComponent(file).replace(/%20/g, "+");
+    const opened = await fetch(`${url}/api/document?path=${query}`);
+    assert.equal(opened.status, 200);
+    assert.equal((await opened.json()).path, file);
+    const media = await fetch(`${url}/document/${encodeURIComponent(image)}?path=${query}`);
+    assert.equal(media.status, 200);
+    assert.equal(await media.text(), "<svg>Unicode media</svg>");
+    assert.equal(readFileSync(replacement, "utf8"), source);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("Host save fails over HTTP before writing when canonical Markdown would lose semantics", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-save-"));
   const server = createServer((req, res) => {

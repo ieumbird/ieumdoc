@@ -7,6 +7,7 @@ import { createDocument, serialize, NativeDocumentError, writeIssueOf } from "@i
 import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
+import { requestQuery } from "./request-query.ts";
 import {
   readModel,
   SaveContentError,
@@ -215,11 +216,13 @@ export async function handleDocumentRequest(
     error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status
       : fileErrorStatus(error instanceof SaveContentError && error.phase === "file" ? error.cause : error),
     errorPayload(error, access));
-  const requestUrl = new URL(req.url ?? "", "http://localhost");
-  const url = requestUrl.pathname;
+  let query: URLSearchParams;
+  try { query = requestQuery(req.url ?? ""); }
+  catch (error) { failure(error); return; }
+  const url = new URL(req.url ?? "", "http://localhost").pathname;
   if (url.startsWith("/document/")) {
     if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
-    serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined, access, req.method === "HEAD");
+    serveMedia(url.slice("/document/".length), res, query.get("path") ?? undefined, access, req.method === "HEAD");
     return;
   }
   if (url === "/api/figure-validation") {
@@ -257,7 +260,7 @@ export async function handleDocumentRequest(
     }
     try {
       sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access)
-        : browseFolder(requestUrl.searchParams.get("path") ?? undefined, access, requestUrl.searchParams.get("files") === "image" ? "image" : "document"));
+        : browseFolder(query.get("path") ?? undefined, access, query.get("files") === "image" ? "image" : "document"));
     } catch (error) {
       failure(error);
     }
@@ -275,7 +278,7 @@ export async function handleDocumentRequest(
         sendJson(res, 201, createFolder(typeof body.parent === "string" ? body.parent : undefined, typeof body.name === "string" ? body.name : undefined, access));
         return;
       }
-      sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined, access));
+      sendJson(res, 200, listFolder(query.get("root") ?? undefined, query.get("path") ?? undefined, access));
     } catch (error) {
       failure(error);
     }
@@ -288,7 +291,7 @@ export async function handleDocumentRequest(
 
   try {
     if (req.method === "GET") {
-      const requestedPath = requestUrl.searchParams.get("path") ?? undefined;
+      const requestedPath = query.get("path") ?? undefined;
       if (access && !requestedPath?.trim()) {
         sendJson(res, 200, { start: true, allowedRoots: access.roots });
       } else sendJson(res, 200, loadDocumentFile(requestedPath, access));

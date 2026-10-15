@@ -49,6 +49,7 @@ test("nothing outside the Editor build is served, including through encoded path
 });
 
 test("the first document request opens the initial document through the Host handler", async () => {
+  assert.equal((await get("/api/document?%ED%A0%80=x")).status, 400);
   const response = await get("/api/document");
   assert.equal(response.status, 200);
   const loaded = await response.json() as { path: string; source: string; revision: string };

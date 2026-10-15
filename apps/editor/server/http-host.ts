@@ -7,6 +7,7 @@ import { handleAssetRequest } from "./asset-api.ts";
 import { handleDocumentRequest } from "./document-api.ts";
 import { SECURITY_HEADERS, serveEditorFile } from "./editor-static.ts";
 import { RootAccess } from "./file-access.ts";
+import { requestQuery } from "./request-query.ts";
 
 export const MAX_JSON_BYTES = 32 * 1024 * 1024;
 const DOCUMENT_ROUTES = new Set(["/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
@@ -66,10 +67,11 @@ export async function startHttpHost(options: HttpHostOptions) {
     if (!req.url?.startsWith("/") || req.url.startsWith("//")) return json(res, 400, "Invalid request target.");
     let url: URL;
     try {
+      const query = requestQuery(req.url);
       url = new URL(req.url, "http://localhost");
       const decoded = decodeURIComponent(url.pathname);
       if (decoded.includes("\0") || decoded.includes("\\") || /%(?:2e|2f|5c|00)/i.test(decoded)) throw new Error();
-      for (const name of new Set(url.searchParams.keys())) if (url.searchParams.getAll(name).length !== 1) throw new Error();
+      for (const name of new Set(query.keys())) if (query.getAll(name).length !== 1) throw new Error();
     } catch { return json(res, 400, "Invalid request path."); }
     const api = url.pathname.startsWith("/api/");
     const media = url.pathname.startsWith("/document/");
