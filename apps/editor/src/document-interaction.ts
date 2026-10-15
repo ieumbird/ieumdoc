@@ -284,6 +284,18 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           pastedNotice = notice;
           return false;
         },
+        // A node-selected Equation is an atom with no caret. Engine replacement would destroy it
+        // and any label target; match Enter and put the typed character in a new paragraph below.
+        handleTextInput(view, _from, _to, text) {
+          const { state } = view;
+          const { selection } = state;
+          if (!(selection instanceof NodeSelection) || selection.node.type.name !== "equation" || !text) {
+            return false;
+          }
+          const tr = paragraphBeside(state, true);
+          view.dispatch(tr.insertText(text, tr.selection.from).scrollIntoView());
+          return true;
+        },
         handlePaste: (view, event, slice) => {
           const { error, notice } = event.clipboardData?.getData("text/html") ? pasted ?? {} : {};
           pasted = undefined;

@@ -13,6 +13,7 @@ export const STABLE_SCENARIOS = [
   "document-tabs",
   "equation-insertion",
   "equation-save-during-edit",
+  "equation-node-selection-typing",
   "reference-save-reload",
   "quote-save-reload",
   "writeability-preflight",

@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (#275 property-close typing for Equation/Figure/Table/section label, retained caption/cell caret, native history, Source and real Save/Reload; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Last verified: 2026-10-16 (Equation node-selection typing keeps the block and inserts a paragraph below; #275 property-close typing for Equation/Figure/Table/section label, retained caption/cell caret, native history, Source and real Save/Reload; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -40,8 +40,12 @@ persistent changes and canonical semantic validation.
   focus move adds no document content or history event. Subsequent typing edits
   that text or creates prose at the gap; it does not replace the applied block or
   lose its reference target. Section-label properties return to the following
-  heading, keeping the label directly before it. Explicitly selecting a node
-  still uses normal engine replacement behavior.
+  heading, keeping the label directly before it. Typing a printable character
+  while an Equation is explicitly node-selected does not replace it: a new
+  paragraph is created below (same as Enter on a node-selected block) and the
+  typed text goes there. Backspace/Delete on a node-selected Equation still use
+  the engine's normal deletion. Explicitly selecting other nodes still uses
+  normal engine replacement behavior.
 - The adapter repairs session locators after engine edits. New blocks and
   heading/paragraph conversions use existing Core insert/remove operations;
   missing source blocks become explicit deletions. Unsupported blocks reject
