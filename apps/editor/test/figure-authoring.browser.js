@@ -189,7 +189,12 @@ async (page, { openDocument }) => {
       await figures.first().locator('img').getAttribute('alt') === 'Updated block diagram';
     const firstPath = await figures.first().getAttribute('data-source-path');
     const afterEscape = await editorFocus();
-    result.escapeReturnsFocusToFigure = afterEscape.block === 'figure' && afterEscape.path === firstPath;
+    result.escapeReturnsCaret = afterEscape.empty && await page.evaluate(path => {
+      const {selection, doc} = document.querySelector('.document-editor').editor.state;
+      let end;
+      doc.forEach((node, pos) => { if (node.attrs.sourcePath === path) end = pos + node.nodeSize; });
+      return selection.from === end || selection.from === end + 1;
+    }, firstPath);
 
     // Validation that finishes after the user has moved on applies without taking focus back.
     let releaseValidation;
@@ -295,16 +300,32 @@ async (page, { openDocument }) => {
     await save();
     await openScratch();
     result.captionRichPasteReloaded = await caption.locator('strong').innerText() === 'DC-link voltage';
-    // Updating metadata never flattens an existing formatted caption.
+    // Updating metadata never flattens a formatted caption or replaces its text caret (#275).
+    await caption.click();
+    await page.keyboard.press('End');
+    await page.waitForFunction(() => {
+      const {selection} = document.querySelector('.document-editor').editor.state;
+      return selection.empty && selection.$from.parent.type.name === 'figure' &&
+        selection.$from.parentOffset === selection.$from.parent.content.size;
+    });
+    const captionSelection = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.toJSON());
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.getByTestId('figure-alt').fill('Rich caption image');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
+    const restoredCaption = await page.evaluate(() => {
+      const {editor} = document.querySelector('.document-editor');
+      return {selection:editor.state.selection.toJSON(), focus:editor.view.hasFocus()};
+    });
+    result.metadataKeepsCaptionCaret = restoredCaption.focus && JSON.stringify(restoredCaption.selection) === JSON.stringify(captionSelection);
+    await page.keyboard.type(' CaptionCaret275');
+    result.typingKeepsFigure = await caption.innerText() === 'DC-link voltage CaptionCaret275' && await figures.count() === 2;
     await save();
     await openScratch();
-    result.metadataKeepsCaptionFormatting = await caption.locator('strong').innerText() === 'DC-link voltage' &&
+    result.metadataKeepsCaptionFormatting = (await caption.locator('strong').innerText()).startsWith('DC-link voltage') &&
+      await caption.innerText() === 'DC-link voltage CaptionCaret275' &&
       (await semantic())[0].imageAlt === 'Rich caption image' && (await semantic())[0].label === 'fig-control';
 
     // In a new empty document, `/figure` makes the only block an empty Figure that saves.

@@ -1,7 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (#275 Equation Apply/typing/history/Source and real Save/Reload browser regression; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
+- Last verified: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 - Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
@@ -26,7 +26,7 @@ The Host stores no sessions. This request contract is a local adapter detail, no
 - Empty newly inserted editor paragraphs and never-applied Equation placeholders stay in the session but are omitted from canonical output. A new Figure is not a placeholder: it is saved from insertion, empty or not. Filtering is shared by Save collection and dirty comparison. An emptied opening-snapshot paragraph, an empty heading or an invalid table still reports a save error.
 - Equation/Figure/Table/section-label drafts are aggregated by kind and opening-snapshot locator; form values remain owned by their NodeViews. Changed property drafts protect switching and beforeunload, including changed Figure values while Apply validation is pending. Closing one draft does not clear another, including two kinds at the same locator.
 - Equation/Figure Apply changes the main editor document. Unapplied form values survive Save and Source switching; neither operation applies them implicitly. Block notices and a standing message explain that only applied content is included. A remaining draft prevents the `Saved` display.
-- Closing Equation properties returns an engine caret after the block, so typing immediately after Apply preserves the Equation and its references. Focus restoration itself adds no content or history; see [Continuous editing](document-editing-v1.md#continuous-editing).
+- Closing Equation/Figure/Table/section-label properties retains a text selection inside the block, otherwise returning an engine caret after it. Typing immediately after Apply preserves the block and its references. Focus restoration itself adds no content or history; see [Continuous editing](document-editing-v1.md#continuous-editing).
 - A pending Figure, with or without caption or label, is included in Save/Source and restored on Reload. Apply → Undo → Redo restores both the Figure and collected payload. Insertion, Apply and subsequent image connection follow [Figure authoring](figure-authoring-v1.md). Save acknowledgement still covers only the submitted applied snapshot, including when an image is connected while a Save is in flight.
 - Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
@@ -90,5 +90,20 @@ without changing Core semantics or adding a CLI operation. The
 `equation-save-during-edit` browser regression failed on the original code and now
 covers immediate typing at middle/end/sole Equations, a reference-preserving label
 case change, Undo/Redo before and after Save, Source equality with disk and Reload.
+
+Review follow-up on `1b76abb` reproduced the same loss for Figure, Table and section
+label properties. With a caret in unrelated prose, Edit → Apply click or Enter →
+typing left a whole-block NodeSelection, replaced that target with prose, and
+made its `{numref}`/`{ref}` unresolved. Cancel and Escape had the same result.
+Table-cell selections survived all three closing paths; Figure-caption selections
+survived Cancel/Escape, but Apply replaced even an unchanged caption and mapped
+its caret out of the Figure. The shared close rule now retains only an internal
+text selection, otherwise returning a text/gap caret after the block. Figure
+Apply uses the existing attribute-only transaction when its caption is unchanged.
+`property-drafts` covers both Apply methods with Figure caption, Table grid/cell
+and section-label/heading/reference checks; its Cancel/Escape cases retain the
+unchanged document. `figure-authoring` covers formatted caption caret/typing and
+Save/Reload, as well as validation finishing after focus has moved elsewhere.
+This is still Editor interaction only, with no new Core operation or CLI command.
 
 Before the change, an actual browser Save replaced the editor, changed selection from 287 to 1, and changed `can().undo()` from true to false. `save-session.browser.js` exercises real scratch-file persistence across Save/history, transient content, delayed responses, rejection, conflict, draft preservation and reload. Its composed Endnote/Figure case retains the scattered opening source through normalization, successive saves and Undo/Redo, changes reference order and a Figure's caption, and edits a definition while a real Save response is held. It compares complete Markdown, SHA-256 revisions, the previous accepted `savedEdits`, Source previews and unchanged Editor/selection across Save; Reload retains the empty Figure and the later definition edit. Core's existing footnote source and write-refusal tests also run after Figure caption parsing: nested MyST parsing must not leave the cached source tokenizer's tail rule enabled, losing definition provenance and dropped-definition checks. Existing Figure, table, Source and delayed-save scenarios cover their distinct integration risks. Run `pnpm browser:test save-session` or the complete CI suite described in [TEST_GUIDE](../test/TEST_GUIDE.md).

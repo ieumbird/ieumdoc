@@ -74,7 +74,12 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "property-drafts": {
     files: [{ name: "drafts.md", create: () =>
-      nativeSource("# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | **V** |\n\nBody.\n") }],
+      nativeSource("# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | **V** |\n\nBody.\n") },
+      { name: "focus.md", create: () => nativeSource("# Properties\n\nBefore.\n\nSee {numref}`fig-a`, {numref}`tbl-a` and {ref}`section-a`.\n\n" +
+        ":::{figure}\n:name: fig-a\n\nCaption.\n:::\n\nAfter figure.\n\n" +
+        ":::{table} Values\n:name: tbl-a\n\n| Name | Unit |\n| --- | --- |\n| Value | V |\n:::\n\nAfter table.\n\n" +
+        "(section-a)=\n\n## Section\n\nAfter section.\n") },
+    ],
     scenarios: ["property-drafts"],
   },
   "code-highlighting": {

@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Property-focus verification: 2026-10-15 (#275 actual Apply click/Enter/Cancel/Escape reproduction, shared safe caret restoration, unchanged-caption caret/typing and formatted Save/Reload browser regressions).
 - Last verified: 2026-10-14 (#212: empty-Figure paste/drop fill, existing-image insertion, single Undo/Redo and real-file Save → Reload in `image-assets`; changed-target cancellation/rollback in Editor tests. #211 / PR #229: normal media separators and standalone dot-segment transport in Editor path-table tests; Host traversal rejection, actual image loading/failure and unchanged Save → Reload paths in Editor tests and `image-assets`; Choose… image selection and existing pending Figure regressions).
 - Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
@@ -31,6 +32,12 @@ Label-only pending Figures omit the body. Caption-only Figures omit `:name:`. An
 Public `serialize` and `canonicalWriteError` validate the final state; an empty Figure is writable. Earlier versions refused a Figure with no image, caption or label; [#171](https://github.com/ieumbird/ieumdoc/issues/171) reversed this so that reserving a place does not require invented caption or label text. The limited pending writer handles a container with no content and at most a caption; existing whole-document semantic fingerprint, reparse and serializer diagnostic guards still apply. Legends, subfigures and unsupported contents keep their existing fail-closed boundary.
 
 ## Editor session states
+
+Closing properties retains a text selection inside the caption, otherwise returning
+a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
+Apply changes attributes without replacing an unchanged caption, preserving its
+caret and formatting. A changed caption still uses the existing engine replacement.
+Figure validation that completes after the user moves elsewhere does not take focus back.
 
 | State | Session behavior | Save and Source |
 | --- | --- | --- |
