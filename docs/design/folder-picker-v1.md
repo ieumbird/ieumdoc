@@ -1,9 +1,10 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-14 (image choice through the `image-assets` browser regression; Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload on 2026-10-13).
+- Last verified: 2026-10-16 (#204: Open/New retain tabs without work-loss confirmation; new-document, folder-navigation and image-assets regressions).
+- Previous verification: 2026-10-14 (image choice through the `image-assets` browser regression; Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload on 2026-10-13).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
-- Core, CLI, Markdown, document saving and the single Tiptap editor state are unchanged.
+- Core, CLI, Markdown, document saving and each document's single Tiptap editor state are unchanged.
 
 Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
 
@@ -55,7 +56,10 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 ## New document in a sidebar folder
 
 - The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Open folder…, Close folder).
-- With unsaved work or property drafts, `+` first shows the shared **Save / Don't save / Cancel** confirmation. Only a successful Save or Don't save opens the filename form. Cancelling the form or a creation failure keeps the old session; a completed Save remains saved. See [Switching and recovery](editing-session-save-v1.md#switching-and-recovery).
+- `+` opens the filename form without an unsaved-work confirmation. Success adds a new tab; existing
+  sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
+  save / Cancel** confirmation belongs to closing a dirty tab. See
+  [Switching and recovery](editing-session-save-v1.md#switching-and-recovery).
 - The New dialog's Location field shows and chooses the destination: the chosen folder and
   every sub-folder listed in the tree so far, expanded or not, named from the chosen folder.
   It starts at the open document's folder when that is inside the chosen folder, otherwise at
@@ -66,7 +70,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
   entry point cannot choose another directory. It is the only New entry point; the former
   top-level full-path New was removed with the [sidebar chrome cleanup](editor-ux-shell-v1.md#structure).
 - Creation uses the existing Host API and Core's canonical empty Markdown. Success
-  opens the document and lists its folder again, so it appears in the tree. On close, a successful
+  opens a new document tab and lists its folder again, so it appears in the tree. On close, a successful
   New focuses its first paragraph; Cancel/Escape or a rejected New returns focus to the New button
   (see [Empty document start](editor-visual-language-v1.md#empty-document-start-133)). Existing files, pending
   operations keep their existing protections. Cancel/Escape in the filename form creates nothing.

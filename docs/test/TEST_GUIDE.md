@@ -38,6 +38,8 @@ pnpm --filter @ieumdoc/editor build
 
 `apps/editor/test/*.browser.js`는 `pnpm browser:test`로 실행한다. runner는 공통 `openDocument` helper를 전달하며, helper는 실제 Open folder 대화상자와 Sidebar 파일 선택으로 검증용 문서를 연다. 파일 전환이 거부되는지는 각 시나리오가 판정한다.
 
+`openDocument`의 클릭 완료는 비동기 Open 완료가 아니다. 성공을 기대하는 시나리오는 대상 경로가 활성화되고 상태가 Ready가 된 뒤 활성 문서의 요소를 조작한다. 이전 탭은 숨겨진 채 계속 마운트되므로, 전환 전에 얻은 요소를 대상으로 한 action은 숨겨진 이전 요소를 계속 기다릴 수 있다. 실패를 기대하는 Open은 해당 오류를 기다린다. 타임아웃 뒤 페이지에서 `evaluate`하는 정리 코드는 최초 실패를 가릴 수 있으므로, 실패 시 페이지·route 정리는 runner fixture의 page close에 맡기고 지연 응답만 해제한다.
+
 ```bash
 pnpm editor                                # 필요하면 다른 터미널에서 dev server를 직접 시작
 pnpm browser:test                          # stable 시나리오 전체

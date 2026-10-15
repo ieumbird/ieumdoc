@@ -64,8 +64,8 @@ async (page, { openDocument }) => {
   } finally {
     release();
   }
-  await page.getByTestId('source-view').waitFor();
-  const source = await page.getByTestId('source-view').locator('pre').textContent();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+  const source = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent();
   result.identityStillA = await currentFile() === documentA;
   result.sourceIsA = source.includes('# Converter Control') && !source.includes('Editable paragraph.');
   await page.getByRole('button', {name:'Display', exact:true}).click();

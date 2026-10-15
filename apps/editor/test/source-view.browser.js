@@ -30,13 +30,13 @@ async (page, { openDocument }) => {
   };
   const visual = page.getByTestId('view-visual');
   const source = page.getByTestId('view-source');
-  const sourceView = page.getByTestId('source-view');
-  const editor = page.getByTestId('document-editor');
+  const sourceView = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const sourceText = async () => (await sourceView.locator('pre').textContent()).replaceAll('\r\n', '\n');
   const showSource = async () => { await source.click(); await sourceView.waitFor(); };
   const showVisual = async () => { await visual.click(); await editor.waitFor(); };
   const paragraph = 'The current reference is calculated from the active power command.';
-  const cell = text => page.locator('[data-block="table"] [data-table-cell]', {hasText: new RegExp(`^${text}$`)});
+  const cell = text => page.locator('[data-document-tab][data-active=true] [data-block="table"] [data-table-cell]', {hasText: new RegExp(`^${text}$`)});
 
   const fresh = await markdown(technical, 'technical-document.md');
   const expected = await markdown([dir, 'expected.md'].join(separator), 'expected.md');
@@ -56,11 +56,11 @@ async (page, { openDocument }) => {
   result.sourcePressed = await source.getAttribute('aria-pressed') === 'true' && !(await editor.isVisible());
   result.sourceMatchesCanonical = await sourceText() === expected;
   result.sourceReadOnly = await sourceView.locator('[contenteditable="true"], textarea, input').count() === 0;
-  result.sourceSameColumn = await sourceView.evaluate(node => node.parentElement.classList.contains('document-column'));
+  result.sourceSameColumn = await sourceView.evaluate(node => node.closest('.document-column') !== null);
 
   // B. Unsaved paragraph and table cell edits appear in Source; the file is not written.
   await showVisual();
-  await page.getByText(paragraph, {exact:true}).click();
+  await page.getByText(paragraph, {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' SourceMarker');
   await cell('Port').click();
@@ -74,10 +74,10 @@ async (page, { openDocument }) => {
 
   // C. Visual keeps the unsaved editor state, including undo history.
   await showVisual();
-  result.visualKeepsEdits = await page.getByText(`${paragraph} SourceMarker`, {exact:true}).count() === 1 &&
+  result.visualKeepsEdits = await page.getByText(`${paragraph} SourceMarker`, {exact:true}).filter({visible:true}).count() === 1 &&
     await cell('Port name').count() === 1;
-  result.singleEditor = await page.locator('[data-testid="document-editor"] [contenteditable="true"]').count() === 1;
-  await page.getByText(`${paragraph} SourceMarker`, {exact:true}).click();
+  result.singleEditor = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]').count() === 1;
+  await page.getByText(`${paragraph} SourceMarker`, {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('ControlOrMeta+z');
   result.undoHistoryKept = await cell('Port').count() === 1;
   await page.keyboard.press('ControlOrMeta+Shift+z');
@@ -87,7 +87,7 @@ async (page, { openDocument }) => {
   await showSource();
   const previewed = await sourceText();
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.saveFromSourceWritesPreview = await markdown(technical, 'technical-document.md') === previewed;
   result.staysInSourceAfterSave = await sourceView.isVisible();
 
@@ -99,7 +99,7 @@ async (page, { openDocument }) => {
   await showVisual();
 
   // F. Source contains applied content; returning to Visual preserves each unapplied draft.
-  const equation = page.locator('[data-block="equation"]').first();
+  const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
@@ -108,7 +108,7 @@ async (page, { openDocument }) => {
   await showVisual();
   result.equationDraftRetained = await page.getByTestId('equation-latex').inputValue() === 'x + SourceDraft';
   await page.getByTestId('equation-cancel').click();
-  const figure = page.locator('[data-block="figure"]').first();
+  const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
   await figure.locator('img').click();
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();

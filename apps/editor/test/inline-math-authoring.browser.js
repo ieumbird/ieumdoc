@@ -26,11 +26,11 @@ async (page, { openDocument }) => {
     await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   // The inline math sources in document order, read from the editor state.
   const sources = () => page.evaluate(() => {
     const values = [];
-    document.querySelector('.ProseMirror').editor.state.doc.descendants(node => {
+    document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor.state.doc.descendants(node => {
       if (node.type.name === 'inlineMath') values.push(node.attrs.value);
     });
     return values;
@@ -44,7 +44,7 @@ async (page, { openDocument }) => {
   // Select text through the editor's own selection (the state a mouse selection produces).
   const select = async text => {
     await page.evaluate(needle => {
-      const instance = document.querySelector('.ProseMirror').editor;
+      const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let range;
       instance.state.doc.descendants((node, position) => {
         if (range || !node.isText) return;
@@ -77,6 +77,28 @@ async (page, { openDocument }) => {
   // {eq} reference paragraphs are editable since cross-reference authoring.
   result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
 
+  // Match ordinary same-document blur: returning to a tab does not restore transient input.
+  const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  for (const destination of ['same document', 'another tab']) {
+    await (await mathNamed('i_d')).click();
+    await page.getByTestId('inline-math-source').press('Control+a');
+    await page.getByTestId('inline-math-source').pressSequentially('uncommitted');
+    if (destination === 'same document') {
+      await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
+    } else {
+      await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
+      await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+      await page.getByRole('tab', {name:'math.md',exact:true}).click();
+    }
+    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+    if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Inline math blur applied input on ${destination}`);
+    await (await mathNamed('i_d')).click();
+    if (await page.getByTestId('inline-math-source').inputValue() !== 'i_d') throw new Error(`Inline math input survived blur on ${destination}`);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+  }
+  result.inlineBlurClosesWithoutApply = true;
+
   // Change a source: the form opens prefilled.
   result.formPrefilled = await editSource('i_d', 'i_q');
 
@@ -89,7 +111,7 @@ async (page, { openDocument }) => {
   // The inline math click opens the form without selecting its ProseMirror atom.
   // Restore the exact node selection under test before sending Enter.
   await page.evaluate(value => {
-    const editor = document.querySelector('.ProseMirror').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
     let position;
     editor.state.doc.descendants((node, offset) => {
       if (node.type.name === 'inlineMath' && node.attrs.value === value) position = offset;
@@ -99,7 +121,7 @@ async (page, { openDocument }) => {
     editor.view.focus();
   }, 'i_q');
   await page.waitForFunction(() => {
-    const editor = document.querySelector('.ProseMirror').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
     const selection = editor.state.selection;
     return editor.view.hasFocus() && selection.constructor.name === 'NodeSelection' &&
       selection.node.type.name === 'inlineMath' && selection.node.attrs.value === 'i_q';
@@ -125,7 +147,7 @@ async (page, { openDocument }) => {
   await page.keyboard.type(' Done.');
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
     '---', 'ieumdoc: 1', '---', '',
@@ -152,7 +174,7 @@ async (page, { openDocument }) => {
   // A source the canonical Markdown cannot write back fails at Save; the file is unchanged.
   await editSource('v_q', '`v$');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   result.unpreservableRejected = await markdown() === saved;
 
   result.consoleErrors = problems.filter(message => !message.includes('Failed to load resource'));

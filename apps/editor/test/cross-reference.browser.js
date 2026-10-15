@@ -29,13 +29,13 @@ async (page, { openDocument }) => {
   };
   const sourceText = async () => {
     await page.getByTestId('view-source').click();
-    await page.getByTestId('source-view').waitFor();
-    const text = (await page.getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+    const text = (await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
     await page.getByTestId('view-visual').click();
-    await page.getByTestId('document-editor').waitFor();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor').waitFor();
     return text;
   };
-  const paragraph = index => page.locator('.document-editor > p').nth(index);
+  const paragraph = index => page.locator('[data-document-tab][data-active=true] .document-editor > p').nth(index);
   // Chips show computed numbers; find one by the role and label it is written with ('Eq. eq-a').
   const chip = (scope, name) => {
     const [prefix, label] = name.split(' ');
@@ -48,7 +48,7 @@ async (page, { openDocument }) => {
   // Select through the editor's own TextSelection, then wait for the toolbar that selection shows.
   const selectText = async needle => {
     await page.evaluate(needle => {
-      const instance = document.querySelector('.ProseMirror').editor;
+      const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let range;
       instance.state.doc.descendants((node, position) => {
         if (range || !node.isText) return;
@@ -80,13 +80,13 @@ async (page, { openDocument }) => {
 
   // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.
   result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === 'Eq. (1)' &&
-    await page.getByTestId('equation-number').first().innerText() === '(1)' &&
-    await page.locator('[data-block="figure"] figcaption').first().getAttribute('data-number') === 'Figure 1';
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-number').first().innerText() === '(1)' &&
+    await page.locator('[data-document-tab][data-active=true] [data-block="figure"] figcaption').first().getAttribute('data-number') === 'Figure 1';
   await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').click();
   result.chipGoesToTarget = await page.evaluate(() => {
-    const selection = document.querySelector('.document-editor').editor.state.selection;
+    const selection = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
     return selection.node?.type.name === 'equation' && selection.node.attrs.label === 'eq-a';
-  }) && await page.locator('[data-block="equation"]').first().evaluate(element => {
+  }) && await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first().evaluate(element => {
     const box = element.getBoundingClientRect();
     return box.top >= 0 && box.bottom <= innerHeight;
   }) && await page.getByTestId('reference-form').count() === 0;
@@ -105,7 +105,7 @@ async (page, { openDocument }) => {
   // Focus synchronously: Tiptap's focus command focuses on a later animation frame,
   // so typing right after it could reach the page body instead of the editor.
   await page.evaluate(() => {
-    const editor = document.querySelector('.document-editor').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     let end;
     editor.state.doc.forEach((node, position) => {
       if (end === undefined && node.type.name === 'paragraph') end = position + node.nodeSize - 1;
@@ -118,7 +118,7 @@ async (page, { openDocument }) => {
   await page.keyboard.type(' /summary');
   const figureChoice = page.getByRole('menuitem', {name:'Fig. 1 · Converter control summary.', exact:true});
   await figureChoice.waitFor();
-  result.captionSearchKeepsEditorFocus = await page.locator('.document-editor').evaluate(element => element.editor.view.hasFocus());
+  result.captionSearchKeepsEditorFocus = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.hasFocus());
   // Exercise the multiword query through real typing, then insert by the shared keyboard path.
   for (let i = 0; i < 'summary'.length; i++) await page.keyboard.press('Backspace');
   await page.keyboard.type('Fig. 1');
@@ -142,7 +142,7 @@ async (page, { openDocument }) => {
   await page.keyboard.type('Now ');
 
   // G. Renaming a label leaves references as written and shows them unresolved at once.
-  const equationB = page.locator('[data-block="equation"]').nth(1);
+  const equationB = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').nth(1);
   await equationB.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equationB.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-label').fill('eq-c');
@@ -163,7 +163,7 @@ async (page, { openDocument }) => {
   result.sourceShowsUnsavedReferences = expectedLines.every(line => preview.includes(line));
   result.fileUntouchedBeforeSave = await markdown() === fresh;
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.saveMatchesSource = await markdown() === preview;
   await open();
   result.reloadedReferences = await chip(paragraph(0), 'Eq. eq-b').count() === 1 && await chip(paragraph(0), 'Fig. fig-a').count() === 1 &&
@@ -184,7 +184,7 @@ async (page, { openDocument }) => {
     await openDocument(page, captionPath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const caption = page.getByTestId('table-caption');
+  const caption = page.locator('[data-document-tab][data-active=true]').getByTestId('table-caption');
   // A missing chip fails at once instead of waiting for it.
   const captionChip = async text => {
     const chip = caption.locator('.cross-reference', {hasText: text});
@@ -194,7 +194,7 @@ async (page, { openDocument }) => {
     await captionChip('Fig. 1') === 'true' && await captionChip('Eq. eq-gone') === 'false';
   await openCaption();
   result.captionShowsMathAndReferences = await captionReads();
-  const captionFigure = page.locator('[data-block="figure"]');
+  const captionFigure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   await captionFigure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await captionFigure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-label').fill('fig-b');
@@ -205,7 +205,7 @@ async (page, { openDocument }) => {
   result.captionUndoResolvesAgain = await captionChip('Fig. 1') === 'true';
   result.captionSourceUnchanged = await sourceText() === captionFresh;
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.captionSaveKeepsMarkdown = await captionFile() === captionFresh;
   await openCaption();
   result.captionReloaded = await captionReads();

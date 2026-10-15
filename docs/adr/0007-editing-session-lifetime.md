@@ -1,11 +1,12 @@
 # ADR-0007: 편집 세션 수명과 미저장 작업 보호
 
 - Status: Accepted
-- Last verified: 2026-10-15 (decision recorded and revised after PR #295 review: Host-specific close boundary, recovery guarantee limits; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; #291 Open/New confirmation verified with browser regressions).
+- Last verified: 2026-10-16 (#204 implementation status compared with the current Editing session and Save contract).
+- Previous verification: 2026-10-15 (decision recorded and revised after PR #295 review: Host-specific close boundary, recovery guarantee limits; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; #291 Open/New confirmation verified with browser regressions).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#291](https://github.com/ieumbird/ieumdoc/issues/291) · [#204](https://github.com/ieumbird/ieumdoc/issues/204) · [#272](https://github.com/ieumbird/ieumdoc/issues/272) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-15
 
-이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했다. 나머지 결정은 후속 구현 대상이다.
+이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했고, #204에서 독립 탭과 단일 탭 닫기 확인으로 옮겼다. 자동 저장과 복구는 후속 구현 대상이다.
 
 ## Context
 

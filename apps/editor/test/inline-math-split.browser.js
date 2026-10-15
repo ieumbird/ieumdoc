@@ -27,10 +27,10 @@ async (page, { openDocument }) => {
     await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const sources = () => page.evaluate(() => {
     const values = [];
-    document.querySelector('.ProseMirror').editor.state.doc.descendants(node => {
+    document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor.state.doc.descendants(node => {
       if (node.type.name === 'inlineMath') values.push(node.attrs.value);
     });
     return values;
@@ -38,7 +38,7 @@ async (page, { openDocument }) => {
   // Put the caret right after (or before) an inline math node, then press the real Enter key.
   const enterNextTo = async (value, after) => {
     await page.evaluate(({value, after}) => {
-      const instance = document.querySelector('.ProseMirror').editor;
+      const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let caret;
       instance.state.doc.descendants((node, position) => {
         if (caret === undefined && node.type.name === 'inlineMath' && node.attrs.value === value) {
@@ -67,7 +67,7 @@ async (page, { openDocument }) => {
   result.splitInEditor = await editor.locator('p.paragraph').count() === paragraphs + 5;
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
     '---', 'ieumdoc: 1', '---', '',

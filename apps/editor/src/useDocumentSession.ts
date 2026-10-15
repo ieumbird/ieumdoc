@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
-import type { DocumentFileResponse, DocumentStartResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
+import type { DocumentFileResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import type { ImageChoice, ImageChooser } from "./editor-schema.tsx";
@@ -9,23 +9,21 @@ import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { saveErrorMessage } from "./save-error.ts";
 import type { DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
-import { createDocumentSessionLifetime, messageOf, NativeOpenError, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
+import { createDocumentSessionLifetime, messageOf, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
 
 /** Shown until the first Save of a source whose endnote definitions canonical write moves. */
 const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after the body, in the order of their first reference, keeping each label and text. Source shows the Markdown Save writes.";
 
 /** One document's state and operations. The shell owns the shared work-loss confirmation. */
-export function useDocumentSession(start: DocumentStartResponse | null, onStart: (start: DocumentStartResponse | null) => void) {
+export function useDocumentSession(initial: DocumentFileResponse) {
   const editorRef = useRef<DocumentEditorHandle>(null);
-  const [document, setDocument] = useState<EditableDocument | null>(null);
-  const [sourceRevision, setSourceRevision] = useState("");
-  const sessionBase = useRef<SaveRequest["base"] | undefined>(undefined);
-  const [openedPath, setOpenedPath] = useState("");
+  const [document, setDocument] = useState<EditableDocument>(initial.document);
+  const [sourceRevision, setSourceRevision] = useState(initial.revision);
+  const sessionBase = useRef<SaveRequest["base"]>({ source: initial.source });
+  const [openedPath, setOpenedPath] = useState(initial.path);
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
-  const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string } | null>(null);
-  const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
-  const [status, setStatus] = useState("Loading…");
+  const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editorGeneration, setEditorGeneration] = useState(0);
@@ -36,7 +34,7 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
   const outlineStore = useRef(createOutlineStore()).current;
   // The opened source writes endnote definitions elsewhere than canonical write puts them; the
   // first Save moves them. Opening never writes and does not make the document dirty.
-  const [endnotesMove, setEndnotesMove] = useState(false);
+  const [endnotesMove, setEndnotesMove] = useState(!initial.endnotesInPlace);
   const draftNotice = draftActive
     ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
     : "";
@@ -53,7 +51,6 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
   useEffect(() => {
     // StrictMode's effect cleanup/setup must not revive callbacks from the first setup.
     setEditorGeneration(lifetime.activate());
-    void load();
     return () => {
       lifetime.dispose();
       imageChoiceRef.current?.resolve(undefined);
@@ -96,7 +93,6 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
     imageChoiceRef.current?.resolve(undefined);
     imageChoiceRef.current = null;
     setImageChoice(null);
-    onStart(null);
     setDocument(next.document);
     sessionBase.current = { source: next.source };
     setEndnotesMove(!next.endnotesInPlace);
@@ -112,8 +108,8 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
   }
 
   /** Error message, "" on success, or null for a dialog refusal or superseded request. */
-  async function load(requestedPath?: string, openReturnFocus?: HTMLElement | null, openedNotice = ""): Promise<string | null> {
-    if (requestedPath && !isCurrent()) return null;
+  async function load(requestedPath: string): Promise<string | null> {
+    if (!isCurrent()) return null;
     const current = lifetime.beginOpen();
     setError("");
     setNotice("");
@@ -122,26 +118,14 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
       const next = await requestDocument("GET", requestedPath);
       if (!current()) return null;
       setReloadDialog(false);
-      if ("start" in next) {
-        onStart(next);
-        setStatus("Ready");
-        return "";
-      }
+      if ("start" in next) throw new Error("The Host did not return a document.");
       acceptDocument(next);
-      setNotice(openedNotice);
       return "";
     } catch (cause) {
       if (!current()) return null;
       setReloadDialog(false);
       const message = messageOf(cause);
-      if (!requestedPath) setError(message);
-      setStatus(requestedPath ? "Open failed" : "Load failed");
-      // Only explicit Open uses the Alert. Startup and Reload keep their existing errors.
-      if (requestedPath && openReturnFocus !== undefined && cause instanceof NativeOpenError) {
-        openRefusalReturnFocus.current = openReturnFocus;
-        setOpenRefusal({ path: requestedPath, reason: cause.reason, action: cause.action });
-        return null;
-      }
+      setStatus("Open failed");
       return message;
     }
   }
@@ -199,39 +183,11 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
     }
   }
 
-  async function createFile(path: string): Promise<string> {
-    if (!isCurrent()) return "The document session is no longer active.";
-    const requestedPath = path.trim();
-    if (!requestedPath) return "Enter a Markdown file path.";
-    if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be created.";
-    if (busy) return "Wait for the current operation to finish.";
-    const current = lifetime.beginOpen();
-    // New's sole entry point confirms work loss before showing the modal filename form.
-    // Keep the old session until exclusive creation succeeds, including its drafts on failure.
-    setError("");
-    setNotice("");
-    setStatus("Creating…");
-    try {
-      const next = await requestDocument("PUT", requestedPath);
-      if (!current()) return "The document session is no longer active.";
-      acceptDocument(next);
-      return "";
-    } catch (cause) {
-      if (!current()) return "The document session is no longer active.";
-      const message = messageOf(cause);
-      setError(message);
-      setStatus("Create failed");
-      return message;
-    }
-  }
-
   /**
    * Work an update restart would lose or interrupt, as the Desktop app asks before installing:
    * the same state that guards closing the page, with the reason to show.
    */
   function pendingWork(): string | null {
-    // The start has no document, so nothing can be lost unless one is opening.
-    if (!document && start) return switching ? "IeumDoc is still working on the document. Try again in a moment." : null;
     if (!document || !editorRef.current) return "The editor is not ready to restart.";
     if (status === "Saving…") return "A save is in progress. Restart to update after it finishes.";
     if (assetPending) return "An image is still being added. Restart to update after it finishes.";
@@ -302,8 +258,8 @@ export function useDocumentSession(start: DocumentStartResponse | null, onStart:
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? ENDNOTES_MOVE_NOTICE : "",
-    load, createFile, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
-    pendingWork, revealHeading, openRefusal, setOpenRefusal, openRefusalReturnFocus,
+    load, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
+    pendingWork, revealHeading,
     imageChoice, imageReturnFocus, selectImage, closeImageChoice,
     editorCallbacks,
   };

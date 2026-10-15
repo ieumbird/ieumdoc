@@ -28,7 +28,7 @@ async (page, { openDocument, withBlockHover }) => {
         await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
         const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
         if(!rest.length || rest.some(n=>n.opacity!=='0'||n.pointer!=='none')) throw Error('Rest gutter must be invisible and inert');
-        const paragraph=page.locator('.document-editor > .paragraph').first();
+        const paragraph=page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
         const before=(await paragraph.boundingBox()).x;
         await paragraph.hover();
         const extent=page.getByTestId('block-hover-outline');
@@ -47,18 +47,18 @@ async (page, { openDocument, withBlockHover }) => {
         const result=await page.evaluate(({collapsed,width})=>{
           const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
           const rect=s=>required(s).getBoundingClientRect();
-          const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
+          const main=rect('.app-main'),column=rect('.document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
           const selectors=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'];
-          const starts=selectors.map(s=>rect('.document-editor '+s).left);
+          const starts=selectors.map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
           const controls=rect('.block-controls.visible');
           const standard=rect('[data-testid="save"]').height;
-          const compactSelectors=['.sidebar-header button','.sidebar-tool','.figure-edit','.equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
+          const compactSelectors=['.sidebar-header button','.sidebar-tool','[data-document-tab][data-active=true] .figure-edit','[data-document-tab][data-active=true] .equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
           const compact=compactSelectors.flatMap(selector=>{
             const nodes=[...document.querySelectorAll(selector)];
             if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
             return nodes.map(n=>n.getBoundingClientRect().height);
           });
-          for(const button of document.querySelectorAll('.figure-edit,.equation-edit')) {
+          for(const button of document.querySelectorAll('[data-document-tab][data-active=true] .figure-edit,[data-document-tab][data-active=true] .equation-edit')) {
             if(getComputedStyle(button).fontFamily!==getComputedStyle(document.body).fontFamily)throw Error('Document font leaked into UI control');
           }
           // Every sidebar icon is 16px; top-level tree entries share one icon start and one text start.
@@ -84,7 +84,7 @@ async (page, { openDocument, withBlockHover }) => {
           const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
           const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
           if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
-          const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','.document','.document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
+          const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           return {width,collapsed,header:rect('.top-bar').height,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
         },{collapsed,width});
         const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
@@ -174,17 +174,17 @@ async (page, { openDocument, withBlockHover }) => {
     throw Error(`Docked document panel: ${JSON.stringify({docked,hidden,hiddenFocus})}`);
   // Editing shows the interaction-colored caret, not a frame around the whole document, whether
   // focus comes from a click or the keyboard.
-  const editing=async()=>page.locator('.document-editor').evaluate(n=>{
+  const editing=async()=>page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>{
     const cs=getComputedStyle(n);
     return {focused:document.activeElement===n,outline:cs.outlineStyle,boxShadow:cs.boxShadow,border:['Top','Right','Bottom','Left'].map(side=>parseFloat(cs['border'+side+'Width'])).reduce((a,b)=>a+b,0),caret:cs.caretColor,interaction:getComputedStyle(document.documentElement).getPropertyValue('--id-color-interaction').trim()};
   });
   const noFrame=state=>state.focused&&state.outline==='none'&&state.boxShadow==='none'&&state.border===0;
-  await page.locator('.document-editor > .paragraph').first().click();
+  await page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first().click();
   const clicked=await editing();
-  await page.locator('[data-table-cell]').first().click();
+  await page.locator('[data-document-tab][data-active=true] [data-table-cell]').first().click();
   const cell=await editing();
   await page.evaluate(()=>document.activeElement?.blur());
-  await page.locator('.document-editor').focus();
+  await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
   await page.keyboard.press('ArrowDown');
   const keyboard=await editing();
   const caretColor=await page.evaluate(color=>{const probe=document.createElement('span');probe.style.color=color;document.body.append(probe);const value=getComputedStyle(probe).color;probe.remove();return value;},clicked.interaction);
@@ -193,7 +193,7 @@ async (page, { openDocument, withBlockHover }) => {
   await page.setViewportSize({width:1440,height:1000});
   const controls=()=>page.locator('.top-bar-actions button').evaluateAll(nodes=>nodes.map(n=>Math.round(n.getBoundingClientRect().x)));
   const clean=await controls();
-  await page.locator('.document-editor > .paragraph').first().click();
+  await page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first().click();
   await page.keyboard.press('End');
   await page.keyboard.type('!');
   await page.locator('[data-testid="status"]',{hasText:'Unsaved changes'}).waitFor();
@@ -206,8 +206,8 @@ async (page, { openDocument, withBlockHover }) => {
   await page.mouse.move(1918,2);
   const column=()=>page.evaluate(()=>{
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
-    const main=rect('.app-main'),column=rect('.document-column'),doc=rect('.document-editor');
-    const starts=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'].map(s=>rect('.document-editor '+s).left);
+    const main=rect('.app-main'),column=rect('.document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
+    const starts=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'].map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
     const probe=document.createElement('div');
     probe.style.width=getComputedStyle(document.documentElement).getPropertyValue('--layout-content-width-wide');
     document.body.append(probe);const wide=probe.getBoundingClientRect().width;probe.remove();
@@ -215,7 +215,7 @@ async (page, { openDocument, withBlockHover }) => {
   });
   await page.getByRole('button',{name:'Display',exact:true}).click();
   const toggle=page.getByRole('checkbox',{name:'Wide document',exact:true});
-  const unchanged=()=>page.locator('.document-editor').evaluate(n=>JSON.stringify({doc:n.editor.getJSON(),dirty:document.querySelector('[data-testid="status"]').textContent}));
+  const unchanged=()=>page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>JSON.stringify({doc:n.editor.getJSON(),dirty:document.querySelector('[data-testid="status"]').textContent}));
   const beforeWidth=await unchanged();
   const standard=await column();
   const before=await controls();

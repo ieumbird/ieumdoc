@@ -29,13 +29,13 @@ async (page, { openDocument }) => {
   };
   const source = async () => {
     await page.getByTestId('view-source').click();
-    await page.getByTestId('source-view').waitFor();
-    const value = await page.getByTestId('source-view').locator('pre').textContent();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+    const value = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent();
     await page.getByTestId('view-visual').click();
-    await page.getByTestId('document-editor').waitFor();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor').waitFor();
     return value;
   };
-  const figures = page.locator('[data-block="figure"]');
+  const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   const reference = page.locator('[data-testid="cross-reference"][data-label="fig-pfc-control"]').first();
   const form = page.getByTestId('figure-editor');
   const edit = async figure => {
@@ -49,11 +49,11 @@ async (page, { openDocument }) => {
     await form.waitFor({state:'detached'});
   };
   const historyKey = async key => {
-    await page.locator('.document-editor').evaluate(element => element.editor.view.focus());
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.focus());
     await page.keyboard.press(key);
   };
   const insert = async () => {
-    await page.getByText('Intro.', {exact:true}).hover();
+    await page.getByText('Intro.', {exact:true}).filter({visible:true}).hover();
     await page.getByRole('button', {name:/Insert block after paragraph block/}).first().click();
     await page.getByRole('menuitem', {name:'Paragraph', exact:true}).click();
     await page.keyboard.type('/figure');
@@ -66,7 +66,7 @@ async (page, { openDocument }) => {
     // An inserted Figure is a document block at once: no form opens, the caret is in its caption.
     await insert();
     check(await figures.count() === 1 && await form.count() === 0, 'Figure insertion opened its form');
-    check(await page.locator('.document-editor').evaluate(element => element.editor.state.selection.$from.parent.type.name) === 'figure',
+    check(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.state.selection.$from.parent.type.name) === 'figure',
       'Figure insertion did not place the caret in its caption');
     check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Empty state is invisible');
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Insertion did not mark the Figure dirty');
@@ -109,7 +109,7 @@ async (page, { openDocument }) => {
       'Save/Undo/Save/Redo/Save/Reload lost the applied Figure');
 
     // The slash picker must resolve the persisted pending target.
-    await page.getByText('After.', {exact:true}).click();
+    await page.getByText('After.', {exact:true}).filter({visible:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' /fig');
     await page.getByRole('menuitem', {name:'Fig. 1 · PFC Current Control Architecture', exact:true}).click();
@@ -159,7 +159,7 @@ async (page, { openDocument }) => {
       image.label === pending.label && image.caption.text === pending.caption.text && JSON.stringify(image.path) === JSON.stringify(position),
       'Connecting the image changed Figure identity, caption or position');
     await page.waitForFunction(() => {
-      const image = document.querySelector('[data-testid="figure-image"]');
+      const image = document.querySelector('[data-document-tab][data-active=true] [data-testid="figure-image"]');
       return image?.complete && image.naturalWidth > 0;
     });
     check(await reference.getAttribute('data-resolved') === 'true' &&

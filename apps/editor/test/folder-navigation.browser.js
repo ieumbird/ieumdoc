@@ -296,18 +296,15 @@ async (page, {screenshots = false} = {}) => {
     await page.unroute('**/api/folder?*', holdListing);
   }
 
-  // Unsaved work stays: another document does not open until it is saved or discarded.
-  await page.locator('.document-editor > .paragraph').first().click();
+  // Unsaved work stays in its tab while another tree document opens.
+  await page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first().click();
   await page.keyboard.press('End');
   await page.keyboard.type(' Draft.');
   await row('notes.md').click();
-  const confirmation = page.getByRole('dialog', {name:'Save changes?',exact:true});
-  await confirmation.getByRole('button', {name:'Cancel',exact:true}).click();
-  await confirmation.waitFor({state:'detached'});
+  await page.getByRole('tab', {name:'install.md, Unsaved changes',exact:true}).click();
   result.keepsUnsavedWork = await current() === 'install.md' &&
-    (await page.locator('.document-editor > .paragraph').first().innerText()).endsWith('Draft.');
+    (await page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first().innerText()).endsWith('Draft.');
   await item('New file in folder').click();
-  await confirmation.getByRole('button', {name:"Don't save",exact:true}).click();
   assert(await page.getByTestId('new-file-directory').inputValue() === guidesPath, 'New starts in the open document\'s folder');
   await page.getByTestId('new-file-name').fill('blocked');
   assert(createRequests === 0 && await current() === 'install.md', 'Folder New preserves unsaved work without creating a file');
@@ -388,11 +385,11 @@ async (page, {screenshots = false} = {}) => {
   await row('추가.md').waitFor();
   const createdPath = [subFolder, '추가.md'].join(sep);
   assert(await page.getByTestId('current-file').getAttribute('title') === createdPath, 'The supplied .md extension is preserved');
-  const editor = page.locator('[data-testid="document-editor"] [contenteditable="true"]');
+  const editor = page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]');
   await editor.click();
   await page.keyboard.type('Created in the displayed folder.');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await ready();

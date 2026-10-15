@@ -13,7 +13,7 @@ async (page, { openDocument }) => {
   await openDocument(page, file);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const state = () => editor.evaluate(el => ({
     doc: JSON.stringify(el.editor.getJSON(), (key, value) => ['sourcePath', 'original', 'sourceCell'].includes(key) ? undefined : value),
     selection: [el.editor.state.selection.from, el.editor.state.selection.to],
@@ -34,7 +34,7 @@ async (page, { openDocument }) => {
   const source = async marker => {
     await page.getByTestId('view-source').click();
     await page.waitForFunction(marker => document.querySelector('[data-testid="source-view"] pre')?.textContent.includes(marker), marker);
-    const text = (await page.getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
+    const text = (await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
     await page.getByTestId('view-visual').click();
     return text;
   };
@@ -144,7 +144,7 @@ async (page, { openDocument }) => {
     assert(after.doc === before.doc && after.selection.join() === before.selection.join(), `${reason}: document and selection must stay`);
   }
   // Dropped external HTML goes through the same normalization and refusal.
-  const target = await page.locator('.document-editor > p').filter({hasText:'Omega.'}).boundingBox();
+  const target = await page.locator('[data-document-tab][data-active=true] .document-editor > p').filter({hasText:'Omega.'}).boundingBox();
   const beforeDrop = await state();
   await editor.evaluate((el, args) => {
     const data = new DataTransfer();

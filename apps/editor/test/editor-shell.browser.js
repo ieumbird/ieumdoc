@@ -47,7 +47,7 @@ async page => {
     const files = page.getByRole('button', {name:'Files', exact:true});
     const display = page.getByRole('button', {name:'Display', exact:true});
     const numbering = page.getByRole('checkbox', {name:'Number headings', exact:true});
-    const editorHandle = await page.locator('.document-editor').evaluateHandle(n => n.editor);
+    const editorHandle = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluateHandle(n => n.editor);
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     await display.focus();
     await page.keyboard.press('Enter');
@@ -63,7 +63,7 @@ async page => {
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     await files.click();
     result.filesReopens = await openFolder.isVisible() && !await numbering.isVisible();
-    result.toolsKeepEditor = await page.locator('.document-editor').evaluate((n, original) => n.editor === original, editorHandle);
+    result.toolsKeepEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((n, original) => n.editor === original, editorHandle);
     await editorHandle.dispose();
 
     const fileActions = page.getByRole('button', {name:'File actions', exact:true});
@@ -77,7 +77,7 @@ async page => {
     result.fileMenuEscapeReturnsFocus = await isFocused(fileActions);
 
     // Selection toolbar appears only for a paragraph text selection.
-    const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
+    const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true});
     await paragraph.click();
     result.toolbarHiddenWithoutSelection = await page.getByTestId('selection-toolbar').count() === 0;
     await paragraph.dblclick();
@@ -90,26 +90,26 @@ async page => {
     // keep the selection, history and status; a toolbar key applies to the selection as one step.
     const toolbarButton = name => page.getByTestId('selection-toolbar').getByRole('button',{name, exact:true});
     const editorState = () => page.evaluate(() => {
-      const {editor} = document.querySelector('.document-editor');
+      const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
       const {from, to} = editor.state.selection;
       return JSON.stringify({from, to, undo: editor.can().undo(), redo: editor.can().redo(),
         status: document.querySelector('[data-testid="status"]').textContent, bold: document.querySelectorAll('[data-source-path="9"] strong').length});
     });
     const backInEditor = async () => {
-      await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+      await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
       return editorState();
     };
     await paragraph.click();
     await page.keyboard.press('Home');
     await page.keyboard.press('Shift+End');
-    await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.to -
-      document.querySelector('.document-editor').editor.state.selection.from === 'The current reference is calculated from the active power command.'.length);
+    await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.to -
+      document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.from === 'The current reference is calculated from the active power command.'.length);
     await page.getByTestId('selection-toolbar').waitFor();
     const keyboardSelection = await editorState();
     await display.click();
     await files.click();
     result.toolSwitchKeepsSelectionAndHistory = await editorState() === keyboardSelection;
-    await page.locator('.document-editor').focus();
+    await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
     await page.keyboard.press('Tab');
     result.toolbarTabEnters = await isFocused(toolbarButton('Bold')) && await editorState() === keyboardSelection;
     await page.keyboard.press('Tab');
@@ -130,7 +130,7 @@ async page => {
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
-    result.equationDraftInBlock = await page.getByTestId('equation-draft-status').isVisible();
+    result.equationDraftInBlock = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').isVisible();
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
     result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
     await display.click();
@@ -145,12 +145,12 @@ async page => {
     result.reloadCancelKeepsDraftAndFocus = await page.getByTestId('equation-latex').inputValue() === 'x + 1' && await isFocused(fileActions);
     await page.getByTestId('equation-cancel').click();
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
-    result.saveEnabledAfterCancel = await page.getByTestId('equation-draft-status').count() === 0;
+    result.saveEnabledAfterCancel = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').count() === 0;
 
     // Selection ends at selection; only explicit Edit opens properties.
-    await page.locator('[data-block="figure"] img').click();
+    await page.locator('[data-document-tab][data-active=true] [data-block="figure"] img').click();
     result.figureSelectionOnly = await page.getByTestId('figure-properties').count() === 0 &&
-      await page.locator('[data-block="figure"]').getAttribute('data-selected') === 'true';
+      await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').getAttribute('data-selected') === 'true';
     await page.getByRole('button', {name:'Edit figure'}).click();
     result.figurePopover = await page.getByTestId('figure-editor').isVisible();
     await display.click();
@@ -184,29 +184,29 @@ async page => {
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 2');
-    await page.locator('[data-block="table"]').hover();
+    await page.locator('[data-document-tab][data-active=true] [data-block="table"]').hover();
     await page.getByRole('button',{name:'Move table block 15'}).click();
     const blockMenu = page.getByRole('menu',{name:'Block actions'});
     result.blockMenuItems = await blockMenu.getByRole('menuitem').allInnerTexts();
     await blockMenu.getByRole('menuitem',{name:'Delete', exact:true}).click();
-    result.tableDeleted = await page.locator('[data-block="table"]').count() === 0;
+    result.tableDeleted = await page.locator('[data-document-tab][data-active=true] [data-block="table"]').count() === 0;
     result.draftSurvivesDelete = await page.getByTestId('equation-latex').inputValue() === 'x + 2';
     await page.getByTestId('equation-cancel').click();
 
     // Keyboard deletion uses engine history. Unsupported external paste produces an expiring notice.
-    await page.locator('[data-block="figure"] img').click();
+    await page.locator('[data-document-tab][data-active=true] [data-block="figure"] img').click();
     await page.keyboard.press('Delete');
-    result.figureDeletedByKeyboard = await page.locator('[data-block="figure"]').count() === 0;
+    result.figureDeletedByKeyboard = await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 0;
     await page.keyboard.press('Control+z');
     await paragraph.click();
-    await page.locator('.document-editor').evaluate(el => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
       const data = new DataTransfer();
       data.setData('text/html', '<table><tr><td colspan="2">Merged cell</td></tr></table>');
       el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
     });
     await page.getByTestId('notice').waitFor();
     result.noticeInMessageArea = await page.locator('[data-testid="message-area"] [data-testid="notice"]').count() === 1;
-    result.figureKept = await page.locator('[data-block="figure"]').count() === 1;
+    result.figureKept = await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 1;
     await page.getByTestId('notice').waitFor({state:'detached', timeout:8000});
     result.noticeExpired = true;
 
@@ -227,9 +227,9 @@ async page => {
     result.errorDismissed = await page.getByTestId('error').count() === 0;
     conflictNext = true;
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Save conflict',{exact:true}).waitFor();
+    await page.getByText('Save conflict',{exact:true}).filter({visible:true}).waitFor();
     result.conflictKeepsEdits = (await article.innerText()).includes('SLASH_INSERTED');
-    result.editorCount = await page.locator('[data-testid="document-editor"] [contenteditable="true"]').count();
+    result.editorCount = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]').count();
     for (const [name, passed] of Object.entries(result)) {
       if (passed === false) throw new Error(`Shell regression: ${name}`);
     }

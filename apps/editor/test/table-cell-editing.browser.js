@@ -31,9 +31,9 @@ async (page, { openDocument }) => {
   };
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.getByText('Saved', {exact:true}).waitFor();
+    await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   };
-  const table = page.locator('[data-block="table"]');
+  const table = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   const cell = text => table.locator('[data-table-cell]', {hasText: new RegExp(`^${text}$`)});
   const typeAtEnd = async (text, suffix) => {
     await cell(text).click();
@@ -45,7 +45,7 @@ async (page, { openDocument }) => {
     await page.keyboard.press('End');
     await page.keyboard.press('Shift+Home');
     await page.waitForFunction(text => {
-      const e = document.querySelector('.document-editor').editor;
+      const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
       const s = e.state.selection;
       return s.$from.parent.type.name === 'tableCell' && e.state.doc.textBetween(s.from, s.to) === text;
     }, text);
@@ -65,14 +65,14 @@ async (page, { openDocument }) => {
   result.boldApplied = await cell('AC-side').locator('strong').innerText() === 'AC-side';
 
   // Formatted text copied from a paragraph keeps its marks in a cell.
-  await page.locator('.document-editor strong', {hasText: 'DC-link voltage'}).evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor strong', {hasText: 'DC-link voltage'}).evaluate(element => {
     const range = document.createRange();
     range.selectNodeContents(element);
     getSelection().removeAllRanges();
     getSelection().addRange(range);
   });
   await page.waitForFunction(() => {
-    const e = document.querySelector('.document-editor').editor;
+    const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return e.state.doc.textBetween(e.state.selection.from, e.state.selection.to) === 'DC-link voltage';
   });
   await page.keyboard.press('ControlOrMeta+c');
@@ -82,7 +82,7 @@ async (page, { openDocument }) => {
   result.structureUnchanged = await table.locator('tr').count() === rows;
   await page.keyboard.press('Enter');
   await page.keyboard.type('After table.');
-  result.enterExitsTable = await page.locator('.document-editor > p').filter({hasText:'After table.'}).count() === 1;
+  result.enterExitsTable = await page.locator('[data-document-tab][data-active=true] .document-editor > p').filter({hasText:'After table.'}).count() === 1;
   await save();
 
   await open(technical);

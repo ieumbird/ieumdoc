@@ -30,11 +30,11 @@ async (page, { openDocument }) => {
   if (!(await page.getByTestId('current-file').getAttribute('title')).includes('reference-save-reload')) {
     throw new Error('Scratch file was not opened');
   }
-  await page.getByText('The current reference is calculated from the active power command.', {exact:true}).click();
+  await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' ReferenceSaveMarker');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
 
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -47,7 +47,7 @@ async (page, { openDocument }) => {
     semanticReferenceKept: saved.includes(reference),
     fragmentLinkKept: saved.includes(link),
     referenceNotFlattened: !saved.includes('[Figure](#fig-control) and [Equation](#eq-current)'),
-    referenceParagraphEditable: await page.locator('p.paragraph').filter({hasText:'See Figure'}).count() === 1,
+    referenceParagraphEditable: await page.locator('[data-document-tab][data-active=true] p.paragraph').filter({hasText:'See Figure'}).count() === 1,
   };
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Reference Save/Reload failed: ${JSON.stringify(result)}`);

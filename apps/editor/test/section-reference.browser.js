@@ -15,15 +15,15 @@ async (page, { openDocument }) => {
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
   const opened = await read();
-  const editor = page.locator('.document-editor');
-  const chip = page.getByTestId('cross-reference');
-  const labels = () => page.getByTestId('label-target').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-label')));
-  const focused = () => page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  const chip = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference');
+  const labels = () => page.locator('[data-document-tab][data-active=true]').getByTestId('label-target').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-label')));
+  const focused = () => page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
   const result = {};
 
   // Type `/` at the end of a paragraph and pick an unlabeled heading: one step labels it and references it.
   await page.evaluate(() => {
-    const editor = document.querySelector('.document-editor').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     let end;
     editor.state.doc.forEach((node, position) => { if (node.textContent === 'See the install section.') end = position + node.nodeSize - 1; });
     editor.commands.setTextSelection(end);
@@ -45,14 +45,14 @@ async (page, { openDocument }) => {
   // The chip goes to its heading.
   await chip.locator('.cross-reference-chip').click();
   await page.waitForFunction(() => {
-    const { selection } = document.querySelector('.document-editor').editor.state;
+    const { selection } = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
     return selection.$from.parent.type.name === 'heading' && selection.$from.parent.textContent === 'Install';
   });
   result.goesToHeading = true;
 
   // MyST reads only ASCII target labels; the form says so before anything is saved.
   // A section label is hidden at rest and shows with its heading.
-  const edit = page.getByTestId('label-target-edit');
+  const edit = page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit');
   assert(await edit.evaluate(node => getComputedStyle(node.parentElement).opacity) === '0', 'Section label is visible at rest');
   await editor.locator('h2').filter({hasText:/^Install$/}).hover();
   await edit.click();

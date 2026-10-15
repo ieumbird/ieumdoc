@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "../src/document-tabs.ts";
+
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FolderEntry } from "../shared/document-protocol.ts";
 import { CommandMenu } from "../src/CommandMenu.tsx";
@@ -19,6 +21,32 @@ const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
 const display = { headingNumbering: false, numberingDisabled: false, onToggleHeadingNumbering: noop, wide: false, onToggleWide: noop };
 
+test("tabs use Host paths, choose the right then left neighbour, and leave an inactive close alone", () => {
+  const tabs = [{ id: "a", path: "C:/a/guide.md" }, { id: "b", path: "C:/b/guide.md" }, { id: "c", path: "C:/c/readme.md" }];
+  assert.equal(openedTab(tabs, "C:/b/guide.md"), tabs[1]);
+  assert.equal(openedTab(tabs, "C:/b/../b/guide.md"), undefined, "normalization is the Host's job");
+  assert.equal(activeAfterClose(tabs, "b", "b"), "c");
+  assert.equal(activeAfterClose(tabs, "c", "c"), "b");
+  assert.equal(activeAfterClose(tabs, "a", "b"), "a");
+  assert.equal(activeAfterClose([tabs[0]!], "a", "a"), null);
+});
+
+test("same-named files use enough of their parent folders to distinguish them", () => {
+  assert.deepEqual(tabNames([{ path: "C:\\one\\guide.md" }, { path: "C:\\two\\guide.md" }, { path: "/readme.md" }]),
+    ["guide.md — one", "guide.md — two", "readme.md"]);
+  assert.deepEqual(tabNames([{ path: "/a/docs/guide.md" }, { path: "/b/docs/guide.md" }]),
+    ["guide.md — a/docs", "guide.md — b/docs"]);
+});
+
+test("pending work includes every tab and opening before a tab exists", () => {
+  const clean = { pendingWork: () => null };
+  for (const reason of ["unsaved", "draft", "saving", "source", "asset", "opening"]) {
+    assert.equal(allTabsPendingWork([clean, { pendingWork: () => reason }, clean], false), reason);
+  }
+  assert.equal(allTabsPendingWork([clean, clean], false), null);
+  assert.equal(allTabsPendingWork([], false), null);
+  assert.match(allTabsPendingWork([], true)!, /opening/);
+});
 test("document session lifetime rejects delayed completions after replacement or disposal, independently of other sessions", async () => {
   const first = createDocumentSessionLifetime();
   const second = createDocumentSessionLifetime();

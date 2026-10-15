@@ -425,7 +425,7 @@ button {
 
 /* A heading reached from the outline clears the sticky header. */
 .document-editor > .heading {
-  scroll-margin-top: calc(var(--layout-header-row) + var(--space-8));
+  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-8));
 }
 
 /* The document column fills the remaining height, so the area below the document is clickable. */
@@ -440,6 +440,57 @@ button {
   top: 0;
   z-index: 2;
 }
+
+/* Only this row scrolls horizontally; the shared Save controls keep their own row. */
+.document-tabs {
+  display: flex;
+  overflow-x: auto;
+  min-width: 0;
+  background: var(--id-color-surface);
+  border-bottom: var(--border-width) solid var(--id-color-border);
+  padding-inline: var(--layout-ui-inset);
+}
+
+.document-tab {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  max-width: min(var(--layout-document-tab-max-width), 100%);
+  min-height: var(--layout-document-tab-height);
+  position: relative;
+  color: var(--id-color-text-muted);
+}
+
+.document-tab[data-selected="true"] {
+  color: var(--id-color-text);
+  box-shadow: inset 0 calc(-1 * var(--size-current-marker)) var(--id-color-interaction);
+}
+
+.document-tab:hover { background: var(--id-color-surface-hover); }
+.document-tab > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--size-control-compact);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.document-tab > [role="tab"] { padding: var(--space-2); }
+.document-tab > button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
+}
+.document-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-tab-dirty { flex: 0 0 var(--space-2); }
+.document-tab-close { flex: 0 0 var(--size-control-compact); }
+.document-tab-close svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
+.document-tab > button:disabled, .document-tab > [aria-disabled="true"] { cursor: default; color: var(--id-color-text-subtle); }
 
 .top-bar {
   display: flex;
@@ -1491,7 +1542,7 @@ ol.list { list-style: decimal; }
   font-style: normal;
   line-height: var(--line-height-label);
   max-width: calc(100vw - var(--space-4));
-  max-height: calc(100dvh - var(--layout-header-row) - var(--space-4));
+  max-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4));
   overflow: auto;
   translate: var(--overlay-shift-x, 0px) var(--overlay-shift-y, 0px);
 }

@@ -3,7 +3,8 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { Pencil } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEditorVisible } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
@@ -379,6 +380,10 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   onClose: () => void;
   onDismiss?: () => void;
 }) {
+  const visible = useEditorVisible();
+  const formId = useId();
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; }, []);
   const targets = referenceTargets(editor.state.doc);
   const options = current && !targets.some((target) => referenceCommandId(target) === referenceCommandId(current))
     ? [current, ...targets] : targets;
@@ -390,6 +395,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
     const target = referenceOfCommand(value);
     if (target && !("heading" in target)) onApply(target);
   };
+  if (!visible) return null;
   return (
     <form
       ref={bounds}
@@ -412,12 +418,12 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
         if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) (onDismiss ?? onClose)();
       }}
     >
-      <label className="form-label" htmlFor="reference-target">Reference target</label>
+      <label className="form-label" htmlFor={formId}>Reference target</label>
       {options.length > 0 ? (
         <>
           <select
-            id="reference-target"
-            autoFocus
+            id={formId}
+            autoFocus={!mounted.current}
             className="reference-target"
             aria-label="Reference target"
             data-testid="reference-target"

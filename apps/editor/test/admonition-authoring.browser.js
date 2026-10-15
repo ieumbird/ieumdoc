@@ -26,11 +26,11 @@ async (page, { openDocument }) => {
     await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const admonitions = () => editor.locator('aside[data-block="admonition"]');
   const selectText = async needle => {
     await page.evaluate(needle => {
-      const instance = document.querySelector('.ProseMirror').editor;
+      const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let range;
       instance.state.doc.descendants((node, position) => {
         if (range || !node.isText) return;
@@ -58,7 +58,7 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Bold', exact:true}).click();
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
     '---', 'ieumdoc: 1', '---', '',
@@ -99,7 +99,7 @@ async (page, { openDocument }) => {
 
   const savedBeforeInvalidEdit = await markdown();
   await page.evaluate(() => {
-    const instance = document.querySelector('.ProseMirror').editor;
+    const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
     let position;
     instance.state.doc.descendants((node, pos) => {
       if (position === undefined && node.type.name === 'inlineMath') position = pos;
@@ -108,7 +108,7 @@ async (page, { openDocument }) => {
     instance.view.dispatch(instance.state.tr.setNodeAttribute(position, 'value', `${String.fromCharCode(10)}x`));
   });
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   result.failedEditDidNotWrite = await markdown() === savedBeforeInvalidEdit;
 
   result.consoleErrors = problems.filter(message => !message.includes('Failed to load resource'));

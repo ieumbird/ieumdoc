@@ -13,9 +13,9 @@ async (page, { openDocument }) => {
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const result = {};
-  const figures = page.locator('[data-block="figure"]');
-  const documentJSON = () => page.locator('.document-editor').evaluate(el => el.editor.getJSON());
-  const select = async text => page.locator('.document-editor').evaluate((el, text) => {
+  const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
+  const documentJSON = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.getJSON());
+  const select = async text => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((el, text) => {
     const editor = el.editor;
     let position;
     editor.state.doc.forEach((node, pos) => { if (node.textContent === text) position = pos + 1; });
@@ -30,9 +30,9 @@ async (page, { openDocument }) => {
   const blobSource = blobScript.toString();
   const media = relative => `${origin}/document/${relative.slice(2)}?path=${encodeURIComponent(file)}`;
   const loaded = async () => {
-    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth === 8));
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-document-tab][data-active=true] [data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth === 8));
   };
-  const syntheticPaste = async html => page.locator('.document-editor').evaluate(async (el, args) => {
+  const syntheticPaste = async html => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(async (el, args) => {
     const png = await (new Function(`return (${args.source})()`))();
     const data = new DataTransfer(); data.items.add(new File([png], '../../filename-injection.svg', {type:'image/png'}));
     data.setData('text/plain', 'Ignored external text'); data.setData('text/html', args.html);
@@ -61,14 +61,14 @@ async (page, { openDocument }) => {
   // Real File drop uses the pointer's block rather than the unrelated current selection.
   // A dropped photo is a JPEG; the Host keeps its format and serves it as one.
   await select('typed Alpha.');
-  const beta = page.locator('.document-editor > p').filter({hasText:'Beta.'});
+  const beta = page.locator('[data-document-tab][data-active=true] .document-editor > p').filter({hasText:'Beta.'});
   const box = await beta.boundingBox();
-  await page.locator('.document-editor').evaluate(async (el, args) => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(async (el, args) => {
     const jpeg = await (new Function(`return (${args.source})('image/jpeg')`))();
     const data = new DataTransfer(); data.items.add(new File([jpeg], 'photo.jpg', {type:'image/jpeg'}));
     el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
   }, {source:blobSource, x:box.x + 25, y:box.y + box.height / 2});
-  await page.waitForFunction(() => document.querySelectorAll('[data-block="figure"]').length === 2); await waitIdle(); await loaded();
+  await page.waitForFunction(() => document.querySelectorAll('[data-document-tab][data-active=true] [data-block="figure"]').length === 2); await waitIdle(); await loaded();
   const dropped = (await documentJSON()).content;
   const droppedFigure = dropped[dropped.findIndex(node => node.content?.[0]?.text === 'Beta.') + 1];
   assert(droppedFigure?.type === 'figure', 'Drop lands after the pointer block');
@@ -78,14 +78,14 @@ async (page, { openDocument }) => {
 
   await select('typed Alpha.');
   await syntheticPaste('<p><strong>Ignored external HTML</strong></p>');
-  await page.waitForFunction(() => document.querySelectorAll('[data-block="figure"]').length === 3); await waitIdle();
-  assert(!(await page.locator('.document-editor').innerText()).includes('Ignored external'), 'Image takes priority over external text/HTML');
+  await page.waitForFunction(() => document.querySelectorAll('[data-document-tab][data-active=true] [data-block="figure"]').length === 3); await waitIdle();
+  assert(!(await page.locator('[data-document-tab][data-active=true] .document-editor').innerText()).includes('Ignored external'), 'Image takes priority over external text/HTML');
   result.mixedClipboardPriority = true;
 
   // Typed internal rich paste wins over the OS image flavor and stays lossless.
   await select('Beta.');
   await syntheticPaste('<p data-ieumdoc-type="paragraph" data-ieumdoc-attrs="{}"><strong>Internal rich </strong></p>');
-  assert(await figures.count() === 3 && await page.locator('.document-editor strong').filter({hasText:'Internal rich'}).count() === 1, 'Internal rich clipboard must bypass asset upload');
+  assert(await figures.count() === 3 && await page.locator('[data-document-tab][data-active=true] .document-editor strong').filter({hasText:'Internal rich'}).count() === 1, 'Internal rich clipboard must bypass asset upload');
   result.internalClipboard = true;
 
   // Actual Save/Reload reuses Core Figure semantics and resolves every saved image from disk.
@@ -105,25 +105,25 @@ async (page, { openDocument }) => {
   const beforeFailure = JSON.stringify(await documentJSON());
   await page.route('**/api/asset?*', route => route.fulfill({status:400, json:{error:'Host disk denied'}}));
   await select('typed Alpha.'); await syntheticPaste('');
-  await page.getByText('Image could not be inserted: Host disk denied', {exact:true}).waitFor(); await waitIdle();
+  await page.getByText('Image could not be inserted: Host disk denied', {exact:true}).filter({visible:true}).waitFor(); await waitIdle();
   assert(JSON.stringify(await documentJSON()) === beforeFailure, 'Host error must retain document');
   await page.unroute('**/api/asset?*'); await dismiss();
   result.hostFailure = true;
 
   // Simulate a rejected command after the real Host has created an asset.
-  const rejectInsertion = () => page.locator('.document-editor').evaluate(el => {
+  const rejectInsertion = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const view = el.editor.view;
     view.__assetOriginalDispatch = view.dispatch;
     view.dispatch = tr => { if (!tr.getMeta('blockCommand')) view.__assetOriginalDispatch(tr); };
   });
-  const restoreInsertion = () => page.locator('.document-editor').evaluate(el => {
+  const restoreInsertion = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const view = el.editor.view; view.dispatch = view.__assetOriginalDispatch; delete view.__assetOriginalDispatch;
   });
   await rejectInsertion();
   const responsePromise = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
   await syntheticPaste('');
   const receipt = await (await responsePromise).json();
-  await page.getByText('Image could not be inserted: The Figure insertion was rejected; your document is unchanged.', {exact:true}).waitFor(); await waitIdle();
+  await page.getByText('Image could not be inserted: The Figure insertion was rejected; your document is unchanged.', {exact:true}).filter({visible:true}).waitFor(); await waitIdle();
   assert((await page.request.get(media(receipt.path))).status() === 404, 'Rejected insertion must rollback the exact created asset');
   assert(JSON.stringify(await documentJSON()) === beforeFailure, 'Rejected insertion retains document');
   await restoreInsertion(); await dismiss();
@@ -135,7 +135,7 @@ async (page, { openDocument }) => {
   const failedResponse = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
   await syntheticPaste('');
   const failedReceipt = await (await failedResponse).json();
-  await page.getByText(new RegExp(`Rollback failed; asset remains at`)).waitFor(); await waitIdle();
+  await page.getByText(new RegExp(`Rollback failed; asset remains at`)).filter({visible:true}).waitFor(); await waitIdle();
   assert((await page.locator('body').innerText()).includes(failedReceipt.path), 'Rollback failure exposes remaining path');
   assert((await page.request.get(media(failedReceipt.path))).status() === 200, 'Failure fixture still exists before cleanup');
   assert(JSON.stringify(await documentJSON()) === beforeFailure, 'Rollback failure does not insert a Figure');
@@ -215,7 +215,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   });
-  await discarded(() => page.locator('.document-editor').evaluate(el => {
+  await discarded(() => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const {state, view} = el.editor;
     let from;
     state.doc.forEach((node, offset) => { if (from === undefined && node.type.name === 'figure') from = offset; });
@@ -241,7 +241,7 @@ async (page, { openDocument }) => {
     await picker.getByRole('option', {name:'photo.png', exact:true}).waitFor();
     await pathField.press('Enter');
     const receipt = await choiceCreated;
-    await page.locator('.document-editor').evaluate(el => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
       const {state, view} = el.editor;
       let position;
       state.doc.forEach((node, offset) => { if (position === undefined && node.type.name === 'figure') position = offset; });
@@ -263,16 +263,16 @@ async (page, { openDocument }) => {
   // Paste in a reserved caption and drop on a completely empty frame fill that Figure (#212).
   // Repeat each gesture on its completed Figure: the existing image must never be overwritten.
   const semanticJSON = value => JSON.stringify(value, (key, item) => key === 'sourcePath' ? undefined : item);
-  const caret = () => page.locator('.document-editor').evaluate(el => {
+  const caret = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const selection = el.editor.state.selection;
     return {parent:selection.$from.parent.type.name, sourcePath:selection.$from.parent.attrs.sourcePath, from:selection.from, to:selection.to};
   });
   const historyKey = async key => {
-    await page.locator('.document-editor').evaluate(el => el.editor.view.focus());
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.view.focus());
     await page.keyboard.press(key);
   };
   for (const gesture of ['paste', 'drop']) {
-    await page.getByText('typed Alpha.', {exact:true}).hover();
+    await page.getByText('typed Alpha.', {exact:true}).filter({visible:true}).hover();
     await page.getByRole('button', {name:/Insert block after paragraph block/}).first().click();
     await page.getByRole('menuitem', {name:'Paragraph', exact:true}).click();
     await page.keyboard.type('/figure');
@@ -290,7 +290,7 @@ async (page, { openDocument }) => {
     const sendImage = async () => {
       if (gesture === 'paste') {
         await target.getByTestId('figure-caption-content').click();
-        await page.locator('.document-editor').evaluate(el => {
+        await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
           let position;
           el.editor.state.doc.forEach((node, offset) => { if (position === undefined && node.type === el.editor.schema.nodes.figure) position = offset + 5; });
           el.editor.commands.setTextSelection(position); el.editor.view.focus();
@@ -306,7 +306,7 @@ async (page, { openDocument }) => {
         const surface = target.getByTestId(await target.getByTestId('figure-no-content').count() ? 'figure-no-content' : 'figure-image');
         await surface.scrollIntoViewIfNeeded();
         const box = await surface.boundingBox();
-        await page.locator('.document-editor').evaluate(async (el, args) => {
+        await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(async (el, args) => {
           const png = await (new Function(`return (${args.source})()`))();
           const data = new DataTransfer(); data.items.add(new File([png], 'image.png', {type:'image/png'}));
           el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
@@ -317,7 +317,7 @@ async (page, { openDocument }) => {
     await sendImage(); await response; await waitIdle();
     await target.getByTestId('figure-image').waitFor();
     await page.waitForFunction(() => {
-      const image = document.querySelector('[data-block="figure"] [data-testid="figure-image"]');
+      const image = document.querySelector('[data-document-tab][data-active=true] [data-block="figure"] [data-testid="figure-image"]');
       return image?.complete && image.naturalWidth === 8;
     });
     const filled = await documentJSON();
@@ -362,7 +362,7 @@ async (page, { openDocument }) => {
   const pathsJSON = JSON.stringify(await documentJSON());
   const failure = figures.nth(2).getByRole('alert');
   const relativeLoaded = () => page.waitForFunction(() => {
-    const images = [...document.querySelectorAll('[data-testid="figure-image"]')];
+    const images = [...document.querySelectorAll('[data-document-tab][data-active=true] [data-testid="figure-image"]')];
     return images.length === 3 && images.slice(0, 2).every(image => image.complete && image.naturalWidth > 0);
   }, null, {timeout:5000});
   await relativeLoaded();
@@ -371,7 +371,7 @@ async (page, { openDocument }) => {
   assert(JSON.stringify(await documentJSON()) === pathsJSON, 'Loading and failure feedback never change the document');
   assert(!(await page.getByTestId('status').innerText()).includes('Unsaved'), 'Load failure does not make the document dirty');
   await page.getByTestId('view-source').click({timeout:5000});
-  const source = await page.getByTestId('source-view').locator('pre').textContent({timeout:5000});
+  const source = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent({timeout:5000});
   assert(source.includes(':::{figure} assets/diagram.svg') && source.includes(':::{figure} assets/missing.png') && !source.includes('Image could not be loaded'), 'Source contains the original paths and no display error');
   await page.getByTestId('view-visual').click({timeout:5000});
   await relativeLoaded(); await failure.waitFor();
@@ -393,7 +393,7 @@ async (page, { openDocument }) => {
   // Fixing a failed source removes its notice and loads the replacement in the same NodeView.
   await editFigure(2); await imageField.fill('assets/diagram.svg');
   await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
-  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth > 0));
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-document-tab][data-active=true] [data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth > 0));
   await failure.waitFor({state:'detached'});
   result.relativeSourcesAndLoadFailure = true;
   return result;

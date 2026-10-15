@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useEditorVisible } from "./editor-visibility.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
@@ -87,7 +88,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   { document, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
-  // The document session remounts this editor for Open/New/Reload; Save keeps its opening projection.
+  const visible = useEditorVisible();
+  // Each tab keeps its editor; only Reload remounts it. Save keeps its opening projection.
   const [projection] = useState(() => toTiptapDocument(document));
   const pending = useRef<TiptapJSON | null>(null);
   const saved = useRef<TiptapJSON | null>(null);
@@ -225,7 +227,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       },
       hasDocumentChanges,
       revealHeading(item) {
-        if (!editor) return;
+        // Source-to-Visual navigation is deferred; a later tab switch must not steal focus/scroll.
+        if (!editor || editor.view.dom.closest("[hidden]")) return;
         const node = editor.state.doc.maybeChild(item.index);
         if (!node || node.type.name !== "heading") return;
         let pos = 0;
@@ -260,6 +263,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 
   useEffect(() => {
     if (!editor) return;
+    if (!visible) return;
     // Recompute on edits, scrolling and resizing; report only when something changed.
     let reported: DocumentOutline | null = null;
     let frame = 0;
@@ -293,7 +297,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
     };
-  }, [editor]);
+  }, [editor, visible]);
 
   useEffect(() => {
     if (!editor) return;
@@ -375,7 +379,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     return false;
   };
 
-  const hostRect = host.current?.getBoundingClientRect();
+  const hostRect = visible ? host.current?.getBoundingClientRect() : undefined;
   const caretStyle = (pos: number, below: boolean): CSSProperties | undefined => {
     if (!hostRect) return undefined;
     const coords = editor.view.coordsAtPos(pos);
@@ -388,7 +392,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
   const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
-  const blockMenuStyle: CSSProperties | undefined = blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
+  const blockMenuStyle: CSSProperties | undefined = visible && blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
   return (
     <article className={`document${empty ? " document--empty" : ""}`} data-testid="document-editor" ref={host}
@@ -397,13 +401,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
       }}>
       <EditorContent editor={editor} />
-      <BlockHandles
+      {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}
         onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
         onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
         moveBlockedHint={moveBlockedHint}
-      />
+      /> : null}
       {referenceDraft && referenceStyle ? (
         <ReferenceForm
           editor={editor}

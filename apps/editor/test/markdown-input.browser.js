@@ -27,7 +27,7 @@ async (page, { openDocument }) => {
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('markdown-input'));
   };
   // Place the caret at the start or end of a text block's content; the keys that follow are real.
-  const caret = async (text, atEnd) => page.locator('.document-editor').evaluate((element, [text, atEnd]) => {
+  const caret = async (text, atEnd) => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element, [text, atEnd]) => {
     const editor = element.editor;
     let position;
     editor.state.doc.descendants((node, pos) => {
@@ -39,7 +39,7 @@ async (page, { openDocument }) => {
   }, [text, atEnd]);
 
   await openScratch();
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await editor.locator('h1').waitFor({state:'visible'});
   const paragraph = (text) => editor.locator('p[data-block="paragraph"]').filter({hasText:text});
 
@@ -68,7 +68,7 @@ async (page, { openDocument }) => {
   await page.keyboard.type('```js ');
   await caret('Code target', true);
   await page.keyboard.type(' ## **x**');
-  const codeLiteral = await page.locator('.document-editor').evaluate(element => {
+  const codeLiteral = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     let code;
     element.editor.state.doc.forEach(node => { if (node.type.name === 'codeBlock') code = [node.attrs.language, node.textContent]; });
     return JSON.stringify(code);
@@ -87,7 +87,7 @@ async (page, { openDocument }) => {
   // `$THD$` becomes inline math; a dollar with a space just inside stays text.
   await page.keyboard.type(' $THD$ and $5 and $6');
   await inline.getByTestId('inline-math').first().waitFor({state:'visible'});
-  const inlineMath = await page.locator('.document-editor').evaluate(element => {
+  const inlineMath = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const values = [];
     element.editor.state.doc.descendants(node => { if (node.type.name === 'inlineMath') values.push(node.attrs.value); });
     return JSON.stringify(values);
@@ -111,7 +111,7 @@ async (page, { openDocument }) => {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   await openScratch();
-  const reloaded = page.getByTestId('document-editor');
+  const reloaded = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await reloaded.locator('h1').waitFor({state:'visible'});
   const reloadedInline = reloaded.locator('p[data-block="paragraph"]').filter({hasText:'Inline target'});
   const result = {

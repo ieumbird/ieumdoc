@@ -28,10 +28,10 @@ async (page, { openDocument, withBlockHover }) => {
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
 
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const order = () => editor.evaluate(node => { const names = []; node.editor.state.doc.forEach(child => names.push(child.type.name)); return names.join(' '); });
-  const equation = page.locator('[data-block="equation"]');
-  const figure = page.locator('[data-block="figure"]');
+  const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
+  const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   const target = page.getByRole('heading', {name:'Control Structure', exact:true});
   const line = page.getByTestId('block-drop-line');
   const tint = page.getByTestId('block-drag-source');

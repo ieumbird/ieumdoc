@@ -10,6 +10,7 @@ export const STABLE_SCENARIOS = [
   "save-during-edit",
   "save-session",
   "document-session",
+  "document-tabs",
   "equation-insertion",
   "equation-save-during-edit",
   "reference-save-reload",
@@ -76,8 +77,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files", "footnotes", ...HTTP_SCENARIOS].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|footnotes|http-host --screenshots");
+  if (screenshots && (requested.length !== 1 || !["quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "footnotes", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

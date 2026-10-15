@@ -26,7 +26,7 @@ async (page, { openDocument, withBlockHover }) => {
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('lists.md'));
   };
   // Place the caret after a text block's content, like continuous-editing; keys are real.
-  const caretAtEnd = async (text) => page.locator('.document-editor').evaluate((element, text) => {
+  const caretAtEnd = async (text) => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element, text) => {
     const editor = element.editor;
     let position;
     editor.state.doc.descendants((node, pos) => {
@@ -38,7 +38,7 @@ async (page, { openDocument, withBlockHover }) => {
   }, text);
 
   await openScratch();
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const list = editor.locator('ul[data-block="list"]').first();
   await list.waitFor({state:'visible'});
   const openedEditable = await list.locator(':scope > li').count() === 2;
@@ -118,7 +118,7 @@ async (page, { openDocument, withBlockHover }) => {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   await openScratch();
-  const reloaded = page.getByTestId('document-editor');
+  const reloaded = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await reloaded.locator('ul[data-block="list"]').first().waitFor({state:'visible'});
   const result = {
     openedEditable,

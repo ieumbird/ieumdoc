@@ -12,7 +12,7 @@ async (page, { openDocument, screenshots }) => {
   const stale = a + '-outside';
   await page.evaluate(({stale, valid}) => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify([stale, valid])), {stale, valid:join(a, 'fixture')});
   await page.reload(); await ready();
-  check(await page.getByText(stale, {exact:true}).count() === 0, 'Stale outside Recent must be hidden');
+  check(await page.getByText(stale, {exact:true}).filter({visible:true}).count() === 0, 'Stale outside Recent must be hidden');
   const sidebar = page.getByTestId('sidebar');
   const picker = page.getByRole('dialog', {name:'Open folder', exact:true});
   const openPicker = async () => {
@@ -42,25 +42,27 @@ async (page, { openDocument, screenshots }) => {
   await picker.getByRole('option', {name:'fixture', exact:true}).click();
   await page.getByTestId('folder-open').click(); await picker.waitFor({state:'detached'});
   await sidebar.getByRole('treeitem', {name:'a.md', exact:true}).click(); await ready();
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
   };
   await editor.locator('p').filter({hasText:'Alpha.'}).click();
   await page.keyboard.press('End'); await page.keyboard.type(' HTTP saved.');
-  // Trying a different document retains unsaved input, even when the folder itself changes.
-  await openDocument(page, fileB);
+  // Cross-root Open retains A; single-tab close owns the work-loss dialog.
+  await openDocument(page, fileB); await ready();
+  await page.getByRole('tab', {name:'a.md, Unsaved changes',exact:true}).click();
+  check((await editor.innerText()).includes('HTTP saved.'), 'Cross-root Open lost A');
+  await page.getByRole('button', {name:'Close a.md',exact:true}).click();
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
-  check(await page.getByTestId('current-file').getAttribute('title') === fileA, 'Dirty document cannot switch');
-  check((await editor.innerText()).includes('HTTP saved.'), 'Dirty text remains in the Editor');
-  await sidebar.getByRole('treeitem', {name:'b.md',exact:true}).click();
+  check(await page.getByTestId('current-file').getAttribute('title') === fileA, 'Close Cancel lost the dirty session');
+  await page.getByRole('button', {name:'Close a.md',exact:true}).click();
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
-  check(await page.getByTestId('current-file').getAttribute('title') === fileB, 'Confirmation Save opens the chosen file through the real Host');
+  check(await page.getByTestId('current-file').getAttribute('title') === fileB, 'Close Save did not select the neighbour');
   await openDocument(page, fileA); await ready();
-  check((await editor.innerText()).includes('HTTP saved.'), 'Confirmation Save persists on reopening');
+  check((await editor.innerText()).includes('HTTP saved.'), 'Close Save did not persist through the real Host');
   await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End');
   await page.keyboard.insertText(' 한글 😀 �'); await save();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
@@ -87,22 +89,21 @@ async (page, { openDocument, screenshots }) => {
     const data = new DataTransfer(); data.items.add(new File([blob], 'pasted.png', {type:'image/png'}));
     element.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
   });
-  await page.getByTestId('figure-image').waitFor();
-  await page.waitForFunction(() => { const image = document.querySelector('[data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-image').waitFor();
+  await page.waitForFunction(() => { const image = document.querySelector('[data-document-tab][data-active=true] [data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
   await save(); await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
-  await page.waitForFunction(() => { const image = document.querySelector('[data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
+  await page.waitForFunction(() => { const image = document.querySelector('[data-document-tab][data-active=true] [data-testid="figure-image"]'); return image?.complete && image.naturalWidth === 8; });
   const fresh = await page.getByTestId('current-file').getAttribute('title');
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fresh)}`)).json();
   check(disk.source.includes('Created over HTTP.') && disk.source.includes('./assets/image-'), 'Root B new file and portable image are on disk');
-  const figure = page.locator('[data-block="figure"]');
+  const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure', exact:true}).click();
   await page.getByTestId('figure-caption').fill('Unapplied HTTP draft');
   await openDocument(page, fileA);
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
-  check(await page.getByTestId('figure-caption').inputValue() === 'Unapplied HTTP draft', 'Folder switching cannot discard a property draft');
-  check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Unapplied draft keeps the current document');
+  await page.getByRole('tab', {name:'fresh.md, Unsaved changes',exact:true}).click();
+  check(await page.getByTestId('figure-caption').inputValue() === 'Unapplied HTTP draft', 'Cross-root switching lost a property draft');
+  check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Draft tab was replaced');
   await page.getByTestId('figure-cancel').click();
   await openDocument(page, fileA); await ready();
   // Another client commits using the same real API; the Editor's stale baseline must get 409.

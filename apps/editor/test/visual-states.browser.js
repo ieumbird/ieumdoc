@@ -150,7 +150,7 @@ async page => {
   check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.ringColor),
     `Focused primary action hides its ring: ${JSON.stringify(primaryFocus)}`);
   await page.keyboard.press('Escape');
-  await page.getByTestId('figure-image').click();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-image').click();
   await page.getByRole('button', {name:'Edit figure', exact:true}).click();
   const nativeCancel = page.getByTestId('figure-cancel');
   await nativeCancel.hover(); await page.mouse.move(0,0); await settle();
@@ -160,8 +160,8 @@ async page => {
   await nativeCancel.click();
 
   // Preview layout must not override the Notice's error role.
-  await page.locator('.equation').hover();
-  await page.locator('.equation').getByRole('button', {name:'Edit', exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] .equation').hover();
+  await page.locator('[data-document-tab][data-active=true] .equation').getByRole('button', {name:'Edit', exact:true}).click();
   const preview = await state(page.getByTestId('equation-edit-preview'));
   await page.getByTestId('equation-latex').fill('\\frac{');
   const previewError = await state(page.getByTestId('equation-edit-preview-error'));
@@ -169,7 +169,7 @@ async page => {
     'Equation preview layout hides the error role');
   await page.getByTestId('equation-cancel').click();
 
-  await page.locator('.table [data-table-cell]').first().click();
+  await page.locator('[data-document-tab][data-active=true] .table [data-table-cell]').first().click();
   const tableActions = page.getByRole('button', {name:'Table actions', exact:true});
   await tableActions.click(); await page.mouse.move(0,0); await settle();
   const tableOpen = await state(tableActions);

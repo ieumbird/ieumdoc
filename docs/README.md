@@ -14,7 +14,7 @@
 | [ADR-0004: Desktop Host and distribution](adr/0004-desktop-host-distribution.md) | Accepted | Windows Electron/NSIS Host, 기존 handler 재사용과 사용자 승인 기반 업데이트/배포. |
 | [ADR-0005: Standalone HTTP Host](adr/0005-http-host.md) | Accepted | 복수 허용 Root와 Node 배포물, 기존 handler를 재사용하는 단일 운영자용 HTTP Host. |
 | [ADR-0006: Native document boundary](adr/0006-native-document-boundary.md) | Accepted | 승인된 제품·문서 지원 경계. 표식과 Core 검증을 통한 네이티브 문서 수용, 범용 부분 편집·소스 교체 폐지. 구현 계약은 아래 Native document support를 따른다. |
-| [ADR-0007: Editing session lifetime](adr/0007-editing-session-lifetime.md) | Accepted | 승인된 방향. 자동 저장은 선택 설정(기본 off), 원본과 분리된 미저장 작업 복구, 탭별 독립 세션, 공용 저장/저장하지 않음/취소 확인. 구현 전 현재 동작은 Editing session and Save를 따른다. |
+| [ADR-0007: Editing session lifetime](adr/0007-editing-session-lifetime.md) | Accepted | 승인된 방향. 자동 저장은 선택 설정(기본 off), 원본과 분리된 미저장 작업 복구, 탭별 독립 세션, 공용 저장/저장하지 않음/취소 확인. 현재 탭·닫기 동작과 아직 구현하지 않은 자동 저장·복구의 경계는 Editing session and Save를 따른다. |
 
 ## Current implemented contracts
 
@@ -49,6 +49,8 @@
 [AGENTS.md](../AGENTS.md)는 저장소 전체 제약, [CONTRIBUTING.md](../CONTRIBUTING.md)는 setup·검증 matrix·PR 절차의 진입점이다.
 
 ## Historical reviews and spikes
+
+[#204 document tabs implementation and review](reviews/document-tabs-204-2026-10-16.md) records the final tab step's scope, visual evidence, measurements and verification.
 
 - [Block source editing](design/block-source-editing-v1.md) — Superseded by Native document support; former contract retained as history.
 

@@ -19,7 +19,7 @@ export function UnsavedChangesDialog({ open, pending, documentName, hasDrafts, f
         <DialogHeader>
           <DialogTitle>Save changes?</DialogTitle>
           <DialogDescription render={<div />} className="grid gap-3 break-words">
-            <p>Do you want to save changes to “{documentName}” before continuing?</p>
+            <p>Do you want to save changes to “{documentName}” before closing this tab?</p>
             {hasDrafts ? <p>Unapplied property drafts will be lost with both Save and Don't save. Save includes applied content only. Cancel to keep editing.</p> : null}
           </DialogDescription>
         </DialogHeader>

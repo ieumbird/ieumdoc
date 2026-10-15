@@ -26,7 +26,7 @@ async (page, { screenshots = false, openDocument }) => {
     await ready();
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const chips = editor.getByTestId('footnote-reference');
   const texts = async locator => (await locator.allInnerTexts()).map(text => text.trim());
   const notice = page.getByTestId('document-notice');
@@ -39,7 +39,7 @@ async (page, { screenshots = false, openDocument }) => {
   });
   const showSource = async () => {
     await page.getByRole('button', {name:'Source', exact:true}).click();
-    const preview = page.getByTestId('source-view').locator('pre');
+    const preview = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre');
     await preview.waitFor();
     return preview;
   };
@@ -72,14 +72,14 @@ async (page, { screenshots = false, openDocument }) => {
   result.numberedByFirstReference = true;
 
   await editor.locator('[data-testid="footnote-reference"][data-label="a"] sup').click();
-  const selected = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.$from.parent.attrs.label);
+  const selected = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.attrs.label);
   assert(selected === 'a', `Chip went to ${selected}`);
   result.chipGoesToDefinition = true;
 
   // The first Save writes the edit and the endnotes after the body; the notice ends with it.
   await editor.locator('p.paragraph', {hasText:'First claim'}).click({position:{x:4, y:8}});
   // Wait until the caret has moved from the endnote to the paragraph.
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.empty);
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.empty);
   await page.keyboard.press('End');
   await page.keyboard.type(' Edited.');
   await save.click();
@@ -95,7 +95,7 @@ async (page, { screenshots = false, openDocument }) => {
 
   // A chip goes into its editable definition, which is edited in place.
   const caretIn = label => page.waitForFunction(label => {
-    const {selection} = document.querySelector('.document-editor').editor.state;
+    const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
     return selection.empty && selection.$from.parent.type.name === 'footnoteDefinition' && selection.$from.parent.attrs.label === label;
   }, label);
   await editor.locator('[data-testid="footnote-reference"][data-label="b"] sup').click();
@@ -121,7 +121,7 @@ async (page, { screenshots = false, openDocument }) => {
   assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', `Chips after insertion: ${await texts(chips)}`);
   assert((await created.getByTestId('footnote-number').innerText()).trim() === '3', 'New definition number');
   await created.getByTestId('footnote-number').click();
-  const back = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.node?.attrs.label);
+  const back = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.attrs.label);
   assert(back === '1', `Number went back to ${back}`);
   result.slashInsertsFootnote = true;
   await save.click();
@@ -140,13 +140,13 @@ async (page, { screenshots = false, openDocument }) => {
   await page.keyboard.press('Home');
   for (let step = 0; step < 'First claim'.length; step++) await page.keyboard.press('ArrowRight');
   // Moving onto the chip selects it from the editor's selection, so let that catch up first.
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.$from.parentOffset === 'First claim'.length);
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parentOffset === 'First claim'.length);
   await page.keyboard.press('ArrowRight');
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.state.selection.node?.type.name === 'footnoteReference');
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.type.name === 'footnoteReference');
   await page.keyboard.press('Backspace');
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
   await save.click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing: ' + await page.getByTestId('error').innerText());
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
@@ -316,10 +316,10 @@ async (page, { screenshots = false, openDocument }) => {
   assert(await order() === 'heading paragraph paragraph paragraph a c d b', `Reordered endnotes: ${await order()}`);
   assert(JSON.stringify(await texts(chips)) === '["1","2","3","4"]' && JSON.stringify(await texts(editor.getByTestId('footnote-number'))) === '["1","2","3","4"]', 'Renumbered endnotes');
   await editor.evaluate(element => element.editor.commands.focus());
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
   const orderBecomes = expected => page.waitForFunction(expected => {
     const labels = [];
-    document.querySelector('.document-editor').editor.state.doc.forEach(node => labels.push(node.type.name === 'footnoteDefinition' ? node.attrs.label : node.attrs.footnote || node.type.name));
+    document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.doc.forEach(node => labels.push(node.type.name === 'footnoteDefinition' ? node.attrs.label : node.attrs.footnote || node.type.name));
     return labels.join(' ') === expected;
   }, expected, {timeout: 5000}).then(() => true, () => false);
   await page.keyboard.press('Control+z');

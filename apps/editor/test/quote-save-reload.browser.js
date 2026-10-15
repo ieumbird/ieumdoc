@@ -30,7 +30,7 @@ async (page, { openDocument }) => {
     }
   };
   const typeAtEnd = async (text, typed) => {
-    await page.getByText(text, {exact:true}).click();
+    await page.getByText(text, {exact:true}).filter({visible:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(typed);
   };
@@ -49,7 +49,7 @@ async (page, { openDocument }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await open();
-  const paragraphs = await page.locator('[data-testid="document-editor"] [data-block="paragraph"]').allInnerTexts();
+  const paragraphs = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [data-block="paragraph"]').allInnerTexts();
   const result = {
     savedAsTyped: saved === `---\nieumdoc: 1\n---\n\n# Quote save reload\n\n${apostrophe}\n\n${quoted}\n`,
     reloadedAsTyped: JSON.stringify(paragraphs) === JSON.stringify([apostrophe, quoted]),
