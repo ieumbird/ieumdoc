@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- CLI insertion verification: 2026-10-15 (#280 `--at end` before endnotes; Core/CLI tests).
 - Property-focus verification: 2026-10-15 (#275 actual Apply click/Enter/Cancel/Escape reproduction, shared safe caret restoration, unchanged-caption caret/typing and formatted Save/Reload browser regressions).
 - Last verified: 2026-10-14 (#212: empty-Figure paste/drop fill, existing-image insertion, single Undo/Redo and real-file Save → Reload in `image-assets`; changed-target cancellation/rollback in Editor tests. #211 / PR #229: normal media separators and standalone dot-segment transport in Editor path-table tests; Host traversal rejection, actual image loading/failure and unchanged Save → Reload paths in Editor tests and `image-assets`; Choose… image selection and existing pending Figure regressions).
 - Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
@@ -70,6 +71,8 @@ pnpm ieumdoc check doc.md --format json
 ```
 
 `insert-figure --image`, `--caption` and `--label` are optional; with none of them it inserts an empty Figure. `--label` uses Core label validation in the same edit and single atomic file replacement. `update-figure` preserves omitted fields and the label. Invalid final states and duplicate labels fail without writes.
+
+`insert-figure --at end` (#280) uses Core `bodyEndIndex` to insert before endnote definitions, or after the last body block when there are none (1 for an empty native document). `apply-batch` accepts the same options with `"at": "end"` and resolves the position on each canonical snapshot. [Equation insertion](document-support-v1.md#interfaces-and-errors) and [table insertion](table-caption-v1.md) follow the same one-edit/one-replacement pattern for optional labels and captions.
 
 `inspect` adds `contentKind` to Figure JSON and `content=none|image|other` to text. Existing fields remain. `check` reports pending Figure paths and labels in `readiness.pendingFigures`, or warnings on stderr in text mode. Existing validation/writeability/reference fields and exit codes stay intact: pending alone is writable and exits 0. This is a warning about incomplete content, not a complete publication certification; asset existence and exporters are not checked. Save and format remain allowed. Official MyST can diagnose pending Figures as errors while its build still exits 0; this MVP does not implement Publish/Export.
 

@@ -14,7 +14,7 @@ import * as operations from "./operations.ts";
 import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
 import { validateStructure as validateTree } from "./validation.ts";
 import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/heading-numbering.ts";
-import { endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
+import { bodyEndIndex as bodyEndIndexTree, endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
 export { NativeDocumentError } from "./myst/native.ts";
@@ -62,6 +62,8 @@ export const validateStructure = fence(validateTree);
 /** Whether a parsed snapshot's footnote definitions are already where canonical write puts them;
  * when false, its first canonical write moves them after the body. */
 export const endnotesInPlace = fence(endnotesInPlaceTree);
+/** Top-level insertion index at the end of the body, before endnote definitions. */
+export const bodyEndIndex = fence(bodyEndIndexTree);
 /** Cross-references that name no target in this document; reported, never a write rule. */
 export const unresolvedReferences = fence(unresolvedReferencesTree);
 

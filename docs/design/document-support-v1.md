@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
 - Last verified: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
@@ -44,6 +45,8 @@ Ordinary Markdown images, task lists, unsupported roles/directives, attributes o
 
 ## Interfaces and errors
 
+- Equation authoring: `insert-equation <file> --at <index|end> --latex <latex> [--label <label>]` composes Core `insertEquation` and `updateLabel` in one edit and one file replacement. Non-empty LaTeX and existing label/duplicate rules apply; failures preserve the original. Single commands and `apply-batch` share this contract (#280).
+- Top-level body insertions accept CLI `--at end`, resolved by Core `bodyEndIndex(document)` before trailing endnote definitions. Without endnotes it is after the last body block; a new empty native document returns 1. Numeric positions, including the metadata refusal below, retain their existing rules. The command scope and batch behavior are in [CLI batch application](filesystem-host-boundary-v1.md#cli-batch-application-215).
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.
 - Core native errors have stable codes `native-marker`, `native-metadata`, `native-content`, a reason, corrective action and a snapshot path/source line where identified. `canonicalWriteIssue` and `writeIssueOf` retain write diagnostics separately from native support failures.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.

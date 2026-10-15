@@ -111,6 +111,13 @@ export function bodyIndex(document: MystDocument, index: number): number {
   return document.children.slice(0, index).filter(node => node.type !== "footnoteDefinition").length;
 }
 
+/** Top-level body insertion position, before trailing endnote definitions (metadata stays at 0). */
+export function bodyEndIndex(document: MystDocument): number {
+  let end = document.children.length;
+  while (end > 0 && document.children[end - 1].type === "footnoteDefinition") end--;
+  return end;
+}
+
 /**
  * Whether a parsed snapshot's definitions are written where canonical Markdown puts them: after
  * every body block, in endnote order. It reads the source lines `parse` gave them, so it
