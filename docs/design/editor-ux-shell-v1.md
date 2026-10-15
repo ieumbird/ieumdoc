@@ -26,8 +26,10 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only; it does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 Opening another document or the folder heading's `+` opens a new tab after Host success; an already-open
-normalized path activates its tab. Neither Open/New nor tab switching asks to discard work. Switching
-retains history, drafts, selection, scroll and view; active pending Save/Source/assets/Open/New still
+normalized path activates its tab without a Host GET when the requested path matches exactly. Other
+spellings still use Host normalization. Neither Open/New nor tab switching asks to discard work. Switching
+retains history, block property drafts, selection, scroll and view; transient inline link/math inputs
+close on blur as within one document. Active pending Save/Source/assets/Open/New still
 block it. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
 applied edits after Save keep that tab. Inactive tabs keep their state with overlays and measurement
 suspended. Browser unload and Desktop close/update inspect all tabs. See the

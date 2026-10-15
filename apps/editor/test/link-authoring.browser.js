@@ -65,6 +65,25 @@ async (page, { openDocument }) => {
   await select('OpenAI');
   await page.getByRole('button', {name:'Link', exact:true}).click();
   result.formPrefilled = await page.getByTestId('link-url').inputValue() === 'https://openai.com';
+  // Transient inline input closes without Apply on any outside blur, including tab switches.
+  const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  for (const destination of ['same document', 'another tab']) {
+    await page.getByTestId('link-url').press('Control+a');
+    await page.getByTestId('link-url').pressSequentially('https://uncommitted.example');
+    if (destination === 'same document') {
+      await editor.locator('p.paragraph', {hasText:'A plain paragraph'}).click({position:{x:4,y:4}});
+    } else {
+      await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
+      await page.getByTestId('link-form').waitFor({state:'detached'});
+      await page.getByRole('tab', {name:'links.md',exact:true}).click();
+    }
+    await page.getByTestId('link-form').waitFor({state:'detached'});
+    if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Link blur applied input on ${destination}`);
+    await select('OpenAI');
+    await page.getByRole('button', {name:'Link',exact:true}).click();
+    if (await page.getByTestId('link-url').inputValue() !== 'https://openai.com') throw new Error(`Link input survived blur on ${destination}`);
+  }
+  result.inlineBlurClosesWithoutApply = true;
   await page.getByTestId('link-url').fill('https://openai.com/research');
   await page.getByTestId('link-apply').click();
   await page.getByTestId('link-form').waitFor({state:'detached'});

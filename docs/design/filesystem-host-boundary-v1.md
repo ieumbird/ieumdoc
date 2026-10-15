@@ -208,7 +208,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | Workspace persistence | 지원하지 않음. 선택한 folder와 펼친 상태는 새로고침 후 복원하지 않는다. |
 - 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
-- 문서는 기존 `GET /api/document` 경로로 읽고, Host가 반환한 정규화 경로로 열린 탭을 식별한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 선택한 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.
+- Host가 반환한 정규화 경로로 열린 탭을 식별한다. 요청 경로가 이미 열린 탭 경로와 정확히 같으면 Host GET 없이 그 세션을 활성화하므로, 디스크에서 파일이 사라지거나 읽을 수 없게 되어도 열린 세션을 유지한다. 일치하지 않는 경로·별칭은 기존 `GET /api/document`로 읽고 반환된 정규화 경로를 다시 비교한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 선택한 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.
 - `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
 - Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
 

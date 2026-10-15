@@ -198,6 +198,13 @@ export function App() {
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
     if (operationRef.current || busy || continuation) return "Wait for the current operation to finish.";
+    const existing = openedTab(tabs, requestedPath);
+    if (existing) {
+      activateTab(existing.id);
+      setError("");
+      setNotice(openedNotice);
+      return "";
+    }
     const returnFocus = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
     operationRef.current = true;
     setOperation("Opening…");

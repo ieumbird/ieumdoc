@@ -1,5 +1,5 @@
 // Real independent sessions, explicit per-file Save/Reload, and optional visual/memory review.
-async (page, { openDocument, reloadDocument, activeDocument, screenshots = false }) => {
+async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, screenshots = false }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -68,7 +68,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   check(!(await editor().innerText()).includes('A independent'), 'A undo history was lost');
   await page.keyboard.press('Control+Shift+z');
 
-  // Opening through the Host returns a normalized path; keep the existing instance and edits.
+  // An exact already-normalized path keeps the existing instance and edits.
   await openDocument(page, b); await activate('technical-1.md');
   check(await page.getByRole('tab').count() === 2, 'Reopening B made a duplicate tab');
   check(await editor().evaluate(n => n.editor === window.tabEditorA), 'Reopening replaced the existing editor');
@@ -94,6 +94,30 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   check(await page.getByRole('tab',{name:'technical-2.md',exact:true}).getAttribute('aria-selected') === 'true', 'End did not activate the last tab');
   await page.keyboard.press('Home');
   check(await tabA.getAttribute('aria-selected') === 'true', 'Home did not activate the first tab');
+
+  // External deletion must not make a retained session depend on another Host GET.
+  await editor().evaluate(n => {
+    window.tabEditorA = n.editor;
+    n.editor.commands.insertContentAt(1, 'Retained after disk removal ');
+    n.editor.commands.setTextSelection({from:2,to:8});
+  });
+  const beforeRemoval = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON()}));
+  await activate('technical-2.md');
+  removeTabFixture();
+  check((await page.request.get(`${origin}/api/document?path=${encodeURIComponent(a)}`)).status() === 400, 'The scratch file was not removed on disk');
+  switchRequests = 0;
+  page.on('request', countRequest);
+  try {
+    // The already-listed entry remains; no refresh or file watcher is involved.
+    await page.getByTestId('folder').getByRole('treeitem',{name:'technical-1.md',exact:true}).click();
+    await page.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, a);
+    check(switchRequests === 0, 'An exact open path performed a Host request');
+    check(await page.getByRole('tab').count() === 2 && !await page.getByTestId('error').count(), 'Activating a missing open file added a tab or an error');
+    const retained = await editor().evaluate(n => ({same:n.editor === window.tabEditorA,json:JSON.stringify(n.editor.getJSON()),selection:n.editor.state.selection.toJSON()}));
+    check(retained.same && retained.json === beforeRemoval.json && JSON.stringify(retained.selection) === JSON.stringify(beforeRemoval.selection), 'Missing-file activation replaced the retained session');
+    await editor().focus(); await page.keyboard.press('Control+z');
+    check(!(await editor().innerText()).includes('Retained after disk removal'), 'Missing-file activation lost undo history');
+  } finally { page.off('request', countRequest); }
 
   // Same-name labels and narrow overflow are observable product contracts.
   await openDocument(page, file(['alpha','guide.md'].join(sep))); await ready();
@@ -159,6 +183,6 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
       await page.evaluate(value => { window.documentTabsMeasurement=value; },measurement);
     } finally { await cdp.detach(); }
   }
-  return {independentState:true, retainedDrafts:true, undo:true, sourceView:true, saveReload:true, accessibleSwitching:true,
+  return {independentState:true, retainedDrafts:true, undo:true, sourceView:true, saveReload:true, accessibleSwitching:true, missingFileActivation:true,
     measurement: screenshots ? await page.evaluate(() => window.documentTabsMeasurement) : undefined};
 }

@@ -1,7 +1,7 @@
 import { test as base, expect, chromium, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 import type { Editor } from "@tiptap/core";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
@@ -129,8 +129,11 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover }) => Promise<unknown>;
-    const result = await scenario(page, { screenshots, openDocument, reloadDocument, activeDocument, withBlockHover });
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void }) => Promise<unknown>;
+    const result = await scenario(page, { screenshots, openDocument, reloadDocument, activeDocument, withBlockHover,
+      // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
+      removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
+    });
     if (result !== undefined) {
       const resultPath = test.info().outputPath("scenario-result.json");
       writeFileSync(resultPath, JSON.stringify(result, null, 2));

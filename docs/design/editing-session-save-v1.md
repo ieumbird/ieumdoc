@@ -84,9 +84,15 @@ Open from the sidebar and New open a new tab, with no work-loss confirmation bec
 sessions remain. New keeps its filename/location dialog and first-paragraph focus handoff. Failed
 Open/New adds no tab and changes no existing editor. The Host-returned normalized path is the
 identity; the UI does not guess case folding, aliases or filesystem identity.
+An exact request-path match to an open tab's Host-normalized path activates that session without a
+Host GET, even if the file has since become unreadable or disappeared. An unmatched spelling still
+goes through GET and comparison of the returned normalized path before adding a tab.
 
 Switching tabs never serializes/reparses content or calls `setContent`. The mounted session keeps
-content, undo/redo, property draft values, selection, per-tab window scroll and Visual/Source view.
+content, undo/redo, block property draft values (Equation, Figure, Table and section label), selection,
+per-tab window scroll and Visual/Source view. Transient inline link URL and inline-math inputs close
+without applying on outside blur, including a tab switch, just as when clicking elsewhere in the
+same document. Reopening them starts from the applied URL/LaTeX; they are not block property drafts.
 Dirty work alone never blocks switching. Active Save, Open/New/Reload, Source generation and asset
 work still block switching. Inactive editors retain values but mount no property portals or block
 handles, run no geometry observers/outline measurements and cannot autofocus. Form IDs are unique

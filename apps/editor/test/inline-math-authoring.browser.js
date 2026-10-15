@@ -77,6 +77,28 @@ async (page, { openDocument }) => {
   // {eq} reference paragraphs are editable since cross-reference authoring.
   result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
 
+  // Match ordinary same-document blur: returning to a tab does not restore transient input.
+  const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  for (const destination of ['same document', 'another tab']) {
+    await (await mathNamed('i_d')).click();
+    await page.getByTestId('inline-math-source').press('Control+a');
+    await page.getByTestId('inline-math-source').pressSequentially('uncommitted');
+    if (destination === 'same document') {
+      await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
+    } else {
+      await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
+      await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+      await page.getByRole('tab', {name:'math.md',exact:true}).click();
+    }
+    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+    if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Inline math blur applied input on ${destination}`);
+    await (await mathNamed('i_d')).click();
+    if (await page.getByTestId('inline-math-source').inputValue() !== 'i_d') throw new Error(`Inline math input survived blur on ${destination}`);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+  }
+  result.inlineBlurClosesWithoutApply = true;
+
   // Change a source: the form opens prefilled.
   result.formPrefilled = await editSource('i_d', 'i_q');
 
