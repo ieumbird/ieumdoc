@@ -29,15 +29,51 @@ export function targetIdentifiers(root: MystNode, except?: MystNode): Set<string
 }
 
 /**
- * Whether an identifier names a target as MyST's own reference resolution finds it on one page:
- * labeled blocks, `(label)=` targets and the implicit IDs of unlabeled headings. MyST's
- * transforms run on a clone, so the document is unchanged.
+ * MyST's one-page reference targets: labeled blocks, `(label)=` targets and implicit
+ * heading IDs. Lookup uses MyST's resolver; candidates retain duplicates for fail-closed
+ * edits, and paths locate resolved nodes in the original snapshot. Transforms run on a clone.
  */
-export function referenceTargets(document: MystDocument): (identifier: string) => boolean {
+export function referenceTargetIndex(document: MystDocument) {
   const tree = cloneDocument(document);
+  // Keep snapshot locators outside the tree: transforms must not see invented attributes.
+  const paths = new Map<MystNode, number[]>();
+  const remember = (node: MystNode, path: number[]) => {
+    paths.set(node, path);
+    node.children?.forEach((child, index) => remember(child, [...path, index]));
+  };
+  remember(tree, []);
   const file = new VFile();
   basicTransformations(tree as never, file);
   const state = new ReferenceState("document.md", { vfile: file });
   enumerateTargetsTransform(tree as never, { state });
-  return (identifier) => state.getTarget(identifier) !== undefined;
+  // MyST chooses the first duplicate. Writes must also see the discarded candidates.
+  const candidates = new Map<string, MystNode[]>();
+  const visit = (node: MystNode) => {
+    if (isTargetIdentifierNode(node) && typeof node.identifier === "string" && node.identifier) {
+      const nodes = candidates.get(node.identifier) ?? [];
+      nodes.push(node);
+      candidates.set(node.identifier, nodes);
+    }
+    node.children?.forEach(visit);
+  };
+  visit(tree);
+  return {
+    lookup: (identifier: string) => state.getTarget(identifier),
+    candidates: (identifier: string) => candidates.get(identifier) ?? [],
+    path: (node: MystNode) => paths.get(node),
+  };
+}
+
+/** Shared role/link lookup order, including MyST's raw-then-normalized fragment lookup. */
+export function resolveReference<T>(node: MystNode, lookup: (identifier: string) => T | undefined): T | undefined {
+  if (node.type === "crossReference" && typeof node.label === "string") {
+    const identifier = typeof node.identifier === "string" ? node.identifier : labelIdentifier(node.label);
+    return identifier ? lookup(identifier) : undefined;
+  }
+  if (node.type === "link" && typeof node.url === "string" && node.url.startsWith("#")) {
+    const label = node.url.slice(1);
+    const identifier = labelIdentifier(label);
+    return identifier ? lookup(label) ?? lookup(identifier) : undefined;
+  }
+  return undefined;
 }

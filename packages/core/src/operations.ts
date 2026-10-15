@@ -27,6 +27,7 @@ import {
 import { assertInlineBlockRoundTrip } from "./myst/inline-round-trip.ts";
 import { labelIdentifier, targetIdentifiers } from "./myst/label.ts";
 import { assertReferenceableLabel } from "./myst/reference.ts";
+import { renameLabelReferences } from "./myst/rename-label.ts";
 import { labelError, targetLabelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
 import type { ListContent } from "./list.ts";
@@ -798,11 +799,13 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
 /**
  * Set, change or remove ("") the label of a top-level Equation, Figure or Table, or change
  * the label of a `(label)=` target: the name references use. Content is kept, and references
- * are never renamed. The label must name a target MyST can resolve, be addressable by the
+ * stay untouched unless `updateReferences` is explicitly true. The label must name a target
+ * MyST can resolve, be addressable by the
  * reference role Core writes for that block, and not name another target in the document.
  * A target is its label: remove one with removeBlock.
  */
-export function updateLabel(document: MystDocument, path: NodePath, label: string): MystDocument {
+export function updateLabel(document: MystDocument, path: NodePath, label: string,
+  options: { updateReferences?: boolean } = {}): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
     throw new Error("updateLabel requires a top-level Equation, Figure, Table or target path [index]");
   }
@@ -810,6 +813,7 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
   const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : tableOf(current) ? "Table"
     : current.type === "mystTarget" ? "Target" : undefined;
   if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure, Table or target at [${path.join(",")}]`);
+  if (options.updateReferences === true) return renameLabelReferences(document, path, label, () => updateLabel(document, path, label));
   if (kind === "Target" && label.length === 0) throw new Error("a target cannot be unlabeled; remove the block instead");
   const identifier = label.length > 0 ? newLabelIdentifier(document, kind, label, current) : undefined;
   const next = cloneDocument(document);

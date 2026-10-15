@@ -1,5 +1,5 @@
 import type { NodePath } from "./document.ts";
-import { labelIdentifier, referenceTargets } from "./myst/label.ts";
+import { referenceTargetIndex, resolveReference } from "./myst/label.ts";
 import { unresolvedFootnotes } from "./myst/footnote.ts";
 import type { MystDocument, MystNode } from "./myst/tree.ts";
 
@@ -39,23 +39,20 @@ export type UnresolvedReference = (
  * operation-created text is literal and has no source syntax to diagnose.
  */
 export function unresolvedReferences(document: MystDocument): UnresolvedReference[] {
-  const resolves = referenceTargets(document);
+  const { lookup } = referenceTargetIndex(document);
   const unresolved: UnresolvedReference[] = [];
   // MyST drops the position of a role's reference node, so the line comes from its container.
   const visit = (node: MystNode, path: NodePath, line: number | undefined) => {
     line = node.position?.start.line ?? line;
     const at = { path, ...(typeof line === "number" ? { line } : {}) };
     if (node.type === "crossReference" && typeof node.label === "string") {
-      const identifier = typeof node.identifier === "string" ? node.identifier : labelIdentifier(node.label);
-      if (!identifier || !resolves(identifier)) {
+      if (!resolveReference(node, lookup)) {
         unresolved.push({ role: typeof node.kind === "string" ? node.kind : "ref", label: node.label, ...at });
       }
     }
     if (node.type === "link" && typeof node.url === "string" && node.url.startsWith("#")) {
-      // MyST looks a link's URL up as written, then normalized.
       const label = node.url.slice(1);
-      const identifier = labelIdentifier(label);
-      if (!identifier || !(resolves(label) || resolves(identifier))) unresolved.push({ link: node.url, label, ...at });
+      if (!resolveReference(node, lookup)) unresolved.push({ link: node.url, label, ...at });
     }
     node.children?.forEach((child) => visit(child, path, line));
   };
