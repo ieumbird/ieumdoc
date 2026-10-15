@@ -185,6 +185,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@ieumdoc/file-commit':
+        specifier: workspace:*
+        version: link:../../packages/file-commit
       '@playwright/test':
         specifier: 1.64.0-alpha-1789764292000
         version: 1.64.0-alpha-1789764292000

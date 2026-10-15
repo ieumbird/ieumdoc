@@ -3,6 +3,7 @@
 - Status: Implemented
 - CLI preview verification: 2026-10-15 (#292: shared file-commit preflight, dry-run no-write boundary, failure parity and result/check output; source CLI and Core/CLI/file-commit tests).
 - CLI insertion verification: 2026-10-15 (#280 single-write properties, unchanged-file refusal and per-step batch `end` resolution; Core/CLI tests).
+- Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Last verified: 2026-10-14 (#215: CLI batch sequential-byte equivalence, original preservation, revision/output, batch-wide versus step errors, null option rejection and commit conflict regressions. #214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Encoding verification: 2026-10-15 (#271 malformed UTF-8/Unicode refusal, raw-byte revision checks, original preservation and temporary cleanup; Vite/production HTTP repeated Unicode Save → Reload and existing external-conflict regressions).
@@ -70,6 +71,8 @@ Browser -> file upload -> remote service -> edit -> download
 Host는 Browser가 보낸 임의 path를 무조건 신뢰하지 않는다. 특히 path는 사용자 입력이라는 전제에서 검증한다.
 
 ### Path Unicode
+
+CLI는 모든 문서 명령의 파일 인자와 `apply-batch --operations`를 공통 인자 파싱에서 `assertUnicode()`로 검사한다(#287). 단독 surrogate는 파일 접근 전에 Unicode 오류와 exit 1로 거부한다. `serve --root`는 기존 공유 Host Root 검사를 따른다. Desktop `firstDocument()`도 시작 문서 인자를 경로 정규화·존재 확인 전에 같은 함수로 검사한다. 거부한 인자는 경고 후 건너뛰며, 유효한 다른 인자가 없으면 문서 없이 시작하고 기존 sample 사본을 제공한다. 정상 한글·emoji·리터럴 U+FFFD 파일명은 허용한다.
 
 Vite·Desktop·HTTP의 공유 Host는 사용자 경로·이름의 단독 UTF-16 surrogate를 파일시스템에 전달하거나 경로를 정규화하기 전에 거부한다. 문서 열기·생성·저장·미리보기의 `path`, 폴더 목록의 `root`/`path`, browse의 `path`, 폴더 생성의 `parent`/`name`, 이미지 선택의 `documentPath`/`source`, asset 업로드·rollback의 문서/상대 경로와 media 상대 경로에 적용한다. HTTP의 시작 Root도 같은 Unicode 검사를 거친다. 정상 한글·emoji·리터럴 U+FFFD는 허용하며 다른 문자로 치환하거나 이름을 보정하지 않는다.
 
