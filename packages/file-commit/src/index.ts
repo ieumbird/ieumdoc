@@ -8,7 +8,8 @@ export function decodeUtf8(bytes: Uint8Array): string {
   catch (cause) { throw new Error("Invalid UTF-8 input; nothing was written", { cause }); }
 }
 
-function assertUnicode(text: string): void {
+/** Reject lossy UTF-8 encoding of text or a Host filesystem locator. */
+export function assertUnicode(text: string): void {
   if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(text)) throw new Error("Invalid Unicode: unpaired surrogate; nothing was written");
 }
 

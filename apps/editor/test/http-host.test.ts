@@ -86,6 +86,21 @@ test("HTTP starts with only allowed places and saves both roots through Core and
   await assert.rejects(fetch(url), /fetch failed/);
 });
 
+test("HTTP rejects an escaped surrogate locator and preserves valid Unicode names", async t => {
+  const { a, send } = await fixture(t);
+  const before = fs.readdirSync(a).sort();
+  const rejected = await send("/api/document", "PUT", { path: path.join(a, "X\uD800Y.md") });
+  assert.equal(rejected.status, 400);
+  assert.deepEqual(await rejected.json(), { error: "Invalid Unicode: unpaired surrogate; nothing was written" });
+  assert.deepEqual(fs.readdirSync(a).sort(), before);
+
+  const name = "한글 😀 �.md";
+  const created = await send("/api/document", "PUT", { path: path.join(a, name) });
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).path, path.join(a, name));
+  assert.deepEqual(fs.readdirSync(a).sort(), [...before, name].sort());
+});
+
 test("every file endpoint denies outside paths without exposing or modifying the outside folder", async t => {
   const { a, outside, base, send, url } = await fixture(t);
   const outsideFile = path.join(outside, "document.md"), original = fs.readFileSync(outsideFile);

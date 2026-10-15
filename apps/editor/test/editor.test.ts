@@ -717,6 +717,36 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
   }
 });
 
+test("Host paths refuse unpaired surrogates without creating or reading replacement names", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
+  try {
+    assert.throws(() => createFolder(dir, "A\uD800B"), /Invalid Unicode: unpaired surrogate/);
+    assert.throws(() => createDocumentFile(path.join(dir, "X\uDC00Y.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(fs.readdirSync(dir), [], "rejected creations leave no replacement names or temporary files");
+
+    const name = "한글 😀 �";
+    const folder = createFolder(dir, name);
+    const file = path.join(folder.path, `${name}.md`);
+    const created = createDocumentFile(file);
+    assert.equal(folder.path, path.join(dir, name));
+    assert.equal(created.path, file);
+    assert.equal(loadDocumentFile(file).source, created.source);
+    assert.deepEqual(fs.readdirSync(folder.path), [`${name}.md`]);
+
+    const replacement = path.join(dir, "X�Y.md");
+    const original = Buffer.from(nativeSource("Keep this file.\n"));
+    writeFileSync(replacement, original);
+    assert.throws(() => loadDocumentFile(path.join(dir, "X\uDC00Y.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(readFileSync(replacement), original);
+    // Check before normalization or a media filesystem probe can hide the invalid segment.
+    assert.throws(() => resolveDocumentPath(`${dir}/A\uD800B/../X�Y.md`), /Invalid Unicode: unpaired surrogate/);
+    assert.throws(() => resolveMediaPath("A\uD800B/../image.png", path.join(dir, "missing.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(fs.readdirSync(dir).sort(), ["X�Y.md", name].sort());
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("a chosen folder lists one level of sub-folders and Markdown files, and stays inside", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-folder-"));
   const chosen = path.join(dir, "docs");

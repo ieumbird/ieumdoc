@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDocument, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
-import { commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import {
@@ -411,6 +411,7 @@ export function folderPlaces(access: FileAccess = LOCAL_FILE_ACCESS): FolderPlac
 export function createFolder(requestedParent: string | undefined, requestedName: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): FolderCreateResponse {
   if (!requestedParent?.trim()) throw new Error("folder path is required");
   const name = requestedName ?? "";
+  assertUnicode(name);
   if (!name.trim()) throw new Error("folder name is required");
   if (name === "." || name === ".." || /[\\/]/.test(name)) throw new Error("folder name cannot contain a directory path");
   // Hidden folders are not listed, so one created here would seem to disappear.
@@ -476,6 +477,7 @@ function isInside(root: string, target: string): boolean {
 
 export function resolveMediaPath(assetPath: string, documentPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): string {
   const decodedPath = decodeURIComponent(assetPath);
+  assertUnicode(decodedPath);
   const documentFile = resolveDocumentPath(documentPath, access);
   const documentDirectory = path.dirname(documentFile);
   if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath) || path.win32.isAbsolute(decodedPath) || /^[A-Za-z]:/.test(decodedPath)) {

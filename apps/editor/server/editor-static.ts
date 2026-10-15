@@ -1,6 +1,7 @@
 // Fixed production Editor assets shared by the Desktop and HTTP transports.
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
+import { assertUnicode } from "@ieumdoc/file-commit";
 import { inside } from "./file-access.ts";
 
 const TYPES: Record<string, string> = {
@@ -27,6 +28,7 @@ export function serveEditorFile(editorDir: string, pathname: string): Response {
   let relative: string;
   try {
     relative = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
+    assertUnicode(relative);
   } catch {
     return notFound();
   }

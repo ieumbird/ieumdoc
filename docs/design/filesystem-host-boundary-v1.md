@@ -5,6 +5,7 @@
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Encoding verification: 2026-10-15 (#271 malformed UTF-8/Unicode refusal, raw-byte revision checks, original preservation and temporary cleanup; Vite/production HTTP repeated Unicode Save → Reload and existing external-conflict regressions).
 - Date: 2026-09-23
+- Path verification: 2026-10-15 (#278 shared helper and real HTTP refusal before path I/O, no replacement files, valid Unicode names and pre-normalization checks).
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
 ## Purpose
@@ -65,6 +66,14 @@ Browser -> file upload -> remote service -> edit -> download
 - 열린 `.md` 파일 directory를 기준으로 한 상대 media resolution
 
 Host는 Browser가 보낸 임의 path를 무조건 신뢰하지 않는다. 특히 path는 사용자 입력이라는 전제에서 검증한다.
+
+### Path Unicode
+
+Vite·Desktop·HTTP의 공유 Host는 사용자 경로·이름의 단독 UTF-16 surrogate를 파일시스템에 전달하거나 경로를 정규화하기 전에 거부한다. 문서 열기·생성·저장·미리보기의 `path`, 폴더 목록의 `root`/`path`, browse의 `path`, 폴더 생성의 `parent`/`name`, 이미지 선택의 `documentPath`/`source`, asset 업로드·rollback의 문서/상대 경로와 media 상대 경로에 적용한다. HTTP의 시작 Root도 같은 Unicode 검사를 거친다. 정상 한글·emoji·리터럴 U+FFFD는 허용하며 다른 문자로 치환하거나 이름을 보정하지 않는다.
+
+공통 `accessPath`/Root locator에서 기존 Unicode 검사를 재사용한다. 폴더명과 decode한 media 상대 경로는 조합·정규화 전에 검사하여 잘못된 segment가 사라지는 경우도 거부한다. 잘못된 Unicode 입력은 기존 잘못된 요청과 같은 HTTP 400 오류이며, JSON API는 `{ error }`, media는 기존 빈 오류 응답을 유지한다. 거부된 경로로 파일·폴더를 생성하거나 다른 이름의 대상을 읽고 쓰지 않는다. Asset rollback의 제한된 상대 경로 형식과 receipt 검사도 그대로 적용한다.
+
+고정 Editor build의 정적 자산 경로도 decode 후 같은 검사를 거치며, 잘못된 경로는 기존 404 응답을 유지한다.
 
 ### Browser Editor owns
 
