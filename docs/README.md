@@ -24,7 +24,7 @@
 | [Editing session and Save](design/editing-session-save-v1.md) | Implemented | 현재 계약. opening snapshot, Save acknowledgement, draft와 work-loss 보호. |
 | [Filesystem Host boundary](design/filesystem-host-boundary-v1.md) | Implemented | 파일·asset·folder 계약. Vite, Desktop, HTTP Host가 같은 handler를 재사용. |
 | [HTTP Host](design/http-host-v1.md) | Implemented | CLI 배포/실행, 복수 허용 Root, HTTP·프록시 경계와 검증. |
-| [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.3와 실제 GitHub 업데이트 검증. |
+| [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.4와 실제 GitHub 업데이트 검증. |
 | [Desktop app icon](design/app-icon-v1.md) | Implemented | #170 B안의 SVG/ICO, 출처, 재생성 및 Windows 패키징·표시 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file·New folder. |
 | [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v4). 모든 쓰기에서 미주 정의를 본문 뒤 첫 참조 순서로 배치, 단일 미주 구역, Section과 분리, 실제 참조로 복귀와 기존 삽입·편집·유실 방지. |
@@ -73,7 +73,7 @@
 
 ## Verification
 
-- [v0.0.1-beta.4 release and verification record](releases/v0.0.1-beta.4.md) — Draft; 네이티브 문서 전환 호환성 안내, 배포 범위·검증 계획과 알려진 제한. 공개 전 후보.
+- [v0.0.1-beta.4 release and verification record](releases/v0.0.1-beta.4.md) — Historical; 네이티브 문서 전환 호환성 안내, 공개 자산, CI, 실제 GitHub beta.3→beta.4 업데이트와 알려진 제한.
 - [v0.0.1-beta.3 release and verification record](releases/v0.0.1-beta.3.md) — Historical; 공개 자산, CI, 실제 GitHub beta.2→beta.3 업데이트와 알려진 제한.
 - [v0.0.1-beta.2 release and verification record](releases/v0.0.1-beta.2.md) — Historical; 공개 자산, CI와 실제 GitHub 업데이트 검증 근거.
 

@@ -26,6 +26,8 @@ const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
 const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
 const [OLD, NEW] = BETA ? ["0.0.1-beta.3", "0.0.1-beta.4"] : ["0.0.1", "0.0.2"];
+// The public beta.3 predates native documents (#232) and edits leading frontmatter as a body block.
+const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nieumdoc: 1\n---\n\n";
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, "IeumDoc");
@@ -135,7 +137,7 @@ test("installs per user, then updates from Settings only after the open document
   const documents = path.join(work, "documents");
   mkdirSync(documents, { recursive: true });
   const documentFile = path.join(documents, "update.md");
-  writeFileSync(documentFile, "---\nieumdoc: 1\n---\n\n# Update\n\nAlpha.\n");
+  writeFileSync(documentFile, `${NATIVE_PREFIX}# Update\n\nAlpha.\n`);
   const requests: string[] = [];
   const server = LIVE ? null : releases(newBuild, requests);
   if (server) await new Promise<void>((resolve) => server.listen(47320, "127.0.0.1", resolve));
@@ -248,7 +250,7 @@ test("installs per user, then updates from Settings only after the open document
     }
     assert.ok(appProcesses(installedAt).some((process) => process.version === NEW), "the new version is running");
     console.log(`installed ${NEW} and showed its window ${Date.now() - restarted} ms after the restart`);
-    assert.equal(readFileSync(documentFile, "utf8"), "---\nieumdoc: 1\n---\n\n# Update\n\nAlpha. Saved before the update.\n");
+    assert.equal(readFileSync(documentFile, "utf8"), `${NATIVE_PREFIX}# Update\n\nAlpha. Saved before the update.\n`);
     assert.deepEqual(readPreferences(preferencesFile, NEW), prefs, "saved channel and preferences survived installation");
     assert.equal(readFileSync(canary, "utf8"), "Preserve existing user data.\n");
     assert.ok(readFileSync(log, "utf8").includes(`started ${NEW} (${prefs.channel})`), "the new app loaded the preserved channel");
