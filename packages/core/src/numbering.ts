@@ -88,10 +88,10 @@ export type EndnoteBlock = { definition?: string; references: readonly string[] 
 
 /**
  * Endnote order, the one placement policy of footnote definitions: body blocks first, as they
- * are, then the definitions in the order of the first reference to each. References held in a
- * definition (preserved/read-only ones can hold them) follow the body's references. A
- * definition no reference reaches comes last, in its current order. Core's parse and canonical
- * write and the Editor's endnotes region all order by it.
+ * are, then the definitions in the order of the first reference to each. Native admission
+ * rejects references inside definitions; defensive ordering still places such references
+ * after the body's references. A definition no reference reaches comes last, in its current
+ * order. Core's parse and canonical write and the Editor's endnotes region all order by it.
  */
 export function endnoteOrder(blocks: readonly EndnoteBlock[]): number[] {
   const body = blocks.flatMap((block, index) => block.definition === undefined ? [index] : []);
