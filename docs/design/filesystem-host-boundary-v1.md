@@ -203,7 +203,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | Workspace persistence | 지원하지 않음. 선택한 folder와 펼친 상태는 새로고침 후 복원하지 않는다. |
 - 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
-- 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 기존 Open처럼 전환을 거부한다. 문서를 열거나 만들면 그 문서 위의 folder들(선택한 folder 안일 때)을 펼치고 다시 list하므로 새 문서가 바로 보인다. IeumDoc 밖의 변경은 watch하지 않는다. 늦게 도착한 listing은 같은 folder의 더 새 요청을 덮지 않고, 그 사이 접힌 folder를 다시 펼치지 않는다.
+- 문서는 기존 `GET /api/document` 경로로 연다. 저장하지 않은 변경이나 draft가 있으면 [편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)의 Save / Don't save / Cancel 확인을 거친다. Save 실패나 취소 시 세션을 유지하며, 진행 중인 작업은 기존처럼 전환을 거부한다. 문서를 열거나 만들면 그 문서 위의 folder들(선택한 folder 안일 때)을 펼치고 다시 list하므로 새 문서가 바로 보인다. IeumDoc 밖의 변경은 watch하지 않는다. 늦게 도착한 listing은 같은 folder의 더 새 요청을 덮지 않고, 그 사이 접힌 folder를 다시 펼치지 않는다.
 - `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
 - Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
 

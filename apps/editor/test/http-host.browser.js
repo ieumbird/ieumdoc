@@ -51,11 +51,16 @@ async (page, { openDocument, screenshots }) => {
   await page.keyboard.press('End'); await page.keyboard.type(' HTTP saved.');
   // Trying a different document retains unsaved input, even when the folder itself changes.
   await openDocument(page, fileB);
-  await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
   check(await page.getByTestId('current-file').getAttribute('title') === fileA, 'Dirty document cannot switch');
   check((await editor.innerText()).includes('HTTP saved.'), 'Dirty text remains in the Editor');
-  await page.getByRole('button', {name:'Dismiss error'}).click();
-  await save();
+  await sidebar.getByRole('treeitem', {name:'b.md',exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
+  check(await page.getByTestId('current-file').getAttribute('title') === fileB, 'Confirmation Save opens the chosen file through the real Host');
+  await openDocument(page, fileA); await ready();
+  check((await editor.innerText()).includes('HTTP saved.'), 'Confirmation Save persists on reopening');
   await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End');
   await page.keyboard.insertText(' 한글 😀 �'); await save();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
@@ -94,10 +99,11 @@ async (page, { openDocument, screenshots }) => {
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure', exact:true}).click();
   await page.getByTestId('figure-caption').fill('Unapplied HTTP draft');
   await openDocument(page, fileA);
-  await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
   check(await page.getByTestId('figure-caption').inputValue() === 'Unapplied HTTP draft', 'Folder switching cannot discard a property draft');
   check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Unapplied draft keeps the current document');
-  await page.getByTestId('figure-cancel').click(); await page.getByRole('button', {name:'Dismiss error'}).click();
+  await page.getByTestId('figure-cancel').click();
   await openDocument(page, fileA); await ready();
   // Another client commits using the same real API; the Editor's stale baseline must get 409.
   const loaded = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json();

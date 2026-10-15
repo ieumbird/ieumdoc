@@ -3,6 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
+- Switching verification: 2026-10-15 (#291: Open/New confirmation, Save failure/conflict, draft retention/loss, pending work and focus browser regressions; real Vite New and production HTTP Save/reopen; 1440/375px dialog captures reviewed, final visual approval remains with the user).
 - Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
 ## Save acknowledgement
@@ -56,7 +57,11 @@ This phase adds no persistent logs, diagnostics history, report export or automa
 
 ## Switching and recovery
 
-Open/New refuse while changes or drafts remain, including documents that cannot currently be saved. Reload reads the current file; dirty sessions first offer **Keep editing** or **Discard and reload**. Read failures preserve the old session. Document-switch dialogs remain modal while the request runs. Browser navigation/closing warns through `beforeunload` while work or an operation is pending; force-closing the browser is not durable draft recovery.
+Opening another sidebar document or choosing the folder's New file (`+`) with unsaved changes or unapplied drafts offers one **Save / Don't save / Cancel** dialog, following [ADR-0007 section 4](../adr/0007-editing-session-lifetime.md#4-미저장-작업-처리는-하나의-확인-대화상자를-재사용한다). Save uses the existing Save path and continues only after success. A content rejection, conflict or other Save failure closes the confirmation, keeps the session and shows the existing Save error/conflict UI. Don't save continues without writing the current file. Cancel, Escape and outside dismissal leave the session unchanged and return focus to the invoking control. A draft notice explicitly says that both Save and Don't save lose unapplied property drafts; Save includes applied content only.
+
+New continues to the existing filename/location dialog after confirmation. Cancelling that dialog or failing to create a file retains the current session (a successful Save is still saved). The current session and drafts are replaced only after the chosen document opens or creation succeeds. Busy, Source-pending and asset-pending operations still refuse switching. The confirmation stays modal with disabled actions during Save/Open; shortcuts cannot bypass it. Successful Open focuses the document, and New retains its existing successful focus handoff.
+
+Reload reads the current file; dirty sessions still offer **Keep editing** or **Discard and reload**. Read failures preserve the old session. Document-switch dialogs remain modal while the request runs. Browser navigation/closing warns through `beforeunload` while work or an operation is pending; force-closing the browser is not durable draft recovery. Tabs, Desktop close/update behavior and recovery are outside #291; the confirmation component is reusable without owning those actions or document semantics, so this Editor interaction adds no Core operation or CLI command.
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
 
@@ -64,13 +69,15 @@ External changes retain the existing revision conflict check. The user can copy 
 
 Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New or Reload dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
 
-Current behavior: no autosave and no local draft recovery. `beforeunload` is the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md) accepts the direction that replaces this: an opt-in autosave setting (off by default) through the same Save path, local work recovery kept apart from the file and from `apps/editor/server`, multi-document tabs with independent sessions, and one Save / Don't save / Cancel confirmation. This contract changes as each follow-up is implemented.
+Current behavior: no autosave and no local draft recovery. `beforeunload` is the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s shared Save / Don't save / Cancel confirmation is implemented for Open/New above. Its remaining direction is an opt-in autosave setting (off by default) through the same Save path, local work recovery kept apart from the file and from `apps/editor/server`, and multi-document tabs with independent sessions. This contract changes as each follow-up is implemented.
 
 Desktop update restarts additionally ask the live Editor about unsaved content/drafts and pending Save/Source/assets/switching through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This does not add autosave or recovery; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
 
 The unload guard reads the latest rendered busy state. A completed Save must not keep blocking close with the previous Saving state while a passive-effect replacement is pending. The browser regression observes the first Saved DOM commit to protect this boundary without timing delays.
 
 ## Evidence
+
+For #291, the unmodified `ae464b7` Editor reproduced the draft information bar plus the red Open refusal, with that refusal still present after cancelling the property draft. At 1440×800 and 375×800 the two header bars were stacked without geometric overlap. The new confirmation does not create this refusal error; Cancel/Escape preserve content, selection, undo availability and drafts. Existing unrelated errors remain until dismissed or resolved. `open-files` covers these transitions, pending Save/Open, Save failure/conflict and the draft-only case; `writeability-preflight` checks that a failed target Open also keeps the old work. `new-document`, `save-session` and `http-host` exercise real creation, content rejection and persisted Save/reopen. Baseline images are `tmp/291-before-*-draft-refusal.png` and `tmp/291-before-*-after-draft-cancel.png`; `pnpm browser:test open-files --screenshots` captures the new dialog in `tmp/291-dialog-{1440,375}-{no-drafts,drafts}.png` (100% zoom, DPR 1, bundled Pretendard, Windows Chrome).
 
 For #275, the unmodified `5594143` Editor was reproduced with `math.md`: Edit the
 labeled `eq-a` Equation, change `x` to `x + 1`, Apply, then type `Typed275` without

@@ -92,16 +92,20 @@ async page => {
   check(await hint(), 'Dismissing and deleting the slash did not restore the hint');
   await page.keyboard.type('Browser-created paragraph');
 
-  // Retain unsaved-work protection and normal focus return after a failed New.
+  // New confirms before asking for a filename; Cancel preserves work and focus.
   await create.click();
-  await page.getByTestId('new-file-name').fill('another-document');
-  await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-  await page.getByText('Save or discard the current changes before creating another file.', {exact:true}).waitFor();
-  await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   check(await create.evaluate(element => element === document.activeElement), 'Failed New did not restore its opening control');
   check(await page.getByTestId('current-file').getAttribute('title') === file &&
     (await editor.innerText()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
+  // Don't save authorizes creation, but cancelling the name form still keeps the session.
+  await create.click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save", exact:true}).click();
+  await page.getByTestId('new-file-name').fill('another-document');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check((await editor.innerText()).trim() === 'Browser-created paragraph', 'Cancelling the name form discarded the old session');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).waitFor();
   const written = await read();
@@ -150,6 +154,29 @@ async page => {
   await page.getByText('Saved', {exact:true}).waitFor();
   check((await read()).source.trimEnd() === '---\nieumdoc: 1\n---\n\n' + ['Browser-created paragraph', ...lines].join('\n\n'),
     'The end space changed the saved document');
+  // The same confirmation continues to New: Save persists the old file; Don't save never does.
+  await editor.locator('p').last().click();
+  await page.keyboard.press('End'); await page.keyboard.type(' Saved before New.');
+  await create.click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
+  const newName = page.getByTestId('new-file-name');
+  await newName.waitFor();
+  check(await newName.evaluate(el => el === document.activeElement), 'Confirmation did not hand focus to the New filename');
+  check((await read()).source.includes('Saved before New.'), 'New confirmation did not save the old file');
+  await newName.fill('after-save');
+  await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
+  check((await page.getByTestId('current-file').getAttribute('title')).endsWith('after-save.md') && await focused(), 'Save then New did not create/focus the document');
+  const afterSave = await page.getByTestId('current-file').getAttribute('title');
+  const savedNew = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(afterSave)}`)).json();
+  await page.keyboard.type('Discard this before New.');
+  await create.click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save",exact:true}).click();
+  await newName.fill('after-discard');
+  await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
+  const discardedNew = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(afterSave)}`)).json();
+  check(discardedNew.source === savedNew.source && (await page.getByTestId('current-file').getAttribute('title')).endsWith('after-discard.md') && await focused(), 'Discard then New wrote the old file or failed to create/focus');
   return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
     blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true,
     writingEndSpace:true};

@@ -23,8 +23,11 @@ async (page, { openDocument, screenshots = false }) => {
   const files = new Map([[pathA, fileA], [pathB, fileB]]);
   const requests = [];
   let conflictNext = false;
+  let failNext = false;
   let pendingSave;
   let releaseSave;
+  let pendingOpen;
+  let releaseOpen;
   // The Desktop Host's first answer when the app was started without a document.
   let startNext = true;
 
@@ -34,6 +37,7 @@ async (page, { openDocument, screenshots = false }) => {
     if (request.method() === 'GET') {
       if (!queryPath(request.url()) && startNext) return route.fulfill({json:{start:true, sample:pathB}});
       const requestedPath = queryPath(request.url()) || pathA;
+      if (requestedPath === pathB && pendingOpen) await pendingOpen;
       const response = files.get(requestedPath);
       if (!response) return route.fulfill({status:400,json:{error:'unknown test file'}});
       return route.fulfill({json:response});
@@ -41,6 +45,10 @@ async (page, { openDocument, screenshots = false }) => {
     const body = request.postDataJSON();
     requests.push(body);
     if (pendingSave) await pendingSave;
+    if (failNext) {
+      failNext = false;
+      return route.fulfill({status:400,json:{error:'Cannot save this content'}});
+    }
     if (conflictNext) {
       conflictNext = false;
       return route.fulfill({status:409,json:{error:'External change'}});
@@ -140,18 +148,49 @@ async (page, { openDocument, screenshots = false }) => {
     if (requests[0].path !== pathA || !JSON.stringify(requests[0].paragraphs).includes('FILE_A')) {
       throw new Error('File A save used the wrong path or omitted the edit');
     }
+    await page.getByRole('button', {name:'Dismiss error',exact:true}).click();
 
     await editParagraph(page, ' FILE_A_PENDING');
     await openPath(page, pathB);
-    await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
+    const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
+    await confirmation.waitFor();
+    if (!await confirmation.getByRole('button',{name:'Cancel',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Confirmation did not initially focus Cancel');
+    await page.keyboard.press('Shift+Tab');
+    await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement), undefined, {timeout:5000});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('Unsaved File A was discarded');
-    if (!(await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('Pending File A edit was lost');
-
-    await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Saved',{exact:true}).waitFor();
-    await openPath(page, pathB);
+    if (!(await page.locator('.document-editor').innerText()).includes('FILE_A_PENDING')) throw new Error('Pending File A edit was lost');
+    await capture('no-drafts');
+    const beforeCancel = await snapshot();
+    const writesBeforeCancel = requests.length;
+    for (const cancel of ['Cancel', 'Escape']) {
+      if (cancel === 'Escape') await chooseB();
+      if (cancel === 'Cancel') await confirmation.getByRole('button', {name:'Cancel',exact:true}).click();
+      else await page.keyboard.press('Escape');
+      await confirmation.waitFor({state:'detached'});
+      if (await snapshot() !== beforeCancel || requests.length !== writesBeforeCancel || await page.getByTestId('error').count()) throw new Error('Cancel changed local work, wrote or left a refusal error');
+      if (!await page.getByRole('treeitem', {name:'ieumdoc-b.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Cancel did not restore the invoking file');
+    }
+    await chooseB();
+    await page.keyboard.press('Control+s');
+    if (requests.length !== writesBeforeCancel) throw new Error('Save shortcut bypassed the modal');
+    pendingSave = new Promise(resolve => { releaseSave = resolve; });
+    pendingOpen = new Promise(resolve => { releaseOpen = resolve; });
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor();
+    for (const name of ['Save', "Don't save", 'Cancel']) {
+      if (!await confirmation.getByRole('button',{name,exact:true}).isDisabled()) throw new Error('Pending confirmation actions remain enabled');
+    }
+    await page.keyboard.press('Escape');
+    if (!await confirmation.isVisible() || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Pending Save dismissed or switched early');
+    releaseSave(); pendingSave = undefined;
+    await page.locator('[data-testid="status"][data-operation="Opening…"]').waitFor();
+    await page.keyboard.press('Escape');
+    if (!await confirmation.isVisible() || !await confirmation.getByRole('button',{name:'Cancel',exact:true}).isDisabled() || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Pending Open lost its modal boundary');
+    releaseOpen(); pendingOpen = undefined;
+    await confirmation.waitFor({state:'detached'});
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('File B was not opened');
+    if (!await page.locator('.document-editor').evaluate(el => el === document.activeElement)) throw new Error('Successful switch did not focus the document');
     if ((await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('File A state leaked into File B');
 
     await editParagraph(page, ' FILE_B');
@@ -170,9 +209,27 @@ async (page, { openDocument, screenshots = false }) => {
 
     await editParagraph(page, ' STALE');
     conflictNext = true;
-    await page.getByRole('button',{name:'Save',exact:true}).click();
+    await chooseB();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
     await page.getByText('Save conflict',{exact:true}).waitFor();
+    await confirmation.waitFor({state:'detached'});
     if (!(await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Stale edit was discarded');
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Conflict opened another document');
+    failNext = true;
+    await chooseB();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await page.getByText('Save failed',{exact:true}).waitFor();
+    await confirmation.waitFor({state:'detached'});
+    if (!(await page.getByRole('article').innerText()).includes('STALE') || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Save failure discarded the session');
+    await page.getByTestId('error').getByText(/Cannot save this content/).waitFor();
+    const writesBeforeDiscard = requests.length;
+    await chooseB();
+    await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== writesBeforeDiscard) throw new Error('Discard did not switch without writing');
+    await openPath(page, pathA);
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    if ((await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Discard wrote the rejected edit');
 
     // Start clean so this refusal proves the property draft alone guards the tree switch.
     await page.reload();
@@ -182,13 +239,38 @@ async (page, { openDocument, screenshots = false }) => {
     await equation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + draftSwitch');
     await openPath(page, pathB);
-    await page.getByText('Save or discard the current changes before opening another file.', {exact:true}).waitFor();
+    await confirmation.getByText(/Unapplied property drafts will be lost with both Save and Don't save/).waitFor();
+    await capture('drafts');
+    await page.keyboard.press('Escape');
+    await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA ||
       await page.getByTestId('equation-latex').inputValue() !== 'x + draftSwitch') throw new Error('A refused tree switch lost the property draft');
-    await page.getByTestId('equation-cancel').click();
+    if (await page.getByTestId('error').count()) throw new Error('Draft switch Cancel left a red refusal bar');
+    failNext = true;
+    const draftBeforeFailure = await snapshot();
+    await chooseB();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await page.getByText('Save failed',{exact:true}).waitFor();
+    await confirmation.waitFor({state:'detached'});
+    if (await snapshot() !== draftBeforeFailure || await page.getByTestId('equation-latex').inputValue() !== 'x + draftSwitch' || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Failed Save lost a property draft');
+    await chooseB();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || JSON.stringify(requests.at(-1)).includes('draftSwitch')) throw new Error('Save applied a draft or failed to switch');
+    await openPath(page, pathA);
+    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await equation.hover();
+    await equation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-latex').fill('draftDiscard');
+    const draftWrites = requests.length;
+    await chooseB();
+    await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    if (requests.length !== draftWrites || await page.getByTestId('equation-latex').count() || await page.getByTestId('current-file').getAttribute('title') !== pathB) throw new Error('Draft discard wrote or retained the old session');
     return {start:true, fileA:true, fileB:true, savingSwitchGuarded:true, draftSwitchGuarded:true, unsavedSwitchGuarded:true, conflictRetained:true};
   } finally {
     releaseSave?.();
+    releaseOpen?.();
     await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
     await page.unroute('**/api/document**');
     await page.unrouteAll();
@@ -196,6 +278,25 @@ async (page, { openDocument, screenshots = false }) => {
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  async function chooseB() {
+    await page.getByRole('treeitem',{name:'ieumdoc-b.md',exact:true}).click();
+    await page.getByRole('dialog',{name:'Save changes?',exact:true}).waitFor();
+  }
+
+  async function snapshot() {
+    return page.locator('.document-editor').evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON(), undo:el.editor.can().undo()}));
+  }
+
+  async function capture(state) {
+    if (!screenshots) return;
+    for (const width of [1440, 375]) {
+      await page.setViewportSize({width,height:800});
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({path:`tmp/291-dialog-${width}-${state}.png`});
+    }
+    await page.setViewportSize({width:1280,height:720});
   }
 
   function setParagraph(document, text) {

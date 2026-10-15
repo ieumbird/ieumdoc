@@ -32,6 +32,7 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 409, pathname: "/api/document", minimum: 1, description: "mocked save conflict"},
   ],
   "open-files": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "failed Save cancels the document switch"},
     {
       status: 404,
       pathname: "/document/diagram.svg",

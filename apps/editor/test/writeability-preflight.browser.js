@@ -66,9 +66,19 @@ async (page, { openDocument }) => {
   await page.route('**/api/document?*', route => { reads++; return route.fulfill({status:400, json:refusal}); });
   try {
     await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
-    await page.getByTestId('error').filter({hasText:'Save or discard the current changes'}).waitFor();
+    await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
+    await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
     assert(reads === 0 && await alert.count() === 0, 'Dirty Open bypassed its existing guard');
     assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Guarded Open changed local work');
+    // Discard authorization must not destroy the old session if the chosen file is unsupported.
+    await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
+    await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save",exact:true}).click();
+    await alert.waitFor();
+    assert(await page.getByRole('dialog').count() === 1 && await page.getByTestId('error').count() === 0, 'Open failure duplicated the confirmation/error surfaces');
+    assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Failed Open discarded local work');
+    await alert.getByRole('button', {name:'OK',exact:true}).click();
+    await alert.waitFor({state:'detached'});
+    assert(await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).evaluate(el => el === document.activeElement), 'Failed continuation lost its focus return');
   } finally { await page.unroute('**/api/document?*'); }
   // The on-disk file has become unsupported: replay its real Core error at the same locator.
   await page.route('**/api/document?*', route => route.request().method() === 'GET'

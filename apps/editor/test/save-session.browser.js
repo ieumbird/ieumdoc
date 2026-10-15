@@ -122,7 +122,11 @@ async (page, { openDocument }) => {
     e.commands.setTextSelection({from, to:from + e.state.doc.child(1).content.size}); e.view.focus();
   });
   await page.keyboard.press('Backspace');
-  await page.getByTestId('save').click(); await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByRole('button', {name:'New file in folder',exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
+  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check('invalidContentStopsNew', await page.getByTestId('current-file').getAttribute('title') === file && await page.getByTestId('new-file-name').count() === 0);
   const invalid = { error: await page.getByTestId('error').innerText(), diskKept: (await read(file)).source === beforeInvalid,
     paragraph: await paragraph().textContent() };
   if (!invalid.error.includes('Block 2 (paragraph)') || !invalid.error.includes('empty paragraph') || !invalid.error.includes('Enter text') || !invalid.diskKept || invalid.paragraph !== '') throw new Error(JSON.stringify(invalid));

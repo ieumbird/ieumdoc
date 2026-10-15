@@ -301,14 +301,15 @@ async (page, {screenshots = false} = {}) => {
   await page.keyboard.press('End');
   await page.keyboard.type(' Draft.');
   await row('notes.md').click();
-  await page.getByTestId('error').getByText(/Save or discard the current changes/).waitFor();
+  const confirmation = page.getByRole('dialog', {name:'Save changes?',exact:true});
+  await confirmation.getByRole('button', {name:'Cancel',exact:true}).click();
+  await confirmation.waitFor({state:'detached'});
   result.keepsUnsavedWork = await current() === 'install.md' &&
     (await page.locator('.document-editor > .paragraph').first().innerText()).endsWith('Draft.');
   await item('New file in folder').click();
+  await confirmation.getByRole('button', {name:"Don't save",exact:true}).click();
   assert(await page.getByTestId('new-file-directory').inputValue() === guidesPath, 'New starts in the open document\'s folder');
   await page.getByTestId('new-file-name').fill('blocked');
-  await dialog.getByRole('button', {name:'Create', exact:true}).click();
-  await page.getByTestId('new-error').getByText(/Save or discard the current changes/).waitFor();
   assert(createRequests === 0 && await current() === 'install.md', 'Folder New preserves unsaved work without creating a file');
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   result.folderNewKeepsUnsavedWork = true;
