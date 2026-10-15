@@ -193,12 +193,15 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   assert.equal(isUnappliedFigureDraft(true, empty, empty), false);
 
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
+  const session = readFileSync(path.join(editorRoot, "src", "useDocumentSession.ts"), "utf8");
+  const requests = readFileSync(path.join(editorRoot, "src", "document-session.ts"), "utf8");
   // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   // Pin the Host validation -> accepted mutation boundary, not the caption argument expression.
   assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(updateFigure\(/);
-  assert.match(app, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
-  assert.match(app, /validateFigure=\{validateFigure\}/);
+  assert.match(requests, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
+  assert.match(session, /^\s+validateFigure,\s*$/m);
+  assert.match(app, /<DocumentEditor\b[^>]*\{\.\.\.editorCallbacks\}/);
 });
 
 test("the Host Figure validation endpoint returns Core's persistent validation", () => {

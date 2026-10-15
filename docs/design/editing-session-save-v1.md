@@ -1,11 +1,30 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
+- Last verified: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
+- Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 - Switching verification: 2026-10-15 (#291: Open/New confirmation, Save failure/conflict, draft retention/loss, pending work and focus browser regressions; real Vite New and production HTTP Save/reopen; 1440/375px dialog captures reviewed, final visual approval remains with the user).
 - PR #301 review verification: 2026-10-15 (delayed Save with programmatically injected applied edits stops Open/New, retains the session and drafts, shows the existing Unsaved changes status, and allows an explicit retry; original `c8aecd9` failed this regression).
 - Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
+
+## Editor ownership
+
+The Editor-internal [`useDocumentSession`](../../apps/editor/src/useDocumentSession.ts) owns one document's path, opening read model and
+source, acknowledged revision and `savedEdits`, Source content/view, status/errors/notices,
+draft/asset/dirty flags, heading numbering, outline store and keyed `DocumentEditor` lifetime.
+It handles Open/New reads, Save, Source, Reload and image selection. `App` connects this
+single session to the existing UI and owns the folder tree, panel visibility, preferences,
+Desktop integration and shared **Save / Don't save / Cancel** continuation dialog. The
+continuation still checks for newer applied edits after Save before replacing the session.
+
+Async completions and editor callbacks belong to the session and editor generation that
+started them, using a small per-instance [lifetime guard and request module](../../apps/editor/src/document-session.ts). Replacing the document or disposing the session invalidates old completions;
+Save acknowledges its captured editor and opening base only. A superseded Open cannot
+replace a newer result. Unused copied images retain their original document's rollback
+receipt. This is an Editor lifetime boundary, not a Host session or a new Core operation;
+there is no CLI command to add. The app still opens one document at a time. Tabs and
+multi-document behavior remain a later part of #204.
 
 ## Save acknowledgement
 
