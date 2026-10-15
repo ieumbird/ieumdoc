@@ -1074,7 +1074,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const copy = copied.current;
     copied.current = undefined;
     // One undo step: undo returns the form's previous value.
-    view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }, captionContent));
+    view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel },
+      captionContent.eq(latest.content) ? undefined : captionContent));
     let used = false;
     view.state.doc.forEach(block => { used ||= block.type.name === "figure" && block.attrs.imageUrl === copy?.path; });
     if (!used) copy?.discard?.();
@@ -1179,16 +1180,20 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
 }
 
 /**
- * Closing a block's properties returns keyboard focus to the editor at that block. A selection
- * already inside the block is kept; otherwise the block is selected, so focus does not move the
- * view to an unrelated earlier caret. Selection changes add no history and leave the document.
+ * Closing properties keeps a text selection inside the block; otherwise it returns a caret just
+ * after the block. Use the engine's gap cursor where no adjacent text is available, so the next
+ * input cannot replace the whole block. Selection changes add no history or document edits.
  */
 function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps["getPos"]): void {
   const position = getPos();
   const node = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
-  const { from, to } = view.state.selection;
-  if (node && typeof position === "number" && (from < position || to > position + node.nodeSize)) {
-    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position)));
+  const current = view.state.selection;
+  if (node && typeof position === "number" && !(current instanceof TextSelection &&
+    current.from > position && current.to < position + node.nodeSize)) {
+    const $after = view.state.doc.resolve(position + node.nodeSize);
+    const selection = view.someProp("createSelectionBetween", create => create(view, $after, $after))
+      ?? TextSelection.between($after, $after);
+    view.dispatch(view.state.tr.setSelection(selection));
   }
   view.focus();
 }

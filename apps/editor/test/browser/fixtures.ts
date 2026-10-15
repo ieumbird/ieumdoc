@@ -74,7 +74,12 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "property-drafts": {
     files: [{ name: "drafts.md", create: () =>
-      nativeSource("# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | **V** |\n\nBody.\n") }],
+      nativeSource("# Drafts\n\n(section-a)=\n\n## Heading\n\n| Name | Unit |\n| --- | --- |\n| Value | **V** |\n\nBody.\n") },
+      { name: "focus.md", create: () => nativeSource("# Properties\n\nBefore.\n\nSee {numref}`fig-a`, {numref}`tbl-a` and {ref}`section-a`.\n\n" +
+        ":::{figure}\n:name: fig-a\n\nCaption.\n:::\n\nAfter figure.\n\n" +
+        ":::{table} Values\n:name: tbl-a\n\n| Name | Unit |\n| --- | --- |\n| Value | V |\n:::\n\nAfter table.\n\n" +
+        "(section-a)=\n\n## Section\n\nAfter section.\n") },
+    ],
     scenarios: ["property-drafts"],
   },
   "code-highlighting": {
@@ -102,6 +107,10 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "table-cell-editing": { files: [...technical, fixture("mixed-table.md")], scenarios: ["table-cell-editing"] },
   "link-authoring": { files: [fixture("links.md")], scenarios: ["link-authoring"] },
   "inline-math": { files: [fixture("math.md"), fixture("split.md")], scenarios: ["inline-math-authoring", "inline-math-split"] },
+  "equation-editing": { files: [fixture("math.md"),
+    { name: "middle.md", create: () => `${fixture("math.md").create().toString().trimEnd()}\n\nAfter.\n` },
+    { name: "only.md", create: () => nativeSource("```{math}\n:label: eq-a\nx\n```\n") },
+  ], scenarios: ["equation-save-during-edit"] },
   "admonition-authoring": { files: [fixture("authoring.md")], scenarios: ["admonition-authoring"] },
   "list-authoring": { files: [fixture("lists.md")], scenarios: ["list-authoring"] },
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },

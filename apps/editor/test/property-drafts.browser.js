@@ -27,10 +27,13 @@ async (page, { openDocument }) => {
   const focused = testId => page.waitForFunction(id => document.activeElement?.getAttribute('data-testid') === id, testId, {timeout:2000})
     .then(() => true, () => false);
   // Closing a form returns keyboard focus to the editor at its block, without a document change.
-  const focusedBlock = () => editor.evaluate(element => {
-    const {selection} = element.editor.state;
-    return element.editor.view.hasFocus() ? (selection.node ?? selection.$from.node(1))?.type.name : null;
-  });
+  const focusedAfter = kind => editor.evaluate((element, kind) => {
+    const {selection, doc} = element.editor.state;
+    let end;
+    doc.forEach((node, pos) => { if (node.type.name === kind) end = pos + node.nodeSize; });
+    return element.editor.view.hasFocus() && selection.empty &&
+      (selection.from === end || (selection.from === end + 1 && selection.$from.parent.isTextblock));
+  }, kind);
   const table = page.locator('[data-block="table"]');
   const beginTable = async () => { await table.hover(); await activate(table.getByRole('button', {name:'Edit table', exact:true})); };
 
@@ -54,7 +57,7 @@ async (page, { openDocument }) => {
   await activate(page.getByTestId('table-cancel'));
   await page.getByTestId('draft-notice').waitFor({state:'detached'});
   check(await json() === baseline && await page.getByTestId('status').innerText() === '', 'Cancel changed document or leaked registration');
-  check(await focusedBlock() === 'table', 'Cancel did not return focus to the table');
+  check(await focusedAfter('table'), 'Cancel did not return a caret after the table');
   await beginTable();
   check(await focused('table-caption-input'), 'Edit did not focus the table caption');
   await page.keyboard.press('Escape');
@@ -64,8 +67,75 @@ async (page, { openDocument }) => {
   check(await focused('label-target-input'), 'Edit did not focus the section label');
   await page.keyboard.press('Escape');
   await page.getByTestId('label-target-editor').waitFor({state:'detached'});
-  check(await focusedBlock() === 'labelTarget' && await json() === baseline && await page.getByTestId('status').innerText() === '',
+  check(await focusedAfter('labelTarget') && await json() === baseline && await page.getByTestId('status').innerText() === '',
     'Escape did not return focus to its block, or changed the document');
 
-  return {multipleKinds:true, reload:true, beforeunload:true, focus:true};
+  await appliedTyping();
+  return {multipleKinds:true, reload:true, beforeunload:true, focus:true, appliedTyping:true};
+
+  async function appliedTyping() {
+    const focusFile = file.replace('drafts.md', 'focus.md');
+    const cases = [
+      {kind:'figure', type:'figure', field:'figure-caption', first:'figure-image-url', value:'Applied caption.', label:'fig-a'},
+      {kind:'table', type:'table', field:'table-caption-input', first:'table-caption-input', value:'Applied values', label:'tbl-a'},
+      {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'section-a'},
+    ];
+    for (const item of cases) for (const mode of ['click', 'enter']) {
+      // Start with a caret outside the target: a cell/caption caret would hide this defect.
+      await page.reload(); await ready();
+      await openDocument(page, focusFile); await ready();
+      await page.getByText('Before.', {exact:true}).click();
+      const target = page.locator(`[data-block="${item.kind}"]`);
+      if (item.type === 'labelTarget') {
+        await editor.locator('h2').hover();
+        await page.getByTestId('label-target-edit').click();
+      } else {
+        await target.hover({position:{x:4,y:4}});
+        await target.getByRole('button', {name:item.kind === 'figure' ? 'Edit figure' : 'Edit table', exact:true}).click();
+      }
+      check(await focused(item.first), `${item.kind}: first field did not receive focus`);
+      await page.getByTestId(item.field).fill(item.value);
+      if (mode === 'click') await page.getByTestId(`${item.kind}-apply`).click();
+      else await page.getByTestId(item.field).press('Enter');
+      // Figure Apply validates asynchronously. Type as soon as its form has closed,
+      // with no click or focus command between Apply and keyboard input.
+      await page.getByTestId(`${item.kind}-editor`).waitFor({state:'detached'});
+      const applied = await editor.evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type), item.type);
+      check(applied, `${item.kind}/${mode}: Apply lost the target`);
+      await page.keyboard.type('TypedProperties275');
+      const typed = await editor.evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type), item.type);
+      check(JSON.stringify(typed) === JSON.stringify(applied), `${item.kind}/${mode}: typing replaced or changed the target`);
+      const ref = page.getByTestId('cross-reference').and(page.locator(`[data-label="${item.label}"]`));
+      check(await ref.getAttribute('data-resolved') === 'true', `${item.kind}/${mode}: reference no longer resolves`);
+      if (item.type === 'figure') {
+        check(await target.locator('figcaption').innerText() === item.value &&
+          await page.getByText('TypedProperties275After figure.', {exact:true}).count() === 1, 'Figure caption or following prose was lost');
+      } else if (item.type === 'table') {
+        check(await target.locator('td').allTextContents().then(cells => cells.join('|')) === 'Value|V' &&
+          await target.getByTestId('table-caption').innerText() === item.value, 'Table grid or applied caption was lost');
+        // Unlike outside focus, a caret already in a cell stays there after metadata Apply.
+        await target.locator('td').first().click(); await page.keyboard.press('End');
+        await page.waitForFunction(() => {
+          const {selection} = document.querySelector('.document-editor').editor.state;
+          return selection.empty && selection.$from.parent.type.name === 'tableCell' &&
+            selection.$from.parent.textContent === 'Value' && selection.$from.parentOffset === selection.$from.parent.content.size;
+        });
+        const cellSelection = await editor.evaluate(element => element.editor.state.selection.toJSON());
+        await target.hover({position:{x:4,y:4}});
+        await target.getByRole('button', {name:'Edit table', exact:true}).click();
+        check(await focused(item.first), 'Table field did not receive focus');
+        await page.getByTestId(item.field).fill('Cell metadata');
+        await page.getByTestId('table-apply').click();
+        const restored = await editor.evaluate(element => ({selection:element.editor.state.selection.toJSON(), focus:element.editor.view.hasFocus()}));
+        check(restored.focus && JSON.stringify(restored.selection) === JSON.stringify(cellSelection), 'Table Apply moved the cell caret: ' + JSON.stringify({cellSelection, restored}));
+        await page.keyboard.type('Cell');
+        check(await target.locator('td').first().innerText() === 'ValueCell', 'Cell typing left the table');
+      } else {
+        // The target must still directly label its heading; text belongs in that heading,
+        // not in an inserted paragraph between the label and heading.
+        check(await editor.locator('h2').innerText() === 'TypedProperties275Section' &&
+          (await ref.innerText()).includes('TypedProperties275Section'), 'Section label lost its heading or live reference title');
+      }
+    }
+  }
 }

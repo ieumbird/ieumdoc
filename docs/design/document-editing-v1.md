@@ -1,7 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (ADR-0006 native editing boundary compared with code/tests; no runtime regressions rerun). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Last verified: 2026-10-15 (#275 property-close typing for Equation/Figure/Table/section label, retained caption/cell caret, native history, Source and real Save/Reload; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -33,6 +33,15 @@ persistent changes and canonical semantic validation.
 - Selecting an existing Equation leaves keyboard focus in the document; Edit
   opens its source form. A newly inserted empty Equation still opens its form
   automatically. NodeView selection alone must not steal navigation focus.
+- Closing block properties with Apply, Cancel or Escape retains a text selection
+  already inside the edited block (a Figure caption or Table cell). Otherwise,
+  focus returns to a collapsed caret just after the block: the start of following
+  text, or the engine's gap cursor at a closed block boundary/document end. This
+  focus move adds no document content or history event. Subsequent typing edits
+  that text or creates prose at the gap; it does not replace the applied block or
+  lose its reference target. Section-label properties return to the following
+  heading, keeping the label directly before it. Explicitly selecting a node
+  still uses normal engine replacement behavior.
 - The adapter repairs session locators after engine edits. New blocks and
   heading/paragraph conversions use existing Core insert/remove operations;
   missing source blocks become explicit deletions. Unsupported blocks reject

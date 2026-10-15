@@ -195,8 +195,8 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  // Apply commits only after Core's persistent validation through the Host accepts the value.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(updateFigure\(view\.state, latestPosition, \{ \.\.\.attributes, label: nextLabel \}, captionContent\)\)/);
+  // Pin the Host validation -> accepted mutation boundary, not the caption argument expression.
+  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(updateFigure\(/);
   assert.match(app, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
   assert.match(app, /validateFigure=\{validateFigure\}/);
 });

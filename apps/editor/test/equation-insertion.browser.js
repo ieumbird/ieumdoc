@@ -36,6 +36,14 @@ async page => {
     const block = selection.node ?? selection.$from.node(1);
     return editor.view.hasFocus() && {block: block?.type.name, path: block?.attrs.sourcePath, caret: selection.empty && selection.$from.parent.isTextblock};
   });
+  const caretAfterEquation = path => {
+    const {editor} = document.querySelector('.document-editor');
+    const {selection, doc} = editor.state;
+    let end;
+    doc.forEach((node, pos) => { if (node.type.name === 'equation' && node.attrs.sourcePath === path) end = pos + node.nodeSize; });
+    return editor.view.hasFocus() && selection.empty &&
+      (selection.from === end || (selection.from === end + 1 && selection.$from.parent.isTextblock));
+  };
 
   try {
     await page.reload();
@@ -71,24 +79,21 @@ async page => {
     await page.getByTestId('equation-apply').click();
     const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
     const newPath = await newEquation.getAttribute('data-source-path');
-    const applyReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
+    const applyReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
     await page.getByTestId('equation-cancel').click();
     const appliedCancelKeepsBlock = await newEquation.count() === 1;
     const appliedCancelRestoresLatex = await newEquation.locator('[data-testid="equation-preview"]').count() === 1;
+    // The returned caret no longer selects the Equation; reveal its tools before Edit.
+    await newEquation.hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').press('Escape');
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
     // Closing the properties panel and handing focus back are separate browser tasks.
-    await page.waitForFunction(path => {
-      const {editor} = document.querySelector('.document-editor');
-      const {selection} = editor.state;
-      return editor.view.hasFocus() && !selection.empty && selection.node?.type.name === 'equation' &&
-        selection.node.attrs.sourcePath === path;
-    }, newPath, {timeout:30_000});
-    const escapeReturnsFocus = JSON.stringify(await editorFocus()) === JSON.stringify({block:'equation', path:newPath, caret:false});
+    await page.waitForFunction(caretAfterEquation, newPath, {timeout:30_000});
+    const escapeReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).waitFor();
