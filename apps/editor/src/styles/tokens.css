@@ -106,10 +106,11 @@
   --id-radius-lg: 0.5rem;
   --id-radius-xl: 0.75rem;
   --border-width: 1px;
-  /* UI polish spike: keyboard focus is a soft halo (outer) or a thin inset ring, never a box
-   * left behind by a mouse click; only :focus-visible draws it. */
-  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--id-color-interaction) 45%, transparent);
-  --focus-ring-inset: inset 0 0 0 1.5px color-mix(in srgb, var(--id-color-interaction) 60%, transparent);
+  /* Keyboard focus is a solid 2px ring (outer) or inset ring, never a box left behind by a
+   * mouse click; only :focus-visible draws it. Solid --id-color-border-focus keeps >=3:1
+   * against every surface (white 5.65:1, hover/pressed/selected tints >=4.55:1). */
+  --focus-ring: 0 0 0 2px var(--id-color-border-focus);
+  --focus-ring-inset: inset 0 0 0 2px var(--id-color-border-focus);
   --shadow-overlay: 0 8px 24px rgb(32 36 44 / 10%), 0 2px 6px rgb(32 36 44 / 6%);
 
   --layout-content-gutter: var(--space-4);

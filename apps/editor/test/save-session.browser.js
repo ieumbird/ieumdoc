@@ -179,11 +179,17 @@ async (page, { openDocument }) => {
       .reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
     const contrast = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
     const danger = style.getPropertyValue('--id-color-danger');
-    const ring = [...style.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px/g)]
-      .find(([, color, spread]) => Number(spread) >= 2 && rgb(color)[3] === 255)?.[1];
+    // The outer ring is drawn on the surface around the button: composite its color there.
+    const over = (top, bottom) => { const a = top[3] / 255; return top.slice(0, 3).map((v, i) => v * a + bottom[i] * (1 - a)).concat(255); };
+    const layers = []; for (let e = element.parentElement; e; e = e.parentElement) { const b = rgb(getComputedStyle(e).backgroundColor); if (b[3]) layers.push(b); if (b[3] === 255) break; }
+    const outer = layers.reverse().reduce((acc, b) => over(b, acc), [255, 255, 255, 255]);
+    const asCss = v => `rgb(${v[0]}, ${v[1]}, ${v[2]})`;
+    const ringColor = [...style.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px(?! inset)/g)]
+      .filter(([, color, spread]) => Number(spread) >= 2 && rgb(color)[3] > 0).map(([, color]) => color)[0];
+    const ring = ringColor ? asCss(over(rgb(ringColor), outer)) : undefined;
     return { danger: JSON.stringify(rgb(style.color)) === JSON.stringify(rgb(danger)), background: style.backgroundColor,
       textContrast: contrast(style.color, style.backgroundColor), boundaryContrast: contrast(style.borderColor, style.backgroundColor),
-      focusVisible: element.matches(':focus-visible'), ringContrast: ring ? contrast(ring, style.backgroundColor) : 0,
+      focusVisible: element.matches(':focus-visible'), ringContrast: ring ? Math.min(contrast(ring, asCss(outer)), contrast(ring, style.backgroundColor)) : 0, focused: element === document.activeElement,
       opaque: style.opacity === '1' && rgb(style.backgroundColor)[3] === 255 };
   });
   const restAppearance = await discardAppearance();
@@ -195,7 +201,7 @@ async (page, { openDocument }) => {
   await page.mouse.move(0, 0);
   await keepEditing.press('Tab');
   const focusAppearance = await discardAppearance();
-  check('reloadDiscardKeyboardFocusIsVisibleAndReadable', focusAppearance.opaque && focusAppearance.focusVisible &&
+  check('reloadDiscardKeyboardFocusIsVisibleAndReadable', focusAppearance.opaque && focusAppearance.focusVisible && focusAppearance.focused &&
     focusAppearance.ringContrast >= 3 && focusAppearance.danger && focusAppearance.textContrast >= 4.5);
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check('reloadCancelKeepsWork', (await paragraph().innerText()).includes('Local'));

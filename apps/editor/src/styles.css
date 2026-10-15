@@ -1076,6 +1076,8 @@ ol.list { list-style: decimal; }
 .table-tools button:hover { background: var(--id-color-surface-hover); }
 .table-tools svg { pointer-events: none; }
 .table-tools button:is([aria-pressed="true"], [aria-expanded="true"]) { background: var(--id-color-surface-pressed); color: var(--id-color-text); box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-control); }
+/* An open table menu shares the menu trigger's open face, without a boundary box. */
+.table-tools button[aria-expanded="true"]:not(:focus-visible) { box-shadow: none; }
 .table-tools button:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .table-tools button:disabled { opacity: .5; cursor: default; }
 .table-column-handle { position: absolute; top: 0; }
@@ -2163,7 +2165,7 @@ ol.list { list-style: decimal; }
   border-color: transparent;
   background: transparent;
 }
-:is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):hover:not(:disabled, [aria-disabled="true"]) {
+:is(.sidebar-tool, .top-bar-toggle):hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--id-color-surface-hover);
 }
 :is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):focus-visible {
