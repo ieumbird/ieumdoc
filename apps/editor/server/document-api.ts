@@ -4,9 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDocument, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
-import { commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
 import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
+import { requestQuery } from "./request-query.ts";
 import {
   readModel,
   SaveContentError,
@@ -215,11 +216,13 @@ export async function handleDocumentRequest(
     error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status
       : fileErrorStatus(error instanceof SaveContentError && error.phase === "file" ? error.cause : error),
     errorPayload(error, access));
-  const requestUrl = new URL(req.url ?? "", "http://localhost");
-  const url = requestUrl.pathname;
+  let query: URLSearchParams;
+  try { query = requestQuery(req.url ?? ""); }
+  catch (error) { failure(error); return; }
+  const url = new URL(req.url ?? "", "http://localhost").pathname;
   if (url.startsWith("/document/")) {
     if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
-    serveMedia(url.slice("/document/".length), res, requestUrl.searchParams.get("path") ?? undefined, access, req.method === "HEAD");
+    serveMedia(url.slice("/document/".length), res, query.get("path") ?? undefined, access, req.method === "HEAD");
     return;
   }
   if (url === "/api/figure-validation") {
@@ -257,7 +260,7 @@ export async function handleDocumentRequest(
     }
     try {
       sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access)
-        : browseFolder(requestUrl.searchParams.get("path") ?? undefined, access, requestUrl.searchParams.get("files") === "image" ? "image" : "document"));
+        : browseFolder(query.get("path") ?? undefined, access, query.get("files") === "image" ? "image" : "document"));
     } catch (error) {
       failure(error);
     }
@@ -275,7 +278,7 @@ export async function handleDocumentRequest(
         sendJson(res, 201, createFolder(typeof body.parent === "string" ? body.parent : undefined, typeof body.name === "string" ? body.name : undefined, access));
         return;
       }
-      sendJson(res, 200, listFolder(requestUrl.searchParams.get("root") ?? undefined, requestUrl.searchParams.get("path") ?? undefined, access));
+      sendJson(res, 200, listFolder(query.get("root") ?? undefined, query.get("path") ?? undefined, access));
     } catch (error) {
       failure(error);
     }
@@ -288,7 +291,7 @@ export async function handleDocumentRequest(
 
   try {
     if (req.method === "GET") {
-      const requestedPath = requestUrl.searchParams.get("path") ?? undefined;
+      const requestedPath = query.get("path") ?? undefined;
       if (access && !requestedPath?.trim()) {
         sendJson(res, 200, { start: true, allowedRoots: access.roots });
       } else sendJson(res, 200, loadDocumentFile(requestedPath, access));
@@ -411,6 +414,7 @@ export function folderPlaces(access: FileAccess = LOCAL_FILE_ACCESS): FolderPlac
 export function createFolder(requestedParent: string | undefined, requestedName: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): FolderCreateResponse {
   if (!requestedParent?.trim()) throw new Error("folder path is required");
   const name = requestedName ?? "";
+  assertUnicode(name);
   if (!name.trim()) throw new Error("folder name is required");
   if (name === "." || name === ".." || /[\\/]/.test(name)) throw new Error("folder name cannot contain a directory path");
   // Hidden folders are not listed, so one created here would seem to disappear.
@@ -476,6 +480,7 @@ function isInside(root: string, target: string): boolean {
 
 export function resolveMediaPath(assetPath: string, documentPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): string {
   const decodedPath = decodeURIComponent(assetPath);
+  assertUnicode(decodedPath);
   const documentFile = resolveDocumentPath(documentPath, access);
   const documentDirectory = path.dirname(documentFile);
   if (!decodedPath || decodedPath.includes("\0") || path.isAbsolute(decodedPath) || path.win32.isAbsolute(decodedPath) || /^[A-Za-z]:/.test(decodedPath)) {

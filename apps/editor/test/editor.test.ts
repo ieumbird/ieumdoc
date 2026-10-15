@@ -717,6 +717,36 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
   }
 });
 
+test("Host paths refuse unpaired surrogates without creating or reading replacement names", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
+  try {
+    assert.throws(() => createFolder(dir, "A\uD800B"), /Invalid Unicode: unpaired surrogate/);
+    assert.throws(() => createDocumentFile(path.join(dir, "X\uDC00Y.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(fs.readdirSync(dir), [], "rejected creations leave no replacement names or temporary files");
+
+    const name = "한글 😀 �";
+    const folder = createFolder(dir, name);
+    const file = path.join(folder.path, `${name}.md`);
+    const created = createDocumentFile(file);
+    assert.equal(folder.path, path.join(dir, name));
+    assert.equal(created.path, file);
+    assert.equal(loadDocumentFile(file).source, created.source);
+    assert.deepEqual(fs.readdirSync(folder.path), [`${name}.md`]);
+
+    const replacement = path.join(dir, "X�Y.md");
+    const original = Buffer.from(nativeSource("Keep this file.\n"));
+    writeFileSync(replacement, original);
+    assert.throws(() => loadDocumentFile(path.join(dir, "X\uDC00Y.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(readFileSync(replacement), original);
+    // Check before normalization or a media filesystem probe can hide the invalid segment.
+    assert.throws(() => resolveDocumentPath(`${dir}/A\uD800B/../X�Y.md`), /Invalid Unicode: unpaired surrogate/);
+    assert.throws(() => resolveMediaPath("A\uD800B/../image.png", path.join(dir, "missing.md")), /Invalid Unicode: unpaired surrogate/);
+    assert.deepEqual(fs.readdirSync(dir).sort(), ["X�Y.md", name].sort());
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("a chosen folder lists one level of sub-folders and Markdown files, and stays inside", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-folder-"));
   const chosen = path.join(dir, "docs");
@@ -963,6 +993,46 @@ test("Host rejects invalid document/request encoding and Source/Save surrogates 
     assert.throws(() => saveDocumentFile(file, { revision: loaded.revision }), /Invalid UTF-8/);
     assert.deepEqual(readFileSync(file), malformed);
     assert.deepEqual(readdirSync(dir), ["document.md"]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("shared Host strictly decodes document and media queries without reading replacement names", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-query-encoding-"));
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}`;
+    const replacement = path.join(dir, "X���Y.md");
+    const source = nativeSource("Replacement name sentinel.\n");
+    writeFileSync(replacement, source);
+    writeFileSync(path.join(dir, "image.svg"), "<svg>media sentinel</svg>");
+    const malformed = encodeURIComponent(path.join(dir, "X")) + "%ED%A0%80Y.md";
+    for (const route of ["/api/document", "/document/image.svg"]) {
+      const rejected = await fetch(`${url}${route}?path=${malformed}`);
+      assert.equal(rejected.status, 400);
+      assert.deepEqual(await rejected.json(), { error: "Invalid request query encoding." });
+    }
+    const literal = await fetch(`${url}/api/document?path=${encodeURIComponent(replacement)}`);
+    assert.equal(literal.status, 200);
+    assert.equal((await literal.json()).source, source);
+
+    const name = "한글 + & = 100% �";
+    const file = path.join(dir, `${name}.md`), image = `${name}.svg`;
+    writeFileSync(file, source);
+    writeFileSync(path.join(dir, image), "<svg>Unicode media</svg>");
+    const query = encodeURIComponent(file).replace(/%20/g, "+");
+    const opened = await fetch(`${url}/api/document?path=${query}`);
+    assert.equal(opened.status, 200);
+    assert.equal((await opened.json()).path, file);
+    const media = await fetch(`${url}/document/${encodeURIComponent(image)}?path=${query}`);
+    assert.equal(media.status, 200);
+    assert.equal(await media.text(), "<svg>Unicode media</svg>");
+    assert.equal(readFileSync(replacement, "utf8"), source);
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));

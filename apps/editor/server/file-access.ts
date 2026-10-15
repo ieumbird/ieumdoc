@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { assertUnicode } from "@ieumdoc/file-commit";
 
 /** An explicit local Host policy; only the HTTP Host requires RootAccess. */
 export const LOCAL_FILE_ACCESS = null;
@@ -21,6 +22,7 @@ function locator(value: string): string {
       (process.platform === "win32" ? value.replace(/^[a-z]:/i, "").includes(":") : /^[a-z]:|^\\\\/i.test(value))) {
     throw new FileAccessError("Invalid file path.");
   }
+  assertUnicode(value);
   return path.resolve(value.trim());
 }
 
@@ -121,6 +123,7 @@ export class RootAccess {
 }
 
 export function accessPath(value: string, access: FileAccess, create = false): string {
+  if (!access) assertUnicode(value);
   return access ? access.resolve(value, create) : value;
 }
 

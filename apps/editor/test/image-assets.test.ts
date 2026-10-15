@@ -315,6 +315,10 @@ test("binary Host endpoint ignores filename injection and bounds chunked uploads
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const origin = `http://127.0.0.1:${address.port}`;
+  const malformed = await fetch(`${origin}/api/asset?path=%ED%A0%80`, { method: "POST", headers: { "Content-Type": "image/png" }, body: PNG });
+  assert.equal(malformed.status, 400);
+  assert.match((await malformed.json()).error, /Invalid request query encoding/);
+  assert.equal(fs.existsSync(assets), false);
   const url = `${origin}/api/asset?path=${encodeURIComponent(doc)}&filename=../../injected.svg`;
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "image/png" }, body: PNG });
   assert.equal(response.status, 201);

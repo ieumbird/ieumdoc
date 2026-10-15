@@ -9,6 +9,7 @@ import { LOCAL_FILE_ACCESS } from "../../editor/server/file-access.ts";
 export { CONTENT_SECURITY_POLICY, serveEditorFile } from "../../editor/server/editor-static.ts";
 import { handleAssetRequest } from "../../editor/server/asset-api.ts";
 import { handleDocumentRequest } from "../../editor/server/document-api.ts";
+import { requestQuery } from "../../editor/server/request-query.ts";
 import type { DocumentStartResponse } from "../../editor/shared/document-protocol.ts";
 
 export const SCHEME = "ieumdoc";
@@ -58,11 +59,14 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument): 
   return async (request) => {
     const url = new URL(request.url);
     if (url.protocol !== `${SCHEME}:` || url.host !== "app") return notFound();
+    let query: URLSearchParams;
+    try { query = requestQuery(request.url); }
+    catch (error) { return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400, headers: SECURITY_HEADERS }); }
     if (url.pathname === "/api/asset") {
       return callNodeHandler(request, url, (req, res) => handleAssetRequest(req, res, assetSigningKey, LOCAL_FILE_ACCESS));
     }
     if (DOCUMENT_ROUTES.has(url.pathname) || url.pathname.startsWith("/document/")) {
-      if (url.pathname === "/api/document" && request.method === "GET" && !url.searchParams.get("path")) {
+      if (url.pathname === "/api/document" && request.method === "GET" && !query.get("path")) {
         if (!("document" in first)) {
           const start: DocumentStartResponse = { start: true, sample: first.sample };
           return new Response(JSON.stringify(start), { headers: { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8" } });
