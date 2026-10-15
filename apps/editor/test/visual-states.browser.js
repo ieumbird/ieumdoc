@@ -12,10 +12,22 @@ async page => {
     for (let running; (running = n.getAnimations().filter(a => a instanceof CSSTransition)).length;)
       await Promise.allSettled(running.map(a => a.finished));
     const c = getComputedStyle(n), marker = getComputedStyle(n, '::before'), r = n.getBoundingClientRect();
+    // Focus ring = the rendered inset box-shadow, composited over the row's effective surface.
+    const ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+    const rgba = color => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = color; ctx.fillRect(0, 0, 1, 1); return [...ctx.getImageData(0, 0, 1, 1).data]; };
+    const over = (top, bottom) => { const a = top[3] / 255; return top.slice(0, 3).map((v, i) => v * a + bottom[i] * (1 - a)).concat(255); };
+    const surface = node => { const layers = []; for (let e = node; e; e = e.parentElement) { const b = rgba(getComputedStyle(e).backgroundColor); if (b[3]) layers.push(b); if (b[3] === 255) break; }
+      return layers.reverse().reduce((acc, b) => over(b, acc), [255, 255, 255, 255]); };
+    const lum = v => v.slice(0, 3).map(x => { x /= 255; return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; }).reduce((s, x, i) => s + x * [.2126, .7152, .0722][i], 0);
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    const inset = [...c.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px inset/g)].map(([, color, spread]) => ({color, spread: Number(spread)}))
+      .filter(s => s.spread > 0).sort((a, b) => b.spread - a.spread)[0];
+    const base = surface(n);
+    const ringContrast = inset ? ratio(over(rgba(inset.color), base), base) : 0, ringWidth = inset ? inset.spread : 0;
     return { background: c.backgroundColor, color: c.color, border: c.borderColor, radius: c.borderRadius, opacity: c.opacity,
       outline: c.outlineStyle, outlineColor: c.outlineColor, outlineOffset: c.outlineOffset, ring: c.boxShadow,
       marker: marker.content, markerColor: marker.backgroundColor, markerWidth: parseFloat(marker.width),
-      rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible') };
+      rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: inset?.color, active: document.activeElement === n };
   });
   await page.setViewportSize({width:1440, height:1000});
   await page.evaluate(() => {localStorage.clear(); sessionStorage.clear();});
@@ -57,15 +69,15 @@ async page => {
       `${label}: hover must preserve the current treatment`);
     await current.focus(); await page.keyboard.press(direction); await page.mouse.move(0,0);
     const focus = await state(other);
-    check(focus.focused && focus.outline === 'solid' && parseFloat(focus.outlineOffset) <= -2,
-      `${label}: separate keyboard focus needs a ring inside the scrollable row`);
+    check(focus.focused && focus.active && focus.ringWidth >= 2 && focus.ringContrast >= 3,
+      `${label}: separate keyboard focus needs a ring inside the scrollable row ${JSON.stringify(focus)}`);
     check(await current.getAttribute('aria-current') !== null && await other.getAttribute('aria-current') === null,
       `${label}: moving focus changed current`);
     check(JSON.stringify(rest.rect) === JSON.stringify((await state(current)).rect) &&
       JSON.stringify(otherRest.rect) === JSON.stringify(focus.rect), `${label}: states shifted row geometry`);
     await page.keyboard.press(direction === 'ArrowUp' ? 'ArrowDown' : 'ArrowUp');
     const currentFocus = await state(current);
-    check(currentFocus.focused && currentFocus.outline === 'solid' && currentFocus.marker === rest.marker,
+    check(currentFocus.focused && currentFocus.active && currentFocus.ringWidth >= 2 && currentFocus.ringContrast >= 3 && currentFocus.marker === rest.marker,
       `${label}: current and keyboard focus must coexist`);
     results.push({label, rest, hover, currentHover, focus, currentFocus});
     await page.evaluate(() => document.activeElement.blur());
@@ -78,7 +90,9 @@ async page => {
   check(ghostHover.background !== (await state(page.getByTestId('sidebar'))).background, 'Ghost hover disappears on panel');
   const menu = page.getByRole('button', {name:'More actions', exact:true});
   await menu.click(); await page.mouse.move(0,0); await settle(); const menuOpen = await state(menu);
-  check(menuOpen.background !== ghostHover.background && menuOpen.border !== 'rgba(0, 0, 0, 0)', 'Menu open looks like hover');
+  // An open menu keeps the neutral pressed face, distinct from hover, and draws no border box.
+  check(menuOpen.background !== ghostHover.background && menuOpen.background !== (await state(page.getByTestId('sidebar'))).background &&
+    menuOpen.border === 'rgba(0, 0, 0, 0)', `Menu open looks like hover or keeps a border box ${JSON.stringify(menuOpen)}`);
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'More actions');
   check(await menu.evaluate(n => n === document.activeElement), 'Menu did not restore focus');
@@ -122,7 +136,7 @@ async page => {
   check(await input.getAttribute('aria-invalid') === 'true', 'Rejected name needs an invalid field');
   await input.focus(); await settle();
   const invalid = await state(input);
-  check(invalid.border === (await state(page.getByTestId('new-error'))).color && invalid.ring.includes(results[0].focus.outlineColor),
+  check(invalid.border === (await state(page.getByTestId('new-error'))).color && results[0].focus.ringColor && invalid.ring.includes(results[0].focus.ringColor),
     'Error boundary must coexist with the interaction focus ring');
   await input.fill('valid');
   check(await input.getAttribute('aria-invalid') !== 'true', 'Correcting input did not clear invalid state');
@@ -133,7 +147,7 @@ async page => {
   for (let i = 0; i < 4 && !await create.evaluate(n => n === document.activeElement); i++) await page.keyboard.press('Tab');
   await settle();
   const primaryFocus = await state(create);
-  check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.outlineColor),
+  check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.ringColor),
     `Focused primary action hides its ring: ${JSON.stringify(primaryFocus)}`);
   await page.keyboard.press('Escape');
   await page.getByTestId('figure-image').click();
@@ -159,8 +173,8 @@ async page => {
   const tableActions = page.getByRole('button', {name:'Table actions', exact:true});
   await tableActions.click(); await page.mouse.move(0,0); await settle();
   const tableOpen = await state(tableActions);
-  check(tableOpen.background === menuOpen.background && tableOpen.ring.includes(menuOpen.border),
-    'Native table menu needs the shared persistent open face and boundary');
+  check(tableOpen.background === menuOpen.background && tableOpen.ring === 'none' && menuOpen.border === 'rgba(0, 0, 0, 0)',
+    `Native table menu needs the shared persistent open face without a boundary box ${JSON.stringify(tableOpen)}`);
   await page.keyboard.press('Escape');
 
   // Progress remains visible while motion is optional; opening/closing overlays are static.

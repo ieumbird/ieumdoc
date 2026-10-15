@@ -141,8 +141,8 @@ button {
 }
 
 .display-choice input:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .display-choice:has(:disabled) {
@@ -391,8 +391,8 @@ button {
 
 .sidebar-tree-item:focus-visible,
 .document-outline-item:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .sidebar-tree-item[aria-current="page"],
@@ -800,8 +800,8 @@ button {
 }
 
 .document-start-folder:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .document-start-folder:disabled {
@@ -1076,7 +1076,9 @@ ol.list { list-style: decimal; }
 .table-tools button:hover { background: var(--id-color-surface-hover); }
 .table-tools svg { pointer-events: none; }
 .table-tools button:is([aria-pressed="true"], [aria-expanded="true"]) { background: var(--id-color-surface-pressed); color: var(--id-color-text); box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-control); }
-.table-tools button:focus-visible { outline: 2px solid var(--id-color-interaction); outline-offset: 1px; }
+/* An open table menu shares the menu trigger's open face, without a boundary box. */
+.table-tools button[aria-expanded="true"]:not(:focus-visible) { box-shadow: none; }
+.table-tools button:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .table-tools button:disabled { opacity: .5; cursor: default; }
 .table-column-handle { position: absolute; top: 0; }
 .table-row-handle { position: absolute; left: 0; width: 28px; }
@@ -1555,8 +1557,8 @@ ol.list { list-style: decimal; }
 }
 
 .command-menu-item:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .command-menu-item:disabled {
@@ -2064,8 +2066,8 @@ ol.list { list-style: decimal; }
 }
 
 .folder-picker-option:focus-visible {
-  outline: 2px solid var(--id-color-border-focus);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 /* The keyboard's place in the list uses the interaction axis, like any selection. */
@@ -2153,4 +2155,49 @@ ol.list { list-style: decimal; }
 .selection-toolbar [data-slot="button"][aria-label],
 .message-dismiss {
   font-weight: var(--font-weight-bold);
+}
+
+/* ---- UI polish spike -------------------------------------------------------------------- */
+
+/* Tabs and toggles with the underline marker never also draw a box: no pressed face or
+ * border while their panel/menu is open, and mouse focus leaves nothing behind. */
+:is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):is([aria-expanded="true"], [aria-pressed="true"]) {
+  border-color: transparent;
+  background: transparent;
+}
+:is(.sidebar-tool, .top-bar-toggle):hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--id-color-surface-hover);
+}
+:is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):focus-visible {
+  border-color: transparent;
+  box-shadow: var(--focus-ring-inset);
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+/* An open menu's ghost trigger keeps a quiet pressed face, without a border box. */
+[data-slot="button"][aria-expanded="true"] {
+  border-color: transparent;
+}
+
+/* The sidebar's Open folder… is a soft tinted action, not an outlined web button. */
+.sidebar-empty [data-slot="button"] {
+  border-color: transparent;
+  background: var(--id-color-surface-hover);
+  box-shadow: none;
+}
+.sidebar-empty [data-slot="button"]:hover {
+  background: var(--id-color-surface-pressed);
+}
+.sidebar-empty [data-slot="button"]:focus-visible {
+  box-shadow: var(--focus-ring-inset);
+}
+
+/* Shared list rows (tree, outline, recent folders, menus): one radius, a hover tint and a
+ * selected tint; keyboard focus adds only the thin inset ring. */
+:is(.sidebar-tree-item, .document-outline-item, .document-start-folder, .command-menu-item, .folder-picker-option) {
+  border-radius: var(--id-radius-md);
+}
+:is(.sidebar-tree-item, .document-outline-item, .document-start-folder, .command-menu-item, .folder-picker-option):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
