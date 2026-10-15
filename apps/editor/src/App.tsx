@@ -297,8 +297,8 @@ export function App() {
       setEndnotesMove(false);
       if (sessionBase.current) sessionBase.current.savedEdits = payload;
       editorRef.current?.finishSave(true);
-      const hasNewerAppliedEdits = editorRef.current?.hasDocumentChanges() ?? false;
-      setStatus(hasNewerAppliedEdits ? "Saved; newer edits pending" : "Saved");
+      const hasPendingUserState = editorRef.current?.hasUnsavedChanges() ?? false;
+      setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
       return true;
     } catch (cause) {
       editorRef.current?.finishSave();
@@ -520,8 +520,7 @@ export function App() {
         <div className="app-header" ref={header}>
           <TopBar
             documentPath={openedPath}
-            status={assetPending ? "Adding image…"
-              : status === "Saved; newer edits pending" && !documentDirty ? "Saved" : status}
+            status={assetPending ? "Adding image…" : status}
             unsaved={documentDirty || draftActive}
             view={view}
             viewDisabled={!document || busy}

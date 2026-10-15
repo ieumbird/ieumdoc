@@ -40,7 +40,7 @@ export function TopBar({
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
   const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
-  const displayStatus = status === "Saved; newer edits pending" && unsaved ? status : idle
+  const displayStatus = idle
     ? (unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved")
     : status;
   const sourceProps = {

@@ -297,15 +297,15 @@ async (page, { openDocument, screenshots = false }) => {
       if (await page.getByTestId('current-file').getAttribute('title') !== pathA || await page.getByTestId('new-file-name').count()) throw new Error(`${action} continued with newer applied edits`);
       if (!(await page.locator('.document-editor').innerText()).includes(newer) || JSON.stringify(requests.at(-1)).includes(newer) || JSON.stringify(files.get(pathA)).includes(newer)) throw new Error('Save lost the newer transaction or included it in the earlier snapshot');
       if (await page.getByTestId('equation-latex').inputValue() !== 'keepThisDraft') throw new Error('Stopped continuation lost its draft');
-      if (await page.getByTestId('status').innerText() !== 'Saved; newer edits pending' || await page.getByTestId('save').isDisabled()) throw new Error('Newer applied edits did not remain visibly saveable');
+      if (await page.getByTestId('status').innerText() !== 'Unsaved changes' || await page.getByTestId('save').isDisabled()) throw new Error('Newer applied edits did not remain visibly saveable');
       if (!await trigger.evaluate(el => el === document.activeElement)) throw new Error('Stopped continuation lost return focus');
     }
-    // Undoing just the newer applied edit leaves only the draft; redo restores the pending status.
+    // Undo/redo retains the draft and the existing Unsaved changes display.
     await page.locator('.document-editor').evaluate(el => el.editor.commands.undo());
     await page.getByTestId('status').getByText('Unsaved changes',{exact:true}).waitFor();
     if (await page.getByTestId('equation-latex').inputValue() !== 'keepThisDraft') throw new Error('Undo lost the unapplied draft');
     await page.locator('.document-editor').evaluate(el => el.editor.commands.redo());
-    await page.getByTestId('status').getByText('Saved; newer edits pending',{exact:true}).waitFor();
+    await page.getByTestId('status').getByText('Unsaved changes',{exact:true}).waitFor();
     // Retry saves the retained edits and continues despite the still-unapplied draft.
     await chooseB();
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();

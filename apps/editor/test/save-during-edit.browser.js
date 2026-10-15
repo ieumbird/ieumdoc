@@ -45,7 +45,7 @@ async page => {
     await page.keyboard.type(' PENDING_INPUT');
     const before = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     release();
-    await page.getByText('Saved; newer edits pending',{exact:true}).waitFor();
+    await page.getByText('Unsaved changes',{exact:true}).waitFor();
     const after = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     if (!before || !after) throw new Error('Pending input was lost');
     await page.getByRole('button',{name:'Save',exact:true}).click();
