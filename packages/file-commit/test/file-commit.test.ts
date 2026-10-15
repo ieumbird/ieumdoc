@@ -3,12 +3,39 @@ import fs, { chmodSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSyn
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { commitFile, textRevision } from "../src/index.ts";
+import { commitFile, decodeUtf8, textRevision } from "../src/index.ts";
 
 // A partial temporary write and a change found just before the rename are exercised through
 // the Editor Host's save tests; these cover the remaining file properties and failures.
 
 const ORIGINAL = "Original.\n";
+
+test("UTF-8 decoding rejects malformed bytes and preserves valid text including BOM", () => {
+  for (const bytes of [[0xff], [0x80], [0xc0, 0xaf], [0xe2, 0x82], [0xed, 0xa0, 0x80], [0xf4, 0x90, 0x80, 0x80]]) {
+    assert.throws(() => decodeUtf8(Uint8Array.from(bytes)), /Invalid UTF-8/);
+  }
+  const source = "\uFEFF한글 😀 �\r\n";
+  assert.equal(decodeUtf8(Buffer.from(source)), source);
+});
+
+test("commit refuses invalid Unicode and detects raw-byte changes hidden by lossy decoding", () => {
+  withFile((dir, file) => {
+    for (const invalid of ["\uD800", "\uDC00"]) {
+      assert.throws(() => commitFile(file, invalid, textRevision(ORIGINAL)), /Invalid Unicode/);
+      assert.equal(readFileSync(file, "utf8"), ORIGINAL);
+      assert.deepEqual(readdirSync(dir), ["document.md"]);
+    }
+    const malformed = Buffer.from([0xff]);
+    writeFileSync(file, malformed);
+    assert.throws(() => commitFile(file, "Changed", textRevision("�")), /changed after it was read/);
+    assert.deepEqual(readFileSync(file), malformed);
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+    const valid = "\uFEFF한글 😀 �\n";
+    writeFileSync(file, valid);
+    commitFile(file, valid + "Again\n", textRevision(valid));
+    assert.equal(decodeUtf8(readFileSync(file)), valid + "Again\n");
+  });
+});
 
 function withFile(run: (dir: string, file: string) => void): void {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-file-commit-"));

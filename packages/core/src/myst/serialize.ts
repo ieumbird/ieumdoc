@@ -1,4 +1,5 @@
 import { writeMd } from "myst-to-md";
+import { assertUnicode } from "./unicode.ts";
 import { VFile } from "vfile";
 import { semanticDifferenceIssue, semanticFingerprint } from "./fingerprint.ts";
 import { DocumentWriteError, writeIssueOf, type WriteIssue } from "../write-error.ts";
@@ -38,6 +39,7 @@ export function serializeFor(document: MystDocument, failure: string): string {
  * them (`endnotePlacement`); parse reads them back in that order, so writing is idempotent.
  */
 export function serialize(document: MystDocument): string {
+  assertUnicode(document);
   // The fingerprint would also catch these, but not name the footnote.
   const footnotes = footnoteWriteIssue(document);
   if (footnotes) throw new SemanticLossError(footnotes.reason, footnotes);

@@ -1,10 +1,12 @@
 # Native document support v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (#266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
+- Last verified: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 ## Contract
+
+Core rejects unpaired UTF-16 surrogates before parsing source and before canonical writing, including string fields such as text, URLs, labels, code, metadata and nested options. Valid Korean, emoji and literal U+FFFD remain supported. CLI document/operations JSON reads and shared Host document/request text reads strictly decode UTF-8; malformed bytes are refused rather than replaced. A leading BOM retains the existing parse normalization rule. Refusal leaves original file bytes unchanged. This validation does not introduce a new semantic operation or CLI command.
 
 Public `parse(source)` accepts an IeumDoc native document. It validates the marker, metadata and complete semantic structure, then performs canonical write preflight. It never returns a partially supported document. Public `serialize(document)` validates native semantics before and after canonical output. Existing serializer diagnostics, complete semantic fingerprints and round-trip guards remain mandatory. MyST fragment parsing is internal to Core operations and serialization.
 

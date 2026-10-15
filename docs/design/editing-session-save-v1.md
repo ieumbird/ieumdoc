@@ -3,6 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-15 (ADR-0006 draft contract cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
+- Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
 ## Save acknowledgement
 
@@ -13,6 +14,8 @@ Extension and view option identities also remain stable for this keyed lifetime,
 Open/New return the source and editable model with canonical writeability and whether the source's endnotes are already in canonical place (`endnotesInPlace`); when not, the first Save moves them and the Editor says so before it. Save returns only the written revision; it does not return or project a replacement display model. Replay produces canonical Markdown through the same Core operations and final serializer used for Source and previously acknowledged edits. The final-state pending Figure rules remain distinct from operations' composable intermediate-state checks. Open/New still run canonical writeability preflight.
 
 The HTTP Save/Source boundary requires a document path, a 64-character SHA-256 revision and `base.source`; `base.savedEdits`, when present, must be an edits object. Missing or malformed session fields and non-array edit collections are rejected with 400. A well-formed stale revision still produces 409. Internal file helpers can replay against a supplied disk snapshot without an HTTP session; this is not an alternate browser write route.
+
+Malformed UTF-8 document files/request bodies and unpaired Unicode surrogates in applied content are rejected without a Save acknowledgement or file replacement. Source uses the same Core Unicode validation as Save. Valid Korean, emoji and literal U+FFFD retain their actual UTF-8 bytes; revisions match those bytes, so a subsequent Save does not create a false external-change conflict.
 
 Save requests include the opening Markdown and the last accepted Core edit payload (`base.source`, `base.savedEdits`). The local Host first compares the requested revision with the actual disk. If the opening source differs from disk, replaying the previous edits through Core must reproduce the disk bytes exactly. Only then does it apply the new payload to the opening source through the existing Core operations and canonical writer. This permits saving Undo/Redo of insertions, deletions, splits, merges and table changes without turning snapshot paths into persistent identities. An arbitrary replacement source or stale checkpoint is rejected.
 

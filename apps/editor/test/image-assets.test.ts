@@ -123,7 +123,10 @@ test("directory replacement during a write never deletes an unowned replacement 
   t.mock.method(fs, "closeSync", (fd: number) => {
     original(fd);
     if (replacement) return;
+    if (!fs.existsSync(assets)) return;
     const name = fs.readdirSync(assets)[0];
+    // Raw document reads also close descriptors; simulate the race at the asset write.
+    if (!name) return;
     fs.renameSync(assets, path.join(root, "moved-assets"));
     fs.mkdirSync(assets);
     replacement = path.join(assets, name);
@@ -268,6 +271,40 @@ test("media paths reject cross-platform absolute and encoded traversal paths", t
   for (const assetPath of ["../outside.png", "%2e%2e/outside.png", "%252e%252e/outside.png", "C:\\outside.png", "C:/outside.png", "\\\\server\\image.png", "/outside.png", "image%00.png"]) {
     assert.throws(() => resolveMediaPath(assetPath, doc));
   }
+});
+
+test("asset JSON endpoints reject malformed UTF-8 before copying or deleting files", async t => {
+  const { root, doc, assets } = fixture(t);
+  const source = path.join(root, "copy%2e.png");
+  fs.writeFileSync(source, PNG);
+  const original = fs.readFileSync(doc);
+  const created = createImageAsset(doc, "image/png", PNG, key);
+  const names = fs.readdirSync(assets);
+  const server = createServer((req, res) => { void handleAssetRequest(req, res, key); });
+  await new Promise<void>(done => server.listen(0, "127.0.0.1", done));
+  t.after(() => new Promise<void>(done => { server.close(() => done()); server.closeAllConnections(); }));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = `http://127.0.0.1:${address.port}/api/asset`;
+  for (const [method, request] of [
+    ["POST", { documentPath: doc, source }],
+    ["DELETE", { documentPath: doc, ...created }],
+  ] as const) {
+    // Otherwise valid JSON: the formerly lossy decoder would accept it and mutate assets.
+    const [before, after] = JSON.stringify({ ...request, note: "_BYTE_" }).split("_BYTE_");
+    const body = Buffer.concat([Buffer.from(before), Buffer.from([0xff]), Buffer.from(after)]);
+    const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /Invalid UTF-8/);
+    assert.deepEqual(fs.readdirSync(assets), names);
+    assert.deepEqual(fs.readFileSync(path.resolve(root, created.path)), PNG);
+    assert.deepEqual(fs.readFileSync(source), PNG);
+    assert.deepEqual(fs.readFileSync(doc), original);
+  }
+  const deleted = await fetch(url, { method: "DELETE", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ documentPath: doc, ...created }) });
+  assert.equal(deleted.status, 204);
+  assert.deepEqual(fs.readdirSync(assets), []);
 });
 
 test("binary Host endpoint ignores filename injection and bounds chunked uploads before writing", async t => {

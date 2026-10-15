@@ -36,6 +36,32 @@ const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
 
+test("CLI refuses invalid UTF-8 documents/operation files and escaped surrogates without changing disk bytes", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-unicode-"));
+  const file = path.join(dir, "document.md");
+  const operations = path.join(dir, "ops.json");
+  const original = Buffer.from(nativeSource("한글 😀 �\n"));
+  try {
+    const malformed = Buffer.concat([original, Buffer.from([0xff])]);
+    writeFileSync(file, malformed);
+    const format = run(["format", file]);
+    assert.equal(format.status, 1);
+    assert.match(format.stderr, /Invalid UTF-8/);
+    assert.deepEqual(readFileSync(file), malformed);
+    writeFileSync(file, original);
+    const malformedJson = Buffer.concat([Buffer.from('[{"command":"insert-block","at":1,"text":"A'), Buffer.from([0xff]), Buffer.from('B"}]')]);
+    for (const input of [malformedJson, Buffer.from(JSON.stringify([{ command: "insert-block", at: 1, text: "A\uD800B" }]))]) {
+      writeFileSync(operations, input);
+      const result = run(["apply-batch", file, "--operations", operations, "--format", "json"]);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /Invalid (UTF-8|Unicode)/);
+      assert.equal(result.stdout, "");
+      assert.deepEqual(readFileSync(file), original);
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ["document.md", "ops.json"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("serve help explains the boundary and invalid invocation never starts a listener", () => {
   const help = run(["serve", "--help"]);
   assert.equal(help.status, 0);

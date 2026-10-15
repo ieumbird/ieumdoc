@@ -1,4 +1,5 @@
 import { NativeDocumentError } from "@ieumdoc/core";
+import { decodeUtf8 } from "@ieumdoc/file-commit";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -310,7 +311,7 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
   };
   try {
     if (req.method === "POST" && /^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] ?? "")) {
-      json(200, chooseImageAsset(JSON.parse((await readRequestBody(req, 65536)).toString("utf8")) as ImageChoiceRequest, key, access));
+      json(200, chooseImageAsset(JSON.parse(decodeUtf8(await readRequestBody(req, 65536))) as ImageChoiceRequest, key, access));
     } else if (req.method === "POST") {
       const mime = req.headers["content-type"] ?? "";
       if (!isAssetMime(mime)) throw new AssetError(UNSUPPORTED);
@@ -320,7 +321,7 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
       const bytes = await readRequestBody(req, MAX_ASSET_BYTES);
       json(201, createImageAsset(locator, mime, bytes, key, access));
     } else if (req.method === "DELETE") {
-      const body = JSON.parse((await readRequestBody(req, 8192)).toString("utf8")) as AssetRollbackRequest;
+      const body = JSON.parse(decodeUtf8(await readRequestBody(req, 8192))) as AssetRollbackRequest;
       rollbackImageAsset(body, key, access);
       res.statusCode = 204; res.end();
     } else { res.statusCode = 405; res.end(); }

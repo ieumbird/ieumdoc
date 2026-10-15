@@ -364,5 +364,20 @@ async (page, { openDocument }) => {
     releaseReplay?.();
     await page.unroute('**/api/document', replayRoute);
   }
+  // Valid Unicode remains literal across consecutive writes and a real Reload.
+  await open(file);
+  await paragraph().click(); await page.keyboard.press('End');
+  await page.keyboard.insertText(' 한글 😀 �');
+  await save();
+  check('unicodeWritten', (await read(file)).source.includes('한글 😀 �'));
+  await page.keyboard.insertText(' Again.');
+  await save();
+  const unicodeSaved = await read(file);
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
+  const unicodeReloaded = await read(file);
+  check('unicodeRepeatSaveReload', unicodeReloaded.source.includes('한글 😀 � Again.') &&
+    unicodeReloaded.source === unicodeSaved.source && unicodeReloaded.revision === unicodeSaved.revision &&
+    (await paragraph().innerText()).includes('한글 😀 � Again.'));
   return result;
 }

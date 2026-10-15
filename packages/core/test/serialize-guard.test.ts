@@ -7,6 +7,29 @@ import { semanticDifference, semanticFingerprint } from "../src/myst/fingerprint
 
 // Core canonical serialization never returns Markdown that loses document semantics.
 
+test("parse and canonical write refuse unpaired surrogates in text and non-body string fields", () => {
+  for (const invalid of ["A\uD800B", "A\uDC00B", "\uD800\uD800", "\uDC00\uD800"]) {
+    assert.throws(() => parse(invalid), /Invalid Unicode: unpaired surrogate/);
+    for (const [source, path, field] of [
+      ["Body.\n", [0, 0], "value"],
+      ["```python\nprint(1)\n```\n", [0], "value"],
+      ["```python\nprint(1)\n```\n", [0], "lang"],
+      ["[link](https://example.com \"Title\")\n", [0, 0], "url"],
+      ["[link](https://example.com \"Title\")\n", [0, 0], "title"],
+      ["---\nieumdoc: 1\n---\n\nBody.\n", [0], "value"],
+    ] as const) {
+      const document = parse(source);
+      assert.doesNotThrow(() => serialize(document));
+      let node: MystNode = document;
+      for (const index of path) node = node.children![index];
+      node[field] = invalid;
+      assert.throws(() => serialize(document), /Invalid Unicode: unpaired surrogate/, field);
+    }
+  }
+  const valid = "한글 😀 �\n";
+  assert.equal(serialize(parse(valid)), valid);
+});
+
 /** What myst-to-md alone produces: the output Core used to return unchecked. */
 function rawMyst(source: string): { markdown: string; messages: string[] } {
   const file = new VFile();
