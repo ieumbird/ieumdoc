@@ -44,7 +44,7 @@ async (page, { openDocument }) => {
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();
   release();
-  await page.getByText('Unsaved changes',{exact:true}).waitFor();
+  await page.getByText('Unsaved changes',{exact:true}).filter({visible:true}).waitFor();
   const afterResponse = await page.getByTestId('equation-latex').inputValue();
   const editorDuringDraft = await page.getByTestId('equation-editor').count();
   if (beforeResponse !== changedLatex || afterResponse !== changedLatex || editorDuringDraft !== 1) {
@@ -54,7 +54,7 @@ async (page, { openDocument }) => {
   await page.getByTestId('equation-apply').click();
   if (!requests[0] || requests[0].equations?.length) throw new Error('Initial save unexpectedly included the draft');
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByText('Saved',{exact:true}).waitFor();
+  await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
   if (requests[1].equations?.[0]?.to !== changedLatex) throw new Error('Applied Equation was omitted from the next save');
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -73,14 +73,14 @@ async (page, { openDocument }) => {
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(canceledLatex);
   release();
-  await page.getByText('Unsaved changes',{exact:true}).waitFor();
+  await page.getByText('Unsaved changes',{exact:true}).filter({visible:true}).waitFor();
   if (await page.getByTestId('equation-latex').inputValue() !== canceledLatex) {
     throw new Error('Canceled draft was lost before Cancel');
   }
   await page.getByTestId('equation-cancel').click();
   if (await page.getByTestId('equation-editor').count() !== 0) throw new Error('Equation editor remained open after Cancel');
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByText('Saved',{exact:true}).waitFor();
+  await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
   if (requests[1].equations?.length) throw new Error('Canceled Equation was included in the next save');
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -102,11 +102,11 @@ async (page, { openDocument }) => {
   async function appliedTyping() {
     const sep = loaded.path.includes('\\') ? '\\' : '/';
     const root = loaded.path.split(sep).slice(0, -4).join(sep);
-    const snapshot = () => page.locator('.document-editor').evaluate(element => element.editor.getJSON());
+    const snapshot = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.getJSON());
     const source = async () => {
       await page.getByTestId('view-source').click();
-      await page.getByTestId('source-view').waitFor();
-      const text = (await page.getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
+      await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+      const text = (await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
       await page.getByTestId('view-visual').click();
       return text;
     };
@@ -121,8 +121,8 @@ async (page, { openDocument }) => {
       await openDocument(page, path);
       await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
       const initial = await snapshot();
-      const equation = page.locator('[data-block="equation"]').first();
-      const reference = page.getByTestId('cross-reference');
+      const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
+      const reference = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference');
       const assertContent = async expected => {
         const actual = await snapshot();
         if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${file}: equation, reference or surrounding content changed`);
@@ -140,7 +140,7 @@ async (page, { openDocument }) => {
       if (mode === 'click') await page.getByTestId('equation-apply').click();
       else await page.getByTestId(mode === 'label-enter' ? 'equation-label' : 'equation-apply').press('Enter');
       await assertContent(applied);
-      const caret = await page.locator('.document-editor').evaluate(element => {
+      const caret = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
         const {editor} = element;
         return editor.view.hasFocus() && editor.state.selection.empty;
       });
@@ -175,15 +175,15 @@ async (page, { openDocument }) => {
       const response = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
       await page.getByTestId('save').click();
       if ((await response).status() !== 200) throw new Error(`${file}: real Save failed`);
-      await page.getByText('Saved', {exact:true}).waitFor();
+      await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
       const disk = await page.request.get(`${origin}/document/${file}?path=${encodeURIComponent(path)}`);
       if (disk.status() !== 200 || (await disk.text()).replaceAll('\r\n', '\n') !== preview) {
         throw new Error(`${file}: Save differs from Source`);
       }
       // Save must retain native history as well as the applied equation.
-      await page.locator('.document-editor').evaluate(element => element.editor.commands.undo());
+      await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
       if (JSON.stringify(await snapshot()).includes('Typed275')) throw new Error(`${file}: Save lost Undo history`);
-      await page.locator('.document-editor').evaluate(element => element.editor.commands.redo());
+      await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
       await assertContent(typed);
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});

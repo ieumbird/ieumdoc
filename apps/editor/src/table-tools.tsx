@@ -1,3 +1,4 @@
+import { useEditorVisible } from "./editor-visibility.ts";
 import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -33,6 +34,7 @@ type Menu = { kind: "row" | "column" | "table"; target: TableCellAddress };
 export function TableTools({ editor, node, getPos, grid, onEdit, hidden }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos"> & {
   grid: RefObject<HTMLDivElement | null>; onEdit(): void; hidden: boolean;
 }) {
+  const visible = useEditorVisible();
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
   const anchor = useRef<HTMLButtonElement | null>(null);
@@ -48,6 +50,7 @@ export function TableTools({ editor, node, getPos, grid, onEdit, hidden }: Pick<
   }, [editor]);
   useEffect(() => { if (hidden) setMenu(null); }, [hidden]);
   useEffect(() => {
+    if (!visible) return;
     const canvas = grid.current;
     const table = canvas?.querySelector("table");
     if (!canvas || !table) return;
@@ -70,9 +73,9 @@ export function TableTools({ editor, node, getPos, grid, onEdit, hidden }: Pick<
     [...table.rows].forEach(row => observer.observe(row));
     const frame = requestAnimationFrame(measure);
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
-  }, [grid, node]);
+  }, [grid, node, visible]);
 
-  if (!editor.isEditable || hidden || !geometry) return null;
+  if (!visible || !editor.isEditable || hidden || !geometry) return null;
   const position = getPos();
   if (typeof position !== "number") return null;
   const index = editor.state.doc.resolve(position).index();

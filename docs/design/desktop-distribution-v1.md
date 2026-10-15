@@ -1,7 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (public beta.4, release CI, anonymous assets and actual GitHub beta.3→beta.4 update; see the release record).
+- Last verified: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
+- Previous verification: 2026-10-15 (public beta.4, release CI, anonymous assets and actual GitHub beta.3→beta.4 update; see the release record).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
@@ -24,7 +25,7 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [IeumDoc wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The first `.md` command-line argument opens. Otherwise no document opens: the Host answers the Editor's first request with a start without a document, and the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). A writable sample is copied into user data once and offered there; it opens only when the user chooses it, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The first `.md` command-line argument opens as the first independent document tab. Otherwise no document opens: the Host answers the Editor's first request with a start without a document, and the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). A writable sample is copied into user data once and offered there; it opens as a tab only when the user chooses it, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 
@@ -45,11 +46,19 @@ Before the first public release, local development versions can be reset. A prev
 
 `generateUpdatesFilesForAllChannels=false` and explicit publish channels prevent a Beta from generating Stable metadata. Artifact validation refuses the other channel file. Channel changes during download/install are refused; late check results from a previous channel are ignored. A downloaded update stays ready until installation or a channel change makes it ineligible.
 
+## Window close
+
+The renderer's `beforeunload` checks all open document tabs and pending Open/New. Electron retains
+its native **Close / Keep editing** dialog when any session would lose work. Its wording identifies
+unsaved or pending work across open documents and says that closing discards work in all tabs.
+Keep editing leaves every session intact. This is separate from the app's single-tab
+**Save / Don't save / Cancel** dialog; native close does not add Save all or recovery.
+
 ## Update lifecycle and work protection
 
 - Check 15 seconds after launch, then every 6 hours; retry a failed check after 30 minutes. Manual Check for updates is immediate. Only one check is in flight; errors never block editing.
 - Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
-- Restart to update disables window input and asks the live Editor whether work is saved. Dirty document content, unapplied property drafts, Save, asset handling, Source generation and document switching refuse. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
+- Restart to update disables window input and asks the live Editor whether all tabs are safe. The renderer aggregates pending work across every session, including hidden tabs. Dirty content, unapplied property drafts, Save, asset handling, Source generation and Open/New/Reload refuse. No user-input dialog is added inside the existing timed handshake. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
 
 ## Verification and signing

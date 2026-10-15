@@ -26,8 +26,6 @@ async (page, { openDocument, screenshots = false }) => {
   let failNext = false;
   let pendingSave;
   let releaseSave;
-  let pendingOpen;
-  let releaseOpen;
   // The Desktop Host's first answer when the app was started without a document.
   let startNext = true;
 
@@ -37,7 +35,6 @@ async (page, { openDocument, screenshots = false }) => {
     if (request.method() === 'GET') {
       if (!queryPath(request.url()) && startNext) return route.fulfill({json:{start:true, sample:pathB}});
       const requestedPath = queryPath(request.url()) || pathA;
-      if (requestedPath === pathB && pendingOpen) await pendingOpen;
       const response = files.get(requestedPath);
       if (!response) return route.fulfill({status:400,json:{error:'unknown test file'}});
       return route.fulfill({json:response});
@@ -75,7 +72,7 @@ async (page, { openDocument, screenshots = false }) => {
       throw new Error('A direct file-path entry remains');
     }
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    if (await page.getByTestId('current-file').innerText() !== 'No file opened' || await page.locator('.ProseMirror').count() ||
+    if (await page.getByTestId('current-file').innerText() !== 'No file opened' || await page.locator('[data-document-tab][data-active=true] .ProseMirror').count() ||
       !await page.getByTestId('save').isDisabled() || await page.getByTestId('error').count()) {
       throw new Error('The start opened a document or reported an error');
     }
@@ -116,7 +113,10 @@ async (page, { openDocument, screenshots = false }) => {
     await start.getByRole('button', {name:'Open sample document', exact:true}).click();
     await start.waitFor({state:'detached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('The sample did not open');
-    await page.getByText("This is the sample document, a copy in IeumDoc's app data.", {exact:true}).waitFor();
+    await page.getByText("This is the sample document, a copy in IeumDoc's app data.", {exact:true}).filter({visible:true}).waitFor();
+    await page.getByRole('button', {name:'Close ieumdoc-b.md',exact:true}).click();
+    await start.waitFor();
+    if (!await start.getByRole('button', {name:'Open sample document',exact:true}).isVisible()) throw new Error('Last close lost the Host sample information');
     startNext = false;
 
     await page.reload();
@@ -144,7 +144,7 @@ async (page, { openDocument, screenshots = false }) => {
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Saving allowed a document switch');
     releaseSave();
     pendingSave = undefined;
-    await page.getByText('Saved',{exact:true}).waitFor();
+    await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
     if (requests[0].path !== pathA || !JSON.stringify(requests[0].paragraphs).includes('FILE_A')) {
       throw new Error('File A save used the wrong path or omitted the edit');
     }
@@ -152,169 +152,119 @@ async (page, { openDocument, screenshots = false }) => {
 
     await editParagraph(page, ' FILE_A_PENDING');
     await openPath(page, pathB);
+    await page.getByRole('tab', {name:'ieumdoc-b.md',exact:true}).waitFor();
+    if (await page.getByRole('dialog').count()) throw new Error('Opening with dirty work asked to discard it');
+    await page.getByRole('tab', {name:'ieumdoc-a.md, Unsaved changes',exact:true}).click();
     const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
-    await confirmation.waitFor();
+    await closeA();
     if (!await confirmation.getByRole('button',{name:'Cancel',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Confirmation did not initially focus Cancel');
     await page.keyboard.press('Shift+Tab');
-    await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement), undefined, {timeout:5000});
-    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('Unsaved File A was discarded');
-    if (!(await page.locator('.document-editor').innerText()).includes('FILE_A_PENDING')) throw new Error('Pending File A edit was lost');
-    await capture('no-drafts');
+    await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement));
     const beforeCancel = await snapshot();
     const writesBeforeCancel = requests.length;
+    await capture('no-drafts');
     for (const cancel of ['Cancel', 'Escape']) {
-      if (cancel === 'Escape') await chooseB();
+      if (cancel === 'Escape') await closeA();
       if (cancel === 'Cancel') await confirmation.getByRole('button', {name:'Cancel',exact:true}).click();
       else await page.keyboard.press('Escape');
       await confirmation.waitFor({state:'detached'});
-      if (await snapshot() !== beforeCancel || requests.length !== writesBeforeCancel || await page.getByTestId('error').count()) throw new Error('Cancel changed local work, wrote or left a refusal error');
-      if (!await page.getByRole('treeitem', {name:'ieumdoc-b.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Cancel did not restore the invoking file');
+      if (await snapshot() !== beforeCancel || requests.length !== writesBeforeCancel) throw new Error('Close Cancel changed work or wrote');
+      if (!await page.getByRole('button', {name:'Close ieumdoc-a.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Cancel did not restore the close control');
     }
-    await chooseB();
+    await closeA();
     await page.keyboard.press('Control+s');
     if (requests.length !== writesBeforeCancel) throw new Error('Save shortcut bypassed the modal');
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
-    pendingOpen = new Promise(resolve => { releaseOpen = resolve; });
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor();
     for (const name of ['Save', "Don't save", 'Cancel']) {
-      if (!await confirmation.getByRole('button',{name,exact:true}).isDisabled()) throw new Error('Pending confirmation actions remain enabled');
+      if (!await confirmation.getByRole('button',{name,exact:true}).isDisabled()) throw new Error('Pending close actions remain enabled');
     }
     await page.keyboard.press('Escape');
-    if (!await confirmation.isVisible() || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Pending Save dismissed or switched early');
+    if (!await confirmation.isVisible()) throw new Error('Pending Save dismissed the close dialog');
+    // The acknowledged snapshot must not discard an edit arriving while Save was in flight.
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.commands.insertContentAt(1, 'NEWER '));
     releaseSave(); pendingSave = undefined;
-    await page.locator('[data-testid="status"][data-operation="Opening…"]').waitFor();
-    await page.keyboard.press('Escape');
-    if (!await confirmation.isVisible() || !await confirmation.getByRole('button',{name:'Cancel',exact:true}).isDisabled() || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Pending Open lost its modal boundary');
-    releaseOpen(); pendingOpen = undefined;
     await confirmation.waitFor({state:'detached'});
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('File B was not opened');
-    if (!await page.locator('.document-editor').evaluate(el => el === document.activeElement)) throw new Error('Successful switch did not focus the document');
-    if ((await page.getByRole('article').innerText()).includes('FILE_A_PENDING')) throw new Error('File A state leaked into File B');
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathA || !(await snapshot()).includes('NEWER')) throw new Error('Close discarded newer applied edits');
+    await closeA();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    await page.getByRole('tab', {name:'ieumdoc-b.md',exact:true}).waitFor();
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).count()) throw new Error('Successful Save did not close A and select B');
+    if (!await page.getByRole('tab',{name:'ieumdoc-b.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Closing did not focus the neighbour tab');
 
     await editParagraph(page, ' FILE_B');
-    await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Saved',{exact:true}).waitFor();
-    if (requests[2].path !== pathB || !JSON.stringify(requests[2].paragraphs).includes('FILE_B')) {
-      throw new Error('File B save used the wrong path or omitted the edit');
-    }
-
+    await page.getByTestId('save').click();
+    await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
+    if (requests.at(-1).path !== pathB || !JSON.stringify(requests.at(-1).paragraphs).includes('FILE_B')) throw new Error('B Save used another session');
     await openPath(page, pathA);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    const reloadedA = await page.getByRole('article').innerText();
-    if (!reloadedA.includes('FILE_A_PENDING') || reloadedA.includes('FILE_B')) {
-      throw new Error(`File A/B state was mixed: ${JSON.stringify({text:reloadedA.match(/.*(?:FILE_|reference).*/g), saves:requests.map(({path, paragraphs}) => ({path, paragraphs}))})}`);
-    }
+    if (!(await snapshot()).includes('FILE_A_PENDING') || (await snapshot()).includes('FILE_B')) throw new Error('Save mixed document sessions');
 
     await editParagraph(page, ' STALE');
-    conflictNext = true;
-    await chooseB();
-    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Save conflict',{exact:true}).waitFor();
-    await confirmation.waitFor({state:'detached'});
-    if (!(await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Stale edit was discarded');
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Conflict opened another document');
-    failNext = true;
-    await chooseB();
-    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Save failed',{exact:true}).waitFor();
-    await confirmation.waitFor({state:'detached'});
-    if (!(await page.getByRole('article').innerText()).includes('STALE') || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Save failure discarded the session');
-    await page.getByTestId('error').getByText(/Cannot save this content/).waitFor();
+    for (const failure of ['conflict', 'failure']) {
+      conflictNext = failure === 'conflict'; failNext = failure === 'failure';
+      await closeA();
+      await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+      await page.getByText(failure === 'conflict' ? 'Save conflict' : 'Save failed',{exact:true}).filter({visible:true}).waitFor();
+      await confirmation.waitFor({state:'detached'});
+      if (!(await snapshot()).includes('STALE') || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Failed Save closed or changed the tab');
+    }
     const writesBeforeDiscard = requests.length;
-    await chooseB();
+    await closeA();
     await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
     await confirmation.waitFor({state:'detached'});
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== writesBeforeDiscard) throw new Error('Discard did not switch without writing');
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== writesBeforeDiscard) throw new Error('Discard wrote or chose the wrong neighbour');
     await openPath(page, pathA);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    if ((await page.getByRole('article').innerText()).includes('STALE')) throw new Error('Discard wrote the rejected edit');
+    if ((await snapshot()).includes('STALE')) throw new Error('Discard wrote rejected content');
 
-    // Start clean so this refusal proves the property draft alone guards the tree switch.
-    await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    const equation = page.locator('[data-block="equation"]').first();
+    const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
     await equation.hover();
-    await equation.getByRole('button', {name:'Edit', exact:true}).click();
-    await page.getByTestId('equation-latex').fill('x + draftSwitch');
-    await openPath(page, pathB);
+    await equation.getByRole('button', {name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-latex').fill('x + draftClose');
+    await closeA();
     await confirmation.getByText(/Unapplied property drafts will be lost with both Save and Don't save/).waitFor();
     await capture('drafts');
     await page.keyboard.press('Escape');
     await confirmation.waitFor({state:'detached'});
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathA ||
-      await page.getByTestId('equation-latex').inputValue() !== 'x + draftSwitch') throw new Error('A refused tree switch lost the property draft');
-    if (await page.getByTestId('error').count()) throw new Error('Draft switch Cancel left a red refusal bar');
+    if (await page.getByTestId('equation-latex').inputValue() !== 'x + draftClose') throw new Error('Close Cancel lost the draft');
     failNext = true;
-    const draftBeforeFailure = await snapshot();
-    await chooseB();
+    const beforeFailure = await snapshot();
+    await closeA();
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Save failed',{exact:true}).waitFor();
+    await page.getByText('Save failed',{exact:true}).filter({visible:true}).waitFor();
     await confirmation.waitFor({state:'detached'});
-    if (await snapshot() !== draftBeforeFailure || await page.getByTestId('equation-latex').inputValue() !== 'x + draftSwitch' || await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Failed Save lost a property draft');
-    await chooseB();
+    if (await snapshot() !== beforeFailure || await page.getByTestId('equation-latex').inputValue() !== 'x + draftClose') throw new Error('Failed Save lost a draft');
+    await closeA();
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
     await confirmation.waitFor({state:'detached'});
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || JSON.stringify(requests.at(-1)).includes('draftSwitch')) throw new Error('Save applied a draft or failed to switch');
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || JSON.stringify(requests.at(-1)).includes('draftClose')) throw new Error('Close Save applied a draft');
+
+    // Closing a hidden dirty tab keeps B active, including Cancel and draft discard.
     await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await equation.hover();
-    await equation.getByRole('button',{name:'Edit',exact:true}).click();
-    await page.getByTestId('equation-latex').fill('draftDiscard');
+    await equation.hover(); await equation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-latex').fill('hiddenDraft');
+    await page.getByRole('tab',{name:'ieumdoc-b.md',exact:true}).click();
+    await closeA();
+    await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB) throw new Error('Inactive close Cancel changed the active tab');
+    failNext = true;
+    await closeA();
+    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
+    await confirmation.waitFor({state:'detached'});
+    await page.getByTestId('error').filter({hasText:'Could not save “ieumdoc-a.md”'}).waitFor();
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('tab',{name:'ieumdoc-a.md, Unsaved changes',exact:true}).count() !== 1) throw new Error('Inactive Save failure changed B or removed A');
     const draftWrites = requests.length;
-    await chooseB();
+    await closeA();
     await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
     await confirmation.waitFor({state:'detached'});
-    if (requests.length !== draftWrites || await page.getByTestId('equation-latex').count() || await page.getByTestId('current-file').getAttribute('title') !== pathB) throw new Error('Draft discard wrote or retained the old session');
-
-    // A modal cannot prevent asynchronous editor transactions. Save acknowledges its snapshot
-    // only: newer applied edits must stop both Open and New, even alongside a discardable draft.
-    await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await equation.hover();
-    await equation.getByRole('button',{name:'Edit',exact:true}).click();
-    await page.getByTestId('equation-latex').fill('keepThisDraft');
-    for (const action of ['open', 'new']) {
-      const trigger = action === 'open' ? page.getByRole('treeitem',{name:'ieumdoc-b.md',exact:true})
-        : page.getByRole('button',{name:'New file in folder',exact:true});
-      await trigger.click();
-      pendingSave = new Promise(resolve => { releaseSave = resolve; });
-      await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-      await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor();
-      const newer = ` NEWER_${action}`;
-      await page.locator('.document-editor').evaluate((element, text) => {
-        const editor = element.editor;
-        let end;
-        editor.state.doc.forEach((node, offset) => {
-          if (node.type.name === 'paragraph' && node.textContent.startsWith('The current reference')) end = offset + node.nodeSize - 1;
-        });
-        if (end === undefined) throw new Error('Missing transaction target');
-        editor.view.dispatch(editor.state.tr.insertText(text, end));
-      }, newer);
-      releaseSave(); pendingSave = undefined;
-      await confirmation.waitFor({state:'detached'});
-      if (await page.getByTestId('current-file').getAttribute('title') !== pathA || await page.getByTestId('new-file-name').count()) throw new Error(`${action} continued with newer applied edits`);
-      if (!(await page.locator('.document-editor').innerText()).includes(newer) || JSON.stringify(requests.at(-1)).includes(newer) || JSON.stringify(files.get(pathA)).includes(newer)) throw new Error('Save lost the newer transaction or included it in the earlier snapshot');
-      if (await page.getByTestId('equation-latex').inputValue() !== 'keepThisDraft') throw new Error('Stopped continuation lost its draft');
-      if (await page.getByTestId('status').innerText() !== 'Unsaved changes' || await page.getByTestId('save').isDisabled()) throw new Error('Newer applied edits did not remain visibly saveable');
-      if (!await trigger.evaluate(el => el === document.activeElement)) throw new Error('Stopped continuation lost return focus');
-    }
-    // Undo/redo retains the draft and the existing Unsaved changes display.
-    await page.locator('.document-editor').evaluate(el => el.editor.commands.undo());
-    await page.getByTestId('status').getByText('Unsaved changes',{exact:true}).waitFor();
-    if (await page.getByTestId('equation-latex').inputValue() !== 'keepThisDraft') throw new Error('Undo lost the unapplied draft');
-    await page.locator('.document-editor').evaluate(el => el.editor.commands.redo());
-    await page.getByTestId('status').getByText('Unsaved changes',{exact:true}).waitFor();
-    // Retry saves the retained edits and continues despite the still-unapplied draft.
-    await chooseB();
-    await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-    await confirmation.waitFor({state:'detached'});
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || !JSON.stringify(files.get(pathA)).includes('NEWER_new') || JSON.stringify(requests.at(-1)).includes('keepThisDraft')) throw new Error('Retry did not save newer applied edits and discard only the agreed draft');
-    return {start:true, fileA:true, fileB:true, savingSwitchGuarded:true, draftSwitchGuarded:true, unsavedSwitchGuarded:true, conflictRetained:true};
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== draftWrites) throw new Error('Inactive discard changed B or wrote a draft');
+    return {start:true, independentSaves:true, savingSwitchGuarded:true, closeCancel:true, closeSave:true, closeDiscard:true, failureRetained:true, conflictRetained:true, newerEditsRetained:true, inactiveClose:true};
   } finally {
     releaseSave?.();
-    releaseOpen?.();
     await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
     await page.unroute('**/api/document**');
     await page.unrouteAll();
@@ -324,13 +274,13 @@ async (page, { openDocument, screenshots = false }) => {
     return JSON.parse(JSON.stringify(value));
   }
 
-  async function chooseB() {
-    await page.getByRole('treeitem',{name:'ieumdoc-b.md',exact:true}).click();
+  async function closeA() {
+    await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).click();
     await page.getByRole('dialog',{name:'Save changes?',exact:true}).waitFor();
   }
 
   async function snapshot() {
-    return page.locator('.document-editor').evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON(), undo:el.editor.can().undo()}));
+    return page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON(), undo:el.editor.can().undo()}));
   }
 
   async function capture(state) {
@@ -364,7 +314,7 @@ async (page, { openDocument, screenshots = false }) => {
   }
 
   async function editParagraph(page, suffix) {
-    await page.getByText(/The current reference is calculated from the active power command\.|Document B/).click();
+    await page.locator('[data-document-tab][data-active=true]').getByText(/The current reference is calculated from the active power command\.|Document B/).click();
     await page.keyboard.press('End');
     await page.keyboard.type(suffix);
   }

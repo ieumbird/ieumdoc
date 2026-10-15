@@ -1,11 +1,13 @@
+import { useEditorVisible } from "../editor-visibility.ts";
 import { useLayoutEffect, useRef } from "react";
 
 /** Keep the existing editor overlays inside the viewport. Focus/dismissal stay with each caller. */
 export function useOverlayBounds<T extends HTMLElement>(open = true) {
+  const visible = useEditorVisible();
   const ref = useRef<T>(null);
   useLayoutEffect(() => {
     const element = ref.current;
-    if (!open || !element) return;
+    if (!visible || !open || !element) return;
     let x = parseFloat(element.style.getPropertyValue("--overlay-shift-x")) || 0;
     let y = parseFloat(element.style.getPropertyValue("--overlay-shift-y")) || 0;
     const fit = () => {

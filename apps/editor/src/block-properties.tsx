@@ -1,4 +1,5 @@
-import type { ReactNode, RefObject } from "react";
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useEditorVisible } from "./editor-visibility.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "./ui/primitives.tsx";
@@ -19,6 +20,10 @@ export function BlockProperties({
   onCancel(): void;
   children: ReactNode;
 }) {
+  const visible = useEditorVisible();
+  const wasOpen = useRef(false);
+  useLayoutEffect(() => { wasOpen.current = open; }, [open]);
+  if (!visible) return null;
   return (
     <Popover open={open}>
       <PopoverContent
@@ -26,7 +31,7 @@ export function BlockProperties({
         side="bottom"
         align="end"
         sideOffset={12}
-        initialFocus={initialFocus ?? false}
+        initialFocus={wasOpen.current ? false : initialFocus ?? false}
         finalFocus={false}
         aria-label={`${kind} properties`}
         data-testid={`${testId}-properties`}

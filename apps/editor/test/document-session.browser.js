@@ -10,7 +10,7 @@ async page => {
   const fileB = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(pathB)}`)).json();
   await page.evaluate(async () => {
     const {mountDocumentSessionHarness} = await import('/test/helpers/document-session-harness.ts');
-    window.sessionHarness = mountDocumentSessionHarness();
+    window.sessionHarness = await mountDocumentSessionHarness();
   });
   const ready = path => page.waitForFunction(path => {
     const session = window.sessionHarness.current;
@@ -19,7 +19,7 @@ async page => {
   const snapshot = () => page.evaluate(() => {
     const session = window.sessionHarness.current;
     return {path: session.openedPath, status: session.status, error: session.error, view: session.view,
-      source: session.sourceMarkdown, sourcePending: session.sourcePending,
+      source: session.sourceMarkdown, busy: session.busy,
       dirty: session.editorRef.current.hasUnsavedChanges(), document: session.editorRef.current.getDocument()};
   });
   const result = {};
@@ -58,7 +58,7 @@ async page => {
         await page.evaluate(() => window.pendingSessionOperation);
         const after = await snapshot();
         const old = await page.evaluate(() => ({destroyed: window.oldSession.editor.isDestroyed, finishes: window.oldSession.finishes}));
-        if (!before.dirty || JSON.stringify(before) !== JSON.stringify(after) || !old.destroyed || old.finishes) {
+        if (before.busy || after.busy || !before.dirty || JSON.stringify(before) !== JSON.stringify(after) || !old.destroyed || old.finishes) {
           throw new Error(`${operation} changed a replaced session: ${JSON.stringify({before, after, old})}`);
         }
         result[`${operation}IgnoredAfterReplacement`] = true;

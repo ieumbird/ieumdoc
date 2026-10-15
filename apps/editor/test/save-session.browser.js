@@ -1,5 +1,5 @@
 // Real scratch-file saves across engine history, drafts and an external conflict.
-async (page, { openDocument }) => {
+async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
@@ -19,10 +19,11 @@ async (page, { openDocument }) => {
   };
   const open = async path => {
     await openDocument(page, path);
+    await reloadDocument(page);
     await page.getByRole('dialog').waitFor({state:'detached'});
     await ready();
   };
-  const paragraph = () => page.locator('.document-editor > p[data-block="paragraph"]').first();
+  const paragraph = () => page.locator('[data-document-tab][data-active=true] .document-editor > p[data-block="paragraph"]').first();
   const undo = async () => { await paragraph().click(); await page.keyboard.press('Control+z'); };
   const redo = async () => { await paragraph().click(); await page.keyboard.press('Control+Shift+z'); };
   await open(file);
@@ -30,7 +31,7 @@ async (page, { openDocument }) => {
   await page.keyboard.press('End');
   await page.keyboard.type(' Saved');
   await page.evaluate(() => {
-    const editor = document.querySelector('.document-editor').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     window.saveSession = {editor, selection: editor.state.selection.toJSON(), browserSave: []};
     window.addEventListener('keydown', event => { if (event.code === 'KeyS') window.saveSession.browserSave.push(!event.defaultPrevented); });
   });
@@ -38,7 +39,7 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Control+s');
   await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
   check('saveShortcutKeepsEditorFocusSelectionAndHistory', await page.evaluate(() => {
-    const e = document.querySelector('.document-editor').editor;
+    const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return e === window.saveSession.editor && JSON.stringify(e.state.selection.toJSON()) === JSON.stringify(window.saveSession.selection) &&
       e.can().undo() && e.view.hasFocus() && JSON.stringify(window.saveSession.browserSave) === '[false]';
   }));
@@ -55,12 +56,12 @@ async (page, { openDocument }) => {
   await paragraph().click();
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
-  const selection = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.from);
+  const selection = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.from);
   await save();
-  check('emptyParagraphRetained', await page.locator('.document-editor > p[data-block="paragraph"]').count() === 3 &&
-    await page.evaluate(pos => document.querySelector('.document-editor').editor.state.selection.from === pos, selection));
+  check('emptyParagraphRetained', await page.locator('[data-document-tab][data-active=true] .document-editor > p[data-block="paragraph"]').count() === 3 &&
+    await page.evaluate(pos => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.from === pos, selection));
   check('emptyParagraphNotWritten', (await read(file)).document.blocks.length === 3);
-  await page.locator('.document-editor').focus();
+  await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
   await page.keyboard.type('Inserted.');
   await save();
   check('typingAfterEmptySave', (await read(file)).source.includes('Inserted.'));
@@ -71,7 +72,7 @@ async (page, { openDocument }) => {
   await save();
 
   // Deletion and history still address the opening snapshot after indexes have changed.
-  await page.getByText('Beta.', {exact:true}).hover();
+  await page.getByText('Beta.', {exact:true}).filter({visible:true}).hover();
   await page.getByRole('button', {name:'Move paragraph block 4', exact:true}).click();
   await page.getByRole('menuitem', {name:'Delete', exact:true}).click();
   await save();
@@ -81,7 +82,7 @@ async (page, { openDocument }) => {
   check('undoDeletionSaved', (await read(file)).source.includes('Beta.'));
 
   // Set a precise text selection to isolate split/save history from pointer hit testing.
-  await page.locator('.document-editor').evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const e = element.editor;
     e.commands.setTextSelection(e.state.doc.firstChild.nodeSize + 3);
     e.view.focus();
@@ -92,7 +93,7 @@ async (page, { openDocument }) => {
   await undo(); await save();
   check('undoSplitSaved', (await read(file)).source.includes('Alpha. Saved'));
   await redo(); await save();
-  await page.getByText('pha. Saved', {exact:true}).click(); await page.keyboard.press('Home'); await page.keyboard.press('Backspace');
+  await page.getByText('pha. Saved', {exact:true}).filter({visible:true}).click(); await page.keyboard.press('Home'); await page.keyboard.press('Backspace');
   await save();
   check('mergeAfterSavedSplit', (await read(file)).source.includes('Alpha. Saved'));
 
@@ -107,26 +108,26 @@ async (page, { openDocument }) => {
   await page.getByTestId('save').click(); await received;
   await paragraph().click(); await page.keyboard.press('End'); await page.keyboard.press('Enter');
   await page.keyboard.type('DuringSave');
-  const pendingDocument = await page.locator('.document-editor').evaluate(element => JSON.stringify(element.editor.getJSON()));
+  const pendingDocument = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => JSON.stringify(element.editor.getJSON()));
   release();
   await page.locator('[data-testid="status"][data-operation="Saved; newer edits pending"]').waitFor({state:'attached'});
   check('pendingStructureRetained', pendingDocument.includes('DuringSave') &&
-    await page.locator('.document-editor').evaluate(element => JSON.stringify(element.editor.getJSON())) === pendingDocument &&
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => JSON.stringify(element.editor.getJSON())) === pendingDocument &&
     !(await read(file)).source.includes('DuringSave'));
   await page.unrouteAll(); await save();
   check('pendingStructureSavedNext', (await read(file)).source.includes('DuringSave'));
 
   const beforeInvalid = (await read(file)).source;
-  await page.locator('.document-editor').evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const e = element.editor, from = e.state.doc.firstChild.nodeSize + 1;
     e.commands.setTextSelection({from, to:from + e.state.doc.child(1).content.size}); e.view.focus();
   });
   await page.keyboard.press('Backspace');
-  await page.getByRole('button', {name:'New file in folder',exact:true}).click();
+  await page.getByRole('button', {name:'Close session.md',exact:true}).click();
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   await page.getByRole('dialog').waitFor({state:'detached'});
-  check('invalidContentStopsNew', await page.getByTestId('current-file').getAttribute('title') === file && await page.getByTestId('new-file-name').count() === 0);
+  check('invalidContentStopsClose', await page.getByTestId('current-file').getAttribute('title') === file && await page.getByTestId('new-file-name').count() === 0);
   const invalid = { error: await page.getByTestId('error').innerText(), diskKept: (await read(file)).source === beforeInvalid,
     paragraph: await paragraph().textContent() };
   if (!invalid.error.includes('Block 2 (paragraph)') || !invalid.error.includes('empty paragraph') || !invalid.error.includes('Enter text') || !invalid.diskKept || invalid.paragraph !== '') throw new Error(JSON.stringify(invalid));
@@ -139,7 +140,7 @@ async (page, { openDocument }) => {
     ? route.fulfill({status:400, json:{error:'Temporary save failure'}}) : route.continue());
   // The shortcut reports a failure exactly like the button.
   await page.keyboard.press('Control+s');
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   check('shortcutFailureShown', (await page.getByTestId('error').innerText()).includes('Temporary save failure'));
   check('failureRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
   // A malformed response cannot acknowledge Save or promise that the disk was not written.
@@ -147,7 +148,7 @@ async (page, { openDocument }) => {
   await page.route('**/api/document', route => route.request().method() === 'POST'
     ? route.fulfill({status:200, contentType:'text/plain', body:'Not a JSON acknowledgement'}) : route.continue());
   await page.keyboard.press('Control+s');
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   const unconfirmed = await page.getByTestId('error').innerText();
   check('unconfirmedSaveExplained', unconfirmed.includes('Save result unconfirmed') && unconfirmed.includes('may already have been saved') && unconfirmed.includes('Keep your edits'));
   check('unconfirmedRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
@@ -161,10 +162,10 @@ async (page, { openDocument }) => {
   const response = await page.request.post(`${origin}/api/document`, {data:{path:file, revision:external.revision, base:{source:external.source},
     paragraphs:[{path:target.path, content:[{kind:'text', text:'External.'}]}]}});
   check('externalWrite', response.ok());
-  await page.getByTestId('save').click(); await page.getByText('Save conflict', {exact:true}).waitFor();
+  await page.getByTestId('save').click(); await page.getByText('Save conflict', {exact:true}).filter({visible:true}).waitFor();
   check('conflictPreservesBoth', (await paragraph().innerText()).includes('Local') && (await read(file)).source.includes('External.'));
-  await page.getByTestId('view-source').click(); await page.getByTestId('source-view').waitFor();
-  check('conflictSourceRecovery', (await page.getByTestId('source-view').innerText()).includes('Local'));
+  await page.getByTestId('view-source').click(); await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+  check('conflictSourceRecovery', (await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').innerText()).includes('Local'));
   await page.getByTestId('view-visual').click();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
@@ -234,37 +235,37 @@ async (page, { openDocument }) => {
 
   const blockCount = (await read(file)).document.blocks.length;
   await page.getByRole('dialog').waitFor({state:'detached'});
-  await page.locator('.document-editor').evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const e = element.editor; e.commands.setTextSelection(e.state.doc.firstChild.nodeSize + 1); e.view.focus();
   });
   await page.keyboard.press('Enter');
   await save();
   const leading = { blocks:(await read(file)).document.blocks.length, blockCount, text:await paragraph().textContent(),
-    json:await page.locator('.document-editor').evaluate(element => element.editor.getJSON()) };
+    json:await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.getJSON()) };
   if (leading.blocks !== blockCount || leading.text !== '') throw new Error(JSON.stringify(leading));
   check('leadingEmptyParagraphNotWritten', true);
   await undo(); await save();
 
   // Existing drafts survive saving applied body content and Source switching, then Apply saves them.
   await open(technical);
-  const body = page.getByText('The current reference is calculated from the active power command.', {exact:true});
+  const body = page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true});
   await body.click(); await page.keyboard.press('End'); await page.keyboard.type(' BodySaved');
-  const equation = page.locator('[data-block="equation"]').first();
+  const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + 40');
   await save();
   check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').isVisible());
   check('onlyAppliedContentWritten', (await read(technical)).source.includes('BodySaved') && !(await read(technical)).source.includes('x + 40'));
-  await page.getByTestId('view-source').click(); await page.getByTestId('source-view').waitFor();
-  check('sourceExcludesDraft', !(await page.getByTestId('source-view').innerText()).includes('x + 40'));
+  await page.getByTestId('view-source').click(); await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+  check('sourceExcludesDraft', !(await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').innerText()).includes('x + 40'));
   await page.getByTestId('view-visual').click();
   check('draftRetained', await page.getByTestId('equation-latex').inputValue() === 'x + 40');
   await page.getByTestId('equation-apply').click(); await save();
   check('appliedDraftWritten', (await read(technical)).source.includes('x + 40'));
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
-  check('reopenedAppliedEquation', await page.locator('[data-block="equation"] .katex').count() > 0 &&
-    (await page.getByTestId('document-editor').innerText()).includes('BodySaved'));
+  check('reopenedAppliedEquation', await page.locator('[data-document-tab][data-active=true] [data-block="equation"] .katex').count() > 0 &&
+    (await page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor').innerText()).includes('BodySaved'));
 
   // Keep the scattered opening source through normalization, Figure/history changes and a
   // delayed acknowledgement. The existing footnote fixture has only valid references/definitions.
@@ -275,8 +276,8 @@ async (page, { openDocument }) => {
   await open(notes);
   check('endnoteOpenKeepsSourceAndRevision', (await read(notes)).source === opening.source &&
     (await read(notes)).revision === opening.revision && await page.getByTestId('status').innerText() !== 'Unsaved changes');
-  await page.locator('.document-editor').evaluate(element => { window.endnoteReplayEditor = element.editor; });
-  const editor = page.locator('.document-editor');
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => { window.endnoteReplayEditor = element.editor; });
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const same = (name, actual, expected) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${name}: ${JSON.stringify({actual, expected})}`);
   };
@@ -287,7 +288,7 @@ async (page, { openDocument }) => {
   const preview = async expected => {
     const before = await read(notes);
     await page.getByTestId('view-source').click();
-    const source = page.getByTestId('source-view').locator('pre');
+    const source = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre');
     await source.waitFor();
     same('Endnote replay Source', await source.textContent(), expected);
     await page.getByTestId('view-visual').click();
@@ -387,7 +388,7 @@ async (page, { openDocument }) => {
     // A Figure's node selection changes to the clicked definition on the next frame.
     // Wait for the real caret before typing, as the existing footnotes scenario does.
     await page.waitForFunction(() => {
-      const selection = document.querySelector('.document-editor').editor.state.selection;
+      const selection = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
       return selection.empty && selection.$from.parent.type.name === 'footnoteDefinition' && selection.$from.parent.attrs.label === 'b';
     });
     await page.keyboard.press('End'); await page.keyboard.type(' During save.');

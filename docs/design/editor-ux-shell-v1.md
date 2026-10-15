@@ -1,14 +1,15 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (#281: cross-reference, section-reference, table-authoring, pending-figure, layout-rules and quiet-document browser checks; actual 1440px slash-menu Before/After). Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label property-close caret, Apply/typing and insertion/Cancel/Escape browser regressions; ADR-0006 native admission wording compared with code/tests). Previous verification: 2026-10-13 (#176: Files/Display switching, tree/selection/history/draft preservation, File actions and Reload focus, unavailable settings; browser results and actual captures in the [#176 review](../reviews/editor-shell-176-2026-10-13.md)).
+- Last verified: 2026-10-16 (#204: tab row, active shell and retained sessions; browser checks and user-approved 1440/375px captures in the [review](../reviews/document-tabs-204-2026-10-16.md)).
+- Previous verification: 2026-10-15 (#281: cross-reference, section-reference, table-authoring, pending-figure, layout-rules and quiet-document browser checks; actual 1440px slash-menu Before/After). Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label property-close caret, Apply/typing and insertion/Cancel/Escape browser regressions; ADR-0006 native admission wording compared with code/tests). Previous verification: 2026-10-13 (#176: Files/Display switching, tree/selection/history/draft preservation, File actions and Reload focus, unavailable settings; browser results and actual captures in the [#176 review](../reviews/editor-shell-176-2026-10-13.md)).
 - Scope: existing Editor interactions. [Visual Language (current v4.6)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 ## Structure
 
 The Desktop app alone adds a Sidebar footer Settings entry (also in the collapsed rail), About dialog and update notice/actions. The browser Editor has no such entry without the typed Desktop bridge. About reuses Base UI dialog focus/dismiss behavior; update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
 
-The document is the primary surface. One Tiptap/ProseMirror document state owns selection, history and editing; typed blocks use NodeViews and overlays.
+The document is the primary surface. Each document tab keeps one Tiptap/ProseMirror document state owning selection, history and editing; typed blocks use NodeViews and overlays.
 
 The shell has three responsibilities: the Sidebar on the left switches between Files (which document) and Display (how it is shown), the document column in the center is authoring (what is edited), and the Document panel on the right is navigation inside the open document (where in it).
 
@@ -18,19 +19,26 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 | Display | Identifies the current document by filename (full path in title). Saved in document contains Number headings: the existing H2–H6 setting, engine Undo/Redo and Save behavior. It is disabled without a document, during pending work and in Source, with a reason shown. Local view contains Wide document, remembered here and never written to Markdown or included in document history/dirty state. It remains available without a document and in Source. Tab enters the selected content; Escape in Display returns focus to its opening tool button. Tool changes do not remount the editor or discard its selection, history or drafts. This is separate from Desktop Settings/About. |
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and keeps that mark inside the list's visible area. The list scrolls by itself and is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
 | TopBar | Filename (full path in title) and actual status on the left; Visual/Source and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload; the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
-| MessageArea | Load/save errors, conflict and temporary notices below TopBar; no reserved height when empty. |
+| Document tabs | A separate row inside the sticky header below TopBar. Filename, dirty dot, close button and full-path tooltip; same-named files include their parent folder. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
+| MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
-General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only; it does not replace or reconstruct the single visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only; it does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
-Opening another document or the folder heading's `+` first offers **Save / Don't save / Cancel** when changes or drafts remain. Save must succeed before continuing; failed Save retains the session and existing error/conflict UI. Drafts are explicitly excluded from Save and lost when either continuing choice successfully replaces the session. Cancel/Escape returns focus to the invoking control without a new refusal error. Busy/Source/assets still block switching; `+` reports the same wait message before opening any dialog. The reusable confirmation follows [ADR-0007](../adr/0007-editing-session-lifetime.md); Reload and Desktop close/update behavior are unchanged.
+Opening another document or the folder heading's `+` opens a new tab after Host success; an already-open
+normalized path activates its tab. Neither Open/New nor tab switching asks to discard work. Switching
+retains history, drafts, selection, scroll and view; active pending Save/Source/assets/Open/New still
+block it. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
+applied edits after Save keep that tab. Inactive tabs keep their state with overlays and measurement
+suspended. Browser unload and Desktop close/update inspect all tabs. See the
+[editing-session contract](editing-session-save-v1.md#switching-and-recovery).
 
-The folder heading's `+` opens New after any work-loss confirmation. Its Location field shows the destination and lists the
+The folder heading's `+` opens the New filename form without work-loss confirmation. Its Location field shows the destination and lists the
 chosen folder and every sub-folder the tree has listed, named from the chosen folder
 (`docs`, `docs\guides`); it starts at the open document's folder when that is inside the
 chosen folder, otherwise at the chosen folder. Expanding or collapsing folders never changes it.
 New asks for a filename, adds `.md` if omitted and uses the existing creation checks; success
-opens the document and lists its folder again. When the modal closes after successful creation,
+opens the document in a new tab and lists its folder again. When the modal closes after successful creation,
 focus moves to the first paragraph for immediate typing. Cancel/Escape, including after a
 rejected creation, returns focus to the New button.
 It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
@@ -56,8 +64,10 @@ choosing another file uses the existing document-switch guards. Open sample docu
 checks, with a temporary notice that it is a copy in the app's data. Nothing is opened for the
 user. Without a document the TopBar shows `No file opened`; Save, File actions and the views
 stay unavailable. Display remains reachable, with heading numbering disabled and local width available. No error is shown. With nothing to lose, the Desktop app's
-update restart check allows the restart unless a document is opening. The browser development server keeps
-answering with its default document. HTTP offers allowed server folders, filters recent folders to
+update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
+information is retained; a Host that supplied an initial document instead of start information returns
+to the folder/recent-folder actions without inventing a sample. The browser development server still
+opens its default document on a fresh page load. HTTP offers allowed server folders, filters recent folders to
 those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 

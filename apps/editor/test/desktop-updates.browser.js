@@ -113,21 +113,30 @@ async (page, { screenshots = false, openDocument }) => {
   // Unsaved changes and unapplied block edits refuse the restart; the work stays.
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
-  const editor = page.locator('.document-editor');
-  await page.getByText('Alpha.', {exact:true}).click();
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  await page.getByText('Alpha.', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' Unsaved');
+  await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
+  const unloadProtected = await page.evaluate(() => {
+    const event = new Event('beforeunload', {cancelable:true});
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  check(unloadProtected, 'Hidden dirty tab did not protect browser unload');
   await notice.getByRole('button', {name:'Restart to update'}).click();
   await page.getByTestId('error').waitFor();
   check((await page.getByTestId('error').innerText()).includes('Save your changes, then restart to update.'), 'Unsaved changes did not refuse the restart');
-  check((await editor.innerText()).includes('Alpha. Unsaved'), 'Refusing the restart lost the edit');
   await page.getByRole('button', {name:'Dismiss error'}).click();
+  await page.getByRole('tab', {name:'updates.md, Unsaved changes',exact:true}).click();
+  check((await editor.innerText()).includes('Alpha. Unsaved'), 'Refusing the restart lost the edit');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
-  const table = page.locator('[data-block="table"]');
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
+  const table = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   await table.hover();
   await table.getByRole('button', {name:'Edit table', exact:true}).click();
   await page.getByTestId('table-caption-input').fill('Unapplied caption');
+  await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
   await settings.click();
   await dialog.waitFor();
   await restart.click();
@@ -135,6 +144,7 @@ async (page, { screenshots = false, openDocument }) => {
   check((await page.getByTestId('update-problem').innerText()).includes('Apply or Cancel the open edits'), 'An unapplied edit did not refuse the restart');
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
+  await page.getByRole('tab', {name:'updates.md, Unsaved changes',exact:true}).click();
   check(await page.getByTestId('table-caption-input').inputValue() === 'Unapplied caption', 'Refusing the restart lost the draft');
   await page.getByTestId('table-cancel').click();
 
@@ -145,12 +155,12 @@ async (page, { screenshots = false, openDocument }) => {
     check(expected.test(await page.getByTestId('error').innerText()), 'The pending operation did not refuse the restart');
     await page.getByRole('button', {name:'Dismiss error'}).click();
   };
-  await page.getByText('Alpha. Unsaved', {exact:true}).click();
+  await page.getByText('Alpha. Unsaved', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   // Prepare a paragraph edit for the restart guard. Chromium can move its DOM caret before
   // ProseMirror receives selectionchange; typing then would replace the still-selected table.
   await page.waitForFunction(() => {
-    const selection = document.querySelector('.document-editor').editor.state.selection;
+    const selection = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
     return selection.empty && selection.$from.parent.type.name === 'paragraph' &&
       selection.$from.parent.textContent === 'Alpha. Unsaved' &&
       selection.$from.parentOffset === selection.$from.parent.content.size;
@@ -177,7 +187,7 @@ async (page, { screenshots = false, openDocument }) => {
       observer.observe(document.querySelector('[data-testid="status"]'), {childList:true, characterData:true, subtree:true});
     });
   } finally { releaseSave(); }
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   await page.waitForFunction(() => typeof window.__savedUnloadPrevented === 'boolean', undefined, {timeout:30_000});
   const savedUnloadPrevented = await page.evaluate(() => window.__savedUnloadPrevented);
   check(savedUnloadPrevented === false, `The first completed Save commit blocks unload: ${savedUnloadPrevented}`);
@@ -191,7 +201,7 @@ async (page, { screenshots = false, openDocument }) => {
     await page.getByRole('button', {name:'Source', exact:true}).click();
     await refused(/still working on the document/);
   } finally { releaseSource(); }
-  await page.getByTestId('source-view').waitFor();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   await page.unroute('**/api/document-source', holdSource);
   await page.getByRole('button', {name:'Visual', exact:true}).click();
 
@@ -200,7 +210,7 @@ async (page, { screenshots = false, openDocument }) => {
   const holdAsset = async route => { if (route.request().method() === 'POST') await assetGate; await route.continue(); };
   await page.route('**/api/asset?*', holdAsset);
   try {
-    await page.getByText('Alpha. Unsaved Saved', {exact:true}).click();
+    await page.getByText('Alpha. Unsaved Saved', {exact:true}).filter({visible:true}).click();
     await page.keyboard.press('End');
     await editor.evaluate(async element => {
       const canvas = document.createElement('canvas'); canvas.width = canvas.height = 8;
@@ -211,11 +221,11 @@ async (page, { screenshots = false, openDocument }) => {
     await page.locator('[data-operation="Adding image…"]').waitFor({state:'attached'});
     await refused(/An image is still being added/);
   } finally { releaseAsset(); }
-  await page.locator('[data-block="figure"]').waitFor();
+  await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'Adding image…');
   await page.unroute('**/api/asset?*', holdAsset);
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
 
   // With everything saved, the Editor allows the restart.
   await notice.getByRole('button', {name:'Restart to update'}).click();

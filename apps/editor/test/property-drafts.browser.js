@@ -11,7 +11,7 @@ async (page, { openDocument }) => {
   await openDocument(page, file);
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const json = () => editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
   const baseline = await json();
   const check = (ok, reason) => { if (!ok) throw Error(reason); };
@@ -34,12 +34,12 @@ async (page, { openDocument }) => {
     return element.editor.view.hasFocus() && selection.empty &&
       (selection.from === end || (selection.from === end + 1 && selection.$from.parent.isTextblock));
   }, kind);
-  const table = page.locator('[data-block="table"]');
+  const table = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   const beginTable = async () => { await table.hover(); await activate(table.getByRole('button', {name:'Edit table', exact:true})); };
 
 
   await editor.locator('h2').hover();
-  await page.getByTestId('label-target-edit').click();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit').click();
   check(await focused('label-target-input'), 'Edit did not focus the section label');
   await page.getByTestId('label-target-input').fill('section-draft');
   await dirty();
@@ -63,7 +63,7 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Escape');
   await page.getByTestId('table-editor').waitFor({state:'detached'});
   await editor.locator('h2').hover();
-  await page.getByTestId('label-target-edit').click();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit').click();
   check(await focused('label-target-input'), 'Edit did not focus the section label');
   await page.keyboard.press('Escape');
   await page.getByTestId('label-target-editor').waitFor({state:'detached'});
@@ -84,11 +84,11 @@ async (page, { openDocument }) => {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.
       await page.reload(); await ready();
       await openDocument(page, focusFile); await ready();
-      await page.getByText('Before.', {exact:true}).click();
-      const target = page.locator(`[data-block="${item.kind}"]`);
+      await page.getByText('Before.', {exact:true}).filter({visible:true}).click();
+      const target = page.locator(`[data-document-tab][data-active=true] [data-block="${item.kind}"]`);
       if (item.type === 'labelTarget') {
         await editor.locator('h2').hover();
-        await page.getByTestId('label-target-edit').click();
+        await page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit').click();
       } else {
         await target.hover({position:{x:4,y:4}});
         await target.getByRole('button', {name:item.kind === 'figure' ? 'Edit figure' : 'Edit table', exact:true}).click();
@@ -105,18 +105,18 @@ async (page, { openDocument }) => {
       await page.keyboard.type('TypedProperties275');
       const typed = await editor.evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type), item.type);
       check(JSON.stringify(typed) === JSON.stringify(applied), `${item.kind}/${mode}: typing replaced or changed the target`);
-      const ref = page.getByTestId('cross-reference').and(page.locator(`[data-label="${item.label}"]`));
+      const ref = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').and(page.locator(`[data-label="${item.label}"]`));
       check(await ref.getAttribute('data-resolved') === 'true', `${item.kind}/${mode}: reference no longer resolves`);
       if (item.type === 'figure') {
         check(await target.locator('figcaption').innerText() === item.value &&
-          await page.getByText('TypedProperties275After figure.', {exact:true}).count() === 1, 'Figure caption or following prose was lost');
+          await page.getByText('TypedProperties275After figure.', {exact:true}).filter({visible:true}).count() === 1, 'Figure caption or following prose was lost');
       } else if (item.type === 'table') {
         check(await target.locator('td').allTextContents().then(cells => cells.join('|')) === 'Value|V' &&
           await target.getByTestId('table-caption').innerText() === item.value, 'Table grid or applied caption was lost');
         // Unlike outside focus, a caret already in a cell stays there after metadata Apply.
         await target.locator('td').first().click(); await page.keyboard.press('End');
         await page.waitForFunction(() => {
-          const {selection} = document.querySelector('.document-editor').editor.state;
+          const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
           return selection.empty && selection.$from.parent.type.name === 'tableCell' &&
             selection.$from.parent.textContent === 'Value' && selection.$from.parentOffset === selection.$from.parent.content.size;
         });

@@ -40,23 +40,23 @@ async page => {
     if (JSON.stringify(await saveButton.boundingBox()) !== JSON.stringify(cleanBox) || saving.busy !== 'true' || !saving.spinner ||
       saving.label !== 'rgba(0, 0, 0, 0)' || saving.name !== 'Save' || await page.getByRole('button',{name:'Save',exact:true}).count() !== 1)
       throw new Error(`Saving Save changed geometry or lost its name/progress: ${JSON.stringify(saving)}`);
-    await page.getByText('The current reference is calculated from the active power command.',{exact:true}).click();
+    await page.getByText('The current reference is calculated from the active power command.',{exact:true}).filter({visible:true}).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' PENDING_INPUT');
     const before = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     release();
-    await page.getByText('Unsaved changes',{exact:true}).waitFor();
+    await page.getByText('Unsaved changes',{exact:true}).filter({visible:true}).waitFor();
     const after = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     if (!before || !after) throw new Error('Pending input was lost');
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Saved',{exact:true}).waitFor();
+    await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
     if(requests[1].revision !== 'saved-revision') throw new Error('Stale revision reused');
     if(!JSON.stringify(requests[1].paragraphs).includes('PENDING_INPUT')) throw new Error('Pending edits omitted from next save');
     const retained = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByText('Save conflict',{exact:true}).waitFor();
+    await page.getByText('Save conflict',{exact:true}).filter({visible:true}).waitFor();
     const conflictRetained = (await page.getByRole('article').innerText()).includes('PENDING_INPUT');
-    const editorCount = await page.locator('[data-testid="document-editor"] [contenteditable="true"]').count();
+    const editorCount = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]').count();
     if(!retained || !conflictRetained || editorCount !== 1) throw new Error('Save or single editor invariant failed');
     return {before,after,retained,conflictRetained,editorCount,nextRevision:requests[1].revision};
   } finally {

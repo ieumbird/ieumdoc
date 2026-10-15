@@ -18,24 +18,24 @@ async (page, { openDocument }) => {
     }));
   };
   await openScratch();
-  const figure = page.locator('[data-block="figure"]').first();
+  const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
   await figure.locator('img').click();
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-editor').waitFor();
   await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
   const beforeSelectionMove = {
-    selectedFigure: await page.locator('.ProseMirror-selectednode').count() === 1,
+    selectedFigure: await page.locator('[data-document-tab][data-active=true] .ProseMirror-selectednode').count() === 1,
     formOpen: await page.getByTestId('figure-editor').count() === 1,
     activeField: await page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
     caption: await page.getByTestId('figure-caption').inputValue(),
   };
   // Moving the editor selection off the NodeSelection is the problematic blur boundary.
-  await page.locator('.document-editor').press('ArrowDown');
+  await page.locator('[data-document-tab][data-active=true] .document-editor').press('ArrowDown');
   const afterSelectionMove = {
-    selectedFigure: await page.locator('.ProseMirror-selectednode').count() === 1,
+    selectedFigure: await page.locator('[data-document-tab][data-active=true] .ProseMirror-selectednode').count() === 1,
     formOpen: await page.getByTestId('figure-editor').count() === 1,
-    draftStatus: await page.getByTestId('figure-draft-status').count() === 1,
+    draftStatus: await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-draft-status').count() === 1,
     focusedField: await page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
   };
   if (afterSelectionMove.selectedFigure || !afterSelectionMove.formOpen) {
@@ -44,14 +44,14 @@ async (page, { openDocument }) => {
 
   const typedCaption = 'Caption entered after Figure selection moved.';
   await page.getByTestId('figure-caption').fill(typedCaption);
-  const draftActive = await page.getByTestId('figure-draft-status').isVisible() &&
+  const draftActive = await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-draft-status').isVisible() &&
     await page.getByTestId("draft-notice").isVisible();
   const captionStayedInField = await page.getByTestId('figure-caption').inputValue() === typedCaption &&
     await page.getByTestId('figure-image-url').inputValue() === './diagram.svg';
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await openScratch();
@@ -63,12 +63,12 @@ async (page, { openDocument }) => {
   if (afterSelectionMove.selectedFigure || !afterSelectionMove.formOpen || !draftActive || !captionStayedInField || !saveReloadPreserved) {
     throw new Error(`Figure selection race regression failed: ${JSON.stringify(result)}`);
   }
-  // Figure validation is local to the form: the draft confirmation still allows Open/New.
+  // Figure validation is local to the form: explicit tab close can discard its draft.
   // Observe the real React NodeView rather than a fake lifetime token. Deleting only the Figure
   // also matters: its editor remains alive, so an editor-destroyed check alone is insufficient.
-  for (const leave of ['open', 'new', 'delete']) {
+  for (const leave of ['close', 'delete']) {
     await openScratch();
-    await page.locator('.document-editor').evaluate(el => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
       const editor = el.editor;
       const view = editor.view;
       const probe = window.figureLifetime = {editor, destroyed: 0, latePositionReads: 0, lateDispatches: 0};
@@ -85,7 +85,7 @@ async (page, { openDocument }) => {
       const dispatch = view.dispatch.bind(view);
       view.dispatch = transaction => { if (view.isDestroyed) probe.lateDispatches++; dispatch(transaction); };
     });
-    const edit = page.locator('[data-block="figure"]').first().getByRole('button', {name:'Edit figure'});
+    const edit = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first().getByRole('button', {name:'Edit figure'});
     await edit.locator('..').hover({position:{x:4,y:4}});
     await edit.click();
     await page.getByTestId('figure-caption').fill(`Late validation after ${leave}`);
@@ -102,27 +102,24 @@ async (page, { openDocument }) => {
       await started;
       if (!await page.getByTestId('draft-notice').isVisible()) throw new Error('Validation lost the draft guard');
       if (leave === 'delete') {
-        await page.locator('.document-editor').evaluate(el => {
+        await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
           const {state, view} = el.editor;
           let position;
           state.doc.forEach((node, offset) => { if (node.type.name === 'figure') position = offset; });
           view.dispatch(state.tr.delete(position, position + state.doc.nodeAt(position).nodeSize));
         });
       } else {
-        if (leave === 'open') await openDocument(page, defaultPath);
-        else await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+        const currentTab = page.getByRole('tab', {selected:true});
+        await currentTab.focus();
+        await page.keyboard.press('Delete');
         const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
         await confirmation.getByText(/Unapplied property drafts will be lost/).waitFor();
         await confirmation.getByRole('button', {name:"Don't save", exact:true}).click();
-        if (leave === 'new') {
-          await page.getByTestId('new-file-name').fill('after-figure-validation');
-          await page.getByRole('button', {name:'Create', exact:true}).click();
-        }
         await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
       }
       await page.waitForFunction(() => window.figureLifetime.destroyed > 0);
       await page.getByTestId('figure-editor').waitFor({state:'detached'});
-      const before = await page.locator('.document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
+      const before = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
       // Teardown itself may notify position subscribers; count only the late response below.
       await page.evaluate(() => { window.figureLifetime.latePositionReads = 0; window.figureLifetime.lateDispatches = 0; });
       const response = page.waitForResponse('**/api/figure-validation');
@@ -133,7 +130,7 @@ async (page, { openDocument }) => {
         const {editor, ...counts} = window.figureLifetime;
         return {...counts, editorDestroyed: editor.isDestroyed};
       });
-      const after = await page.locator('.document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
+      const after = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
       if (probe.latePositionReads || probe.lateDispatches || before !== after || probe.editorDestroyed !== (leave !== 'delete')) {
         throw new Error(`Late Figure validation after ${leave}: ${JSON.stringify(probe)}`);
       }
@@ -150,5 +147,32 @@ async (page, { openDocument }) => {
       await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     }
   }
+  // A retained hidden session still owns a successful validation, but never B's focus or content.
+  await openScratch();
+  const ownerId = await page.getByRole('tab', {selected:true}).getAttribute('id');
+  const otherTab = page.getByRole('tab').and(page.locator(`:not([id="${ownerId}"])`));
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => { window.hiddenFigureEditor = n.editor; });
+  await figure.hover(); await figure.getByRole('button', {name:'Edit figure'}).click();
+  await page.getByTestId('figure-caption').fill('Applied in hidden owner');
+  let releaseHidden, requestHidden;
+  const gateHidden = new Promise(resolve => { releaseHidden = resolve; });
+  const startedHidden = new Promise(resolve => { requestHidden = resolve; });
+  await page.route('**/api/figure-validation', async route => { requestHidden(); await gateHidden; await route.continue(); });
+  try {
+    await page.getByTestId('figure-apply').click(); await startedHidden;
+    await otherTab.click();
+    const active = page.locator('[data-document-tab][data-active=true] .document-editor');
+    const before = await active.evaluate(n => JSON.stringify(n.editor.getJSON()));
+    const focusedTab = await page.evaluate(() => document.activeElement?.id);
+    const response = page.waitForResponse('**/api/figure-validation');
+    releaseHidden(); await (await response).finished();
+    await page.waitForFunction(() => window.hiddenFigureEditor.state.doc.textContent.includes('Applied in hidden owner'));
+    if (await active.evaluate(n => JSON.stringify(n.editor.getJSON())) !== before ||
+        await page.evaluate(() => document.activeElement?.id) !== focusedTab ||
+        await page.getByTestId('figure-editor').count() !== 0) throw new Error('Hidden Figure completion changed the active tab or stole focus');
+    await page.locator(`#${ownerId}`).click();
+    if (!(await figure.innerText()).includes('Applied in hidden owner')) throw new Error('Figure completion was lost by its retained owner');
+    result.hiddenValidationRetainsOwnerAndFocus = true;
+  } finally { releaseHidden(); await page.unroute('**/api/figure-validation'); }
   return result;
 }

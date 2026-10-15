@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { DocumentEditor } from "./DocumentEditor.tsx";
-import { useDocumentSession, type DocumentSession } from "./useDocumentSession.ts";
-import { messageOf } from "./document-session.ts";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
+import { DocumentTab } from "./DocumentTab.tsx";
+import { DocumentTabs } from "./shell/DocumentTabs.tsx";
+import { activeAfterClose, allTabsPendingWork, openedTab } from "./document-tabs.ts";
+import { type DocumentSession } from "./useDocumentSession.ts";
+import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
@@ -16,6 +19,7 @@ import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path
 import { TopBar } from "./shell/TopBar.tsx";
 import type {
   DocumentErrorResponse,
+  DocumentFileResponse,
   DocumentStartResponse,
   FolderBrowseResponse,
   FolderCreateRequest,
@@ -32,7 +36,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 
-type SessionContinuation = { kind: "open"; path: string } | { kind: "new"; directory: string };
+type Tab = { id: string; path: string; file: DocumentFileResponse };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
@@ -42,7 +46,7 @@ export function App() {
   const newFolderButton = useRef<HTMLButtonElement>(null);
   // Open folder… returns focus to the control that opened it.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
-  // Set when the Host opened no document at start; cleared once one opens.
+  // Retain Host start information when the last tab closes.
   const [start, setStart] = useState<DocumentStartResponse | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
@@ -60,23 +64,108 @@ export function App() {
   const [newDialog, setNewDialog] = useState(false);
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
-  const [continuation, setContinuation] = useState<(SessionContinuation & { session: DocumentSession }) | null>(null);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const sessions = useRef(new Map<string, DocumentSession>());
+  const [, refreshShell] = useReducer(value => value + 1, 0);
+  const reportSession = useCallback((id: string, next: DocumentSession | null) => {
+    if (next) sessions.current.set(id, next);
+    else sessions.current.delete(id);
+    refreshShell();
+  }, []);
+  const nextId = useRef(0);
+  const scrollPositions = useRef(new Map<string, number>());
+  const previousActive = useRef<string | null>(null);
+  const focusAfterClose = useRef(false);
+  const [operation, setOperation] = useState("Loading…");
+  const operationRef = useRef(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string } | null>(null);
+  const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
+  const [continuation, setContinuation] = useState<{ id: string; session: DocumentSession } | null>(null);
   const [continuationPending, setContinuationPending] = useState(false);
   const continuationRunning = useRef(false);
   const continuationReturnFocus = useRef<HTMLElement | null>(null);
-  const continuationFocus = useRef<"return" | "editor" | "dialog">("return");
-  const session = useDocumentSession(start, (next) => {
-    setStart(next);
-    if (next) setAllowedRoots(next.allowedRoots);
-  });
+  const emptyEditorRef = useRef<DocumentEditorHandle>(null);
+  const emptyImageRef = useRef<HTMLElement | null>(null);
+  const session = activeId ? sessions.current.get(activeId) : undefined;
   const {
-    editorRef, document, openedPath, headingNumbering, outlineStore, editorGeneration,
-    view, setView, sourceMarkdown, status, error, setError, notice, setNotice,
-    draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice, documentNotice,
-    load, createFile, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
-    pendingWork, revealHeading, openRefusal, setOpenRefusal, openRefusalReturnFocus,
-    imageChoice, imageReturnFocus, selectImage, closeImageChoice, editorCallbacks,
-  } = session;
+    editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, outlineStore,
+    view = "visual", status: sessionStatus = "Ready", error: sessionError = "", notice: sessionNotice = "",
+    draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
+    reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
+  } = session ?? {};
+  const busy = Boolean(operation || session?.busy || continuationPending);
+  const switching = Boolean(operation || session?.switching);
+  const status = operation || sessionStatus;
+  const save = () => session?.save();
+  const showSource = () => session?.showSource();
+  const setView = (next: "visual" | "source") => session?.setView(next);
+  const reload = () => session?.reload();
+  const reloadFromDisk = () => session?.reloadFromDisk();
+  const setReloadDialog = (open: boolean) => session?.setReloadDialog(open);
+  const closeImageChoice = () => session?.closeImageChoice();
+  const selectImage = async (source: string) => session ? session.selectImage(source) : "";
+
+  function activateTab(id: string): void {
+    if (id === activeId || operationRef.current || session?.busyRef.current || continuation) return;
+    if (activeId) scrollPositions.current.set(activeId, window.scrollY);
+    setActiveId(id);
+    setError("");
+    setNotice("");
+  }
+  useLayoutEffect(() => {
+    if (previousActive.current !== activeId) {
+      window.scrollTo(0, activeId ? scrollPositions.current.get(activeId) ?? 0 : 0);
+      previousActive.current = activeId;
+    }
+    if (focusAfterClose.current) {
+      focusAfterClose.current = false;
+      const target = activeId ? globalThis.document.getElementById(`tab-${activeId}`)
+        : globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button');
+      target?.focus({ preventScroll: true });
+    }
+  }, [activeId, tabs.length]);
+
+  function acceptFile(file: DocumentFileResponse): void {
+    const existing = openedTab(tabs, file.path);
+    if (activeId) scrollPositions.current.set(activeId, window.scrollY);
+    if (existing) setActiveId(existing.id);
+    else {
+      const id = `document-${++nextId.current}`;
+      setTabs(previous => [...previous, { id, path: file.path, file }]);
+      setActiveId(id);
+    }
+  }
+  useEffect(() => {
+    let current = true;
+    void requestDocument("GET").then(next => {
+      if (!current) return;
+      if ("start" in next) { setStart(next); setAllowedRoots(next.allowedRoots); }
+      else { setStart({ start: true }); acceptFile(next); }
+    }).catch(cause => { if (current) setError(messageOf(cause)); }).finally(() => {
+      if (current) { operationRef.current = false; setOperation(""); }
+    });
+    return () => { current = false; };
+  }, []);
+
+  function removeTab(id: string): void {
+    const next = activeAfterClose(tabs, activeId, id);
+    scrollPositions.current.delete(id);
+    sessions.current.delete(id);
+    focusAfterClose.current = true;
+    setTabs(previous => previous.filter(tab => tab.id !== id));
+    setActiveId(next);
+  }
+  function closeTab(id: string): void {
+    const owner = sessions.current.get(id);
+    if (!owner || busy || owner.busyRef.current || continuation) return;
+    if (owner.editorRef.current?.hasUnsavedChanges()) {
+      continuationReturnFocus.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+      setContinuation({ id, session: owner });
+    } else removeTab(id);
+  }
   // The folder the user chose for this page session, as a lazily listed tree; never stored or watched.
   const folderTree = useFolderTree(requestFolder, setError);
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
@@ -108,56 +197,63 @@ export function App() {
     const requestedPath = unquotePath(path);
     if (!requestedPath) return "Enter a Markdown file path.";
     if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
-    if (busy) return "Wait for the current operation to finish.";
-    if (editorRef.current?.hasUnsavedChanges()) {
-      confirmContinuation({ kind: "open", path: requestedPath });
-      return null;
-    }
-    return load(requestedPath, globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null, openedNotice);
+    if (operationRef.current || busy || continuation) return "Wait for the current operation to finish.";
+    const returnFocus = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+    operationRef.current = true;
+    setOperation("Opening…");
+    setError("");
+    try {
+      const next = await requestDocument("GET", requestedPath);
+      if ("start" in next) throw new Error("The Host did not return a document.");
+      acceptFile(next);
+      setNotice(openedNotice);
+      return "";
+    } catch (cause) {
+      if (cause instanceof NativeOpenError) {
+        openRefusalReturnFocus.current = returnFocus;
+        setOpenRefusal({ path: requestedPath, reason: cause.reason, action: cause.action });
+        return null;
+      }
+      return messageOf(cause);
+    } finally { operationRef.current = false; setOperation(""); }
   }
-
-  function confirmContinuation(next: SessionContinuation): void {
-    continuationReturnFocus.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
-    continuationFocus.current = "return";
-    setContinuation({ ...next, session });
+  async function createFile(path: string): Promise<string> {
+    if (operationRef.current || busy || continuation) return "Wait for the current operation to finish.";
+    operationRef.current = true;
+    setOperation("Creating…");
+    setError("");
+    setNotice("");
+    try {
+      acceptFile(await requestDocument("PUT", path));
+      return "";
+    } catch (cause) { const message = messageOf(cause); setError(message); return message; }
+    finally { operationRef.current = false; setOperation(""); }
   }
-
   function newFile(): void {
     if (!folderTree.state) return;
-    if (busy) { setError("Wait for the current operation to finish."); return; }
-    const directory = folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root;
-    if (editorRef.current?.hasUnsavedChanges()) {
-      confirmContinuation({ kind: "new", directory });
-      return;
-    }
-    setNewDirectory(directory);
+    if (busy || continuation) { setError("Wait for the current operation to finish."); return; }
+    setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
     setNewDialog(true);
   }
-
   async function continueSession(shouldSave: boolean): Promise<void> {
     if (!continuation || continuationRunning.current || busy) return;
-    const owner = continuation.session;
-    if (!owner.isCurrent()) return;
+    const owner = sessions.current.get(continuation.id);
+    if (!owner || !owner.isCurrent()) return;
     continuationRunning.current = true;
     setContinuationPending(true);
     try {
-      if (shouldSave && !await owner.save()) return;
-      if (!owner.isCurrent()) return;
-      // A successful Save acknowledges its snapshot, not later asynchronous transactions.
-      // Read the live document comparison; the user already agreed to lose property drafts.
-      if (shouldSave && owner.editorRef.current?.hasDocumentChanges() !== false) {
-        owner.setStatus("Saved; newer edits pending");
+      if (shouldSave && !await owner.save()) {
+        if (continuation.id !== activeId) setError(`Could not save “${splitDocumentPath(owner.openedPath).name}”. The tab remains open; select it to review the error.`);
         return;
       }
-      if (continuation.kind === "new") {
-        continuationFocus.current = "dialog";
-        setNewDirectory(continuation.directory);
-        setNewDialog(true);
-      } else {
-        const message = await owner.load(continuation.path, continuationReturnFocus.current);
-        if (message && owner.isCurrent()) owner.setError(message);
-        continuationFocus.current = message === null ? "dialog" : message ? "return" : "editor";
+      if (!owner.isCurrent()) return;
+      // Save acknowledges its snapshot, not newer applied transactions. Draft loss was explicit.
+      if (shouldSave && owner.editorRef.current?.hasDocumentChanges() !== false) {
+        owner.setStatus("Saved; newer edits pending");
+        if (continuation.id !== activeId) setNotice(`“${splitDocumentPath(owner.openedPath).name}” stays open because it has newer edits.`);
+        return;
       }
+      removeTab(continuation.id);
     } finally {
       setContinuation(null);
       setContinuationPending(false);
@@ -192,7 +288,7 @@ export function App() {
   async function openFolderDocument(path: string): Promise<void> {
     if (path === openedPath) return;
     const message = await openFile(path);
-    if (message && session.isCurrent()) setError(message);
+    if (message) setError(message);
   }
 
   // Opening or creating a document lists its folders again; there is no watch.
@@ -219,7 +315,7 @@ export function App() {
 
   const restartCheck = useRef<() => RestartCheck>(() => ({ ok: false, reason: "The editor is not ready." }));
   restartCheck.current = () => {
-    const reason = pendingWork();
+    const reason = allTabsPendingWork(sessions.current.values(), operationRef.current);
     return reason ? { ok: false, reason } : { ok: true };
   };
   useEffect(() => {
@@ -262,7 +358,7 @@ export function App() {
 
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
-      if (!editorRef.current?.hasUnsavedChanges() && !busyRef.current) return;
+      if (!allTabsPendingWork(sessions.current.values(), operationRef.current)) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -330,14 +426,17 @@ export function App() {
             onToggleOutline={() => setPanelOpen((value) => !value)}
             outlineToggleRef={outlineToggle}
           />
+          {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
+            dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
+          }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
-            error={error}
-            notice={notice}
+            error={error || sessionError}
+            notice={notice || sessionNotice}
             draftNotice={draftNotice}
             documentNotice={documentNotice}
             update={updateNotice}
-            onDismissError={() => setError("")}
-            onNoticeExpired={() => setNotice("")}
+            onDismissError={() => { setError(""); session?.setError(""); }}
+            onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
         </div>
         <main className="document-column" onMouseDown={(event) => {
@@ -345,12 +444,7 @@ export function App() {
           if (event.button === 0 && event.target === event.currentTarget && view === "visual" &&
             editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
-          {view === "source" ? (
-            <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
-              <pre className="source-view-text">{sourceMarkdown}</pre>
-            </article>
-          ) : null}
-          {!document && start ? (
+          {tabs.length === 0 && start ? (
             <DocumentStart
               recent={visibleRecent}
               sample={start.sample}
@@ -361,29 +455,18 @@ export function App() {
               }}
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
               onOpenSample={(sample) => void openFile(sample, "This is the sample document, a copy in IeumDoc's app data.").then((message) => {
-                if (message && session.isCurrent()) setError(message);
+                if (message) setError(message);
               })}
             />
           ) : null}
-          {/* Hidden, not unmounted, in Source: the one editor state and its history stay intact. */}
-          {document ? (
-            <div hidden={view === "source"}>
-              <DocumentEditor
-                key={editorGeneration}
-                ref={editorRef}
-                document={document}
-                documentPath={openedPath}
-                {...editorCallbacks}
-              />
-            </div>
-          ) : null}
+          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} active={tab.id === activeId} report={reportSession} />)}
         </main>
       </div>
       {panelOpen ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
-          onSelectHeading={revealHeading}
+          onSelectHeading={item => session?.revealHeading(item)}
           onClose={() => {
             setPanelOpen(false);
             // The panel's own controls go away; its toggle keeps the focus.
@@ -444,11 +527,10 @@ export function App() {
       <UnsavedChangesDialog
         open={continuation !== null}
         pending={continuationPending}
-        documentName={splitDocumentPath(openedPath).name}
-        hasDrafts={draftActive}
-        finalFocus={() => continuationFocus.current === "dialog" ? false
-          : continuationFocus.current === "editor" ? editorRef.current?.getFocusTarget() ?? true
-          : continuationReturnFocus.current ?? true}
+        documentName={splitDocumentPath(continuation?.session.openedPath ?? "").name}
+        hasDrafts={continuation?.session.draftActive ?? false}
+        finalFocus={() => continuationReturnFocus.current?.isConnected ? continuationReturnFocus.current
+          : (activeId ? globalThis.document.getElementById(`tab-${activeId}`) : globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button')) ?? true}
         onSave={() => void continueSession(true)}
         onDiscard={() => void continueSession(false)}
         onCancel={() => { if (!continuationRunning.current) setContinuation(null); }}

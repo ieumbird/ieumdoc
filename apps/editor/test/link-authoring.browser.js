@@ -26,12 +26,12 @@ async (page, { openDocument }) => {
     await openDocument(page, file);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   // Select text through the editor's own selection (the state a mouse selection produces).
   // Setting the DOM selection from a script races with ProseMirror's DOM updates after a link change.
   const select = async text => {
     await page.evaluate(needle => {
-      const instance = document.querySelector('.ProseMirror').editor;
+      const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let range;
       instance.state.doc.descendants((node, position) => {
         if (range || !node.isText) return;
@@ -85,7 +85,7 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Link', exact:true}).click();
   await page.getByTestId('link-url').fill('https://example.com/a b');
   await page.getByTestId('link-apply').click();
-  result.spacesRejectedInForm = await page.getByText('A URL cannot contain spaces.').count() === 1;
+  result.spacesRejectedInForm = await page.getByText('A URL cannot contain spaces.').filter({visible:true}).count() === 1;
   await page.getByTestId('link-url').fill('https://example.com/linked');
   await page.getByTestId('link-apply').click();
   await page.getByTestId('link-form').waitFor({state:'detached'});
@@ -97,7 +97,7 @@ async (page, { openDocument }) => {
   await page.keyboard.type(' Updated.');
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   const expected = [
     '---', 'ieumdoc: 1', '---', '',
@@ -121,7 +121,7 @@ async (page, { openDocument }) => {
   // A URL the canonical Markdown cannot keep as typed fails at Save; the file is unchanged.
   await setLink('linked', 'https://example.com/한글');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   result.unpreservableRejected = await markdown() === saved;
 
   result.consoleErrors = problems.filter(message => !message.includes('Failed to load resource'));

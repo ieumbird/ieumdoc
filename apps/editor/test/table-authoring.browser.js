@@ -5,7 +5,7 @@
 // rows and columns are then moved, realigned and removed from the block menu, and saved again. Finally, the caret
 // leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
-async (page, { openDocument }) => {
+async (page, { openDocument, reloadDocument }) => {
   // Rendering a caption must not rebuild a schema with duplicated extensions (Tiptap warns).
   const tiptapWarnings = [];
   const onConsole = message => { if (message.text().startsWith('[tiptap warn]')) tiptapWarnings.push(message.text()); };
@@ -36,7 +36,7 @@ async (page, { openDocument }) => {
     await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor({state:'attached'});
     return await page.getByTestId('status').getAttribute('data-operation') === 'Saved';
   };
-  const tables = page.locator('[data-block="table"]');
+  const tables = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   const grid = table => table.locator('tr').evaluateAll(rows => rows.map(row =>
     [...row.children].map(cell => (cell.tagName === 'TH' ? '#' : '') + cell.textContent)));
   // The pointer is over the table after clicking a cell, so its handle is shown; the caret stays in the cell.
@@ -62,12 +62,12 @@ async (page, { openDocument }) => {
     block.querySelector('.table-column-handle').getBoundingClientRect().top);
   await initial.getByRole('button', {name:'Append row', exact:true}).click();
   result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
-    const editor = document.querySelector('.document-editor').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return editor.view.hasFocus() && editor.state.selection.$from.index(1) === 2;
   });
   await initial.getByRole('button', {name:'Append column', exact:true}).click();
   result.appendColumnFocus = (await grid(initial))[0].length === 3 && await page.evaluate(() => {
-    const editor = document.querySelector('.document-editor').editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return editor.view.hasFocus() && editor.state.selection.$from.index(2) === 2;
   });
   await page.keyboard.press('Control+z');
@@ -112,10 +112,10 @@ async (page, { openDocument }) => {
   await initial.locator('td').first().click();
   for (let i = 0; i < 5; i++) await page.keyboard.press('Control+z');
   await page.setViewportSize({width:1280, height:720});
-  result.toolsNeverPersist = !JSON.stringify(await page.evaluate(() => document.querySelector('.document-editor').editor.getJSON())).includes('data-current-cell');
+  result.toolsNeverPersist = !JSON.stringify(await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON())).includes('data-current-cell');
 
   // 1. Insert menu → Table: a header row and two body rows of three columns, caret in the first cell.
-  await page.getByText('Intro paragraph.', {exact:true}).hover();
+  await page.getByText('Intro paragraph.', {exact:true}).filter({visible:true}).hover();
   await page.getByRole('button', {name:'Insert block after paragraph block 2', exact:true}).click();
   await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Table', exact:true}).click();
   const created = tables.first();
@@ -151,7 +151,9 @@ async (page, { openDocument }) => {
   result.secondFile = (await read()).endsWith('| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n|      |   | Q     |\n| P    | W |       |\n');
 
   // 4. Reopening shows the saved tables with editable new cells.
-  await open();
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('dialog').waitFor({state:'detached'});
   result.reopened = JSON.stringify(await grid(tables.last())) ===
     JSON.stringify([['#Name', '#', '#Value'], ['U', '', 'AC'], ['', '', 'Q'], ['P', 'W', '']]) &&
     await tables.last().locator('[data-readonly-cell]').count() === 0;
@@ -183,7 +185,9 @@ async (page, { openDocument }) => {
   await blockMenu(4, 'Clear column alignment');
   result.fourthSave = await save();
   result.fourthFile = (await read()).endsWith('| Name | Value |   |\n| ---- | ----- | - |\n| U    | AC    |   |\n| P    |       | W |\n');
-  await open();
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('dialog').waitFor({state:'detached'});
   result.reshapedAfterReopen = JSON.stringify(await grid(tables.last())) === JSON.stringify(reshaped);
 
   // Caption and label use the shared properties form and survive subsequent grid edits.
@@ -204,7 +208,9 @@ async (page, { openDocument }) => {
     await table.getByTestId('table-caption').getAttribute('data-number') === 'Table 1';
   result.captionSave = await save();
   result.captionWritten = (await read()).includes(':::{table} Port values\n:name: tbl-ports');
-  await open();
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('dialog').waitFor({state:'detached'});
   result.captionReloaded = await tables.last().getByTestId('table-caption').innerText() === 'Port values';
   result.captionWithoutTiptapWarning = tiptapWarnings.length === 0;
   await tables.last().locator('td', {hasText:/^W$/}).click();
@@ -212,18 +218,20 @@ async (page, { openDocument }) => {
   result.captionCellSave = await save();
   result.captionAndCellKept = (await read()).includes('Port values') && (await read()).includes('Watt');
   // The slash menu inserts a numbered Table reference; clicking it selects the target.
-  await page.getByText('Intro paragraph.', {exact:true}).click();
+  await page.getByText('Intro paragraph.', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /tbl');
   await page.getByRole('menuitem', {name:'Table 1 · Port values', exact:true}).click();
-  const ref = page.getByTestId('cross-reference').filter({hasText:'Table 1'});
+  const ref = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'});
   result.tableReferenceShown = await ref.count() === 1;
   await ref.locator('.cross-reference-chip').click();
   result.tableReferenceNavigates = await tables.last().getAttribute('data-selected') === 'true';
   result.referenceSave = await save();
   result.tableRoleWritten = (await read()).includes('{numref}`tbl-ports`');
-  await open();
-  result.tableReferenceReloaded = await page.getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  result.tableReferenceReloaded = await page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
 
   // Last-column protection and explicit table deletion remain undoable.
   const finalTable = tables.last();
@@ -247,11 +255,11 @@ async (page, { openDocument }) => {
   // The document still ends with this table, which has no line below it. ArrowDown from its last row and
   // a click below the document both reach one empty paragraph after it; empty, it changes nothing to save.
   const caret = () => page.evaluate(() => {
-    const {state} = document.querySelector('.document-editor').editor;
+    const {state} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return `${state.selection.$from.parent.type.name} ${state.selection.$from.index(0) + 1}/${state.doc.childCount}`;
   });
   const caretIn = text => page.waitForFunction(text =>
-    document.querySelector('.document-editor').editor.state.selection.$from.parent.textContent === text, text);
+    document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.textContent === text, text);
   const status = await page.getByTestId('status').innerText();
   await tables.last().locator('td', {hasText:/^P$/}).click();
   await caretIn('P');
@@ -263,7 +271,7 @@ async (page, { openDocument }) => {
   const column = await page.locator('.document-column').boundingBox();
   await page.mouse.click(column.x + column.width / 2, Math.min(column.y + column.height, 720) - 8);
   result.clickBelowReachesEnd = await caret() === 'paragraph 5/5' &&
-    await page.evaluate(() => document.querySelector('.document-editor').editor.view.hasFocus()) &&
+    await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus()) &&
     await page.getByTestId('status').innerText() === status;
 
   page.off('console', onConsole);

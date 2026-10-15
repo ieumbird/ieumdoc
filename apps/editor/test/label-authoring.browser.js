@@ -26,8 +26,8 @@ async (page, { openDocument }) => {
     await openDocument(page, filePath);
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   };
-  const equation = page.locator('[data-block="equation"]').first();
-  const figure = page.locator('[data-block="figure"]').first();
+  const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
+  const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
   const saveEnabled = page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])');
   const save = async () => {
     await saveEnabled.waitFor();
@@ -37,14 +37,14 @@ async (page, { openDocument }) => {
       /\/api\/document(?:\?|$)/.test(response.url()));
     await page.getByRole('button', {name:'Save', exact:true}).click();
     if ((await response).status() !== 200) throw new Error('Label save was rejected');
-    await page.getByText('Saved', {exact:true}).waitFor();
+    await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   };
   const sourceText = async () => {
     await page.getByTestId('view-source').click();
-    await page.getByTestId('source-view').waitFor();
-    const text = (await page.getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+    const text = (await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent()).replaceAll('\r\n', '\n');
     await page.getByTestId('view-visual').click();
-    await page.getByTestId('document-editor').waitFor();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor').waitFor();
     return text;
   };
   const setEquationLabel = async (block, label) => {
@@ -72,7 +72,7 @@ async (page, { openDocument }) => {
   const insertAfterParagraph = async name => {
     // After Apply, the equation summary can flip over the paragraph's centre when it scrolls.
     // Approach the gutter from the paragraph's exposed start, outside that floating panel.
-    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).hover({position:{x:4,y:4}});
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).hover({position:{x:4,y:4}});
     await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
   };
@@ -118,11 +118,11 @@ async (page, { openDocument }) => {
   const errorsBefore = problems.length;
   await setEquationLabel(equation, 'FIG-Diagram');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).waitFor();
+  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   result.duplicateSaveRejected = /already names another target/.test(await page.getByTestId('error').innerText());
   await page.getByTestId('view-source').click();
-  await page.getByText(/Source view unavailable: .*already names another target/).waitFor();
-  result.duplicateSourceRejected = await page.getByTestId('source-view').count() === 0;
+  await page.getByText(/Source view unavailable: .*already names another target/).filter({visible:true}).waitFor();
+  result.duplicateSourceRejected = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').count() === 0;
   result.duplicateNotWritten = await markdown() === beforeDuplicate;
   result.duplicateRequestsLogged = problems.splice(errorsBefore).every(text => text.includes('400 (Bad Request)'));
 
@@ -151,7 +151,7 @@ async (page, { openDocument }) => {
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await insertAfterParagraph('Figure');
   // A new Figure opens no form; its properties are an explicit Edit.
-  const newFigure = page.locator('[data-block="figure"]').filter({has:page.getByTestId('figure-no-content')});
+  const newFigure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').filter({has:page.getByTestId('figure-no-content')});
   await newFigure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await newFigure.getByRole('button', {name:'Edit figure'}).click();
   await figureFormReady();
@@ -165,8 +165,8 @@ async (page, { openDocument }) => {
   result.newBlocksSaved = withNew === newPreview && withNew.includes('```{math}\n:label: eq-new\n\ny = 1\n```') &&
     withNew.includes(':::{figure} ./diagram.svg\n:name: fig-new\n:::');
   await open();
-  result.newBlocksReloaded = await page.locator('[data-block="equation"] .block-kind', {hasText:/^Equation \([0-9]+\) · eq-new$/}).count() === 1 &&
-    await page.locator('[data-block="figure"] .block-kind', {hasText:/^Figure [0-9]+ · fig-new$/}).count() === 1;
+  result.newBlocksReloaded = await page.locator('[data-document-tab][data-active=true] [data-block="equation"] .block-kind', {hasText:/^Equation \([0-9]+\) · eq-new$/}).count() === 1 &&
+    await page.locator('[data-document-tab][data-active=true] [data-block="figure"] .block-kind', {hasText:/^Figure [0-9]+ · fig-new$/}).count() === 1;
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

@@ -19,7 +19,7 @@ async (page, { openDocument }) => {
   await ready();
   await page.getByRole('dialog').waitFor({state:'detached'});
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const texts = async () => (await editor.evaluate(el => { const out = []; el.editor.state.doc.forEach(node => out.push(node.textContent)); return out; })).join('|');
   const state = () => editor.evaluate(el => {
     const {from, to} = el.editor.state.selection;
@@ -76,10 +76,10 @@ async (page, { openDocument }) => {
       const dom = getSelection();
       window.__focusDom = dom.anchorNode && el.contains(dom.anchorNode) ? el.editor.view.posAtDOM(dom.anchorNode, dom.anchorOffset) : null;
     }, {once: true}));
-    await page.getByRole('button', {name:'File actions', exact:true}).focus();
+    await page.getByRole('button', {name:'Close focus.md', exact:true}).focus();
     await page.evaluate(() => getSelection().removeAllRanges());
     await page.keyboard.press('Tab');
-    assert(await editor.evaluate(el => el.editor.view.hasFocus()), 'Tab from File actions focuses the editor');
+    assert(await editor.evaluate(el => el.editor.view.hasFocus()), 'Tab from the final tab control focuses the editor');
     const reset = await page.evaluate(() => window.__focusDom);
     assert(reset === 1, `The browser resets the DOM caret to the document start on focus: ${reset}`);
   };
@@ -103,7 +103,7 @@ async (page, { openDocument }) => {
   await page.waitForTimeout(250);
   await typed('^', '^Focus|First paragraph.|Last paragraph.!', 'Typing after Control+Home');
 
-  // 3. Control: Tab from File actions lets the browser put the DOM caret at the document start;
+  // 3. Control: Tab from the final tab control lets the browser put the DOM caret at the document start;
   // the editor's caret is restored, and typing lands there.
   await caret('First paragraph.', 3);
   await tabIn();

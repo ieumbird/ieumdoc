@@ -29,12 +29,12 @@ async (page, { openDocument }) => {
   };
 
   await openScratch();
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const heading = editor.locator('h2').filter({hasText:'Existing heading'});
   await heading.waitFor({state:'visible'});
   if (await heading.innerText() !== 'Existing heading') throw new Error('Expected the existing H2 before editing');
 
-  const engine = page.locator('.document-editor');
+  const engine = page.locator('[data-document-tab][data-active=true] .document-editor');
   const selectHeading = (text, from = 1, to = from) => engine.evaluate((element, {text, from, to}) => {
     const instance = element.editor;
     let start;
@@ -124,7 +124,7 @@ async (page, { openDocument }) => {
   const boldHeading = editor.locator('h2').filter({hasText:'Some bold text.'});
   await blockAction(editor.locator('p').filter({hasText:'Some bold text.'}), 'Move paragraph block 7', 'Change to Heading 2');
   await boldHeading.locator('strong').filter({hasText:'bold'}).waitFor({state:'visible'});
-  await page.locator('.document-editor').evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const editor = element.editor;
     let from;
     editor.state.doc.descendants((node, pos) => { if (from === undefined && node.isText && node.text === ' text.') from = pos + 1; });
@@ -139,7 +139,7 @@ async (page, { openDocument }) => {
   const toolbarButton = page.getByRole('toolbar', {name:'Text formatting'}).getByRole('button', {name:'Bold', exact:true});
   if (!await toolbarButton.evaluate(element => element === document.activeElement)) throw new Error('Tab from selected heading text must enter its formatting toolbar');
   await page.keyboard.press('Shift+Tab');
-  await page.waitForFunction(() => document.querySelector('.document-editor').editor.view.hasFocus());
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
   const selectedText = await engine.evaluate(element => {
     const {doc, selection} = element.editor.state;
     return element.editor.view.hasFocus() && doc.textBetween(selection.from, selection.to) === 'ome' && selection.$from.parent.attrs.level === 2;
@@ -189,7 +189,7 @@ async (page, { openDocument }) => {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   await openScratch();
-  const reloadedEditor = page.getByTestId('document-editor');
+  const reloadedEditor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const reloadedHeading = reloadedEditor.locator('h4').filter({hasText:'Existing heading'});
   const reloadedWarning = reloadedEditor.locator('aside[data-block="admonition"][data-variant="warning"]');
   await reloadedHeading.waitFor({state:'visible'});

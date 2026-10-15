@@ -12,8 +12,8 @@ async (page, { openDocument }) => {
     await ready(); await page.getByRole('dialog').waitFor({state:'detached'});
   };
   const check = (ok,reason) => { if(!ok) throw Error(reason); };
-  const code = page.locator('[data-block="code"]');
-  const snapshot = () => page.locator('.document-editor').evaluate(element => {
+  const code = page.locator('[data-document-tab][data-active=true] [data-block="code"]');
+  const snapshot = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const {doc,selection} = element.editor.state;
     return JSON.stringify({doc:doc.toJSON(),selection:selection.toJSON(),undo:element.editor.can().undo()});
   });
@@ -32,8 +32,8 @@ async (page, { openDocument }) => {
     await open();
     await code.locator('pre').click();
     await page.keyboard.press('End'); await page.keyboard.type(' + 2');
-    await page.locator('.document-editor p', {hasText:'After.'}).click();
-    await page.locator('.document-editor').evaluate(async element => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor p', {hasText:'After.'}).click();
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(async element => {
       const canvas=document.createElement('canvas'); canvas.width=canvas.height=2;
       const png=await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
       const data=new DataTransfer(); data.items.add(new File([png],'probe.png',{type:'image/png'}));
@@ -45,11 +45,11 @@ async (page, { openDocument }) => {
     await code.locator('.hljs-keyword').waitFor();
     check(before === await snapshot(), 'Grammar completion changed document/selection/history');
     releaseAsset();
-    await page.locator('[data-block="figure"]').waitFor();
+    await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').waitFor();
     await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'Adding image…');
-    await page.locator('.document-editor').evaluate(element => element.editor.view.focus());
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.focus());
     await page.keyboard.press('ControlOrMeta+z');
-    check(await page.locator('[data-block="figure"]').count() === 0 && (await code.locator('pre').innerText()).includes('+ 2'), 'Grammar completion cancelled upload or changed its history group');
+    check(await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 0 && (await code.locator('pre').innerText()).includes('+ 2'), 'Grammar completion cancelled upload or changed its history group');
     await page.keyboard.press('ControlOrMeta+z');
     check(!(await code.locator('pre').innerText()).includes('+ 2'), 'Grammar completion lost Undo');
     await page.keyboard.press('ControlOrMeta+Shift+z');
@@ -60,7 +60,7 @@ async (page, { openDocument }) => {
     await code.getByTestId('code-language').fill('javascript');
     await code.locator('.hljs-keyword').waitFor();
     const languages = await page.evaluate(async () => {
-      const lowlight=document.querySelector('.document-editor').editor.extensionManager.extensions.find(extension => extension.name === 'codeBlock').options.lowlight;
+      const lowlight=document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.extensionManager.extensions.find(extension => extension.name === 'codeBlock').options.lowlight;
       const {common}=await import('/src/code-languages.ts');
       return {actual:lowlight.listLanguages().sort(),expected:Object.keys(common).sort()};
     });
@@ -75,8 +75,8 @@ async (page, { openDocument }) => {
   try {
     await open();
     await page.waitForFunction(() => {
-      const lowlight=document.querySelector('.document-editor')?.editor.extensionManager.extensions.find(extension => extension.name === 'codeBlock').options.lowlight;
-      return lowlight?.listLanguages().length === 0 && document.querySelector('[data-block="code"]');
+      const lowlight=document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor.extensionManager.extensions.find(extension => extension.name === 'codeBlock').options.lowlight;
+      return lowlight?.listLanguages().length === 0 && document.querySelector('[data-document-tab][data-active=true] [data-block="code"]');
     });
     await code.locator('pre').click(); await page.keyboard.press('End'); await page.keyboard.type(' plain');
     check(await code.locator('pre span').count() === 0 && (await code.locator('pre').innerText()).endsWith(' plain'), 'Load failure prevented plain editing');

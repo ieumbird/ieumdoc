@@ -29,7 +29,7 @@ async (page, { openDocument }) => {
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('basic-blocks'));
   };
   // Select a range of a text block's content (offsets; -1 is its end); the keys that follow are real.
-  const select = async (text, start, end = start) => page.locator('.document-editor').evaluate((element, [text, start, end]) => {
+  const select = async (text, start, end = start) => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element, [text, start, end]) => {
     const editor = element.editor;
     let position;
     editor.state.doc.descendants((node, pos) => {
@@ -42,7 +42,7 @@ async (page, { openDocument }) => {
   }, [text, start, end]);
 
   await openScratch();
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await editor.locator('h1').waitFor({state:'visible'});
 
   // Admonition kind from the block menu.
@@ -114,7 +114,7 @@ async (page, { openDocument }) => {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
   await openScratch();
-  const reloaded = page.getByTestId('document-editor');
+  const reloaded = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await reloaded.locator('h1').waitFor({state:'visible'});
   const result = {
     kindLabelShown,

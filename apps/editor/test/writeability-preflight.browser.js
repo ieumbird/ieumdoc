@@ -12,7 +12,7 @@ async (page, { openDocument }) => {
   const rejected = await page.request.get(`${origin}/api/document?path=${encodeURIComponent(rejectedPath)}`);
   const refusal = await rejected.json();
   assert(rejected.status() === 400 && refusal.code === 'native-marker' && !refusal.document, 'Core admission error was not propagated');
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const snapshot = () => editor.evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON()}));
   const activePath = await page.getByTestId('current-file').getAttribute('title');
   const before = await snapshot();
@@ -57,28 +57,23 @@ async (page, { openDocument }) => {
 
   const paragraph = editor.locator('p.paragraph').filter({hasText:'The current reference is calculated'});
   await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.type(' Unsaved.');
-  const equation = page.locator('[data-block="equation"]').first();
+  const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + draft');
   const local = await snapshot();
-  // Open still protects unsaved content and drafts before requesting any file.
+  // Failed Open adds no tab and preserves current applied work and property drafts.
+  const tabCount = await page.getByRole('tab').count();
   let reads = 0;
   await page.route('**/api/document?*', route => { reads++; return route.fulfill({status:400, json:refusal}); });
   try {
     await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
-    await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
-    await page.getByRole('dialog', {name:'Save changes?',exact:true}).waitFor({state:'detached'});
-    assert(reads === 0 && await alert.count() === 0, 'Dirty Open bypassed its existing guard');
-    assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Guarded Open changed local work');
-    // Discard authorization must not destroy the old session if the chosen file is unsupported.
-    await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
-    await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save",exact:true}).click();
     await alert.waitFor();
-    assert(await page.getByRole('dialog').count() === 1 && await page.getByTestId('error').count() === 0, 'Open failure duplicated the confirmation/error surfaces');
+    assert(reads === 1 && await page.getByRole('tab', {includeHidden:true}).count() === tabCount, 'Failed Open added a tab or skipped the Host');
+    assert(await page.getByRole('dialog', {name:'Save changes?',exact:true}).count() === 0 && await page.getByTestId('error').count() === 0, 'Open failure duplicated confirmation/error surfaces');
     assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Failed Open discarded local work');
     await alert.getByRole('button', {name:'OK',exact:true}).click();
     await alert.waitFor({state:'detached'});
-    assert(await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).evaluate(el => el === document.activeElement), 'Failed continuation lost its focus return');
+    assert(await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).evaluate(el => el === document.activeElement), 'Failed Open lost its focus return');
   } finally { await page.unroute('**/api/document?*'); }
   // The on-disk file has become unsupported: replay its real Core error at the same locator.
   await page.route('**/api/document?*', route => route.request().method() === 'GET'
@@ -88,7 +83,7 @@ async (page, { openDocument }) => {
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
     await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
     await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor({state:'detached'});
-    await page.getByText(refusal.error, {exact:true}).first().waitFor();
+    await page.getByText(refusal.error, {exact:true}).filter({visible:true}).first().waitFor();
     assert(await alert.count() === 0, 'Reload changed to Open Alert behavior');
     assert(await snapshot() === local, 'Rejected Reload discarded local document or selection');
     assert(await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Rejected Reload discarded the unapplied draft');
@@ -103,7 +98,7 @@ async (page, { openDocument }) => {
   // Initial admission failure has no document installed.
   await page.route('**/api/document', route => route.fulfill({status:400, json:refusal}));
   await page.reload();
-  await page.getByText(refusal.error, {exact:true}).first().waitFor();
+  await page.getByText(refusal.error, {exact:true}).filter({visible:true}).first().waitFor();
   assert(await editor.count() === 0, 'Initial failure installed an editor');
   await page.unroute('**/api/document');
 

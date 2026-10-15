@@ -4,7 +4,7 @@
 // and checks that heading edits update the outline
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
-async (page, { openDocument }) => {
+async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
@@ -23,7 +23,7 @@ async (page, { openDocument }) => {
   const outline = page.getByTestId('outline');
   const items = outline.getByRole('button');
   const texts = async () => (await items.allInnerTexts()).map(text => text.trim());
-  const editor = page.getByTestId('document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const current = () => outline.locator('[aria-current="location"]').innerText();
   const currentIs = async (text, step) => {
     try {
@@ -43,7 +43,7 @@ async (page, { openDocument }) => {
     await items.nth(2).evaluate(element => getComputedStyle(element).paddingLeft);
 
   // The caret lands in the heading, which scrolls to the top of the view below the sticky header.
-  const landed = async text => page.locator('.document-editor').evaluate((element, text) => {
+  const landed = async text => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element, text) => {
     const editor = element.editor;
     const { $from } = editor.state.selection;
     const heading = [...element.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(node => node.textContent === text);
@@ -67,13 +67,13 @@ async (page, { openDocument }) => {
 
   // Scrolling to the end makes the last section current. It re-renders the outline only: re-rendering
   // the editor re-applies its options (a new editor.options object), which can race native caret moves.
-  await page.locator('.document-editor').evaluate(element => { window.outlineEditorOptions = element.editor.options; });
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => { window.outlineEditorOptions = element.editor.options; });
   // The fixture's ten headings fit the panel. Limit the list so the current mark has to move inside it.
   const limit = await page.addStyleTag({ content: '.document-outline-list { max-height: 80px; }' });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await currentIs('Detail 6', 'after Detail 6');
   const scrollFollowsSection = await current() === 'Detail 6';
-  const scrollKeepsEditor = await page.locator('.document-editor').evaluate(element => element.editor.options === window.outlineEditorOptions);
+  const scrollKeepsEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.options === window.outlineEditorOptions);
   const currentStaysInView = await page.evaluate(() => {
     const list = document.querySelector('.document-outline-list');
     const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
@@ -90,7 +90,7 @@ async (page, { openDocument }) => {
   const outlineView = () => page.evaluate(() => {
     const list = document.querySelector('.document-outline-list');
     const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
-    const editor = document.querySelector('.document-editor')?.editor;
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor;
     if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement) || !editor) return null;
     const listBox = list.getBoundingClientRect();
     const itemBox = item.getBoundingClientRect();
@@ -106,7 +106,7 @@ async (page, { openDocument }) => {
   });
   // A middle heading stays fully visible with outline content below it, so growing the list must not move it.
   await page.evaluate(() => {
-    const heading = [...document.querySelectorAll('.document-editor h1, .document-editor h2, .document-editor h3')]
+    const heading = [...document.querySelectorAll('[data-document-tab][data-active=true] .document-editor :is(h1, h2, h3)')]
       .find(node => node.textContent === 'Section 4');
     const header = document.querySelector('.app-header')?.getBoundingClientRect().bottom ?? 0;
     if (!(heading instanceof HTMLElement)) return;
@@ -197,7 +197,7 @@ async (page, { openDocument }) => {
   await limit.evaluate(node => node.remove());
 
   // Renaming, adding and deleting headings update the outline at once.
-  await page.locator('.document-editor').evaluate(element => {
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const editor = element.editor;
     let position;
     editor.state.doc.descendants((node, pos) => { if (position === undefined && node.textContent === 'Section 3') position = pos + 1 + node.content.size; });
@@ -210,7 +210,7 @@ async (page, { openDocument }) => {
   await outline.getByRole('button', {name:'Added section'}).waitFor();
   const section6 = editor.locator('h2').filter({hasText:'Section 6'});
   await section6.hover();
-  const blockIndex = await page.locator('.document-editor').evaluate(element => {
+  const blockIndex = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     let found = -1;
     element.editor.state.doc.forEach((node, _pos, index) => { if (found < 0 && node.textContent === 'Section 6') found = index; });
     return found + 1;
@@ -224,16 +224,16 @@ async (page, { openDocument }) => {
 
   // From Source, an outline item returns to the Visual view at that heading.
   await page.getByTestId('view-source').click();
-  await page.getByTestId('source-view').waitFor();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   await items.filter({hasText:'Detail 4'}).click();
-  await page.getByTestId('source-view').waitFor({state:'detached'});
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor({state:'detached'});
   await currentIs('Detail 4', 'after Detail 4');
   const sourceReturnsToVisual = await landed('Detail 4');
 
   // A heading's block menu moves its whole section past the next sibling and deletes a section,
   // as Core moveSection/removeSection do; the outline follows, and Save writes the result.
   const headingAction = async (text, item) => {
-    const index = await page.locator('.document-editor').evaluate((element, text) => {
+    const index = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element, text) => {
       let found = -1;
       element.editor.state.doc.forEach((node, _pos, at) => { if (found < 0 && node.textContent === text) found = at; });
       return found + 1;
@@ -265,7 +265,7 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Display', exact:true}).click();
   const toggle = page.getByRole('checkbox', {name:'Number headings', exact:true});
   await toggle.click();
-  await page.waitForFunction(() => document.querySelector('.document-editor h2')?.getAttribute('data-heading-number') === '1' &&
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor h2')?.getAttribute('data-heading-number') === '1' &&
     document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
   result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
     (await texts())[1].startsWith('1 ');
@@ -280,7 +280,7 @@ async (page, { openDocument }) => {
   await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
   const numbered = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   result.headingNumberingSaved = numbered.source.includes('headings: true') && !numbered.source.includes('## 1');
-  await openDocument(page, file);
+  await reloadDocument(page);
   await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   await page.getByRole('button', {name:'Display', exact:true}).click();
   result.headingNumberingReloaded = await toggle.isChecked() &&

@@ -25,6 +25,14 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "document-tabs": { files: [
+    ...Array.from({ length: 8 }, (_, index) => ({ name: `technical-${index + 1}.md`, create: () => document("technical-document.md").create() })),
+    document("diagram.svg"),
+    ...["alpha", "beta"].flatMap(folder => [
+      { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
+      { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
+    ]),
+  ], scenarios: ["document-tabs"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "a.md", create: () => nativeSource("# HTTP A\n\nAlpha.\n") },

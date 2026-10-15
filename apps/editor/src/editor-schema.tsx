@@ -1,3 +1,4 @@
+import { useEditorVisible } from "./editor-visibility.ts";
 import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
@@ -14,7 +15,7 @@ import { imageAssets } from "./image-assets.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent, type ReferenceRole } from "@ieumdoc/core";
 import { toTiptapContent } from "./tiptap-inline.ts";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
@@ -449,6 +450,7 @@ function tableNode(onDraftChange?: DraftListener) {
 }
 
 function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+  const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -489,10 +491,10 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>
-      <label className="form-label" htmlFor={`table-caption-${sourcePath}`}>Caption</label>
-      <Input ref={input} id={`table-caption-${sourcePath}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
-      <label className="form-label" htmlFor={`table-label-${sourcePath}`}>Label</label>
-      <Input id={`table-label-${sourcePath}`} data-testid="table-label" value={draft.label} onChange={event => setDraft({ ...draft, label: event.target.value })} />
+      <label className="form-label" htmlFor={`table-caption-${formId}`}>Caption</label>
+      <Input ref={input} id={`table-caption-${formId}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
+      <label className="form-label" htmlFor={`table-label-${formId}`}>Label</label>
+      <Input id={`table-label-${formId}`} data-testid="table-label" value={draft.label} onChange={event => setDraft({ ...draft, label: event.target.value })} />
     </BlockProperties>
   </NodeViewWrapper>;
 }
@@ -608,6 +610,7 @@ function sectionLabelError(doc: ProseMirrorNode, own: number, label: string): st
 }
 
 function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  const formId = useId();
   const label = String(node.attrs.label ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -644,8 +647,8 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
       <BlockProperties anchor={anchor} initialFocus={input} kind="Section label" testId="label-target" open={editing}
         error={error}
         onApply={apply} onCancel={close}>
-        <label className="form-label" htmlFor={`label-target-${String(node.attrs.sourcePath)}`}>Label</label>
-        <Input ref={input} id={`label-target-${String(node.attrs.sourcePath)}`} data-testid="label-target-input" value={draft}
+        <label className="form-label" htmlFor={`label-target-${formId}`}>Label</label>
+        <Input ref={input} id={`label-target-${formId}`} data-testid="label-target-input" value={draft}
           onChange={event => { setDraft(event.target.value); setError(""); }} />
       </BlockProperties>
     </NodeViewWrapper>
@@ -997,7 +1000,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     // After the form renders.
     requestAnimationFrame(() => {
       const input = imageInput.current;
-      if (input && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
+      if (input && input.getClientRects().length && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
   const releaseCopy = () => {
@@ -1081,7 +1084,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const captionContent = view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content;
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
-    const returnFocus = active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active));
+    const returnFocus = !view.dom.closest("[hidden]") &&
+      (active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active)));
     // The copy passes to the document before dispatch, which may replace this view.
     const copy = copied.current;
     copied.current = undefined;
@@ -1298,7 +1302,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     focusFrame.current = requestAnimationFrame(() => {
       focusFrame.current = null;
       const input = latexInput.current;
-      if (input && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
+      if (input && input.getClientRects().length && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
   const cancel = () => {
@@ -1416,6 +1420,8 @@ function EquationFormula({ className, latex, testId }: { className: string; late
 }
 
 function InlineMathView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  const formId = useId();
+  const visible = useEditorVisible();
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
   const bounds = useOverlayBounds<HTMLFormElement>(editing);
@@ -1454,7 +1460,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
         onClick={open}
         {...(rendered.html ? { dangerouslySetInnerHTML: { __html: rendered.html } } : { children: `$${value}$` })}
       />
-      {editing ? (
+      {editing && visible ? (
         <form
           ref={bounds}
           className="inline-math-form selection-toolbar"
@@ -1475,9 +1481,9 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
             if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) setEditing(false);
           }}
         >
-          <label className="form-label" htmlFor="inline-math-source">LaTeX</label>
+          <label className="form-label" htmlFor={formId}>LaTeX</label>
           <Input
-            id="inline-math-source"
+            id={formId}
             autoFocus
             aria-label="LaTeX"
             data-testid="inline-math-source"

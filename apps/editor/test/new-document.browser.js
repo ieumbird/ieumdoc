@@ -11,7 +11,7 @@ async page => {
   const check = (value, message) => { if (!value) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const read = async () => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
-  const editor = page.locator('.document-editor');
+  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const focused = () => editor.evaluate(element => element === document.activeElement);
   const hint = () => editor.locator('> p').first().evaluate(element => {
     const content = getComputedStyle(element, '::before').content;
@@ -47,7 +47,7 @@ async page => {
   check((await editor.innerText()).trim() === '' && await hint(), 'Undo did not restore the empty hint');
   check((await page.getByTestId('status').innerText()).trim() === '', 'The hint dirtied an empty document');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const empty = await read();
   check(empty.source === created.source && empty.source.trim() === '---\nieumdoc: 1\n---' && empty.document.blocks.length === 0,
     'An empty Save changed the canonical empty file or wrote placeholder content');
@@ -61,7 +61,7 @@ async page => {
     await page.setViewportSize({width, height:900});
     await idle();
     const surface = await page.evaluate(() => {
-      const paper = document.querySelector('.document');
+      const paper = document.querySelector('[data-document-tab][data-active=true] .document');
       const bounds = paper.getBoundingClientRect();
       const header = document.querySelector('.app-header').getBoundingClientRect();
       const column = getComputedStyle(document.querySelector('.document-column'));
@@ -82,7 +82,7 @@ async page => {
   await page.getByRole('menuitem', {name:'Heading 1', exact:true}).waitFor();
   await page.keyboard.press('Escape');
   // Clicking well below the one-line editor must still put the caret in the document.
-  const paper = await page.locator('.document').boundingBox();
+  const paper = await page.locator('[data-document-tab][data-active=true] .document').boundingBox();
   await page.mouse.click(paper.x + paper.width/2, paper.y + paper.height - 40);
   check(await focused(), 'The empty paper below the text did not focus the editor');
   await page.keyboard.type('/');
@@ -92,22 +92,16 @@ async page => {
   check(await hint(), 'Dismissing and deleting the slash did not restore the hint');
   await page.keyboard.type('Browser-created paragraph');
 
-  // New confirms before asking for a filename; Cancel preserves work and focus.
+  // New opens the name form without discarding this tab; Cancel retains input and focus.
   await create.click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel', exact:true}).click();
-  await page.getByRole('dialog').waitFor({state:'detached'});
-  check(await create.evaluate(element => element === document.activeElement), 'Failed New did not restore its opening control');
-  check(await page.getByTestId('current-file').getAttribute('title') === file &&
-    (await editor.innerText()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
-  // Don't save authorizes creation, but cancelling the name form still keeps the session.
-  await create.click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save", exact:true}).click();
   await page.getByTestId('new-file-name').fill('another-document');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
-  check((await editor.innerText()).trim() === 'Browser-created paragraph', 'Cancelling the name form discarded the old session');
+  check(await create.evaluate(element => element === document.activeElement), 'Cancelled New did not restore its opening control');
+  check(await page.getByTestId('current-file').getAttribute('title') === file &&
+    (await editor.innerText()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const written = await read();
   check(written.source === '---\nieumdoc: 1\n---\n\nBrowser-created paragraph\n', 'Save did not write only the entered text');
   await page.getByRole('button', {name:'File actions', exact:true}).click();
@@ -129,7 +123,7 @@ async page => {
   // Writing past the window keeps the new line above the paper's end space, which leaves the
   // last line room to rise; that room is display only and never reaches the saved file.
   await page.setViewportSize({width:1440, height:900});
-  const end = await page.locator('.document').boundingBox();
+  const end = await page.locator('[data-document-tab][data-active=true] .document').boundingBox();
   await page.mouse.click(end.x + end.width/2, end.y + end.height - 40);
   const lines = Array.from({length:30}, (_, index) => `Line ${index + 1}`);
   for (const line of lines) {
@@ -139,8 +133,8 @@ async page => {
   // Below the caret while writing, and below the last line once scrolled to the end.
   const room = target => page.evaluate(target => ({
     below: innerHeight - (target === 'caret' ? getSelection().getRangeAt(0).getClientRects()[0]
-      : document.querySelector('.document-editor > :last-child').getBoundingClientRect()).bottom,
-    end: parseFloat(getComputedStyle(document.querySelector('.document')).paddingBottom),
+      : document.querySelector('[data-document-tab][data-active=true] .document-editor > :last-child').getBoundingClientRect()).bottom,
+    end: parseFloat(getComputedStyle(document.querySelector('[data-document-tab][data-active=true] .document')).paddingBottom),
     viewport: innerHeight, scrolled: scrollY,
   }), target);
   // A quarter of the window is the least that lifts the line off the bottom edge.
@@ -151,32 +145,24 @@ async page => {
   const scrolledEnd = await room('line');
   check(scrolledEnd.below >= scrolledEnd.end - 1, `No room below the last line: ${JSON.stringify(scrolledEnd)}`);
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Saved', {exact:true}).waitFor();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   check((await read()).source.trimEnd() === '---\nieumdoc: 1\n---\n\n' + ['Browser-created paragraph', ...lines].join('\n\n'),
     'The end space changed the saved document');
-  // The same confirmation continues to New: Save persists the old file; Don't save never does.
+  // New opens a second session without saving or discarding the dirty first document.
   await editor.locator('p').last().click();
-  await page.keyboard.press('End'); await page.keyboard.type(' Saved before New.');
+  await page.keyboard.press('End'); await page.keyboard.type(' Kept across New.');
+  const diskBeforeNew = (await read()).source;
   await create.click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
   const newName = page.getByTestId('new-file-name');
   await newName.waitFor();
-  check(await newName.evaluate(el => el === document.activeElement), 'Confirmation did not hand focus to the New filename');
-  check((await read()).source.includes('Saved before New.'), 'New confirmation did not save the old file');
-  await newName.fill('after-save');
+  check(await newName.evaluate(el => el === document.activeElement), 'New did not focus the filename');
+  await newName.fill('second-document');
   await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
-  check((await page.getByTestId('current-file').getAttribute('title')).endsWith('after-save.md') && await focused(), 'Save then New did not create/focus the document');
-  const afterSave = await page.getByTestId('current-file').getAttribute('title');
-  const savedNew = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(afterSave)}`)).json();
-  await page.keyboard.type('Discard this before New.');
-  await create.click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:"Don't save",exact:true}).click();
-  await newName.fill('after-discard');
-  await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
-  await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
-  const discardedNew = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(afterSave)}`)).json();
-  check(discardedNew.source === savedNew.source && (await page.getByTestId('current-file').getAttribute('title')).endsWith('after-discard.md') && await focused(), 'Discard then New wrote the old file or failed to create/focus');
+  check((await page.getByTestId('current-file').getAttribute('title')).endsWith('second-document.md') && await focused(), 'New did not create/focus its tab');
+  check((await read()).source === diskBeforeNew, 'New silently saved the first document');
+  await page.getByRole('tab', {name:'new-document.md, Unsaved changes',exact:true}).click();
+  check((await editor.innerText()).includes('Kept across New.'), 'New lost the first session');
   return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
     blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true,
     writingEndSpace:true};

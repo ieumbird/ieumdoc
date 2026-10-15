@@ -37,7 +37,7 @@ async (page, { openDocument }) => {
   }
 
   const result = {};
-  const figures = page.locator('[data-block="figure"]');
+  const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   const saveEnabled = page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])');
   const saveDisabled = page.locator('.top-bar [data-testid="save"][aria-disabled="true"]');
   const imageLoaded = figure => figure.locator('[data-testid="figure-image"]').evaluate(async image => {
@@ -54,18 +54,18 @@ async (page, { openDocument }) => {
   const save = async () => {
     await saveEnabled.waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.getByText('Saved', {exact:true}).waitFor();
+    await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   };
   // Where closing a form leaves keyboard focus: the editor and the top-level block of its selection.
   const editorFocus = () => page.evaluate(() => {
-    const {editor} = document.querySelector('.document-editor');
+    const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
     const {selection} = editor.state;
     const block = selection.node ?? selection.$from.node(1);
     return editor.view.hasFocus() && {block: block?.type.name, path: block?.attrs.sourcePath, from: selection.from, to: selection.to,
       empty: selection.empty, text: selection.$from.parent.textContent};
   });
   const insertAfterParagraph = async name => {
-    const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true});
+    const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true});
     await paragraph.hover();
     await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
@@ -76,12 +76,12 @@ async (page, { openDocument }) => {
 
   try {
     await openScratch();
-    const baselineParagraphs = await page.locator('[data-block="paragraph"]').count();
+    const baselineParagraphs = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count();
 
     // A. Existing Figure: selection opens no properties; explicit Edit, Apply, Save, Reload.
     await figures.first().locator('img').click();
     result.selectionOnly = await page.getByTestId('figure-properties').count() === 0 && await editor.count() === 0 &&
-      await page.evaluate(() => document.activeElement?.closest('.document-editor') !== null);
+      await page.evaluate(() => document.activeElement?.closest('[data-document-tab][data-active=true] .document-editor') !== null);
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
@@ -91,7 +91,7 @@ async (page, { openDocument }) => {
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
     await page.getByTestId('figure-alt').fill('Updated block diagram');
     await page.getByTestId('figure-caption').fill('Updated converter control diagram.');
-    await page.getByTestId("figure-draft-status").waitFor();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId("figure-draft-status").waitFor();
     result.existingDraftMarkedUnsaved = await figures.first().getByTestId('figure-draft-status').isVisible();
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
@@ -144,7 +144,7 @@ async (page, { openDocument }) => {
     await insertAfterParagraph('Paragraph');
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();
-    result.slashReplacesTransientParagraph = await page.locator('[data-block="paragraph"]').count() === baselineParagraphs &&
+    result.slashReplacesTransientParagraph = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count() === baselineParagraphs &&
       await figures.count() === 2 && await editor.count() === 0;
     const created = figures.nth(1);
     await page.keyboard.type('New figure caption.');
@@ -175,7 +175,7 @@ async (page, { openDocument }) => {
     });
     result.labelUnchanged = reloaded[0].label === 'fig-control';
     result.reloadedFigureCount = await figures.count() === 2;
-    result.noEmptyParagraphSaved = await page.locator('[data-block="paragraph"]').count() === baselineParagraphs;
+    result.noEmptyParagraphSaved = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count() === baselineParagraphs;
     result.newReloadedPreview = String(await imageLoaded(figures.nth(1))).startsWith('/document/diagram.svg?path=');
 
     // Escape cancels an existing Figure draft without removing it.
@@ -190,7 +190,7 @@ async (page, { openDocument }) => {
     const firstPath = await figures.first().getAttribute('data-source-path');
     const afterEscape = await editorFocus();
     result.escapeReturnsCaret = afterEscape.empty && await page.evaluate(path => {
-      const {selection, doc} = document.querySelector('.document-editor').editor.state;
+      const {selection, doc} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
       let end;
       doc.forEach((node, pos) => { if (node.attrs.sourcePath === path) end = pos + node.nodeSize; });
       return selection.from === end || selection.from === end + 1;
@@ -205,10 +205,10 @@ async (page, { openDocument }) => {
     await editor.waitFor();
     await page.getByTestId('figure-alt').fill('Validated later');
     await page.getByTestId('figure-apply').click();
-    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).click();
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
     await page.keyboard.press('End');
     await page.waitForFunction(() => {
-      const {$from, empty} = document.querySelector('.document-editor').editor.state.selection;
+      const {$from, empty} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
       return empty && $from.parent.type.name === 'paragraph' && $from.parentOffset === $from.parent.content.size;
     });
     const movedOn = await editorFocus();
@@ -237,7 +237,7 @@ async (page, { openDocument }) => {
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
     await page.getByTestId('figure-caption').fill('Caption typed during save.');
     release();
-    await page.getByText('Unsaved changes', {exact:true}).waitFor();
+    await page.getByText('Unsaved changes', {exact:true}).filter({visible:true}).waitFor();
     result.delayedSaveKeepsDraft = await page.getByTestId('figure-caption').inputValue() === 'Caption typed during save.' &&
       !posted[0].figures?.length;
     await page.getByTestId('figure-apply').click();
@@ -254,7 +254,7 @@ async (page, { openDocument }) => {
       await page.keyboard.press('End');
       await page.keyboard.press('Shift+Home');
       await page.waitForFunction(text => {
-        const e = document.querySelector('.document-editor').editor;
+        const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
         const s = e.state.selection;
         return s.$from.parent.type.name === 'figure' && e.state.doc.textBetween(s.from, s.to) === text;
       }, text);
@@ -285,12 +285,12 @@ async (page, { openDocument }) => {
     await openScratch();
     result.captionRemovalReloaded = await caption.locator('strong').count() === 0;
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.locator('.document-editor strong', {hasText:'DC-link voltage'}).evaluate(element => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor strong', {hasText:'DC-link voltage'}).evaluate(element => {
       const range = document.createRange(); range.selectNodeContents(element);
       getSelection().removeAllRanges(); getSelection().addRange(range);
     });
     await page.waitForFunction(() => {
-      const e = document.querySelector('.document-editor').editor;
+      const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
       return e.state.doc.textBetween(e.state.selection.from, e.state.selection.to) === 'DC-link voltage';
     });
     await page.keyboard.press('ControlOrMeta+c');
@@ -304,11 +304,11 @@ async (page, { openDocument }) => {
     await caption.click();
     await page.keyboard.press('End');
     await page.waitForFunction(() => {
-      const {selection} = document.querySelector('.document-editor').editor.state;
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
       return selection.empty && selection.$from.parent.type.name === 'figure' &&
         selection.$from.parentOffset === selection.$from.parent.content.size;
     });
-    const captionSelection = await page.evaluate(() => document.querySelector('.document-editor').editor.state.selection.toJSON());
+    const captionSelection = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.toJSON());
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
@@ -316,7 +316,7 @@ async (page, { openDocument }) => {
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
     const restoredCaption = await page.evaluate(() => {
-      const {editor} = document.querySelector('.document-editor');
+      const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
       return {selection:editor.state.selection.toJSON(), focus:editor.view.hasFocus()};
     });
     result.metadataKeepsCaptionCaret = restoredCaption.focus && JSON.stringify(restoredCaption.selection) === JSON.stringify(captionSelection);
@@ -340,7 +340,7 @@ async (page, { openDocument }) => {
     await page.getByTestId('new-file-name').fill(emptyName);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    await page.locator('[data-testid="document-editor"] [contenteditable="true"]').click();
+    await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]').click();
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();
     result.onlyBlockFigureOpensNoForm = await figures.count() === 1 && await editor.count() === 0;

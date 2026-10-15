@@ -1,14 +1,14 @@
 import { test as base, expect, chromium, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 import type { Editor } from "@tiptap/core";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { classifyConsoleErrors } from "./console-errors.ts";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
-import { openDocument } from "./navigation.ts";
+import { activeDocument, openDocument, reloadDocument } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
@@ -94,7 +94,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
         if (testInfo.status !== testInfo.expectedStatus || classification.unexpected.length || classification.missing.length) {
           const diagnostic = await page.evaluate(() => {
             const visible = (element: Element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
-            const editor = document.querySelector<HTMLElement & { editor?: Editor }>(".document-editor");
+            const editor = document.querySelector<HTMLElement & { editor?: Editor }>('[data-document-tab][data-active="true"] .document-editor');
             const instance = editor?.editor;
             const selection = instance?.state.selection;
             const active = document.activeElement;
@@ -129,7 +129,12 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; withBlockHover: typeof withBlockHover }) => Promise<unknown>;
-    await scenario(page, { screenshots, openDocument, withBlockHover });
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover }) => Promise<unknown>;
+    const result = await scenario(page, { screenshots, openDocument, reloadDocument, activeDocument, withBlockHover });
+    if (result !== undefined) {
+      const resultPath = test.info().outputPath("scenario-result.json");
+      writeFileSync(resultPath, JSON.stringify(result, null, 2));
+      await test.info().attach("scenario-result", { path: resultPath, contentType: "application/json" });
+    }
   });
 }

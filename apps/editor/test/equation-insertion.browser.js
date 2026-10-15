@@ -31,13 +31,13 @@ async page => {
 
   // Where closing the form leaves keyboard focus: the editor and the top-level block of its selection.
   const editorFocus = () => page.evaluate(() => {
-    const {editor} = document.querySelector('.document-editor');
+    const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
     const {selection} = editor.state;
     const block = selection.node ?? selection.$from.node(1);
     return editor.view.hasFocus() && {block: block?.type.name, path: block?.attrs.sourcePath, caret: selection.empty && selection.$from.parent.isTextblock};
   });
   const caretAfterEquation = path => {
-    const {editor} = document.querySelector('.document-editor');
+    const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
     const {selection, doc} = editor.state;
     let end;
     doc.forEach((node, pos) => { if (node.type.name === 'equation' && node.attrs.sourcePath === path) end = pos + node.nodeSize; });
@@ -50,15 +50,15 @@ async page => {
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
     // Create an empty transient paragraph with `+`, then use `/equation`.
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
-    await page.locator('.document-editor > .heading').first().hover();
+    await page.locator('[data-document-tab][data-active=true] .document-editor > .heading').first().hover();
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Paragraph', exact:true}).click();
     await page.keyboard.type('/equation');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-editor').waitFor();
-    const afterCancel = await page.locator('[data-block="equation"]').count();
-    const noEmptyParagraphAfterSlash = await page.locator('[data-block="paragraph"]').count() === baselineParagraphCount;
+    const afterCancel = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count();
+    const noEmptyParagraphAfterSlash = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count() === baselineParagraphCount;
     await page.getByTestId('equation-latex').fill('Unapplied');
     await page.getByTestId('save').click();
     await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
@@ -66,18 +66,18 @@ async page => {
       await page.getByTestId('equation-latex').inputValue() === 'Unapplied' &&
       await page.getByTestId('status').innerText() === 'Unsaved changes';
     await page.getByTestId('equation-cancel').click();
-    const cancelRemoved = await page.locator('[data-block="equation"]').count() === baselineEquationCount;
+    const cancelRemoved = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count() === baselineEquationCount;
     // A caret where the Equation was, never a selection of the next block.
     const cancelReturnsCaret = (await editorFocus()).caret === true;
 
-    await page.locator('.document-editor > .heading').first().hover();
+    await page.locator('[data-document-tab][data-active=true] .document-editor > .heading').first().hover();
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x');
     const saveAvailableBeforeApply = await page.getByTestId("save").isEnabled();
     await page.getByTestId('equation-apply').click();
-    const newEquation = page.locator('[data-block="equation"][data-source-path^="new:"]');
+    const newEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"][data-source-path^="new:"]');
     const newPath = await newEquation.getAttribute('data-source-path');
     const applyReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
@@ -96,12 +96,12 @@ async page => {
     const escapeReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.getByText('Saved', {exact:true}).waitFor();
+    await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
     const insert = requests.at(-1)?.inserts?.find(item => item.block === 'equation');
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-    const reloaded = await page.locator('[data-block="equation"]').count();
-    const reloadedEquation = page.locator('[data-block="equation"]').last();
+    const reloaded = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count();
+    const reloadedEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').last();
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).click();
     const reloadedLatex = await page.getByTestId('equation-latex').inputValue();
