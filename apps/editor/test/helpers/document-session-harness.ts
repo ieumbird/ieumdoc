@@ -1,12 +1,12 @@
 import { createElement, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { DocumentEditor } from "../../src/DocumentEditor.tsx";
-import { useDocumentSession, type DocumentSession } from "../../src/useDocumentSession.ts";
+import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "../../src/useDocumentSession.ts";
 
 /** Real hook + editor without the shell's busy guard, to exercise replacement during a request. */
-export async function mountDocumentSessionHarness() {
+export async function mountDocumentSessionHarness(snapshot?: DocumentSessionSnapshot) {
   const { requestDocument } = await import("../../src/document-session.ts");
-  const initial = await requestDocument("GET");
+  const initial = snapshot?.file ?? await requestDocument("GET");
   if ("start" in initial) throw new Error("Harness requires a first document");
   const file = initial;
   const host = document.createElement("div");
@@ -14,12 +14,13 @@ export async function mountDocumentSessionHarness() {
   const root = createRoot(host);
   let current: DocumentSession;
   function Harness() {
-    const session = useDocumentSession(file);
+    const session = useDocumentSession(file, snapshot);
     useLayoutEffect(() => { current = session; });
     return session.document && createElement(DocumentEditor, {
       key: session.editorGeneration,
       ref: session.editorRef,
       document: session.document,
+      initialSnapshot: session.initialEditorSnapshot,
       documentPath: session.openedPath,
       ...session.editorCallbacks,
     });

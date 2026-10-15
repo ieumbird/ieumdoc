@@ -1,9 +1,10 @@
+import { allocateBlockPath } from "./block-locators.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
-import { isNewBlockPath, NEW_BLOCK_PREFIX } from "./tiptap-document.ts";
+import { isNewBlockPath } from "./tiptap-document.ts";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 
@@ -41,8 +42,6 @@ export type BlockCommand = {
 
 /** Structural transactions carrying this meta come from an explicit block command. */
 export const BLOCK_COMMAND_META = "blockCommand";
-
-let nextNewBlock = 0;
 
 export const INSERT_COMMANDS: InsertCommand[] = [
   {
@@ -320,7 +319,7 @@ export function insertParagraphAfter(state: EditorState, index: number, slash?: 
     return tr.setSelection(TextSelection.create(tr.doc, pos + 1)).scrollIntoView();
   }
   const at = pos + target.nodeSize;
-  const paragraph = state.schema.nodes.paragraph.create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  const paragraph = state.schema.nodes.paragraph.create({ sourcePath: allocateBlockPath("command") });
   tr.insert(at, paragraph);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
@@ -381,7 +380,7 @@ function insertAtomAfter(
       .scrollIntoView();
   }
   const at = pos + target.nodeSize;
-  tr.insert(at, state.schema.nodes[type].create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`, ...attrs }));
+  tr.insert(at, state.schema.nodes[type].create({ sourcePath: allocateBlockPath("command"), ...attrs }));
   return tr.setSelection(NodeSelection.create(tr.doc, at)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
@@ -412,7 +411,7 @@ export function insertHeadingAfter(
   const at = pos + target.nodeSize;
   const heading = state.schema.nodes.heading.create({
     level,
-    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
+    sourcePath: allocateBlockPath("command"),
   });
   tr.insert(at, heading);
   return tr.setSelection(TextSelection.create(tr.doc, at + 1)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
@@ -428,7 +427,7 @@ export function insertListAfter(state: EditorState, index: number, ordered: bool
   const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
   const { bulletList, orderedList, listItem, paragraph } = state.schema.nodes;
   const list = (ordered ? orderedList : bulletList).create(
-    { sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` },
+    { sourcePath: reuse ? target.attrs.sourcePath : allocateBlockPath("command") },
     listItem.create(null, paragraph.create()),
   );
   const at = reuse ? pos : pos + target.nodeSize;
@@ -446,7 +445,7 @@ export function insertCodeBlockAfter(state: EditorState, index: number, slash?: 
   const pos = blockPos(state, index);
   const target = tr.doc.child(index);
   const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
-  const code = state.schema.nodes.codeBlock.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  const code = state.schema.nodes.codeBlock.create({ sourcePath: reuse ? target.attrs.sourcePath : allocateBlockPath("command") });
   const at = reuse ? pos : pos + target.nodeSize;
   if (reuse) tr.replaceWith(pos, pos + target.nodeSize, code);
   else tr.insert(at, code);
@@ -480,7 +479,7 @@ export function insertAdmonitionAfter(
   }
   const at = pos + target.nodeSize;
   tr.insert(at, state.schema.nodes.admonition.create({
-    sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}`,
+    sourcePath: allocateBlockPath("command"),
     variant,
     text: "",
     editable: true,
@@ -542,7 +541,7 @@ export function insertQuoteAfter(state: EditorState, index: number, slash?: Slas
   const pos = blockPos(state, index);
   const target = tr.doc.child(index);
   const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
-  const quote = state.schema.nodes.quote.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` });
+  const quote = state.schema.nodes.quote.create({ sourcePath: reuse ? target.attrs.sourcePath : allocateBlockPath("command") });
   const at = reuse ? pos : pos + target.nodeSize;
   if (reuse) tr.replaceWith(pos, pos + target.nodeSize, quote);
   else tr.insert(at, quote);
@@ -562,8 +561,8 @@ export function insertDividerAfter(state: EditorState, index: number, slash?: Sl
   const reuse = target.type.name === "paragraph" && target.content.size === 0 && isNewBlockPath(String(target.attrs.sourcePath ?? ""));
   const { divider, paragraph } = state.schema.nodes;
   const nodes = [
-    divider.create({ sourcePath: `${NEW_BLOCK_PREFIX}${++nextNewBlock}` }),
-    paragraph.create({ sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` }),
+    divider.create({ sourcePath: allocateBlockPath("command") }),
+    paragraph.create({ sourcePath: reuse ? target.attrs.sourcePath : allocateBlockPath("command") }),
   ];
   const at = reuse ? pos : pos + target.nodeSize;
   if (reuse) tr.replaceWith(pos, pos + target.nodeSize, nodes);
@@ -595,7 +594,7 @@ export function insertTableAfter(state: EditorState, index: number, slash?: Slas
   const { table, tableRow, tableCell } = state.schema.nodes;
   // Cells of a new table are part of the new block, so they are not marked as added.
   const node = table.create(
-    { sourcePath: reuse ? target.attrs.sourcePath : `${NEW_BLOCK_PREFIX}${++nextNewBlock}` },
+    { sourcePath: reuse ? target.attrs.sourcePath : allocateBlockPath("command") },
     Array.from({ length: NEW_TABLE_ROWS }, (_, row) =>
       tableRow.create(null, Array.from({ length: NEW_TABLE_COLUMNS }, () => tableCell.create({ header: row === 0 })))),
   );

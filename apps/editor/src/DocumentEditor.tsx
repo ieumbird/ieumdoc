@@ -1,3 +1,4 @@
+import { prepareEditorSnapshot, type EditorSnapshot } from "./editor-snapshot.ts";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { closeHistory } from "@tiptap/pm/history";
@@ -16,7 +17,7 @@ import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
 import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
-import { Extension, type Editor } from "@tiptap/core";
+import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
@@ -43,6 +44,7 @@ function insertMenuItem(item: { id: string; label: string; group: string; hint?:
 
 export type DocumentEditorHandle = {
   getDocument(): TiptapJSON;
+  getSnapshot(): EditorSnapshot;
   /** Let the New dialog hand focus to the newly mounted editor through Base UI. */
   getFocusTarget(): HTMLElement | null;
   toggleHeadingNumbering(): void;
@@ -69,6 +71,8 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
 
 type DocumentEditorProps = {
   document: EditableDocument;
+  /** Internal initialization only; the opening model remains the structural baseline. */
+  initialSnapshot?: EditorSnapshot;
   documentPath: string;
   onStructuralReject: (reason?: string) => void;
   onDraftChange?: (active: boolean) => void;
@@ -85,7 +89,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
+  { document, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   const visible = useEditorVisible();
@@ -136,44 +140,53 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   };
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
-  const [editorOptions] = useState<UseEditorOptions>(() => ({
-    editable: true,
-    immediatelyRender: true,
-    shouldRerenderOnTransaction: true,
-    extensions: [
-      ...createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError,
-        () => activeDrafts.current.size > 0, chooseImage),
-      Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
-      // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
-      Extension.create({
-        name: "selectionToolbarFocus",
-        priority: 50,
-        addKeyboardShortcuts: () => ({
-          Tab: () => {
-            const first = toolbar.current?.querySelector("button");
-            first?.focus();
-            return Boolean(first);
-          },
+  const [editorOptions] = useState<UseEditorOptions>(() => {
+    const initialDeletedPaths: string[] = [];
+    const extensions = createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError,
+      () => activeDrafts.current.size > 0, chooseImage, initialDeletedPaths);
+    const restored = initialSnapshot && prepareEditorSnapshot(getSchema(extensions), projection, initialSnapshot);
+    if (restored) {
+      saved.current = restored.savedDocument;
+      initialDeletedPaths.push(...restored.editorDocument.attrs!.deletedPaths as string[]);
+    }
+    return {
+      editable: true,
+      immediatelyRender: true,
+      shouldRerenderOnTransaction: true,
+      extensions: [
+        ...extensions,
+        Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
+        // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
+        Extension.create({
+          name: "selectionToolbarFocus",
+          priority: 50,
+          addKeyboardShortcuts: () => ({
+            Tab: () => {
+              const first = toolbar.current?.querySelector("button");
+              first?.focus();
+              return Boolean(first);
+            },
+          }),
         }),
-      }),
-    ],
-    content: projection,
-    // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
-    enableInputRules: [MARKDOWN_INPUT_RULES],
-    onTransaction({ transaction }) {
-      // Block indexes are snapshot positions; a document change invalidates an open menu.
-      if (transaction.docChanged) setBlockMenu(null);
-    },
-    editorProps: {
-      handleKeyDown: (_view, event) => slashKeys.current(event),
-      scrollThreshold: caretRoom(host, 0),
-      scrollMargin: caretRoom(host, 5),
-      attributes: {
-        class: "document-editor",
-        spellcheck: "false",
+      ],
+      content: restored?.editorDocument ?? projection,
+      // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
+      enableInputRules: [MARKDOWN_INPUT_RULES],
+      onTransaction({ transaction }) {
+        // Block indexes are snapshot positions; a document change invalidates an open menu.
+        if (transaction.docChanged) setBlockMenu(null);
       },
-    },
-  }));
+      editorProps: {
+        handleKeyDown: (_view, event) => slashKeys.current(event),
+        scrollThreshold: caretRoom(host, 0),
+        scrollMargin: caretRoom(host, 5),
+        attributes: {
+          class: "document-editor",
+          spellcheck: "false",
+        },
+      },
+    };
+  });
   const editor = useEditor(editorOptions);
   draftEditor.current = editor;
 
@@ -242,6 +255,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         scheduleOutline.current();
       },
       focusEnd,
+      getSnapshot() {
+        if (!editor || !saved.current) throw new Error("Editor is not ready");
+        return structuredClone({ editorDocument: editorDocumentJSON(editor.state), savedDocument: saved.current });
+      },
       getDocument() {
         if (!editor) {
           throw new Error("Editor is not ready");

@@ -1,3 +1,7 @@
+import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
+import { editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
+import { freshBlockPath } from "../src/tiptap-edits.ts";
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -2056,4 +2060,82 @@ test("canonical reorder that adds a separator block fails before persistence", (
     order: [{path:[1],part:0},{path:[3],part:0},{path:[2],part:0}],
   }), /changed block boundaries/);
   assert.equal(writes, 0);
+});
+
+
+test("restored deletion metadata survives engine initialization and acknowledged Save replay", () => {
+  const openingSource = nativeSource("# Title\n\nKeep\n\nDelete\n");
+  const model = loadEditableDocument(openingSource);
+  const opening = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, assert.fail)] });
+  const savedDocument = editorDocumentJSON(state);
+  state = state.applyTransaction(deleteBlock(state, 2)).state;
+  const current = editorDocumentJSON(state);
+  const withoutMetadata = structuredClone(current);
+  withoutMetadata.attrs!.deletedPaths = [];
+  assert.throws(() => collectSupportedEdits(model, withoutMetadata), /block deletion is not allowed/);
+  const snapshot = prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument });
+  let restored = EditorState.create({ schema, doc: schema.nodeFromJSON(snapshot.editorDocument),
+    plugins: [structureGuardPlugin(opening, assert.fail, snapshot.editorDocument.attrs!.deletedPaths as string[])] });
+  assert.deepEqual(editorDocumentJSON(restored), current);
+  const prior = collectSupportedEdits(model, current);
+  let disk = saveEdits(openingSource, prior).markdown;
+  restored = restored.applyTransaction(restored.tr.insertText(" again", restored.doc.content.size - 1)).state;
+  const edits = collectSupportedEdits(model, editorDocumentJSON(restored));
+  commitDocumentSave(() => disk, value => { disk = value; }, {
+    revision: documentRevision(disk), base: { source: openingSource, savedEdits: prior }, ...edits,
+  });
+  assert.match(disk, /Keep again/);
+  assert.doesNotMatch(disk, /Delete/);
+});
+
+test("restore reserves command and engine locators from current and saved snapshots", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("Start")));
+  const schema = getSchema(editorExtensions());
+  const saved = editorDocumentJSON(EditorState.create({ schema, doc: schema.nodeFromJSON(opening) }));
+  const current = structuredClone(saved);
+  saved.content!.push({ type: "paragraph", attrs: { sourcePath: "new:900000" }, content: [{ type: "text", text: "Previously saved" }] });
+  current.content!.push({ type: "paragraph", attrs: { sourcePath: "new:engine:900000" }, content: [{ type: "text", text: "Current" }] });
+  const restored = prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument: saved });
+  const state = EditorState.create({ schema, doc: schema.nodeFromJSON(restored.editorDocument) });
+  const inserted = state.apply(insertFigureAfter(state, 1)).doc.lastChild!;
+  assert.ok(Number(String(inserted.attrs.sourcePath).split(":").at(-1)) > 900000);
+  assert.ok(Number(freshBlockPath().split(":").at(-1)) > 900000);
+  assert.equal(restored.savedDocument.content!.at(-1)!.attrs!.sourcePath, "new:900000");
+});
+
+test("restore keeps schema-valid unsaveable content and rejects lossy or corrupt editor JSON", () => {
+  const input = nativeSource("# Title\n\nText\n");
+  const model = loadEditableDocument(input);
+  const opening = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  const saved = editorDocumentJSON(EditorState.create({ schema, doc: schema.nodeFromJSON(opening) }));
+  for (const mutate of [
+    (doc: TiptapJSON) => { doc.content![0].content = []; },
+    (doc: TiptapJSON) => { doc.content![1].content![0].text = "Invalid \ud800"; },
+    (doc: TiptapJSON) => { doc.content!.push(...["new:71", "new:72"].map(sourcePath => ({ type: "figure", attrs: { sourcePath, label: "duplicate" } }))); },
+  ]) {
+    const current = structuredClone(saved);
+    mutate(current);
+    const normalized = { ...schema.nodeFromJSON(current).toJSON(), attrs: current.attrs } as TiptapJSON;
+    const restored = prepareEditorSnapshot(schema, opening, { editorDocument: normalized, savedDocument: saved });
+    assert.deepEqual(restored.editorDocument, normalized);
+    assert.throws(() => saveEdits(input, collectSupportedEdits(model, restored.editorDocument)));
+  }
+  for (const mutate of [
+    (doc: TiptapJSON) => { doc.attrs!.headingNumbering = "invalid"; },
+    (doc: TiptapJSON) => { doc.content![0].attrs!.level = "two"; },
+    (doc: TiptapJSON) => { doc.content![1].type = "futureNode"; },
+    (doc: TiptapJSON) => { doc.content![1].attrs!.futureAttribute = "do not drop"; },
+    (doc: TiptapJSON) => { doc.content![1].content![0].marks = [{ type: "futureMark" }]; },
+    (doc: TiptapJSON) => { doc.attrs!.deletedPaths = ["999"]; },
+    (doc: TiptapJSON) => { doc.content!.pop(); },
+    (doc: TiptapJSON) => { doc.content![1].attrs!.sourcePath = "unknown"; },
+  ]) {
+    const current = structuredClone(saved);
+    mutate(current);
+    assert.throws(() => prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument: saved }), /Incompatible editor snapshot/);
+    assert.throws(() => prepareEditorSnapshot(schema, opening, { editorDocument: saved, savedDocument: current }), /Incompatible editor snapshot/);
+  }
 });
