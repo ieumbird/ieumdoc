@@ -176,6 +176,44 @@ test("reference menu searches captions, displayed numbers and labels without cha
   assert.equal(referenceCommandItems(updated, "searchable")[0]?.label, `Fig. 2 · ${"😀".repeat(80)}…`);
 });
 
+test("reference chip selector stays unchanged by caption edits while menus read the live captions", () => {
+  const schema = getSchema(editorExtensions());
+  const projection = toTiptapDocument(loadEditableDocument(nativeSource([
+    ":::{figure}\n:name: fig-a\n\nOriginal figure.\n:::",
+    ":::{table} Original table\n:name: tbl-a\n\n| Value |\n| --- |\n| 1 |\n:::",
+  ].join("\n\n"))));
+  // Same value as CrossReferenceView's useEditorState selector.
+  const selectorValue = (value: TiptapJSON) => JSON.stringify(referenceTargets(schema.nodeFromJSON(value)));
+  const before = selectorValue(projection);
+  for (const kind of ["figure", "table"]) {
+    const edited = clone(projection);
+    const block = edited.content!.find(node => node.type === kind)!;
+    if (kind === "figure") block.content = [{ type: "text", text: "Updated figure." }];
+    else block.attrs!.caption = [{ kind: "text", text: "Updated table" }];
+    assert.equal(selectorValue(edited), before, `${kind} caption changed the chip selector`);
+    assert.equal(referenceCommandItems(schema.nodeFromJSON(edited), "Updated")[0]?.label,
+      kind === "figure" ? "Fig. 1 · Updated figure." : "Table 1 · Updated table");
+  }
+});
+
+test("caption words after Unicode punctuation match without changing menu names", () => {
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(nativeSource([
+    ":::{figure}\n:name: fig-ports\n\nPort-summary\n:::",
+    ":::{figure}\n:name: fig-interface\n\nPFC/CLLC interface\n:::",
+    ":::{table} 전압(측정) 결과\n:name: tbl-voltage\n\n| Value |\n| --- |\n| 1 |\n:::",
+  ].join("\n\n")))));
+  for (const [query, prefix, id, label] of [
+    ["summary", "Port-", "reference:numref:fig-ports", "Fig. 1 · Port-summary"],
+    ["cllc", "PFC", "reference:numref:fig-interface", "Fig. 2 · PFC/CLLC interface"],
+    ["측정", "전압(", "reference:numref:tbl-voltage", "Table 1 · 전압(측정) 결과"],
+  ] as const) {
+    const expected = [{ id, label, group: "References" }];
+    assert.deepEqual(referenceCommandItems(doc, query), expected);
+    assert.deepEqual(referenceCommandItems(doc, prefix), expected);
+  }
+});
+
 test("unresolved references save unchanged; Source preview shows unsaved reference edits and matches Save", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-xref-"));
   const file = path.join(dir, "refs.md");
