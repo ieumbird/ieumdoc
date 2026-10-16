@@ -1,7 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards; full recovery integration remains PR3).
+- Last verified: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
+- Previous verification: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards).
 - Previous verification: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
 - Previous verification: 2026-10-15 (public beta.4, release CI, anonymous assets and actual GitHub beta.3→beta.4 update; see the release record).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
@@ -54,6 +55,15 @@ its native **Close without saving / Keep editing** dialog when any session would
 unsaved or pending work across open documents and the limits of the last local recovery record.
 Keep editing leaves every session intact. This is separate from the app's single-tab
 **Save / Don't save / Cancel** dialog; native close does not add Save all or delete recovery records.
+
+Client recovery uses IndexedDB at the stable `ieumdoc://app` origin in Electron's persistent
+default session, under the app profile. The packaged regression checks identical `userData` and
+`sessionData` paths across new app PIDs, actual forced termination and normal window close, and
+record/Restore/Save/Reload/conflict preservation. It keeps its test profile and resets recovery
+only at the beginning of each test, never between that test's restarts. The close-dialog response
+is stubbed through the existing harness; native window lifecycle, protocol, storage and files are
+real. See [Host recovery boundaries](editing-session-save-v1.md#host-persistence-verification-296-pr3)
+for the last-successful-record and platform limits.
 
 ## Update lifecycle and work protection
 

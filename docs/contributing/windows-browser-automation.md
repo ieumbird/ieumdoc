@@ -20,6 +20,13 @@
 
 ## Process and session cleanup
 
+The production HTTP recovery test deliberately terminates its own browser process and launches a
+new PID with the **same** checkout-owned profile and exact origin. It obtains that PID from its
+own browser CDP session; Windows termination targets only that PID's tree. It does not clear storage
+between crash/restart steps or restart the HTTP server. The normal fixture still isolates separate
+tests. Packaged Desktop has its own fixed Electron test profiles and resets recovery only on a
+test's first launch, preserving the record on subsequent launches within that test.
+
 worker fixture는 `finally`에서 자신이 연 persistent context를 닫는다. Playwright의 `webServer`는 기본 URL에 서버가 없으면 직접 시작하고 종료한다. 로컬에 이미 실행 중인 `pnpm editor` 서버와 명시적으로 지정한 `IEUMDOC_BROWSER_URL` 서버는 caller 소유이므로 runner가 종료하지 않는다. CI는 기존 서버를 재사용하지 않는다. 직접 시작한 서버와 추가 CLI session은 이름과 PID를 확인해 정리한다. profile 재사용과 실행 중인 프로세스 방치는 다른 문제다.
 
 자신이 시작한 프로세스만 종료하며, 같은 이름이나 port의 다른 프로세스를 광범위하게 종료하지 않는다. 정리에 실패하면 남아 있는 process/session/port와 이유를 작업 결과에 기록한다. 전체 규칙은 [AGENTS.md](../../AGENTS.md#process-cleanup)를 따른다.

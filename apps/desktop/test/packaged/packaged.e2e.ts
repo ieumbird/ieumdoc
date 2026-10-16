@@ -8,19 +8,22 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test";
-import { openDocument } from "../../../editor/test/browser/navigation.ts";
+import { _electron as electron, expect, type ElectronApplication, type Page } from "@playwright/test";
+import { openDocument, reloadDocument } from "../../../editor/test/browser/navigation.ts";
+import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
 const exe = process.env.IEUMDOC_DESKTOP_EXE ?? path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
 const work = path.join(repo, "tmp", "desktop-e2e");
+const resetProfiles = new Set<string>();
 if (process.platform !== "win32") throw new Error("The packaged app tests run on Windows.");
 if (!existsSync(exe)) throw new Error(`Package the app first: ${exe} is missing.`);
 
 /** Preserve Chromium's profile across runs; reset only the app's own test state. */
 function profile(name: string): string {
   const folder = path.join(work, "profiles", name);
+  resetProfiles.add(folder);
   mkdirSync(folder, { recursive: true });
   for (const file of ["preferences.json", "logs/desktop.log", "logs/desktop.log.old", "sample-native-v1/technical-document.md", "sample-native-v1/diagram.svg"]) {
     rmSync(path.join(folder, file), { force: true });
@@ -47,6 +50,12 @@ async function launch(userData: string, args: string[] = []): Promise<{ app: Ele
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
   await ready(page);
+  // Reset once per test, never on its restart. Prior successful close tests intentionally
+  // leave records; those must not open a recovery modal in the next suite invocation.
+  if (resetProfiles.has(userData)) {
+    await resetRecovery(page);
+    resetProfiles.delete(userData);
+  }
   return { app, page, requests };
 }
 
@@ -136,6 +145,107 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     assert.match(await page.locator(".ProseMirror").innerText(), /DESKTOP /);
   } finally {
     await closeApp(app);
+  }
+});
+
+test("local recovery survives a packaged app crash and normal close, with real Save/Reload and conflict", async () => {
+  const { file } = documentFolder("recovery");
+  const original = readFileSync(file, "utf8");
+  const userData = profile("recovery");
+  const processes: number[] = [];
+  let app: ElectronApplication | undefined;
+  let page: Page;
+  const start = async () => {
+    const launched = await launch(userData);
+    app = launched.app; page = launched.page;
+    const pid = app.process().pid!;
+    assert.ok(pid > 0 && !processes.includes(pid), "restart must create a new owned app process");
+    processes.push(pid);
+    assert.equal(page.url(), "ieumdoc://app/index.html");
+    assert.equal(await app.evaluate(({ app }) => app.getPath("userData")), userData);
+    assert.equal(await app.evaluate(({ app }) => app.getPath("sessionData")), userData);
+  };
+  try {
+    await start();
+    await openFile(page!, file);
+    await typeAtStart(page!, "DESKTOP CRASH RECORDED ");
+    // One representative pending Figure, inserted through the existing UI.
+    await page!.locator(".document-editor p").first().hover();
+    await page!.getByRole("button", { name: /Insert block after paragraph block/ }).first().click();
+    await page!.getByRole("menuitem", { name: "Paragraph", exact: true }).click();
+    await page!.keyboard.type("/figure");
+    await page!.getByRole("menuitem", { name: "Figure", exact: true }).click();
+    await expect.poll(async () => {
+      const records = await recoveryRecords(page!);
+      return records.some(r => r.path === file && r.recoveryText.includes("DESKTOP CRASH RECORDED") && JSON.stringify(r.snapshot).includes('"imageUrl":""'));
+    }, { timeout: 15_000 }).toBe(true);
+    const recorded = await recoveryRecords(page!);
+    assert.equal(readFileSync(file, "utf8"), original);
+    const stopped = app!.waitForEvent("close");
+    execFileSync("taskkill", ["/PID", String(app!.process().pid), "/T", "/F"], { stdio: "ignore" });
+    await stopped;
+    app = undefined;
+    await start();
+    assert.deepEqual(await recoveryRecords(page!), recorded);
+    await page!.getByRole("button", { name: "Review recovery", exact: true }).waitFor();
+    // Opening the matching file must propose recovery, not silently replace it.
+    await openDocument(page!, file); await ready(page!);
+    await page!.getByTestId("recovery-prompt").waitFor();
+    await page!.getByRole("button", { name: "Restore work", exact: true }).click();
+    await page!.getByRole("tab", { name: "doc.md, Unsaved changes", exact: true }).waitFor();
+    await expect(page!.locator(".document-editor")).toContainText("DESKTOP CRASH RECORDED");
+    await expect(page!.locator('[data-block="figure"]')).toHaveCount(2);
+    assert.equal(readFileSync(file, "utf8"), original);
+    await page!.getByTestId("save").click(); await saved(page!);
+    await expect.poll(() => recoveryRecords(page!)).toEqual([]);
+    const savedSource = readFileSync(file, "utf8");
+    assert.match(savedSource, /DESKTOP CRASH RECORDED/);
+    assert.ok(savedSource.includes(":::{figure}\n:::\n"), "the restored pending Figure reaches canonical disk output");
+    await reloadDocument(page!); await ready(page!);
+    await expect(page!.locator(".document-editor")).toContainText("DESKTOP CRASH RECORDED");
+    await expect(page!.locator('[data-block="figure"]')).toHaveCount(2);
+
+    await typeAtStart(page!, "NORMAL CLOSE RECORDED ");
+    await expect.poll(async () => (await recoveryRecords(page!)).some(r => r.recoveryText.includes("NORMAL CLOSE RECORDED")), { timeout: 15_000 }).toBe(true);
+    const beforeClose = await recoveryRecords(page!);
+    // Existing native-dialog seam answers the real beforeunload/main close guard.
+    // Assert the offered semantics, rather than merely app.close() or a renderer reload.
+    let closeQuestion = "";
+    app!.on("console", message => { if (message.text().startsWith("recovery-close:")) closeQuestion = message.text(); });
+    await app!.evaluate(({ dialog }) => {
+      dialog.showMessageBoxSync = ((_window: unknown, options: { buttons: string[] }) => {
+        if (options.buttons[0] !== "Close without saving") throw new Error("Wrong close semantics");
+        console.log("recovery-close:" + JSON.stringify(options.buttons));
+        return 0;
+      }) as typeof dialog.showMessageBoxSync;
+    });
+    const closed = app!.waitForEvent("close");
+    await app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
+    await closed;
+    app = undefined;
+    assert.equal(closeQuestion, 'recovery-close:["Close without saving","Keep editing"]');
+    assert.equal(readFileSync(file, "utf8"), savedSource);
+    const outside = savedSource + "\nChanged outside before restore.\n";
+    writeFileSync(file, outside);
+    await start();
+    assert.deepEqual(await recoveryRecords(page!), beforeClose);
+    await page!.getByRole("button", { name: "Review recovery", exact: true }).click();
+    await page!.getByRole("button", { name: "Restore work", exact: true }).click();
+    await page!.getByRole("tab", { name: "doc.md, Unsaved changes", exact: true }).waitFor();
+    assert.equal(readFileSync(file, "utf8"), outside);
+    const response = page!.waitForResponse(r => r.request().method() === "POST" && r.url() === "ieumdoc://app/api/document");
+    await page!.getByTestId("save").click();
+    assert.equal((await response).status(), 409);
+    await page!.getByText("Save conflict", { exact: true }).waitFor();
+    await expect(page!.locator(".document-editor")).toContainText("NORMAL CLOSE RECORDED");
+    assert.equal(readFileSync(file, "utf8"), outside);
+    assert.ok((await recoveryRecords(page!)).some(r => r.recoveryText.includes("NORMAL CLOSE RECORDED")));
+    writeFileSync(path.join(work, "recovery-proof.json"), JSON.stringify({ platform: process.platform, exe, userData, origin: "ieumdoc://app", processes, forcedAppRestarts: 1, normalWindowClose: true, nativeDialogAnswerStub: true, committedRecordsSurvived: true, pendingFigure: true, restoreDirty: true, originalUnchangedUntilSave: true, saveReload: true, externalConflict409: true }, null, 2));
+  } finally {
+    if (app && app.process().exitCode === null && app.process().signalCode === null) {
+      await answerClose(app, 0);
+      await closeApp(app);
+    }
   }
 });
 

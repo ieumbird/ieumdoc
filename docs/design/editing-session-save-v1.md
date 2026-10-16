@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks. Full Desktop/HTTP crash and persistence integration remains PR3).
+- Last verified: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
+- Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
 - Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
 - Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
 - Previous verification: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
@@ -95,6 +96,8 @@ edits schedules recording against the newly acknowledged revision and saved base
 deletes only that session's record. Recording failures never block input, Save or closing; a standing
 message identifies the failure. Recovery and original Save are separate operations with no atomicity
 claim. Input after the last successful record can be lost, including on normal close.
+The 500ms interval is scheduling, **not a durability deadline**. The prior final-v3 two-page ticket
+measurement (p95 about 2.4s) remains a known limitation, not a guarantee or a new PR3 measurement.
 
 Each update shares its current applied projection/serialization between dirty reporting and applied-change
 notification; the saved baseline is still read live, including after Save acknowledgement. Each applied
@@ -153,7 +156,34 @@ About/update controls remain Desktop-only.
 failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
 isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
 `pnpm browser:test recovery --screenshots` for review captures in `tmp/296/` at 1440×900 and 375×900.
-These Vite checks do **not** complete PR3's Desktop/HTTP persistence and crash integration work.
+Those Vite checks are distinct from the Host process-lifetime checks below.
+
+### Host persistence verification (#296 PR3)
+
+On Windows x64, `pnpm browser:test http-host` now also kills the owned Chrome browser process
+tree and relaunches a new PID with the same checkout-owned persistent profile and exact HTTP
+origin. The production server stays running: this is a client crash, not a server restart or
+page reload. The test compares committed IndexedDB records before/after restart, then exercises
+the start list, matching-file prompt, user Restore, dirty state, unchanged disk until explicit
+Save, actual Save/Reload, and a second crash followed by an external disk change and a 409 with
+both external bytes and recovered work preserved.
+
+The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
+that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
+Forced app-tree termination preserves the committed record including an inserted pending Figure;
+Restore and Save/Reload use the real packaged Editor and file Host. A subsequent normal window
+close exercises the real `beforeunload`/main-process guard with the native dialog's response stubbed
+to **Close without saving** (the offered buttons are asserted). Restart retains that record;
+external modification before Restore produces 409 on Save without overwriting either side.
+The OS-native dialog click itself is not automated. No file API, IndexedDB implementation or
+recovery UI is mocked in these Host flows.
+
+Tests wait for the actual expected committed record before forced termination; they establish
+last-successful-record recovery, not survival of unrecorded input, power loss or OS cache loss.
+Changing HTTP scheme/host/port or browser profile selects different storage; Desktop's stable
+origin alone does not share records with HTTP or another profile. Windows observations do not
+establish Linux/macOS execution, installed-app upgrade behavior or cross-device recovery.
+Required CI must pass before #296 is considered complete. See the [test guide](../test/README.md#local-recovery-regression).
 
 ## Applied content and drafts
 
