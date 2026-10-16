@@ -34,6 +34,17 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.reload(); await ready(page);
   await page.getByText('No local recovery records.',{exact:true}).waitFor();
   await capture('empty');
+  for (let i = 0; i < 8; i++) {
+    await openDocument(page,file); await ready(page);
+    await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
+    await page.getByTestId('document-start').waitFor();
+  }
+  check(await page.evaluate(async () => {
+    const {RECOVERY_DB}=await import('/src/recovery-storage.ts');
+    const db=await new Promise(resolve=>{const r=indexedDB.open(RECOVERY_DB);r.onsuccess=()=>resolve(r.result);});
+    const keys=await new Promise(resolve=>{const r=db.transaction('barriers').objectStore('barriers').getAllKeys();r.onsuccess=()=>resolve(r.result);});
+    db.close(); return !keys.some(Array.isArray);
+  }), 'Repeated clean Open/Close leaves per-session metadata');
   await openDocument(page,file); await ready(page);
   await edit(page,'Recovered applied text. '); await count(1);
   const first = (await records())[0];

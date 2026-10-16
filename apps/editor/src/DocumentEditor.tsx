@@ -214,7 +214,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // Keep the opening snapshot and its locators for the lifetime of the editor. Save
   // acknowledges a submitted snapshot; it never rewrites nodes, selection or engine history.
   if (editor && saved.current === null) saved.current = editorDocumentJSON(editor.state);
-  const hasDocumentChanges = () => Boolean(editor && JSON.stringify(appliedDocument(editorDocumentJSON(editor.state))) !==
+  const hasDocumentChanges = (currentApplied?: string) => Boolean(editor && (currentApplied ?? JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)))) !==
     JSON.stringify(appliedDocument(saved.current!)));
 
   useImperativeHandle(
@@ -276,12 +276,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useEffect(() => {
     if (!editor) return;
     // Read the same baseline as Open/Save guards; do not create a second dirty model.
-    const reportDirty = () => onDirtyChangeRef.current?.(hasDocumentChanges());
-    reportDirty();
     let previousApplied = JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)));
+    onDirtyChangeRef.current?.(hasDocumentChanges(previousApplied));
     const updated = () => {
-      reportDirty();
       const applied = JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)));
+      onDirtyChangeRef.current?.(hasDocumentChanges(applied));
       if (applied !== previousApplied) { previousApplied = applied; onAppliedEditRef.current?.(); }
     };
     editor.on("update", updated);

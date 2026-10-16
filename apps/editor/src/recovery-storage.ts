@@ -10,7 +10,9 @@ export type RecoveryRecord = {
   recoveryText: string;
   snapshot: DocumentSessionSnapshot;
 };
-type Ticket = [number, number];
+const TICKET_LIFETIME = RECOVERY_DAYS * 86400000;
+type Ticket = [number, string | null, number];
+type Barrier = { generation: string; expiresAt: number };
 
 /** getRandomValues also works on a non-localhost HTTP Host (randomUUID does not). */
 export function newRecoveryId(): string {
@@ -21,10 +23,21 @@ let connection: Promise<IDBDatabase> | undefined;
 function database(): Promise<IDBDatabase> {
   return connection ??= new Promise<IDBDatabase>((resolve, reject) => {
     let abandoned = false;
-    const request = indexedDB.open(RECOVERY_DB, 1);
+    // Older clients must not reopen with the unbounded ticket protocol after metadata GC.
+    const request = indexedDB.open(RECOVERY_DB, 2);
     request.onupgradeneeded = () => {
-      request.result.createObjectStore("records", { keyPath: "id" });
-      request.result.createObjectStore("barriers");
+      if (!request.result.objectStoreNames.contains("records")) {
+        request.result.createObjectStore("records", { keyPath: "id" });
+        request.result.createObjectStore("barriers");
+      } else {
+        const cursor = request.transaction!.objectStore("barriers").openCursor();
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (!entry) return;
+          if (Array.isArray(entry.key)) entry.update({ generation: newRecoveryId(), expiresAt: Date.now() + TICKET_LIFETIME });
+          entry.continue();
+        };
+      }
     };
     request.onerror = () => reject(request.error);
     request.onblocked = () => { abandoned = true; reject(new Error("Local recovery storage is busy in another window.")); };
@@ -51,7 +64,11 @@ async function transaction<T>(run: (records: IDBObjectStore, barriers: IDBObject
 function ticket(barriers: IDBObjectStore, id: string, done: (value: Ticket) => void): void {
   const all = barriers.get("all");
   const session = barriers.get(["session", id]);
-  session.onsuccess = () => done([Number(all.result ?? 0), Number(session.result ?? 0)]);
+  session.onsuccess = () => done([Number(all.result ?? 0), (session.result as Barrier | undefined)?.generation ?? null, Date.now()]);
+}
+
+function invalidate(barriers: IDBObjectStore, id: string): void {
+  barriers.put({ generation: newRecoveryId(), expiresAt: Date.now() + TICKET_LIFETIME } satisfies Barrier, ["session", id]);
 }
 
 /** Tickets are captured on an applied edit, never on a later Save or timer turn.
@@ -65,48 +82,63 @@ export const recoveryStorage = {
           fail(new Error("This recovery record changed or was deleted. Close this dialog and review the latest record."));
           return;
         }
-        const key = ["session", record.id];
-        const read = barriers.get(key);
-        read.onsuccess = () => {
-          try {
-            barriers.put(Number(read.result ?? 0) + 1, key);
-            records.delete(record.id);
-            records.put({ ...record, id });
-            done(undefined);
-          } catch (error) { fail(error); }
-        };
+        try {
+          invalidate(barriers, record.id);
+          records.delete(record.id);
+          records.put({ ...record, id });
+          done(undefined);
+        } catch (error) { fail(error); }
       };
     });
   },
-  ticket(id: string): Promise<Ticket> {
-    return transaction((_, barriers, done) => ticket(barriers, id, done));
+  async ticket(id: string): Promise<Ticket> {
+    const db = await database();
+    return new Promise<Ticket>((resolve, reject) => {
+      const tx = db.transaction("barriers", "readonly");
+      let result: Ticket;
+      ticket(tx.objectStore("barriers"), id, value => { result = value; });
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error("Local recovery ticket failed."));
+    });
   },
   write(id: string, expected: Ticket, capture: () => RecoveryRecord | null | undefined): Promise<boolean> {
     return transaction((records, barriers, done, fail) => ticket(barriers, id, current => {
       let written = false;
-      if (current[0] === expected[0] && current[1] === expected[1]) {
-        try {
-          // Capture at the actual write turn, after all earlier transactions and barriers.
-          const record = capture();
-          if (record) records.put(record);
-          else if (record === null) records.delete(id);
-          written = record !== undefined;
-        } catch (error) { fail(error); }
-      }
-      done(written);
+      const floor = barriers.get("expiredBefore");
+      floor.onsuccess = () => {
+        const age = Date.now() - expected[2];
+        // Missing metadata is safe only for unexpired tickets: every ticket preceding
+        // the collected deletion has already expired. Nonces never repeat after GC.
+        if (age >= 0 && age < TICKET_LIFETIME && expected[2] > Number(floor.result ?? -Infinity) &&
+            current[0] === expected[0] && (current[1] === null || current[1] === expected[1])) {
+          try {
+            // Capture at the actual write turn, after all earlier transactions and barriers.
+            const record = capture();
+            if (record) records.put(record);
+            else if (record === null) records.delete(id);
+            written = record !== undefined;
+          } catch (error) { fail(error); }
+        }
+        done(written);
+      };
     }));
   },
   delete(id?: string): Promise<void> {
     return transaction((records, barriers, done, fail) => {
-      const key = id === undefined ? "all" : ["session", id];
+      if (id !== undefined) {
+        invalidate(barriers, id);
+        records.delete(id);
+        done(undefined);
+        return;
+      }
+      const key = "all";
       const read = barriers.get(key);
       read.onsuccess = () => {
         try {
           // Global generation invalidates old tickets, so old per-session barriers can go too.
-          if (id === undefined) barriers.clear();
+          barriers.clear();
           barriers.put(Number(read.result ?? 0) + 1, key);
-          if (id !== undefined) records.delete(id);
-          else records.clear();
+          records.clear();
           done(undefined);
         } catch (error) { fail(error); }
       };
@@ -114,23 +146,34 @@ export const recoveryStorage = {
   },
   list(now = Date.now()): Promise<RecoveryRecord[]> {
     return transaction((records, barriers, done, fail) => {
+      const floor = barriers.get("expiredBefore");
+      floor.onsuccess = () => {
+        try { barriers.put(Math.max(Number(floor.result ?? -Infinity), now - TICKET_LIFETIME), "expiredBefore"); }
+        catch (error) { fail(error); }
+      };
+      const cursor = barriers.openCursor();
+      cursor.onsuccess = () => {
+        const entry = cursor.result;
+        if (!entry) return;
+        try {
+          if (Array.isArray(entry.key) && (entry.value as Barrier).expiresAt <= now) entry.delete();
+          entry.continue();
+        } catch (error) { fail(error); }
+      };
       const read = records.getAll();
       read.onsuccess = () => {
-        const kept: RecoveryRecord[] = [];
-        for (const record of read.result as RecoveryRecord[]) {
-          if (Number.isFinite(record.recordedAt) && now - record.recordedAt >= RECOVERY_DAYS * 86400000) {
-            records.delete(record.id);
-            const key = ["session", record.id];
-            const barrier = barriers.get(key);
-            barrier.onsuccess = () => {
-              try { barriers.put(Number(barrier.result ?? 0) + 1, key); }
-              catch (error) { fail(error); }
-            };
+        try {
+          const kept: RecoveryRecord[] = [];
+          for (const record of read.result as RecoveryRecord[]) {
+            if (Number.isFinite(record.recordedAt) && now - record.recordedAt >= RECOVERY_DAYS * 86400000) {
+              records.delete(record.id);
+              invalidate(barriers, record.id);
+            }
+            else kept.push(record);
           }
-          else kept.push(record);
-        }
-        const time = (record: RecoveryRecord) => Number.isFinite(record.recordedAt) ? record.recordedAt : 0;
-        done(kept.sort((a, b) => time(b) - time(a)));
+          const time = (record: RecoveryRecord) => Number.isFinite(record.recordedAt) ? record.recordedAt : 0;
+          done(kept.sort((a, b) => time(b) - time(a)));
+        } catch (error) { fail(error); }
       };
     });
   },
@@ -162,6 +205,7 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
   let permit: Promise<Ticket | null> | undefined;
   let queue = Promise.resolve();
   let failures = 0;
+  let edited = false;
   const reportFailure = (error: unknown) => { failures++; failed(error); };
   const schedule = () => {
     if (timer || !permit) return;
@@ -186,6 +230,7 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
   const cancel = () => { epoch++; clearTimeout(timer); timer = undefined; permit = undefined; };
   return {
     edit() {
+      edited = true;
       const current = epoch;
       permit = recoveryStorage.ticket(id).catch(error => { if (current === epoch) reportFailure(error); return null; });
       schedule();
@@ -193,6 +238,8 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
     checkpoint: schedule,
     discard(): Promise<boolean> {
       cancel();
+      // A never-edited recorder owns neither a ticket nor a record. Restores call edit().
+      if (!edited) return Promise.resolve(true);
       const current = epoch, priorFailures = failures;
       return recoveryStorage.delete(id).then(() => {
         if (current === epoch && priorFailures === failures) succeeded();

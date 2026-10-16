@@ -14,11 +14,37 @@ async page => page.evaluate(async () => {
     await store.write(id, token, () => ({id, version:1, path:'/test.md',recordedAt:time,recoveryText:id,snapshot: snapshot(id)}));
   };
   try {
+    // Upgrade only the storage protocol; preserve records and reject old unbounded-ticket clients.
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(RECOVERY_DB); request.onsuccess = resolve; request.onerror = () => reject(request.error);
+    });
+    const oldDb = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(RECOVERY_DB, 1);
+      request.onupgradeneeded = () => { request.result.createObjectStore('records', {keyPath:'id'}); request.result.createObjectStore('barriers'); };
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise(resolve => {
+      const tx = oldDb.transaction(['records','barriers'], 'readwrite');
+      tx.objectStore('records').put({id:'existing',version:1,path:'/test.md',recordedAt:Date.now(),recoveryText:'preserved',snapshot:snapshot('preserved')});
+      tx.objectStore('barriers').put(3, ['session','old-session']); tx.oncomplete = resolve;
+    });
+    oldDb.close();
+    check((await list())[0]?.recoveryText === 'preserved', 'Storage upgrade changed an existing recovery record');
+    const oldRefused = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB,1); request.onerror=()=>resolve(request.error.name==='VersionError'); request.onsuccess=()=>{request.result.close();resolve(false);}; });
+    check(oldRefused, 'Old unbounded ticket protocol can still open the database');
     const fallback = snapshot('Applied text');
     fallback.editor.editorDocument.content[0].marks = [{type:'link',attrs:{href:'https://example.com/kept'}}];
     fallback.editor.editorDocument.content[0].attrs = {caption:[{kind:'text',text:'Caption retained'}]};
     check(recoveryText(fallback).includes('Caption retained') && recoveryText(fallback).includes('https://example.com/kept'), 'Plaintext fallback omitted applied caption or link properties');
     await store.delete();
+    const originalTransaction = IDBDatabase.prototype.transaction;
+    const ticketTransactions = [];
+    IDBDatabase.prototype.transaction = function(names, mode, ...args) {
+      ticketTransactions.push({names:Array.from(typeof names === 'string' ? [names] : names),mode});
+      return originalTransaction.call(this,names,mode,...args);
+    };
+    try { await store.ticket('read-only-probe'); } finally { IDBDatabase.prototype.transaction = originalTransaction; }
+    check(ticketTransactions.length === 1 && ticketTransactions[0].mode === 'readonly' && ticketTransactions[0].names.join() === 'barriers', 'Ticket acquisition locks records or uses a write transaction');
     recorder.edit();
     live = snapshot('latest at write turn');
     await wait();
@@ -42,6 +68,12 @@ async page => page.evaluate(async () => {
     check(!(await list()).length, 'A Save checkpoint resumed recording without an applied edit');
     live = snapshot('next edit'); recorder.edit(); await wait();
     check((await list())[0]?.recoveryText === 'next edit', 'Next applied edit did not resume recording');
+
+    recorder.edit();
+    const cleared = store.delete();
+    live = snapshot('edit immediately after clear request'); recorder.edit();
+    await cleared; await wait();
+    check((await list())[0]?.recoveryText === 'edit immediately after clear request', 'Latest edit reused its pre-clear ticket or lost the next checkpoint');
 
     // IDB writer held behind another transaction: capture must happen only when its turn starts.
     const db = await new Promise((resolve, reject) => {
@@ -79,6 +111,46 @@ async page => page.evaluate(async () => {
     let refused = false; try { await store.restore(stale, 'restored'); } catch { refused = true; }
     check(refused && !(await list()).some(r => r.id === 'restored'), 'Stale restore resurrected deleted work');
 
+    // Wall-clock expiry, with real IDB transactions. No wall-clock performance threshold.
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => now;
+    const lifetime = 10 * 86400000;
+    const metadata = async () => {
+      const db = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB); request.onsuccess=()=>resolve(request.result); });
+      const keys = await new Promise(resolve => { const request=db.transaction('barriers').objectStore('barriers').getAllKeys();request.onsuccess=()=>resolve(request.result); });
+      db.close(); return keys.filter(Array.isArray);
+    };
+    try {
+      await store.delete();
+      const ancient = await store.ticket('collected');
+      for (let i=0;i<40;i++) await createRecoveryRecorder('never-edited-'+i,()=>null,()=>{}).discard();
+      check(!(await metadata()).length, 'Never-edited session cleanup leaves metadata');
+      for (let i=0;i<40;i++) { await record('closed-'+i); await store.delete('closed-'+i); }
+      await store.delete('collected');
+      now += lifetime - 1;
+      const afterDeletion = await store.ticket('collected');
+      const unrelated = await store.ticket('unrelated-live');
+      now++;
+      await list();
+      check(!(await metadata()).length, 'Deleted session metadata survives its retention boundary');
+      const captureRecord = id => () => ({id,version:1,path:'/test.md',recordedAt:now,recoveryText:id,snapshot:snapshot(id)});
+      check(!await store.write('collected',ancient,captureRecord('collected')), 'Ancient ticket resurrected a record after metadata GC');
+      // Test rollback while metadata is absent, so only the persisted expiry watermark protects it.
+      now -= lifetime;
+      check(!await store.write('collected',ancient,captureRecord('collected')), 'Clock rollback revived a collected ticket');
+      now += lifetime;
+      check(await store.write('collected',afterDeletion,captureRecord('collected')), 'GC invalidated a still-valid post-deletion edit');
+      check(await store.write('unrelated-live',unrelated,captureRecord('unrelated-live')), 'GC invalidated another session pending edit');
+      await store.delete('collected');
+      check(!await store.write('collected',afterDeletion,captureRecord('collected')), 'Reused generation after GC matched an old ticket');
+      const resumed = await store.ticket('collected');
+      check(await store.write('collected',resumed,captureRecord('collected')), 'Next edit cannot resume after GC and another deletion');
+      now += lifetime;
+      await list(); now += lifetime; await list();
+      check(!(await metadata()).length, 'Expired records leave permanent metadata');
+    } finally { Date.now = realNow; await store.delete(); }
+
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function(...args) {
       if (this.name === 'records') throw new DOMException('Test quota exhausted', 'QuotaExceededError');
@@ -97,6 +169,7 @@ async page => page.evaluate(async () => {
     finally { IDBObjectStore.prototype.delete = originalDelete; }
     check((await list()).some(r => r.id === 'a') && errors.some(error => error.includes('deletion denied')), 'Failed deletion hid the retained record');
     return { liveCapture:true, dirtyRecheck:true, deleteBarrier:true, clearBarrier:true, nextEditResumes:true,
-      acknowledgedRevision:true, sessionIsolation:true, expiration:true, staleRestoreRefused:true, quotaFailure:true };
+      acknowledgedRevision:true, sessionIsolation:true, expiration:true, staleRestoreRefused:true, quotaFailure:true,
+      readonlyTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true };
   } finally { recorder.cancel(); await store.delete(); }
 })
