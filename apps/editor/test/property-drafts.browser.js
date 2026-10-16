@@ -82,7 +82,6 @@ async (page, { openDocument }) => {
     ];
     for (const item of cases) for (const mode of ['click', 'enter']) {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.
-      await page.reload(); await ready();
       await openDocument(page, focusFile); await ready();
       await page.getByText('Before.', {exact:true}).filter({visible:true}).click();
       const target = page.locator(`[data-document-tab][data-active=true] [data-block="${item.kind}"]`);
@@ -136,6 +135,10 @@ async (page, { openDocument }) => {
         check(await editor.locator('h2').innerText() === 'TypedProperties275Section' &&
           (await ref.innerText()).includes('TypedProperties275Section'), 'Section label lost its heading or live reference title');
       }
+      // Finish this case explicitly: page reload retains its applied recovery record.
+      await page.getByRole('button', {name:'Close focus.md', exact:true}).click();
+      await page.getByRole('dialog', {name:'Save changes?', exact:true}).getByRole('button', {name:"Don't save", exact:true}).click();
+      await page.getByRole('button', {name:'Close focus.md', exact:true}).waitFor({state:'detached'});
     }
   }
 }
