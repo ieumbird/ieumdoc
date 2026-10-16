@@ -126,6 +126,35 @@ async page => page.evaluate(async () => {
     };
     try {
       await store.delete();
+      now = 10 * 60 * 60 * 1000;
+      const validBeforeCorrection = await store.ticket('negative-age-direct');
+      const correctionFailures = [];
+      const correctionRecorder = createRecoveryRecorder('negative-age-recorder', () => snapshot('one edit before clock correction'), error => correctionFailures.push(String(error)));
+      try {
+        correctionRecorder.edit();
+        // IDB transaction ordering ensures the recorder ticket is acquired at 10:00.
+        await store.ticket('acquisition-fence');
+        now -= 500;
+        const directRecorded = await store.write('negative-age-direct', validBeforeCorrection, () => ({
+          id:'negative-age-direct',version:1,path:'/test.md',recordedAt:now,recoveryText:'valid negative age',snapshot:snapshot('valid negative age'),
+        }));
+        await wait(); // Let the actual 500ms recorder turn run; no subsequent edit/checkpoint.
+        const scheduledRecorded = (await list()).some(record => record.id === 'negative-age-recorder' && record.recoveryText.includes('one edit before clock correction'));
+        check(directRecorded && scheduledRecorded && !correctionFailures.length,
+          `Valid ticket at 10:00 refused at 09:59:59.500: ${JSON.stringify({directRecorded,scheduledRecorded,correctionFailures})}`);
+      } finally { correctionRecorder.cancel(); }
+      await store.delete('negative-age-direct');
+      check(!await store.write('negative-age-direct',validBeforeCorrection,() => { throw new Error('Deleted negative-age ticket captured'); }), 'Negative age bypassed deletion');
+      // Keep the nonce alive with a later edit: upper expiry must reject the older
+      // ticket independently of registration GC or deletion.
+      await store.delete();
+      now = 10 * 60 * 60 * 1000;
+      const upperBound = await store.ticket('upper-bound');
+      now += lifetime - 1;
+      await store.ticket('upper-bound');
+      now++;
+      check(!await store.write('upper-bound',upperBound,() => { throw new Error('Expired ticket captured'); }), '10-day upper bound was weakened');
+      await store.delete();
       now = 60 * 60 * 1000;
       const beforeClockRollback = await store.ticket('rollback-before-delete');
       now = 0;
@@ -198,6 +227,7 @@ async page => page.evaluate(async () => {
     check((await list()).some(r => r.id === 'a') && errors.some(error => error.includes('deletion denied')), 'Failed deletion hid the retained record');
     return { liveCapture:true, dirtyRecheck:true, deleteBarrier:true, clearBarrier:true, nextEditResumes:true,
       acknowledgedRevision:true, sessionIsolation:true, expiration:true, staleRestoreRefused:true, quotaFailure:true,
-      registeredTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true };
+      registeredTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true,
+      negativeAgeDirect:true, negativeAgeScheduled:true, ticketUpperExpiry:true };
   } finally { recorder.cancel(); await store.delete(); }
 })

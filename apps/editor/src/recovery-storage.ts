@@ -108,8 +108,9 @@ export const recoveryStorage = {
     return transaction((records, barriers, done, fail) => ticket(barriers, id, current => {
       let written = false;
       const age = Date.now() - expected[2];
-      // Deletion safety is independent of wall-clock age, including after GC.
-      if (age >= 0 && age < TICKET_LIFETIME && current[0] === expected[0] &&
+      // Clock rollback may delay expiry, but must not drop an otherwise valid edit.
+      // Deletion safety comes from nonce/global equality, including after GC.
+      if (age < TICKET_LIFETIME && current[0] === expected[0] &&
           current[1] !== null && current[1] === expected[1]) {
         try {
           // Capture at the actual write turn, after all earlier transactions and barriers.

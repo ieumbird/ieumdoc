@@ -112,7 +112,11 @@ removes current records and invalidates scheduled writes. Save, selection, draft
 resume recording; only a subsequent applied edit obtains a new recording ticket. Other open windows'
 later applied edits may create new records. Clearing never alters open content or original files.
 
-Tickets have a **10-day lifetime** from acquisition. A write suspended beyond that lifetime is refused;
+Tickets have a **10-day wall-clock upper lifetime** from acquisition. A write whose current timestamp
+is at least 10 days after acquisition is refused; a backwards correction (negative age) does not reject
+an otherwise valid ticket or require another edit for its scheduled recording. Forward corrections can
+make expiry due sooner, while backwards corrections can delay it; this is not an elapsed-time guarantee.
+For an expired ticket,
 only another applied edit acquires fresh permission, not a Save checkpoint. A write requires an existing
 stored session nonce that exactly matches its ticket. Deletion removes that nonce atomically with the
 record; a later edit registers a fresh nonce. Missing metadata never grants permission, independently of
