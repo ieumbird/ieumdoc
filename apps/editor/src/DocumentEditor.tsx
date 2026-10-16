@@ -80,6 +80,8 @@ type DocumentEditorProps = {
   onAssetError?: (reason: string) => void;
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
+  /** Applied-content changes only, excluding draft forms and filtered placeholders. */
+  onAppliedEdit?: () => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
@@ -89,7 +91,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
+  { document, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   const visible = useEditorVisible();
@@ -101,6 +103,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   onDraftChangeRef.current = onDraftChange;
   const activeDrafts = useRef(new Map<string, { kind: DraftKind; path: string }>());
   const draftEditor = useRef<Editor | null>(null);
+  const onAppliedEditRef = useRef(onAppliedEdit);
+  onAppliedEditRef.current = onAppliedEdit;
   const onDirtyChangeRef = useRef(onDirtyChange);
   onDirtyChangeRef.current = onDirtyChange;
   const onOutlineChangeRef = useRef(onOutlineChange);
@@ -274,8 +278,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     // Read the same baseline as Open/Save guards; do not create a second dirty model.
     const reportDirty = () => onDirtyChangeRef.current?.(hasDocumentChanges());
     reportDirty();
-    editor.on("update", reportDirty);
-    return () => { editor.off("update", reportDirty); };
+    let previousApplied = JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)));
+    const updated = () => {
+      reportDirty();
+      const applied = JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)));
+      if (applied !== previousApplied) { previousApplied = applied; onAppliedEditRef.current?.(); }
+    };
+    editor.on("update", updated);
+    return () => { editor.off("update", updated); };
   }, [editor]);
 
   useEffect(() => {

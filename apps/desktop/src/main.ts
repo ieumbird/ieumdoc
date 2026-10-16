@@ -181,8 +181,8 @@ function createWindow(): void {
       return;
     }
     const leave = dialog.showMessageBoxSync(created, {
-      type: "warning", buttons: ["Discard changes and close", "Keep editing"], defaultId: 1, cancelId: 1, noLink: true,
-      title: "IeumDoc", message: "Open documents have unsaved changes or work in progress.", detail: "Closing discards unsaved work in all tabs. Keep editing to finish and save each document first.",
+      type: "warning", buttons: ["Close without saving", "Keep editing"], defaultId: 1, cancelId: 1, noLink: true,
+      title: "IeumDoc", message: "Open documents have unsaved changes or work in progress.", detail: "Close without saving the original files. Local recovery keeps only the last successfully recorded applied edits; unapplied drafts and later changes may be lost. Keep editing to finish and save each document first.",
     }) === 0;
     if (leave) event.preventDefault();
   });

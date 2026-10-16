@@ -43,7 +43,10 @@ export function updateStatusText(info: DesktopInfo): string {
 
 type SettingsDialogProps = {
   open: boolean;
-  desktop: DesktopBridge;
+  desktop?: DesktopBridge;
+  recoveryCount?: number;
+  recoveryProblem?: string;
+  onClearRecovery?(): Promise<void>;
   info: DesktopInfo | null;
   onInfo(info: DesktopInfo): void;
   /** Restart to install; resolves to why not, or "" when the app is restarting. */
@@ -53,8 +56,11 @@ type SettingsDialogProps = {
   onClose(): void;
 };
 
-/** Settings → About: version, release channel and updates. Shown only by the Desktop app. */
-export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnFocus, onClose }: SettingsDialogProps) {
+/** Shared local recovery settings; About and update controls require the Desktop bridge. */
+export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [recoveryProblem, setRecoveryProblem] = useState("");
   const [problem, setProblem] = useState("");
   const state = info?.update;
   const offered = state && "version" in state ? state : state?.phase === "error" ? state.update : undefined;
@@ -69,9 +75,27 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
       <DialogContent className="settings-dialog" data-testid="settings-dialog" finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>About IeumDoc and its updates.</DialogDescription>
+          <DialogDescription>Local recovery and application information.</DialogDescription>
         </DialogHeader>
-        {info ? (
+        <section className="settings-section" aria-labelledby="settings-recovery">
+          <h3 id="settings-recovery" className="settings-heading">Local recovery</h3>
+          <p className="settings-status">Applied edits are recorded on this device in this browser or app profile. Records are separate from your original files and are not shared with other devices or browsers.</p>
+          <p className="settings-status">Records expire 10 days after the last recording, at the next startup or cleanup. Closing a window keeps them. A clean Save, a tab's Don't save, a successful Reload, or Delete record removes that session's record.</p>
+          <p className="settings-status">Unapplied property drafts, Undo history, selection, pending requests and image files are not backed up. Recording may fail; changes after the last record may be lost. Saving the original and recording recovery are separate operations.</p>
+          <p className="settings-status">{storageProblem || `${recoveryCount} local recovery ${recoveryCount === 1 ? "record" : "records"}.`}</p>
+          {clearConfirm ? <div className="grid gap-3">
+            <p className="settings-status">Delete all local records? Scheduled recordings are cancelled too. Only the next applied edit starts recording again, including edits in other open windows. Your open work and original files stay unchanged.</p>
+            <div className="settings-actions">
+              <Button size="sm" variant="secondary" disabled={clearing} onClick={() => setClearConfirm(false)}>Cancel</Button>
+              <Button size="sm" variant="destructive" disabled={clearing} onClick={() => {
+                setClearing(true); setRecoveryProblem("");
+                void onClearRecovery?.().then(() => setClearConfirm(false)).catch(error => setRecoveryProblem(String(error))).finally(() => setClearing(false));
+              }}>Delete all records</Button>
+            </div>
+          </div> : <Button size="sm" variant="secondary" onClick={() => setClearConfirm(true)}>Clear all recovery records…</Button>}
+          {recoveryProblem ? <p role="alert">{recoveryProblem}</p> : null}
+        </section>
+        {info && desktop ? (
           <section className="settings-section" aria-labelledby="settings-about">
             <h3 id="settings-about" className="settings-heading">About</h3>
             <dl className="settings-facts">
@@ -111,7 +135,7 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
               <Button size="sm" variant="ghost" onClick={() => run(() => desktop.openReleaseNotes(offered?.version))}>Release notes</Button>
             </div>
           </section>
-        ) : <p className="settings-status">Loading…</p>}
+        ) : desktop ? <p className="settings-status">Loading…</p> : null}
       </DialogContent>
     </Dialog>
   );

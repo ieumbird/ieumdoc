@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#296 PR1: internal recovery-capable initialization, Editor snapshot tests and actual initialization/Save replay browser regression; user-facing recovery remains unimplemented).
+- Last verified: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks. Full Desktop/HTTP crash and persistence integration remains PR3).
+- Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
 - Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
 - Previous verification: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
 - Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
@@ -46,7 +47,7 @@ Save requests include the opening Markdown and the last accepted Core edit paylo
 
 The Host stores no sessions. This request contract is a local adapter detail, not a backend architecture. Session acknowledgement itself introduces no semantic operation or CLI command. The extra replay costs another Core save evaluation on subsequent saves; it is performed on explicit Save/Source, never per keystroke.
 
-## Internal recovery preparation (#296 PR1)
+## Recovery snapshot initialization
 
 `DocumentEditor` accepts an optional internal `EditorSnapshot`: current `editorDocument` and
 last acknowledged `savedDocument`. Its snapshot handle copies both without exposing mutable
@@ -74,12 +75,58 @@ claim that arbitrary old/future JSON or inconsistent source/revision/edit checkp
 there is no migration or repair. The existing Host replay and canonical checks still govern Save.
 
 Pending image-less Figures are applied content. Snapshots exclude Undo history, selection/scroll,
-unapplied property drafts, in-flight requests and image binary backups. This is Editor-internal
-preparation, with no recorder, IndexedDB, recovery list/prompt, startup behavior, settings or expiry.
-User-facing recovery is **not implemented**. The approved later PR2 retention is **10 days** after
-the last record ([scope decision](https://github.com/ieumbird/ieumdoc/issues/296#issuecomment-6204288317));
-this PR adds no retention field or timer. Autosave remains deferred (#297). No Core/Host semantics
-change or new CLI operation is needed because this only initializes an existing Editor session.
+unapplied property drafts, in-flight requests and image binary backups. Autosave remains deferred
+(#297). No Core/Host semantics change or new CLI operation is needed: this initializes an existing
+Editor session and adds client-local persistence, not a new document semantic operation.
+
+## Local recovery records (#296 PR2)
+
+The client records applied dirty work in IndexedDB (`ieumdoc-recovery`) in the current browser/app
+profile and origin. The original Markdown remains the SSOT. Records contain a format version,
+independent session identifier, Host-normalized path, recording time, independent plaintext recovery copy,
+and the PR1 snapshot: current/saved engine documents (including deletion metadata and new locators),
+opening source/read model, acknowledged revision and `savedEdits`. Canonical validation is not a
+recording gate. Unsaveable applied content and pending Figures remain recoverable.
+
+An applied editor update schedules a write after 500ms; continued typing does not postpone that
+first turn indefinitely. Each session serializes writes and captures its **live** snapshot at the
+actual IndexedDB write turn, rechecking applied dirtiness then. Save success with newer applied
+edits schedules recording against the newly acknowledged revision and saved baseline. A clean Save
+deletes only that session's record. Recording failures never block input, Save or closing; a standing
+message identifies the failure. Recovery and original Save are separate operations with no atomicity
+claim. Input after the last successful record can be lost, including on normal close.
+
+Records expire **10 days after the last recording**, at the next startup or list/cleanup operation.
+Normal browser/Desktop window close keeps existing records and the normal close guards. Tab
+**Don't save**, a successful **Reload**, and explicit **Delete record** remove the corresponding
+record; failed Reload retains it. A clean tab close also removes any obsolete record for that session.
+Deleting, expiring or clearing uses persisted generation barriers in the same IndexedDB transaction as record
+removal; a stale queued write cannot resurrect deleted work, even in another window. **Clear all**
+removes current records and invalidates scheduled writes. Save, selection, drafts and a timer do not
+resume recording; only a subsequent applied edit obtains a new recording ticket. Other open windows'
+later applied edits may create new records. Clearing never alters open content or original files.
+
+The start screen lists records newest first, with document name/path/time and **Review recovery**.
+Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**
+preflights the existing PR1 schema initializer, then moves the selected record transactionally to a
+new session identifier before mounting it as unsaved work. A changed/deleted record must be reviewed again;
+a dirty or busy open tab cannot be silently replaced. Another live window retains its own session
+identity and its next edit may record again. No automatic merge occurs. A Save only deletes its own
+session identifier, never another window's record. The restored acknowledged revision still governs Save,
+so external edits conflict through the existing Host path.
+
+An incompatible format, malformed checkpoint or unsupported editor schema displays its reason.
+The separately stored plaintext remains available in a selectable text area and **Copy text**;
+**Delete record** remains available. There is no migration framework or canonical repair. Clipboard
+failure leaves the selectable text intact. The shared Sidebar **Settings → Local recovery** explains
+location, retention, deletion, exclusions and guarantee limits, and confirms **Clear all**. Desktop
+About/update controls remain Desktop-only.
+
+`recovery-storage` tests real IndexedDB write ordering/barriers, expiry, stale restore and quota
+failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
+isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
+`pnpm browser:test recovery --screenshots` for review captures in `tmp/296/` at 1440×900 and 375×900.
+These Vite checks do **not** complete PR3's Desktop/HTTP persistence and crash integration work.
 
 ## Applied content and drafts
 
@@ -137,7 +184,7 @@ per mounted view, including identical document-local `sourcePath` values in diff
 Closing a dirty tab or one with unapplied drafts uses **Save / Don't save / Cancel**, following
 [ADR-0007 section 4](../adr/0007-editing-session-lifetime.md#4-미저장-작업-처리는-하나의-확인-대화상자를-재사용한다).
 Save uses that tab's existing Save path. Failure/conflict keeps it open; a failed Save while closing an inactive tab also shows a named shell error without changing the active tab. Cancel/Escape/outside dismissal
-changes nothing and restores the invoking control. Don't save closes without writing. The dialog
+changes nothing and restores the invoking control. Don't save closes without writing and deletes that session's recovery record. The dialog
 explains that Save and Don't save both discard unapplied property drafts, and Save includes applied
 content only. Pending Save disables its actions/dismissal and shortcuts cannot bypass it.
 
@@ -158,11 +205,11 @@ External changes retain the existing revision conflict check. The user can copy 
 
 ## Save shortcut and work-loss protection (#56)
 
-Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New or Reload dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
+Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New, Reload, recovery or Settings dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
 
-Current behavior: no autosave and no local draft recovery. `beforeunload` is the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s independent tabs and shared Save / Don't save / Cancel tab-close confirmation are implemented above. Its remaining direction is local work recovery kept apart from the file and from `apps/editor/server` (#296). Autosave is deferred (#297); Save stays explicit. This contract changes as each follow-up is implemented.
+Current behavior: explicit Save and separate local recovery of applied work; no autosave or recovery of unapplied drafts. `beforeunload` remains the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s independent tabs, shared tab-close confirmation and client recovery are implemented above; full Desktop/HTTP persistence and crash verification remains #296 PR3. Autosave is deferred (#297).
 
-Desktop update restarts additionally ask the live Editor about every tab's unsaved content/drafts and pending Save/Source/assets/Opening/Creating through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This does not add autosave or recovery; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
+Desktop update restarts additionally ask the live Editor about every tab's unsaved content/drafts and pending Save/Source/assets/Opening/Creating through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This keeps explicit Save and the separate client recovery boundary; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
 
 The unload guard reads every registered session's latest rendered state and live dirty comparison. A completed Save must not keep blocking close with the previous Saving state while a passive-effect replacement is pending. The browser regression observes the first Saved DOM commit to protect this boundary without timing delays.
 

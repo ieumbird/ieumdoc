@@ -1,11 +1,14 @@
 // The Desktop app's Editor UI with a stand-in for its bridge: Settings → About, the release channel,
 // update notifications and the restart check the Desktop app asks before installing. The browser
-// Editor without the bridge shows none of it. Updater behavior itself is tested in apps/desktop.
+// Editor without the bridge shows common recovery Settings only. Updater behavior itself is tested in apps/desktop.
 // pnpm browser:test desktop-updates
 async (page, { screenshots = false, openDocument }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  check(await page.getByRole('button', {name:'Settings'}).count() === 0, 'The browser Editor shows Desktop Settings');
+  check(await page.getByRole('button', {name:'Settings'}).count() === 1, 'Common recovery Settings is missing');
+  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
+  await page.keyboard.press('Escape');
   const capture = async name => {
     if (!screenshots) return;
     await page.evaluate(async () => {
@@ -68,7 +71,8 @@ async (page, { screenshots = false, openDocument }) => {
   const stable = page.getByRole('radio', {name:/^Stable/});
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
-  check(await stable.evaluate(node => node === document.activeElement), 'Settings did not focus its first channel control');
+  check(await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).evaluate(node => node === document.activeElement), 'Settings did not focus its first recovery control');
+  await stable.focus();
   await push({phase:'no-stable-release'});
   check(await status() === 'No Stable release has been published yet.', 'Stable absence is not explained');
   check(await notice.count() === 0, 'Stable absence displayed an update notification');
