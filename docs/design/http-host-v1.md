@@ -1,7 +1,8 @@
 # HTTP Host v1
 
 - Status: Implemented
-- Last verified: 2026-10-15 (ADR-0006 route/validation cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
+- Last verified: 2026-10-16 (#296 PR3: Windows production Host with actual Chrome process crashes, same-profile/origin restart, local Restore, real Save/Reload and external 409 preservation; HTTP boundary tests. Linux execution remains required CI).
+- Previous verification: 2026-10-15 (ADR-0006 route/validation cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
 - Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
 - Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/ieumbird/ieumdoc/issues/186)).
 
@@ -94,5 +95,15 @@ pnpm browser:test http-host
 The package test installs the archive offline outside the checkout and runs existing CLI commands plus serve using Node alone. HTTP tests exercise both roots, outside sentinels, links/root replacement, request boundaries, body limits and an access-controlled test reverse proxy covering HTML, API and media. The production browser scenario verifies two-root navigation, actual Save → Reload, New file/folder, image persistence, draft/dirty protection, 409 preservation and SVG script blocking. It is separate from Vite scenarios because startup differs. `--screenshots` adds wide/narrow captures for manual layout review, not a substitute for assertions.
 
 Windows/Linux CI runs package and production browser checks; Windows also runs the filesystem/HTTP suite and Linux's quality job runs it with all Editor tests. Existing Vite browser and Windows packaged Desktop regressions remain required. This does not establish arbitrary NAS compatibility, measured startup speed improvements, public Internet hardening or OS-native clipboard/IME correctness.
+
+`pnpm browser:test http-host` also runs `http-recovery.spec.ts` against that same production server.
+It kills only its launched browser PID (and its children on Windows), checks exit and a new PID,
+and reopens the same persistent profile and exact origin without restarting the server. Committed
+records survive; the actual list/prompt/Restore, dirty state, explicit Save/Reload and external
+file conflict are asserted. This was executed on Windows Chrome; the same HTTP CI command runs
+it on Linux Chromium. The latter is not a local Windows verification result.
+Recovery is client-local: a server restart alone proves nothing about browser persistence, and
+a changed scheme/host/port/profile has a different IndexedDB store. See the
+[recovery contract](editing-session-save-v1.md#host-persistence-verification-296-pr3) for durability limits.
 
 The 2026-10-13 dependency audit still reports 16 existing transitive advisories (5 high, 10 moderate, 1 low). This change reuses the already locked esbuild build tool and changes no resolved dependency versions; it does not remediate those advisories. Core parser configuration and the local markdown-it patch remain unchanged, and build-only tooling is not a Host runtime. MyST remediation remains tracked in [#11](https://github.com/ieumbird/ieumdoc/issues/11); the historical [dependency review](../reviews/myst-security-alignment-v1.md) is context, not current security assurance.
