@@ -19,7 +19,7 @@ async page => page.evaluate(async () => {
       const request = indexedDB.deleteDatabase(RECOVERY_DB); request.onsuccess = resolve; request.onerror = () => reject(request.error);
     });
     const oldDb = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(RECOVERY_DB, 1);
+      const request = indexedDB.open(RECOVERY_DB, 2);
       request.onupgradeneeded = () => { request.result.createObjectStore('records', {keyPath:'id'}); request.result.createObjectStore('barriers'); };
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
@@ -28,10 +28,13 @@ async page => page.evaluate(async () => {
       tx.objectStore('records').put({id:'existing',version:1,path:'/test.md',recordedAt:Date.now(),recoveryText:'preserved',snapshot:snapshot('preserved')});
       tx.objectStore('barriers').put(3, ['session','old-session']); tx.oncomplete = resolve;
     });
-    oldDb.close();
+    let oldClosed = false; oldDb.onversionchange = () => { oldClosed = true; oldDb.close(); };
     check((await list())[0]?.recoveryText === 'preserved', 'Storage upgrade changed an existing recovery record');
-    const oldRefused = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB,1); request.onerror=()=>resolve(request.error.name==='VersionError'); request.onsuccess=()=>{request.result.close();resolve(false);}; });
-    check(oldRefused, 'Old unbounded ticket protocol can still open the database');
+    const oldRefused = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB,2); request.onerror=()=>resolve(request.error.name==='VersionError'); request.onsuccess=()=>{request.result.close();resolve(false);}; });
+    check(oldRefused && oldClosed, 'Old unbounded ticket protocol can still open the database');
+    let oldWriteRefused = false;
+    try { oldDb.transaction(['records','barriers'], 'readwrite'); } catch (error) { oldWriteRefused = error.name === 'InvalidStateError'; }
+    check(oldWriteRefused, 'An upgraded-out readonly-protocol connection can still write');
     const fallback = snapshot('Applied text');
     fallback.editor.editorDocument.content[0].marks = [{type:'link',attrs:{href:'https://example.com/kept'}}];
     fallback.editor.editorDocument.content[0].attrs = {caption:[{kind:'text',text:'Caption retained'}]};
@@ -43,8 +46,8 @@ async page => page.evaluate(async () => {
       ticketTransactions.push({names:Array.from(typeof names === 'string' ? [names] : names),mode});
       return originalTransaction.call(this,names,mode,...args);
     };
-    try { await store.ticket('read-only-probe'); } finally { IDBDatabase.prototype.transaction = originalTransaction; }
-    check(ticketTransactions.length === 1 && ticketTransactions[0].mode === 'readonly' && ticketTransactions[0].names.join() === 'barriers', 'Ticket acquisition locks records or uses a write transaction');
+    try { await store.ticket('registered-probe'); } finally { IDBDatabase.prototype.transaction = originalTransaction; }
+    check(ticketTransactions.length === 1 && ticketTransactions[0].mode === 'readwrite' && ticketTransactions[0].names.join() === 'barriers', 'Ticket acquisition does not register permission in barriers-only readwrite');
     recorder.edit();
     live = snapshot('latest at write turn');
     await wait();
@@ -123,22 +126,42 @@ async page => page.evaluate(async () => {
     };
     try {
       await store.delete();
-      const ancient = await store.ticket('collected');
+      now = 60 * 60 * 1000;
+      const beforeClockRollback = await store.ticket('rollback-before-delete');
+      now = 0;
+      await store.delete('rollback-before-delete');
+      now = lifetime;
+      await list();
+      check(!(await metadata()).length, 'Exact rollback reproduction did not collect the barrier');
+      now += 60 * 1000;
+      const resurrected = await store.write('rollback-before-delete', beforeClockRollback, () => ({
+        id:'rollback-before-delete',version:1,path:'/test.md',recordedAt:now,recoveryText:'must not return',snapshot:snapshot('must not return'),
+      }));
+      check(!resurrected, 'Ticket at 1h resurrected after rollback-to-0 deletion, GC at 10d, write at 10d+1m');
+      now = realNow();
+      await store.delete();
       for (let i=0;i<40;i++) await createRecoveryRecorder('never-edited-'+i,()=>null,()=>{}).discard();
       check(!(await metadata()).length, 'Never-edited session cleanup leaves metadata');
       for (let i=0;i<40;i++) { await record('closed-'+i); await store.delete('closed-'+i); }
+      check(!(await metadata()).length, 'Recorded cleanup leaves tombstones');
+      const ancient = await store.ticket('collected');
       await store.delete('collected');
+      const idle = await store.ticket('idle-for-GC');
       now += lifetime - 1;
       const afterDeletion = await store.ticket('collected');
       const unrelated = await store.ticket('unrelated-live');
       now++;
       await list();
-      check(!(await metadata()).length, 'Deleted session metadata survives its retention boundary');
+      check(!(await metadata()).some(key => key[1] === 'idle-for-GC'), 'Idle registration survives expiry');
       const captureRecord = id => () => ({id,version:1,path:'/test.md',recordedAt:now,recoveryText:id,snapshot:snapshot(id)});
       check(!await store.write('collected',ancient,captureRecord('collected')), 'Ancient ticket resurrected a record after metadata GC');
-      // Test rollback while metadata is absent, so only the persisted expiry watermark protects it.
+      // Collected permission stays invalid even if the clock returns to its issuance time.
       now -= lifetime;
       check(!await store.write('collected',ancient,captureRecord('collected')), 'Clock rollback revived a collected ticket');
+      check(!await store.write('idle-for-GC',idle,captureRecord('idle-for-GC')), 'Clock rollback revived a GC-collected nonce');
+      const afterGC = await store.ticket('idle-for-GC');
+      check(await store.write('idle-for-GC',afterGC,captureRecord('idle-for-GC')), 'Fresh edit after GC cannot record');
+      check(!await store.write('idle-for-GC',idle,captureRecord('idle-for-GC')), 'Fresh registration reused the GC-collected nonce');
       now += lifetime;
       check(await store.write('collected',afterDeletion,captureRecord('collected')), 'GC invalidated a still-valid post-deletion edit');
       check(await store.write('unrelated-live',unrelated,captureRecord('unrelated-live')), 'GC invalidated another session pending edit');
@@ -146,8 +169,13 @@ async page => page.evaluate(async () => {
       check(!await store.write('collected',afterDeletion,captureRecord('collected')), 'Reused generation after GC matched an old ticket');
       const resumed = await store.ticket('collected');
       check(await store.write('collected',resumed,captureRecord('collected')), 'Next edit cannot resume after GC and another deletion');
+      const beforeRenewalRollback = await store.ticket('renewal-rollback');
+      now -= 3600000;
+      await store.ticket('renewal-rollback');
       now += lifetime;
-      await list(); now += lifetime; await list();
+      await list();
+      check(await store.write('renewal-rollback',beforeRenewalRollback,captureRecord('renewal-rollback')), 'Rollback renewal shortened an unexpired pending registration');
+      now += lifetime; await list();
       check(!(await metadata()).length, 'Expired records leave permanent metadata');
     } finally { Date.now = realNow; await store.delete(); }
 
@@ -170,6 +198,6 @@ async page => page.evaluate(async () => {
     check((await list()).some(r => r.id === 'a') && errors.some(error => error.includes('deletion denied')), 'Failed deletion hid the retained record');
     return { liveCapture:true, dirtyRecheck:true, deleteBarrier:true, clearBarrier:true, nextEditResumes:true,
       acknowledgedRevision:true, sessionIsolation:true, expiration:true, staleRestoreRefused:true, quotaFailure:true,
-      readonlyTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true };
+      registeredTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true };
   } finally { recorder.cancel(); await store.delete(); }
 })

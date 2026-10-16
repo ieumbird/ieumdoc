@@ -98,7 +98,7 @@ claim. Input after the last successful record can be lost, including on normal c
 
 Each update shares its current applied projection/serialization between dirty reporting and applied-change
 notification; the saved baseline is still read live, including after Save acknowledgement. Each applied
-edit captures its own barrier ticket in a **barriers-only readonly** transaction. Ticket acquisition is
+edit registers its own barrier ticket in a **barriers-only readwrite** transaction. Ticket acquisition is
 not coalesced or deferred to the recording timer: the latest edit must be ordered against cross-window
 deletion, even when a pre-clear and post-clear edit share a scheduled write.
 
@@ -113,16 +113,21 @@ resume recording; only a subsequent applied edit obtains a new recording ticket.
 later applied edits may create new records. Clearing never alters open content or original files.
 
 Tickets have a **10-day lifetime** from acquisition. A write suspended beyond that lifetime is refused;
-only another applied edit acquires fresh permission, not a Save checkpoint. Deleted-session barriers
-use non-repeating random generations and expire 10 days after deletion, on the next list/cleanup.
-Cleanup retains a single expiry watermark so clock rollback cannot revive already-collected tickets.
-It does not advance the Clear-all generation or invalidate another session's unexpired pending edit.
-A still-valid post-deletion ticket remains usable after that deletion's metadata is collected; a later
-deletion creates a different generation. Never-edited sessions create no recovery metadata on close.
-Thus records and per-session metadata both have finite retention; cleanup is not a fixed byte/count quota.
-IndexedDB protocol version 2 retains existing record payloads and gives version-1 barriers this retention
-period. Older clients are refused when reopening, rather than allowing their unbounded tickets to write
-after cleanup. This is a storage-protocol upgrade, not document snapshot migration.
+only another applied edit acquires fresh permission, not a Save checkpoint. A write requires an existing
+stored session nonce that exactly matches its ticket. Deletion removes that nonce atomically with the
+record; a later edit registers a fresh nonce. Missing metadata never grants permission, independently of
+clock rollback between acquisition and deletion or a suspended writer resuming after GC.
+There are no deletion tombstones or expiry watermark. Idle registrations expire on list/cleanup 10 days
+after the latest ticket timestamp; a backwards clock cannot shorten their existing expiry. GC removes
+expired registrations without advancing the Clear-all generation or invalidating another session's
+unexpired pending edit. Never-edited sessions create no metadata on close. Retention is time bounded,
+not a fixed byte/count quota; wall-clock adjustments can change when cleanup becomes due.
+IndexedDB protocol version 3 preserves record payloads and removes obsolete v1/v2 barrier metadata.
+Existing older connections close on version change; their version-pinned reopen is refused, so unsafe
+readonly-protocol writers cannot coexist after upgrade. They need a reload to record again.
+This is a storage-protocol upgrade, not document snapshot migration.
+The prior readwrite-count reduction claim (60 to 10) is withdrawn: every applied edit again uses a
+write transaction, limited to barriers. Current-document serialization sharing remains unchanged.
 
 The start screen lists records newest first, with document name/path/time and **Review recovery**.
 Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**
