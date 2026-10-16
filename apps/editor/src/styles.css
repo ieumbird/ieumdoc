@@ -1886,6 +1886,9 @@ ol.list { list-style: decimal; }
  * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
 @media (width < 80rem) {
   .app-shell { --shell-panel: 0px; }
+  /* Media styles apply before the matchMedia handler closes the docked panel.
+   * Do not let its padding/header overflow the now zero-width grid column. */
+  .document-panel:not(.document-panel--overlay) { display: none; }
 }
 
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */

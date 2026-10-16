@@ -128,7 +128,22 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   const narrow = await page.evaluate(() => {
     const row = document.querySelector('[role="tablist"]');
     const save = document.querySelector('[data-testid="save"]').getBoundingClientRect();
-    return {page:document.documentElement.scrollWidth, width:innerWidth, scrolls:row.scrollWidth>row.clientWidth, saveLeft:save.left,saveRight:save.right};
+    const overflow = [...document.querySelectorAll('body *')].flatMap(element => {
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || rect.right <= innerWidth && rect.left >= 0) return [];
+      const css = getComputedStyle(element);
+      if (css.visibility === 'hidden') return [];
+      let clipping = element.parentElement;
+      while (clipping && getComputedStyle(clipping).overflowX === 'visible') clipping = clipping.parentElement;
+      // Offscreen tabs are expected inside their scroll container; report page overflow.
+      if (clipping) return [];
+      return [{tag:element.tagName,classes:element.getAttribute('class'),role:element.getAttribute('role'),text:element.textContent?.slice(0,160),
+        left:rect.left,right:rect.right,width:rect.width,minWidth:css.minWidth,maxWidth:css.maxWidth,position:css.position,
+        overflowX:css.overflowX,whiteSpace:css.whiteSpace,parent:element.parentElement?.getAttribute('class')}];
+    });
+    const panel = document.querySelector('.document-panel');
+    return {page:document.documentElement.scrollWidth, width:innerWidth, scrolls:row.scrollWidth>row.clientWidth, saveLeft:save.left,saveRight:save.right,
+      panel:panel ? {classes:panel.className,display:getComputedStyle(panel).display} : null,overflow};
   });
   check(narrow.page <= narrow.width && narrow.scrolls && narrow.saveLeft>=0 && narrow.saveRight<=narrow.width, `Tabs push Save or the page sideways: ${JSON.stringify(narrow)}`);
   await page.setViewportSize({width:1440,height:900});
@@ -184,5 +199,5 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
     } finally { await cdp.detach(); }
   }
   return {independentState:true, retainedDrafts:true, undo:true, sourceView:true, saveReload:true, accessibleSwitching:true, missingFileActivation:true,
-    measurement: screenshots ? await page.evaluate(() => window.documentTabsMeasurement) : undefined};
+    narrow, measurement: screenshots ? await page.evaluate(() => window.documentTabsMeasurement) : undefined};
 }
