@@ -16,7 +16,7 @@
 
 ## Profile reuse and test isolation
 
-[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
+[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 각 시나리오 시작 시 복구 IndexedDB도 삭제하고 다시 로드하여 이전 시나리오의 복구 제안을 격리한다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
 
 ## Process and session cleanup
 

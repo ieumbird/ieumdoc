@@ -25,6 +25,21 @@ async page => {
   const result = {};
   try {
     await ready();
+    result.sharedCurrentSerialization = await page.evaluate(() => {
+      const engine = window.sessionHarness.host.querySelector('.document-editor').editor;
+      const stringify = JSON.stringify;
+      const marker = 'SharedAppliedProjection319';
+      let currentSerializations = 0;
+      JSON.stringify = function(value, ...args) {
+        const text = stringify.call(this, value, ...args);
+        if (value?.type === 'doc' && text.includes(marker)) currentSerializations++;
+        return text;
+      };
+      try { engine.commands.insertContentAt(1, marker); } finally { JSON.stringify = stringify; }
+      // Explicit performance contract: dirty and applied-change notification share this value.
+      if (currentSerializations !== 1) throw new Error(`One applied update serialized current document ${currentSerializations} times`);
+      return true;
+    });
     for (const operation of ['save', 'showSource']) {
       await page.evaluate(path => window.sessionHarness.current.load(path), pathA);
       await ready(pathA);

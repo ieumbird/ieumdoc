@@ -1,7 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
+- Last verified: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards; full recovery integration remains PR3).
+- Previous verification: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
 - Previous verification: 2026-10-15 (public beta.4, release CI, anonymous assets and actual GitHub beta.3→beta.4 update; see the release record).
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
@@ -17,7 +18,7 @@ The default bundled sample is copied once to `sample-native-v1` under the user d
 
 ## Scope and completion
 
-The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, new autosave/recovery, cloud account or second editor state.
+The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, original-file autosave, cloud account or second editor state.
 
 Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. Unsigned publication is restricted to exact `vX.Y.Z-beta.N` releases after these checks, with its signature status and possible Windows warnings disclosed. Authenticode credentials are prerequisites for signed releases and Stable publication. All publication requires explicit approval and actual environment protection configured in GitHub. Real GitHub update delivery is distinct from the local feed checks.
 
@@ -49,10 +50,10 @@ Before the first public release, local development versions can be reset. A prev
 ## Window close
 
 The renderer's `beforeunload` checks all open document tabs and pending Open/New. Electron retains
-its native **Close / Keep editing** dialog when any session would lose work. Its wording identifies
-unsaved or pending work across open documents and says that closing discards work in all tabs.
+its native **Close without saving / Keep editing** dialog when any session would lose work. Its wording identifies
+unsaved or pending work across open documents and the limits of the last local recovery record.
 Keep editing leaves every session intact. This is separate from the app's single-tab
-**Save / Don't save / Cancel** dialog; native close does not add Save all or recovery.
+**Save / Don't save / Cancel** dialog; native close does not add Save all or delete recovery records.
 
 ## Update lifecycle and work protection
 
@@ -60,6 +61,8 @@ Keep editing leaves every session intact. This is separate from the app's single
 - Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
 - Restart to update disables window input and asks the live Editor whether all tabs are safe. The renderer aggregates pending work across every session, including hidden tabs. Dirty content, unapplied property drafts, Save, asset handling, Source generation and Open/New/Reload refuse. No user-input dialog is added inside the existing timed handshake. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
+
+The native close confirmation says **Close without saving**, retaining the last successful client recovery record. It explains that unapplied drafts and changes after that record may be lost. This copy does not change the existing close/restart guards; the [client recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns recording/deletion. Full Desktop crash/profile persistence validation remains #296 PR3.
 
 ## Verification and signing
 

@@ -104,3 +104,7 @@ pnpm --filter @ieumdoc/desktop test:update:github
 ## Native document boundary
 
 Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/support rejection. CLI tests cover exclusive create, failed text/JSON check and unchanged bytes. Host tests cover refused files and Save revalidation. `pnpm browser:test writeability-preflight` covers native admission errors and retained document, selection, unsaved content and property drafts. `new-document`, `source-view`, `outline` and `property-drafts` retain their interface checks. Block-source and partial read-only scenarios have been removed. Production HTTP and packaged Desktop use the same Core admission.
+
+## Local recovery regression
+
+`pnpm browser:test recovery-storage recovery` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests. Full Desktop/HTTP profile persistence and crash recovery remain #296 PR3; these Vite checks do not establish them.
