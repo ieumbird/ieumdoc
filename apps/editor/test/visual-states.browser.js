@@ -100,27 +100,29 @@ async page => {
   await outline.click();
   await outline.hover(); await settle(); const toggleHover = await state(outline);
   await outline.click(); await page.mouse.move(0,0); await settle(); const pressed = await state(outline);
-  // On toggles and the active view tab use the current marker: a non-color indicator that hover keeps.
-  const marker = locator => locator.evaluate(n => {
-    const m = getComputedStyle(n, '::after');
-    return {content: m.content, color: m.backgroundColor, height: parseFloat(m.height)};
-  });
-  const pressedMarker = await marker(outline);
-  check(pressed.background !== toggleHover.background && pressedMarker.content === '""' && pressedMarker.height > 0 &&
-    pressedMarker.color === results[0].rest.markerColor, 'Pressed toggle lacks the current marker or looks like hover');
+  // The blue marker means "current place" only; TopBar toggles carry no marker.
+  const marker = locator => locator.evaluate(n => getComputedStyle(n, '::after').content);
+  // An on Outline is a pressed toggle: the selected face, distinct from rest and from neutral hover, kept on hover.
+  const rest = await state(page.getByRole('button', {name:'File actions', exact:true}));
+  check(pressed.background !== toggleHover.background && pressed.background !== rest.background && await marker(outline) === 'none',
+    `Pressed Outline needs its selected face without a marker ${JSON.stringify({pressed, toggleHover})}`);
   await outline.hover(); await settle();
-  check(JSON.stringify(await marker(outline)) === JSON.stringify(pressedMarker), 'Hover hides the pressed marker');
-  const activeMarker = await marker(page.getByTestId('view-visual')), inactiveMarker = await marker(page.getByTestId('view-source'));
-  check(activeMarker.content === '""' && activeMarker.color === pressedMarker.color && inactiveMarker.content === 'none',
-    'View tab lacks the active marker');
-  // Tabs never grow a face: hovering the inactive tab darkens it over a marker distinct from active.
-  const inactiveRest = await state(page.getByTestId('view-source'));
-  await page.getByTestId('view-source').hover(); await settle();
-  const inactiveHover = await state(page.getByTestId('view-source')), inactiveHoverMarker = await marker(page.getByTestId('view-source'));
-  check(inactiveHover.background === inactiveRest.background && inactiveHover.color !== inactiveRest.color &&
-    inactiveHoverMarker.color !== activeMarker.color, 'Inactive view tab hover needs restrained feedback distinct from active');
-  await page.getByTestId('view-visual').hover(); await settle();
-  check(JSON.stringify(await marker(page.getByTestId('view-visual'))) === JSON.stringify(activeMarker), 'Hover hides the active view marker');
+  const pressedHover = await state(outline);
+  check(pressedHover.background !== toggleHover.background && pressedHover.background !== rest.background && pressedHover.color === pressed.color,
+    'Hover hides the pressed Outline face');
+  // Visual/Source is a segmented control: the chosen view is a raised face, the other has none.
+  const visual = page.getByTestId('view-visual'), source = page.getByTestId('view-source');
+  await page.mouse.move(0,0); await settle();
+  const active = await state(visual), inactiveRest = await state(source);
+  check(active.background !== inactiveRest.background && active.ring !== 'none' && inactiveRest.ring === 'none' &&
+    await marker(visual) === 'none' && await marker(source) === 'none', 'Chosen view lacks its raised segment');
+  // Hovering the other view darkens its text without a face.
+  await source.hover(); await settle();
+  const inactiveHover = await state(source);
+  check(inactiveHover.background === inactiveRest.background && inactiveHover.color !== inactiveRest.color,
+    'Inactive view hover needs restrained feedback distinct from the chosen view');
+  await visual.hover(); await settle();
+  check(JSON.stringify((await state(visual)).background) === JSON.stringify(active.background), 'Hover changes the chosen view');
   await page.mouse.move(0,0); await settle();
   // A clean Save is an ordinary available ghost action, like File actions beside it.
   const cleanSave = await state(page.getByTestId('save')), actionsRest = await state(page.getByRole('button', {name:'File actions', exact:true}));

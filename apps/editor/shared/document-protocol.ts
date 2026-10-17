@@ -172,7 +172,11 @@ export type SourceResponse = { markdown: string };
 export type DocumentErrorResponse = { error: string; code?: NativeDocumentErrorCode; issue?: WriteIssue; target?: OrderItem; failure?: SaveFailure };
 
 /** One entry of a folder listing: a regular sub-folder, or a regular `.md` file (an image file when choosing an image). */
-export type FolderEntry = { name: string; kind: "folder" | "document" | "image"; path: string };
+/**
+ * A listed folder, document or image. In the sidebar folder listing, `native` tells whether a
+ * document starts with the native marker; it is absent when the file could not be read.
+ */
+export type FolderEntry = { name: string; kind: "folder" | "document" | "image"; path: string; native?: boolean };
 
 /**
  * One level of a folder the user chose (`root`). `path` is the listed folder inside it and

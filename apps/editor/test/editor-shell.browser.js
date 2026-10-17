@@ -75,6 +75,20 @@ async page => {
     await page.getByRole('menu').waitFor({state:'detached', timeout:2000});
     await fileActions.and(page.locator(':focus')).waitFor({state:'attached', timeout:2000});
     result.fileMenuEscapeReturnsFocus = await isFocused(fileActions);
+    // Without the Clipboard API (a non-HTTPS remote origin), Copy path explains instead of throwing.
+    await page.evaluate(() => {
+      window.__clipboard = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard');
+      Object.defineProperty(Navigator.prototype, 'clipboard', {configurable: true, get: () => undefined});
+    });
+    try {
+      await fileActions.click();
+      await page.getByRole('menuitem', {name:'Copy path', exact:true}).click();
+      await page.getByTestId('error').filter({hasText:'Copy path needs clipboard access'}).waitFor({timeout:2000});
+      result.copyPathWithoutClipboard = true;
+      await page.getByRole('button', {name:'Dismiss error'}).click();
+    } finally {
+      await page.evaluate(() => { Object.defineProperty(Navigator.prototype, 'clipboard', window.__clipboard); delete window.__clipboard; });
+    }
 
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true});
@@ -184,7 +198,8 @@ async page => {
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 2');
-    await page.locator('[data-document-tab][data-active=true] [data-block="table"]').hover();
+    // Hover beside the open Equation properties, which align to the right edge and may cover the middle.
+    await page.locator('[data-document-tab][data-active=true] [data-block="table"]').hover({position:{x:8,y:8}});
     await page.getByRole('button',{name:'Move table block 15'}).click();
     const blockMenu = page.getByRole('menu',{name:'Block actions'});
     result.blockMenuItems = await blockMenu.getByRole('menuitem').allInnerTexts();

@@ -97,17 +97,27 @@ async (page, { openDocument, withBlockHover }) => {
   });
   // On a phone-width viewport the wrapped TopBar keeps every control inside the viewport, in order:
   // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
+  // Below 768px the sidebar starts collapsed to its rail; opened, it overlays the document.
   for(const width of [414,375]) {
     await page.setViewportSize({width,height:800});
+    if(width===414&&await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()!==1)throw Error('Narrow sidebar did not start collapsed');
     for(const collapsed of [false,true]) {
       if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      else if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       await page.evaluate(()=>window.scrollTo(0,0));
+      const overlay=await page.evaluate(()=>({fixed:getComputedStyle(document.querySelector('.sidebar')).position==='fixed',
+        main:document.querySelector('.app-main').getBoundingClientRect().left,
+        rail:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-sidebar-rail-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize)}));
+      if(overlay.fixed===collapsed||Math.abs(overlay.main-overlay.rail)>0.5)throw Error(`Narrow sidebar must overlay beside its rail: ${JSON.stringify({collapsed,overlay})}`);
       const narrow=await page.evaluate(()=>{
-        const buttons=[...document.querySelectorAll('.top-bar-actions button')].map(n=>{
+        // Visual/Source is one segmented control: its track is measured as a single control.
+        const views=document.querySelector('.view-toggle');
+        if(!views||!['Visual','Source'].every(name=>[...views.querySelectorAll('button')].some(n=>n.textContent.trim()===name)))throw Error('Missing view control');
+        const buttons=[views,...[...document.querySelectorAll('.top-bar-actions button')].filter(n=>!views.contains(n))].map(n=>{
           const r=n.getBoundingClientRect();
-          return {name:n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+          return {name:n===views?'Visual/Source':n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
         });
-        if(!['Visual','Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
+        if(!['Visual/Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
         const outside=buttons.filter(b=>b.left<0||b.right>innerWidth+0.5).map(b=>b.name);
         const disorder=[],gaps=[];
         buttons.slice(1).forEach((b,i)=>{
@@ -116,8 +126,7 @@ async (page, { openDocument, withBlockHover }) => {
           if(b.top<a.bottom-1&&a.top<b.bottom-1){
             const gap=b.left-a.right;
             if(gap<0)disorder.push(`${a.name}>${b.name}`);
-            // Visual and Source are adjacent tabs inside the view group.
-            else if(a.group===b.group?Math.abs(gap-4)>0.5&&!(a.name==='Visual'&&b.name==='Source'):gap<12-0.5)gaps.push(`${a.name}|${b.name}:${gap}`);
+            else if(a.group===b.group?Math.abs(gap-4)>0.5:gap<12-0.5)gaps.push(`${a.name}|${b.name}:${gap}`);
           } else if(b.top<a.bottom-1)disorder.push(`${a.name}>${b.name}`);
         });
         return {width:innerWidth,overflow:document.documentElement.scrollWidth-innerWidth,outside,disorder,gaps};
@@ -128,6 +137,14 @@ async (page, { openDocument, withBlockHover }) => {
       const reload=await page.getByRole('menuitem',{name:'Reload',exact:true}).boundingBox();
       if(!reload||reload.x<0||reload.x+reload.width>width||reload.y<0||reload.y+reload.height>800)throw Error('Reload menu leaves the viewport');
       await page.keyboard.press('Escape');
+      if(!collapsed&&width===375){
+        // Escape inside the overlaid sidebar collapses it to the rail and keeps focus on its toggle.
+        await page.getByRole('button',{name:'Files',exact:true}).focus();
+        await page.keyboard.press('Escape');
+        const expand=page.getByRole('button',{name:'Expand sidebar',exact:true});
+        if(!await expand.evaluate(n=>n===document.activeElement))throw Error('Escape did not collapse the overlaid sidebar');
+        await expand.click();
+      }
       if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
@@ -237,6 +254,8 @@ async (page, { openDocument, withBlockHover }) => {
     await page.setViewportSize({width,height:800});
     // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
     await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
+    // Crossing 768px collapses the sidebar; Display from the rail opens it again.
+    if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count())await page.getByRole('button',{name:'Display',exact:true}).click();
     const display=await page.locator('#sidebar-display').evaluate(n=>{
       const rect=n.getBoundingClientRect();
       const controls=[...n.querySelectorAll('input')].map(control=>{

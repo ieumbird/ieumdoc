@@ -18,7 +18,7 @@ import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
-import { childPath, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
+import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
 import type {
   DocumentErrorResponse,
@@ -38,6 +38,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
+// At phone widths the sidebar starts collapsed to its rail and, opened,
+// overlays the document instead of leaving it a sliver of width.
+const SIDEBAR_OVERLAY_LAYOUT = "(width < 40rem)";
 
 type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: string; restored?: DocumentSessionSnapshot };
 
@@ -51,7 +54,8 @@ export function App() {
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   // Retain Host start information when the last tab closes.
   const [start, setStart] = useState<DocumentStartResponse | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOverlay, setSidebarOverlay] = useState(() => globalThis.matchMedia?.(SIDEBAR_OVERLAY_LAYOUT).matches ?? false);
+  const [sidebarOpen, setSidebarOpen] = useState(!sidebarOverlay);
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
@@ -135,7 +139,7 @@ export function App() {
   const operationRef = useRef(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string } | null>(null);
+  const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
   const [continuation, setContinuation] = useState<{ id: string; session: DocumentSession } | null>(null);
   const [continuationPending, setContinuationPending] = useState(false);
@@ -251,6 +255,17 @@ export function App() {
     return () => query.removeEventListener("change", change);
   }, []);
 
+  // Likewise, crossing the overlay width starts the sidebar collapsed (narrow) or expanded.
+  useEffect(() => {
+    const query = matchMedia(SIDEBAR_OVERLAY_LAYOUT);
+    const change = () => {
+      setSidebarOverlay(query.matches);
+      setSidebarOpen(!query.matches);
+    };
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, []);
+
   async function openFile(path: string, openedNotice = ""): Promise<string | null> {
     const requestedPath = unquotePath(path);
     if (!requestedPath) return "Enter a Markdown file path.";
@@ -277,7 +292,7 @@ export function App() {
     } catch (cause) {
       if (cause instanceof NativeOpenError) {
         openRefusalReturnFocus.current = returnFocus;
-        setOpenRefusal({ path: requestedPath, reason: cause.reason, action: cause.action });
+        setOpenRefusal({ path: requestedPath, reason: cause.reason, action: cause.action, code: cause.code });
         return null;
       }
       return messageOf(cause);
@@ -432,6 +447,20 @@ export function App() {
     return () => window.removeEventListener("beforeunload", protect);
   }, []);
 
+  /** Browsers expose the Clipboard API only on secure (HTTPS or local) pages; elsewhere, say so. */
+  async function copyPath(): Promise<void> {
+    if (!navigator.clipboard?.writeText) {
+      setError("Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(openedPath);
+      setNotice("Copied the file path.");
+    } catch (cause) {
+      setError(`Could not copy the file path: ${messageOf(cause)}`);
+    }
+  }
+
   function toggleDocumentWidth(): void {
     const next = documentWidth === "wide" ? "standard" : "wide";
     setDocumentWidth(next);
@@ -439,7 +468,7 @@ export function App() {
   }
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${sidebarOverlay ? " app-shell--sidebar-overlay" : ""}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         newButtonRef={newFileButton}
         open={sidebarOpen}
@@ -454,10 +483,13 @@ export function App() {
           onToggleWide: toggleDocumentWidth,
         }}
         onToggle={() => setSidebarOpen((value) => !value)}
+        onDismiss={sidebarOverlay ? () => setSidebarOpen(false) : undefined}
         onOpenFolder={(returnFocus) => {
           dialogReturnFocus.current = returnFocus;
           setFolderDialog(true);
         }}
+        recent={visibleRecent}
+        onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
         onNew={newFile}
         newFolderButtonRef={newFolderButton}
         onNewFolder={() => {
@@ -467,7 +499,11 @@ export function App() {
         }}
         folder={folderTree.state ?? undefined}
         onToggleFolder={folderTree.toggle}
-        onOpenDocument={(path) => void openFolderDocument(path)}
+        onOpenDocument={(path) => {
+          // An overlaid sidebar steps aside for the document it opens.
+          if (sidebarOverlay) setSidebarOpen(false);
+          void openFolderDocument(path);
+        }}
         onCloseFolder={folderTree.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
@@ -479,6 +515,7 @@ export function App() {
         <div className="app-header" ref={header}>
           <TopBar
             documentPath={openedPath}
+            location={documentLocation(openedPath, folderTree.state?.root)}
             status={assetPending ? "Adding image…" : status}
             unsaved={documentDirty || draftActive}
             view={view}
@@ -488,6 +525,7 @@ export function App() {
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
+            onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
             outline={panelOpen}
             onToggleOutline={() => setPanelOpen((value) => !value)}
@@ -628,8 +666,14 @@ export function App() {
             <DialogTitle>Cannot open document</DialogTitle>
             <DialogDescription render={<div />} className="grid gap-4 break-words">
               <p>“{openRefusal ? splitDocumentPath(openRefusal.path).name : ""}” is not a supported IeumDoc document.</p>
-              <p>{openRefusal?.reason}</p>
-              <p>{openRefusal?.action}</p>
+              {/* In plain words first; Core's exact reason and action follow as the details. */}
+              {openRefusal?.code === "native-marker" ? (
+                <p>IeumDoc edits only documents it created. To edit this text here, create a new document with + in the sidebar and paste it in. The file itself is left as it is.</p>
+              ) : null}
+              <div className="open-refusal-details">
+                <p>{openRefusal?.reason}</p>
+                <p>{openRefusal?.action}</p>
+              </div>
               <p>{document ? "Your current document has not changed." : "No document was opened."}</p>
             </DialogDescription>
           </DialogHeader>

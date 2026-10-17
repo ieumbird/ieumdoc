@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { Ellipsis, LoaderCircle, PanelRight, RotateCcw } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -10,6 +10,8 @@ const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad
 
 type TopBarProps = {
   documentPath: string;
+  /** The folders holding the document, shown before its name; the tab row already names it. */
+  location?: string[];
   status: string;
   unsaved?: boolean;
   view: DocumentView;
@@ -20,6 +22,8 @@ type TopBarProps = {
   onSave(): void;
   onReload?(): void;
   reloadDisabled?: boolean;
+  /** Copies the document's full path, for use in other tools. */
+  onCopyPath?(): void;
   fileActionsRef?: Ref<HTMLButtonElement>;
   /** Whether the outline panel is shown. */
   outline?: boolean;
@@ -29,13 +33,14 @@ type TopBarProps = {
 
 /**
  * Document identity and its state on the left, so status changes never move the controls.
+ * The identity is the document's location: its folders, then its name, which the tab below repeats.
  * On the right: Visual/Source and Outline, then Save and the File actions menu. Only Save with unsaved
- * changes takes the accent. Spaced groups separate view and file actions; the active view
- * tab and on toggles carry the current-item marker, independent of keyboard focus.
+ * changes takes the accent. Spaced groups separate view and file actions; Visual/Source is a
+ * segmented control and Outline a pressed toggle, so the blue marker belongs to tabs alone.
  */
 export function TopBar({
-  documentPath, status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
-  onSave, onReload, reloadDisabled, fileActionsRef,
+  documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
+  onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
   const { name } = splitDocumentPath(documentPath);
@@ -65,12 +70,13 @@ export function TopBar({
   return (
     <header className="top-bar">
       <div className="top-bar-identity">
-        <p className="document-path" data-testid="current-file" title={documentPath || undefined}>
-          {documentPath ? (
-            <span className="document-path-name">{name}</span>
-          ) : (
-            "No file opened"
-          )}
+        <p className="document-path" title={documentPath || undefined}>
+          {documentPath ? location.map((folder, index) => (
+            <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
+          )) : null}
+          <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
+            {documentPath ? name : "No file opened"}
+          </span>
         </p>
         <p className="status" data-testid="status" data-operation={status} role="status">
           {displayStatus}
@@ -116,6 +122,11 @@ export function TopBar({
                 <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>
                   <RotateCcw aria-hidden="true" />Reload
                 </DropdownMenuItem>
+                {onCopyPath ? (
+                  <DropdownMenuItem onClick={onCopyPath} disabled={!documentPath}>
+                    <Copy aria-hidden="true" />Copy path
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}

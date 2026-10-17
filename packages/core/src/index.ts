@@ -17,7 +17,7 @@ import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/hea
 import { bodyEndIndex as bodyEndIndexTree, endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
-export { NativeDocumentError } from "./myst/native.ts";
+export { hasNativeMarker, NativeDocumentError } from "./myst/native.ts";
 export type { NativeDocumentErrorCode } from "./myst/native.ts";
 export { writeIssueOf } from "./write-error.ts";
 export type { WriteIssue } from "./write-error.ts";

@@ -322,6 +322,8 @@ async (page, {screenshots = false} = {}) => {
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('index.md'));
   await ready();
   await page.setViewportSize({width:375, height:812});
+  // Phone widths start with the sidebar collapsed; opened, it overlays the document.
+  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
   await item('New file in folder').click();
   const filename = page.getByTestId('new-file-name');
   assert(await page.getByTestId('new-file-directory').inputValue() === folder, 'Root folder is the creation destination');
@@ -476,6 +478,7 @@ async (page, {screenshots = false} = {}) => {
     await section.getByTitle([folder, name].join(sep), {exact:true}).waitFor();
     for (const width of [1440, 1024, 375]) {
       await page.setViewportSize({width, height:812});
+      if (width === 375) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
       await page.mouse.move(width - 2, 2);
       const geometry = await section.evaluate(async (element, name) => {
         await document.fonts.ready;

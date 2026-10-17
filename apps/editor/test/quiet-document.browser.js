@@ -225,10 +225,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
         await page.locator('[data-document-tab][data-active=true] .paragraph').first().hover();
         await shot(`${width}-paragraph-hover`);
       });
-      await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-      await rest();
-      await shot(`${width}-collapsed`);
-      await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      // Phone widths start with the rail; there the opened sidebar overlays the document.
+      if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) {
+        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+        await rest();
+        await shot(`${width}-sidebar-overlay`);
+      } else {
+        await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+        await rest();
+        await shot(`${width}-collapsed`);
+        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      }
       await page.getByRole('button',{name:'Display',exact:true}).click();
       await rest();
       await shot(`${width}-display`);
@@ -440,6 +447,19 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     check(await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft>0),'Formula not scrollable to end');
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=0);
     await shot(`${width}-long-content`);
+    // A table wider than the column keeps its table actions reachable before it is scrolled.
+    const wide=page.locator('[data-document-tab][data-active=true] .table-block');
+    await wide.locator('.table-scroll').evaluate(n=>n.scrollLeft=0);
+    await wide.hover({position:{x:8,y:8}});
+    const actions=await wide.evaluate(block=>{
+      const view=block.querySelector('.table-scroll').getBoundingClientRect();
+      return ['Edit table','Table actions','Delete table'].map(name=>{
+        const r=block.querySelector(`[aria-label="${name}"]`)?.getBoundingClientRect();
+        return {name,visible:!!r&&r.width>0&&r.left>=view.left-0.5&&r.right<=view.right+0.5};
+      });
+    });
+    check(actions.every(a=>a.visible),`Wide table actions out of view ${JSON.stringify({width,actions})}`);
+    await rest();
     results.push({width,...local});
   }
   for(const [button,label] of [['Open folder…','Folder']]) {

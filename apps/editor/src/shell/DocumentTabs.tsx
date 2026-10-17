@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { tabNames } from "../document-tabs.ts";
+import { tabLabels, tabNames } from "../document-tabs.ts";
 
 export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
   tabs: { id: string; path: string; dirty: boolean }[];
@@ -11,6 +11,7 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
 }) {
   const row = useRef<HTMLDivElement>(null);
   const names = tabNames(tabs);
+  const labels = tabLabels(tabs);
   useLayoutEffect(() => {
     const element = row.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     // Scroll only the tab row; scrollIntoView would also move the document's window.
@@ -45,7 +46,11 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
                 onClose(tab.id);
               }
             }}>
-            <span className="document-tab-name">{names[index]}</span>
+            {/* The filename gives way first, so the folder that tells equal names apart stays visible. */}
+            <span className="document-tab-name">
+              <span className="document-tab-file">{labels[index]!.name}</span>
+              {labels[index]!.folder ? <span className="document-tab-folder">{labels[index]!.folder}</span> : null}
+            </span>
             <span className="document-tab-dirty" aria-hidden="true">{tab.dirty ? "•" : ""}</span>
           </button>
           <button type="button" className="document-tab-close" aria-label={`Close ${names[index]}`}

@@ -92,7 +92,7 @@ export function NewDialog({ kind = "file", open, busy, destinations, directory, 
             <span>Location</span>
             {/* The destination is always shown and chosen here, never inferred from the tree. */}
             <select
-              className="h-[var(--size-control)] w-full min-w-0 rounded-md border border-input bg-background px-[var(--space-3)] text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="form-select h-[var(--size-control)] w-full min-w-0 rounded-md border border-input bg-background pl-[var(--space-3)] text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               data-testid={`new-${kind}-directory`}
               title={destination}
               value={destination}

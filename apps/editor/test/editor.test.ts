@@ -761,6 +761,7 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     for (const file of ["b.md", "a10.md", "a9.md", "UPPER.MD", "notes.txt", ".hidden.md", "guides/deep.md"]) {
       writeFileSync(path.join(chosen, file), nativeSource("x\n"));
     }
+    writeFileSync(path.join(chosen, "b.md"), "# Plain Markdown\n");
     // Windows junctions do not require developer-mode symlink permission.
     fs.symlinkSync(outside, path.join(chosen, "linked"), process.platform === "win32" ? "junction" : "dir");
 
@@ -770,10 +771,13 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     assert.deepEqual(top.entries.map(entry => `${entry.kind}:${entry.name}`),
       ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
     assert.equal(top.entries[1]?.path, path.join(path.resolve(chosen), "a9.md"));
+    // The tree can tell files without the native marker apart before anyone opens them.
+    assert.deepEqual(top.entries.map(entry => entry.native), [undefined, true, true, false, true]);
 
     // Choosing a folder can browse outside the eventual sidebar root, with Host-owned crumbs.
     const browsed = browseFolder(chosen);
-    assert.deepEqual(browsed.entries, top.entries);
+    // Choosing a folder returns names only, never content.
+    assert.deepEqual(browsed.entries, top.entries.map(({ native: _native, ...entry }) => entry));
     assert.equal(browsed.crumbs[0]?.path, path.parse(chosen).root);
     assert.deepEqual(browsed.crumbs.at(-1), { name: "docs", path: chosen });
     for (let index = 1; index < browsed.crumbs.length; index++) {

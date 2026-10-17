@@ -6,7 +6,7 @@ type DocumentResponse = DocumentFileResponse;
 
 /** The Host's Core admission failure, identified by code rather than message text. */
 export class NativeOpenError extends Error {
-  constructor(readonly reason: string, readonly action: string) {
+  constructor(readonly reason: string, readonly action: string, readonly code?: string) {
     super(reason);
     this.name = "NativeOpenError";
   }
@@ -43,7 +43,7 @@ export async function requestDocument(
   }
   if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     if (!response.ok && method === "GET" && payload.code?.startsWith("native-")) {
-      throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.issue?.action ?? "");
+      throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.issue?.action ?? "", payload.code);
     }
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
   }

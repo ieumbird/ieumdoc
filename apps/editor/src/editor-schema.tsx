@@ -451,6 +451,7 @@ function tableNode(onDraftChange?: DraftListener) {
 function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
+  const rowLayer = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const number = useBlockNumber(editor, getPos, "table");
@@ -482,11 +483,11 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
     <div className="table-scroll"><div ref={grid} className="table-grid">
       <NodeViewContent<"table"> as="table" className="table" />
-      <TableTools editor={editor} node={node} getPos={getPos} grid={grid} onEdit={begin} hidden={editing} />
+      <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
     </div></div>
+    <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[]) }} /> : null}
-    {editor.isEditable && !editing ? <Button className="table-edit" size="sm" variant="outline" aria-label="Edit table" contentEditable={false} onClick={begin}>Edit</Button> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>

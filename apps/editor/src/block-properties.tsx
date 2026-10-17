@@ -49,8 +49,8 @@ export function BlockProperties({
           {children}
           {error ? <Notice tone="error">{error}</Notice> : null}
           <div className="form-actions">
-            <Button type="submit" size="sm" disabled={busy} data-testid={`${testId}-apply`}>Apply</Button>
             <Button type="button" size="sm" variant="outline" onClick={onCancel} data-testid={`${testId}-cancel`}>Cancel</Button>
+            <Button type="submit" size="sm" disabled={busy} data-testid={`${testId}-apply`}>Apply</Button>
           </div>
         </form>
       </PopoverContent>

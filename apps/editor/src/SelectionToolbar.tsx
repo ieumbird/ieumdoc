@@ -1,9 +1,13 @@
 import type { Editor } from "@tiptap/core";
-import { Code, Hash, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
+import { Bookmark, Code, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
 import { useState, type CSSProperties, type RefObject } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+/** Icon buttons name their action, and its shortcut when one exists, in a tooltip. */
+const tip = (label: string, keys?: string) => (keys ? `${label} (${MOD}${keys})` : label);
 
 /**
  * Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies.
@@ -36,7 +40,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
       }}
     >
       <Button variant="ghost" size="icon-sm"
-        aria-label="Bold"
+        aria-label="Bold" title={tip("Bold", "B")} aria-keyshortcuts="Control+B Meta+B"
         aria-pressed={editor.isActive("bold")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "bold", onReject)}
@@ -44,7 +48,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <strong aria-hidden="true">B</strong>
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Italic"
+        aria-label="Italic" title={tip("Italic", "I")} aria-keyshortcuts="Control+I Meta+I"
         aria-pressed={editor.isActive("italic")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "italic", onReject)}
@@ -52,7 +56,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <em aria-hidden="true">I</em>
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Strikethrough"
+        aria-label="Strikethrough" title={tip("Strikethrough", "Shift+S")} aria-keyshortcuts="Control+Shift+S Meta+Shift+S"
         aria-pressed={editor.isActive("strike")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "strike", onReject)}
@@ -60,7 +64,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Strikethrough aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Subscript"
+        aria-label="Subscript" title={tip("Subscript", ",")}
         aria-pressed={editor.isActive("subscript")}
         aria-keyshortcuts="Control+Comma Meta+Comma"
         onMouseDown={(event) => event.preventDefault()}
@@ -69,7 +73,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Subscript aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Superscript"
+        aria-label="Superscript" title={tip("Superscript", ".")}
         aria-pressed={editor.isActive("superscript")}
         aria-keyshortcuts="Control+Period Meta+Period"
         onMouseDown={(event) => event.preventDefault()}
@@ -78,7 +82,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Superscript aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Inline code"
+        aria-label="Inline code" title={tip("Inline code", "E")} aria-keyshortcuts="Control+E Meta+E"
         aria-pressed={editor.isActive("code")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "code", onReject)}
@@ -86,7 +90,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Code aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Link"
+        aria-label="Link" title={tip("Link")}
         aria-pressed={editor.isActive("link")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditLink() : onReject())}
@@ -94,18 +98,18 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Link2 aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Inline math"
+        aria-label="Inline math" title={tip("Inline math")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (makeInlineMath(editor) ? undefined : onReject())}
       >
         <Sigma aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label="Cross-reference"
+        aria-label="Cross-reference" title={tip("Cross-reference")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditReference() : onReject())}
       >
-        <Hash aria-hidden="true" size={16} />
+        <Bookmark aria-hidden="true" size={16} />
       </Button>
     </div>
   );

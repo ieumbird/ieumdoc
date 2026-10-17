@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, FileText, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronRight, Ellipsis, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -10,8 +10,13 @@ type SidebarProps = {
   open: boolean;
   documentPath: string;
   onToggle(): void;
+  /** Set where the open sidebar overlays the document: Escape inside it collapses it to the rail. */
+  onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
+  /** Recently opened folders, offered without a chosen folder so one click lists one again. */
+  recent?: string[];
+  onOpenRecent?(folder: string): void;
   /** Opens New, which shows and lets the user choose the destination folder. */
   onNew?(): void;
   newButtonRef?: RefObject<HTMLButtonElement | null>;
@@ -30,20 +35,31 @@ type SidebarProps = {
 
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
-  open, documentPath, onToggle, onOpenFolder, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
+  open, documentPath, onToggle, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
   const [tool, setTool] = useState<"files" | "display">("files");
   const displayButton = useRef<HTMLButtonElement>(null);
+  const toggleButton = useRef<HTMLButtonElement>(null);
   const selectTool = (next: typeof tool) => {
     setTool(next);
     if (!open) onToggle();
   };
   return (
-    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar">
+    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar"
+      onKeyDown={event => {
+        // Display's own Escape returns to its button first (it prevents the default).
+        // Portaled menus and dialogs bubble through React; they keep their own Escape.
+        if (event.key !== "Escape" || event.defaultPrevented || !open || !onDismiss ||
+          !event.currentTarget.contains(event.target as Node)) return;
+        event.preventDefault();
+        onDismiss();
+        toggleButton.current?.focus();
+      }}>
       <div className="sidebar-header">
         {open ? <span className="product">IeumDoc</span> : null}
         <Button
+          ref={toggleButton}
           variant="ghost"
           size="icon-sm"
           aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
@@ -87,6 +103,21 @@ export function Sidebar({
               <FolderOpen aria-hidden="true" />
               Open folder…
             </Button>
+            {recent.length > 0 && onOpenRecent ? (
+              <section className="sidebar-recent" aria-labelledby="sidebar-recent-label">
+                <p className="sidebar-recent-label" id="sidebar-recent-label">Recent</p>
+                <ul>
+                  {recent.map(folder => (
+                    <li key={folder}>
+                      <button type="button" className="sidebar-tree-item sidebar-recent-folder" title={folder} onClick={() => onOpenRecent(folder)}>
+                        <Folder className="sidebar-tree-icon" aria-hidden="true" />
+                        <span className="sidebar-tree-name">{splitDocumentPath(folder.replace(/[\\/]+$/, "")).name || folder}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </section>
         )}
       </div>
@@ -194,16 +225,20 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           const { entry } = item;
           const folder = entry.kind === "folder";
           const expanded = folder && tree.expanded.has(entry.path);
-          const Icon = !folder ? FileText : expanded ? FolderOpen : Folder;
+          // A file without the native marker still opens, to explain why IeumDoc refuses it.
+          const foreign = !folder && entry.native === false;
+          const Icon = foreign ? FileX : !folder ? FileText : expanded ? FolderOpen : Folder;
           return (
             <li
               key={entry.path}
               ref={row => { if (row) rows.current.set(entry.path, row); else rows.current.delete(entry.path); }}
               role="treeitem"
               className="sidebar-tree-item"
+              data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
-              title={entry.path}
+              title={foreign ? `${entry.path}\nNot an IeumDoc document` : entry.path}
+              aria-description={foreign ? "Not an IeumDoc document" : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
