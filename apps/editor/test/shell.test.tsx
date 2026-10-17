@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "../src/document-tabs.ts";
+import { activeAfterClose, allTabsPendingWork, openedTab, tabLabels, tabNames } from "../src/document-tabs.ts";
 
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FolderEntry } from "../shared/document-protocol.ts";
@@ -11,7 +11,7 @@ import { createDocumentSessionLifetime } from "../src/document-session.ts";
 import { visibleRecentFolders } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
-import { splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
+import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
@@ -36,6 +36,17 @@ test("same-named files use enough of their parent folders to distinguish them", 
     ["guide.md — one", "guide.md — two", "readme.md"]);
   assert.deepEqual(tabNames([{ path: "/a/docs/guide.md" }, { path: "/b/docs/guide.md" }]),
     ["guide.md — a/docs", "guide.md — b/docs"]);
+  // The label keeps the folder apart from the name, so the name can give way to it.
+  assert.deepEqual(tabLabels([{ path: "C:\\one\\guide.md" }, { path: "C:\\two\\guide.md" }, { path: "/readme.md" }]),
+    [{ name: "guide.md", folder: "one" }, { name: "guide.md", folder: "two" }, { name: "readme.md" }]);
+});
+
+test("the TopBar location names folders from the chosen folder down, else only the document's own", () => {
+  assert.deepEqual(documentLocation(String.raw`C:\work\docs\guides\guide.md`, String.raw`C:\work\docs`), ["docs", "guides"]);
+  assert.deepEqual(documentLocation(String.raw`C:\work\docs\index.md`, String.raw`C:\work\docs\\`), ["docs"]);
+  assert.deepEqual(documentLocation(String.raw`C:\work\docs-old\index.md`, String.raw`C:\work\docs`), ["docs-old"]);
+  assert.deepEqual(documentLocation("/srv/notes/a.md"), ["notes"]);
+  assert.deepEqual(documentLocation(""), []);
 });
 
 test("pending work includes every tab and opening before a tab exists", () => {
@@ -164,6 +175,29 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No folders or Markdown files/);
+
+  // A file without the native marker stays listed but says it is not an IeumDoc document.
+  const mixed = listing(String.raw`C:\docs`, [
+    { name: "plain.md", kind: "document", path: String.raw`C:\docs\plain.md`, native: false },
+    { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },
+  ]);
+  const marked = renderToStaticMarkup(
+    <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }}
+      onToggle={noop} onOpenFolder={noop} />,
+  );
+  assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
+  assert.equal(marked.match(/data-foreign/g)?.length, 1, "only the unmarked file");
+});
+
+test("without a chosen folder, recent folders list again with one click", () => {
+  const recent = [String.raw`C:\work\docs`, "/srv/notes/"];
+  const html = renderToStaticMarkup(
+    <Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} recent={recent} onOpenRecent={noop} />,
+  );
+  assert.match(html, /<button\b(?=[^>]*title="C:\\work\\docs")[^>]*>.*?>docs</);
+  assert.match(html, /<button\b(?=[^>]*title="\/srv\/notes\/")[^>]*>.*?>notes</);
+  // No recent list without a way to open one.
+  assert.doesNotMatch(renderToStaticMarkup(<Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
 });
 
 test("document panel holds only the outline, and the TopBar Outline toggle shows whether it is open", () => {

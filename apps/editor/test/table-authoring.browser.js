@@ -58,8 +58,16 @@ async (page, { openDocument, reloadDocument }) => {
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
     await initial.getByRole('button', {name:'Column A actions', exact:true}).getAttribute('aria-pressed') === 'true';
-  result.toolsDoNotOverlapEdit = await initial.evaluate(block => block.querySelector('.table-edit').getBoundingClientRect().bottom <=
-    block.querySelector('.table-column-handle').getBoundingClientRect().top);
+  // Edit (caption and label) sits in the action bar below the table; the table starts on the text
+  // axis and its row handles stay left of it, clear of the gutter's block handle.
+  result.toolsDoNotOverlapEdit = await initial.evaluate(block => {
+    const edit = block.querySelector('[aria-label="Edit table"]').getBoundingClientRect();
+    const table = block.querySelector('table').getBoundingClientRect();
+    const row = block.querySelector('.table-row-handle').getBoundingClientRect();
+    const handle = document.querySelector('.block-controls.visible .block-handle')?.getBoundingClientRect();
+    return edit.top >= table.bottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
+      (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
+  });
   await initial.getByRole('button', {name:'Append row', exact:true}).click();
   result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;

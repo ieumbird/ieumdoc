@@ -11,21 +11,27 @@ export function activeAfterClose<T extends { id: string }>(tabs: readonly T[], a
   return tabs[index + 1]?.id ?? tabs[index - 1]?.id ?? null;
 }
 
-export function tabNames(tabs: readonly { path: string }[]): string[] {
+/** Each tab's filename and, for files with the same name, the shortest parent folder suffix that distinguishes it. */
+export function tabLabels(tabs: readonly { path: string }[]): { name: string; folder?: string }[] {
   const parts = tabs.map(tab => splitDocumentPath(tab.path));
   return parts.map(({ name, directory }) => {
     const same = parts.filter(part => part.name === name);
-    if (same.length === 1) return name;
+    if (same.length === 1) return { name };
     const folders = directory.replace(/[\\/]$/, "").split(/[\\/]/);
     // Use the shortest parent suffix that distinguishes even sibling folders with the same name.
     for (let count = 1; count <= folders.length; count++) {
       const suffix = folders.slice(-count).join("/");
       if (same.filter(part => part.directory.replace(/[\\/]$/, "").split(/[\\/]/).slice(-count).join("/") === suffix).length === 1) {
-        return `${name} — ${suffix}`;
+        return { name, folder: suffix };
       }
     }
-    return `${name} — ${directory}`;
+    return { name, folder: directory };
   });
+}
+
+/** Accessible tab names: the filename, then its distinguishing folder. */
+export function tabNames(tabs: readonly { path: string }[]): string[] {
+  return tabLabels(tabs).map(({ name, folder }) => folder ? `${name} — ${folder}` : name);
 }
 
 export function allTabsPendingWork(tabs: Iterable<{ pendingWork(): string | null }>, opening: boolean): string | null {

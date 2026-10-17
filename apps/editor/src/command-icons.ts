@@ -1,7 +1,7 @@
 import {
   Asterisk,
+  Bookmark,
   Code,
-  Hash,
   Heading1,
   Heading2,
   Heading3,
@@ -39,10 +39,10 @@ const INSERT_ICONS: Record<string, LucideIcon> = {
   equation: Sigma,
   figure: Image,
   table: Table,
-  footnote: Asterisk,
+  endnote: Asterisk,
 };
 
 /** The icon the insert menu shows for an insert command or a reference item. */
 export function insertCommandIcon(id: string): LucideIcon | undefined {
-  return id.startsWith("reference:") ? Hash : INSERT_ICONS[id];
+  return id.startsWith("reference:") ? Bookmark : INSERT_ICONS[id];
 }

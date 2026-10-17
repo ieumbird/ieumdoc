@@ -6,6 +6,7 @@
   color: var(--id-color-text);
   background: var(--id-color-canvas);
   font-family: var(--font-family-sans);
+  font-feature-settings: var(--font-feature-sans);
   line-height: var(--line-height-body);
 }
 
@@ -30,6 +31,25 @@ button {
 
 .app-shell--collapsed {
   --shell-sidebar: var(--layout-sidebar-rail-width);
+}
+
+/* Below 640px (phone widths) the grid keeps only the rail; the opened sidebar covers the document instead of
+ * narrowing it, like the Document panel overlay. */
+.app-shell--sidebar-overlay {
+  --shell-sidebar: var(--layout-sidebar-rail-width);
+}
+
+/* Out of the grid, the sidebar no longer holds the first column; the main column keeps its own. */
+.app-shell--sidebar-overlay .app-main {
+  grid-column: 2;
+}
+
+.app-shell--sidebar-overlay:not(.app-shell--collapsed) .sidebar {
+  position: fixed;
+  left: 0;
+  z-index: 5;
+  width: min(var(--layout-sidebar-width), 100vw);
+  box-shadow: var(--shadow-overlay);
 }
 
 /* A closed document panel takes no width; the TopBar Outline toggle opens it. */
@@ -234,11 +254,11 @@ button {
   line-height: var(--line-height-label);
 }
 
+/* Ghost icon buttons already space their 16px icons 12px apart, so the group adds no gap. */
 .sidebar-folder-actions {
   display: flex;
   float: right;
-  gap: var(--space-1);
-  margin-left: var(--space-2);
+  margin-left: var(--space-1);
 }
 
 .sidebar-tree {
@@ -288,6 +308,73 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A native select drawn like the other fields: the same box with a 16px chevron at its end. */
+.form-select {
+  appearance: none;
+  padding-right: calc(var(--space-3) * 2 + var(--size-icon-slot));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23545c68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right var(--space-3) center;
+  background-repeat: no-repeat;
+  background-size: var(--size-icon-slot);
+}
+
+/* Core's exact reason and action under the plain explanation of a refused Open. */
+.open-refusal-details {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+  border-left: var(--border-width) solid var(--id-color-border);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+
+.open-refusal-details p { margin: 0; }
+
+/* A document without the native marker stays listed, quieter and with its own icon. */
+.sidebar-tree-item[data-foreign] {
+  color: var(--id-color-text-subtle);
+}
+
+/* Without a chosen folder: one click lists a recently opened folder again. */
+.sidebar-recent {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.sidebar-recent-label {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--id-color-text-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-meta);
+}
+
+.sidebar-recent ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The icon shares the Open folder… button's start; names ellipsize with the full path in `title`. */
+.sidebar-recent-folder {
+  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
+  column-gap: var(--space-2);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+.sidebar-recent-folder .sidebar-tree-name { margin-left: 0; }
+
+.sidebar-recent-folder:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-inset);
 }
 
 .sidebar-folder-empty,
@@ -486,7 +573,12 @@ button {
   outline: none;
   box-shadow: var(--focus-ring-inset);
 }
-.document-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-tab-name { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; white-space: nowrap; }
+.document-tab-file,
+.document-tab-folder { overflow: hidden; text-overflow: ellipsis; }
+.document-tab-file { flex: 0 1 auto; min-width: 2rem; }
+/* The distinguishing folder keeps its own width (up to half the label) before the filename shrinks. */
+.document-tab-folder { flex: 0 0 auto; max-width: 50%; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); }
 .document-tab-dirty { flex: 0 0 var(--space-2); }
 .document-tab-close { flex: 0 0 var(--size-control-compact); }
 .document-tab-close svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
@@ -533,6 +625,20 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: var(--font-weight-semibold);
+}
+
+/* The folders before the name give way first; the tab row below names the document too. */
+.document-path-folder {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--id-color-text-muted);
+}
+
+.document-path-separator {
+  padding: 0 var(--space-1);
+  color: var(--id-color-text-subtle);
 }
 
 .top-bar-actions {
@@ -671,16 +777,22 @@ button {
 }
 
 .status:empty { display: none; }
-/* TopBar state axes stay separate: hover is a neutral face (none on view tabs), keyboard focus is
- * the ring, and "on"/active is the interaction marker. An on toggle also takes the selected icon
- * color, but no selected face, so the face never means two things. */
+/* State axes stay separate: hover is a neutral face, keyboard focus is the ring. The blue marker
+ * means "current place" (document tabs, sidebar tool) only. Visual/Source is a segmented control
+ * whose chosen view is a raised white segment; Outline, when on, is a pressed toggle with the
+ * selected face and icon color. */
 .top-bar-toggle[aria-pressed="true"],
 .sidebar-tool[aria-pressed="true"] {
   position: relative;
   color: var(--id-color-text-selected);
 }
-:is(.top-bar-toggle, .view-toggle-option, .sidebar-tool)[aria-pressed="true"]::after,
-.view-toggle .view-toggle-option:not([aria-pressed="true"], [aria-disabled="true"]):enabled:hover::after {
+.top-bar-toggle[aria-pressed="true"] {
+  background: var(--id-color-surface-selected);
+}
+.top-bar-toggle[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--id-color-surface-selected-hover);
+}
+.sidebar-tool[aria-pressed="true"]::after {
   content: "";
   position: absolute;
   inset-inline: var(--space-2);
@@ -1118,8 +1230,44 @@ ol.list { list-style: decimal; }
 }
 
 .table-scroll { overflow-x: auto; }
-.table-block > .block-metadata { min-height: var(--size-control-compact); }
-.table-grid { position: relative; min-width: 100%; width: max-content; padding: 32px 32px 44px; box-sizing: border-box; }
+
+/* Wide tables and formulas scroll inside their block. A thin scrollbar stays visible (overlay
+ * scrollbars would hide it until hovered), and the edge with more content fades out. The fade
+ * follows the scroll position and is absent when nothing overflows: an inactive scroll timeline
+ * leaves both fades at 0. */
+@property --overflow-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --overflow-fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes overflow-fade {
+  from { --overflow-fade-start: 0px; --overflow-fade-end: var(--size-overflow-fade); }
+  to { --overflow-fade-start: var(--size-overflow-fade); --overflow-fade-end: 0px; }
+}
+.table-scroll,
+.equation-math {
+  scrollbar-width: thin;
+  scrollbar-color: var(--id-color-border-strong) transparent;
+}
+@supports (animation-timeline: scroll()) {
+  .table-scroll,
+  .equation-math {
+    animation: overflow-fade linear both;
+    animation-timeline: scroll(self inline);
+    mask-image: linear-gradient(to right, transparent, #000 var(--overflow-fade-start),
+      #000 calc(100% - var(--overflow-fade-end)), transparent);
+  }
+}
+/* The table starts on the text axis. Rows never scroll sideways, so their handles and Append row
+ * live in a layer outside the scroller, left of the axis; column handles scroll with the columns. */
+.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) 44px 0; box-sizing: border-box; }
+.table-row-layer {
+  position: absolute;
+  top: 0;
+  left: calc(-1 * var(--size-table-handle-gutter));
+  width: var(--size-table-handle-gutter);
+  /* The handles cross the hovered block's outline; they sit on it rather than under it. */
+  z-index: 1;
+  pointer-events: none;
+}
+.table-row-layer button { pointer-events: auto; }
 .table-tools { visibility: hidden; }
 .table-block:is(:hover, :focus-within, [data-selected="true"]) .table-tools,
 .table-tools[data-menu-open="true"], .table-tools[data-active="true"] { visibility: visible; }
@@ -1219,14 +1367,21 @@ ol.list { list-style: decimal; }
   min-width: 100%;
 }
 
+/* Authoring metadata takes no layout space: hidden at rest, it shows in the block gap above its
+ * block, at the right, so the block's content starts where its text would. */
 .block-metadata {
+  position: absolute;
+  right: 0;
+  /* Clear of the hovered block's outline, which reaches into the same gap. */
+  bottom: calc(100% + var(--space-block-hover-block) + var(--size-block-hover-outline));
   visibility: hidden;
   pointer-events: none;
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
   text-align: right;
+  white-space: nowrap;
 }
 
 :is(.figure, .equation, .table-block):is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata {
@@ -1584,13 +1739,18 @@ ol.list { list-style: decimal; }
   flex: 1 1 auto;
 }
 
-/* The Markdown shortcut that makes the same block. */
+/* The Markdown shortcut that makes the same block, as a key chip so `>` never reads as a submenu. */
 .command-menu-hint {
   flex: none;
   margin-left: var(--space-4);
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-surface-subtle);
   color: var(--id-color-text-subtle);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
 }
 
 .command-menu-item:hover {
@@ -1797,7 +1957,6 @@ ol.list { list-style: decimal; }
 }
 
 .figure-edit,
-.table-edit,
 .equation-edit {
   position: absolute;
   top: var(--space-1);
@@ -1807,7 +1966,7 @@ ol.list { list-style: decimal; }
   z-index: 1;
 }
 
-:is(.figure, .equation, .table-block):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit, .table-edit) {
+:is(.figure, .equation):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit) {
   opacity: 1;
   pointer-events: auto;
 }
@@ -1821,7 +1980,6 @@ ol.list { list-style: decimal; }
 @media (hover: none) {
   .block-controls,
   .figure-edit,
-  .table-edit,
   .equation-edit {
     opacity: 1;
     pointer-events: auto;
@@ -1921,16 +2079,18 @@ ol.list { list-style: decimal; }
   }
 }
 
-/* Visual | Source: two views of one document, not actions. */
-/* Visual/Source are view tabs, not a boxed control: the active tab has dark text and the marker.
- * Hovering an inactive tab darkens its text over a neutral marker preview, never a face. */
+/* Visual | Source: two views of one document, not actions. A segmented control on a quiet track:
+ * the chosen view is a raised white segment, the other muted text that darkens on hover. */
 .view-toggle {
   display: inline-flex;
-  gap: 0;
+  gap: var(--space-1);
+  padding: 2px;
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface-pressed);
 }
 
 .view-toggle .view-toggle-option {
-  position: relative;
+  height: var(--size-view-segment);
   color: var(--id-color-text-muted);
 }
 
@@ -1942,22 +2102,39 @@ ol.list { list-style: decimal; }
   color: var(--id-color-text);
 }
 
-/* Same selector as the shared marker rule, later, so only its color differs. */
-.view-toggle .view-toggle-option:not([aria-pressed="true"], [aria-disabled="true"]):enabled:hover::after {
-  background: var(--id-color-border);
+.view-toggle .view-toggle-option[aria-pressed="true"],
+.view-toggle .view-toggle-option[aria-pressed="true"]:hover {
+  background: var(--id-color-surface);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
 }
 
+/* Source keeps each Markdown line on one row (a wrapped table row would read as two) and scrolls
+ * sideways instead. Line numbers fill the gutter, so the text keeps the Visual text axis. */
 .source-view {
-  padding-left: var(--layout-document-inline-padding);
+  padding-left: var(--space-4);
 }
 
 .source-view-text {
   margin: 0;
+  overflow-x: auto;
+  counter-reset: source-line;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  scrollbar-width: thin;
+  scrollbar-color: var(--id-color-border-strong) transparent;
+}
+
+.source-line::before {
+  counter-increment: source-line;
+  content: counter(source-line);
+  display: inline-block;
+  width: max(3ch, calc(var(--layout-document-inline-padding) - var(--space-4) - var(--space-3)));
+  margin-right: var(--space-3);
+  color: var(--id-color-text-subtle);
+  text-align: right;
+  user-select: none;
 }
 
 .table-block { position: relative; }
@@ -2212,11 +2389,13 @@ ol.list { list-style: decimal; }
 
 /* Tabs and toggles with the underline marker never also draw a box: no pressed face or
  * border while their panel/menu is open, and mouse focus leaves nothing behind. */
-:is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):is([aria-expanded="true"], [aria-pressed="true"]) {
+:is(.sidebar-tool, .view-toggle-option):is([aria-expanded="true"], [aria-pressed="true"]) {
   border-color: transparent;
   background: transparent;
 }
-:is(.sidebar-tool, .top-bar-toggle):hover:not(:disabled, [aria-disabled="true"]) {
+.top-bar-toggle[aria-pressed="true"] { border-color: transparent; }
+:is(.sidebar-tool, .top-bar-toggle):not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]),
+.sidebar-tool[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--id-color-surface-hover);
 }
 :is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):focus-visible {

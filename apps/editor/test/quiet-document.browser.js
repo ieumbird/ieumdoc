@@ -225,10 +225,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
         await page.locator('[data-document-tab][data-active=true] .paragraph').first().hover();
         await shot(`${width}-paragraph-hover`);
       });
-      await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-      await rest();
-      await shot(`${width}-collapsed`);
-      await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      // Phone widths start with the rail; there the opened sidebar overlays the document.
+      if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) {
+        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+        await rest();
+        await shot(`${width}-sidebar-overlay`);
+      } else {
+        await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+        await rest();
+        await shot(`${width}-collapsed`);
+        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      }
       await page.getByRole('button',{name:'Display',exact:true}).click();
       await rest();
       await shot(`${width}-display`);

@@ -2,12 +2,13 @@
 
 - Status: Implemented
 - CLI insertion verification: 2026-10-15 (#280 caption/label in one write, label-only table, invalid/duplicate label refusal and rich batch caption; Core/CLI tests).
-- Last verified: 2026-10-11 (contract compared with current code and regression coverage; caption inline math and reference display, #165).
+- Last verified: 2026-10-17 (UX review: Edit moved to the table's action bar; table-authoring and property-drafts browser checks).
+- Previous verification: 2026-10-11 (contract compared with current code and regression coverage; caption inline math and reference display, #165).
 - Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
 
 Issue #94. Core owns `updateTableCaption` and table `updateLabel`. Plain tables become MyST `{table}` directives when caption or label is present, and return to plain Markdown when both are removed. Canonical writing uses the existing Markdown writer for the caption and GFM grid, then verifies the complete semantic round-trip. Cell paths remain logical `[block,row,column]` regardless of the directive wrapper.
 
-Editor uses the existing single document state and shared properties panel. Hover a table and choose Edit; Caption and Label apply together. Cancel keeps the applied table, and pending form changes participate in the existing unsaved-state guard. Caption and label make a numbered Table target, including `{numref}` insertion and click navigation. Caption edits reset snapshot numbering defaults so removing both properties immediately removes the number. Grid children and row positions are unchanged.
+Editor uses the existing single document state and shared properties panel. Hover a table and choose Edit (the pencil in its action bar below the table, beside Table actions, which also offers Edit caption and label); Caption and Label apply together. Cancel keeps the applied table, and pending form changes participate in the existing unsaved-state guard. Caption and label make a numbered Table target, including `{numref}` insertion and click navigation. Caption edits reset snapshot numbering defaults so removing both properties immediately removes the number. Grid children and row positions are unchanged.
 
 The properties field authors plain single-line caption text. Existing formatted inline captions retain their content unless the user replaces the caption text; Core and CLI also accept InlineContent. In the document a caption reads as the body does: its formatting and links, inline math rendered by KaTeX, and references showing their target's computed number (or the dashed unresolved form), following label and numbering changes anywhere in the document. The caption is display only there: its math and references are not clickable, and it is never re-written by being shown. Merged cells, additional legends and directive options reject native admission. No new table editor engine or persistence architecture is introduced.
 

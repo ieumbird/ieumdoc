@@ -31,12 +31,15 @@
   --layout-folder-picker-list-height: 15rem;
   /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
   --layout-sidebar-width: 15rem;
-  --layout-sidebar-width-narrow: 11rem;
+  --layout-sidebar-width-narrow: 12.5rem;
   /* Document panel (outline) beside the document; in the narrow layout it overlays at this width. */
   --layout-document-panel-width: 16rem;
   /* Document tabs: compact row height and maximum label width before ellipsis. */
   --layout-document-tab-height: 2.5rem;
   --layout-document-tab-max-width: 16rem;
+  /* Pretendard glyph variants for UI and document text. `cv08` gives capital I its serifs, so
+   * "IeumDoc" never reads as "leumDoc" and a variable I stays distinct from l. */
+  --font-feature-sans: "cv08";
   /* Inline math size relative to its text. KaTeX's own 1.21em stands out beside Pretendard;
    * display equations keep it. */
   --math-inline-size: 1.1em;
@@ -115,6 +118,8 @@
   --focus-ring: 0 0 0 2px var(--id-color-border-focus);
   --focus-ring-inset: inset 0 0 0 2px var(--id-color-border-focus);
   --shadow-overlay: 0 8px 24px rgb(32 36 44 / 10%), 0 2px 6px rgb(32 36 44 / 6%);
+  /* The chosen segment of a segmented control sits slightly above its track. */
+  --shadow-segment: 0 1px 2px rgb(32 36 44 / 8%);
 
   --layout-content-gutter: var(--space-4);
   --layout-document-inline-padding: var(--layout-document-gutter);
@@ -126,6 +131,12 @@
   --size-control: 2rem;
   --size-control-compact: 1.75rem;
   --size-icon-slot: 1rem;
+  /* The 28px table row and column handles with their 4px clearance from the table. */
+  --size-table-handle-gutter: calc(var(--size-control-compact) + var(--space-1));
+  /* How far a wide table or formula fades out at an edge that has more content to scroll to. */
+  --size-overflow-fade: var(--space-8);
+  /* A segment inside its 2px track keeps the track at the compact control height. */
+  --size-view-segment: calc(var(--size-control-compact) - 4px);
   --layout-gutter-gap: var(--space-1);
   --size-drop-indicator: 2px;
   /* Non-color cue shared by current navigation and the active menu/list choice. */

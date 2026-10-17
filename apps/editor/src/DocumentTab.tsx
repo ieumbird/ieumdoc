@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect } from "react";
+import { Fragment, memo, useLayoutEffect } from "react";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 import { EditorVisibility } from "./editor-visibility.ts";
@@ -19,7 +19,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, active, report 
       data-document-tab={id} data-active={active ? "true" : "false"}>
       {session.view === "source" ? (
         <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
-          <pre className="source-view-text">{session.sourceMarkdown}</pre>
+          <pre className="source-view-text"><SourceLines markdown={session.sourceMarkdown} /></pre>
         </article>
       ) : null}
       <div hidden={session.view === "source"}>
@@ -31,3 +31,21 @@ export const DocumentTab = memo(function DocumentTab({ id, file, active, report 
     </div>
   );
 });
+
+/**
+ * One span per line, so CSS can number lines in the gutter. The numbers are generated content:
+ * the text, and what Copy takes from it, stays the Markdown exactly.
+ */
+function SourceLines({ markdown }: { markdown: string }) {
+  const lines = markdown.split("\n");
+  const trailing = lines.length > 1 && lines.at(-1) === "";
+  if (trailing) lines.pop();
+  return (
+    <>
+      {lines.map((line, index) => (
+        <Fragment key={index}>{index > 0 ? "\n" : null}<span className="source-line">{line}</span></Fragment>
+      ))}
+      {trailing ? "\n" : null}
+    </>
+  );
+}
