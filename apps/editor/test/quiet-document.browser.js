@@ -446,6 +446,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=n.scrollWidth);
     check(await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft>0),'Formula not scrollable to end');
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=0);
+    await shot(`${width}-long-content`);
     // A table wider than the column keeps its table actions reachable before it is scrolled.
     const wide=page.locator('[data-document-tab][data-active=true] .table-block');
     await wide.locator('.table-scroll').evaluate(n=>n.scrollLeft=0);
@@ -458,7 +459,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       });
     });
     check(actions.every(a=>a.visible),`Wide table actions out of view ${JSON.stringify({width,actions})}`);
-    await shot(`${width}-long-content`);
+    await rest();
     results.push({width,...local});
   }
   for(const [button,label] of [['Open folder…','Folder']]) {

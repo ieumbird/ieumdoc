@@ -66,9 +66,18 @@ Source numbering are Editor-only interactions outside CLI parity.
 
 All on Windows with installed Chrome, persistent profiles, against the branch's Vite Host:
 
-- `pnpm typecheck`, `pnpm test` (Core 225, file-commit 4, CLI 64, Editor 248, Desktop 39 passing), `pnpm --filter @ieumdoc/editor build`, `pnpm docs:check`, `git diff --check`.
-- `pnpm browser:test`: all 44 stable scenarios passed (5.6 min) after the final code change.
-- `pnpm --filter @ieumdoc/cli build` and `pnpm browser:test http-host`: passed (the HTTP Host shares the folder listing handler).
-- Same-state Before/After: `pnpm browser:test quiet-document --screenshots` in a detached worktree of `e50502f` (dev server on 5174) and in this branch, 1440/1024/768/705/704/414/375px, 100% zoom, Pretendard loaded. The captures stay in the ignored `tmp/ux-review/compare/` and are not committed. In the 1440px rest pair the table enters the first screen on the text axis and the Equation and Figure start 24–48px higher; at 414px the document keeps a readable width beside the rail instead of breaking the title mid-word.
+- After merging `master` and the review fixes: `pnpm typecheck`, `pnpm test` (Core 225, file-commit 4, CLI 64, Editor 252, Desktop 39 passing), `pnpm --filter @ieumdoc/editor build`, `pnpm docs:check`, `git diff --check`.
+- `pnpm browser:test`: all 47 stable scenarios passed (7.1 min), including the new wide-table and Copy path checks. Before the merge the branch alone passed all 44.
+- `pnpm --filter @ieumdoc/cli build` and `pnpm browser:test http-host`: http-host and http-recovery passed (the HTTP Host shares the folder listing handler).
+- Same-state Before/After after the master merge: `pnpm browser:test quiet-document --screenshots` in a detached worktree of `b1395b1` (current master, dev server on 5174) and in this branch, 1440/1024/768/705/704/414/375px, 100% zoom, Pretendard loaded; plus a fresh 375px load and the overflowing long-content table hovered at 1024px, taken with the same Playwright script on both. Representative pairs:
+
+| State | Before (`b1395b1`) | After |
+| --- | --- | --- |
+| 1440px rest | [before](../design/assets/editor-ux-review-2026-10-17/before-1440-rest.png) | [after](../design/assets/editor-ux-review-2026-10-17/after-1440-rest.png) |
+| 375px fresh load | [before](../design/assets/editor-ux-review-2026-10-17/before-375-fresh.png) | [after](../design/assets/editor-ux-review-2026-10-17/after-375-fresh.png) |
+| 1024px long content at rest | [before](../design/assets/editor-ux-review-2026-10-17/before-1024-long-content.png) | [after](../design/assets/editor-ux-review-2026-10-17/after-1024-long-content.png) |
+| 1024px wide table hovered | [before](../design/assets/editor-ux-review-2026-10-17/before-1024-wide-table-hover.png) | [after](../design/assets/editor-ux-review-2026-10-17/after-1024-wide-table-hover.png) |
+
+  At 1440px the table enters the first screen on the text axis and the Equation and Figure start 24–48px higher. At 375px the document keeps a readable width beside the rail instead of breaking the title mid-word. On the wide table, master shows Edit above the table and only `⋯` at the right edge with Delete cut off; the branch keeps Append row, Edit, Table actions and Delete together at the table's start. The full capture set stays in the ignored `tmp/ux-review/compare/`.
 
 Earlier runs in this work found two real defects before they shipped: the first table alignment widened the horizontal scroller into the gutter, where it intercepted the block handle's clicks (fixed by moving row handles to a non-scrolling layer), and a 768px overlay threshold changed the tablet-width (704–768px) sidebar contract (lowered to 640px). Visual approval of v4.7 remains with the user.
