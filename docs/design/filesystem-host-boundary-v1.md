@@ -5,7 +5,8 @@
 - CLI preview verification: 2026-10-15 (#292: shared file-commit preflight, dry-run no-write boundary, failure parity and result/check output; source CLI and Core/CLI/file-commit tests).
 - CLI insertion verification: 2026-10-15 (#280 single-write properties, unchanged-file refusal and per-step batch `end` resolution; Core/CLI tests).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
-- Last verified: 2026-10-16 (#204: Editor tab admission and navigation wording checked; Host persistence and write handlers unchanged).
+- Last verified: 2026-10-17 (UX review: sidebar folder listing marks documents without the native marker through Core `hasNativeMarker`; Editor/Core unit tests and the stable browser suite. Write handlers unchanged).
+- Previous verification: 2026-10-16 (#204: Editor tab admission and navigation wording checked; Host persistence and write handlers unchanged).
 - Previous verification: 2026-10-14 (#215: CLI batch sequential-byte equivalence, original preservation, revision/output, batch-wide versus step errors, null option rejection and commit conflict regressions. #214: CLI inspect revision and edit precondition, real-file stale path/byte preservation and commit conflict regressions. #237: unsupported save edit fields rejected with unchanged file bytes in Host tests; actual Vite `save-session`, production HTTP and packaged Desktop Save/Reload/conflict regressions. #211 / PR #229: proxy-safe normal media separators and standalone dot-segment transport retain Host traversal checks; Editor/Host unit tests and actual Vite `image-assets` loading/Save/Reload; image choice listing, link/copy and HTTP root denial; shared handlers, root enforcement and full regressions on 2026-10-13).
 - Authority: shared file Host boundary for Vite, [ADR-0004 Desktop](../adr/0004-desktop-host-distribution.md) and [ADR-0005 HTTP](../adr/0005-http-host.md). [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) owns persistence semantics.
 - Encoding verification: 2026-10-15 (#271 malformed UTF-8/Unicode refusal, raw-byte revision checks, original preservation and temporary cleanup; Vite/production HTTP repeated Unicode Save → Reload and existing external-conflict regressions).
@@ -197,7 +198,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. Workspace가 아니다. 선택한 sidebar folder는 Browser 페이지 상태에만 있고 Host나 파일에 저장하지 않는다. 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억한다.
 
-- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
+- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document", path, native? }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `native`는 문서 항목에만 있으며, 파일 앞부분(최대 4KB)의 leading frontmatter에 native 표식 `ieumdoc: 1`이 있는지를 Core의 `hasNativeMarker`로 판정한 값이다. 파일을 읽을 수 없으면 생략한다. 이는 Sidebar가 열 수 없는 파일을 미리 구분해 보여 주기 위한 표시일 뿐 admission이 아니다. 표식이 있어도 열 때 Core가 metadata와 내용을 검증해 거부할 수 있다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
 
 | 범위 | 지원 |
 | --- | --- |
@@ -209,13 +210,13 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - 일반 directory와 일반 `.md` 파일만 넣는다. `.`으로 시작하는 항목, 다른 종류의 파일, symlink(Windows junction 포함)는 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
 - Host가 반환한 정규화 경로로 열린 탭을 식별한다. 요청 경로가 이미 열린 탭 경로와 정확히 같으면 Host GET 없이 그 세션을 활성화하므로, 디스크에서 파일이 사라지거나 읽을 수 없게 되어도 열린 세션을 유지한다. 일치하지 않는 경로·별칭은 기존 `GET /api/document`로 읽고 반환된 정규화 경로를 다시 비교한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 선택한 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.
-- `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름과 종류만 보여 준다.
-- Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다.
+- `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름·종류와 native 표식 여부만 보여 준다. 표식 판정 규칙은 Core가 소유하며 Host는 Markdown이나 frontmatter를 따로 해석하지 않는다.
+- Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다. native 표식 여부도 읽기 전용 표시이며, headless에서 문서를 실제로 받아들이는지는 기존 CLI 명령이 같은 Core admission으로 판정한다.
 
 ### Folder picker v1
 
 - [Folder picker](folder-picker-v1.md)는 앱 안에서 경로를 고른다. OS 선택창, upload, 별도 복사본은 없다. Open을 누르기 전의 탐색은 sidebar와 문서를 바꾸지 않는다.
-- `GET /api/folder-browse?path=<folder>`는 `{ path, crumbs, entries }`를 돌려준다. `crumbs`는 filesystem root부터 해당 folder까지의 `{ name, path }` 목록이며 Host가 계산한다. 항목 필터와 정렬은 Folder listing v1과 같다. 선택 전의 탐색은 sidebar의 `root` 제한을 사용하지 않는다.
+- `GET /api/folder-browse?path=<folder>`는 `{ path, crumbs, entries }`를 돌려준다. `crumbs`는 filesystem root부터 해당 folder까지의 `{ name, path }` 목록이며 Host가 계산한다. 항목 필터와 정렬은 Folder listing v1과 같지만, 선택 전 탐색은 이름과 종류만 돌려주고 파일 내용(`native`)은 읽지 않는다. 선택 전의 탐색은 sidebar의 `root` 제한을 사용하지 않는다.
 - `GET /api/folder-places`는 `{ places: [{ kind, name, path }] }`를 돌려준다. Home, 실제 존재하는 Documents, Windows drive roots 또는 `/`가 시작점이다. Host는 탐색 위치나 최근 목록을 저장하지 않는다.
 - Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하고, 새로고침 시 sidebar folder를 자동으로 복원하지 않는다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
 

@@ -34,6 +34,19 @@ export function supportedHeadingContent(node: MystNode): InlineContent[] | undef
   return content && inlineContentText(content).length > 0 && !breaks(content) ? content : undefined;
 }
 
+/**
+ * Whether source starts with frontmatter carrying the native marker `ieumdoc: 1`, read from the
+ * leading frontmatter alone so a folder listing can tell native files apart without parsing them.
+ * It is not admission: a marked file can still be rejected for its metadata or content.
+ */
+export function hasNativeMarker(source: string): boolean {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source.replace(/^\uFEFF/, ""));
+  if (!match) return false;
+  const yaml = parseDocument(match[1]!);
+  const marker = isMap(yaml.contents) ? yaml.get("ieumdoc", true) : undefined;
+  return isScalar(marker) && marker.value === 1;
+}
+
 /** Validate source metadata before accepting a file; canonicalization cannot detect duplicate YAML keys. */
 function metadata(document: MystDocument): void {
   const first = document.children[0];

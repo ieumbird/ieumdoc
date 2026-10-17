@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
+- Last verified: 2026-10-17 (UX review: Core `hasNativeMarker` for the sidebar folder listing; Core native tests and the stable browser suite. Admission unchanged).
+- Previous verification: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
 ## Contract
@@ -53,7 +54,7 @@ Ordinary Markdown images, task lists, unsupported roles/directives, attributes o
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
 - Shared Host Open/Reload/Save/Source and asset creation use Core admission. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
 - Editor explicit Open (sidebar file selection and the start screen's sample action) shows a modal Alert for Host errors whose code is `native-*`. It names the rejected file, displays Core's reason and corrective action, and states that the current document has not changed (or that no document opened). One OK button or Escape closes it and returns focus to the opening control. The same refusal is not repeated in the top error message. Other Open failures, startup failures and Reload failures retain their existing error presentation. The existing unsaved-work guard still blocks Open before reading another file.
-- Folder browsing lists names without reading or classifying document contents. Open folder remains a folder picker and has no document-opening or admission Alert behavior.
+- Choosing a folder (Open folder…) lists names without reading document contents and has no document-opening or admission Alert behavior. The sidebar folder listing reads only the start of each listed `.md` file and asks Core `hasNativeMarker(source)` whether its leading frontmatter carries `ieumdoc: 1`, so Files can set apart files IeumDoc will refuse. This is a display hint, not admission: a marked file is still validated when opened, and Hosts do not parse frontmatter themselves. The refusal Alert explains the marker in plain words before Core's reason and action.
 - Whole-document Source previews the applied native document through Core without writing. It retains visual editor state and unapplied property drafts. `replaceBlockSource`, CLI `replace-block-source`, Host source-apply/replay and Editor Edit source are removed.
 
 ## Canonical output and compatibility

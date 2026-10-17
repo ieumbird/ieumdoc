@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  createDocument, parse, serialize, getEditableDocument, NativeDocumentError, canonicalWriteIssue,
+  createDocument, parse, serialize, getEditableDocument, NativeDocumentError, canonicalWriteIssue, hasNativeMarker,
   insertHeading, insertParagraph, insertFigure, updateHeadingNumbering, removeBlock,
   updateHeadingInlineContent, updateHeadingLevel, insertFootnote, updateParagraphInlineContent, moveBlock,
   insertTarget, moveSection, removeSection, updateNodeTextAtPath, updateTableCell, mergeParagraphWithPrevious,
@@ -21,6 +21,16 @@ test("native admission checks the marker and the complete YAML contract before w
   assert.equal(serialize(parse(`\uFEFF${marked.replaceAll("\n", "\r\n")}`)), marked);
 });
 
+test("the native marker is read from leading frontmatter alone, without admitting the document", () => {
+  for (const source of [native("# Title\n"), `\uFEFF${native("Body.\n").replaceAll("\n", "\r\n")}`,
+    "---\nieumdoc: 1\nnumbering:\n  headings: true\n---\n", native("> One.\n>\n> Two.\n")]) {
+    assert.equal(hasNativeMarker(source), true, source);
+  }
+  for (const source of ["", "# Title\n", "---\nieumdoc: '1'\n---\n", "---\nieumdoc: 2\n---\n", "---\nieumdoc: 1\n",
+    "---\n- ieumdoc: 1\n---\n", "# Title\n\n---\nieumdoc: 1\n---\n", "\n---\nieumdoc: 1\n---\n"]) {
+    assert.equal(hasNativeMarker(source), false, source);
+  }
+});
 test("native admission rejects unsupported structure instead of projecting partial documents", () => {
   for (const body of ["![ordinary](./x.png)\n", "Text ![inline](./x.png).\n", "- [ ] task\n",
     "> One.\n>\n> Two.\n", ":::{note}\n# Nested\n:::\n", "Text {kbd}`Ctrl`.\n",
