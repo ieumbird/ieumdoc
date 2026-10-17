@@ -447,6 +447,20 @@ export function App() {
     return () => window.removeEventListener("beforeunload", protect);
   }, []);
 
+  /** Browsers expose the Clipboard API only on secure (HTTPS or local) pages; elsewhere, say so. */
+  async function copyPath(): Promise<void> {
+    if (!navigator.clipboard?.writeText) {
+      setError("Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(openedPath);
+      setNotice("Copied the file path.");
+    } catch (cause) {
+      setError(`Could not copy the file path: ${messageOf(cause)}`);
+    }
+  }
+
   function toggleDocumentWidth(): void {
     const next = documentWidth === "wide" ? "standard" : "wide";
     setDocumentWidth(next);
@@ -511,8 +525,7 @@ export function App() {
             onSave={() => void save()}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
-            onCopyPath={() => void navigator.clipboard.writeText(openedPath).then(() => setNotice("Copied the file path."))
-              .catch((cause: unknown) => setError(`Could not copy the file path: ${messageOf(cause)}`))}
+            onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
             outline={panelOpen}
             onToggleOutline={() => setPanelOpen((value) => !value)}

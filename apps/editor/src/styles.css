@@ -1282,7 +1282,9 @@ ol.list { list-style: decimal; }
 .table-column-handle { position: absolute; top: 0; }
 .table-row-handle { position: absolute; left: 0; width: 28px; }
 .table-extend { position: absolute; width: 28px; }
-.table-action-bar { position: absolute; display: flex; justify-content: center; gap: 4px; pointer-events: none; }
+/* Table-level actions start at the table's start, beside Append row, so a table wider than the
+ * column keeps Edit, Table actions and Delete in view before it is scrolled. */
+.table-action-bar { position: absolute; display: flex; justify-content: flex-start; gap: 4px; pointer-events: none; }
 .table-action-bar button { width: 28px; pointer-events: auto; }
 .table-command-popover { padding: 0; width: auto; gap: 0; border: 0; box-shadow: none; }
 .table [data-current-cell="true"] { outline: 2px solid var(--id-color-interaction); outline-offset: -2px; }

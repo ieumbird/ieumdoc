@@ -37,6 +37,12 @@ contrast measured at least 6.3:1 and was left unchanged.
 The large blank above the sample Figure is whitespace inside the fixture SVG (`diagram.svg`), not
 Editor layout, and was not changed.
 
+## Review response (PR #322)
+
+- A table wider than about twice the column could place the centered action bar, and so Edit, outside the first visible area. The bar now starts at the table's start beside Append row; `quiet-document` checks Edit, Table actions and Delete inside the scroller at `scrollLeft=0` on the overflowing long-content table at 1440/1024/768px.
+- Copy path called `navigator.clipboard.writeText` directly, which throws synchronously where the API is absent (non-HTTPS remote HTTP Host pages). It now checks the API and explains the limitation; `editor-shell` removes the API and checks the message.
+- The branch was merged with `master` (#296 local recovery) and verified again as below.
+
 ## Boundaries and parity
 
 No document meaning, Save API, Tiptap state or persistence changed. `hasNativeMarker` is a read-only

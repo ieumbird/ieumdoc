@@ -75,6 +75,20 @@ async page => {
     await page.getByRole('menu').waitFor({state:'detached', timeout:2000});
     await fileActions.and(page.locator(':focus')).waitFor({state:'attached', timeout:2000});
     result.fileMenuEscapeReturnsFocus = await isFocused(fileActions);
+    // Without the Clipboard API (a non-HTTPS remote origin), Copy path explains instead of throwing.
+    await page.evaluate(() => {
+      window.__clipboard = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard');
+      Object.defineProperty(Navigator.prototype, 'clipboard', {configurable: true, get: () => undefined});
+    });
+    try {
+      await fileActions.click();
+      await page.getByRole('menuitem', {name:'Copy path', exact:true}).click();
+      await page.getByTestId('error').filter({hasText:'Copy path needs clipboard access'}).waitFor({timeout:2000});
+      result.copyPathWithoutClipboard = true;
+      await page.getByRole('button', {name:'Dismiss error'}).click();
+    } finally {
+      await page.evaluate(() => { Object.defineProperty(Navigator.prototype, 'clipboard', window.__clipboard); delete window.__clipboard; });
+    }
 
     // Selection toolbar appears only for a paragraph text selection.
     const paragraph = page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true});

@@ -446,6 +446,18 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=n.scrollWidth);
     check(await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft>0),'Formula not scrollable to end');
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=0);
+    // A table wider than the column keeps its table actions reachable before it is scrolled.
+    const wide=page.locator('[data-document-tab][data-active=true] .table-block');
+    await wide.locator('.table-scroll').evaluate(n=>n.scrollLeft=0);
+    await wide.hover({position:{x:8,y:8}});
+    const actions=await wide.evaluate(block=>{
+      const view=block.querySelector('.table-scroll').getBoundingClientRect();
+      return ['Edit table','Table actions','Delete table'].map(name=>{
+        const r=block.querySelector(`[aria-label="${name}"]`)?.getBoundingClientRect();
+        return {name,visible:!!r&&r.width>0&&r.left>=view.left-0.5&&r.right<=view.right+0.5};
+      });
+    });
+    check(actions.every(a=>a.visible),`Wide table actions out of view ${JSON.stringify({width,actions})}`);
     await shot(`${width}-long-content`);
     results.push({width,...local});
   }
