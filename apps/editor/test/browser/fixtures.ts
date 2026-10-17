@@ -32,7 +32,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
       { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
     ]),
-  ], scenarios: ["document-tabs"] },
+  ], scenarios: ["document-tabs", "recovery"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "a.md", create: () => nativeSource("# HTTP A\n\nAlpha.\n") },
@@ -119,6 +119,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "middle.md", create: () => `${fixture("math.md").create().toString().trimEnd()}\n\nAfter.\n` },
     { name: "only.md", create: () => nativeSource("```{math}\n:label: eq-a\nx\n```\n") },
   ], scenarios: ["equation-save-during-edit"] },
+  "equation-node-selection-typing": {
+    files: [{ name: "power.md", create: () => nativeSource(
+      "# Power\n\nBefore the equation.\n\n```{math}\n:label: eq-power\nP = VI \\cos \\varphi\n```\n\nAfter the equation.\n") }],
+    scenarios: ["equation-node-selection-typing"],
+  },
   "admonition-authoring": { files: [fixture("authoring.md")], scenarios: ["admonition-authoring"] },
   "list-authoring": { files: [fixture("lists.md")], scenarios: ["list-authoring"] },
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },

@@ -1,9 +1,12 @@
+import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
+import { prepareRecovery } from "./recovery-restore.ts";
+import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { activeAfterClose, allTabsPendingWork, openedTab } from "./document-tabs.ts";
-import { type DocumentSession } from "./useDocumentSession.ts";
+import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
@@ -39,7 +42,7 @@ const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
 // overlays the document instead of leaving it a sliver of width.
 const SIDEBAR_OVERLAY_LAYOUT = "(width < 40rem)";
 
-type Tab = { id: string; path: string; file: DocumentFileResponse };
+type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: string; restored?: DocumentSessionSnapshot };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
@@ -77,6 +80,57 @@ export function App() {
     else sessions.current.delete(id);
     refreshShell();
   }, []);
+  const [recoveryRecords, setRecoveryRecords] = useState<RecoveryRecord[]>([]);
+  const [recoveryProblem, setRecoveryProblem] = useState("");
+  const [recoveryReview, setRecoveryReview] = useState<{ record: RecoveryRecord; reason: string } | null>(null);
+  const refreshRecovery = useCallback(async () => {
+    try {
+      const records = await recoveryStorage.list();
+      setRecoveryRecords(records);
+      setRecoveryProblem("");
+      return records;
+    } catch (cause) {
+      setRecoveryProblem(`Local recovery is unavailable: ${messageOf(cause)}. Save or copy your work before closing.`);
+      return [];
+    }
+  }, []);
+  function reviewRecovery(record: RecoveryRecord): void {
+    let reason = "";
+    try { prepareRecovery(record); } catch (cause) { reason = messageOf(cause); }
+    setRecoveryReview({ record, reason });
+  }
+  async function offerRecovery(file: DocumentFileResponse): Promise<void> {
+    const records = await refreshRecovery();
+    const matching = records.find(record => record.path === file.path && !tabs.some(tab => tab.recoveryId === record.id));
+    if (matching) reviewRecovery(matching);
+  }
+  async function deleteRecovery(id?: string): Promise<void> {
+    try { await recoveryStorage.delete(id); await refreshRecovery(); }
+    catch (cause) { setRecoveryProblem(`Could not delete local recovery: ${messageOf(cause)}`); throw cause; }
+  }
+  async function restoreRecovery(): Promise<void> {
+    if (!recoveryReview) return;
+    const record = recoveryReview.record;
+    const restored = prepareRecovery(record);
+    const existing = openedTab(tabs, record.path);
+    const owner = existing && sessions.current.get(existing.id);
+    if (owner && (owner.busyRef.current || owner.editorRef.current?.hasUnsavedChanges())) {
+      throw new Error("This document already has open work. Close its tab before restoring a recovery record.");
+    }
+    const recoveryId = newRecoveryId();
+    await recoveryStorage.restore(record, recoveryId);
+    const id = `document-${++nextId.current}`;
+    setTabs(previous => [...previous.filter(tab => tab.id !== existing?.id), { id, path: record.path, file: restored.file, recoveryId, restored }]);
+    setActiveId(id);
+    setRecoveryReview(null);
+    await refreshRecovery();
+  }
+  useEffect(() => {
+    void refreshRecovery();
+    const focused = () => { void refreshRecovery(); };
+    window.addEventListener("focus", focused);
+    return () => window.removeEventListener("focus", focused);
+  }, [refreshRecovery, tabs.length]);
   const nextId = useRef(0);
   const scrollPositions = useRef(new Map<string, number>());
   const previousActive = useRef<string | null>(null);
@@ -138,7 +192,8 @@ export function App() {
     if (existing) setActiveId(existing.id);
     else {
       const id = `document-${++nextId.current}`;
-      setTabs(previous => [...previous, { id, path: file.path, file }]);
+      const recoveryId = newRecoveryId();
+      setTabs(previous => [...previous, { id, path: file.path, file, recoveryId }]);
       setActiveId(id);
     }
   }
@@ -147,7 +202,7 @@ export function App() {
     void requestDocument("GET").then(next => {
       if (!current) return;
       if ("start" in next) { setStart(next); setAllowedRoots(next.allowedRoots); }
-      else { setStart({ start: true }); acceptFile(next); }
+      else { setStart({ start: true }); acceptFile(next); void offerRecovery(next); }
     }).catch(cause => { if (current) setError(messageOf(cause)); }).finally(() => {
       if (current) { operationRef.current = false; setOperation(""); }
     });
@@ -157,6 +212,9 @@ export function App() {
   function removeTab(id: string): void {
     const next = activeAfterClose(tabs, activeId, id);
     scrollPositions.current.delete(id);
+    void sessions.current.get(id)?.discardRecovery()?.then(deleted => {
+      if (!deleted) setError("The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again.");
+    });
     sessions.current.delete(id);
     focusAfterClose.current = true;
     setTabs(previous => previous.filter(tab => tab.id !== id));
@@ -228,6 +286,7 @@ export function App() {
       const next = await requestDocument("GET", requestedPath);
       if ("start" in next) throw new Error("The Host did not return a document.");
       acceptFile(next);
+      void offerRecovery(next);
       setNotice(openedNotice);
       return "";
     } catch (cause) {
@@ -325,7 +384,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation) return;
+    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
     void save();
   };
   useEffect(() => {
@@ -432,10 +491,11 @@ export function App() {
           void openFolderDocument(path);
         }}
         onCloseFolder={folderTree.close}
-        onSettings={desktop ? (returnFocus) => {
+        onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
           setSettingsOpen(true);
-        } : undefined}
+          void refreshRecovery();
+        }}
       />
       <div className="app-main">
         <div className="app-header" ref={header}>
@@ -462,6 +522,7 @@ export function App() {
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
+            warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
             error={error || sessionError}
             notice={notice || sessionNotice}
             draftNotice={draftNotice}
@@ -478,6 +539,7 @@ export function App() {
         }}>
           {tabs.length === 0 && start ? (
             <DocumentStart
+              recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
               recent={visibleRecent}
               sample={start.sample}
               busy={busy}
@@ -491,7 +553,7 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} active={tab.id === activeId} report={reportSession} />)}
+          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -506,9 +568,11 @@ export function App() {
           }}
         />
       ) : null}
-      {desktop ? (
-        <SettingsDialog
+      <SettingsDialog
           open={settingsOpen}
+          recoveryCount={recoveryRecords.length}
+          recoveryProblem={recoveryProblem}
+          onClearRecovery={() => deleteRecovery()}
           desktop={desktop}
           info={desktopInfo}
           onInfo={setDesktopInfo}
@@ -516,7 +580,9 @@ export function App() {
           returnFocus={settingsReturnFocus}
           onClose={() => setSettingsOpen(false)}
         />
-      ) : null}
+      <RecoveryPrompt key={recoveryReview?.record.id ?? "closed"} record={recoveryReview?.record ?? null} reason={recoveryReview?.reason ?? ""}
+        onRestore={restoreRecovery} onDelete={async () => { if (recoveryReview) await deleteRecovery(recoveryReview.record.id); setRecoveryReview(null); }}
+        onClose={() => setRecoveryReview(null)} />
       <FolderDialog
         open={folderDialog}
         initialPath={folderTree.state?.root ?? splitDocumentPath(openedPath).directory}

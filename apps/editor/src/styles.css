@@ -689,14 +689,14 @@ button {
   gap: var(--space-1);
 }
 
-/* Desktop app only: Settings sits at the bottom of the sidebar, open or collapsed. */
+/* Shared Settings sits at the bottom of the sidebar, open or collapsed. */
 .sidebar-footer {
   display: flex;
   flex-direction: column;
   margin-top: auto;
 }
 
-/* Settings → About (Desktop app only): facts, the release channel and update status. */
+/* Settings, including Desktop About: facts, the release channel and update status. */
 .settings-section {
   display: grid;
   gap: var(--space-3);
@@ -2044,6 +2044,9 @@ ol.list { list-style: decimal; }
  * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
 @media (width < 80rem) {
   .app-shell { --shell-panel: 0px; }
+  /* Media styles apply before the matchMedia handler closes the docked panel.
+   * Do not let its padding/header overflow the now zero-width grid column. */
+  .document-panel:not(.document-panel--overlay) { display: none; }
 }
 
 /* A narrow expanded sidebar stays usable without reserving empty desktop space. */
@@ -2430,4 +2433,32 @@ ol.list { list-style: decimal; }
 :is(.sidebar-tree-item, .document-outline-item, .document-start-folder, .command-menu-item, .folder-picker-option):focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
+}
+
+/* Recovery uses the start surface and existing control/type/spacing roles. */
+.recovery-records {
+  display: grid;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.recovery-records li {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+}
+.recovery-records li > div { flex: 1 1 16rem; min-width: 0; overflow-wrap: anywhere; }
+.recovery-text {
+  display: block;
+  width: 100%;
+  min-height: 8rem;
+  margin-block: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--id-color-border-control);
+  border-radius: var(--id-radius-sm);
+  font: inherit;
 }

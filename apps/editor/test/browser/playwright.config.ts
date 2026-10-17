@@ -7,7 +7,7 @@ const url = process.env.IEUMDOC_BROWSER_URL ?? (httpHost ? "http://127.0.0.1:518
 
 export default defineConfig({
   testDir: import.meta.dirname,
-  testMatch: "scenarios.spec.ts",
+  testMatch: httpHost ? ["scenarios.spec.ts", "http-recovery.spec.ts"] : "scenarios.spec.ts",
   workers: 1,
   fullyParallel: false,
   retries: 0,

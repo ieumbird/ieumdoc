@@ -1,3 +1,4 @@
+import { allocateBlockPath } from "./block-locators.ts";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
@@ -78,8 +79,6 @@ const hiddenAttr = (defaultValue: string | number | boolean = ""): Attribute => 
   default: defaultValue,
   rendered: false,
 });
-
-let nextEmptySplitLocator = 0;
 
 function headingTag(level: unknown): "h1" | "h2" | "h3" | "h4" | "h5" | "h6" {
   switch (Number(level)) {
@@ -725,10 +724,10 @@ const ParagraphSplit = Extension.create({
           const right = tr.selection.$from.before();
           const rightNode = tr.doc.nodeAt(right);
           const rightSourcePath = rightNode?.content.size === 0
-            ? `${NEW_BLOCK_PREFIX}split:${++nextEmptySplitLocator}`
+            ? allocateBlockPath("split")
             : sourcePath;
           const leftSourcePath = tr.doc.nodeAt(start)?.content.size === 0 && rightNode!.content.size > 0
-            ? `${NEW_BLOCK_PREFIX}split:${++nextEmptySplitLocator}` : sourcePath;
+            ? allocateBlockPath("split") : sourcePath;
           tr.setNodeMarkup(start, this.editor.schema.nodes.paragraph, { sourcePath: leftSourcePath });
           tr.setNodeMarkup(right, this.editor.schema.nodes.paragraph, { sourcePath: rightSourcePath });
           tr.setMeta("paragraphSplit", true);
@@ -844,17 +843,18 @@ export function createEditorExtensions(
   onAssetError?: (reason: string) => void,
   hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
+  initialDeletedPaths: readonly string[] = [],
 ): Extensions {
   return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
     ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
-    documentInteraction(onReject), structureGuard(baseline, onReject)];
+    documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 
-function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Extension {
+function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void, initialDeletedPaths: readonly string[]): Extension {
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
-      return [structureGuardPlugin(baseline, onReject)];
+      return [structureGuardPlugin(baseline, onReject, initialDeletedPaths)];
     },
   });
 }
@@ -894,11 +894,11 @@ function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON)): TiptapJSON 
   return typeof baseline === "function" ? baseline() : baseline;
 }
 
-export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void): Plugin {
+export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void, initialDeletedPaths: readonly string[] = []): Plugin {
   return new Plugin<string[]>({
     key: structureGuardKey,
     state: {
-      init: () => [],
+      init: () => [...initialDeletedPaths],
       apply(transaction, declared) {
         return commandDeletions(transaction, declared);
       },

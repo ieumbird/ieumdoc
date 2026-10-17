@@ -260,6 +260,17 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           node.type.name === "footnoteReference" ? `[^${node.attrs.label}]` :
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
+          keydown: (view, event) => {
+            const { selection } = view.state;
+            // prosemirror-view ignores IME keydown (229). Prepare the text caret before
+            // Chromium establishes its composition range; moving it at compositionstart
+            // or beforeinput can abort that range and duplicate the first composing text.
+            if (!view.composing && (event.keyCode === 229 || event.key === "Process") &&
+                selection instanceof NodeSelection && selection.node.type.name === "equation") {
+              view.dispatch(paragraphBeside(view.state, true));
+            }
+            return false;
+          },
           copy: (view, event) => {
             if (view.state.selection.content().content.content.every(portable)) return false;
             event.preventDefault(); return fail(COPY_RESTRICTION);
@@ -284,6 +295,18 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           pastedNotice = notice;
           return false;
         },
+        // A node-selected Equation is an atom with no caret. Engine replacement would destroy it
+        // and any label target; match Enter and put the typed character in a new paragraph below.
+        handleTextInput(view, _from, _to, text) {
+          const { state } = view;
+          const { selection } = state;
+          if (!(selection instanceof NodeSelection) || selection.node.type.name !== "equation" || !text) {
+            return false;
+          }
+          const tr = paragraphBeside(state, true);
+          view.dispatch(tr.insertText(text, tr.selection.from).scrollIntoView());
+          return true;
+        },
         handlePaste: (view, event, slice) => {
           const { error, notice } = event.clipboardData?.getData("text/html") ? pasted ?? {} : {};
           pasted = undefined;
@@ -297,7 +320,11 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
             slice.content.descendants(node => { if (node.type.name === "hardBreak") lineBreak = true; });
             if (lineBreak) return fail(`A ${target === "heading" ? "heading" : "table cell"} cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.`);
           }
-          const tr = view.state.tr.replaceSelection(slice);
+          const { selection } = view.state;
+          const besideEquation = selection instanceof NodeSelection && selection.node.type.name === "equation";
+          // Consume empty accepted content: delegating a non-null empty Slice deletes the selection.
+          if (besideEquation && !slice.size) return true;
+          const tr = (besideEquation ? paragraphBeside(view.state, true) : view.state.tr).replaceSelection(slice);
           const labels = new Set<string>();
           let duplicate = false;
           tr.doc.forEach(node => {
@@ -308,6 +335,10 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           });
           if (duplicate) return fail("Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept.");
           pastedNotice = notice;
+          if (besideEquation) {
+            view.dispatch(tr.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+            return true;
+          }
           return false;
         },
       } })];

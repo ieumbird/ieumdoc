@@ -87,6 +87,15 @@ const test = base.extend<{}, { session: BrowserContext }>({
       await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached" });
       await page.mouse.move(0, 0);
       await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
+      // Keep the persistent browser profile, but isolate recovery records between scenarios.
+      // Reloads inside a scenario deliberately retain IndexedDB for persistence checks.
+      await page.evaluate(() => new Promise<void>((resolve, reject) => {
+        const request = indexedDB.deleteDatabase("ieumdoc-recovery");
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      }));
+      await page.reload();
+      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached" });
       await use(page);
     } finally {
       const classification = classifyConsoleErrors(testInfo.title, errors);

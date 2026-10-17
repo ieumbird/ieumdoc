@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import { BookOpen, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
 type DocumentStartProps = {
+  recovery?: ReactNode;
   /** Folders opened in this browser, newest first. */
   recent: string[];
   /** A writable sample the Host offers, opened only when the user asks. */
@@ -17,7 +19,7 @@ type DocumentStartProps = {
  * The document column while no document is open: the user chooses what to work on. Nothing here
  * is a document; the sample is a separate choice, never opened for them.
  */
-export function DocumentStart({ recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
+export function DocumentStart({ recovery, recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
   return (
     <section className="document document-start" aria-labelledby="document-start-title" data-testid="document-start">
       <h1 id="document-start-title" className="document-start-title">Open your Markdown</h1>
@@ -44,6 +46,7 @@ export function DocumentStart({ recent, sample, busy, onOpenFolder, onOpenRecent
           </ul>
         </section>
       ) : null}
+      {recovery}
       {sample ? (
         <section className="document-start-section" aria-labelledby="document-start-sample">
           <h2 id="document-start-sample" className="document-start-label">Sample</h2>

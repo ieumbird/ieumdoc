@@ -104,3 +104,41 @@ pnpm --filter @ieumdoc/desktop test:update:github
 ## Native document boundary
 
 Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/support rejection. CLI tests cover exclusive create, failed text/JSON check and unchanged bytes. Host tests cover refused files and Save revalidation. `pnpm browser:test writeability-preflight` covers native admission errors and retained document, selection, unsaved content and property drafts. `new-document`, `source-view`, `outline` and `property-drafts` retain their interface checks. Block-source and partial read-only scenarios have been removed. Production HTTP and packaged Desktop use the same Core admission.
+
+## Local recovery regression
+
+`pnpm browser:test recovery-storage recovery` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
+
+For #296 PR3, after the builds described above:
+
+```bash
+pnpm browser:test http-host
+pnpm --filter @ieumdoc/desktop test:packaged
+```
+
+The HTTP command includes `http-recovery.spec.ts`: actual browser process termination and a new
+PID using the same persistent checkout profile and origin, while the production server stays
+running. Two crashes cover Restore → Save/Reload and external disk modification before Restore
+→ Save 409 without overwrite. Use the runner-owned local Host for this scratch-file test; do not
+point it at a remote/user server. Windows uses Chrome; Linux uses Playwright Chromium in CI.
+
+Desktop's cohesive recovery test kills only its owned packaged app tree, restarts at
+`ieumdoc://app` with the same `userData`/`sessionData`, restores applied text and a pending Figure,
+and verifies real Save/Reload. A subsequent normal `BrowserWindow.close()` exercises the native
+close guard, with the existing dialog-answer seam choosing **Close without saving**, then verifies
+retained work and external conflict after restart. This is actual app lifecycle/storage/Host
+execution with a stubbed native dialog answer, not an OS dialog-click test. Each test's initial
+launch clears only its own recovery DB; subsequent launches in that test preserve it. Profiles
+are retained across suite runs. This also prevents previous close tests' records from intercepting
+the next run with a recovery prompt.
+
+Both flows inspect the expected committed record before terminating; a 500ms sleep would not
+establish recording. Only the last successful record is protected. Later input, OS/power loss,
+profile removal and another origin/device are outside that proof. The prior final-v3 two-page
+ticket p95 around 2.4s remains a limitation, not a recording deadline.
+
+2026-10-16 local execution established Windows x64 packaged Desktop and production HTTP/Chrome.
+Required CI (including Linux HTTP) remains necessary before issue closure; no installer/update,
+publication or other-platform completion is implied. Compact machine-readable evidence records
+process IDs/profile/origin and assertions in `tmp/desktop-e2e/recovery-proof.json` and the HTTP
+test's `tmp/browser-results/http-recovery-*/host-recovery-proof.json` (also attached to the test).

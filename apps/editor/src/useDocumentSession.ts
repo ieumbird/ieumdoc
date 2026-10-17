@@ -1,3 +1,5 @@
+import { createRecoveryRecorder } from "./recovery-storage.ts";
+import type { EditorSnapshot } from "./editor-snapshot.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
 import type { DocumentFileResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
@@ -14,12 +16,29 @@ import { createDocumentSessionLifetime, messageOf, requestDocument, requestSave,
 /** Shown until the first Save of a source whose endnote definitions canonical write moves. */
 const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after the body, in the order of their first reference, keeping each label and text. Source shows the Markdown Save writes.";
 
+/** Opening model/source plus the acknowledged disk checkpoint and applied engine snapshots.
+ * Shared by client recovery and the internal initialization tests. */
+export type DocumentSessionSnapshot = {
+  file: DocumentFileResponse;
+  editor: EditorSnapshot;
+  savedEdits?: SupportedEdits;
+};
+
 /** One document's state and operations. The shell owns the shared work-loss confirmation. */
-export function useDocumentSession(initial: DocumentFileResponse) {
+export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string) {
+  const [initialEditorSnapshot, setInitialEditorSnapshot] = useState(() => restored?.editor && structuredClone(restored.editor));
   const editorRef = useRef<DocumentEditorHandle>(null);
+  const [recoveryError, setRecoveryError] = useState("");
+  const captureRef = useRef<() => DocumentSessionSnapshot | null>(() => null);
+  const [recorder] = useState(() => recoveryId ? createRecoveryRecorder(recoveryId, () => captureRef.current(),
+    cause => setRecoveryError(`Local recovery is unavailable: ${messageOf(cause)}. Keep this window open and save or copy your work. Changes after the last record may be lost.`),
+    () => setRecoveryError("")) : undefined);
   const [document, setDocument] = useState<EditableDocument>(initial.document);
-  const [sourceRevision, setSourceRevision] = useState(initial.revision);
-  const sessionBase = useRef<SaveRequest["base"]>({ source: initial.source });
+  const sourceRevision = useRef(initial.revision);
+  const [initialBase] = useState<SaveRequest["base"]>(() => ({
+    source: initial.source, ...(restored?.savedEdits ? { savedEdits: structuredClone(restored.savedEdits) } : {}),
+  }));
+  const sessionBase = useRef(initialBase);
   const [openedPath, setOpenedPath] = useState(initial.path);
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
@@ -51,7 +70,9 @@ export function useDocumentSession(initial: DocumentFileResponse) {
   useEffect(() => {
     // StrictMode's effect cleanup/setup must not revive callbacks from the first setup.
     setEditorGeneration(lifetime.activate());
+    if (restored) recorder?.edit();
     return () => {
+      recorder?.cancel();
       lifetime.dispose();
       imageChoiceRef.current?.resolve(undefined);
       imageChoiceRef.current = null;
@@ -70,6 +91,7 @@ export function useDocumentSession(initial: DocumentFileResponse) {
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
+      onAppliedEdit: () => { if (isCurrent()) recorder?.edit(); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
       onHeadingNumberingChange: (enabled: boolean) => { if (isCurrent()) setHeadingNumbering(enabled); },
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },
@@ -94,9 +116,10 @@ export function useDocumentSession(initial: DocumentFileResponse) {
     imageChoiceRef.current = null;
     setImageChoice(null);
     setDocument(next.document);
+    setInitialEditorSnapshot(undefined);
     sessionBase.current = { source: next.source };
     setEndnotesMove(!next.endnotesInPlace);
-    setSourceRevision(next.revision);
+    sourceRevision.current = next.revision;
     setOpenedPath(next.path);
     setDraftActive(false);
     setAssetPending(false);
@@ -119,6 +142,7 @@ export function useDocumentSession(initial: DocumentFileResponse) {
       if (!current()) return null;
       setReloadDialog(false);
       if ("start" in next) throw new Error("The Host did not return a document.");
+      recorder?.discard();
       acceptDocument(next);
       return "";
     } catch (cause) {
@@ -142,12 +166,14 @@ export function useDocumentSession(initial: DocumentFileResponse) {
     try {
       submitted = editor.beginSave();
       payload = collectSupportedEdits(document, submitted);
-      const next = await requestSave({ path: openedPath, revision: sourceRevision, base, ...payload });
+      const next = await requestSave({ path: openedPath, revision: sourceRevision.current, base, ...payload });
       if (!isCurrent()) return false;
-      setSourceRevision(next.revision);
+      sourceRevision.current = next.revision;
       setEndnotesMove(false);
       base.savedEdits = payload;
       editor.finishSave(true);
+      if (editor.hasDocumentChanges()) recorder?.checkpoint();
+      else recorder?.discard();
       const hasPendingUserState = editor.hasUnsavedChanges();
       setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
       return true;
@@ -172,7 +198,7 @@ export function useDocumentSession(initial: DocumentFileResponse) {
     setSourcePending(true);
     try {
       const payload = collectSupportedEdits(document, editorRef.current.getDocument());
-      const markdown = await requestSource({ path: openedPath, revision: sourceRevision, base: sessionBase.current, ...payload });
+      const markdown = await requestSource({ path: openedPath, revision: sourceRevision.current, base: sessionBase.current, ...payload });
       if (!isCurrent()) return;
       setSourceMarkdown(markdown);
       setView("source");
@@ -253,8 +279,20 @@ export function useDocumentSession(initial: DocumentFileResponse) {
     setImageChoice(null);
   }
 
+  function getSnapshot(): DocumentSessionSnapshot {
+    if (!isCurrent() || !editorRef.current) throw new Error("Editor is not ready");
+    return structuredClone({
+      file: { path: openedPath, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
+      editor: editorRef.current.getSnapshot(),
+      ...(sessionBase.current.savedEdits ? { savedEdits: sessionBase.current.savedEdits } : {}),
+    });
+  }
+
+  captureRef.current = () => isCurrent() && editorRef.current?.hasDocumentChanges() ? getSnapshot() : null;
+
   return {
-    editorRef, document, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
+    recoveryError, discardRecovery: () => recorder?.discard(),
+    getSnapshot, initialEditorSnapshot, editorRef, document, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? ENDNOTES_MOVE_NOTICE : "",

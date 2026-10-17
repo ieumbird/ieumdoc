@@ -6,7 +6,7 @@
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#291](https://github.com/ieumbird/ieumdoc/issues/291) · [#204](https://github.com/ieumbird/ieumdoc/issues/204) · [#272](https://github.com/ieumbird/ieumdoc/issues/272) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-15
 
-이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했고, #204에서 독립 탭과 단일 탭 닫기 확인으로 옮겼다. 복구는 후속 구현 대상이다. 1의 자동 저장은 2026-10-16에 보류했다(#297 향후 검토).
+이 문서는 승인된 방향을 기록한다. 현재 동작은 [Editing session and Save](../design/editing-session-save-v1.md)의 Implemented 계약을 따르며, 각 후속 작업이 구현될 때 그 계약을 같은 PR에서 갱신한다. #291에서 4의 확인 대화상자를 다른 문서 열기와 New에 적용했고, #204에서 독립 탭과 단일 탭 닫기 확인으로 옮겼다. 클라이언트 복구는 #296 PR2에서 구현했다. PR3의 실제 Windows Desktop/HTTP 지속성·장애 검증과 남은 필수 CI·플랫폼 경계는 [Host 검증 계약](../design/editing-session-save-v1.md#host-persistence-verification-296-pr3)을 따른다. 1의 자동 저장은 2026-10-16에 보류했다(#297 향후 검토).
 
 ## Context
 

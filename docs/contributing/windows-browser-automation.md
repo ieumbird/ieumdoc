@@ -16,9 +16,16 @@
 
 ## Profile reuse and test isolation
 
-[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
+[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 각 시나리오 시작 시 복구 IndexedDB도 삭제하고 다시 로드하여 이전 시나리오의 복구 제안을 격리한다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
 
 ## Process and session cleanup
+
+The production HTTP recovery test deliberately terminates its own browser process and launches a
+new PID with the **same** checkout-owned profile and exact origin. It obtains that PID from its
+own browser CDP session; Windows termination targets only that PID's tree. It does not clear storage
+between crash/restart steps or restart the HTTP server. The normal fixture still isolates separate
+tests. Packaged Desktop has its own fixed Electron test profiles and resets recovery only on a
+test's first launch, preserving the record on subsequent launches within that test.
 
 worker fixture는 `finally`에서 자신이 연 persistent context를 닫는다. Playwright의 `webServer`는 기본 URL에 서버가 없으면 직접 시작하고 종료한다. 로컬에 이미 실행 중인 `pnpm editor` 서버와 명시적으로 지정한 `IEUMDOC_BROWSER_URL` 서버는 caller 소유이므로 runner가 종료하지 않는다. CI는 기존 서버를 재사용하지 않는다. 직접 시작한 서버와 추가 CLI session은 이름과 PID를 확인해 정리한다. profile 재사용과 실행 중인 프로세스 방치는 다른 문제다.
 

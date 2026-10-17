@@ -2,16 +2,18 @@ import { Fragment, memo, useLayoutEffect } from "react";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 import { EditorVisibility } from "./editor-visibility.ts";
-import { useDocumentSession, type DocumentSession } from "./useDocumentSession.ts";
+import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
 /** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ id, file, active, report }: {
+export const DocumentTab = memo(function DocumentTab({ id, file, restored, recoveryId, active, report }: {
   id: string;
   file: DocumentFileResponse;
+  restored?: DocumentSessionSnapshot;
+  recoveryId: string;
   active: boolean;
   report(id: string, session: DocumentSession | null): void;
 }) {
-  const session = useDocumentSession(file);
+  const session = useDocumentSession(file, restored, recoveryId);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
   return (
@@ -25,7 +27,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, active, report 
       <div hidden={session.view === "source"}>
         <EditorVisibility value={active && session.view === "visual"}>
           <DocumentEditor key={session.editorGeneration} ref={session.editorRef}
-            document={session.document} documentPath={session.openedPath} {...session.editorCallbacks} />
+            document={session.document} initialSnapshot={session.initialEditorSnapshot} documentPath={session.openedPath} {...session.editorCallbacks} />
         </EditorVisibility>
       </div>
     </div>

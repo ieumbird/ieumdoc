@@ -1,3 +1,4 @@
+import { allocateBlockPath } from "./block-locators.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
@@ -6,7 +7,6 @@ import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-in
 import {
   isNewBlockPath,
   markKey,
-  NEW_BLOCK_PREFIX,
   pathKey,
   sourcePathOf,
   TABLE_CELL_SOURCE_ATTR,
@@ -296,9 +296,7 @@ export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON
   }
 }
 
-let nextEngineLocator = 0;
-
-export function freshBlockPath(): string { return `${NEW_BLOCK_PREFIX}engine:${++nextEngineLocator}`; }
+export function freshBlockPath(): string { return allocateBlockPath("engine"); }
 
 /** Adapt engine-created blocks to opening-snapshot locators, without changing content.
  * Kept separate from validation: unknown semantics still fail closed. */
