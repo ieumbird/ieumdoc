@@ -259,7 +259,7 @@ test("Figure captions keep supported inline semantics through updates, inserts a
   ];
   for (const [document, index] of [
     [updateFigure(parse(source), FIGURE_PATH, { caption }), FIGURE_PATH[0]],
-    [insertFigure(parse(source), 0, { imageUrl: "./a.png", imageAlt: "", caption }), 0],
+    [insertFigure(parse(source), 1, { imageUrl: "./a.png", imageAlt: "", caption }), 1],
   ] as const) {
     const { markdown } = roundTrip(document, index);
     const block = getEditableDocument(parse(markdown)).blocks[index];

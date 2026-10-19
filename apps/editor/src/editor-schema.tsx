@@ -28,6 +28,7 @@ import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
 import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
+import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { renderEquation } from "./equation-render.ts";
 import {
@@ -801,6 +802,7 @@ export function editorExtensions(
       underline: false,
     }),
     DocumentNumbering,
+    DocumentTitle,
     Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
     ParagraphHardBreak,
@@ -907,6 +909,11 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
     // save representation. This retains table/inline validation.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
+      // The title stays first (#255): nothing moves it or goes above it.
+      if (!titleKept(transaction.before, transaction.doc)) {
+        onReject(TITLE_FIXED);
+        return false;
+      }
       try {
         const base = sessionBaseline(baseline);
         const next = normalizeEngineDocument(base, {

@@ -3,7 +3,7 @@ import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
-import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
+import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath } from "./tiptap-document.ts";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
@@ -781,6 +781,14 @@ function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
 export function siblingSectionTarget(state: EditorState, index: number, by: -1 | 1): number | undefined {
   if (!isSectionHeading(state, index)) return undefined;
   const markers = sectionMarkers(state.doc);
+  // The title's section is the whole document and stays first; nothing moves above it (#255).
+  const title = titleHeading(markers);
+  if (title !== undefined && index === title) return undefined;
+  const target = siblingTarget(markers, index, by);
+  return title !== undefined && target !== undefined && target <= title ? undefined : target;
+}
+
+function siblingTarget(markers: SectionMarker[], index: number, by: -1 | 1): number | undefined {
   const level = markers[index] as number;
   const { start, end } = sectionRange(markers, index);
   if (by > 0) {

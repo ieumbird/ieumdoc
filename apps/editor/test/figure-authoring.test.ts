@@ -127,13 +127,14 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   const editable = loadEditableDocument(source);
   const projection = toTiptapDocument(editable);
   setFigure(blockAt(projection, FIGURE), CHANGED);
-  projection.content!.unshift(projection.content!.splice(6, 1)[0]);
+  // Just below the title, which stays first.
+  projection.content!.splice(1, 0, projection.content!.splice(6, 1)[0]);
   const edits = collectSupportedEdits(editable, projection);
   assert.deepEqual(edits.figures, [{ path: [7], from: ORIGINAL, to: CHANGED }]);
   assert.ok(edits.order);
   const saved = saveEdits(source, edits);
-  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 0), { label: "fig-control", ...CHANGED });
-  assert.match(saved.markdown, /^---\nieumdoc: 1\n---\n\n:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
+  assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "fig-control", ...CHANGED });
+  assert.match(saved.markdown, /^---\nieumdoc: 1\n---\n\n# Converter Control\n\n:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 
   // Clearing optional properties keeps the Figure and its label.

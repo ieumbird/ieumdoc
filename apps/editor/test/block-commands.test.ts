@@ -437,7 +437,9 @@ test("heading section commands move past sibling sections and delete a section, 
   assert.equal(command("section-up").applies!(state, 3), false);
   assert.deepEqual(["section-up", "section-down", "section-delete"].map(id => command(id).enabled(state, 2)), [false, true, true]);
   assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 4)), [false, false]);
-  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 7)), [true, false]);
+  // One is the title: Two cannot move above it, and the title's own section does not move (#255).
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 7)), [false, false]);
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 0)), [false, false]);
 
   // Section A (its target, read-only paragraph and A.1) moves below B in one undoable transaction.
   let moved = state.apply(command("section-down").run(state, 2));
@@ -446,8 +448,6 @@ test("heading section commands move past sibling sections and delete a section, 
   assert.equal(saved(moved), serialize(moveSection(parse(markdown), 3, 8)));
   assert.equal(undo(moved, tr => { moved = moved.apply(tr); }), true);
   assert.ok(moved.doc.eq(state.doc));
-  // Section Two moves above One.
-  assert.equal(saved(state.apply(command("section-up").run(state, 7))), serialize(moveSection(parse(markdown), 8, 1)));
 
   const deleted = state.apply(command("section-delete").run(state, 2));
   assert.equal(rejected, 0);

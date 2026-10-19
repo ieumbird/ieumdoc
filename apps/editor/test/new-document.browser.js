@@ -12,6 +12,8 @@ async page => {
   const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
   const read = async () => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  // The document's text: the Add a title place above an untitled document is not content (#255).
+  const text = () => editor.evaluate(node => node.editor.state.doc.textContent);
   const focused = () => editor.evaluate(element => element === document.activeElement);
   const hint = () => editor.locator('> p').first().evaluate(element => {
     const content = getComputedStyle(element, '::before').content;
@@ -41,10 +43,10 @@ async page => {
 
   // No programmatic focus/click before typing: this failed on the original blank screen.
   await page.keyboard.type('Immediate typing');
-  check((await editor.innerText()).trim() === 'Immediate typing', 'New did not accept immediate typing');
+  check((await text()).trim() === 'Immediate typing', 'New did not accept immediate typing');
   check(!await hint(), 'The hint remained over typed content');
   await page.keyboard.press('Control+z');
-  check((await editor.innerText()).trim() === '' && await hint(), 'Undo did not restore the empty hint');
+  check((await text()).trim() === '' && await hint(), 'Undo did not restore the empty hint');
   check((await page.getByTestId('status').innerText()).trim() === '', 'The hint dirtied an empty document');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
@@ -99,7 +101,7 @@ async page => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   check(await create.evaluate(element => element === document.activeElement), 'Cancelled New did not restore its opening control');
   check(await page.getByTestId('current-file').getAttribute('title') === file &&
-    (await editor.innerText()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
+    (await text()).trim() === 'Browser-created paragraph', 'New discarded unsaved work');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const written = await read();
@@ -108,7 +110,7 @@ async page => {
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await ready();
-  check((await editor.innerText()).trim() === 'Browser-created paragraph' && !await hint(), 'Reload lost the saved text or showed the hint');
+  check((await text()).trim() === 'Browser-created paragraph' && !await hint(), 'Reload lost the saved text or showed the hint');
 
   // A later cancelled creation must not repeat the successful creation's focus handoff.
   await create.click();

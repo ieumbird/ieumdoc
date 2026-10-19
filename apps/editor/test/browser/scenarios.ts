@@ -20,6 +20,7 @@ export const STABLE_SCENARIOS = [
   "quote-save-reload",
   "writeability-preflight",
   "block-move",
+  "document-title",
   "figure-authoring",
   "pending-figure",
   "image-assets",

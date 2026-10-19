@@ -390,7 +390,8 @@ async (page, {screenshots = false} = {}) => {
   const createdPath = [subFolder, '추가.md'].join(sep);
   assert(await page.getByTestId('current-file').getAttribute('title') === createdPath, 'The supplied .md extension is preserved');
   const editor = page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]');
-  await editor.click();
+  // The empty paragraph, not the Add a title place above it (#255).
+  await editor.locator('> p').first().click();
   await page.keyboard.type('Created in the displayed folder.');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
