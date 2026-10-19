@@ -861,18 +861,39 @@ button {
   box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle), var(--shadow-paper);
 }
 
-/* No document open yet: the same paper offers the choice at the text axis, in UI type. */
+/* No document open yet: the app's start, not a document (#298). It sits on the canvas in a
+ * centered column with the product mark; its sections are white cards, never the paper. */
 .document-start {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-4);
+  width: 100%;
+  max-width: var(--layout-start-width);
+  margin: 0 auto;
+  padding: var(--space-12) var(--space-4) var(--space-8);
+}
+
+.document-start-product {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-label);
+}
+
+.document-start-mark {
+  width: var(--size-start-mark);
+  height: var(--size-start-mark);
 }
 
 .document-start-title {
   margin: 0;
   color: var(--id-color-text);
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-h2);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
 }
@@ -904,9 +925,10 @@ button {
   display: grid;
   gap: var(--space-2);
   width: 100%;
-  max-width: 36rem;
-  padding-top: var(--space-4);
-  border-top: var(--border-width) solid var(--id-color-border-subtle);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--id-color-border-subtle);
+  border-radius: var(--id-radius-lg);
+  background: var(--id-color-surface);
 }
 
 .document-start-label {
@@ -2062,11 +2084,6 @@ ol.list { list-style: decimal; }
   .document {
     --layout-document-inline-padding: var(--space-4);
     --layout-document-block-padding: var(--layout-document-block-padding-narrow);
-  }
-
-  /* The start has no block tools, so it does not keep their gutter where width is scarce. */
-  .document-start {
-    padding-left: var(--layout-document-inline-padding);
   }
 }
 

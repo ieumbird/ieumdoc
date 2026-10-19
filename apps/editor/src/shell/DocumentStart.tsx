@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
 type DocumentStartProps = {
+  /** The product mark's URL; the start is the app's, not a document's. */
+  mark?: string;
   recovery?: ReactNode;
   /** Folders opened in this browser, newest first. */
   recent: string[];
@@ -16,12 +18,17 @@ type DocumentStartProps = {
 };
 
 /**
- * The document column while no document is open: the user chooses what to work on. Nothing here
- * is a document; the sample is a separate choice, never opened for them.
+ * The document column while no document is open: the user chooses what to work on. It sits on the
+ * canvas with the product mark rather than on a document's paper, so it never reads as an open
+ * document (#298). The sample is a separate choice, never opened for them.
  */
-export function DocumentStart({ recovery, recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
+export function DocumentStart({ mark, recovery, recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
   return (
-    <section className="document document-start" aria-labelledby="document-start-title" data-testid="document-start">
+    <section className="document-start" aria-labelledby="document-start-title" data-testid="document-start">
+      <p className="document-start-product">
+        {mark ? <img className="document-start-mark" src={mark} alt="" /> : null}
+        IeumDoc
+      </p>
       <h1 id="document-start-title" className="document-start-title">Open your Markdown</h1>
       <p className="document-start-text">Open a folder, then choose a Markdown file from the sidebar or create a new one.</p>
       <div className="document-start-actions">

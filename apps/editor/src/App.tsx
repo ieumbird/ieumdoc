@@ -11,6 +11,7 @@ import { messageOf, NativeOpenError, requestDocument } from "./document-session.
 import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
+import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
@@ -569,6 +570,7 @@ export function App() {
         }}>
           {tabs.length === 0 && start ? (
             <DocumentStart
+              mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
               recent={visibleRecent}
               sample={start.sample}
