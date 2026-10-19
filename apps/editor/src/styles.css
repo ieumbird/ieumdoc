@@ -33,10 +33,14 @@ button {
   --shell-sidebar: var(--layout-sidebar-rail-width);
 }
 
-/* Below 640px (phone widths) the grid keeps only the rail; the opened sidebar covers the document instead of
- * narrowing it, like the Document panel overlay. */
+/* Below 640px (phone widths) the sidebar takes no grid width: closed, it has no rail and the
+ * document uses the whole width (the TopBar opens it); open, it covers the whole screen (#321). */
 .app-shell--sidebar-overlay {
-  --shell-sidebar: var(--layout-sidebar-rail-width);
+  --shell-sidebar: 0px;
+}
+
+.app-shell--sidebar-overlay.app-shell--collapsed .sidebar {
+  display: none;
 }
 
 /* Out of the grid, the sidebar no longer holds the first column; the main column keeps its own. */
@@ -46,10 +50,11 @@ button {
 
 .app-shell--sidebar-overlay:not(.app-shell--collapsed) .sidebar {
   position: fixed;
-  left: 0;
+  inset: 0;
   z-index: 5;
-  width: min(var(--layout-sidebar-width), 100vw);
-  box-shadow: var(--shadow-overlay);
+  width: 100vw;
+  height: 100dvh;
+  border-right: 0;
 }
 
 /* A closed document panel takes no width; the TopBar Outline toggle opens it. */

@@ -355,6 +355,8 @@ async (page, {screenshots = false} = {}) => {
   if (screenshots) await page.screenshot({path:'tmp/picker-capture/06-new-file.png'});
   await filename.press('Enter');
   await dialog.waitFor({state:'detached'});
+  // The full-screen phone sidebar steps aside for the new document; reopening it shows the listed file.
+  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
   await row('added.md').waitFor();
   result.listsCreated = await row('added.md').getAttribute('aria-current') === 'page';
   assert(await page.getByTestId('current-file').getAttribute('title') === [folder, 'added.md'].join(sep), 'Omitted extension creates a Markdown file in the chosen folder');

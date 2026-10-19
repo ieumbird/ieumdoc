@@ -10,7 +10,8 @@ type SidebarProps = {
   open: boolean;
   documentPath: string;
   onToggle(): void;
-  /** Set where the open sidebar overlays the document: Escape inside it collapses it to the rail. */
+  toggleRef?: RefObject<HTMLButtonElement | null>;
+  /** Set where the open sidebar covers the document: Escape inside it closes it. */
   onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
@@ -35,12 +36,11 @@ type SidebarProps = {
 
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
-  open, documentPath, onToggle, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
+  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
   const [tool, setTool] = useState<"files" | "display">("files");
   const displayButton = useRef<HTMLButtonElement>(null);
-  const toggleButton = useRef<HTMLButtonElement>(null);
   const selectTool = (next: typeof tool) => {
     setTool(next);
     if (!open) onToggle();
@@ -54,12 +54,11 @@ export function Sidebar({
           !event.currentTarget.contains(event.target as Node)) return;
         event.preventDefault();
         onDismiss();
-        toggleButton.current?.focus();
       }}>
       <div className="sidebar-header">
         {open ? <span className="product">IeumDoc</span> : null}
         <Button
-          ref={toggleButton}
+          ref={toggleRef}
           variant="ghost"
           size="icon-sm"
           aria-label={open ? "Collapse sidebar" : "Expand sidebar"}

@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -9,6 +9,9 @@ export type DocumentView = "visual" | "source";
 const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
 
 type TopBarProps = {
+  /** At phone widths the closed sidebar has no rail; the TopBar opens it. */
+  onOpenSidebar?(): void;
+  openSidebarRef?: Ref<HTMLButtonElement>;
   documentPath: string;
   /** The folders holding the document, shown before its name; the tab row already names it. */
   location?: string[];
@@ -39,7 +42,7 @@ type TopBarProps = {
  * segmented control and Outline a pressed toggle, so the blue marker belongs to tabs alone.
  */
 export function TopBar({
-  documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
+  onOpenSidebar, openSidebarRef, documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
@@ -70,6 +73,12 @@ export function TopBar({
   return (
     <header className="top-bar">
       <div className="top-bar-identity">
+        {onOpenSidebar ? (
+          <Button ref={openSidebarRef} type="button" size="icon-sm" variant="ghost" className="top-bar-sidebar"
+            aria-label="Expand sidebar" title="Show sidebar" aria-expanded={false} onClick={onOpenSidebar}>
+            <PanelLeftOpen aria-hidden="true" />
+          </Button>
+        ) : null}
         <p className="document-path" title={documentPath || undefined}>
           {documentPath ? location.map((folder, index) => (
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
