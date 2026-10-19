@@ -68,6 +68,11 @@ async (page, { openDocument, screenshots = false }) => {
     await page.reload();
     const start = page.getByTestId('document-start');
     await start.waitFor();
+    // The start is the app's, not a document: no paper, and the product mark above its title (#298).
+    if (await start.evaluate(n => n.closest('.document') !== null || getComputedStyle(n).backgroundColor !== 'rgba(0, 0, 0, 0)' ||
+      getComputedStyle(n).boxShadow !== 'none') || !await start.locator('.document-start-mark').isVisible()) {
+      throw new Error('The start looks like an open document');
+    }
     if (await page.getByRole('button', {name:'Open file…', exact:true}).count() || await page.getByTestId('file-path').count()) {
       throw new Error('A direct file-path entry remains');
     }

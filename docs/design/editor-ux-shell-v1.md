@@ -1,7 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-19 (#321: phone-width sidebar closed without a rail or covering the whole screen, opened from the TopBar; browser checks).
+- Last verified: 2026-10-19 (#298: the start without a document sits on the canvas with the product mark, apart from the paper; open-files, recovery, document-tabs and the stable suite; same-state captures against `e265e1c`: 1440px [before](assets/start-screen-298/before-1440.png)/[after](assets/start-screen-298/after-1440.png), 375px [before](assets/start-screen-298/before-375.png)/[after](assets/start-screen-298/after-375.png)).
+- Previous verification: 2026-10-19 (#321: phone-width sidebar closed without a rail or covering the whole screen, opened from the TopBar; browser checks).
 - Previous verification: 2026-10-17 (UX review: location identity, recent folders and unsupported files in Files, overlay sidebar below 640px, Copy path, tooltips, table Edit placement and Source lines; stable browser suite and captures in the [review](../reviews/editor-ux-review-2026-10-17.md)).
 - Previous verification: 2026-10-16 (#296 PR2: shared recovery Settings, start list, matching-document prompt and standing failure surface; real Vite recovery UI checks).
 - Previous verification: 2026-10-16 (#204: tab row, active shell and retained sessions; browser checks and user-approved 1440/375px captures in the [review](../reviews/document-tabs-204-2026-10-16.md)). Previous verification: 2026-10-15 (#281: cross-reference, section-reference, table-authoring, pending-figure, layout-rules and quiet-document browser checks; actual 1440px slash-menu Before/After). Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label property-close caret, Apply/typing and insertion/Cancel/Escape browser regressions; ADR-0006 native admission wording compared with code/tests). Previous verification: 2026-10-13 (#176: Files/Display switching, tree/selection/history/draft preservation, File actions and Reload focus, unavailable settings; browser results and actual captures in the [#176 review](../reviews/editor-shell-176-2026-10-13.md)).
@@ -60,7 +61,8 @@ Folder navigation changes no document meaning, so this removal adds no Core oper
 
 When the Host's answer to the first request opens no document (Desktop without a `.md` argument,
 or the [HTTP Host](http-host-v1.md)), the document column
-shows the start on the paper instead of an editor: Open folder… (primary), the
+shows the start instead of an editor. It is the app's start, not a document (#298): it sits on the
+canvas without the document paper, under the product mark and name. It offers Open folder… (primary), the
 recent folders from the folder picker (name, then full path) and, when the Host offers one, the
 sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
 a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;

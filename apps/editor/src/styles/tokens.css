@@ -40,6 +40,9 @@
   /* Pretendard glyph variants for UI and document text. `cv08` gives capital I its serifs, so
    * "IeumDoc" never reads as "leumDoc" and a variable I stays distinct from l. */
   --font-feature-sans: "cv08";
+  /* Start without a document: its centered column and the product mark above its title. */
+  --layout-start-width: 40rem;
+  --size-start-mark: 2rem;
   /* Inline math size relative to its text. KaTeX's own 1.21em stands out beside Pretendard;
    * display equations keep it. */
   --math-inline-size: 1.1em;
