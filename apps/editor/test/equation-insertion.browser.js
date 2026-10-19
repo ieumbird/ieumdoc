@@ -47,7 +47,7 @@ async page => {
 
   try {
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     // Create an empty transient paragraph with `+`, then use `/equation`.
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
     await page.locator('[data-document-tab][data-active=true] .document-editor > .heading').first().hover();
@@ -61,7 +61,7 @@ async page => {
     const noEmptyParagraphAfterSlash = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count() === baselineParagraphCount;
     await page.getByTestId('equation-latex').fill('Unapplied');
     await page.getByTestId('save').click();
-    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
     const placeholderSaveKeepsDraft = !requests.at(-1)?.inserts?.some(item => item.block === 'equation') &&
       await page.getByTestId('equation-latex').inputValue() === 'Unapplied' &&
       await page.getByTestId('status').innerText() === 'Unsaved changes';
@@ -99,7 +99,7 @@ async page => {
     await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
     const insert = requests.at(-1)?.inserts?.find(item => item.block === 'equation');
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     const reloaded = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count();
     const reloadedEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').last();
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});

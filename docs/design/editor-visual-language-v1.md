@@ -19,6 +19,8 @@
 
 ## Surfaces and typography
 
+The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. Long translations wrap within existing dialogs and scroll within their viewport bounds; language changes do not introduce a new layout system. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
+
 | Role | Actual values / treatment |
 | --- | --- |
 | Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |

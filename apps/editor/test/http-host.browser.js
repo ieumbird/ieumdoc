@@ -1,7 +1,7 @@
 // Production bundle, real HTTP and two independent allowed roots. No mocked file API.
 async (page, { openDocument, screenshots }) => {
   const check = (ok, message) => { if (!ok) throw new Error(message); };
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const start = await (await page.request.get(origin + '/api/document')).json();
   check(start.start && start.allowedRoots?.length === 2 && !start.sample, 'Production HTTP must start without a sample and with two roots');
@@ -45,7 +45,7 @@ async (page, { openDocument, screenshots }) => {
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   };
   await editor.locator('p').filter({hasText:'Alpha.'}).click();
   await page.keyboard.press('End'); await page.keyboard.type(' HTTP saved.');
@@ -114,7 +114,7 @@ async (page, { openDocument, screenshots }) => {
   check(external.status() === 200, 'Concurrent writer commits');
   await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End'); await page.keyboard.type(' Kept local.');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Save conflict"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="save-conflict"]').waitFor({state:'attached'});
   check((await editor.innerText()).includes('Kept local.'), '409 keeps local input');
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json()).source.includes('Changed elsewhere.'), '409 preserves the other writer');
   await page.getByRole('button', {name:'File actions', exact:true}).click();

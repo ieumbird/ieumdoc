@@ -1,3 +1,4 @@
+import { i18n } from "./i18n.ts";
 import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
@@ -91,7 +92,7 @@ export const DocumentTitle = Extension.create({
           for (let index = 0; index < title; index++) pos += state.doc.child(index).nodeSize;
           const node = state.doc.child(title);
           return DecorationSet.create(state.doc, [Decoration.node(pos, pos + node.nodeSize, {
-            "data-document-title": "true", ...(node.content.size === 0 ? { "data-title-placeholder": "Title" } : {}),
+            "data-document-title": "true", ...(node.content.size === 0 ? { "data-title-placeholder": i18n.t("Title") } : {}),
           })]);
         },
       },

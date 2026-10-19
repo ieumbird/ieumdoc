@@ -18,6 +18,8 @@
 
 ## Current implemented contracts
 
+Implementation record: [UI language #256 plan and verification](design/ui-language-256-plan.md) (Historical; current behavior is defined by Editor UX Shell).
+
 | Document | Status | Authority / description |
 | --- | --- | --- |
 | [Native document support](design/document-support-v1.md) | Implemented | 현재 계약. 표식·지원 의미·Core 진입/생성/쓰기 경계와 LF/fail-closed 보존. |

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
 import type { ReactNode } from "react";
 import { BookOpen, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -23,23 +25,22 @@ type DocumentStartProps = {
  * document (#298). The sample is a separate choice, never opened for them.
  */
 export function DocumentStart({ mark, recovery, recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
+  useTranslation();
   return (
     <section className="document-start" aria-labelledby="document-start-title" data-testid="document-start">
       <p className="document-start-product">
         {mark ? <img className="document-start-mark" src={mark} alt="" /> : null}
         IeumDoc
       </p>
-      <h1 id="document-start-title" className="document-start-title">Open your Markdown</h1>
-      <p className="document-start-text">Open a folder, then choose a Markdown file from the sidebar or create a new one.</p>
+      <h1 id="document-start-title" className="document-start-title">{i18n.t("Open your Markdown")}</h1>
+      <p className="document-start-text">{i18n.t("Open a folder, then choose a Markdown file from the sidebar or create a new one.")}</p>
       <div className="document-start-actions">
         <Button size="sm" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>
-          <FolderOpen aria-hidden="true" />
-          Open folder…
-        </Button>
+          <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
       </div>
       {recent.length > 0 ? (
         <section className="document-start-section" aria-labelledby="document-start-recent">
-          <h2 id="document-start-recent" className="document-start-label">Recent folders</h2>
+          <h2 id="document-start-recent" className="document-start-label">{i18n.t("Recent folders")}</h2>
           <ul className="document-start-recent">
             {recent.map(folder => (
               <li key={folder}>
@@ -56,13 +57,11 @@ export function DocumentStart({ mark, recovery, recent, sample, busy, onOpenFold
       {recovery}
       {sample ? (
         <section className="document-start-section" aria-labelledby="document-start-sample">
-          <h2 id="document-start-sample" className="document-start-label">Sample</h2>
-          <p className="document-start-text">A technical document showing what IeumDoc edits. It is a copy in IeumDoc's app data, apart from your files.</p>
+          <h2 id="document-start-sample" className="document-start-label">{i18n.t("Sample")}</h2>
+          <p className="document-start-text">{i18n.t("A technical document showing what IeumDoc edits. It is a copy in IeumDoc's app data, apart from your files.")}</p>
           <div className="document-start-actions">
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onOpenSample(sample)}>
-              <BookOpen aria-hidden="true" />
-              Open sample document
-            </Button>
+              <BookOpen aria-hidden="true" />{i18n.t("Open sample document")}</Button>
           </div>
         </section>
       ) : null}

@@ -1,3 +1,7 @@
+import type { UiMessage } from "./ui-message.ts";
+import { useMessageState } from "./ui-message.ts";
+import { i18n } from "./i18n.ts";
+import { type Operation } from "./operation.ts";
 import { createRecoveryRecorder } from "./recovery-storage.ts";
 import type { EditorSnapshot } from "./editor-snapshot.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +12,7 @@ import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import type { ImageChoice, ImageChooser } from "./editor-schema.tsx";
 import { chooseHostImage, rollbackAsset } from "./image-assets.ts";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
-import { saveErrorMessage } from "./save-error.ts";
+import { SaveDisplayError } from "./save-error.ts";
 import type { DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
 import { createDocumentSessionLifetime, messageOf, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
@@ -28,10 +32,10 @@ export type DocumentSessionSnapshot = {
 export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string) {
   const [initialEditorSnapshot, setInitialEditorSnapshot] = useState(() => restored?.editor && structuredClone(restored.editor));
   const editorRef = useRef<DocumentEditorHandle>(null);
-  const [recoveryError, setRecoveryError] = useState("");
+  const [recoveryError, setRecoveryError] = useMessageState("");
   const captureRef = useRef<() => DocumentSessionSnapshot | null>(() => null);
   const [recorder] = useState(() => recoveryId ? createRecoveryRecorder(recoveryId, () => captureRef.current(),
-    cause => setRecoveryError(`Local recovery is unavailable: ${messageOf(cause)}. Keep this window open and save or copy your work. Changes after the last record may be lost.`),
+    cause => setRecoveryError({ key: "Local recovery is unavailable: {{reason}}. Keep this window open and save or copy your work. Changes after the last record may be lost.", values: { reason: messageOf(cause) } }),
     () => setRecoveryError("")) : undefined);
   const [document, setDocument] = useState<EditableDocument>(initial.document);
   const sourceRevision = useRef(initial.revision);
@@ -42,9 +46,9 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const [openedPath, setOpenedPath] = useState(initial.path);
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [reloadDialog, setReloadDialog] = useState(false);
-  const [status, setStatus] = useState("Ready");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [status, setStatus] = useState<Operation>("ready");
+  const [error, setError] = useMessageState("");
+  const [notice, setNotice] = useMessageState("");
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [draftActive, setDraftActive] = useState(false);
   const [assetPending, setAssetPending] = useState(false);
@@ -55,7 +59,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   // first Save moves them. Opening never writes and does not make the document dirty.
   const [endnotesMove, setEndnotesMove] = useState(!initial.endnotesInPlace);
   const draftNotice = draftActive
-    ? "Save and Source include applied content only. Block property drafts remain unsaved until Apply."
+    ? i18n.t("Save and Source include applied content only. Block property drafts remain unsaved until Apply.")
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");
@@ -97,18 +101,18 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },
       validateFigure,
       chooseImage,
-      onStructuralReject: (reason?: string) => {
-        if (isCurrent()) setNotice(reason ?? "This change cannot preserve the supported document structure. Your document is unchanged.");
+      onStructuralReject: (reason?: UiMessage) => {
+        if (isCurrent()) setNotice(reason ?? { key: "This change cannot preserve the supported document structure. Your document is unchanged." });
       },
     };
   }, [isCurrent, outlineStore]);
   // A pending Source preview belongs to the open document, so it blocks document switches too.
-  const busy = status === "Loading…" || status === "Opening…" || status === "Creating…" || status === "Saving…" ||
+  const busy = status === "loading" || status === "opening" || status === "creating" || status === "saving" ||
     sourcePending || assetPending;
   // A close can arrive after the rendered status changed but before passive effects ran.
   const busyRef = useRef(busy);
   busyRef.current = busy;
-  const switching = status === "Loading…" || status === "Opening…" || status === "Creating…";
+  const switching = status === "loading" || status === "opening" || status === "creating";
 
   function acceptDocument(next: DocumentFileResponse): void {
     setEditorGeneration(lifetime.replace());
@@ -127,7 +131,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     setSourcePending(false);
     setSourceMarkdown("");
     setView("visual");
-    setStatus("Ready");
+    setStatus("ready");
   }
 
   /** Error message, "" on success, or null for a dialog refusal or superseded request. */
@@ -136,7 +140,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     const current = lifetime.beginOpen();
     setError("");
     setNotice("");
-    setStatus(requestedPath ? "Opening…" : "Loading…");
+    setStatus(requestedPath ? "opening" : "loading");
     try {
       const next = await requestDocument("GET", requestedPath);
       if (!current()) return null;
@@ -149,7 +153,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       if (!current()) return null;
       setReloadDialog(false);
       const message = messageOf(cause);
-      setStatus("Open failed");
+      setStatus("open-failed");
       return message;
     }
   }
@@ -160,7 +164,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     const base = sessionBase.current;
     setError("");
     setNotice("");
-    setStatus("Saving…");
+    setStatus("saving");
     let submitted: TiptapJSON | undefined;
     let payload: SupportedEdits | undefined;
     try {
@@ -175,15 +179,15 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       if (editor.hasDocumentChanges()) recorder?.checkpoint();
       else recorder?.discard();
       const hasPendingUserState = editor.hasUnsavedChanges();
-      setStatus(hasPendingUserState ? "Saved; newer edits pending" : "Saved");
+      setStatus(hasPendingUserState ? "saved-pending" : "saved");
       return true;
     } catch (cause) {
       if (!isCurrent()) return false;
       editor.finishSave();
       const failure = cause instanceof SaveContentError ? cause
         : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
-      setError(saveErrorMessage(failure, submitted, payload));
-      setStatus(cause instanceof SaveConflictError ? "Save conflict" : "Save failed");
+      setError(new SaveDisplayError(failure, submitted, payload));
+      setStatus(cause instanceof SaveConflictError ? "save-conflict" : "save-failed");
       return false;
     }
   }
@@ -203,7 +207,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setSourceMarkdown(markdown);
       setView("source");
     } catch (cause) {
-      if (isCurrent()) setError(`Source view unavailable: ${messageOf(cause)}`);
+      if (isCurrent()) setError({ key: "Source view unavailable: {{reason}}", values: { reason: messageOf(cause) } });
     } finally {
       if (isCurrent()) setSourcePending(false);
     }
@@ -214,13 +218,13 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
    * the same state that guards closing the page, with the reason to show.
    */
   function pendingWork(): string | null {
-    if (!document || !editorRef.current) return "The editor is not ready to restart.";
-    if (status === "Saving…") return "A save is in progress. Restart to update after it finishes.";
-    if (assetPending) return "An image is still being added. Restart to update after it finishes.";
-    if (sourcePending || switching) return "IeumDoc is still working on the document. Try again in a moment.";
+    if (!document || !editorRef.current) return i18n.t("The editor is not ready to restart.");
+    if (status === "saving") return i18n.t("A save is in progress. Restart to update after it finishes.");
+    if (assetPending) return i18n.t("An image is still being added. Restart to update after it finishes.");
+    if (sourcePending || switching) return i18n.t("IeumDoc is still working on the document. Try again in a moment.");
     if (editorRef.current?.hasUnsavedChanges()) {
-      return draftActive ? "Apply or Cancel the open edits and save your changes, then restart to update."
-        : "Save your changes, then restart to update.";
+      return draftActive ? i18n.t("Apply or Cancel the open edits and save your changes, then restart to update.")
+        : i18n.t("Save your changes, then restart to update.");
     }
     return null;
   }
@@ -259,7 +263,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       const { path, rollbackToken } = await chooseHostImage(documentPath, source);
       // A copy no Figure ends up using is removed; a linked image is never touched.
       const discard = rollbackToken === undefined ? undefined : () => void rollbackAsset({ path, rollbackToken }, documentPath).catch((cause: unknown) => {
-        if (isCurrent()) setError(`The unused copied image remains at ${path}: ${messageOf(cause)}`);
+        if (isCurrent()) setError({ key: "The unused copied image remains at {{path}}: {{reason}}", values: { path: path, reason: messageOf(cause) } });
       });
       if (!isCurrent() || imageChoiceRef.current !== imageChoice) {
         discard?.();
@@ -295,7 +299,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     getSnapshot, initialEditorSnapshot, editorRef, document, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
-    documentNotice: endnotesMove ? ENDNOTES_MOVE_NOTICE : "",
+    documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",
     load, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
     pendingWork, revealHeading,
     imageChoice, imageReturnFocus, selectImage, closeImageChoice,

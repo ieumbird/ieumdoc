@@ -3,7 +3,7 @@
 async (page, { openDocument }) => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const originalLatex = loaded.document.blocks.find(block => block.block === 'equation').latex;
@@ -57,7 +57,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
   if (requests[1].equations?.[0]?.to !== changedLatex) throw new Error('Applied Equation was omitted from the next save');
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   if (await page.getByTestId('equation-latex').inputValue() !== changedLatex) {
@@ -66,7 +66,7 @@ async (page, { openDocument }) => {
 
   resetCycle();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const canceledLatex = `${originalLatex} + 2`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
@@ -83,7 +83,7 @@ async (page, { openDocument }) => {
   await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
   if (requests[1].equations?.length) throw new Error('Canceled Equation was included in the next save');
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   const reloadedCanceled = await page.getByTestId('equation-latex').inputValue();
@@ -116,10 +116,10 @@ async (page, { openDocument }) => {
       {file:'only.md', mode:'button-enter', label:'eq-a'},
     ]) {
       await page.reload();
-      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       const path = [root, 'tmp', 'equation-editing', file].join(sep);
       await openDocument(page, path);
-      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       const initial = await snapshot();
       const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
       const reference = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference');
@@ -186,9 +186,9 @@ async (page, { openDocument }) => {
       await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
       await assertContent(typed);
       await page.reload();
-      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       await openDocument(page, path);
-      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       if (await source() !== preview || await equation.count() !== 1 ||
           (file !== 'only.md' && await reference.getAttribute('data-resolved') !== 'true')) {
         throw new Error(`${file}: Reload lost equation, prose or reference`);

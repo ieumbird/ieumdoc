@@ -10,6 +10,9 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "ui-language": [
+    {status: 409, pathname: "/api/document", minimum: 1, description: "conflict guidance follows language changes while preserving edits"},
+  ],
   "recovery": [
     {status: 409, pathname: "/api/document", minimum: 1, description: "restored work retains its acknowledged revision against another window's Save"},
     {status: 400, pathname: "/api/document", minimum: 1, description: "failed Reload retains its local recovery record"},

@@ -2,7 +2,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
   const origin = page.url().split('/').slice(0, 3).join('/');
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -32,8 +32,8 @@ async (page, { openDocument }) => {
   };
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor();
-    assert(await page.getByTestId('status').getAttribute('data-operation') === 'Saved', `Save failed: ${await page.locator('body').innerText()}`);
+    await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor();
+    assert(await page.getByTestId('status').getAttribute('data-operation') === 'saved', `Save failed: ${await page.locator('body').innerText()}`);
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.view.focus());
   };
   const disk = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json());
@@ -146,7 +146,7 @@ async (page, { openDocument }) => {
   const saved = model(await disk());
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
   assert(model(await disk()) === saved, 'Reload must retain the saved semantic model');
   assert((await page.locator('[data-document-tab][data-active=true] .document-editor').innerText()).includes('한글'), 'Committed Korean text must survive Reload');
 
@@ -222,7 +222,7 @@ async (page, { openDocument }) => {
   await save();
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
   assert(formattedBlocks(await doc()).join() === formattedTwice.join(), 'Formatted paste must survive Save and Reload');
   // A line break is still not heading content, even in typed clipboard HTML.
   await select(['After.', 0]);

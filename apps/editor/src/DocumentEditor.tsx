@@ -1,3 +1,6 @@
+import type { UiMessage } from "./ui-message.ts";
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { prepareEditorSnapshot, type EditorSnapshot } from "./editor-snapshot.ts";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
@@ -75,7 +78,7 @@ type DocumentEditorProps = {
   /** Internal initialization only; the opening model remains the structural baseline. */
   initialSnapshot?: EditorSnapshot;
   documentPath: string;
-  onStructuralReject: (reason?: string) => void;
+  onStructuralReject: (reason?: UiMessage) => void;
   onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
   onAssetError?: (reason: string) => void;
@@ -95,6 +98,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   { document, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
+  useTranslation();
   const visible = useEditorVisible();
   // Each tab keeps its editor; only Reload remounts it. Save keeps its opening projection.
   const [projection] = useState(() => toTiptapDocument(document));
@@ -139,10 +143,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     });
   }, []);
   const moveBlockedHint = (index: number) => {
-    if (index === editorTitleIndex(editor.state.doc)) return `${TITLE_FIXED} Click for block actions.`;
+    if (index === editorTitleIndex(editor.state.doc)) return `${i18n.t(TITLE_FIXED)} ${i18n.t("Block actions")}`;
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
     const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
-    return draft ? `Apply or Cancel the ${draft.kind} edit before moving it.` : undefined;
+    return draft ? i18n.t("Apply or Cancel the {{kind}} edit before moving it.", { kind: i18n.t(draft.kind) }) : undefined;
   };
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
@@ -161,7 +165,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       shouldRerenderOnTransaction: true,
       extensions: [
         ...extensions,
-        Placeholder.configure({ placeholder: "Start writing, or type / to add a block." }),
+        Placeholder.configure({ placeholder: () => i18n.t("Start writing, or type / to add a block.") }),
         // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
         Extension.create({
           name: "selectionToolbarFocus",
@@ -195,6 +199,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   });
   const editor = useEditor(editorOptions);
   draftEditor.current = editor;
+
+  useEffect(() => {
+    // Re-evaluate decoration text (placeholders/title) without a transaction, history entry,
+    // or recreation of the editor/NodeViews. React NodeViews subscribe independently.
+    const redraw = () => { if (!editor.isDestroyed) editor.view.updateState(editor.state); };
+    i18n.on("languageChanged", redraw);
+    return () => { i18n.off("languageChanged", redraw); };
+  }, [editor]);
 
   const empty = editor?.isEmpty && editor.state.doc.childCount === 1 &&
     editor.state.doc.firstChild?.type.name === "paragraph";
@@ -431,7 +443,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       {/* Outside the editable content, so it never takes the caret or reads as document text (#255). */}
       {editor.isEditable && editorTitleIndex(editor.state.doc) === undefined ? (
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
-          onClick={() => addTitle(editor.view)}>Add a title</button>
+          onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
       <EditorContent editor={editor} />
       {visible ? <BlockHandles
@@ -479,7 +491,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       {slashStyle && slash ? (
         <CommandMenu
           key={`slash-${slash.from}`}
-          label="Insert block"
+          label={i18n.t("Insert block")}
           items={slashItems}
           activeIndex={slashIndex}
           style={slashStyle}
@@ -490,7 +502,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       {blockMenu?.kind === "insert" && blockMenuStyle ? (
         <CommandMenu
           key={`insert-${blockMenu.index}`}
-          label="Insert block"
+          label={i18n.t("Insert block")}
           items={filterInsertCommands("").map(insertMenuItem)}
           focusOnOpen
           style={blockMenuStyle}
@@ -501,7 +513,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       {blockMenu?.kind === "block" && blockMenuStyle ? (
         <CommandMenu
           key={`block-${blockMenu.index}`}
-          label="Block actions"
+          label={i18n.t("Block actions")}
           items={BLOCK_COMMANDS.filter(command => command.applies?.(editor.state, blockMenu.index) ?? true).map(command => ({
             id: command.id,
             label: command.label,

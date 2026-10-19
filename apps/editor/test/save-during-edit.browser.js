@@ -3,7 +3,7 @@
 async page => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const loaded = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/document')).json();
   let release;
   const gate = new Promise(resolve => { release = resolve; });
@@ -30,7 +30,7 @@ async page => {
     const cleanBox = await saveButton.boundingBox();
     await saveButton.click();
     // In flight, Save keeps its place, size and name; a spinner replaces the visible label.
-    await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="saving"]').waitFor({state:'attached'});
     const saving = await saveButton.evaluate(async n => {
       for (let running; (running = n.getAnimations().filter(a => a instanceof CSSTransition)).length;)
         await Promise.allSettled(running.map(a => a.finished));

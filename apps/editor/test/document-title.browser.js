@@ -7,7 +7,7 @@ async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.setViewportSize({width: 1280, height: 1000});
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const separator = defaultPath.includes('\\') ? '\\' : '/';
@@ -15,7 +15,7 @@ async (page, { openDocument }) => {
   const scratch = name => [root, 'tmp', 'document-title', name].join(separator);
   const read = async name => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(scratch(name))}`)).json()).source;
   const check = (ok, message) => { if (!ok) throw new Error(message); };
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const blocks = () => editor.evaluate(node => { const out = []; node.editor.state.doc.forEach(child => out.push(`${child.type.name}${child.attrs.level ?? ''}:${child.textContent}`)); return out; });
   const caretBlock = () => editor.evaluate(node => node.editor.state.selection.$from.index(0));
@@ -82,7 +82,7 @@ async (page, { openDocument }) => {
     await empty.evaluate(node => getComputedStyle(node, '::before').content) === '"Title"';
   await page.keyboard.type('Field notes');
   await page.keyboard.press('Control+s');
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   result.titleSaved = (await read('untitled.md')).startsWith('---\nieumdoc: 1\n---\n\n# Field notes\n\nLead paragraph.\n');
   result.addHidden = await add.count() === 0;
 

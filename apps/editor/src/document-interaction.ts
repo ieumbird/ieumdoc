@@ -1,3 +1,4 @@
+import type { UiMessage } from "./ui-message.ts";
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
@@ -18,7 +19,7 @@ export function isInternalClipboard(html: string): boolean {
 }
 
 /** IeumDoc's own clipboard must hold only typed content it can paste losslessly. */
-function internalPasteError(html: string, schema: Schema): string | undefined {
+function internalPasteError(html: string, schema: Schema): UiMessage | undefined {
   const document = new DOMParser().parseFromString(html, "text/html");
   const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
   // Content of a typed textblock must be what its schema allows: marks and inline atoms in a heading,
@@ -34,7 +35,7 @@ function internalPasteError(html: string, schema: Schema): string | undefined {
     if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
         (typed && !TYPES.has(typed)) || misplaced(element, typed ?? (element.tagName === "BR" ? "hardBreak" : "")) ||
         (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
-      return "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content.";
+      return { key: "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content." };
     }
   }
   return undefined;
@@ -121,7 +122,7 @@ export function joinRichProse(state: EditorState, backward: boolean): Transactio
   return tr.setSelection(TextSelection.create(tr.doc, boundary - 1)).scrollIntoView();
 }
 
-export function documentInteraction(reject: (reason?: string) => void): Extension {
+export function documentInteraction(reject: (reason?: UiMessage) => void): Extension {
   return Extension.create({
     name: "documentInteraction",
     priority: 120,
@@ -150,11 +151,11 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         // non-editable endpoints. Reject these unsupported selections at the keymap too.
         "Mod-c": () => {
           if (this.editor.state.selection.content().content.content.every(portable)) return false;
-          reject(COPY_RESTRICTION); return true;
+          reject({ key: COPY_RESTRICTION }); return true;
         },
         "Mod-x": () => {
           if (this.editor.state.selection.content().content.content.every(portable)) return false;
-          reject(CUT_RESTRICTION); return true;
+          reject({ key: CUT_RESTRICTION }); return true;
         },
         Tab: () => tab(false),
         "Shift-Tab": () => tab(true),
@@ -213,11 +214,11 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
         ...PMDOMParser.fromSchema(schema).rules,
       ]);
       // Parsing (transformPastedHTML) precedes handlePaste/handleDrop for the same clipboard data.
-      let pasted: ExternalHTML | undefined;
+      let pasted: (Omit<ExternalHTML, "error"> & { error?: UiMessage }) | undefined;
       let external = false;
       // Shown once the engine's paste transaction is applied; the structure guard may still refuse it.
       let pastedNotice: string | undefined;
-      const fail = (message: string) => { reject(message); return true; };
+      const fail = (message: UiMessage) => { reject(message); return true; };
       return [new Plugin({
         view: view => {
           // Chromium may send native/menu clipboard events to the body when a
@@ -227,7 +228,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
             if (!view.hasFocus() || view.dom.contains(event.target as globalThis.Node)) return;
             if (!view.state.selection.content().content.content.every(portable)) {
               event.preventDefault();
-              reject(event.type === "cut" ? CUT_RESTRICTION : COPY_RESTRICTION);
+              reject({ key: event.type === "cut" ? CUT_RESTRICTION : COPY_RESTRICTION });
               return;
             }
             if (!event.clipboardData) return;
@@ -273,11 +274,11 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           },
           copy: (view, event) => {
             if (view.state.selection.content().content.content.every(portable)) return false;
-            event.preventDefault(); return fail(COPY_RESTRICTION);
+            event.preventDefault(); return fail({ key: COPY_RESTRICTION });
           },
           cut: (view, event) => {
             if (view.state.selection.content().content.content.every(portable)) return false;
-            event.preventDefault(); return fail(CUT_RESTRICTION);
+            event.preventDefault(); return fail({ key: CUT_RESTRICTION });
           },
         },
         // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
@@ -313,7 +314,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
           external = false;
           if (error) return fail(error);
           if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail(`Add one ${ASSET_FORMATS} image at a time. Your selection and clipboard are kept.`);
-          if (!slice.content.content.every(portable)) return fail("This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept.");
+          if (!slice.content.content.every(portable)) return fail({ key: "This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept." });
           const target = view.state.selection.$from.parent.type.name;
           if (target === "heading" || target === "tableCell") {
             let lineBreak = false;
@@ -333,7 +334,7 @@ export function documentInteraction(reject: (reason?: string) => void): Extensio
             if (labels.has(label)) duplicate = true;
             labels.add(label);
           });
-          if (duplicate) return fail("Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept.");
+          if (duplicate) return fail({ key: "Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept." });
           pastedNotice = notice;
           if (besideEquation) {
             view.dispatch(tr.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));

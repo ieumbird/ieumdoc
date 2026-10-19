@@ -11,7 +11,7 @@ import { recoveryRecords, resetRecovery } from "./recovery-records.ts";
 // Same checkout-owned persistent Chrome profile as the serial HTTP harness. No server restart.
 const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
 const origin = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5181";
-const ready = (page: Page) => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached" });
+const ready = (page: Page) => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
 
 test("HTTP recovery survives an owned browser process crash, then Save/Reload and conflict", async ({}, info) => {
   prepareBrowserFixtures();
@@ -71,7 +71,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
     expect(readFileSync(file, "utf8")).toBe(original);
     await page.getByTestId("save").click();
-    await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
     await expect.poll(() => recoveryRecords(page)).toEqual([]);
     const saved = readFileSync(file, "utf8");
     expect(saved).toContain("HTTP crash recorded.");
@@ -92,7 +92,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     const response = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/document");
     await page.getByTestId("save").click();
     expect((await response).status()).toBe(409);
-    await page.locator('[data-testid="status"][data-operation="Save conflict"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="save-conflict"]').waitFor();
     await expect(page.locator(".document-editor")).toContainText("HTTP conflict recorded.");
     expect(readFileSync(file, "utf8")).toBe(outside);
     expect((await recoveryRecords(page)).some(r => r.recoveryText.includes("HTTP conflict recorded."))).toBe(true);

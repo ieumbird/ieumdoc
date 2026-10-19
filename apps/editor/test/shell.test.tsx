@@ -16,6 +16,67 @@ import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
+import { i18n } from "../src/i18n.ts";
+import { en, ko } from "../src/locales.ts";
+import { messageText, type UiMessage } from "../src/ui-message.ts";
+import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
+import { filterInsertCommands } from "../src/block-commands.ts";
+
+test("bundled languages cover keys and interpolation parameters without relying on fallback", () => {
+  assert.deepEqual(Object.keys(ko).sort(), Object.keys(en).sort());
+  const parameters = (text: string) => [...new Set([...text.matchAll(/{{([^}]+)}}/g)].map(match => match[1]))].sort();
+  for (const key of Object.keys(en) as (keyof typeof en)[]) {
+    assert.ok(ko[key].trim(), key);
+    assert.deepEqual(parameters(ko[key]), parameters(en[key]), key);
+    assert.equal(i18n.getResource("ko", "translation", key), ko[key], key);
+  }
+});
+
+test("language preference uses an explicit choice before the preferred language and tolerates unavailable storage", () => {
+  const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const values = new Map<string, string>();
+  try {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+      getItem: (key: string) => values.get(key), setItem: (key: string, value: string) => values.set(key, value),
+    } });
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { languages: ["ko-KR", "en-US"] } });
+    assert.equal(readUiLanguage(), "ko");
+    assert.equal(writeUiLanguage("en"), true);
+    assert.equal(readUiLanguage(), "en");
+    values.set(UI_LANGUAGE_KEY, "invalid");
+    assert.equal(readUiLanguage(), "ko");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("blocked"); } });
+    assert.equal(readUiLanguage(), "ko");
+    assert.equal(writeUiLanguage("en"), false);
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { languages: ["fr-FR", "ko-KR"] } });
+    assert.equal(readUiLanguage(), "en");
+  } finally {
+    if (storage) Object.defineProperty(globalThis, "localStorage", storage); else Reflect.deleteProperty(globalThis, "localStorage");
+    if (navigator) Object.defineProperty(globalThis, "navigator", navigator); else Reflect.deleteProperty(globalThis, "navigator");
+  }
+});
+
+test("translated messages and commands follow language changes while operation identities stay stable", async () => {
+  const message: UiMessage = { key: "Source view unavailable: {{reason}}", values: { reason: "RAW <detail>" } };
+  try {
+    await i18n.changeLanguage("ko");
+    assert.equal(messageText(message), "소스 보기를 사용할 수 없습니다: RAW <detail>");
+    assert.equal(i18n.t("recoveryCount", { count: 2 }), "로컬 복구 기록 2개.");
+    for (const query of ["제목", "heading"]) assert.ok(filterInsertCommands(query).some(item => item.id === "heading-2"));
+    assert.equal(filterInsertCommands("heading").find(item => item.id === "heading-2")?.label, "제목 2");
+    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath="test.md" status="saving" unsaved
+      view="visual" onViewChange={() => {}} saveDisabled onSave={() => {}} /></TooltipProvider>);
+    assert.match(html, /data-operation="saving"/);
+    assert.match(html, /저장 중…/);
+    assert.match(html, /data-testid="save"/);
+    await i18n.changeLanguage("en");
+    assert.equal(messageText(message), "Source view unavailable: RAW <detail>");
+    assert.equal(i18n.t("recoveryCount", { count: 1 }), "1 local recovery record.");
+    assert.equal(i18n.t("recoveryCount", { count: 2 }), "2 local recovery records.");
+    assert.ok(filterInsertCommands("그림").some(item => item.id === "figure"));
+  } finally { await i18n.changeLanguage("en"); }
+});
 
 const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
@@ -213,7 +274,7 @@ test("document panel holds only the outline, and the TopBar Outline toggle shows
   for (const open of [true, false]) {
     const html = renderToStaticMarkup(
       <TooltipProvider>
-        <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop}
+        <TopBar documentPath={PATH} status="ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop}
           outline={open} onToggleOutline={noop} />
       </TooltipProvider>,
     );
@@ -237,7 +298,7 @@ test("Display distinguishes document numbering from local width and respects una
 test("top bar shows filename while keeping the complete path in its title", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
+      <TopBar documentPath={PATH} status="ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(html, /title="C:\\docs\\guide.md"/);
@@ -246,7 +307,7 @@ test("top bar shows filename while keeping the complete path in its title", () =
   // Without a document, Save is disabled.
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="Ready" view="visual" onViewChange={noop} saveDisabled onSave={noop} />
+      <TopBar documentPath="" status="ready" view="visual" onViewChange={noop} saveDisabled onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
@@ -255,12 +316,12 @@ test("top bar shows filename while keeping the complete path in its title", () =
 
 test("status presentation distinguishes loaded, dirty, confirmed save and in-flight/error states", () => {
   for (const [status, unsaved, expected] of [
-    ["Ready", false, ""], ["Ready", true, "Unsaved changes"],
-    ["Saved", false, "Saved"], ["Saved", true, "Unsaved changes"],
-    ["Saved; newer edits pending", true, "Unsaved changes"],
-    ["Saved; newer edits pending", false, "Saved"], // Newer edits undone back to the saved baseline.
-    ["Saving…", true, "Saving…"], ["Save conflict", true, "Save conflict"],
-    ["Save failed", true, "Save failed"], ["Load failed", false, "Load failed"],
+    ["ready", false, ""], ["ready", true, "Unsaved changes"],
+    ["saved", false, "Saved"], ["saved", true, "Unsaved changes"],
+    ["saved-pending", true, "Unsaved changes"],
+    ["saved-pending", false, "Saved"], // Newer edits undone back to the saved baseline.
+    ["saving", true, "Saving…"], ["save-conflict", true, "Save conflict"],
+    ["save-failed", true, "Save failed"], ["open-failed", false, "Open failed"],
   ] as const) {
     const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
       view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} /></TooltipProvider>);
@@ -271,7 +332,7 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
 test("top bar exposes the active document view and disables both views during unavailable work", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
+      <TopBar documentPath={PATH} status="ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
     </TooltipProvider>,
   );
   assert.match(html, /<[^>]+\b(?=[^>]*role="group")(?=[^>]*aria-label="Document view")[^>]*>/);
@@ -281,7 +342,7 @@ test("top bar exposes the active document view and disables both views during un
   assert.match(html, />Source</);
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="Loading…" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
+      <TopBar documentPath={PATH} status="loading" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
     </TooltipProvider>,
   );
   for (const view of ["visual", "source"]) {

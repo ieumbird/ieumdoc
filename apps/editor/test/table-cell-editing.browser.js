@@ -9,7 +9,7 @@ async (page, { openDocument }) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -25,9 +25,9 @@ async (page, { openDocument }) => {
   };
   const open = async file => {
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   };
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();

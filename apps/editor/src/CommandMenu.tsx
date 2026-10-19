@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import type { LucideIcon } from "lucide-react";
 import { Fragment, useEffect, useRef, type CSSProperties } from "react";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
@@ -28,6 +30,7 @@ type CommandMenuProps = {
 
 /** Presentational menu shared by the insert menu (`+` and `/`) and the block menu. */
 export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emptyText, onSelect, onClose }: CommandMenuProps) {
+  useTranslation();
   const root = useOverlayBounds<HTMLDivElement>();
   const returnFocus = useRef<Element | null>(null);
   useEffect(() => {
@@ -63,7 +66,7 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
         buttons[next]?.focus();
       }}
     >
-      {items.length === 0 ? <p className="command-menu-empty">{emptyText ?? "No matches"}</p> : null}
+      {items.length === 0 ? <p className="command-menu-empty">{emptyText ?? i18n.t("No matches")}</p> : null}
       {items.map((item, index) => {
         const Icon = item.icon;
         return (

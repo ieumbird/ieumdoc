@@ -1,3 +1,4 @@
+import { i18n } from "./i18n.ts";
 import { Extension, type Editor } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -228,5 +229,5 @@ export const ENDNOTE_COMMAND = "endnote";
 export function endnoteCommandItems(query: string): { id: string; label: string; group: string }[] {
   const needle = query.toLowerCase();
   return needle.length === 0 || ["endnote", "en", "footnote", "fn", "미주"].some((word) => word.startsWith(needle))
-    ? [{ id: ENDNOTE_COMMAND, label: "Endnote", group: "References" }] : [];
+    ? [{ id: ENDNOTE_COMMAND, label: i18n.t("Endnote"), group: i18n.t("References") }] : [];
 }

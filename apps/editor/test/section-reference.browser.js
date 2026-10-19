@@ -2,7 +2,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -75,7 +75,7 @@ async (page, { openDocument }) => {
   result.blockMenuLabel = JSON.stringify(await labels()) === JSON.stringify(['sec-install', 'sec-1']);
 
   await page.locator('.top-bar [data-testid="save"]').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   const saved = await read();
   const expected = opened.replace('## Install', '(sec-install)=\n\n## Install').replace('See the install section.', 'See the install section. {ref}`sec-install`')
     .replace('## 개요', '(sec-1)=\n\n## 개요');

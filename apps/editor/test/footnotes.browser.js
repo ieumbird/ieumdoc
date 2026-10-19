@@ -9,8 +9,8 @@ async (page, { screenshots = false, openDocument }) => {
   page.setDefaultTimeout(15_000);
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
-  const saved = () => page.locator('[data-testid="status"][data-operation="Saved"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  const saved = () => page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;

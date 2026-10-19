@@ -6,7 +6,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -24,7 +24,7 @@ async (page, { openDocument }) => {
   const openScratch = async () => {
     await openDocument(page, file);
     await page.waitForFunction(() =>
-      document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
+      document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready' &&
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('structural-block-authoring'));
   };
 
@@ -156,8 +156,8 @@ async (page, { openDocument }) => {
   const lineBreakConversionRejected = await twoLines.count() === 1 && await twoLines.locator('br').count() === 1;
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor({state:'attached'});
-  if (await page.getByTestId('status').getAttribute('data-operation') !== 'Saved') {
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
+  if (await page.getByTestId('status').getAttribute('data-operation') !== 'saved') {
     throw new Error(`Save failed: ${await page.locator('body').innerText()}`);
   }
   const saved = await markdown();
@@ -187,7 +187,7 @@ async (page, { openDocument }) => {
 
   const savedStatus = await page.getByTestId('status').getAttribute('data-operation');
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
   await openScratch();
   const reloadedEditor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const reloadedHeading = reloadedEditor.locator('h4').filter({hasText:'Existing heading'});
@@ -197,8 +197,8 @@ async (page, { openDocument }) => {
   const result = {
     existingH2WasConfirmed: true,
     warningSavedAsCanonicalMarkdown: saved === expected,
-    saveCompleted: savedStatus === 'Saved',
-    reloadReady: await page.getByTestId('status').getAttribute('data-operation') === 'Ready',
+    saveCompleted: savedStatus === 'saved',
+    reloadReady: await page.getByTestId('status').getAttribute('data-operation') === 'ready',
     headingReloadedAtH4WithText: await reloadedHeading.innerText() === 'Existing heading',
     warningReloadedWithBody: await reloadedWarning.getByTestId('admonition-body').innerText() === 'Check current limit.',
     undoRestoredParagraph,

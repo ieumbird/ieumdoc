@@ -2,7 +2,7 @@
 async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -15,7 +15,7 @@ async (page, { openDocument, reloadDocument }) => {
   const read = async path => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path)}`)).json());
   const save = async () => {
     await page.getByTestId('save').click();
-    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
   };
   const open = async path => {
     await openDocument(page, path);
@@ -37,7 +37,7 @@ async (page, { openDocument, reloadDocument }) => {
   });
   // Ctrl+S from the editor saves through the Save path without leaving the editor.
   await page.keyboard.press('Control+s');
-  await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
   check('saveShortcutKeepsEditorFocusSelectionAndHistory', await page.evaluate(() => {
     const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     return e === window.saveSession.editor && JSON.stringify(e.state.selection.toJSON()) === JSON.stringify(window.saveSession.selection) &&
@@ -110,7 +110,7 @@ async (page, { openDocument, reloadDocument }) => {
   await page.keyboard.type('DuringSave');
   const pendingDocument = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => JSON.stringify(element.editor.getJSON()));
   release();
-  await page.locator('[data-testid="status"][data-operation="Saved; newer edits pending"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor({state:'attached'});
   check('pendingStructureRetained', pendingDocument.includes('DuringSave') &&
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => JSON.stringify(element.editor.getJSON())) === pendingDocument &&
     !(await read(file)).source.includes('DuringSave'));
@@ -394,7 +394,7 @@ async (page, { openDocument, reloadDocument }) => {
     await page.keyboard.press('End'); await page.keyboard.type(' During save.');
     const pendingState = await state();
     releaseReplay();
-    await page.locator('[data-testid="status"][data-operation="Saved; newer edits pending"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor({state:'attached'});
     hold = undefined;
     await verifySave(captioned, pendingState, 'captionSaveWithPendingEndnote');
     check('pendingEndnoteStaysDirty', await page.getByTestId('status').innerText() === 'Unsaved changes');

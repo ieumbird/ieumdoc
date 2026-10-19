@@ -8,7 +8,7 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   const file = name => [root, 'tmp', 'document-tabs', name].join(sep);
   const a = file('technical-1.md'), b = file('technical-2.md');
   const editor = () => activeDocument(page).locator('.document-editor');
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const read = async path => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(path)}`)).json();
   const activate = async name => {
     await page.getByRole('tab', {name:new RegExp(`^${name.replaceAll('.', '\\.')}(, Unsaved changes)?$`)}).click();

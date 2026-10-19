@@ -1,10 +1,10 @@
 // Choose a folder, expand it as a tree in the sidebar and open its documents; unsaved work blocks switching.
 async (page, {screenshots = false} = {}) => {
   await page.unrouteAll();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;

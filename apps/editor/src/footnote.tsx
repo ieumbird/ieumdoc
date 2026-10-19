@@ -1,3 +1,5 @@
+import { i18n } from "./i18n.ts";
+import { useTranslation } from "react-i18next";
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { revealEndnote, useEndnoteNumber } from "./endnotes.ts";
@@ -34,10 +36,11 @@ export const FootnoteReference = Node.create({
 });
 
 function FootnoteReferenceView({ node, editor, selected, getPos }: ReactNodeViewProps) {
+  useTranslation();
   const label = String(node.attrs.label ?? "");
   const number = useEndnoteNumber(editor, label);
-  const status = number !== undefined ? `Endnote ${number}. Click to go to its definition.`
-    : `Unresolved: no definition of footnote [^${label}] in this document`;
+  const status = number !== undefined ? i18n.t("Endnote {{number}}. Click to go to its definition.", { number: number })
+    : i18n.t("Unresolved: no definition of footnote [^{{label}}] in this document", { label: label });
   return (
     <NodeViewWrapper
       as="span"

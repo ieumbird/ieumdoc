@@ -6,7 +6,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   const root = loaded.path.split(sep).slice(0,-4).join(sep);
   const file = [root, 'tmp', 'document-tabs', 'technical-1.md'].join(sep);
   const engine = target => activeDocument(target).locator('.document-editor');
-  const ready = target => target.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = target => target.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const records = () => page.evaluate(async () => (await import('/src/recovery-storage.ts')).recoveryStorage.list());
   const count = async expected => {
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -64,7 +64,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await engine(page).getByText(/Recovered applied text/).waitFor();
   check(await engine(page).evaluate(n => !n.editor.can().undo()), 'Restored Undo history should be empty');
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor(); await count(0);
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   check(disk.source.includes('Recovered applied text.'), 'Restored Save did not reach disk');
   await reloadDocument(page); await ready(page);
@@ -86,7 +86,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     await page.getByTestId('save').click(); await saveStarted;
     await edit(page,'During delayed Save. ');
     releaseSave();
-    await page.locator('[data-testid="status"][data-operation="Saved; newer edits pending"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor();
     for (let attempt = 0; attempt < 100; attempt++) {
       const record = (await records())[0];
       if (record?.snapshot.file.revision === savedRevision && record.recoveryText.includes('During delayed Save.')) break;
@@ -99,7 +99,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor(); await count(0);
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('During delayed Save.'), 'Restored newer edits did not replay against the acknowledged Save');
 
   // Save in one window must not clean another window, and restored work keeps its old revision.
@@ -111,7 +111,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     const before = await records();
     check(new Set(before.map(r => r.id)).size === 2, 'Windows share a session id');
     await page.getByTestId('save').click();
-    await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor(); await count(1);
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(1);
     check((await records())[0].recoveryText.includes('Window B.'), 'Saving A removed B');
   } finally { await other.close(); }
   await page.reload(); await ready(page); await count(1);
@@ -119,7 +119,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Save conflict"]').waitFor(); await count(1);
+  await page.locator('[data-testid="status"][data-operation="save-conflict"]').waitFor(); await count(1);
   check((await engine(page).innerText()).includes('Window B.'), 'Conflict lost restored work');
 
   // A failed Reload keeps both the live content and its record. A successful one deletes it.
@@ -145,7 +145,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   check(await engine(page).evaluate(n => n.editor.state.doc.firstChild.textContent === '' && [...n.editor.state.doc.content.content].some(node => node.type.name === 'figure' && !node.attrs.imagePath)), 'Unsaveable heading/pending Figure lost on restore');
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Save failed"]').waitFor(); await count(1);
+  await page.locator('[data-testid="status"][data-operation="save-failed"]').waitFor(); await count(1);
   // Tab Don't save explicitly deletes its record, unlike closing the window above.
   await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
   await page.getByRole('button',{name:"Don't save",exact:true}).click(); await count(0);
@@ -156,7 +156,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await capture('settings');
   await page.keyboard.press('Control+s');
-  check(await page.getByTestId('status').getAttribute('data-operation') === 'Ready', 'Save shortcut bypassed Settings modal');
+  check(await page.getByTestId('status').getAttribute('data-operation') === 'ready', 'Save shortcut bypassed Settings modal');
   await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).click();
   await capture('clear-confirm');
   const laterWindow = await page.context().newPage();
@@ -199,7 +199,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await capture('failure');
   await page.evaluate(() => { IDBObjectStore.prototype.put = window.originalRecoveryPut; });
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor(); await count(0);
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
   await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
 
   // Unsupported/malformed format still exposes independently stored plaintext and explicit delete.
@@ -241,7 +241,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await openDocument(page,file); await ready(page);
   await edit(page,'Storage unavailable but Save works. ');
   await page.getByTestId('save').click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('Storage unavailable but Save works.'), 'Unavailable recovery blocked original Save');
   return { malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
     failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true,

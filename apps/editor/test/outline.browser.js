@@ -7,7 +7,7 @@
 async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -17,7 +17,7 @@ async (page, { openDocument, reloadDocument }) => {
 
   await openDocument(page, file);
   await page.waitForFunction(() =>
-    document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
+    document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready' &&
     document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('outline.md'));
 
   const outline = page.getByTestId('outline');
@@ -254,9 +254,9 @@ async (page, { openDocument, reloadDocument }) => {
   await headingAction('Section 4', 'Delete section');
   const sectionDeleted = await outlineIs(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor();
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor();
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
-  const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'Saved' &&
+  const sectionSaved = await page.getByTestId('status').getAttribute('data-operation') === 'saved' &&
     JSON.stringify(disk.document.blocks.filter(block => block.block === 'heading').map(block => block.text)) === JSON.stringify(sectionMoved.filter(text => !['Section 4', 'Detail 4'].includes(text)));
 
   const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, currentStaysInView, visibleSectionStaysPut, resizeRestoresCurrent, arrowsDoNotSnapToCurrent, focusExitRestoresCurrent, trackingPreservesDocument, editsUpdate, sourceReturnsToVisual,
@@ -277,11 +277,11 @@ async (page, { openDocument, reloadDocument }) => {
   const acknowledgement = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await acknowledgement;
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   const numbered = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   result.headingNumberingSaved = numbered.source.includes('headings: true') && !numbered.source.includes('## 1');
   await reloadDocument(page);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('button', {name:'Display', exact:true}).click();
   result.headingNumberingReloaded = await toggle.isChecked() &&
     await editor.locator('h2').first().getAttribute('data-heading-number') === '1';

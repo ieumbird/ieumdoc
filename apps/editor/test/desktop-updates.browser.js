@@ -4,7 +4,7 @@
 // pnpm browser:test desktop-updates
 async (page, { screenshots = false, openDocument }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   check(await page.getByRole('button', {name:'Settings'}).count() === 1, 'Common recovery Settings is missing');
   await page.getByRole('button', {name:'Settings',exact:true}).click();
   check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
@@ -71,7 +71,7 @@ async (page, { screenshots = false, openDocument }) => {
   const stable = page.getByRole('radio', {name:/^Stable/});
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
-  check(await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).evaluate(node => node === document.activeElement), 'Settings did not focus its first recovery control');
+  check(await page.getByTestId('ui-language').evaluate(node => node === document.activeElement), 'Settings did not focus its first language control');
   await stable.focus();
   await push({phase:'no-stable-release'});
   check(await status() === 'No Stable release has been published yet.', 'Stable absence is not explained');
@@ -176,7 +176,7 @@ async (page, { screenshots = false, openDocument }) => {
   await page.route('**/api/document', holdSave);
   try {
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.locator('[data-operation="Saving…"]').waitFor({state:'attached'});
+    await page.locator('[data-operation="saving"]').waitFor({state:'attached'});
     await refused(/A save is in progress/);
     // Observe this held Save's first Saved commit, after the prior Save/draft UI settled.
     await page.evaluate(() => {
@@ -222,11 +222,11 @@ async (page, { screenshots = false, openDocument }) => {
       const data = new DataTransfer(); data.items.add(new File([png], 'update-test.png', {type:'image/png'}));
       element.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
     });
-    await page.locator('[data-operation="Adding image…"]').waitFor({state:'attached'});
+    await page.locator('[data-operation="adding-image"]').waitFor({state:'attached'});
     await refused(/An image is still being added/);
   } finally { releaseAsset(); }
   await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').waitFor();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'Adding image…');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'adding-image');
   await page.unroute('**/api/asset?*', holdAsset);
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
