@@ -377,12 +377,14 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   await open('quiet-document.md');
   check((await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('한글입력')&&!(await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('AFTER_SAVE'),'Save / Reload did not preserve only the saved composition');
 
-  // Reorder through the real drag handle, then restore through history.
-  await page.locator('[data-document-tab][data-active=true] .heading').first().hover();
-  const target=page.locator('[data-document-tab][data-active=true] .paragraph').first();
+  // Reorder through the real drag handle, then restore through history. The leading title stays
+  // first (#255), so the paragraph after it moves below the next block.
+  const lead=page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
+  await lead.hover();
+  const target=page.locator('[data-document-tab][data-active=true] .document-editor > :nth-child(3)');
   const targetBox=await target.boundingBox();
-  await page.getByRole('button',{name:'Move heading block 1',exact:true}).dragTo(target,{targetPosition:{x:40,y:targetBox.height-2}});
-  check(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.state.doc.firstChild.type.name==='paragraph'),'Block drag failed');
+  await page.getByRole('button',{name:'Move paragraph block 2',exact:true}).dragTo(target,{targetPosition:{x:40,y:targetBox.height-2}});
+  check(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.state.doc.child(1).type.name!=='paragraph'&&n.editor.state.doc.child(2).type.name==='paragraph'),'Block drag failed');
   await page.keyboard.press('Control+z');
   check(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.state.doc.firstChild.type.name==='heading'),'Block move undo failed');
 

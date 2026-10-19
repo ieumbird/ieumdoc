@@ -3,6 +3,7 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
 import { endnoteLabel } from "./endnotes.ts";
+import { editorTitleIndex } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
 
 type BlockHandlesProps = {
@@ -66,6 +67,12 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       while (end > 0 && endnoteLabel(editor.state.doc.child(end - 1)) !== undefined) end--;
       return rectangles().slice(0, end);
     };
+    // The title stays first (#255): nothing lands at or above it.
+    const dropTarget = (y: number, from: number) => {
+      const target = blockDropTarget(bodyRectangles(), y, from);
+      const title = editorTitleIndex(editor.state.doc);
+      return target && title !== undefined && target.to <= title ? null : target;
+    };
     const update = () => {
       const rects = rectangles();
       const top = host.getBoundingClientRect().top;
@@ -92,8 +99,8 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       event.preventDefault();
       event.stopPropagation();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-      // No line where the block would stay in place.
-      const target = blockDropTarget(bodyRectangles(), event.clientY, drag.current.index);
+      // No line where the block would stay in place, or above the title.
+      const target = dropTarget(event.clientY, drag.current.index);
       setDropTop(target ? target.line - host.getBoundingClientRect().top : null);
     };
     const end = () => { drag.current = null; setDropTop(null); setMoving(null); leave(); };
@@ -105,7 +112,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       event.stopPropagation();
       end();
       if (!source.doc.eq(editor.state.doc)) return;
-      const target = blockDropTarget(bodyRectangles(), event.clientY, source.index);
+      const target = dropTarget(event.clientY, source.index);
       if (target) editor.view.dispatch(reorderBlock(editor.state, source.index, target.to));
       dropped = true;
     };

@@ -1402,7 +1402,8 @@ test("Equation edit survives Apply projection, reorder, Save and reload", () => 
   const original = String(equation.attrs?.latex ?? "");
   const changed = `${original} + 1`;
   equation.attrs!.latex = changed;
-  projection.content!.unshift(projection.content!.splice(9, 1)[0]);
+  // Just below the title, which stays first.
+  projection.content!.splice(1, 0, projection.content!.splice(9, 1)[0]);
 
   const edits = collectSupportedEdits(editable, projection);
   assert.deepEqual(edits.equations, [{ path: [10], from: original, to: changed }]);
@@ -1924,11 +1925,12 @@ test("merge provenance cannot skip, reorder or consume headings", () => {
 test("all top-level blocks reorder through Core without changing semantic content", () => {
   const editable = loadEditableDocument(source);
   const projection = toTiptapDocument(editable);
-  for (let from = 0; from < editable.blocks.length; from++) {
+  // Every block below the title moves to just below it; the title itself stays first.
+  for (let from = 1; from < editable.blocks.length; from++) {
     const next = clone(projection);
-    next.content!.splice(0, 0, next.content!.splice(from, 1)[0]);
+    next.content!.splice(1, 0, next.content!.splice(from, 1)[0]);
     const saved = saveEdits(source, collectSupportedEdits(editable, next));
-    assert.equal(saved.markdown, serialize(moveBlock(parse(source), from + 1, 1)));
+    assert.equal(saved.markdown, serialize(moveBlock(parse(source), from + 1, 2)));
     assert.equal(serialize(parse(saved.markdown)), saved.markdown);
     assert.deepEqual(toTiptapDocument(loadEditableDocument(saved.markdown)).content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})),
       next.content!.map(node => ({...node, attrs: {...node.attrs, sourcePath: "", original: undefined}})));
@@ -1936,7 +1938,8 @@ test("all top-level blocks reorder through Core without changing semantic conten
 });
 
 test("reorder and subsequent marked text and break edits survive save and reload", () => {
-  const markdown = nativeSource("# Heading\n\n**AB**\n\n*CD*");
+  // A level-2 heading: a leading level-1 heading would be the title, which stays first.
+  const markdown = nativeSource("## Heading\n\n**AB**\n\n*CD*");
   const editable = loadEditableDocument(markdown);
   const next = toTiptapDocument(editable);
   const paragraph = next.content!.splice(2, 1)[0];
@@ -1963,6 +1966,17 @@ test("reorder supports separated split siblings and merging reordered neighbors"
   merged.content = [{type:"paragraph",attrs:{sourcePath:"3;1"},content:text("CDAB!")},merged.content![1]];
   const mergedSave = saveEdits(markdown, collectSupportedEdits(editable, merged));
   assert.equal(mergedSave.markdown, nativeSource("CDAB!\n\n# Middle\n"));
+});
+
+test("Save keeps the opening snapshot's title first, wherever its steps pass", () => {
+  const markdown = nativeSource("# Title\n\nIntro.\n\n# Other\n\nBody.");
+  const editable = loadEditableDocument(markdown);
+  const above = toTiptapDocument(editable);
+  above.content!.unshift(above.content!.splice(1, 1)[0]);
+  assert.throws(() => saveEdits(markdown, collectSupportedEdits(editable, above)), /document title stays first/);
+  const inserted = toTiptapDocument(editable);
+  inserted.content!.unshift({ type: "paragraph", attrs: { sourcePath: "new:above" }, content: [{ type: "text", text: "Above." }] });
+  assert.throws(() => saveEdits(markdown, collectSupportedEdits(editable, inserted)), /document title stays first/);
 });
 
 test("invalid reorder and stale reorder never invoke the writer", () => {

@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-19 (#298: start without a document on the canvas with the product mark and card sections; open-files captures at 1440/768/375px).
+- Last verified: 2026-10-19 (#255: Add a title place and empty-title placeholder in the document's subtle hint role).
+- Previous verification: 2026-10-19 (#298: start without a document on the canvas with the product mark and card sections; open-files captures at 1440/768/375px).
 - Previous verification: 2026-10-19 (#321: phone-width sidebar without a rail, covering the screen when open; stable browser suite and 375px captures).
 - Previous verification: 2026-10-17 (UX review v4.7: location identity, segmented view control, tab folder labels, unreserved block metadata, overflow fades, Source line numbers, `cv08`; stable browser suite and same-state Before/After in the [review](../reviews/editor-ux-review-2026-10-17.md)).
 - Previous verification: 2026-10-16 (#296 PR2: recovery list/dialog/Settings/failure/empty captures at 1440/375px; existing shared tokens and overlay controls).
@@ -70,6 +71,10 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | No hover device | Gutter and Edit remain visible; the block extent outline is hidden under `(hover: none)`. |
 
 These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel never removes a Figure.
+
+## Document title (#255)
+
+A document without a title shows Add a title above its first block in the H1 type (34/45.9px bold, document font) and the subtle text color, with no box at rest; hover darkens it to muted text and keyboard focus shows the 2px ring. It sits above the editable content rather than inside it, so it never takes the caret and is never document content. An empty title shows `Title` in the same subtle color, like the empty-document hint. The title's handle keeps the ordinary handle look; its tooltip explains that the title stays at the top.
 
 ## Empty document start (#133)
 

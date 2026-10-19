@@ -34,18 +34,15 @@ button {
 }
 
 /* Below 640px (phone widths) the sidebar takes no grid width: closed, it has no rail and the
- * document uses the whole width (the TopBar opens it); open, it covers the whole screen (#321). */
-.app-shell--sidebar-overlay {
-  --shell-sidebar: 0px;
+ * document uses the whole width (the TopBar opens it); open, it covers the whole screen (#321).
+ * The width follows the media query itself, like the Document panel's, so the frame before the
+ * matchMedia handler closes the sidebar never narrows the document or scrolls the page sideways. */
+@media (width < 40rem) {
+  .app-shell { --shell-sidebar: 0px; }
 }
 
 .app-shell--sidebar-overlay.app-shell--collapsed .sidebar {
   display: none;
-}
-
-/* Out of the grid, the sidebar no longer holds the first column; the main column keeps its own. */
-.app-shell--sidebar-overlay .app-main {
-  grid-column: 2;
 }
 
 .app-shell--sidebar-overlay:not(.app-shell--collapsed) .sidebar {
@@ -524,6 +521,8 @@ button {
 .app-main {
   display: flex;
   flex-direction: column;
+  /* The sidebar may leave the first column (#321); the main column keeps its own. */
+  grid-column: 2;
   min-width: 0;
 }
 
@@ -1021,6 +1020,41 @@ button {
   max-width: 100%;
   color: var(--id-color-text-subtle);
   pointer-events: none;
+}
+
+/* The document title (#255). An empty title says what it is for, like the empty-document hint;
+ * a document without one offers Add a title in the title's place, quiet until used. */
+.document-editor > h1[data-title-placeholder]::before {
+  content: attr(data-title-placeholder);
+  float: left;
+  height: 0;
+  color: var(--id-color-text-subtle);
+  pointer-events: none;
+}
+
+.document-title-slot {
+  display: block;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+  border-radius: var(--id-radius-sm);
+  background: transparent;
+  color: var(--id-color-text-subtle);
+  font-family: var(--font-family-document);
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  text-align: left;
+  cursor: text;
+}
+
+.document-title-slot:hover {
+  color: var(--id-color-text-muted);
+}
+
+.document-title-slot:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .heading {

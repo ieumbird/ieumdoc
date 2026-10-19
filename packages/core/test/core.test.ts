@@ -132,12 +132,13 @@ test("Core rejects a reorder that changes canonical top-level block boundaries",
 
 test("Core preserves canonical semantics when reordering paragraph, heading, figure, and equation blocks", () => {
   const document = parse(technicalSource);
+  // The leading H1 is the document title and stays first, so blocks move to just after it.
   for (const type of ["paragraph", "heading", "container", "math"]) {
-    const index = document.children.findIndex((node) =>
-      node.type === type && (type !== "container" || node.kind === "figure"),
+    const index = document.children.findIndex((node, position) =>
+      position > 1 && node.type === type && (type !== "container" || node.kind === "figure"),
     );
     assert.ok(index >= 0, `missing ${type} block`);
-    const changed = moveBlock(document, index, 0);
+    const changed = moveBlock(document, index, 1);
     assert.deepEqual(
       getEditableDocument(parse(serialize(changed))).blocks.map((block) => block.block),
       getEditableDocument(changed).blocks.map((block) => block.block),

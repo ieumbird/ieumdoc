@@ -12,6 +12,7 @@ import {
   type SlashRange,
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
+import { addTitle, editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
@@ -138,6 +139,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     });
   }, []);
   const moveBlockedHint = (index: number) => {
+    if (index === editorTitleIndex(editor.state.doc)) return `${TITLE_FIXED} Click for block actions.`;
     const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
     const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
     return draft ? `Apply or Cancel the ${draft.kind} edit before moving it.` : undefined;
@@ -426,6 +428,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         // The paper extends below the editor content, including in a brand-new document.
         if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
       }}>
+      {/* Outside the editable content, so it never takes the caret or reads as document text (#255). */}
+      {editor.isEditable && editorTitleIndex(editor.state.doc) === undefined ? (
+        <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
+          onClick={() => addTitle(editor.view)}>Add a title</button>
+      ) : null}
       <EditorContent editor={editor} />
       {visible ? <BlockHandles
         editor={editor}

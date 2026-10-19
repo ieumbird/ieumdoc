@@ -262,6 +262,8 @@ async (page, { openDocument, withBlockHover }) => {
     // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
     await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
     // Crossing 640px closes the sidebar; at phone widths it has no rail, so the TopBar opens it before Display.
+    // Like the panel above, wait for the committed layout: the matchMedia handler closes it a frame later.
+    if(width<640)await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
     if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()){
       if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       await page.getByRole('button',{name:'Display',exact:true}).click();

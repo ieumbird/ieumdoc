@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "../src/section.ts";
-import { getEditableDocument, moveBlock, moveSection, parse, removeSection, serialize } from "./core-internal.ts";
+import { sectionBoundaries, sectionMarker, sectionRange, titleHeading, type SectionMarker } from "../src/section.ts";
+import { getEditableDocument, insertParagraph, insertTarget, moveBlock, moveSection, parse, removeBlock, removeSection, serialize } from "./core-internal.ts";
 
 // 0 Preamble · 1 # One · 2 Intro · 3 (sec-a)= · 4 ## A · 5 Body A · 6 ### A.1 · 7 Deep · 8 ## B · 9 Body B · 10 # Two · 11 End
 const source = "Preamble.\n\n# One\n\nIntro.\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\nDeep *x*.\n\n## B\n\nBody B.\n\n# Two\n\nEnd.\n";
@@ -26,9 +26,10 @@ test("endnotes are in no section: the last section ends with the body, and the b
   assert.deepEqual(sectionBoundaries(markers), [0, 2, 4, 6]);
   assert.equal(sectionMarker({ block: "footnote" }), "endnote");
   // A definition still inside the body is not section content, but does not end the section.
-  const inBody = moveBlock(parse("# A\n\nOne[^n].\n\n## B\n\nTwo[^n].\n\n[^n]: Note.\n"), 4, 2);
-  assert.equal(serialize(removeSection(inBody, 3)), "# A\n\nOne[^n].\n\n[^n]: Note.\n");
-  assert.equal(serialize(moveSection(inBody, 3, 0)), "## B\n\nTwo[^n].\n\n# A\n\nOne[^n].\n\n[^n]: Note.\n");
+  // (Level-2 headings: a leading level-1 heading would be the document title, which stays first.)
+  const inBody = moveBlock(parse("## A\n\nOne[^n].\n\n### B\n\nTwo[^n].\n\n[^n]: Note.\n"), 4, 2);
+  assert.equal(serialize(removeSection(inBody, 3)), "## A\n\nOne[^n].\n\n[^n]: Note.\n");
+  assert.equal(serialize(moveSection(inBody, 3, 0)), "### B\n\nTwo[^n].\n\n## A\n\nOne[^n].\n\n[^n]: Note.\n");
   assert.throws(() => removeSection(removeSection(inBody, 3), 0), /footnote \[\^n\] with no reference/);
 });
 
@@ -44,6 +45,33 @@ test("moveSection moves a heading with its targets, content and subsections", ()
   // Moving to its own start or end changes nothing.
   assert.equal(serialize(moveSection(document, 4, 3)), serialize(document));
   assert.equal(serialize(moveSection(document, 4, 8)), serialize(document));
+});
+
+test("a leading level-1 heading, after only its label targets, is the document title", () => {
+  assert.equal(titleHeading([1, null, 2]), 0);
+  assert.equal(titleHeading([null, "target", "target", 1, null], 1), 3);
+  for (const markers of [[null, 1], [2, 1], ["target", null, 1], [], ["endnote"]] as SectionMarker[][]) {
+    assert.equal(titleHeading(markers), undefined, JSON.stringify(markers));
+  }
+});
+
+test("the document title stays first: it does not move and nothing else goes before it", () => {
+  // 0 # Title · 1 Intro · 2 ## S · 3 Body
+  const document = parse("# Title\n\nIntro.\n\n## S\n\nBody.\n");
+  const before = structuredClone(document);
+  for (const refused of [() => moveBlock(document, 0, 2), () => moveBlock(document, 1, 0), () => moveSection(document, 0, 4),
+    () => moveSection(document, 2, 0), () => insertParagraph(document, 0, "Above.")]) {
+    assert.throws(refused, /document title stays first/);
+  }
+  assert.deepEqual(document, before);
+  // Its own label target may go before it; blocks move and insert after it; it can still be removed.
+  assert.equal(serialize(insertTarget(document, 0, "top")), "(top)=\n\n# Title\n\nIntro.\n\n## S\n\nBody.\n");
+  assert.throws(() => moveBlock(insertTarget(document, 0, "top"), 0, 2), /document title stays first/);
+  assert.equal(serialize(moveBlock(document, 3, 1)), "# Title\n\nBody.\n\nIntro.\n\n## S\n");
+  assert.equal(serialize(insertParagraph(removeBlock(document, 0), 0, "Lead.")), "Lead.\n\nIntro.\n\n## S\n\nBody.\n");
+  // Without a leading level-1 heading there is no title, so a heading may move to the top and become it.
+  const untitled = parse("Lead.\n\n# Later\n");
+  assert.equal(serialize(moveBlock(untitled, 1, 0)), "# Later\n\nLead.\n");
 });
 
 test("removeSection removes a heading with its targets, content and subsections", () => {

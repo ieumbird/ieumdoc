@@ -138,7 +138,7 @@ Text.
   assert.deepEqual(texts(parse(markdown), 1), [["Port", "Type"], ["U", "AC"], ["", "a | b"]]);
   assert.deepEqual(cells(parse(markdown), 1).map((row) => row.map((cell) => cell.header)), [[true, true], [false, false], [false, false]]);
   // A header-only table and an empty table are Markdown tables too.
-  assert.deepEqual(texts(parse(serialize(insertTable(document, 0, [["A"]]))), 0), [["A"]]);
+  assert.deepEqual(texts(parse(serialize(insertTable(document, 1, [["A"]]))), 1), [["A"]]);
   assert.deepEqual(texts(parse(serialize(insertTable(document, 2, [["", ""], ["", ""]]))), 2), [["", ""], ["", ""]]);
 });
 

@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Last verified: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
+- Previous verification: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -120,6 +121,34 @@ caret's cell in one engine transaction each. Each opening-snapshot cell carries 
 maps the edited grid to the snapshot. The Host then removes, moves, adds and aligns
 through the same Core operations. Unsupported cells reject native admission.
 Cell merge has no GFM form and is not supported.
+
+## Document title (#255)
+
+A level-1 heading that opens the body, preceded only by its own label targets, is the document
+title. It is stored as that ordinary leading `# Title`, so the format and other Markdown/MyST
+tools are unchanged; there is no frontmatter title. The title stays first. One Core rule
+(`titleHeading` in `@ieumdoc/core/section`) serves Core, the CLI and the Editor:
+
+- Core `moveBlock` refuses moving the title or its label targets and moving any block to or
+  before the title; `moveSection` refuses moving the title's section and moving a section before
+  it; insertions (`insertBlock` and every insert operation built on it) refuse positions at or
+  before the title, except a label target for it. The CLI's move-block, move-section and insert
+  commands therefore refuse the same changes with Core's reason and leave the file unchanged.
+- Removing the title, converting it to another block or changing its level is an explicit change
+  and is allowed; the body then has no title until a leading level-1 heading opens it again.
+  Without a title, any heading may be moved to the top and becomes the title.
+- Editor: the title carries `data-document-title`. Its handle does not drag and says why; no drop
+  line is offered at or above it, and section commands neither move the title's section nor move
+  another above it. Any engine change that would leave the old title as a level-1 heading below
+  something else is refused with the notice `The title stays at the top of the document.` Enter
+  in the title continues in a paragraph below it: at its start, an empty paragraph; elsewhere, the
+  text after the caret.
+- A document without a title shows an Add a title place above its first block (not document
+  content). It starts an empty title with the caret in it and the `Title` placeholder; a title left
+  empty is removed once the caret leaves it, because an empty heading is not saved.
+- Save replays a final block order through intermediate orders no one sees, so it moves blocks
+  with Core's `checkTitle: false` and instead checks the rule once, against the opening snapshot:
+  if that snapshot opened with a title still saved as a level-1 heading, it must still be the title.
 
 ## Sections
 

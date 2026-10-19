@@ -88,13 +88,17 @@ async (page, { openDocument, withBlockHover }) => {
 
   // 4. The next drag starts right after a drop, and a moved Figure is not selected either, so its
   // properties do not open.
+  // Nothing lands above the leading title (#255): no line there, and a drop changes nothing.
   const first = await editor.locator(':scope > *').first().boundingBox();
+  const second = await editor.locator(':scope > *').nth(1).boundingBox();
   await grab(figure, /^Move figure block \d+$/);
   await pointAt(first.y + 2);
+  result.noLineAboveTitle = await line.count() === 0;
+  await pointAt(second.y + 2);
   await line.waitFor();
   await page.mouse.up();
   await tint.waitFor({state:'detached'});
-  result.figureMovedFirst = (await order()).startsWith('figure ');
+  result.figureMovedFirst = (await order()).startsWith('heading figure ');
   result.figureNotOpened = await figure.getAttribute('data-selected') === 'false' &&
     await page.getByTestId('figure-properties').count() === 0;
 
@@ -112,7 +116,8 @@ async (page, { openDocument, withBlockHover }) => {
   await page.getByTestId('equation-latex').fill('x + BlockMoveDraft');
   // The draft is reported from an effect, so the handle follows it a render later.
   const handle = page.getByRole('button', {name:/^Move equation block \d+$/});
-  await page.locator('.block-handle[draggable="false"]').waitFor({state:'attached'});
+  // The title's handle never drags (#255); wait for the Equation's own.
+  await page.locator('.block-handle[draggable="false"][aria-label^="Move equation block"]').waitFor({state:'attached'});
   result.draftHandleExplains = await handle.getAttribute('draggable') === 'false' &&
     await handle.getAttribute('title') === 'Apply or Cancel the Equation edit before moving it.';
   await grab(equation, /^Move equation block \d+$/);
@@ -121,7 +126,7 @@ async (page, { openDocument, withBlockHover }) => {
   result.draftBlockNotMoved = await order() === movedOrder && await line.count() === 0 && await tint.count() === 0 &&
     await page.getByTestId('equation-latex').inputValue() === 'x + BlockMoveDraft';
   await page.getByTestId('equation-cancel').click();
-  await page.locator('.block-handle[draggable="false"]').waitFor({state:'detached'});
+  await page.locator('.block-handle[draggable="false"][aria-label^="Move equation block"]').waitFor({state:'detached'});
   result.cancelReleasesHandle = await handle.getAttribute('draggable') === 'true' &&
     await handle.getAttribute('title') === 'Drag to move, click for block actions';
 

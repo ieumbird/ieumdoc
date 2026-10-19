@@ -74,6 +74,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
   "block-move": { files: technical, scenarios: ["block-move"] },
+  "document-title": { files: [...technical,
+    { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
+    { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "section-reference": {
