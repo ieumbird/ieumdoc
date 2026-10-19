@@ -97,7 +97,8 @@ async (page, { openDocument, withBlockHover }) => {
   });
   // On a phone-width viewport the wrapped TopBar keeps every control inside the viewport, in order:
   // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
-  // Below 768px the sidebar starts collapsed to its rail; opened, it overlays the document.
+  // Below 640px the sidebar starts closed without a rail; opened, it covers the whole screen (#321),
+  // so the TopBar is measured with the sidebar closed.
   for(const width of [414,375]) {
     await page.setViewportSize({width,height:800});
     if(width===414&&await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()!==1)throw Error('Narrow sidebar did not start collapsed');
@@ -105,10 +106,25 @@ async (page, { openDocument, withBlockHover }) => {
       if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
       else if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       await page.evaluate(()=>window.scrollTo(0,0));
-      const overlay=await page.evaluate(()=>({fixed:getComputedStyle(document.querySelector('.sidebar')).position==='fixed',
-        main:document.querySelector('.app-main').getBoundingClientRect().left,
-        rail:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-sidebar-rail-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize)}));
-      if(overlay.fixed===collapsed||Math.abs(overlay.main-overlay.rail)>0.5)throw Error(`Narrow sidebar must overlay beside its rail: ${JSON.stringify({collapsed,overlay})}`);
+      // Phone widths (#321): closed, no rail and the document has the whole width; open, the sidebar covers the screen.
+      const overlay=await page.evaluate(()=>{
+        const sidebar=document.querySelector('.sidebar'),r=sidebar.getBoundingClientRect();
+        return {display:getComputedStyle(sidebar).display,left:r.left,width:r.width,height:r.height,main:document.querySelector('.app-main').getBoundingClientRect().left,innerWidth,innerHeight};
+      });
+      if(collapsed?overlay.display!=='none'||overlay.main!==0:Math.abs(overlay.left)>0.5||Math.abs(overlay.width-overlay.innerWidth)>0.5||Math.abs(overlay.height-overlay.innerHeight)>0.5||overlay.main!==0)
+        throw Error(`Phone sidebar must be closed beside a full-width document or cover the screen: ${JSON.stringify({collapsed,overlay})}`);
+      if(!collapsed){
+        if(width===375){
+          // Escape inside the full-screen sidebar closes it and focuses the TopBar control that reopens it.
+          await page.getByRole('button',{name:'Files',exact:true}).focus();
+          await page.keyboard.press('Escape');
+          const expand=page.getByRole('button',{name:'Expand sidebar',exact:true});
+          if(!await expand.evaluate(n=>n===document.activeElement))throw Error('Escape did not close the full-screen sidebar');
+          await expand.click();
+          if(!await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement))throw Error('Opening did not move focus into the sidebar');
+        }
+        continue;
+      }
       const narrow=await page.evaluate(()=>{
         // Visual/Source is one segmented control: its track is measured as a single control.
         const views=document.querySelector('.view-toggle');
@@ -137,15 +153,6 @@ async (page, { openDocument, withBlockHover }) => {
       const reload=await page.getByRole('menuitem',{name:'Reload',exact:true}).boundingBox();
       if(!reload||reload.x<0||reload.x+reload.width>width||reload.y<0||reload.y+reload.height>800)throw Error('Reload menu leaves the viewport');
       await page.keyboard.press('Escape');
-      if(!collapsed&&width===375){
-        // Escape inside the overlaid sidebar collapses it to the rail and keeps focus on its toggle.
-        await page.getByRole('button',{name:'Files',exact:true}).focus();
-        await page.keyboard.press('Escape');
-        const expand=page.getByRole('button',{name:'Expand sidebar',exact:true});
-        if(!await expand.evaluate(n=>n===document.activeElement))throw Error('Escape did not collapse the overlaid sidebar');
-        await expand.click();
-      }
-      if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     }
   }
   // Opened below the docking width, the document panel overlays at its own width below the sticky
@@ -254,8 +261,11 @@ async (page, { openDocument, withBlockHover }) => {
     await page.setViewportSize({width,height:800});
     // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
     await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
-    // Crossing 768px collapses the sidebar; Display from the rail opens it again.
-    if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count())await page.getByRole('button',{name:'Display',exact:true}).click();
+    // Crossing 640px closes the sidebar; at phone widths it has no rail, so the TopBar opens it before Display.
+    if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()){
+      if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      await page.getByRole('button',{name:'Display',exact:true}).click();
+    }
     const display=await page.locator('#sidebar-display').evaluate(n=>{
       const rect=n.getBoundingClientRect();
       const controls=[...n.querySelectorAll('input')].map(control=>{
@@ -268,7 +278,9 @@ async (page, { openDocument, withBlockHover }) => {
       throw Error(`Display controls outside sidebar: ${JSON.stringify({width,display})}`);
     await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
     if(await toggle.isVisible())throw Error('Collapsed Display still exposes controls');
-    await page.getByRole('button',{name:'Display',exact:true}).click();
+    // Without a rail (phone widths) the TopBar reopens the sidebar, which keeps Display selected.
+    if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    else await page.getByRole('button',{name:'Display',exact:true}).click();
     if(!await toggle.isVisible())throw Error('Collapsed Display entry failed to reopen it');
   }
   return results;
