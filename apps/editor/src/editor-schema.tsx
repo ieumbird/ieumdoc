@@ -944,6 +944,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
 }
 
 function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
+  useTranslation();
   const variant = String(node.attrs.variant ?? "note");
   const label = isAdmonitionVariant(variant) ? ADMONITION_LABELS[variant] : variant;
   return (

@@ -22,6 +22,14 @@ async (page, { openDocument, screenshots }) => {
     await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
   };
   try {
+    await editor.evaluate(async node => {
+      const { INSERT_COMMANDS } = await import('/src/block-commands.ts');
+      const state = node.editor.state;
+      node.editor.view.dispatch(INSERT_COMMANDS.find(command => command.id === 'note').run(state, state.doc.childCount - 1));
+      node.editor.commands.insertContent('Language note body');
+    });
+    const admonitionLabel = editor.locator('[data-block="admonition"] .admonition-label').last();
+    check(await admonitionLabel.innerText() === 'Note', 'English Admonition label is missing');
     // A real applied edit plus an unapplied property draft must both survive.
     await editor.evaluate(node => node.editor.chain().focus().setTextSelection(3).insertContent('LANGUAGE-PRESERVED ').run());
     const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
@@ -37,6 +45,9 @@ async (page, { openDocument, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Page language did not update');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
+    check(await admonitionLabel.innerText() === '참고', 'Existing Admonition label did not switch language');
+    check(await page.getByRole('button', { name: /번째 문단 블록 뒤에 삽입/ }).count() > 0, 'Paragraph handle exposes its internal English type');
+    check(await page.getByRole('button', { name: /번째 제목 블록 이동/ }).count() > 0, 'Heading handle exposes its internal English type');
     check(await editor.evaluate((node, handle) => node.editor === handle, original), 'Language change replaced the editor');
     check(JSON.stringify(await snapshot()) === JSON.stringify(before), 'Language change changed content or selection');
     check(await page.getByRole('tab').count() === tabCount, 'Language change lost tabs');

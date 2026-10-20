@@ -155,17 +155,18 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => {
+      const kind = i18n.t(block.name, { defaultValue: block.name });
       const blocked = block.endnote ? i18n.t(ENDNOTE_HINT) : moveBlockedHint?.(index);
       return <div key={index}
         className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
         data-menu-open={menuIndex === index}
         style={{top: block.top}}>
-        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind: block.name, number: index + 1 })}
+        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind, number: index + 1 })}
           title={i18n.t("Insert block below")} aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
           onClick={() => onInsert(index, block.top)}>+</Button>}
         <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={block.endnote}
-          aria-label={block.endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind: block.name, number: index + 1 })}
+          aria-label={block.endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind, number: index + 1 })}
           title={blocked ?? i18n.t("Drag to move, click for block actions")}
           aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}

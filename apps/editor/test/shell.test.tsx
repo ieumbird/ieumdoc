@@ -248,6 +248,15 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   );
   assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
   assert.equal(marked.match(/data-foreign/g)?.length, 1, "only the unmarked file");
+  try {
+    void i18n.changeLanguage("ko");
+    const localized = renderToStaticMarkup(
+      <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }}
+        onToggle={noop} onOpenFolder={noop} />,
+    );
+    assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);
+    assert.match(localized, /aria-description="이음독 문서가 아님"/);
+  } finally { void i18n.changeLanguage("en"); }
 });
 
 test("without a chosen folder, recent folders list again with one click", () => {

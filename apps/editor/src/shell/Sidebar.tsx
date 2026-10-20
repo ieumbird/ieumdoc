@@ -232,7 +232,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
               data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
-              title={foreign ? `${entry.path}\nNot an IeumDoc document` : entry.path}
+              title={foreign ? `${entry.path}\n${i18n.t("Not an IeumDoc document")}` : entry.path}
               aria-description={foreign ? i18n.t("Not an IeumDoc document") : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}

@@ -1,5 +1,18 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "paragraph": "paragraph",
+  "heading": "heading",
+  "admonition": "admonition",
+  "quote": "quote",
+  "divider": "divider",
+  "figure": "figure",
+  "equation": "equation",
+  "table": "table",
+  "code": "code",
+  "bulletlist": "bulletlist",
+  "orderedlist": "orderedlist",
+  "labeltarget": "labeltarget",
+  "endnote": "endnote",
   "Ready": "Ready",
   "Loading…": "Loading…",
   "Opening…": "Opening…",
@@ -371,6 +384,19 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "paragraph": "문단",
+  "heading": "제목",
+  "admonition": "안내",
+  "quote": "인용",
+  "divider": "구분선",
+  "figure": "그림",
+  "equation": "수식",
+  "table": "표",
+  "code": "코드",
+  "bulletlist": "글머리 기호 목록",
+  "orderedlist": "번호 목록",
+  "labeltarget": "절 레이블",
+  "endnote": "미주",
   "Ready": "준비됨",
   "Loading…": "불러오는 중…",
   "Opening…": "여는 중…",
