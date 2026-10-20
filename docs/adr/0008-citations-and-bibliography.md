@@ -1,8 +1,9 @@
 # ADR-0008: 인용·참고문헌 표현 방식 결정안
 
-- Status: Draft
+- Status: Accepted
 - Last verified: 2026-10-20 (master `3417f5ae949506f4d5acf4cb56186e6d219a5dad`의 Host 경계 재대조, BibTeX 유형 변환·MyST role·일반 `@`·CLI 재실행. 서식 후보의 기존 Node 실행·browser bundle 측정은 비교 근거로 유지. 실제 브라우저·제품 통합 검증은 미실행).
-- Authority: 사람의 승인을 기다리는 권고안이며 현재 구현 계약이 아니다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
+- Authority: 승인된 product and architectural decision이며 아직 구현되지 않아 현재 구현 계약이 아니다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
+- Decision date: 2026-10-20
 - Related: [결정 이슈 #327](https://github.com/ieumbird/ieumdoc/issues/327), [사용자 요구 #265](https://github.com/ieumbird/ieumdoc/issues/265), [일반 `@` 텍스트 결함 #328](https://github.com/ieumbird/ieumdoc/issues/328), [Discussion #154](https://github.com/ieumbird/ieumdoc/discussions/154), [#155](https://github.com/ieumbird/ieumdoc/discussions/155), [#257](https://github.com/ieumbird/ieumdoc/discussions/257), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md).
 
 ## Context
@@ -13,7 +14,7 @@
 
 이 작업은 결정 문서와 인덱스만 변경한다. 구현·테스트·의존성·현재 design contract는 변경하지 않으며, 아래 API와 진단 이름은 제안이다.
 
-## Decision — 권고안
+## Decision
 
 ### 1. 참고문헌 데이터 위치
 
@@ -26,7 +27,7 @@
 | 별도 CSL-JSON 파일 | plain text이며 processor 입력과 가까움. JSON diff가 길어질 수 있음 | 여러 관리 도구가 지원하지만 MyST BibTeX 경로와 직접 같지 않음 | `.bib`와 동일한 Host 경계에 다른 입력 형식까지 추가 | 후속 실제 요구가 있을 때 재검토 |
 | DOI 목록·원격 URL·Zotero API·DB | 네트워크 응답이나 별도 저장소가 권위가 되면 재현성 저하 | 자동 수집은 편리하나 인증·offline·갱신 시점 계약 필요 | 네트워크·cache·동기화 책임이 추가됨 | 첫 범위에서 기각 |
 
-`.md`는 인용의 키·순서·형태·파일 선언의 SSOT이고 `.bib`는 서지 항목의 외부 plain-text 원본이다. CSL-JSON, 번호, 렌더링 목록은 이 두 원본에서 재생성하며 저장하지 않는다. 같은 서지 항목을 Frontmatter나 Editor 저장소에 중복 보관하지 않는다. 이는 ADR-0002의 `.md` 중심 SSOT에 **명시적 외부 서지 의존성**을 추가하는 제안이다. 완전한 문서 전달 단위가 `.md` 하나를 넘는다는 점도 사람이 승인해야 하며, Draft만으로 기존 결정을 확대하지 않는다.
+`.md`는 인용의 키·순서·형태·파일 선언의 SSOT이고 `.bib`는 서지 항목의 외부 plain-text 원본이다. CSL-JSON, 번호, 렌더링 목록은 이 두 원본에서 재생성하며 저장하지 않는다. 같은 서지 항목을 Frontmatter나 Editor 저장소에 중복 보관하지 않는다. 이는 ADR-0002의 `.md` 중심 SSOT에 **명시적 외부 서지 의존성**을 추가하는 결정이다. 인용을 쓰는 문서의 완전한 전달 단위는 `.md`와 선언한 `.bib`이며, 이 범위 밖으로 ADR-0002를 확대하지 않는다.
 
 [Better BibTeX 자동 export 문서](https://retorque.re/zotero-better-bibtex/exporting/auto/)는 Zotero collection/library 변경을 export 파일에 반영하는 경로를 제공한다. 권고하는 연동은 사용자가 문서의 허용 폴더 안으로 export하는 방식이다. IeumDoc은 Zotero DB·API에 쓰거나 export 파일을 재정렬하지 않는다. 실제 Zotero export와 충돌·키 안정성은 이번에 시험하지 않았다.
 
@@ -341,7 +342,7 @@ console.log(plugins.input.chain(bib, { target: "@biblatex/entries+list" }));
 
 ## Open questions and adoption gates
 
-사람이 정한 citeproc 미채택·상위 상대 경로·세 role 수용 방향을 반영했다. 문서 전체의 Status는 계속 Draft이며 Accepted로 자동 변경하지 않는다.
+citeproc 미채택·상위 상대 경로·세 role 수용을 포함한 위 결정은 2026-10-20에 승인되었다. 아래 항목은 결정을 뒤집는 미결 사항이 아니라 각 구현 단위의 착수·완료 조건이다.
 
 배포 라이선스 쟁점은 **citeproc 미채택으로 해소하고 Citation.js MIT 및 전이 의존성의 일반 고지만 남긴다.** 실제 트리에는 `moo`의 BSD-3-Clause도 있다. CSL style/locale XML의 채택·고지는 필요 없다. 이 항목을 미해결 엔진 채택 승인으로 남기지 않는다.
 

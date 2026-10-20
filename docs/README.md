@@ -15,7 +15,7 @@
 | [ADR-0005: Standalone HTTP Host](adr/0005-http-host.md) | Accepted | 복수 허용 Root와 Node 배포물, 기존 handler를 재사용하는 단일 운영자용 HTTP Host. |
 | [ADR-0006: Native document boundary](adr/0006-native-document-boundary.md) | Accepted | 승인된 제품·문서 지원 경계. 표식과 Core 검증을 통한 네이티브 문서 수용, 범용 부분 편집·소스 교체 폐지. 구현 계약은 아래 Native document support를 따른다. |
 | [ADR-0007: Editing session lifetime](adr/0007-editing-session-lifetime.md) | Accepted | 승인된 방향. 명시적 저장(자동 저장은 보류, #297), 원본과 분리된 미저장 작업 복구, 탭별 독립 세션, 공용 저장/저장하지 않음/취소 확인. 현재 탭·닫기·클라이언트 복구와 실제 Host 검증의 경계는 Editing session and Save를 따른다. |
-| [ADR-0008: Citations and bibliography](adr/0008-citations-and-bibliography.md) | Draft | #327 결정안. MIT BibTeX 입력·Core IEEE 제한 서식, Root 안 상위 경로와 세 인용 role 권고. #328과의 경계·실행 근거 포함. 현재 지원 계약이 아님. |
+| [ADR-0008: Citations and bibliography](adr/0008-citations-and-bibliography.md) | Accepted | #327의 승인된 방향. MIT BibTeX 입력·Core IEEE 제한 서식, Root 안 상위 경로와 세 인용 role. #328과의 경계·실행 근거 포함. 아직 구현되지 않아 현재 지원 계약이 아님. |
 
 ## Current implemented contracts
 
