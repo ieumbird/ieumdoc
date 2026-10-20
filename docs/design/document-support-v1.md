@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-19 (#255: the leading level-1 heading is the document title and stays first in Core operations; admission and format unchanged).
+- Last verified: 2026-10-20 (#328: literal @ admission, canonical escaping and bracket shorthand refusal; Core/CLI tests and Editor save-path code inspection).
+- Previous verification: 2026-10-19 (#255: the leading level-1 heading is the document title and stays first in Core operations; admission and format unchanged).
 - Previous verification: 2026-10-17 (UX review: Core `hasNativeMarker` for the sidebar folder listing; Core native tests and the stable browser suite. Admission unchanged).
 - Previous verification: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
@@ -45,6 +46,8 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 
 Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported read-only opening or block source replacement is provided.
 
+Bare `@name` (including `@kim` and `@param`) is literal text, as is already escaped `\@name`. Core disables MyST's shorthand citation extension at the parse boundary while keeping explicit roles parsed. In accordance with [ADR-0008 decision 3](../adr/0008-citations-and-bibliography.md#3-지원할-인용-형태), unescaped citation-like brackets such as `[@key]`, `[@a; @b]` and `[@key, p. 3]` are refused with `native-content` and guidance to escape the opening bracket or the `@` for literal text. This applies to supported text surfaces including endnote definitions; actual links, code and math retain their syntax. Explicit `{cite}`, `{cite:t}` and `{cite:p}` roles remain unsupported: this fix does not implement citation authoring.
+
 ## Interfaces and errors
 
 - Label rename (#216): `update-label --update-references true` calls Core `updateLabel` with `{ updateReferences: true }` for an existing Equation/Figure/Table/section label. It atomically updates only references previously resolved to that target, preserving display content and refusing conflicts or meaning changes; omission/`false` keeps references untouched. Single edits and `apply-batch` share this option. [Section references](section-references-v1.md#opt-in-label-rename-with-references-216) defines resolution, implicit heading IDs, refusals and the deferred Editor entry point. Native admission is unchanged.
@@ -62,6 +65,8 @@ Ordinary Markdown images, task lists, unsupported roles/directives, attributes o
 ## Canonical output and compatibility
 
 Files use UTF-8 and canonical LF line endings. CRLF/mixed input is normalized. A leading UTF-8 BOM is removed; U+FEFF elsewhere is content. Straight and curly quotes retain their meaning. Canonical output is semantic preservation, not byte preservation. Literal dollars and context-sensitive math retain the existing MyST boundary corrections.
+
+The canonical writer escapes literal `@` where the pinned MyST citation rule would interpret it as a citation, so external MyST parsers also read the saved text literally. Email text such as `a@b.com`, URL contexts and link display text do not gain unnecessary escapes. Semantic text supplied by Core operations (including CLI and Editor edits) is already literal; bracket-shaped text entered through those operations is escaped on write rather than treated as source citation shorthand. Existing semantic fingerprints and round-trip refusal remain mandatory. No new operation or CLI command is needed.
 
 Desktop supplies its native sample in `sample-native-v1` on first use and uses it as the sample target. Existing `sample` folders and user-modified copies are not overwritten. The compatibility notice is in the [v0.0.1-beta.4 release record](../releases/v0.0.1-beta.4.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
 

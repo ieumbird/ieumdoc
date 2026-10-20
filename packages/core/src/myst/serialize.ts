@@ -1,4 +1,5 @@
 import { writeMd } from "myst-to-md";
+import { createTokenizer } from "myst-parser";
 import { assertUnicode } from "./unicode.ts";
 import { VFile } from "vfile";
 import { semanticDifferenceIssue, semanticFingerprint } from "./fingerprint.ts";
@@ -11,6 +12,13 @@ import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 const LOSS = "Document contains semantic content that cannot be preserved in canonical Markdown";
+// Ask the pinned upstream citation rule which literal @ positions need protection.
+// Do not duplicate its key grammar, preceding-character or URL-context rules.
+const citationTokenizer = createTokenizer({ extensions: { smartquotes: false } });
+const citationRules = citationTokenizer.inline.ruler.getRules("");
+citationTokenizer.inline.ruler.disable("citation");
+const nonCitationRules = new Set(citationTokenizer.inline.ruler.getRules(""));
+const citationRule = citationRules.find(rule => !nonCitationRules.has(rule))!;
 
 /** Canonical serialization would lose semantics; `detail` names the node and reason. */
 export class SemanticLossError extends DocumentWriteError {
@@ -91,8 +99,8 @@ function render(value: MystNode): string {
  * The original fingerprint and the whole reparsed output still have to match. */
 function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
   let prefix = "";
-  function visit(node: MystNode, index: number, parent?: MystNode, path: number[] = []): void {
-    try { prepare(node, index, parent, path); }
+  function visit(node: MystNode, index: number, parent?: MystNode, path: number[] = [], inLink = false): void {
+    try { prepare(node, index, parent, path, inLink || node.type === "link"); }
     catch (error) {
       if (error instanceof DocumentWriteError) {
         if (!error.location.path?.length && path.length) error.location.path = path;
@@ -103,7 +111,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         ...(issue.line ? { line: issue.line } : {}) }, { cause: error });
     }
   }
-  function prepare(node: MystNode, index: number, parent: MystNode | undefined, path: number[]): void {
+  function prepare(node: MystNode, index: number, parent: MystNode | undefined, path: number[], inLink: boolean): void {
     // Lifted roles can lack positions; diagnostics still identify their containing block.
     node.position ??= parent?.position;
     if (node[FRONT_MATTER_FIELD] !== undefined) {
@@ -121,10 +129,10 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     if (node.type === "table" && node.children?.[0]?.children?.some(cell => cell.align !== undefined)) {
       node.align = node.children[0].children.map(cell => cell.align ?? null);
     }
-    // myst-to-md does not escape `$`, so literal dollars in text would reload as inline
-    // math. Write each as `\$`; the writer emits `html` values verbatim.
-    if (node.children?.some(child => child.type === "text" && String(child.value).includes("$"))) {
-      node.children = node.children.flatMap(child => child.type === "text" ? escapeDollars(child) : [child]);
+    // myst-to-md does not protect literal dollars or citation-triggering @ text.
+    // The writer emits these escaped `html` values verbatim.
+    if (node.children?.some(child => child.type === "text" && /[$@]/.test(String(child.value)))) {
+      node.children = node.children.flatMap(child => child.type === "text" ? escapeText(child, inLink) : [child]);
     }
     // myst-to-md writes inline math as the `{math}` role; write MyST's usual `$...$`.
     if (node.children?.some(child => child.type === "inlineMath")) {
@@ -132,7 +140,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         ? { type: "html", value: `$${child.value}$` } : child);
     }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node,
-      node === tree ? blockPaths[childIndex] : [...path, childIndex]));
+      node === tree ? blockPaths[childIndex] : [...path, childIndex], inLink));
     // Keep supported table directives as GFM tables. The upstream list-table writer
     // wraps cells in paragraphs and drops column alignment. The full guard still applies.
     if (isTableDirective(node)) {
@@ -173,11 +181,24 @@ function isDollarMath(node: MystNode, previous: MystNode | undefined): boolean {
     previous?.type !== "break" && !(previous?.type === "text" && /[\r\n]$/.test(String(previous.value)));
 }
 
-function escapeDollars(text: MystNode): MystNode[] {
-  return String(text.value).split("$").flatMap((value, index) => [
-    ...(index > 0 ? [{ type: "html", value: "\\$" }] : []),
-    ...(value ? [{ ...text, value }] : []),
-  ]);
+function escapeText(text: MystNode, inLink: boolean): MystNode[] {
+  const value = String(text.value);
+  const state = new citationTokenizer.inline.State(value, citationTokenizer, {}, []);
+  const result: MystNode[] = [];
+  let start = 0;
+  for (let index = 0; index < value.length; index++) {
+    if (value[index] !== "$" && value[index] !== "@") continue;
+    state.pos = index;
+    if (value[index] === "@" && (inLink || !citationRule(state, true))) continue;
+    // mdast collapses a text node's trailing newline before raw inline output.
+    // Keep that newline with the escaped @ so a soft line break stays text.
+    const boundary = value[index] === "@" && index > start && value[index - 1] === "\n" ? index - 1 : index;
+    if (boundary > start) result.push({ ...text, value: value.slice(start, boundary) });
+    result.push({ type: "html", value: `${value.slice(boundary, index)}\\${value[index]}` });
+    start = index + 1;
+  }
+  if (start < value.length) result.push({ ...text, value: value.slice(start) });
+  return result;
 }
 
 /**
