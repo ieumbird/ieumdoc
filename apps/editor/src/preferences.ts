@@ -4,6 +4,27 @@
  */
 export type DocumentWidth = "standard" | "wide";
 
+export type UiLanguage = "ko" | "en";
+export const UI_LANGUAGE_KEY = "ieumdoc.uiLanguage";
+
+export function readUiLanguage(): UiLanguage {
+  try {
+    const saved = globalThis.localStorage?.getItem(UI_LANGUAGE_KEY);
+    if (saved === "ko" || saved === "en") return saved;
+  } catch { /* A disabled preference store does not prevent opening the Editor. */ }
+  const preferred = globalThis.navigator?.languages?.[0] || globalThis.navigator?.language || "en";
+  return /^ko(?:-|$)/i.test(preferred) ? "ko" : "en";
+}
+
+/** The live choice still applies when preference persistence is unavailable. */
+export function writeUiLanguage(language: UiLanguage): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(UI_LANGUAGE_KEY, language);
+    return true;
+  } catch { return false; }
+}
+
 const DOCUMENT_WIDTH_KEY = "ieumdoc.documentWidth";
 
 export function readDocumentWidth(): DocumentWidth {

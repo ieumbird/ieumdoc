@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -20,6 +22,7 @@ type BlockHandlesProps = {
 const ENDNOTE_HINT = "Endnotes follow the order of their first reference. Click for block actions.";
 
 export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
+  useTranslation();
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
   const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean }[]>([]);
@@ -152,18 +155,19 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => {
-      const blocked = block.endnote ? ENDNOTE_HINT : moveBlockedHint?.(index);
+      const kind = i18n.t(block.name, { defaultValue: block.name });
+      const blocked = block.endnote ? i18n.t(ENDNOTE_HINT) : moveBlockedHint?.(index);
       return <div key={index}
         className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
         data-menu-open={menuIndex === index}
         style={{top: block.top}}>
-        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={`Insert block after ${block.name} block ${index + 1}`}
-          title="Insert block below" aria-haspopup="menu"
+        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind, number: index + 1 })}
+          title={i18n.t("Insert block below")} aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
           onClick={() => onInsert(index, block.top)}>+</Button>}
         <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={block.endnote}
-          aria-label={block.endnote ? `Actions for endnote block ${index + 1}` : `Move ${block.name} block ${index + 1}`}
-          title={blocked ?? "Drag to move, click for block actions"}
+          aria-label={block.endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind, number: index + 1 })}
+          title={blocked ?? i18n.t("Drag to move, click for block actions")}
           aria-haspopup="menu"
           onMouseDown={event => event.stopPropagation()}
           onClick={() => onOpenMenu(index, block.top)}
@@ -174,7 +178,7 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
             }
             drag.current = {index, doc: editor.state.doc};
             event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", "Move block");
+            event.dataTransfer.setData("text/plain", i18n.t("Move block"));
             setMoving({top: block.top, height: block.height});
           }}>⠿</Button>
       </div>;

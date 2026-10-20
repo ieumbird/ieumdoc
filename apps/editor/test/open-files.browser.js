@@ -4,7 +4,7 @@ async (page, { openDocument, screenshots = false }) => {
   await page.unroute('**/api/document');
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const separator = loaded.path.includes('\\') ? '\\' : '/';
@@ -76,7 +76,7 @@ async (page, { openDocument, screenshots = false }) => {
     if (await page.getByRole('button', {name:'Open file…', exact:true}).count() || await page.getByTestId('file-path').count()) {
       throw new Error('A direct file-path entry remains');
     }
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (await page.getByTestId('current-file').innerText() !== 'No file opened' || await page.locator('[data-document-tab][data-active=true] .ProseMirror').count() ||
       !await page.getByTestId('save').isDisabled() || await page.getByTestId('error').count()) {
       throw new Error('The start opened a document or reported an error');
@@ -125,7 +125,7 @@ async (page, { openDocument, screenshots = false }) => {
     startNext = false;
 
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('File A was not opened');
     await openDocument(page, pathA);
     if (screenshots) {
@@ -137,7 +137,7 @@ async (page, { openDocument, screenshots = false }) => {
     await editParagraph(page, ' FILE_A');
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="saving"]').waitFor();
     await page.getByRole('button', {name:'Display', exact:true}).click();
     if (!await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled() ||
       !await page.getByRole('button', {name:'File actions', exact:true}).isDisabled()) {
@@ -181,7 +181,7 @@ async (page, { openDocument, screenshots = false }) => {
     if (requests.length !== writesBeforeCancel) throw new Error('Save shortcut bypassed the modal');
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Saving…"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="saving"]').waitFor();
     for (const name of ['Save', "Don't save", 'Cancel']) {
       if (!await confirmation.getByRole('button',{name,exact:true}).isDisabled()) throw new Error('Pending close actions remain enabled');
     }
@@ -204,7 +204,7 @@ async (page, { openDocument, screenshots = false }) => {
     await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
     if (requests.at(-1).path !== pathB || !JSON.stringify(requests.at(-1).paragraphs).includes('FILE_B')) throw new Error('B Save used another session');
     await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await snapshot()).includes('FILE_A_PENDING') || (await snapshot()).includes('FILE_B')) throw new Error('Save mixed document sessions');
 
     await editParagraph(page, ' STALE');
@@ -222,7 +222,7 @@ async (page, { openDocument, screenshots = false }) => {
     await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== writesBeforeDiscard) throw new Error('Discard wrote or chose the wrong neighbour');
     await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if ((await snapshot()).includes('STALE')) throw new Error('Discard wrote rejected content');
 
     const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
@@ -319,7 +319,7 @@ async (page, { openDocument, screenshots = false }) => {
     // A click completes before the Host response activates A. Otherwise a locator action
     // can retain B's mounted element and wait forever once that tab becomes hidden.
     await page.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, path);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   }
 
   async function editParagraph(page, suffix) {

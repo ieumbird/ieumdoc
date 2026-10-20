@@ -9,7 +9,7 @@ async (page, { openDocument, withBlockHover }) => {
   // The whole document fits, so nothing scrolls under the pointer mid-drag.
   await page.setViewportSize({width: 1280, height: 1600});
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -25,7 +25,7 @@ async (page, { openDocument, withBlockHover }) => {
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
   await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
 
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');

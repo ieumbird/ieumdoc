@@ -3,7 +3,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -11,7 +11,7 @@ async (page, { openDocument }) => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'external-html-paste', 'external.md'].join(separator);
   await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const state = () => editor.evaluate(el => ({
@@ -66,8 +66,8 @@ async (page, { openDocument }) => {
   result.osClipboardHistory = true;
   const preview = await source('def f():');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor();
-  assert(await page.getByTestId('status').getAttribute('data-operation') === 'Saved', `Save failed: ${await page.locator('body').innerText()}`);
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor();
+  assert(await page.getByTestId('status').getAttribute('data-operation') === 'saved', `Save failed: ${await page.locator('body').innerText()}`);
   const disk = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.replaceAll('\r\n', '\n');
   const saved = '---\nieumdoc: 1\n---\n\n# External\n\n## Web *heading*\n\n' +
     'Text with **bold *both***, {del}`gone`, `x = 1` and [a link](https://example.com/a "Example").\n\n' +
@@ -76,7 +76,7 @@ async (page, { openDocument }) => {
   assert(disk === preview && disk === saved, `Save writes the canonical Markdown Source showed: ${JSON.stringify(disk)}`);
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   assert((await state()).doc === pasted.doc, 'Reload must retain the pasted structure');
   result.saveReload = true;
 

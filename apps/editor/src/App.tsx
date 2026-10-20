@@ -1,3 +1,8 @@
+import { UiError } from "./ui-message.ts";
+import { useMessageState } from "./ui-message.ts";
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
+import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
@@ -49,6 +54,7 @@ type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: s
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
 
 export function App() {
+  useTranslation();
   const newFileButton = useRef<HTMLButtonElement>(null);
   const newFolderButton = useRef<HTMLButtonElement>(null);
   // Open folder… returns focus to the control that opened it.
@@ -91,7 +97,7 @@ export function App() {
     refreshShell();
   }, []);
   const [recoveryRecords, setRecoveryRecords] = useState<RecoveryRecord[]>([]);
-  const [recoveryProblem, setRecoveryProblem] = useState("");
+  const [recoveryProblem, setRecoveryProblem] = useMessageState("");
   const [recoveryReview, setRecoveryReview] = useState<{ record: RecoveryRecord; reason: string } | null>(null);
   const refreshRecovery = useCallback(async () => {
     try {
@@ -100,7 +106,7 @@ export function App() {
       setRecoveryProblem("");
       return records;
     } catch (cause) {
-      setRecoveryProblem(`Local recovery is unavailable: ${messageOf(cause)}. Save or copy your work before closing.`);
+      setRecoveryProblem({ key: "Local recovery is unavailable: {{reason}}. Save or copy your work before closing.", values: { reason: messageOf(cause) } });
       return [];
     }
   }, []);
@@ -116,7 +122,7 @@ export function App() {
   }
   async function deleteRecovery(id?: string): Promise<void> {
     try { await recoveryStorage.delete(id); await refreshRecovery(); }
-    catch (cause) { setRecoveryProblem(`Could not delete local recovery: ${messageOf(cause)}`); throw cause; }
+    catch (cause) { setRecoveryProblem({ key: "Could not delete local recovery: {{reason}}", values: { reason: messageOf(cause) } }); throw cause; }
   }
   async function restoreRecovery(): Promise<void> {
     if (!recoveryReview) return;
@@ -125,7 +131,7 @@ export function App() {
     const existing = openedTab(tabs, record.path);
     const owner = existing && sessions.current.get(existing.id);
     if (owner && (owner.busyRef.current || owner.editorRef.current?.hasUnsavedChanges())) {
-      throw new Error("This document already has open work. Close its tab before restoring a recovery record.");
+      throw new UiError({ key: "This document already has open work. Close its tab before restoring a recovery record." });
     }
     const recoveryId = newRecoveryId();
     await recoveryStorage.restore(record, recoveryId);
@@ -145,10 +151,10 @@ export function App() {
   const scrollPositions = useRef(new Map<string, number>());
   const previousActive = useRef<string | null>(null);
   const focusAfterClose = useRef(false);
-  const [operation, setOperation] = useState("Loading…");
+  const [operation, setOperation] = useState<Operation | "">("loading");
   const operationRef = useRef(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [error, setError] = useMessageState("");
+  const [notice, setNotice] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
   const [continuation, setContinuation] = useState<{ id: string; session: DocumentSession } | null>(null);
@@ -160,7 +166,7 @@ export function App() {
   const session = activeId ? sessions.current.get(activeId) : undefined;
   const {
     editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, outlineStore,
-    view = "visual", status: sessionStatus = "Ready", error: sessionError = "", notice: sessionNotice = "",
+    view = "visual", status: sessionStatus = "ready", error: sessionError = "", notice: sessionNotice = "",
     draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
@@ -213,7 +219,7 @@ export function App() {
       if (!current) return;
       if ("start" in next) { setStart(next); setAllowedRoots(next.allowedRoots); }
       else { setStart({ start: true }); acceptFile(next); void offerRecovery(next); }
-    }).catch(cause => { if (current) setError(messageOf(cause)); }).finally(() => {
+    }).catch(cause => { if (current) setError(cause instanceof Error ? cause : String(cause)); }).finally(() => {
       if (current) { operationRef.current = false; setOperation(""); }
     });
     return () => { current = false; };
@@ -223,7 +229,7 @@ export function App() {
     const next = activeAfterClose(tabs, activeId, id);
     scrollPositions.current.delete(id);
     void sessions.current.get(id)?.discardRecovery()?.then(deleted => {
-      if (!deleted) setError("The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again.");
+      if (!deleted) setError({ key: "The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again." });
     });
     sessions.current.delete(id);
     focusAfterClose.current = true;
@@ -278,9 +284,9 @@ export function App() {
 
   async function openFile(path: string, openedNotice = ""): Promise<string | null> {
     const requestedPath = unquotePath(path);
-    if (!requestedPath) return "Enter a Markdown file path.";
-    if (!requestedPath.toLowerCase().endsWith(".md")) return "Only .md files can be opened.";
-    if (operationRef.current || busy || continuation) return "Wait for the current operation to finish.";
+    if (!requestedPath) return i18n.t("Enter a Markdown file path.");
+    if (!requestedPath.toLowerCase().endsWith(".md")) return i18n.t("Only .md files can be opened.");
+    if (operationRef.current || busy || continuation) return i18n.t("Wait for the current operation to finish.");
     const existing = openedTab(tabs, requestedPath);
     if (existing) {
       activateTab(existing.id);
@@ -290,11 +296,11 @@ export function App() {
     }
     const returnFocus = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
     operationRef.current = true;
-    setOperation("Opening…");
+    setOperation("opening");
     setError("");
     try {
       const next = await requestDocument("GET", requestedPath);
-      if ("start" in next) throw new Error("The Host did not return a document.");
+      if ("start" in next) throw new UiError({ key: "The Host did not return a document." });
       acceptFile(next);
       void offerRecovery(next);
       setNotice(openedNotice);
@@ -309,9 +315,9 @@ export function App() {
     } finally { operationRef.current = false; setOperation(""); }
   }
   async function createFile(path: string): Promise<string> {
-    if (operationRef.current || busy || continuation) return "Wait for the current operation to finish.";
+    if (operationRef.current || busy || continuation) return i18n.t("Wait for the current operation to finish.");
     operationRef.current = true;
-    setOperation("Creating…");
+    setOperation("creating");
     setError("");
     setNotice("");
     try {
@@ -324,7 +330,7 @@ export function App() {
   }
   function newFile(): void {
     if (!folderTree.state) return;
-    if (busy || continuation) { setError("Wait for the current operation to finish."); return; }
+    if (busy || continuation) { setError({ key: "Wait for the current operation to finish." }); return; }
     setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
     setNewDialog(true);
   }
@@ -336,14 +342,14 @@ export function App() {
     setContinuationPending(true);
     try {
       if (shouldSave && !await owner.save()) {
-        if (continuation.id !== activeId) setError(`Could not save “${splitDocumentPath(owner.openedPath).name}”. The tab remains open; select it to review the error.`);
+        if (continuation.id !== activeId) setError({ key: "Could not save “{{name}}”. The tab remains open; select it to review the error.", values: { name: splitDocumentPath(owner.openedPath).name } });
         return;
       }
       if (!owner.isCurrent()) return;
       // Save acknowledges its snapshot, not newer applied transactions. Draft loss was explicit.
       if (shouldSave && owner.editorRef.current?.hasDocumentChanges() !== false) {
-        owner.setStatus("Saved; newer edits pending");
-        if (continuation.id !== activeId) setNotice(`“${splitDocumentPath(owner.openedPath).name}” stays open because it has newer edits.`);
+        owner.setStatus("saved-pending");
+        if (continuation.id !== activeId) setNotice({ key: "“{{name}}” stays open because it has newer edits.", values: { name: splitDocumentPath(owner.openedPath).name } });
         return;
       }
       removeTab(continuation.id);
@@ -357,7 +363,7 @@ export function App() {
   /** Lists the folder the user chose; it becomes the sidebar folder on success. */
   async function openFolder(path: string): Promise<string> {
     const root = unquotePath(path);
-    if (!root) return "Enter a folder path.";
+    if (!root) return i18n.t("Enter a folder path.");
     try {
       const listed = await requestFolder(root);
       folderTree.open(listed, openedPath);
@@ -406,7 +412,7 @@ export function App() {
     return () => window.removeEventListener("keydown", listener, true);
   }, []);
 
-  const restartCheck = useRef<() => RestartCheck>(() => ({ ok: false, reason: "The editor is not ready." }));
+  const restartCheck = useRef<() => RestartCheck>(() => ({ ok: false, reason: i18n.t("The editor is not ready.") }));
   restartCheck.current = () => {
     const reason = allTabsPendingWork(sessions.current.values(), operationRef.current);
     return reason ? { ok: false, reason } : { ok: true };
@@ -415,7 +421,7 @@ export function App() {
     if (!desktop) return;
     let active = true;
     void desktop.info().then((info) => { if (active) setDesktopInfo(info); })
-      .catch((cause: unknown) => { if (active) setError(`Desktop settings unavailable: ${messageOf(cause)}`); });
+      .catch((cause: unknown) => { if (active) setError({ key: "Desktop settings unavailable: {{reason}}", values: { reason: messageOf(cause) } }); });
     const stopState = desktop.onUpdateState((update) => setDesktopInfo((info) => info && { ...info, update }));
     const stopCheck = desktop.onRestartCheck(() => restartCheck.current());
     return () => {
@@ -434,19 +440,19 @@ export function App() {
 
   function postponeUpdate(version: string): void {
     setDesktopInfo((info) => info && { ...info, postponed: version });
-    void desktop?.postponeUpdate(version).catch((cause: unknown) => setError(messageOf(cause)));
+    void desktop?.postponeUpdate(version).catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause)));
   }
 
   const update = desktopInfo?.update;
   const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
     ? update.phase === "available"
-      ? { text: `IeumDoc ${update.version}${update.prerelease ? " (Beta)" : ""} is available.`, action: "View", onAction: () => {
+      ? { text: i18n.t("IeumDoc {{version}}{{channel}} is available.", { version: update.version, channel: update.prerelease ? i18n.t(" (Beta)") : "" }), action: i18n.t("View"), onAction: () => {
           settingsReturnFocus.current = null;
           setSettingsOpen(true);
         }, onLater: () => postponeUpdate(update.version) }
-      : { text: `IeumDoc ${update.version} is ready to install.`, action: "Restart to update",
+      : { text: i18n.t("IeumDoc {{version}} is ready to install.", { version: update.version }), action: i18n.t("Restart to update"),
           onAction: () => void installUpdate().then((reason) => { if (reason) setError(reason); })
-            .catch((cause: unknown) => setError(messageOf(cause))), onLater: () => postponeUpdate(update.version) }
+            .catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause))), onLater: () => postponeUpdate(update.version) }
     : null;
 
   useEffect(() => {
@@ -462,14 +468,14 @@ export function App() {
   /** Browsers expose the Clipboard API only on secure (HTTPS or local) pages; elsewhere, say so. */
   async function copyPath(): Promise<void> {
     if (!navigator.clipboard?.writeText) {
-      setError("Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.");
+      setError({ key: "Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip." });
       return;
     }
     try {
       await navigator.clipboard.writeText(openedPath);
-      setNotice("Copied the file path.");
+      setNotice({ key: "Copied the file path." });
     } catch (cause) {
-      setError(`Could not copy the file path: ${messageOf(cause)}`);
+      setError({ key: "Could not copy the file path: {{reason}}", values: { reason: messageOf(cause) } });
     }
   }
 
@@ -489,8 +495,8 @@ export function App() {
           headingNumbering,
           onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
           numberingDisabled: !document || busy || view !== "visual",
-          numberingHint: !document ? "Open a document to change numbering." : busy ? "Wait for the current operation to finish."
-            : view !== "visual" ? "Switch to Visual to change heading numbering." : undefined,
+          numberingHint: !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")
+            : view !== "visual" ? i18n.t("Switch to Visual to change heading numbering.") : undefined,
           wide: documentWidth === "wide",
           onToggleWide: toggleDocumentWidth,
         }}
@@ -534,7 +540,7 @@ export function App() {
             openSidebarRef={openSidebarButton}
             documentPath={openedPath}
             location={documentLocation(openedPath, folderTree.state?.root)}
-            status={assetPending ? "Adding image…" : status}
+            status={assetPending ? "adding-image" : status}
             unsaved={documentDirty || draftActive}
             view={view}
             viewDisabled={!document || busy}
@@ -580,7 +586,7 @@ export function App() {
                 setFolderDialog(true);
               }}
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
-              onOpenSample={(sample) => void openFile(sample, "This is the sample document, a copy in IeumDoc's app data.").then((message) => {
+              onOpenSample={(sample) => void openFile(sample, i18n.t("This is the sample document, a copy in IeumDoc's app data.")).then((message) => {
                 if (message) setError(message);
               })}
             />
@@ -682,18 +688,19 @@ export function App() {
       <Dialog open={openRefusal !== null} onOpenChange={(open) => { if (!open) setOpenRefusal(null); }}>
         <DialogContent showCloseButton={false} finalFocus={openRefusalReturnFocus}>
           <DialogHeader>
-            <DialogTitle>Cannot open document</DialogTitle>
+            <DialogTitle>{i18n.t("Cannot open document")}</DialogTitle>
             <DialogDescription render={<div />} className="grid gap-4 break-words">
-              <p>“{openRefusal ? splitDocumentPath(openRefusal.path).name : ""}” is not a supported IeumDoc document.</p>
+              <p>{i18n.t("“{{name}}” is not a supported IeumDoc document.", { name: openRefusal ? splitDocumentPath(openRefusal.path).name : "" })}</p>
               {/* In plain words first; Core's exact reason and action follow as the details. */}
               {openRefusal?.code === "native-marker" ? (
-                <p>IeumDoc edits only documents it created. To edit this text here, create a new document with + in the sidebar and paste it in. The file itself is left as it is.</p>
+                <p>{i18n.t("IeumDoc edits only documents it created. To edit this text here, create a new document with + in the sidebar and paste it in. The file itself is left as it is.")}</p>
               ) : null}
               <div className="open-refusal-details">
+                <p>{i18n.t("Technical details")}</p>
                 <p>{openRefusal?.reason}</p>
                 <p>{openRefusal?.action}</p>
               </div>
-              <p>{document ? "Your current document has not changed." : "No document was opened."}</p>
+              <p>{document ? i18n.t("Your current document has not changed.") : i18n.t("No document was opened.")}</p>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -704,12 +711,12 @@ export function App() {
       <Dialog open={reloadDialog} onOpenChange={(open) => { if (!switching) setReloadDialog(open); }}>
         <DialogContent showCloseButton={false} finalFocus={fileActionsToggle}>
           <DialogHeader>
-            <DialogTitle>{switching ? "Reloading…" : "Discard local changes?"}</DialogTitle>
-            <DialogDescription>Reload replaces your unsaved changes and unapplied drafts with the file on disk. Keep editing to preserve them. Source lets you copy applied content first.</DialogDescription>
+            <DialogTitle>{switching ? i18n.t("Reloading…") : i18n.t("Discard local changes?")}</DialogTitle>
+            <DialogDescription>{i18n.t("Reload replaces your unsaved changes and unapplied drafts with the file on disk. Keep editing to preserve them. Source lets you copy applied content first.")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="secondary" size="sm" disabled={switching} onClick={() => setReloadDialog(false)}>Keep editing</Button>
-            <Button variant="destructive" size="sm" disabled={switching} onClick={() => void reloadFromDisk()}>Discard and reload</Button>
+            <Button variant="secondary" size="sm" disabled={switching} onClick={() => setReloadDialog(false)}>{i18n.t("Keep editing")}</Button>
+            <Button variant="destructive" size="sm" disabled={switching} onClick={() => void reloadFromDisk()}>{i18n.t("Discard and reload")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

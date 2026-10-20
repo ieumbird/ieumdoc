@@ -1,3 +1,4 @@
+import { i18n } from "./i18n.ts";
 import { allocateBlockPath } from "./block-locators.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
@@ -46,15 +47,15 @@ export const BLOCK_COMMAND_META = "blockCommand";
 export const INSERT_COMMANDS: InsertCommand[] = [
   {
     id: "paragraph",
-    label: "Paragraph",
-    group: "Text",
+    get label() { return i18n.t("Paragraph"); },
+    get group() { return i18n.t("Text"); },
     keywords: ["text", "p"],
     run: insertParagraphAfter,
   },
   ...Array.from({ length: 6 }, (_, index): InsertCommand => ({
     id: `heading-${index + 1}`,
-    label: `Heading ${index + 1}`,
-    group: "Text",
+    get label() { return i18n.t("Heading {{level}}", { level: index + 1 }); },
+    get group() { return i18n.t("Text"); },
     hint: "#".repeat(index + 1),
     ...(index >= 3 ? { onlyWhenSearched: true } : {}),
     keywords: ["heading", `h${index + 1}`],
@@ -62,76 +63,76 @@ export const INSERT_COMMANDS: InsertCommand[] = [
   })),
   {
     id: "bulleted-list",
-    label: "Bulleted list",
-    group: "Lists",
+    get label() { return i18n.t("Bulleted list"); },
+    get group() { return i18n.t("Lists"); },
     hint: "-",
     keywords: ["list", "bullet", "ul"],
     run: (state, index, slash) => insertListAfter(state, index, false, slash),
   },
   {
     id: "numbered-list",
-    label: "Numbered list",
-    group: "Lists",
+    get label() { return i18n.t("Numbered list"); },
+    get group() { return i18n.t("Lists"); },
     hint: "1.",
     keywords: ["list", "numbered", "ordered", "ol"],
     run: (state, index, slash) => insertListAfter(state, index, true, slash),
   },
   {
     id: "note",
-    label: "Note",
-    group: "Blocks",
+    get label() { return i18n.t("Note"); },
+    get group() { return i18n.t("Blocks"); },
     keywords: ["note", "admonition"],
     run: (state, index, slash) => insertAdmonitionAfter(state, index, "note", slash),
   },
   {
     id: "warning",
-    label: "Warning",
-    group: "Blocks",
+    get label() { return i18n.t("Warning"); },
+    get group() { return i18n.t("Blocks"); },
     keywords: ["warning", "admonition"],
     run: (state, index, slash) => insertAdmonitionAfter(state, index, "warning", slash),
   },
   {
     id: "quote",
-    label: "Quote",
-    group: "Blocks",
+    get label() { return i18n.t("Quote"); },
+    get group() { return i18n.t("Blocks"); },
     hint: ">",
     keywords: ["quote", "blockquote", "citation"],
     run: insertQuoteAfter,
   },
   {
     id: "divider",
-    label: "Divider",
-    group: "Blocks",
+    get label() { return i18n.t("Divider"); },
+    get group() { return i18n.t("Blocks"); },
     hint: "---",
     keywords: ["divider", "hr", "rule", "separator", "line"],
     run: insertDividerAfter,
   },
   {
     id: "code-block",
-    label: "Code block",
-    group: "Technical",
+    get label() { return i18n.t("Code block"); },
+    get group() { return i18n.t("Technical"); },
     hint: "```",
     keywords: ["code", "pre", "snippet"],
     run: insertCodeBlockAfter,
   },
   {
     id: "equation",
-    label: "Equation",
-    group: "Technical",
+    get label() { return i18n.t("Equation"); },
+    get group() { return i18n.t("Technical"); },
     keywords: ["equation", "math", "latex"],
     run: insertEquationAfter,
   },
   {
     id: "figure",
-    label: "Figure",
-    group: "Technical",
+    get label() { return i18n.t("Figure"); },
+    get group() { return i18n.t("Technical"); },
     keywords: ["figure", "image", "picture"],
     run: insertFigureAfter,
   },
   {
     id: "table",
-    label: "Table",
-    group: "Technical",
+    get label() { return i18n.t("Table"); },
+    get group() { return i18n.t("Technical"); },
     keywords: ["table", "grid"],
     run: insertTableAfter,
   },
@@ -139,8 +140,8 @@ export const INSERT_COMMANDS: InsertCommand[] = [
 
 /** Display names of MyST's standard admonition kinds, in menu order. */
 export const ADMONITION_LABELS: Record<AdmonitionVariant, string> = {
-  note: "Note", tip: "Tip", hint: "Hint", important: "Important", seealso: "See also",
-  attention: "Attention", caution: "Caution", warning: "Warning", danger: "Danger", error: "Error",
+  get note() { return i18n.t("Note"); }, get tip() { return i18n.t("Tip"); }, get hint() { return i18n.t("Hint"); }, get important() { return i18n.t("Important"); }, get seealso() { return i18n.t("See also"); },
+  get attention() { return i18n.t("Attention"); }, get caution() { return i18n.t("Caution"); }, get warning() { return i18n.t("Warning"); }, get danger() { return i18n.t("Danger"); }, get error() { return i18n.t("Error"); },
 };
 
 /** The visual tone of a kind: informational, cautionary or dangerous. */
@@ -163,7 +164,7 @@ const isSectionHeading = (state: EditorState, index: number) =>
 export const BLOCK_COMMANDS: BlockCommand[] = [
   {
     id: "paragraph",
-    label: "Change to Paragraph",
+    get label() { return i18n.t("Change to Paragraph"); },
     applies: isHeading,
     enabled: isHeading,
     run: headingToParagraph,
@@ -172,7 +173,7 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     const level = index + 1;
     return {
       id: `heading-level-${level}`,
-      label: `Change to Heading ${level}`,
+      get label() { return i18n.t("Change to Heading {{level}}", { level: level }); },
       applies: isTextBlock,
       enabled: (state: EditorState, block: number) =>
         isParagraph(state, block) || (isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level),
@@ -185,21 +186,21 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
   }),
   ...ADMONITION_VARIANTS.map((variant): BlockCommand => ({
     id: `admonition-${variant}`,
-    label: `Change to ${ADMONITION_LABELS[variant]}`,
+    get label() { return i18n.t("Change to {{kind}}", { kind: ADMONITION_LABELS[variant] }); },
     applies: isEditableAdmonition,
     enabled: (state, block) => isEditableAdmonition(state, block) && state.doc.child(block).attrs.variant !== variant,
     run: (state, block) => changeAdmonitionVariant(state, block, variant),
   })),
   {
     id: "table-row",
-    label: "Add row below",
+    get label() { return i18n.t("Add row below"); },
     applies: isTable,
     enabled: isTable,
     run: addTableRowBelow,
   },
   {
     id: "table-column",
-    label: "Add column right",
+    get label() { return i18n.t("Add column right"); },
     applies: isTable,
     enabled: isTable,
     run: addTableColumnRight,
@@ -207,49 +208,49 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
   // These act on the caret's cell; the header row stays first.
   {
     id: "table-row-up",
-    label: "Move row up",
+    get label() { return i18n.t("Move row up"); },
     applies: isTable,
     enabled: (state, index, target) => (caretTable(state, index, target)?.row ?? 0) > 1,
     run: (state, index, target) => moveTableRow(state, index, -1, target),
   },
   {
     id: "table-row-down",
-    label: "Move row down",
+    get label() { return i18n.t("Move row down"); },
     applies: isTable,
     enabled: (state, index, target) => { const caret = caretTable(state, index, target); return !!caret && caret.row > 0 && caret.row < caret.rows - 1; },
     run: (state, index, target) => moveTableRow(state, index, 1, target),
   },
   {
     id: "table-column-left",
-    label: "Move column left",
+    get label() { return i18n.t("Move column left"); },
     applies: isTable,
     enabled: (state, index, target) => (caretTable(state, index, target)?.column ?? 0) > 0,
     run: (state, index, target) => moveTableColumn(state, index, -1, target),
   },
   {
     id: "table-column-right",
-    label: "Move column right",
+    get label() { return i18n.t("Move column right"); },
     applies: isTable,
     enabled: (state, index, target) => { const caret = caretTable(state, index, target); return !!caret && caret.column < caret.columns - 1; },
     run: (state, index, target) => moveTableColumn(state, index, 1, target),
   },
   ...(["left", "center", "right", ""] as const).map((align): BlockCommand => ({
     id: `table-align-${align || "none"}`,
-    label: align ? `Align column ${align}` : "Clear column alignment",
+    get label() { return align ? i18n.t("Align column {{alignment}}", { alignment: i18n.t(align) }) : i18n.t("Clear column alignment"); },
     applies: isTable,
     enabled: (state, index, target) => { const caret = caretTable(state, index, target); return !!caret && caret.align !== align; },
     run: (state, index, target) => alignTableColumn(state, index, align, target),
   })),
   {
     id: "table-row-delete",
-    label: "Delete row",
+    get label() { return i18n.t("Delete row"); },
     applies: isTable,
     enabled: (state, index, target) => (caretTable(state, index, target)?.row ?? 0) > 0,
     run: removeTableRow,
   },
   {
     id: "table-column-delete",
-    label: "Delete column",
+    get label() { return i18n.t("Delete column"); },
     applies: isTable,
     enabled: (state, index, target) => (caretTable(state, index, target)?.columns ?? 0) > 1,
     run: removeTableColumn,
@@ -257,28 +258,28 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
   // A heading's section: its label targets, content and deeper sections (Core's section rule).
   {
     id: "section-label",
-    label: "Add section label",
+    get label() { return i18n.t("Add section label"); },
     applies: isSectionHeading,
     enabled: (state, index) => isSectionHeading(state, index) && !hasSectionLabel(state.doc, index),
     run: addSectionLabel,
   },
   {
     id: "section-up",
-    label: "Move section up",
+    get label() { return i18n.t("Move section up"); },
     applies: isSectionHeading,
     enabled: (state, index) => siblingSectionTarget(state, index, -1) !== undefined,
     run: (state, index) => moveSectionBy(state, index, -1),
   },
   {
     id: "section-down",
-    label: "Move section down",
+    get label() { return i18n.t("Move section down"); },
     applies: isSectionHeading,
     enabled: (state, index) => siblingSectionTarget(state, index, 1) !== undefined,
     run: (state, index) => moveSectionBy(state, index, 1),
   },
   {
     id: "section-delete",
-    label: "Delete section",
+    get label() { return i18n.t("Delete section"); },
     applies: isSectionHeading,
     enabled: (state, index) => isSectionHeading(state, index) && !wholeDocumentSection(state, index),
     rejection: sectionDeleteRejection,
@@ -286,7 +287,7 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
   },
   {
     id: "delete",
-    label: "Delete",
+    get label() { return i18n.t("Delete"); },
     // The engine document needs at least one block.
     enabled: (state, index) => state.doc.childCount > 1 && index >= 0 && index < state.doc.childCount,
     run: deleteBlock,
@@ -295,17 +296,27 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
 
 /** Block menu group of a block command, by what it acts on. */
 export function blockCommandGroup(id: string): string {
-  if (id.startsWith("table-")) return "Table";
-  if (id.startsWith("section-")) return "Section";
-  return id === "delete" ? "Block" : "Turn into";
+  if (id.startsWith("table-")) return i18n.t("Table");
+  if (id.startsWith("section-")) return i18n.t("Section");
+  return id === "delete" ? i18n.t("Block") : i18n.t("Turn into");
 }
 
 export function filterInsertCommands(query: string): InsertCommand[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return INSERT_COMMANDS.filter(command => !command.onlyWhenSearched);
   return INSERT_COMMANDS.filter(command =>
-    [command.label, ...command.keywords].some(word => word.toLowerCase().startsWith(needle)));
+    [command.label, command.id, ...command.keywords, ...(KOREAN_SEARCH[command.id] ?? [])].some(word => word.toLowerCase().startsWith(needle)));
 }
+
+/** Search aliases remain available in both display languages. */
+const KOREAN_SEARCH: Record<string, string[]> = {
+  paragraph: ["문단", "텍스트"], "bulleted-list": ["목록", "글머리"], "numbered-list": ["번호", "목록"],
+  ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`heading-${i + 1}`, ["제목", `제목 ${i + 1}`]])),
+  note: ["참고"], warning: ["경고"], quote: ["인용", "인용문"], divider: ["구분선"],
+  code: ["코드"], equation: ["수식"], figure: ["그림", "이미지"], table: ["표"],
+  tip: ["팁"], hint: ["힌트"], important: ["중요"], seealso: ["관련"], attention: ["주의"],
+  caution: ["주의"], danger: ["위험"], error: ["오류"],
+};
 
 /** An empty target paragraph is reused; otherwise a new paragraph follows the target block. */
 export function insertParagraphAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
@@ -839,7 +850,7 @@ function sectionDeleteRejection(state: EditorState, index: number): string | und
   if (!isSectionHeading(state, index)) return undefined;
   const orphaned = orphanedEndnoteNumbers(state.doc, sectionContent(state, sectionRange(sectionMarkers(state.doc), index)));
   return orphaned.length === 0 ? undefined
-    : `This section holds the last reference to endnote ${orphaned.join(", ")}. Delete the endnote first, or move its reference out of the section. Your document is unchanged.`;
+    : i18n.t("This section holds the last reference to endnote {{labels}}. Delete the endnote first, or move its reference out of the section. Your document is unchanged.", { labels: orphaned.join(", ") });
 }
 
 /** Remove the section at `index`: its label targets, content and deeper sections. Endnotes stay. */

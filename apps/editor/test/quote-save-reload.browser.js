@@ -5,7 +5,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -24,7 +24,7 @@ async (page, { openDocument }) => {
   }
   const open = async () => {
     await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes('quote-save-reload')) {
       throw new Error('Scratch file was not opened');
     }
@@ -40,14 +40,14 @@ async (page, { openDocument }) => {
   await typeAtEnd('The second paragraph.', ' The state is "READY".');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   const status = page.getByTestId('status');
-  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor({state:'attached'});
-  if (await status.getAttribute('data-operation') !== 'Saved') {
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
+  if (await status.getAttribute('data-operation') !== 'saved') {
     throw new Error(`Save failed: ${await page.locator('body').innerText()}`);
   }
   const saved = await markdown();
 
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await open();
   const paragraphs = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [data-block="paragraph"]').allInnerTexts();
   const result = {

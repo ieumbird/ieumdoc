@@ -14,7 +14,7 @@ async page => {
   });
   const ready = path => page.waitForFunction(path => {
     const session = window.sessionHarness.current;
-    return session?.status === 'Ready' && session.editorRef.current && (!path || session.openedPath === path);
+    return session?.status === 'ready' && session.editorRef.current && (!path || session.openedPath === path);
   }, path);
   const snapshot = () => page.evaluate(() => {
     const session = window.sessionHarness.current;

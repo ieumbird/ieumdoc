@@ -165,7 +165,7 @@ test("installs per user, then updates from Settings only after the open document
     let app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
     let page = await app.firstWindow();
     page.on("dialog", () => {});
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached", timeout: 30_000 });
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached", timeout: 30_000 });
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
@@ -191,7 +191,7 @@ test("installs per user, then updates from Settings only after the open document
     app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
     page = await app.firstWindow();
     page.on("dialog", () => {});
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached" });
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
     await page.getByRole("button", { name: "Check for updates" }).click();
@@ -224,7 +224,7 @@ test("installs per user, then updates from Settings only after the open document
     await page.getByTestId("update-problem").waitFor();
     assert.match(await page.getByTestId("update-problem").innerText(), /could not confirm that your work is saved/);
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({ state: "attached" });
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
 
     // Unsaved work refuses the restart and stays.
     await page.getByText("Alpha.", { exact: true }).click();

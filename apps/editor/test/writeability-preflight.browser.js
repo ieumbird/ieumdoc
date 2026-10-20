@@ -2,7 +2,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(`${origin}/api/document`)).json();

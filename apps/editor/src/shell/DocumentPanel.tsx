@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -15,6 +17,7 @@ type DocumentPanelProps = {
 
 /** Navigation inside the open document, shown while open. It holds only the outline. */
 export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: DocumentPanelProps) {
+  useTranslation();
   return (
     <aside
       className={`document-panel${overlay ? " document-panel--overlay" : ""}`}
@@ -28,8 +31,8 @@ export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: Do
       }}
     >
       <div className="document-panel-header">
-        <h2 className="document-panel-title" id="document-panel-title">Outline</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Hide outline" onClick={onClose}>
+        <h2 className="document-panel-title" id="document-panel-title">{i18n.t("Outline")}</h2>
+        <Button variant="ghost" size="icon-sm" aria-label={i18n.t("Hide outline")} onClick={onClose}>
           <PanelRightClose />
         </Button>
       </div>
@@ -52,6 +55,7 @@ function revealInList(list: HTMLElement, child: HTMLElement) {
 const useClientLayoutEffect = typeof document === "undefined" ? useEffect : useLayoutEffect;
 
 function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect(item: OutlineItem): void }) {
+  useTranslation();
   const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
   const list = useRef<HTMLOListElement>(null);
   const revealTracked = () => {
@@ -100,7 +104,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
   };
   return (
     <section className="document-outline" aria-labelledby="document-panel-title" data-testid="outline">
-      {outline.items.length === 0 ? <p className="document-outline-empty">No headings</p> : (
+      {outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t("No headings")}</p> : (
         <ol ref={list} className="document-outline-list" onKeyDown={move}>
           {outline.items.map((item, index) => (
             <li key={`${item.index}:${item.pos}`}>
@@ -119,7 +123,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
                   onSelect(item);
                 }}
               >
-                {item.text || <span className="document-outline-untitled">Untitled heading</span>}
+                {item.text || <span className="document-outline-untitled">{i18n.t("Untitled heading")}</span>}
               </button>
             </li>
           ))}

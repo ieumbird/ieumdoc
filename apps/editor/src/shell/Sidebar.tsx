@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { ChevronRight, Ellipsis, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -39,6 +41,7 @@ export function Sidebar({
   open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
   folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
+  useTranslation();
   const [tool, setTool] = useState<"files" | "display">("files");
   const displayButton = useRef<HTMLButtonElement>(null);
   const selectTool = (next: typeof tool) => {
@@ -46,7 +49,7 @@ export function Sidebar({
     if (!open) onToggle();
   };
   return (
-    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label="Application" data-testid="sidebar"
+    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar"
       onKeyDown={event => {
         // Display's own Escape returns to its button first (it prevents the default).
         // Portaled menus and dialogs bubble through React; they keep their own Escape.
@@ -61,23 +64,23 @@ export function Sidebar({
           ref={toggleRef}
           variant="ghost"
           size="icon-sm"
-          aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
+          aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
           aria-expanded={open}
           onClick={onToggle}
         >
           {open ? <PanelLeftClose /> : <PanelLeftOpen />}
         </Button>
       </div>
-      <div className="sidebar-tools" role="group" aria-label="Sidebar tools">
+      <div className="sidebar-tools" role="group" aria-label={i18n.t("Sidebar tools")}>
         <Button type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
-          aria-label="Files" title={open ? undefined : "Files"} aria-pressed={tool === "files"}
+          aria-label={i18n.t("Files")} title={open ? undefined : i18n.t("Files")} aria-pressed={tool === "files"}
           aria-expanded={open && tool === "files"} aria-controls="sidebar-files" onClick={() => selectTool("files")}>
-          <FileText aria-hidden="true" />{open ? "Files" : null}
+          <FileText aria-hidden="true" />{open ? i18n.t("Files") : null}
         </Button>
         <Button ref={displayButton} type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
-          aria-label="Display" title={open ? undefined : "Display"} aria-pressed={tool === "display"}
+          aria-label={i18n.t("Display")} title={open ? undefined : i18n.t("Display")} aria-pressed={tool === "display"}
           aria-expanded={open && tool === "display"} aria-controls="sidebar-display" onClick={() => selectTool("display")}>
-          <SlidersHorizontal aria-hidden="true" />{open ? "Display" : null}
+          <SlidersHorizontal aria-hidden="true" />{open ? i18n.t("Display") : null}
         </Button>
       </div>
       {/* Keep the tree mounted: tool switches and collapse retain scroll and keyboard position. */}
@@ -96,15 +99,13 @@ export function Sidebar({
             onClose={() => onCloseFolder?.()}
           />
         ) : (
-          <section className="sidebar-empty" aria-label="Files" data-testid="sidebar-empty">
-            <p className="sidebar-empty-text">Open a folder to browse and create its Markdown files.</p>
+          <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
+            <p className="sidebar-empty-text">{i18n.t("Open a folder to browse and create its Markdown files.")}</p>
             <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
-              <FolderOpen aria-hidden="true" />
-              Open folder…
-            </Button>
+              <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
             {recent.length > 0 && onOpenRecent ? (
               <section className="sidebar-recent" aria-labelledby="sidebar-recent-label">
-                <p className="sidebar-recent-label" id="sidebar-recent-label">Recent</p>
+                <p className="sidebar-recent-label" id="sidebar-recent-label">{i18n.t("Recent")}</p>
                 <ul>
                   {recent.map(folder => (
                     <li key={folder}>
@@ -132,11 +133,9 @@ export function Sidebar({
         <div className="sidebar-footer">
           {open ? (
             <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
-              <Settings aria-hidden="true" />
-              Settings
-            </Button>
+              <Settings aria-hidden="true" />{i18n.t("Settings")}</Button>
           ) : (
-            <Button variant="ghost" size="icon-sm" aria-label="Settings" title="Settings" onClick={event => onSettings(event.currentTarget)}>
+            <Button variant="ghost" size="icon-sm" aria-label={i18n.t("Settings")} title={i18n.t("Settings")} onClick={event => onSettings(event.currentTarget)}>
               <Settings />
             </Button>
           )}
@@ -161,6 +160,7 @@ type FolderTreeProps = {
 
 /** The chosen folder as a tree: folders expand in place, documents open. */
 function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpenFolder, onClose }: FolderTreeProps) {
+  useTranslation();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const folderName = name(tree.root);
@@ -192,26 +192,22 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
       <div className="sidebar-folder-header">
         {/* Float actions before the name so later lines can use the full text width. */}
         <div className="sidebar-folder-actions">
-          <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label="New file in folder" title="New file…" onClick={onNew}>
+          <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label={i18n.t("New file in folder")} title={i18n.t("New file…")} onClick={onNew}>
             <Plus />
           </Button>
-          <Button ref={newFolderButtonRef} variant="ghost" size="icon-xs" aria-label="New folder" title="New folder…" onClick={onNewFolder}>
+          <Button ref={newFolderButtonRef} variant="ghost" size="icon-xs" aria-label={i18n.t("New folder")} title={i18n.t("New folder…")} onClick={onNewFolder}>
             <FolderPlus />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger ref={more} render={<Button variant="ghost" size="icon-xs" aria-label="More actions" />}>
+            <DropdownMenuTrigger ref={more} render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onOpenFolder(more.current)}>
-                <FolderOpen aria-hidden="true" />
-                Open folder…
-              </DropdownMenuItem>
+                <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onClose}>
-                <X aria-hidden="true" />
-                Close folder
-              </DropdownMenuItem>
+                <X aria-hidden="true" />{i18n.t("Close folder")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -236,8 +232,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
               data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
-              title={foreign ? `${entry.path}\nNot an IeumDoc document` : entry.path}
-              aria-description={foreign ? "Not an IeumDoc document" : undefined}
+              title={foreign ? `${entry.path}\n${i18n.t("Not an IeumDoc document")}` : entry.path}
+              aria-description={foreign ? i18n.t("Not an IeumDoc document") : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
@@ -253,7 +249,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           );
         })}
       </ul>
-      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">No folders or Markdown files</p> : null}
+      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">{i18n.t("No folders or Markdown files")}</p> : null}
     </section>
   );
 }

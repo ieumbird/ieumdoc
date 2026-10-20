@@ -1,3 +1,6 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
+import { operationText, type Operation } from "../operation.ts";
 import type { Ref } from "react";
 import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -15,7 +18,7 @@ type TopBarProps = {
   documentPath: string;
   /** The folders holding the document, shown before its name; the tab row already names it. */
   location?: string[];
-  status: string;
+  status: Operation;
   unsaved?: boolean;
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
@@ -46,11 +49,12 @@ export function TopBar({
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
+  useTranslation();
   const { name } = splitDocumentPath(documentPath);
-  const idle = status === "Ready" || status === "Saved" || status === "Saved; newer edits pending";
+  const idle = status === "ready" || status === "saved" || status === "saved-pending";
   const displayStatus = idle
-    ? (unsaved ? "Unsaved changes" : status === "Ready" ? "" : "Saved")
-    : status;
+    ? (unsaved ? i18n.t("Unsaved changes") : status === "ready" ? "" : operationText("saved"))
+    : operationText(status);
   const sourceProps = {
     type: "button" as const,
     variant: "ghost" as const,
@@ -61,13 +65,11 @@ export function TopBar({
     disabled: viewDisabled,
     "data-testid": "view-source",
   };
-  const saving = status === "Saving…";
+  const saving = status === "saving";
   const saveState = saving ? "saving" : unsaved ? "unsaved" : "clean";
   const saveVariant = saveState === "unsaved" ? "default" : "ghost";
   const saveLabel = (
-    <>
-      Save
-      {saving ? <LoaderCircle aria-hidden="true" className="top-bar-save-spinner motion-safe:animate-spin" /> : null}
+    <>{i18n.t("Save")}{saving ? <LoaderCircle aria-hidden="true" className="top-bar-save-spinner motion-safe:animate-spin" /> : null}
     </>
   );
   return (
@@ -75,7 +77,7 @@ export function TopBar({
       <div className="top-bar-identity">
         {onOpenSidebar ? (
           <Button ref={openSidebarRef} type="button" size="icon-sm" variant="ghost" className="top-bar-sidebar"
-            aria-label="Expand sidebar" title="Show sidebar" aria-expanded={false} onClick={onOpenSidebar}>
+            aria-label={i18n.t("Expand sidebar")} title={i18n.t("Show sidebar")} aria-expanded={false} onClick={onOpenSidebar}>
             <PanelLeftOpen aria-hidden="true" />
           </Button>
         ) : null}
@@ -84,7 +86,7 @@ export function TopBar({
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
           )) : null}
           <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
-            {documentPath ? name : "No file opened"}
+            {documentPath ? name : i18n.t("No file opened")}
           </span>
         </p>
         <p className="status" data-testid="status" data-operation={status} role="status">
@@ -92,8 +94,8 @@ export function TopBar({
         </p>
       </div>
       <div className="top-bar-actions">
-        <div className="top-bar-group" role="group" aria-label="View controls">
-          <div className="view-toggle" role="group" aria-label="Document view">
+        <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
+          <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
             <Button
               type="button"
               variant="ghost"
@@ -103,38 +105,34 @@ export function TopBar({
               onClick={() => onViewChange("visual")}
               disabled={viewDisabled}
               data-testid="view-visual"
-            >
-              Visual
-            </Button>
-            <Button {...sourceProps}>Source</Button>
+            >{i18n.t("Visual")}</Button>
+            <Button {...sourceProps}>{i18n.t("Source")}</Button>
           </div>
           {onToggleOutline ? (
-            <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label="Outline"
-              title="Outline" aria-pressed={outline} onClick={onToggleOutline}>
+            <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Outline")}
+              title={i18n.t("Outline")} aria-pressed={outline} onClick={onToggleOutline}>
               <PanelRight aria-hidden="true" />
             </Button>
           ) : null}
         </div>
-        <div className="top-bar-group" role="group" aria-label="File actions">
+        <div className="top-bar-group" role="group" aria-label={i18n.t("File actions")}>
             <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
               aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
-              title={`Save (${SAVE_SHORTCUT_LABEL})`} aria-keyshortcuts="Control+S Meta+S">
+              title={i18n.t("Save ({{shortcut}})", { shortcut: SAVE_SHORTCUT_LABEL })} aria-keyshortcuts="Control+S Meta+S">
               {saveLabel}
             </Button>
           {onReload ? (
             <DropdownMenu>
               <DropdownMenuTrigger ref={fileActionsRef}
-                render={<Button type="button" size="icon-sm" variant="ghost" aria-label="File actions" title="File actions" disabled={reloadDisabled} />}>
+                render={<Button type="button" size="icon-sm" variant="ghost" aria-label={i18n.t("File actions")} title={i18n.t("File actions")} disabled={reloadDisabled} />}>
                 <Ellipsis aria-hidden="true" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>
-                  <RotateCcw aria-hidden="true" />Reload
-                </DropdownMenuItem>
+                  <RotateCcw aria-hidden="true" />{i18n.t("Reload")}</DropdownMenuItem>
                 {onCopyPath ? (
                   <DropdownMenuItem onClick={onCopyPath} disabled={!documentPath}>
-                    <Copy aria-hidden="true" />Copy path
-                  </DropdownMenuItem>
+                    <Copy aria-hidden="true" />{i18n.t("Copy path")}</DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>

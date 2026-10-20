@@ -11,9 +11,9 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   const results = [];
   const open = async name => {
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     await openDocument(page, scratch(name));
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     check(await page.getByTestId('current-file').getAttribute('title') === scratch(name), 'Wrong file');
     // Keep the existing visual-review state: a loaded document with no folder displayed.
     await page.getByRole('button', {name:'More actions', exact:true}).click();
@@ -177,7 +177,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   const noHoverPage = await page.context().newPage();
   try {
     await noHoverPage.goto(page.url());
-    await noHoverPage.locator('[data-operation="Ready"]').waitFor({state:'attached'});
+    await noHoverPage.locator('[data-operation="ready"]').waitFor({state:'attached'});
     await openDocument(noHoverPage, scratch('quiet-document.md'));
     await noHoverPage.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, scratch('quiet-document.md'));
     if (!await noHoverPage.evaluate(() => matchMedia('(hover: none)').matches)) {
@@ -373,7 +373,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await open('quiet-document.md');
   check((await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('한글입력')&&!(await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('AFTER_SAVE'),'Save / Reload did not preserve only the saved composition');
 

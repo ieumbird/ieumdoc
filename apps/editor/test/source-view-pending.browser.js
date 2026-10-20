@@ -8,7 +8,7 @@ async (page, { openDocument }) => {
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -26,7 +26,7 @@ async (page, { openDocument }) => {
   if (await exists(created, 'created-during-preview.md')) throw new Error(`Remove ${created} first`);
 
   await openDocument(page, documentA);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   // New creates in the displayed sidebar folder, so the scratch folder is opened first.
   await page.getByRole('button', {name:'More actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
@@ -76,7 +76,7 @@ async (page, { openDocument }) => {
 
   // Once the preview is done, Open works again and returns to Visual.
   await otherDocument.click();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   result.openAfterPreview = await currentFile() === documentB &&
     await page.getByTestId('view-visual').getAttribute('aria-pressed') === 'true';
 

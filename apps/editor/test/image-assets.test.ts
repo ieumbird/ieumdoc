@@ -1,3 +1,4 @@
+import { messageText } from "../src/ui-message.ts";
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -395,7 +396,7 @@ function imageEditor(doc: string, reject: (reason: string) => void, host: Parame
   let pending = false;
   const plugin = imageAssetsPlugin({ documentPath: doc, reject, host, pending: value => { pending = value; } });
   const view = {
-    state: EditorState.create({ schema, doc: schema.nodeFromJSON(baseline), plugins: [history(), plugin, structureGuardPlugin(baseline, reason => reject(reason ?? "Structure rejected")), ...extra] }),
+    state: EditorState.create({ schema, doc: schema.nodeFromJSON(baseline), plugins: [history(), plugin, structureGuardPlugin(baseline, reason => reject(messageText(reason ?? "Structure rejected"))), ...extra] }),
     editable: true,
     hasFocus() { return true; },
     dispatch(this: { state: EditorState }, tr: Parameters<EditorState["apply"]>[0]) { this.state = this.state.applyTransaction(tr).state; },

@@ -3,7 +3,7 @@
 async page => {
   await page.unroute('**/api/document');
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const requests = [];
   let conflictNext = false;
   await page.route('**/api/document', async route => {

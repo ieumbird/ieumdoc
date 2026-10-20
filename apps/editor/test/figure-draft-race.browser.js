@@ -1,7 +1,7 @@
 // Focused Issue #21 regression. Prepare tmp/figure-authoring first with `pnpm browser:prepare`.
 async (page, { openDocument }) => {
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const separator = defaultPath.includes('\\') ? '\\' : '/';
@@ -9,7 +9,7 @@ async (page, { openDocument }) => {
   const filePath = [root, 'tmp', 'figure-authoring', 'technical-document.md'].join(separator);
   const openScratch = async () => {
     await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   };
   const semantic = async () => {
     const response = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(filePath)}`)).json();
@@ -53,7 +53,7 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openScratch();
   const reloaded = await semantic();
   const saveReloadPreserved = reloaded.length === 1 && reloaded[0].label === 'fig-control' &&
@@ -115,7 +115,7 @@ async (page, { openDocument }) => {
         const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
         await confirmation.getByText(/Unapplied property drafts will be lost/).waitFor();
         await confirmation.getByRole('button', {name:"Don't save", exact:true}).click();
-        await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+        await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       }
       await page.waitForFunction(() => window.figureLifetime.destroyed > 0);
       await page.getByTestId('figure-editor').waitFor({state:'detached'});
@@ -144,7 +144,7 @@ async (page, { openDocument }) => {
       await page.getByRole('button', {name:'File actions', exact:true}).click();
       await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
       await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
-      await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     }
   }
   // A retained hidden session still owns a successful validation, but never B's focus or content.

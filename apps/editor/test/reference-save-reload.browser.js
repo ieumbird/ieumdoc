@@ -6,7 +6,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -26,7 +26,7 @@ async (page, { openDocument }) => {
   }
 
   await openDocument(page, filePath);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   if (!(await page.getByTestId('current-file').getAttribute('title')).includes('reference-save-reload')) {
     throw new Error('Scratch file was not opened');
   }
@@ -37,9 +37,9 @@ async (page, { openDocument }) => {
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
 
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openDocument(page, filePath);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const article = await page.getByRole('article').innerText();
   const saved = await markdown();
   const result = {

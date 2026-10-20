@@ -7,9 +7,9 @@ async (page, { openDocument, withBlockHover }) => {
   const root = loaded.path.split(sep).slice(0,-4).join(sep);
   const file = [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   // The sidebar is measured with its folder: heading, actions and listed files.
   await page.getByRole('button',{name:'More actions',exact:true}).click();
   await page.getByRole('menuitem',{name:'Open folder…',exact:true}).click();
@@ -250,7 +250,7 @@ async (page, { openDocument, withBlockHover }) => {
     Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||!await toggle.isChecked()||await unchanged()!==beforeWidth)
     throw Error(`Wide document layout: ${JSON.stringify({standard,wide,before,after})}`);
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('button',{name:'Display',exact:true}).click();
   const remembered=await toggle.isChecked()&&await page.locator('.app-shell--wide').count()===1;
   await toggle.click();

@@ -1,3 +1,7 @@
+import type { UiMessage } from "./ui-message.ts";
+import { useMessageState } from "./ui-message.ts";
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { allocateBlockPath } from "./block-locators.ts";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
@@ -450,13 +454,14 @@ function tableNode(onDraftChange?: DraftListener) {
 }
 
 function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+  useTranslation();
   const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
   const rowLayer = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const number = useBlockNumber(editor, getPos, "table");
-  const kind = number === undefined ? "Table" : `Table ${number}`;
+  const kind = number === undefined ? i18n.t("Table") : `Table ${number}`;
   const label = String(node.attrs.label ?? "");
   const caption = tableCaption(node.toJSON() as TiptapJSON);
   const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
@@ -467,14 +472,14 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ label, caption: text });
-  const [error, setError] = useState("");
+  const [error, setError] = useMessageState("");
   const sourcePath = String(node.attrs.sourcePath);
   const dirty = editing && (draft.label !== label || draft.caption !== text);
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
   const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
   const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
-    const invalid = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? "Caption must be a single line without surrounding spaces." : undefined);
+    const invalid: UiMessage | undefined = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? { key: "Caption must be a single line without surrounding spaces." } : undefined);
     if (invalid) { setError(invalid); return; }
     updateAttributes({ label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [] });
     close();
@@ -492,9 +497,9 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>
-      <label className="form-label" htmlFor={`table-caption-${formId}`}>Caption</label>
+      <label className="form-label" htmlFor={`table-caption-${formId}`}>{i18n.t("Caption")}</label>
       <Input ref={input} id={`table-caption-${formId}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
-      <label className="form-label" htmlFor={`table-label-${formId}`}>Label</label>
+      <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
       <Input id={`table-label-${formId}`} data-testid="table-label" value={draft.label} onChange={event => setDraft({ ...draft, label: event.target.value })} />
     </BlockProperties>
   </NodeViewWrapper>;
@@ -607,17 +612,18 @@ function sectionLabelError(doc: ProseMirrorNode, own: number, label: string): st
   if (error) return error;
   let taken = false;
   doc.forEach((node, pos) => { if (pos !== own && typeof node.attrs.label === "string" && node.attrs.label && labelKey(node.attrs.label) === labelKey(label)) taken = true; });
-  return taken ? `Label "${label}" already names another target in this document.` : undefined;
+  return taken ? i18n.t("Label \"{{label}}\" already names another target in this document.", { label: label }) : undefined;
 }
 
 function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  useTranslation();
   const formId = useId();
   const label = String(node.attrs.label ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
-  const [error, setError] = useState("");
+  const [error, setError] = useMessageState("");
   const path = String(node.attrs.sourcePath ?? "");
   const onDraftChange = editor.extensionManager.extensions.find(extension => extension.name === "labelTarget")?.options.onDraftChange as DraftListener | undefined;
   const dirty = editing && draft !== label;
@@ -640,15 +646,15 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
       data-editing={editing ? "true" : "false"} contentEditable={false}>
       <p ref={anchor} className="label-target-content">
         {editor.isEditable ? (
-          <button type="button" className="label-target-edit" aria-label={`Edit section label ${label}`} data-testid="label-target-edit"
-            title="Section label: {ref} references to it name the heading below"
+          <button type="button" className="label-target-edit" aria-label={i18n.t("Edit section label {{label}}", { label: label })} data-testid="label-target-edit"
+            title={i18n.t("Section label: {ref} references to it name the heading below")}
             onClick={() => { setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
         ) : <span className="label-target-text">§ {label}</span>}
       </p>
-      <BlockProperties anchor={anchor} initialFocus={input} kind="Section label" testId="label-target" open={editing}
+      <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Section label")} testId="label-target" open={editing}
         error={error}
         onApply={apply} onCancel={close}>
-        <label className="form-label" htmlFor={`label-target-${formId}`}>Label</label>
+        <label className="form-label" htmlFor={`label-target-${formId}`}>{i18n.t("Label")}</label>
         <Input ref={input} id={`label-target-${formId}`} data-testid="label-target-input" value={draft}
           onChange={event => { setDraft(event.target.value); setError(""); }} />
       </BlockProperties>
@@ -837,7 +843,7 @@ export function editorExtensions(
 
 export function createEditorExtensions(
   baseline: TiptapJSON | (() => TiptapJSON),
-  onReject: (reason?: string) => void,
+  onReject: (reason?: UiMessage) => void,
   onDraftChange?: DraftListener,
   documentPath?: string,
   validateFigure?: FigureValidator,
@@ -852,7 +858,7 @@ export function createEditorExtensions(
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 
-function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void, initialDeletedPaths: readonly string[]): Extension {
+function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[]): Extension {
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
@@ -896,7 +902,7 @@ function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON)): TiptapJSON 
   return typeof baseline === "function" ? baseline() : baseline;
 }
 
-export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: string) => void, initialDeletedPaths: readonly string[] = []): Plugin {
+export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[] = []): Plugin {
   return new Plugin<string[]>({
     key: structureGuardKey,
     state: {
@@ -911,7 +917,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
       if (!transaction.docChanged) return true;
       // The title stays first (#255): nothing moves it or goes above it.
       if (!titleKept(transaction.before, transaction.doc)) {
-        onReject(TITLE_FIXED);
+        onReject({ key: TITLE_FIXED });
         return false;
       }
       try {
@@ -938,6 +944,7 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
 }
 
 function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
+  useTranslation();
   const variant = String(node.attrs.variant ?? "note");
   const label = isAdmonitionVariant(variant) ? ADMONITION_LABELS[variant] : variant;
   return (
@@ -959,6 +966,7 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
 }
 
 function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
+  useTranslation();
   const number = useBlockNumber(editor, getPos, "figure");
   // The computed number prefixes the caption, as MyST renders it; it is never saved.
   const numbered = number === undefined ? undefined : `Figure ${number}`;
@@ -978,7 +986,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
   const [labelDraft, setLabelDraft] = useState(label);
-  const [error, setError] = useState("");
+  const [error, setError] = useMessageState("");
   const [validating, setValidating] = useState(false);
   const pendingRequest = useRef(0);
   const captionChanged = useRef(false);
@@ -1071,7 +1079,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     try {
       message = await validateFigure!(candidate, nextLabel);
     } catch (cause) {
-      message = `Figure validation failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+      message = i18n.t("Figure validation failed: {{reason}}", { reason: cause instanceof Error ? cause.message : String(cause) });
     }
     // Cancel, a newer request or NodeView teardown supersedes this result. The editor can be
     // destroyed before React runs the NodeView's effect cleanup.
@@ -1085,7 +1093,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const latest = typeof latestPosition === "number" ? view.state.doc.nodeAt(latestPosition) : null;
     if (!latest || typeof latestPosition !== "number") return;
     if (JSON.stringify(figureAttrs(latest).caption) !== JSON.stringify(liveCaption)) {
-      setError("Caption changed during validation. Apply again.");
+      setError({ key: "Caption changed during validation. Apply again." });
       return;
     }
     const { caption, ...attributes } = candidate;
@@ -1140,33 +1148,25 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       data-selected={selected}
       data-source-path={sourcePath}
     >
-      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? "Figure", label].filter(Boolean).join(" · ")}</p>
+      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? i18n.t("Figure"), label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
-        <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
-          Unapplied changes are not saved. Apply to include them, or Cancel.
-        </p>
+        <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
       {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure}
         onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
       {imageFailed ? (
-        <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure}>
-          Image could not be loaded. Check the image path or URL.
-        </Notice>
+        <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
       ) : null}
       {editableFigure && !src ? (
-        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure}>
-          No content yet
-        </div>
+        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure}>{i18n.t("No content yet")}</div>
       ) : null}
-      <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label="Figure caption" /></figcaption>
+      <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
       {editableFigure && !editing ? (
-        <Button className="figure-edit" size="sm" variant="outline" aria-label="Edit figure" contentEditable={false} onClick={beginEdit}>
-          Edit
-        </Button>
+        <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}
       <BlockProperties
         anchor={anchor}
-        kind={numbered ?? "Figure"}
+        kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
         error={error}
@@ -1176,22 +1176,20 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       >
         {chooseImage && documentPath ? (
           <div className="figure-image-field">
-            {field("imageUrl", "Image", "figure-image-url")}
-            <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>
-              Choose…
-            </Button>
+            {field("imageUrl", i18n.t("Image"), "figure-image-url")}
+            <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>{i18n.t("Choose…")}</Button>
           </div>
-        ) : field("imageUrl", "Image", "figure-image-url")}
-        {field("imageAlt", "Alt text", "figure-alt")}
-        {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", "Caption", "figure-caption")
-          : <p className="block-popover-note">Edit the formatted caption directly below the image.</p>}
+        ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
+        {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
+        {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", i18n.t("Caption"), "figure-caption")
+          : <p className="block-popover-note">{i18n.t("Edit the formatted caption directly below the image.")}</p>}
         <label className="form-field">
-          <span>Label</span>
+          <span>{i18n.t("Label")}</span>
           <Input
             data-testid="figure-label"
             disabled={validating}
             value={labelDraft}
-            placeholder="None"
+            placeholder={i18n.t("None")}
             onChange={(event) => {
               setLabelDraft(event.target.value);
               setError("");
@@ -1260,9 +1258,10 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
 }
 
 function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+  useTranslation();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
-  const kind = number === undefined ? "Equation" : `Equation (${number})`;
+  const kind = number === undefined ? i18n.t("Equation") : `Equation (${number})`;
   const latex = String(node.attrs.latex ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);
@@ -1270,7 +1269,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
-  const [error, setError] = useState("");
+  const [error, setError] = useMessageState("");
 
   const cancelFocus = () => {
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
@@ -1327,7 +1326,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
   // Whether the label is referenceable and unique in the document is checked by Core on Save.
   const apply = () => {
     if (draft.length === 0) {
-      setError("Equation LaTeX cannot be empty.");
+      setError({ key: "Equation LaTeX cannot be empty." });
       return;
     }
     const invalidLabel = labelError(labelDraft);
@@ -1353,9 +1352,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     >
       <p ref={anchor} className="block-kind block-metadata">{[kind, label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
-        <p className="draft-status" role="status" data-testid="equation-draft-status">
-          Unapplied changes are not saved. Apply to include them, or Cancel.
-        </p>
+        <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
       {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
       <div className="equation-row">
@@ -1363,9 +1360,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
         {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
       </div>
       {view.editable && !editing ? (
-        <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>
-          Edit
-        </Button>
+        <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}
       <BlockProperties
         anchor={anchor}
@@ -1380,7 +1375,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
           <span>LaTeX</span>
           <textarea
             ref={latexInput}
-            aria-label="Equation LaTeX"
+            aria-label={i18n.t("Equation LaTeX")}
             className="equation-input"
             data-testid="equation-latex"
             value={draft}
@@ -1392,11 +1387,11 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
         </label>
         <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
         <label className="form-field">
-          <span>Label</span>
+          <span>{i18n.t("Label")}</span>
           <Input
             data-testid="equation-label"
             value={labelDraft}
-            placeholder="None"
+            placeholder={i18n.t("None")}
             onChange={(event) => {
               setLabelDraft(event.target.value);
               setError("");
@@ -1409,11 +1404,11 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
 }
 
 function EquationFormula({ className, latex, testId }: { className: string; latex: string; testId: string }) {
+  useTranslation();
   const result = renderEquation(latex);
   if (result.error) {
     return (
-      <Notice className={`${className} equation-preview-error`} tone="error" data-testid={`${testId}-error`}>
-        Equation preview unavailable: {result.error}
+      <Notice className={`${className} equation-preview-error`} tone="error" data-testid={`${testId}-error`}>{i18n.t("Equation preview unavailable:")}{result.error}
       </Notice>
     );
   }
@@ -1428,13 +1423,14 @@ function EquationFormula({ className, latex, testId }: { className: string; late
 }
 
 function InlineMathView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  useTranslation();
   const formId = useId();
   const visible = useEditorVisible();
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
   const bounds = useOverlayBounds<HTMLFormElement>(editing);
   const [draft, setDraft] = useState(value);
-  const [error, setError] = useState("");
+  const [error, setError] = useMessageState("");
   const rendered = renderEquation(value, false);
   const open = () => {
     if (!editor.isEditable) return;
@@ -1448,7 +1444,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   };
   const apply = () => {
     // Core validates the source on Save; only an empty or multi-line source is refused here.
-    if (draft.length === 0) return setError("Enter LaTeX, or use Remove.");
+    if (draft.length === 0) return setError({ key: "Enter LaTeX, or use Remove." });
     updateAttributes({ value: draft });
     close();
   };
@@ -1474,7 +1470,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
           className="inline-math-form selection-toolbar"
           contentEditable={false}
           role="dialog"
-          aria-label="Inline math"
+          aria-label={i18n.t("Inline math")}
           data-testid="inline-math-form"
           onSubmit={(event) => {
             event.preventDefault();
@@ -1502,8 +1498,8 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
               setError("");
             }}
           />
-          <Button size="sm" type="submit" data-testid="inline-math-apply">Apply</Button>
-          <Button size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>Remove</Button>
+          <Button size="sm" type="submit" data-testid="inline-math-apply">{i18n.t("Apply")}</Button>
+          <Button size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>{i18n.t("Remove")}</Button>
           {error ? <span className="link-form-error" role="alert">{error}</span> : null}
         </form>
       ) : null}
@@ -1512,6 +1508,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
 }
 
 function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
+  useTranslation();
   return (
     <NodeViewWrapper
       as="div"
@@ -1522,8 +1519,8 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
       <input
         className="code-language"
         data-testid="code-language"
-        aria-label="Code language"
-        placeholder="Language"
+        aria-label={i18n.t("Code language")}
+        placeholder={i18n.t("Language")}
         spellCheck={false}
         contentEditable={false}
         readOnly={!editor.isEditable}
@@ -1538,10 +1535,11 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
 
 /** A definition's computed number; return to the invoking reference when one is remembered. */
 function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
+  useTranslation();
   const number = useEndnoteNumber(editor, label);
   return (
     <sup className="footnote-number" data-testid="footnote-number" contentEditable={false}
-      title="Return to the reference" aria-label={`Endnote ${number ?? label}. Return to the reference.`}
+      title={i18n.t("Return to the reference")} aria-label={i18n.t("Endnote {{number}}. Return to the reference.", { number: number ?? label })}
       onMouseDown={(event) => event.preventDefault()} onClick={() => revealReference(editor, label)}>
       {number ?? `[^${label}]`}
     </sup>

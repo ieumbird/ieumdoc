@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { Fragment, memo, useLayoutEffect } from "react";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
@@ -13,6 +15,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, restored, recov
   active: boolean;
   report(id: string, session: DocumentSession | null): void;
 }) {
+  useTranslation();
   const session = useDocumentSession(file, restored, recoveryId);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
@@ -20,7 +23,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, restored, recov
     <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} hidden={!active} inert={!active}
       data-document-tab={id} data-active={active ? "true" : "false"}>
       {session.view === "source" ? (
-        <article className="document source-view" data-testid="source-view" aria-label="Markdown source">
+        <article className="document source-view" data-testid="source-view" aria-label={i18n.t("Markdown source")}>
           <pre className="source-view-text"><SourceLines markdown={session.sourceMarkdown} /></pre>
         </article>
       ) : null}

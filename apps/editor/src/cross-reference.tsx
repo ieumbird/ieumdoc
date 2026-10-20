@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { Node, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
@@ -19,7 +21,7 @@ export type ReferenceTarget = { role: ReferenceRole; label: string; number?: num
 /** A reference to an unlabeled heading: inserting it labels the heading too. */
 type HeadingChoice = { heading: number; title: string };
 
-const KIND: Record<ReferenceRole, string> = { eq: "Equation", numref: "Figure", ref: "Section" };
+const KIND: Record<ReferenceRole, string> = { get eq() { return i18n.t("Equation"); }, get numref() { return i18n.t("Figure"); }, get ref() { return i18n.t("Section"); } };
 const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig.", ref: "§" };
 const HEADINGS = new Set(["heading"]);
 
@@ -145,7 +147,7 @@ export function resolvedTarget(targets: ReferenceTarget[], role: ReferenceRole, 
  * text, or the label when it names no target here. */
 export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole, label: string): { text: string; resolved: boolean; kindName: string } {
   const target = resolvedTarget(targets, role, label);
-  const kindName = target?.kind === "table" ? "Table" : KIND[role];
+  const kindName = target?.kind === "table" ? i18n.t("Table") : KIND[role];
   // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
   const shown = target?.number !== undefined ? numberText(target.kind ?? (role === "eq" ? "equation" : "figure"), target.number) : target?.title ?? label;
   return { text: `${target?.kind === "table" ? "Table" : PREFIX[role]} ${shown}`, resolved: target !== undefined, kindName };
@@ -153,7 +155,7 @@ export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole
 
 /** What an unresolved reference tells the reader. */
 export function unresolvedStatus(role: ReferenceRole, label: string): string {
-  return `Unresolved: no ${KIND[role]} labeled “${label}” in this document`;
+  return i18n.t("Unresolved: no {{kind}} labeled “{{label}}” in this document", { kind: KIND[role], label: label });
 }
 
 /** Whether a reference names a target of its kind here, compared the way MyST resolves labels. */
@@ -203,10 +205,10 @@ export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id
       leaf => String(leaf.attrs.value ?? leaf.attrs.label ?? " ")).replace(/\s+/g, " ").trim();
     if (caption) captions.set(label, caption);
   });
-  const kindName = (target: ReferenceTarget) => target.kind === "table" ? "Table" : KIND[target.role];
+  const kindName = (target: ReferenceTarget) => target.kind === "table" ? i18n.t("Table") : KIND[target.role];
   const display = (target: ReferenceTarget) => referenceDisplay([target], target.role, target.label).text;
   const menuLabel = (target: ReferenceTarget, caption?: string) => {
-    if (target.role === "ref") return `Section reference: ${target.title ?? target.label}`;
+    if (target.role === "ref") return i18n.t("Section reference: {{title}}", { title: target.title ?? target.label });
     const detail = caption ?? target.label;
     const characters = Array.from(detail);
     const summary = caption && characters.length > 80 ? `${characters.slice(0, 80).join("")}…` : detail;
@@ -216,17 +218,18 @@ export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id
     ...referenceTargets(doc)
       .filter((target) => {
         const caption = captions.get(target.label);
-        return matches([kindName(target), target.label, display(target),
-          ...(target.number === undefined ? [] : [String(target.number), `${target.kind === "table" ? "Table" : PREFIX[target.role]} ${target.number}`]),
+        return matches([kindName(target), target.kind ?? target.role, target.label, display(target),
+          ...({eq: ["equation", "수식"], numref: ["figure", "그림", "table", "표"], ref: ["section", "절", "제목"]}[target.role]),
+          ...(target.number === undefined ? [] : [String(target.number), `${target.kind === "table" ? i18n.t("Table") : PREFIX[target.role]} ${target.number}`]),
           ...(target.role === "eq" && target.number !== undefined ? [numberText("equation", target.number)] : []),
           ...(caption ? [caption, ...caption.split(/[\s\p{P}]+/u)] : []),
           ...(target.title ? ["heading", ...titleWords(target.title)] : [])]);
       })
-      .map((target) => ({ id: referenceCommandId(target), label: menuLabel(target, captions.get(target.label)), group: "References" })),
+      .map((target) => ({ id: referenceCommandId(target), label: menuLabel(target, captions.get(target.label)), group: i18n.t("References") })),
     // Every heading can be referenced; only a search for sections or a heading's words lists them.
     ...unlabeledHeadings(doc)
-      .filter((choice) => needle.length > 0 && ["section", "heading", ...titleWords(choice.title)].some((word) => word.toLowerCase().startsWith(needle)))
-      .map((choice) => ({ id: `reference:heading:${choice.heading}`, label: `Section reference: ${choice.title}`, group: "References" })),
+      .filter((choice) => needle.length > 0 && ["section", "heading", "절", "제목", ...titleWords(choice.title)].some((word) => word.toLowerCase().startsWith(needle)))
+      .map((choice) => ({ id: `reference:heading:${choice.heading}`, label: i18n.t("Section reference: {{title}}", { title: choice.title }), group: i18n.t("References") })),
   ];
 }
 
@@ -305,6 +308,7 @@ export const CrossReference = Node.create({
 });
 
 function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+  useTranslation();
   const role = node.attrs.role as ReferenceRole;
   const label = String(node.attrs.label ?? "");
   const [editing, setEditing] = useState(false);
@@ -342,7 +346,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
         onClick={() => { if (!revealReferenceTarget(editor, role, label)) setEditing(true); }}>
         {text}
       </span>
-      <button type="button" className="cross-reference-edit" aria-label="Edit reference" title="Edit reference"
+      <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit reference")} title={i18n.t("Edit reference")}
         data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>
         <Pencil aria-hidden="true" size={12} />
       </button>
@@ -380,6 +384,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   onClose: () => void;
   onDismiss?: () => void;
 }) {
+  useTranslation();
   const visible = useEditorVisible();
   const formId = useId();
   const mounted = useRef(false);
@@ -402,7 +407,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
       className={`selection-toolbar reference-form ${className ?? ""}`}
       contentEditable={false}
       role="dialog"
-      aria-label="Cross-reference"
+      aria-label={i18n.t("Cross-reference")}
       data-testid="reference-form"
       style={style}
       onSubmit={(event) => {
@@ -418,14 +423,14 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
         if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) (onDismiss ?? onClose)();
       }}
     >
-      <label className="form-label" htmlFor={formId}>Reference target</label>
+      <label className="form-label" htmlFor={formId}>{i18n.t("Reference target")}</label>
       {options.length > 0 ? (
         <>
           <select
             id={formId}
             autoFocus={!mounted.current}
             className="reference-target"
-            aria-label="Reference target"
+            aria-label={i18n.t("Reference target")}
             data-testid="reference-target"
             value={value}
             onChange={(event) => setValue(event.target.value)}
@@ -434,17 +439,17 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
               const missing = !isResolved(targets, target.role, target.label);
               return (
                 <option key={referenceCommandId(target)} value={referenceCommandId(target)}>
-                  {target.kind === "table" ? "Table" : KIND[target.role]} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? " (unresolved)" : ""}
+                  {target.kind === "table" ? i18n.t("Table") : KIND[target.role]} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? i18n.t(" (unresolved)") : ""}
                 </option>
               );
             })}
           </select>
-          <Button size="sm" type="submit" data-testid="reference-apply">Apply</Button>
+          <Button size="sm" type="submit" data-testid="reference-apply">{i18n.t("Apply")}</Button>
         </>
       ) : (
-        <span className="reference-empty">Label an Equation, Figure, Table or heading to reference it.</span>
+        <span className="reference-empty">{i18n.t("Label an Equation, Figure, Table or heading to reference it.")}</span>
       )}
-      {onRemove ? <Button size="sm" variant="outline" data-testid="reference-remove" onClick={onRemove}>Remove</Button> : null}
+      {onRemove ? <Button size="sm" variant="outline" data-testid="reference-remove" onClick={onRemove}>{i18n.t("Remove")}</Button> : null}
     </form>
   );
 }

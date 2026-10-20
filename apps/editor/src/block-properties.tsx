@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
@@ -20,6 +22,7 @@ export function BlockProperties({
   onCancel(): void;
   children: ReactNode;
 }) {
+  useTranslation();
   const visible = useEditorVisible();
   const wasOpen = useRef(false);
   useLayoutEffect(() => { wasOpen.current = open; }, [open]);
@@ -33,7 +36,7 @@ export function BlockProperties({
         sideOffset={12}
         initialFocus={wasOpen.current ? false : initialFocus ?? false}
         finalFocus={false}
-        aria-label={`${kind} properties`}
+        aria-label={i18n.t("{{kind}} properties", { kind: kind })}
         data-testid={`${testId}-properties`}
         className="block-properties"
       >
@@ -49,8 +52,8 @@ export function BlockProperties({
           {children}
           {error ? <Notice tone="error">{error}</Notice> : null}
           <div className="form-actions">
-            <Button type="button" size="sm" variant="outline" onClick={onCancel} data-testid={`${testId}-cancel`}>Cancel</Button>
-            <Button type="submit" size="sm" disabled={busy} data-testid={`${testId}-apply`}>Apply</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onCancel} data-testid={`${testId}-cancel`}>{i18n.t("Cancel")}</Button>
+            <Button type="submit" size="sm" disabled={busy} data-testid={`${testId}-apply`}>{i18n.t("Apply")}</Button>
           </div>
         </form>
       </PopoverContent>

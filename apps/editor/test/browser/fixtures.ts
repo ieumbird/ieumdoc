@@ -72,7 +72,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
     scenarios: ["layout-rules", "quiet-document", "visual-states"],
   },
-  "reference-save-reload": { files: technical, scenarios: ["reference-save-reload"] },
+  "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
   "block-move": { files: technical, scenarios: ["block-move"] },
   "document-title": { files: [...technical,
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },

@@ -9,7 +9,7 @@ async page => {
   const folder = [root, 'tmp', 'new-document'].join(sep);
   const file = [folder, 'new-document.md'].join(sep);
   const check = (value, message) => { if (!value) throw Error(message); };
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const read = async () => (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   // The document's text: the Add a title place above an untitled document is not content (#255).

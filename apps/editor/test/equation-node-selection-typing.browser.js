@@ -3,7 +3,7 @@
 // this is not a real Windows Korean OS IME or a keydown-less input method.
 async (page, { openDocument, reloadDocument }) => {
   await page.unrouteAll();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.reload();
   await ready();
   const origin = page.url().split('/').slice(0,3).join('/');

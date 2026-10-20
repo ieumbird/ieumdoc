@@ -1,3 +1,4 @@
+import { i18n } from "./i18n.ts";
 import { splitDocumentPath } from "./shell/document-path.ts";
 
 /** Paths here have already been normalized by the Host. Never guess filesystem identity. */
@@ -35,7 +36,7 @@ export function tabNames(tabs: readonly { path: string }[]): string[] {
 }
 
 export function allTabsPendingWork(tabs: Iterable<{ pendingWork(): string | null }>, opening: boolean): string | null {
-  if (opening) return "IeumDoc is still opening a document. Try again in a moment.";
+  if (opening) return i18n.t("IeumDoc is still opening a document. Try again in a moment.");
   for (const tab of tabs) {
     const reason = tab.pendingWork();
     if (reason) return reason;

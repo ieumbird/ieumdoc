@@ -7,7 +7,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -25,7 +25,7 @@ async (page, { openDocument }) => {
   const openScratch = async () => {
     await openDocument(page, file);
     await page.waitForFunction(() =>
-      document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready' &&
+      document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready' &&
       document.querySelector('[data-testid="current-file"]')?.getAttribute('title')?.includes('basic-blocks'));
   };
   // Select a range of a text block's content (offsets; -1 is its end); the keys that follow are real.
@@ -105,14 +105,14 @@ async (page, { openDocument }) => {
   const twoDividers = await editor.locator('[data-block="divider"]').count() === 2;
 
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor({state:'attached'});
-  if (await page.getByTestId('status').getAttribute('data-operation') !== 'Saved') {
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
+  if (await page.getByTestId('status').getAttribute('data-operation') !== 'saved') {
     throw new Error(`Save failed: ${await page.locator('body').innerText()}`);
   }
   const saved = await markdown();
 
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'Ready');
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
   await openScratch();
   const reloaded = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   await reloaded.locator('h1').waitFor({state:'visible'});

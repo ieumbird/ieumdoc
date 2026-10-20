@@ -3,7 +3,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -25,7 +25,7 @@ async (page, { openDocument }) => {
   };
   const save = async () => {
     await page.getByTestId('save').click();
-    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
   };
   const source = async () => {
     await page.getByTestId('view-source').click();
@@ -148,7 +148,7 @@ async (page, { openDocument }) => {
     await page.getByTestId('figure-alt').fill('PFC current control diagram');
     await apply();
     release();
-    await page.locator('[data-testid="status"][data-operation^="Saved"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
     check(await page.getByTestId('status').innerText() === 'Unsaved changes' &&
       (await diskFigures())[0].contentKind === 'none', 'Late image Apply was lost or wrongly acknowledged');
     await page.unroute('**/api/document**');

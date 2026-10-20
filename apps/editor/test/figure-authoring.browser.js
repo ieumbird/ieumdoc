@@ -12,7 +12,7 @@ async (page, { openDocument }) => {
   page.on('pageerror', onPageError);
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -46,9 +46,9 @@ async (page, { openDocument }) => {
   });
   const openScratch = async () => {
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes('figure-authoring')) throw new Error('Scratch file was not opened');
   };
   const save = async () => {
@@ -339,7 +339,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'New file in folder', exact:true}).click();
     await page.getByTestId('new-file-name').fill(emptyName);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [contenteditable="true"]').click();
     await page.keyboard.type('/figure');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Figure', exact:true}).click();

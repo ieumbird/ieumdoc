@@ -12,7 +12,7 @@ async (page, { openDocument, reloadDocument }) => {
   page.on('console', onConsole);
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -28,13 +28,13 @@ async (page, { openDocument, reloadDocument }) => {
   if (await read() !== fresh) throw new Error('Scratch document is not a fresh tables.md copy');
   const open = async () => {
     await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.locator('[data-testid="status"]:is([data-operation="Saved"], [data-operation="Save failed"])').waitFor({state:'attached'});
-    return await page.getByTestId('status').getAttribute('data-operation') === 'Saved';
+    await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
+    return await page.getByTestId('status').getAttribute('data-operation') === 'saved';
   };
   const tables = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   const grid = table => table.locator('tr').evaluateAll(rows => rows.map(row =>
@@ -160,7 +160,7 @@ async (page, { openDocument, reloadDocument }) => {
 
   // 4. Reopening shows the saved tables with editable new cells.
   await reloadDocument(page);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.reopened = JSON.stringify(await grid(tables.last())) ===
     JSON.stringify([['#Name', '#', '#Value'], ['U', '', 'AC'], ['', '', 'Q'], ['P', 'W', '']]) &&
@@ -194,7 +194,7 @@ async (page, { openDocument, reloadDocument }) => {
   result.fourthSave = await save();
   result.fourthFile = (await read()).endsWith('| Name | Value |   |\n| ---- | ----- | - |\n| U    | AC    |   |\n| P    |       | W |\n');
   await reloadDocument(page);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.reshapedAfterReopen = JSON.stringify(await grid(tables.last())) === JSON.stringify(reshaped);
 
@@ -217,7 +217,7 @@ async (page, { openDocument, reloadDocument }) => {
   result.captionSave = await save();
   result.captionWritten = (await read()).includes(':::{table} Port values\n:name: tbl-ports');
   await reloadDocument(page);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.captionReloaded = await tables.last().getByTestId('table-caption').innerText() === 'Port values';
   result.captionWithoutTiptapWarning = tiptapWarnings.length === 0;
@@ -237,7 +237,7 @@ async (page, { openDocument, reloadDocument }) => {
   result.referenceSave = await save();
   result.tableRoleWritten = (await read()).includes('{numref}`tbl-ports`');
   await reloadDocument(page);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.tableReferenceReloaded = await page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
 

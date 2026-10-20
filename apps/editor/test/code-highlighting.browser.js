@@ -5,7 +5,7 @@ async (page, { openDocument }) => {
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = loaded.path.includes('\\') ? '\\' : '/';
   const file = [...loaded.path.split(sep).slice(0,-4), 'tmp', 'code-highlighting', 'code.md'].join(sep);
-  const ready = () => page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const open = async () => {
     await page.reload(); await ready();
     await openDocument(page, file);
@@ -46,7 +46,7 @@ async (page, { openDocument }) => {
     check(before === await snapshot(), 'Grammar completion changed document/selection/history');
     releaseAsset();
     await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').waitFor();
-    await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'Adding image…');
+    await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'adding-image');
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.focus());
     await page.keyboard.press('ControlOrMeta+z');
     check(await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 0 && (await code.locator('pre').innerText()).includes('+ 2'), 'Grammar completion cancelled upload or changed its history group');

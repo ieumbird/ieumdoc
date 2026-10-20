@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
 import { useLayoutEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { tabLabels, tabNames } from "../document-tabs.ts";
@@ -9,6 +11,7 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
   onActivate(id: string): void;
   onClose(id: string): void;
 }) {
+  useTranslation();
   const row = useRef<HTMLDivElement>(null);
   const names = tabNames(tabs);
   const labels = tabLabels(tabs);
@@ -25,12 +28,12 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
     }
   }, [active, tabs.length]);
   return (
-    <div ref={row} className="document-tabs" role="tablist" aria-label="Documents">
+    <div ref={row} className="document-tabs" role="tablist" aria-label={i18n.t("Documents")}>
       {tabs.map((tab, index) => (
         <div className="document-tab" key={tab.id} data-selected={tab.id === active} title={tab.path} role="presentation">
           <button type="button" role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`}
             aria-selected={tab.id === active} aria-disabled={disabled} tabIndex={tab.id === active ? 0 : -1}
-            aria-label={`${names[index]}${tab.dirty ? ", Unsaved changes" : ""}`}
+            aria-label={`${names[index]}${tab.dirty ? `, ${i18n.t("Unsaved changes")}` : ""}`}
             onClick={() => { if (!disabled) onActivate(tab.id); }}
             onKeyDown={event => {
               if (disabled) return;
@@ -53,7 +56,7 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
             </span>
             <span className="document-tab-dirty" aria-hidden="true">{tab.dirty ? "•" : ""}</span>
           </button>
-          <button type="button" className="document-tab-close" aria-label={`Close ${names[index]}`}
+          <button type="button" className="document-tab-close" aria-label={i18n.t("Close {{name}}", { name: names[index] })}
             disabled={disabled} onClick={() => onClose(tab.id)}><X aria-hidden="true" /></button>
         </div>
       ))}

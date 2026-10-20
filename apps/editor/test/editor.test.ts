@@ -2087,7 +2087,7 @@ test("restored deletion metadata survives engine initialization and acknowledged
   const model = loadEditableDocument(openingSource);
   const opening = toTiptapDocument(model);
   const schema = getSchema(editorExtensions());
-  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, assert.fail)] });
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, reason => assert.fail(JSON.stringify(reason)))] });
   const savedDocument = editorDocumentJSON(state);
   state = state.applyTransaction(deleteBlock(state, 2)).state;
   const current = editorDocumentJSON(state);
@@ -2096,7 +2096,7 @@ test("restored deletion metadata survives engine initialization and acknowledged
   assert.throws(() => collectSupportedEdits(model, withoutMetadata), /block deletion is not allowed/);
   const snapshot = prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument });
   let restored = EditorState.create({ schema, doc: schema.nodeFromJSON(snapshot.editorDocument),
-    plugins: [structureGuardPlugin(opening, assert.fail, snapshot.editorDocument.attrs!.deletedPaths as string[])] });
+    plugins: [structureGuardPlugin(opening, reason => assert.fail(JSON.stringify(reason)), snapshot.editorDocument.attrs!.deletedPaths as string[])] });
   assert.deepEqual(editorDocumentJSON(restored), current);
   const prior = collectSupportedEdits(model, current);
   let disk = saveEdits(openingSource, prior).markdown;

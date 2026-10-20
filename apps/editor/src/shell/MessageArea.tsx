@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n.ts";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "../ui/primitives.tsx";
@@ -26,6 +28,7 @@ type MessageAreaProps = {
  * notices expire.
  */
 export function MessageArea({ error, notice, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
+  useTranslation();
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(onNoticeExpired, NOTICE_TIMEOUT_MS);
@@ -44,7 +47,7 @@ export function MessageArea({ error, notice, warning = "", draftNotice = "", doc
       {error ? (
         <Notice tone="error" className="message" data-testid="error">
           <span className="message-text">{error}</span>
-          <Button variant="ghost" size="icon-sm" className="message-dismiss" aria-label="Dismiss error" onClick={onDismissError}>×</Button>
+          <Button variant="ghost" size="icon-sm" className="message-dismiss" aria-label={i18n.t("Dismiss error")} onClick={onDismissError}>×</Button>
         </Notice>
       ) : null}
       {update ? (
@@ -52,7 +55,7 @@ export function MessageArea({ error, notice, warning = "", draftNotice = "", doc
           <span className="message-text">{update.text}</span>
           <span className="message-actions">
             <Button variant="ghost" size="sm" onClick={update.onAction}>{update.action}</Button>
-            <Button variant="ghost" size="sm" onClick={update.onLater}>Later</Button>
+            <Button variant="ghost" size="sm" onClick={update.onLater}>{i18n.t("Later")}</Button>
           </span>
         </Notice>
       ) : null}

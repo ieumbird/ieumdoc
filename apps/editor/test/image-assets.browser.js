@@ -2,7 +2,7 @@
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -10,7 +10,7 @@ async (page, { openDocument }) => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'image-assets', 'images.md'].join(separator);
   await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const result = {};
   const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
@@ -38,7 +38,7 @@ async (page, { openDocument }) => {
     data.setData('text/plain', 'Ignored external text'); data.setData('text/html', args.html);
     el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
   }, {source:blobSource, html});
-  const waitIdle = () => page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'Adding image…');
+  const waitIdle = () => page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'adding-image');
   const dismiss = async () => { const button = page.getByRole('button', {name:'Dismiss error'}); if (await button.count()) await button.click(); };
 
   // Native OS clipboard screenshot paste. A single Undo keeps prior text edits intact.
@@ -91,13 +91,13 @@ async (page, { openDocument }) => {
   // Actual Save/Reload reuses Core Figure semantics and resolves every saved image from disk.
   await loaded();
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   const paths = disk.document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
   assert(paths.length === 3 && paths.every(path => path.startsWith('./assets/')), 'Save retains all Figure paths');
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'}); await loaded();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'}); await loaded();
   assert((await documentJSON()).content.filter(node => node.type === 'figure').map(node => node.attrs.imageUrl).join('|') === paths.join('|'), 'Reload retains relative paths');
   result.saveReloadAndImageLoad = true;
 
@@ -194,7 +194,7 @@ async (page, { openDocument }) => {
   const copied = await chooseOutside();
   await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   const chosen = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json())
     .document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
   assert(chosen[0] === './figures/diagram.svg' && chosen[1] === copied, 'Save writes the chosen paths');
@@ -213,7 +213,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'File actions', exact:true}).click();
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
     await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   });
   await discarded(() => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const {state, view} = el.editor;
@@ -258,7 +258,7 @@ async (page, { openDocument }) => {
     await page.unroute('**/api/asset');
   }
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
 
   // Paste in a reserved caption and drop on a completely empty frame fill that Figure (#212).
   // Repeat each gesture on its completed Figure: the existing image must never be overwritten.
@@ -341,7 +341,7 @@ async (page, { openDocument }) => {
     assert(JSON.stringify(inserted) === JSON.stringify(filled.content), `${gesture} retains the completed Figure and surrounding blocks`);
     await historyKey('Control+z');
     await page.getByRole('button', {name:'Save', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
     const saved = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).document.blocks;
     const savedFigure = saved[index];
     assert(savedFigure?.block === 'figure' && savedFigure.imageUrl === filled.content[index].attrs.imageUrl &&
@@ -349,7 +349,7 @@ async (page, { openDocument }) => {
       `Save writes the filled Figure's image, caption, label and position after ${gesture}`);
     await page.getByRole('button', {name:'File actions', exact:true}).click();
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-    await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     assert(semanticJSON(await documentJSON()) === semanticJSON(filled), `Reload retains the filled Figure after ${gesture}`);
   }
   result.fillEmptyFigureAndKeepExistingImage = true;
@@ -358,7 +358,7 @@ async (page, { openDocument }) => {
   const pathsFile = [root, 'tmp', 'image-assets', 'paths.md'].join(separator);
   await openDocument(page, pathsFile);
   await page.waitForFunction(file => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === file, pathsFile, {timeout:5000});
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const pathsJSON = JSON.stringify(await documentJSON());
   const failure = figures.nth(2).getByRole('alert');
   const relativeLoaded = () => page.waitForFunction(() => {
@@ -379,14 +379,14 @@ async (page, { openDocument }) => {
   await figures.nth(1).getByTestId('figure-caption-content').click();
   await page.keyboard.press('End'); await page.keyboard.type(' Verified.');
   await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Saved"]').waitFor();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   const expectedPaths = ['./assets/diagram.svg', 'assets/diagram.svg', 'assets/missing.png'];
   const savedPaths = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(pathsFile)}`)).json())
     .document.blocks.filter(block => block.block === 'figure').map(block => block.imageUrl);
   assert(JSON.stringify(savedPaths) === JSON.stringify(expectedPaths), 'Save retains typed image paths even when loading fails');
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-  await page.locator('[data-testid="status"][data-operation="Ready"]').waitFor({state:'attached'});
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await relativeLoaded(); await failure.waitFor();
   assert(JSON.stringify((await documentJSON()).content.filter(node => node.type === 'figure').map(node => node.attrs.imageUrl)) === JSON.stringify(expectedPaths), 'Reload retains the original strings');
 
