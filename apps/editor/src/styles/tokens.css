@@ -46,6 +46,8 @@
   /* Inline math size relative to its text. KaTeX's own 1.21em stands out beside Pretendard;
    * display equations keep it. */
   --math-inline-size: 1.1em;
+  /* Shared reference/citation underline distance, including unchecked citations. */
+  --reference-underline-offset: 3px;
 
   --id-color-surface: #ffffff;
   --id-color-surface-subtle: #f6f7f9;

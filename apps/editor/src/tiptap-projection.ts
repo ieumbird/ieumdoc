@@ -87,7 +87,3 @@ export const TABLE_CELL_SOURCE_ATTR = "sourceCell";
 export function sourcePathOf(node: TiptapJSON | undefined): string {
   return String(node?.attrs?.sourcePath ?? "");
 }
-
-export function markKey(item: InlineContent): string {
-  return item.kind === "link" ? `link ${JSON.stringify([item.url, item.title ?? null])}` : item.kind;
-}

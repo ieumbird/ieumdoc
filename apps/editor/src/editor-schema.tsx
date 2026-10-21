@@ -34,6 +34,8 @@ import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, u
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
+import { Citation, citationNumbers, citationStatus } from "./citation.tsx";
+import { citationKeys, citationText } from "@ieumdoc/core/citation";
 import { renderEquation } from "./equation-render.ts";
 import {
   DELETED_PATHS_ATTR,
@@ -110,7 +112,7 @@ function blockAttrs(attrs: Record<string, Attribute>): Record<string, Attribute>
 const SourcedHeading = Node.create({
   name: "heading",
   group: "block",
-  content: "(text | inlineMath | crossReference | footnoteReference)*",
+  content: "(text | inlineMath | crossReference | footnoteReference | citation)*",
   defining: true,
   addAttributes() {
     return blockAttrs({ level: hiddenAttr(1) });
@@ -281,7 +283,7 @@ const Quote = Node.create({
 const FootnoteDefinition = Node.create({
   name: "footnoteDefinition",
   group: "block",
-  content: "(text | hardBreak | inlineMath | crossReference)*",
+  content: "(text | hardBreak | inlineMath | crossReference | citation)*",
   isolating: true,
   defining: true,
   addAttributes() {
@@ -343,7 +345,7 @@ const Divider = Node.create({
 const Figure = Node.create<{ documentPath?: string }>({
   name: "figure",
   group: "block",
-  content: "(text | hardBreak | inlineMath | crossReference | footnoteReference)*",
+  content: "(text | hardBreak | inlineMath | crossReference | footnoteReference | citation)*",
   isolating: true,
   selectable: true,
   draggable: false,
@@ -470,6 +472,10 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     editor,
     selector: ({ editor: current }) => current && hasReference(caption) ? JSON.stringify(referenceTargets(current.state.doc)) : "[]",
   });
+  const citationLabels = useEditorState({
+    editor,
+    selector: ({ editor: current }) => current ? JSON.stringify(citationKeys(caption).map(key => [key, citationNumbers(current.state.doc).get(key)])) : "[]",
+  });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ label, caption: text });
   const [error, setError] = useMessageState("");
@@ -493,7 +499,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
-      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[]) }} /> : null}
+      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[], new Map(JSON.parse(citationLabels ?? "[]"))) }} /> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>
@@ -511,7 +517,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
  * spans for their NodeViews, show the same KaTeX and reference text as in the document. Display
  * only: the caption is edited in the table's properties.
  */
-function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[]): string {
+function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[], citations: ReadonlyMap<string, number>): string {
   const container = document.createElement("div");
   container.append(DOMSerializer.fromSchema(schema).serializeFragment(schema.nodeFromJSON(toTiptapContent(caption)).content));
   for (const math of container.querySelectorAll<HTMLElement>("span[data-inline-math]")) {
@@ -537,6 +543,18 @@ function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: Ref
     reference.dataset.resolved = String(resolved);
     reference.append(chip);
   }
+  for (const citation of container.querySelectorAll<HTMLElement>("span[data-citation]")) {
+    const keys = JSON.parse(citation.dataset.keys ?? "[]") as string[];
+    const text = citationText(keys, citations);
+    const chip = document.createElement("span");
+    chip.className = "cross-reference-chip";
+    chip.textContent = text;
+    chip.title = citationStatus(keys, text);
+    chip.setAttribute("aria-label", chip.title);
+    citation.classList.add("cross-reference", "citation");
+    citation.dataset.readiness = "not-evaluated";
+    citation.append(chip);
+  }
   return container.innerHTML;
 }
 
@@ -549,6 +567,7 @@ function captionText(item: InlineContent): string {
   if (item.kind === "text") return item.text;
   if ("value" in item) return item.value;
   if ("label" in item) return item.label;
+  if (item.kind === "citation") return item.keys.join(", ");
   return "";
 }
 
@@ -571,7 +590,7 @@ const TableRow = Node.create({
 // A cell holds inline content without line breaks, like a heading.
 const TableCell = Node.create({
   name: "tableCell",
-  content: "(text | inlineMath | crossReference | footnoteReference)*",
+  content: "(text | inlineMath | crossReference | footnoteReference | citation)*",
   isolating: true,
   addAttributes() {
     return { header: headerAttr, align: hiddenAttr(""), [TABLE_CELL_SOURCE_ATTR]: { default: "", rendered: false } };
@@ -837,6 +856,7 @@ export function editorExtensions(
     InlineMath,
     CrossReference,
     FootnoteReference,
+    Citation,
     MarkdownInputRules,
   ];
 }

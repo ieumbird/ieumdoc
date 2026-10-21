@@ -1,12 +1,11 @@
 import { allocateBlockPath } from "./block-locators.ts";
 import { SaveContentError } from "../shared/save-error.ts";
-import { isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
+import { inlineContentText as inlineText, sameInlineContent as sameInline, isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 import {
   isNewBlockPath,
-  markKey,
   pathKey,
   sourcePathOf,
   TABLE_CELL_SOURCE_ATTR,
@@ -728,30 +727,6 @@ function blockLabel(node: TiptapJSON): string {
 
 function snapshotPaths(key: string): string[] {
   return key.split(";").filter(path => !isNewBlockPath(path));
-}
-
-/** Same rendered text and mark coverage (a link's target is part of its mark). Nesting order
- * and text fragmentation differ between Core content and the editor's flat marks. */
-function sameInline(left: InlineContent[], right: InlineContent[]): boolean {
-  return JSON.stringify(inlineUnits(left)) === JSON.stringify(inlineUnits(right));
-}
-
-function inlineUnits(content: InlineContent[], marks: string[] = []): string[] {
-  return content.flatMap((item) => {
-    if (item.kind === "text") return item.text.split("").map((char) => `${char} ${marks.join(",")}`);
-    if (item.kind === "break") return [`\n ${marks.join(",")}`];
-    if (item.kind === "math") return [`math ${item.value} ${marks.join(",")}`];
-    if (item.kind === "code") return item.value.split("").map((char) => `${char} ${[...marks, "code"].sort().join(",")}`);
-    if (item.kind === "reference") return [`reference ${item.role} ${item.label} ${marks.join(",")}`];
-    if (item.kind === "footnote") return [`footnote ${item.label} ${marks.join(",")}`];
-    return inlineUnits(item.children, [...new Set([...marks, markKey(item)])].sort());
-  });
-}
-
-function inlineText(content: InlineContent[]): string {
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
 }
 
 function normalizeAttr(value: unknown): string {

@@ -40,6 +40,7 @@ import {
   supportedFootnoteContent,
 } from "./myst/footnote.ts";
 import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
+import { canonicalCitation, type CitationContent } from "./citation.ts";
 import { FRONT_MATTER_FIELD, parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
 import { DocumentWriteError } from "./write-error.ts";
@@ -347,7 +348,7 @@ const FOOTNOTE_FAILURE = "footnote definition cannot round-trip losslessly throu
  * next unused number.
  */
 export function insertFootnote(document: MystDocument, path: NodePath, offset: number, content: InlineContent[]): MystDocument {
-  const target = footnoteTarget(document, path);
+  const target = inlineTarget(document, path);
   if (!target) throw new Error(`a footnote cannot be inserted at [${path.join(",")}]`);
   if (!Number.isInteger(offset) || offset < 0 || offset > inlineContentLength(target.content)) {
     throw new Error(`footnote offset out of range: ${offset}`);
@@ -360,8 +361,8 @@ export function insertFootnote(document: MystDocument, path: NodePath, offset: n
 
 type InlineUpdate = (document: MystDocument, path: NodePath, content: InlineContent[]) => MystDocument;
 
-/** The editable inline content a footnote reference can be inserted in, and its update. */
-function footnoteTarget(document: MystDocument, path: NodePath): { content: InlineContent[]; update: InlineUpdate } | undefined {
+/** Shared inline operation target; citation edits also accept endnote definition content. */
+function inlineTarget(document: MystDocument, path: NodePath, allowEndnote = false): { content: InlineContent[]; update: InlineUpdate } | undefined {
   assertBodyIndex(document, path[0]);
   const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (path.length === 3 && block?.block === "table") {
@@ -373,7 +374,51 @@ function footnoteTarget(document: MystDocument, path: NodePath): { content: Inli
   if (block.block === "heading") return { content: block.content, update: updateHeadingInlineContent };
   if (block.block === "quote") return { content: block.content, update: updateQuoteInlineContent };
   if (block.block === "admonition") return { content: block.content, update: updateAdmonitionInlineContent };
+  if (allowEndnote && block.block === "footnote") return { content: block.content, update: updateFootnoteDefinition };
   return undefined;
+}
+
+export function insertCitation(document: MystDocument, path: NodePath, offset: number, citation: CitationContent): MystDocument {
+  const content = canonicalCitation(citation);
+  const target = citationTarget(document, path, offset);
+  const [left, right] = splitInlineContent(target.content, offset);
+  return target.update(document, path, concatenateInlineContent(left, [content], right));
+}
+
+export function updateCitation(document: MystDocument, path: NodePath, offset: number, citation: CitationContent): MystDocument {
+  const replacement = canonicalCitation(citation);
+  const target = citationTarget(document, path, offset);
+  return target.update(document, path, replaceCitationAt(target.content, offset, replacement));
+}
+
+export function removeCitation(document: MystDocument, path: NodePath, offset: number): MystDocument {
+  const target = citationTarget(document, path, offset);
+  return target.update(document, path, replaceCitationAt(target.content, offset));
+}
+
+function citationTarget(document: MystDocument, path: NodePath, offset: number) {
+  const target = inlineTarget(document, path, true);
+  if (!target) throw new Error(`a citation cannot be edited at [${path.join(",")}]`);
+  if (!Number.isInteger(offset) || offset < 0 || offset > inlineContentLength(target.content)) {
+    throw new Error(`citation offset out of range: ${offset}`);
+  }
+  return target;
+}
+
+/** Replace exactly one atom, retaining all enclosing marks rather than splitting them away. */
+function replaceCitationAt(content: InlineContent[], offset: number, replacement?: CitationContent): InlineContent[] {
+  let remaining = offset;
+  for (const [index, item] of content.entries()) {
+    const length = inlineContentLength([item]);
+    if (remaining < length) {
+      const changed = "children" in item ? [{ ...item, children: replaceCitationAt(item.children, remaining, replacement) }]
+        : item.kind === "citation" && remaining === 0 ? replacement ? [replacement] : [] : undefined;
+      if (!changed) break;
+      return concatenateInlineContent(content.slice(0, index), changed.filter(item => !("children" in item) || item.children.length), content.slice(index + 1));
+    }
+    remaining -= length;
+  }
+  throw new Error(`no citation at inline offset ${offset}`);
 }
 
 /** Insert the definition of footnote `label`: one paragraph of supported inline content. */

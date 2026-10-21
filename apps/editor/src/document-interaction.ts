@@ -1,4 +1,5 @@
 import type { UiMessage } from "./ui-message.ts";
+import { inlineContentText } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
@@ -10,7 +11,7 @@ import { changeHeadingLevel } from "./block-commands.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
@@ -259,6 +260,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           node.type.name === "inlineMath" ? `$${node.attrs.value}$` :
           node.type.name === "crossReference" ? `{${node.attrs.role}}\`${node.attrs.label}\`` :
           node.type.name === "footnoteReference" ? `[^${node.attrs.label}]` :
+          node.type.name === "citation" ? inlineContentText([{ kind: "citation", role: node.attrs.role, keys: node.attrs.keys }]) :
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
           keydown: (view, event) => {

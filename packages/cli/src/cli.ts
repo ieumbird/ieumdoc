@@ -57,6 +57,12 @@ import {
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateBibliography,
+  insertCitation,
+  updateCitation,
+  removeCitation,
+  citationReport,
+  inlineContentText as inlineText,
   headingNumbers,
   updateTableColumnAlignment,
   updateList,
@@ -69,6 +75,8 @@ import {
   type EditableDocument,
   type NodePath,
   type InlineContent,
+  type CitationRole,
+  type CitationReport,
   type ListContent,
 } from "@ieumdoc/core";
 import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
@@ -161,7 +169,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "--operations is a non-empty JSON array of { command, ...options }; stdin (-) is not supported.",
       "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
-      "JSON options (content, caption-content, cells, list, and insert-table align) accept objects/arrays",
+      "JSON options (content, caption-content, cells, list, keys, paths, and insert-table align) accept objects/arrays",
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
       "JSON options accept objects, arrays or strings only; null option values are rejected.",
       "All document edit commands, including format, are allowed; create, check, inspect, serve,",
@@ -188,6 +196,34 @@ const COMMANDS: CommandSpec[] = [
     summary: "Create an empty IeumDoc native document",
     usage: "ieumdoc create <file>",
     details: ["Create a new .md file in an existing directory. Existing files are never overwritten."],
+  },
+  {
+    name: "update-bibliography",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set relative .bib declarations without reading bibliography files",
+    usage: "ieumdoc update-bibliography <file> --paths <json>",
+    details: ["--paths is a JSON array of relative .bib paths; [] removes the optional declaration.",
+      "Paths use /; ./ and .. are allowed. Duplicate paths, globs, URLs and absolute paths are refused.",
+      "No bibliography resources are read. Citation readiness remains not-evaluated."],
+  },
+  ...(["insert-citation", "update-citation"] as const).map(name => ({
+    name,
+    group: "Edit — labels, footnotes and numbering" as const,
+    summary: name === "insert-citation" ? "Insert an explicit citation at an inline offset" : "Replace a citation's role and key group",
+    usage: `ieumdoc ${name} <file> --path <indexes> --offset <number> --role <cite|cite:t|cite:p> --keys <json>`,
+    details: ["--keys is a non-empty JSON array of exact bibliography keys, in group order.",
+      "Targets: paragraph, heading, quote, simple admonition, endnote definition, or table cell [table,row,cell].",
+      "Offsets use Core UTF-16 inline units; a whole citation group is one unit.",
+      name === "insert-citation" ? "Insert at 0 through content length." : "Offset must point to the start of an existing citation atom; surrounding marks are kept.",
+      "Multiple keys with cite canonicalize to cite:t. No bibliography resources are read.", ...PATH_NOTE],
+  })),
+  {
+    name: "remove-citation",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Remove one citation atom at an inline offset",
+    usage: "ieumdoc remove-citation <file> --path <indexes> --offset <number>",
+    details: ["Uses the same targets and Core inline offsets as update-citation.",
+      "Offset must point to an existing citation; it removes the whole group. An unsaveable empty block is refused.", ...PATH_NOTE],
   },
   {
     name: "serve",
@@ -848,6 +884,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     return [{ path: block.path, label: block.label, source }];
   });
   const endnotes = { inPlace: endnotesInPlace(document) };
+  const citations = citationReport(document);
   if (format === "json") {
     process.stdout.write(`${JSON.stringify({
       ok: writeError === undefined,
@@ -858,10 +895,12 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
       references: { unresolved },
       readiness: { pendingFigures, missingImageFigures },
       endnotes,
+      citations,
     })}\n`);
   } else {
     if (preview) process.stdout.write(`dry run; nothing was written\nrevision: ${preview.revision}\n`);
     process.stdout.write(`${summarize(document)}\n`);
+    process.stdout.write(formatCitations(citations));
     if (writeError === undefined) process.stdout.write("writeability ok\n");
     else process.stderr.write(`writeability failed: ${writeError}\n`);
     for (const reference of unresolved) {
@@ -928,6 +967,19 @@ function changeFor(command: string, flags: string[]): Change {
     }
     case "insert-footnote": {
       return (document) => insertFootnote(document, pathFlag(flags), intFlag(flags, "--offset"), textOrContent(flags));
+    }
+    case "update-bibliography": {
+      return document => updateBibliography(document, jsonFlag(flags, "--paths"));
+    }
+    case "insert-citation":
+    case "update-citation": {
+      const operation = command === "insert-citation" ? insertCitation : updateCitation;
+      return document => operation(document, pathFlag(flags), intFlag(flags, "--offset"), {
+        kind: "citation", role: flag(flags, "--role") as CitationRole, keys: jsonFlag(flags, "--keys"),
+      });
+    }
+    case "remove-citation": {
+      return document => removeCitation(document, pathFlag(flags), intFlag(flags, "--offset"));
     }
     case "update-footnote": {
       return (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags));
@@ -1144,7 +1196,7 @@ function batchChange(operation: unknown): Change {
   for (const [key, value] of Object.entries(options)) {
     const name = `--${key}`;
     if (!COMMAND_OPTIONS[command].includes(name)) throw new Error(`unknown option: ${name}`);
-    const json = ["content", "caption-content", "cells", "list"].includes(key)
+    const json = ["content", "caption-content", "cells", "list", "keys", "paths"].includes(key)
       || (command === "insert-table" && key === "align");
     if (json ? value === null || !["object", "string"].includes(typeof value)
       : !["string", "number", "boolean"].includes(typeof value)) {
@@ -1253,6 +1305,10 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-quote": ["--path", "--text", "--content"],
   "insert-footnote": ["--path", "--offset", "--text", "--content"],
   "update-footnote": ["--path", "--text", "--content"],
+  "update-bibliography": ["--paths"],
+  "insert-citation": ["--path", "--offset", "--role", "--keys"],
+  "update-citation": ["--path", "--offset", "--role", "--keys"],
+  "remove-citation": ["--path", "--offset"],
   "insert-divider": ["--at"],
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
@@ -1341,19 +1397,30 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
 }
 
 function inspectFile(file: string): string {
-  const editable = getEditableDocument(parse(readFile(file)));
-  return `${formatInspect(editable)}\n`;
+  const document = parse(readFile(file));
+  return `${formatInspect(getEditableDocument(document))}\n${formatCitations(citationReport(document))}`;
 }
 
 function inspectFileJson(file: string): string {
   const source = readFile(file);
-  const editable = getEditableDocument(parse(source));
+  const document = parse(source);
+  const editable = getEditableDocument(document);
   return `${JSON.stringify({
     ok: true,
     command: "inspect",
     revision: textRevision(source),
     nodes: machineNodes(editable),
+    citations: citationReport(document),
   })}\n`;
+}
+
+function formatCitations(report: CitationReport): string {
+  if (!report.bibliography.length && !report.citations.length) return "";
+  return [
+    ...report.bibliography.map(source => `bibliography ${quote(source)}`),
+    ...report.citations.map(citation => `citation (block ${citation.path[0]}) role=${citation.role} keys=${JSON.stringify(citation.keys)} text=${quote(citation.text)}`),
+    `citation readiness: ${report.readiness.status}`,
+  ].join("\n") + "\n";
 }
 
 type MachineNode = {
@@ -1524,12 +1591,6 @@ function formatListItems(list: ListContent, depth: number): string[] {
     `${indent}${list.ordered ? `${(list.start ?? 1) + index}.` : "-"} text=${quote(inlineText(item.content))}`,
     ...(item.list ? formatListItems(item.list, depth + 1) : []),
   ]);
-}
-
-function inlineText(content: InlineContent[]): string {
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
 }
 
 function formatPath(path: NodePath): string {

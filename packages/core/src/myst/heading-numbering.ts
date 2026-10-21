@@ -1,16 +1,8 @@
-import { parseDocument, isMap } from "yaml";
 import { defaultHeadingNumbering, type HeadingNumbering } from "../numbering.ts";
 import { FRONT_MATTER_FIELD } from "./parse.ts";
 import { cloneDocument, type MystDocument } from "./tree.ts";
 import { serializeFor } from "./serialize.ts";
-
-function metadata(document: MystDocument) {
-  const node = document.children[0];
-  if (node?.[FRONT_MATTER_FIELD] !== true) throw new Error("Native frontmatter is required");
-  const yaml = parseDocument(String(node.value ?? ""));
-  if (yaml.errors.length || !isMap(yaml.contents)) throw new Error("Invalid native frontmatter");
-  return { node, yaml };
-}
+import { metadata } from "./metadata.ts";
 
 /** Native v1 has one numbering policy: H1 title, H2-H6 sections. */
 export function getHeadingNumbering(document: MystDocument): HeadingNumbering | undefined {

@@ -9,6 +9,7 @@
     "./figure": "./src/figure.ts",
     "./label": "./src/label.ts",
     "./numbering": "./src/numbering.ts",
+    "./citation": "./src/citation.ts",
     "./section": "./src/section.ts"
   },
   "scripts": {

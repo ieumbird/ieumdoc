@@ -15,7 +15,7 @@
 | [ADR-0005: Standalone HTTP Host](adr/0005-http-host.md) | Accepted | 복수 허용 Root와 Node 배포물, 기존 handler를 재사용하는 단일 운영자용 HTTP Host. |
 | [ADR-0006: Native document boundary](adr/0006-native-document-boundary.md) | Accepted | 승인된 제품·문서 지원 경계. 표식과 Core 검증을 통한 네이티브 문서 수용, 범용 부분 편집·소스 교체 폐지. 구현 계약은 아래 Native document support를 따른다. |
 | [ADR-0007: Editing session lifetime](adr/0007-editing-session-lifetime.md) | Accepted | 승인된 방향. 명시적 저장(자동 저장은 보류, #297), 원본과 분리된 미저장 작업 복구, 탭별 독립 세션, 공용 저장/저장하지 않음/취소 확인. 현재 탭·닫기·클라이언트 복구와 실제 Host 검증의 경계는 Editing session and Save를 따른다. |
-| [ADR-0008: Citations and bibliography](adr/0008-citations-and-bibliography.md) | Accepted | #327의 승인된 방향. MIT BibTeX 입력·Core IEEE 제한 서식, Root 안 상위 경로와 세 인용 role. #328과의 경계·실행 근거 포함. 아직 구현되지 않아 현재 지원 계약이 아님. |
+| [ADR-0008: Citations and bibliography](adr/0008-citations-and-bibliography.md) | Accepted | #327의 승인된 방향. 단위 A는 Citations 계약으로 구현. MIT BibTeX 입력·Core IEEE 제한 서식·Root 경계·저작 UI는 단위 B·C의 후속 범위. #328과의 경계·실행 근거 포함. |
 
 ## Current implemented contracts
 
@@ -32,6 +32,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Desktop app icon](design/app-icon-v1.md) | Implemented | #170 B안의 SVG/ICO, 출처, 재생성 및 Windows 패키징·표시 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file·New folder. |
 | [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v4). 모든 쓰기에서 미주 정의를 본문 뒤 첫 참조 순서로 배치, 단일 미주 구역, Section과 분리, 실제 참조로 복귀와 기존 삽입·편집·유실 방지. |
+| [Citations](design/citations-v1.md) | Implemented | ADR-0008 단위 A. 세 명시적 role·bibliography 선언 보존, Core 번호, CLI 연산과 Editor 표시. 자료 읽기·서식·저작 UI는 후속 범위. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core numbering settings, H2–H6 표시와 CLI. |
 | [Section references](design/section-references-v1.md) | Implemented | 현재 계약. 문서 안의 MyST heading label과 reference. |
 | [Table caption and label](design/table-caption-v1.md) | Implemented | 현재 계약. table caption/label과 reference target. |

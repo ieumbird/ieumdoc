@@ -14,6 +14,7 @@ import { supportedTargetLabel } from "./reference.ts";
 import { serialize as serializeTree } from "./serialize.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./table.ts";
 import type { MystDocument, MystNode } from "./tree.ts";
+import { declaredBibliography } from "./citation.ts";
 
 export type NativeDocumentErrorCode = "native-marker" | "native-metadata" | "native-content";
 export class NativeDocumentError extends DocumentWriteError {
@@ -57,8 +58,10 @@ function metadata(document: MystDocument): void {
   const marker = yaml.get("ieumdoc", true);
   if (!isScalar(marker) || marker.value !== 1) throw new NativeDocumentError("native-marker", "Unsupported native document marker; expected YAML number ieumdoc: 1", [0], 1);
   for (const pair of yaml.contents.items) {
-    if (!isScalar(pair.key) || !["ieumdoc", "numbering"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc and numbering", [0], 1);
+    if (!isScalar(pair.key) || !["ieumdoc", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, numbering and bibliography", [0], 1);
   }
+  try { declaredBibliography(document); }
+  catch (error) { throw new NativeDocumentError("native-metadata", (error as Error).message, [0], 1); }
   if (yaml.has("numbering")) {
     const numbering = yaml.get("numbering", true);
     if (!isMap(numbering) || numbering.items.some(pair => !isScalar(pair.key) || !isScalar(pair.value) ||
@@ -119,9 +122,9 @@ export function assertNativeDocument(document: MystDocument): void {
   const shorthand = citationShorthand(document);
   if (shorthand) {
     const error = new NativeDocumentError("native-content",
-      "Bracket citation shorthand is not supported; escape the opening bracket (\\[) or the @ (\\@) for literal text. Explicit citation roles are not supported yet.",
+      "Bracket citation shorthand is not supported; use an explicit citation role, or escape the opening bracket (\\[) or the @ (\\@) for literal text.",
       shorthand.path, shorthand.line);
-    error.location.action = "For literal text, escape the opening bracket (\\[) or the @ (\\@). Explicit citation roles are not supported yet.";
+    error.location.action = "Use {cite}, {cite:t} or {cite:p} for citations. For literal text, escape the opening bracket (\\[) or the @ (\\@).";
     throw error;
   }
   document.children.forEach((node, index) => {

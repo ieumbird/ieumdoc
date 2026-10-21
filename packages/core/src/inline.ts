@@ -1,6 +1,8 @@
 import { labelError } from "./label.ts";
 import { labelIdentifier } from "./myst/label.ts";
 import type { MystNode } from "./myst/tree.ts";
+import { canonicalCitation, citationContentError, type CitationContent } from "./citation.ts";
+import { citationToNode, projectCitation } from "./myst/citation.ts";
 
 /** Reference roles authored as inline content: {eq} for Equations, {numref} for Figures and
  * Tables, and {ref} for sections, through the `(label)=` target before their heading. */
@@ -8,6 +10,7 @@ export type ReferenceRole = "eq" | "numref" | "ref";
 const REFERENCE_ROLES = new Set<string>(["eq", "numref", "ref"]);
 
 export type InlineContent =
+  | CitationContent
   | { kind: "break" }
   | {
       kind: "text";
@@ -93,6 +96,7 @@ export function inlineContentText(content: InlineContent[]): string {
       : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\``
       : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
       : item.kind === "footnote" ? `[^${item.label}]`
+      : item.kind === "citation" ? `{${canonicalCitation(item).role}}\`${item.keys.join(",")}\``
       : inlineContentText(item.children)))
     .join("");
 }
@@ -108,6 +112,7 @@ function projectNodes(nodes: MystNode[]): InlineContent[] | undefined {
 }
 
 function projectNode(node: MystNode): InlineContent | undefined {
+  if (node.type === "cite" || node.type === "citeGroup") return projectCitation(node);
   if (node.type === "break") return { kind: "break" };
   if (node.type === "inlineMath" && typeof node.value === "string" && node.value.length > 0 &&
       Object.keys(node).every((key) => key === "type" || key === "value" || key === "position")) {
@@ -159,7 +164,7 @@ function containsLink(content: InlineContent[]): boolean {
 }
 
 function containsReference(content: InlineContent[]): boolean {
-  return content.some((item) => item.kind === "reference" || item.kind === "footnote" ||
+  return content.some((item) => item.kind === "reference" || item.kind === "footnote" || item.kind === "citation" ||
     ("children" in item && containsReference(item.children)));
 }
 
@@ -170,7 +175,7 @@ function containsScript(content: InlineContent[]): boolean {
 /** Why `children` cannot be subscript or superscript text, or undefined. A footnote already
  * renders raised, and a script inside the other has no plain-text meaning. */
 function scriptContentError(children: InlineContent[]): string | undefined {
-  if (containsReference(children)) return "subscript and superscript cannot contain references or footnotes";
+  if (containsReference(children)) return "subscript and superscript cannot contain references, footnotes or citations";
   if (containsScript(children)) return "subscript and superscript cannot be nested";
   return undefined;
 }
@@ -181,6 +186,7 @@ export function footnoteLabelError(label: string): string | undefined {
 }
 
 function inlineToNode(item: InlineContent): MystNode {
+  if (item.kind === "citation") return citationToNode(item);
   if (item.kind === "break") return { type: "break" };
   if (item.kind === "math") return { type: "inlineMath", value: item.value };
   if (item.kind === "code") return { type: "inlineCode", value: item.value };
@@ -209,6 +215,11 @@ export function assertInlineContent(content: InlineContent[]): void {
   for (const item of content) {
     if (!item || typeof item !== "object") {
       throw new Error("InlineContent item must be an object");
+    }
+    if (item.kind === "citation") {
+      const error = citationContentError(item);
+      if (error) throw new Error(error);
+      continue;
     }
     if (item.kind === "break") continue;
     if (item.kind === "math") {
@@ -254,7 +265,7 @@ export function assertInlineContent(content: InlineContent[]): void {
         throw new Error("links cannot contain links");
       }
       if (containsReference(item.children)) {
-        throw new Error("links cannot contain references or footnotes");
+        throw new Error("links cannot contain references, footnotes or citations");
       }
       continue;
     }
@@ -280,7 +291,7 @@ export function assertInlineContent(content: InlineContent[]): void {
 export function inlineContentLength(content: InlineContent[]): number {
   return content.reduce((length, item) => length + (item.kind === "text" ? item.text.length
     : item.kind === "code" ? item.value.length
-    : item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote" ? 1
+    : item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote" || item.kind === "citation" ? 1
     : inlineContentLength(item.children)), 0);
 }
 
@@ -316,7 +327,7 @@ export function concatenateInlineContent(...parts: InlineContent[][]): InlineCon
   const result: InlineContent[] = [];
   for (const item of parts.flat()) {
     const current = "children" in item
-      ? { ...item, children: concatenateInlineContent(item.children) } : { ...item };
+      ? { ...item, children: concatenateInlineContent(item.children) } : item.kind === "citation" ? canonicalCitation(item) : { ...item };
     const previous = result.at(-1);
     if (previous?.kind === "text" && current.kind === "text") previous.text += current.text;
     else if (previous?.kind === "code" && current.kind === "code") previous.value += current.value;
@@ -351,6 +362,7 @@ export function sameInlineContent(left: InlineContent[], right: InlineContent[])
       return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].sort().join(",")]];
     }
     if (item.kind === "footnote") return [[`footnote ${item.label}`, [...marks, "footnote"].sort().join(",")]];
+    if (item.kind === "citation") return [[`citation ${JSON.stringify(canonicalCitation(item))}`, [...marks, "citation"].sort().join(",")]];
     return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
   });
   return JSON.stringify(markedText(left)) === JSON.stringify(markedText(right));

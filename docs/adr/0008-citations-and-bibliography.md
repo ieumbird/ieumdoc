@@ -1,8 +1,9 @@
 # ADR-0008: 인용·참고문헌 표현 방식 결정안
 
 - Status: Accepted
-- Last verified: 2026-10-20 (master `3417f5ae949506f4d5acf4cb56186e6d219a5dad`의 Host 경계 재대조, BibTeX 유형 변환·MyST role·일반 `@`·CLI 재실행. 서식 후보의 기존 Node 실행·browser bundle 측정은 비교 근거로 유지. 실제 브라우저·제품 통합 검증은 미실행).
-- Authority: 승인된 product and architectural decision이며 아직 구현되지 않아 현재 구현 계약이 아니다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
+- Last verified: 2026-10-22 (단위 A의 구현 계약·검증은 [Citations](../design/citations-v1.md). 아래 2026-10-20 실험은 당시 근거로 보존).
+- Previous verification: 2026-10-20 (master `3417f5ae949506f4d5acf4cb56186e6d219a5dad`의 Host 경계 재대조, BibTeX 유형 변환·MyST role·일반 `@`·CLI 재실행. 서식 후보의 기존 Node 실행·browser bundle 측정은 비교 근거로 유지. 당시 실제 브라우저·제품 통합 검증은 미실행).
+- Authority: 승인된 product and architectural decision. 단위 A는 [Citations](../design/citations-v1.md)에 구현되었으며 단위 B·C는 후속 범위다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
 - Decision date: 2026-10-20
 - Related: [결정 이슈 #327](https://github.com/ieumbird/ieumdoc/issues/327), [사용자 요구 #265](https://github.com/ieumbird/ieumdoc/issues/265), [일반 `@` 텍스트 결함 #328](https://github.com/ieumbird/ieumdoc/issues/328), [Discussion #154](https://github.com/ieumbird/ieumdoc/discussions/154), [#155](https://github.com/ieumbird/ieumdoc/discussions/155), [#257](https://github.com/ieumbird/ieumdoc/discussions/257), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md).
 
