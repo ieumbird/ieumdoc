@@ -54,7 +54,12 @@ test("bracket citation shorthand refuses with literal guidance, while cite roles
       return true;
     }, body);
   }
-  for (const body of ["\\[@key]", "[\\@key]", "`[@key]`", "$[@key]$",
+  // Code or math inside the brackets does not stop default MyST from reading a citation.
+  for (const body of ["See [`@param`] for details.", "See [$@key$] here."]) {
+    assert.match(JSON.stringify(mystParse(body)), /"type":"cite"/, body);
+    assert.throws(() => parse(native(body + "\n")), /citation shorthand/, body);
+  }
+  for (const body of ["\\[@key]", "[\\@key]", "`[@key]`", "$[@key]$", "See \\[`@param`] here.",
     "[@key](https://example.com)", "```text\n[@key]\n```"]) {
     assert.doesNotThrow(() => parse(native(body + "\n")), body);
   }
