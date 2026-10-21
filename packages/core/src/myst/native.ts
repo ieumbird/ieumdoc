@@ -7,6 +7,7 @@ import { supportedCodeBlock } from "./code.ts";
 import { supportedFigureContent } from "./figure.ts";
 import { supportedFootnoteContent } from "./footnote.ts";
 import { supportedListContent } from "./list.ts";
+import { citationShorthand } from "./literal-syntax.ts";
 import { FRONT_MATTER_FIELD, parse as parseTree } from "./parse.ts";
 import { isDivider, supportedQuoteContent } from "./quote.ts";
 import { supportedTargetLabel } from "./reference.ts";
@@ -115,6 +116,14 @@ function assertInlineContent(node: MystNode, path: number[]): void {
 export function assertNativeDocument(document: MystDocument): void {
   validateStructure(document);
   metadata(document);
+  const shorthand = citationShorthand(document);
+  if (shorthand) {
+    const error = new NativeDocumentError("native-content",
+      "Bracket citation shorthand is not supported; escape the opening bracket (\\[) or the @ (\\@) for literal text. Explicit citation roles are not supported yet.",
+      shorthand.path, shorthand.line);
+    error.location.action = "For literal text, escape the opening bracket (\\[) or the @ (\\@). Explicit citation roles are not supported yet.";
+    throw error;
+  }
   document.children.forEach((node, index) => {
     if (index === 0) return;
     if (!supportedBlock(node)) throw new NativeDocumentError("native-content", `Unsupported native content: ${node.type}${node.kind ? ` (${node.kind})` : ""}`, [index], node.position?.start.line);

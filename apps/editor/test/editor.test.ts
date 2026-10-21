@@ -1371,13 +1371,16 @@ test("rich paragraph saves through updateParagraphInlineContent", () => {
   assert.equal(formatted?.block, "paragraph");
   if (formatted?.block !== "paragraph") return;
   const content = formatted.content.map((item) =>
-    item.kind === "text" ? { ...item, text: item.text.replaceAll("regulates", "controls") } : item,
+    item.kind === "text" ? { ...item, text: item.text.replaceAll("regulates", "@kim controls") } : item,
   );
   const saved = saveEdits(source, { paragraphs: [{ path: formatted.path, content }] });
   assert.equal(
-    saved.markdown.includes("The converter controls the **DC-link voltage** and *phase current*."),
+    saved.markdown.includes("The converter \\@kim controls the **DC-link voltage** and *phase current*."),
     true,
   );
+  const reloaded = loadEditableDocument(saved.markdown).blocks.find(block => block.path[0] === formatted.path[0]);
+  assert(reloaded?.block === "paragraph");
+  assert.deepEqual(reloaded.content, content);
 });
 
 test("heading text edits keep the heading level", () => {

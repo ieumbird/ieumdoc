@@ -19,7 +19,18 @@ export type LiteralSyntax =
  * so the tokenizer, not a search of decoded AST text, distinguishes escapes and syntax.
  * This diagnostic-only tokenizer runs the existing rules first: escape, code, math, links
  * and valid footnotes consume their input before the fallback below can see it. */
+type CitationSyntax = { syntax: "citation"; source: string };
 export function literalSyntaxDiagnostics(document: MystDocument): (LiteralSyntax & { path: number[]; line: number })[] {
+  return sourceSyntaxDiagnostics(document).filter((item): item is LiteralSyntax & { path: number[]; line: number } =>
+    !("syntax" in item) || item.syntax !== "citation");
+}
+
+export function citationShorthand(document: MystDocument) {
+  if (!sources.get(document)?.text.includes("@")) return undefined;
+  return sourceSyntaxDiagnostics(document).find(item => "syntax" in item && item.syntax === "citation");
+}
+
+function sourceSyntaxDiagnostics(document: MystDocument): ((LiteralSyntax | CitationSyntax) & { path: number[]; line: number })[] {
   const source = sources.get(document);
   if (!source) return [];
   const tokenizer = createTokenizer(source.options);
@@ -72,6 +83,17 @@ export function literalSyntaxDiagnostics(document: MystDocument): (LiteralSyntax
     const opening = start + (image ? 1 : 0);
     if (state.src[opening] !== "[") return false;
     const textEnd = state.md.helpers.parseLinkLabel(state, opening, !image);
+    // Citation-like brackets (including locators/prefixes) must not silently become
+    // text when citations are disabled. Earlier rules already consumed actual links,
+    // escapes, code and math. Escaping either the opening bracket or @ is literal.
+    if (!image && textEnd > opening &&
+        /(^|[^\\])(?:\\\\)*@[\w{]/.test(state.src.slice(opening + 1, textEnd))) {
+      state.push("literal_syntax", "", 0).meta = {
+        syntax: "citation", source: state.src.slice(opening, textEnd + 1),
+      } satisfies CitationSyntax;
+      state.pos = textEnd + 1;
+      return true;
+    }
     if (textEnd < 0 || textEnd + 1 >= state.posMax || state.src[textEnd + 1] !== "[") return false;
     const labelEnd = state.md.helpers.parseLinkLabel(state, textEnd + 1);
     if (labelEnd < 0) return false;
@@ -84,23 +106,26 @@ export function literalSyntaxDiagnostics(document: MystDocument): (LiteralSyntax
     return true;
   });
   type Token = ReturnType<typeof tokenizer.parse>[number];
-  const found: (LiteralSyntax & { line: number })[] = [];
-  const visit = (tokens: Token[], initialLine = 1): void => {
+  const found: ((LiteralSyntax | CitationSyntax) & { line: number })[] = [];
+  const visit = (tokens: Token[], initialLine = 1, initialFootnoteDepth = 0): void => {
     let line = initialLine;
     const skipped: boolean[] = [];
+    let footnoteDepth = initialFootnoteDepth;
     for (const token of tokens) {
       if (token.map) line = token.map[0] + 1;
       if (token.nesting === 1) {
         // Role bodies are tokenized even for non-text roles such as {math} and {eq}.
-        skipped.push(token.type === "footnote_open" || token.type === "footnote_reference_open" ||
-          token.type === "parsed_role_open" && !["del", "sub", "sup"].includes(token.info));
+        if (token.type === "footnote_open" || token.type === "footnote_reference_open") footnoteDepth++;
+        skipped.push(token.type === "parsed_role_open" && !["del", "sub", "sup"].includes(token.info));
       }
       if (!skipped.includes(true)) {
-        if (token.type === "literal_syntax") found.push({ ...token.meta as LiteralSyntax, line });
+        if (token.type === "literal_syntax" && (!footnoteDepth || token.meta.syntax === "citation"))
+          found.push({ ...token.meta as LiteralSyntax | CitationSyntax, line });
         // Image children are alt text, not body text.
-        if (token.children && token.type !== "image") visit(token.children, line);
+        if (token.children && token.type !== "image") visit(token.children, line, footnoteDepth);
       }
       if (token.nesting === -1) skipped.pop();
+      if (token.type === "footnote_close" || token.type === "footnote_reference_close") footnoteDepth--;
     }
   };
   visit(tokenizer.parse(source.text, {}));
@@ -108,7 +133,7 @@ export function literalSyntaxDiagnostics(document: MystDocument): (LiteralSyntax
   // Only actual body text counts, including text in lifted directive captions. A
   // directive's tokenized body may instead have become non-text math or code.
   const textRanges = (node: MystNode, range = node.position): NonNullable<MystNode["position"]>[] => {
-    if (["footnoteDefinition", "code", "inlineCode", "math", "inlineMath", "image", "crossReference"].includes(node.type)) return [];
+    if (["code", "inlineCode", "math", "inlineMath", "image", "crossReference"].includes(node.type)) return [];
     if (node.type === "text") return range ? [range] : [];
     return (node.children ?? []).flatMap(child => textRanges(child, node.position ?? range));
   };

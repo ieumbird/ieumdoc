@@ -19,7 +19,9 @@ import { assertUnicode } from "./unicode.ts";
  * - footnote definitions get their own source lines and follow the body in endnote order, as
  *   canonical write puts them; those the parse dropped are recorded.
  */
-export const OPTIONS = { extensions: { smartquotes: false } };
+// Bare @name is text. Bracket shorthand is refused from source-token evidence at
+// native admission; explicit cite roles remain parsed and unsupported.
+export const OPTIONS = { extensions: { smartquotes: false, citations: false } };
 
 /**
  * Marks the code block MyST makes from front matter. The fingerprint treats every

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mystParse } from "myst-parser";
 import {
   createDocument, parse, serialize, getEditableDocument, NativeDocumentError, canonicalWriteIssue, hasNativeMarker,
   insertHeading, insertParagraph, insertFigure, updateHeadingNumbering, removeBlock,
@@ -8,6 +9,66 @@ import {
 } from "@ieumdoc/core";
 
 const native = (body: string) => `---\nieumdoc: 1\n---\n\n${body}`;
+
+test("literal @ text opens, edits and writes safely for both IeumDoc and default MyST", () => {
+  for (const input of ["Contact @kim for details.", "Contact \\@kim for details.", "@param value",
+    "(@kim), @a and @username", "한글 @kim", "Hi\n@kim", "a@b.com", "https://example.com/@kim"]) {
+    const document = parse(native(input + "\n"));
+    const paragraph = getEditableDocument(document).blocks[0];
+    assert(paragraph.block === "paragraph");
+    assert.equal(paragraph.text, input.replaceAll("\\@", "@"));
+    const markdown = serialize(document);
+    assert.deepEqual(getEditableDocument(parse(markdown)), getEditableDocument(document));
+    assert.equal(serialize(parse(markdown)), markdown);
+    assert.doesNotMatch(JSON.stringify(mystParse(markdown)), /"type":"cite(?:Group)?"/);
+    if (input === "a@b.com" || input.startsWith("https:")) assert.equal(markdown, native(input + "\n"));
+    else assert.match(markdown, /\\@/);
+  }
+  const document = insertParagraph(createDocument(), 1, "Contact @kim for details.");
+  assert.equal(serialize(document), native("Contact \\@kim for details.\n"));
+  const edited = updateParagraphInlineContent(document, [1], [
+    { kind: "strong", children: [{ kind: "text", text: "@param" }] },
+    { kind: "text", text: " [@key, p. 3] a@b.com" },
+  ]);
+  assert.deepEqual(getEditableDocument(parse(serialize(edited))), getEditableDocument(edited));
+  assert.doesNotMatch(JSON.stringify(mystParse(serialize(edited))), /"type":"cite(?:Group)?"/);
+  for (const source of ["[@kim](https://example.com)", "[**@kim**](https://example.com)",
+    "Text[^a].\n\n[^a]: Literal @param", ":::{figure} ./x.png\n\nCaption @kim\n:::"]) {
+    const document = parse(native(source + "\n"));
+    const markdown = serialize(document);
+    assert.deepEqual(getEditableDocument(parse(markdown)), getEditableDocument(document));
+    assert.doesNotMatch(JSON.stringify(mystParse(markdown)), /"type":"cite(?:Group)?"/);
+    if (source.startsWith("[")) assert.equal(markdown, native(source + "\n"));
+  }
+});
+
+test("bracket citation shorthand refuses with literal guidance, while cite roles stay unsupported", () => {
+  for (const body of ["[@key]", "[@key, p. 3]", "[@a; @b]", "[see @key, p. 3]",
+    "**[@key]**", "- [@key]", "| A |\n|---|\n| [@key] |",
+    "Text[^a].\n\n[^a]: [@key]", ":::{note}\n[@key]\n:::"]) {
+    assert.throws(() => parse(native(body + "\n")), error => {
+      assert(error instanceof NativeDocumentError);
+      assert.equal(error.code, "native-content");
+      assert.match(error.message, /citation shorthand/);
+      assert.match(error.location.action, /escape/);
+      return true;
+    }, body);
+  }
+  // Code or math inside the brackets does not stop default MyST from reading a citation.
+  for (const body of ["See [`@param`] for details.", "See [$@key$] here."]) {
+    assert.match(JSON.stringify(mystParse(body)), /"type":"cite"/, body);
+    assert.throws(() => parse(native(body + "\n")), /citation shorthand/, body);
+  }
+  for (const body of ["\\[@key]", "[\\@key]", "`[@key]`", "$[@key]$", "See \\[`@param`] here.",
+    "[@key](https://example.com)", "```text\n[@key]\n```"]) {
+    assert.doesNotThrow(() => parse(native(body + "\n")), body);
+  }
+  for (const role of ["cite", "cite:t", "cite:p"]) {
+    for (const keys of ["key", "a,b"]) {
+      assert.throws(() => parse(native(`{${role}}\`${keys}\`\n`)), NativeDocumentError);
+    }
+  }
+});
 
 test("native admission checks the marker and the complete YAML contract before writing", () => {
   for (const source of ["", "# Title\n", "---\nieumdoc: '1'\n---\n", "---\nieumdoc: 2\n---\n",
