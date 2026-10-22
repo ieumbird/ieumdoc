@@ -9,7 +9,9 @@ export type BibliographySource = { source: string } & (
 export type BibliographyDiagnostic = { code: string; severity: "warning" | "info"; source?: string; key?: string; field?: string; path?: number[]; line?: number; column?: number };
 export type BibliographyPart = { text: string; emphasis?: true };
 export type BibliographyReference = { key: string; number: number; status: "complete" | "incomplete" | "unresolved" | "unverified" | "duplicate"; text: string; parts: BibliographyPart[] };
-export type BibliographyEvaluation = { references: BibliographyReference[]; readiness: {
+/** A citable key from the readable sources, in source order. Its formatting never affects readiness. */
+export type BibliographyEntry = { key: string; source: string; status: "complete" | "incomplete" | "duplicate"; text: string };
+export type BibliographyEvaluation = { references: BibliographyReference[]; entries: BibliographyEntry[]; readiness: {
   status: "evaluated"; complete: boolean; diagnostics: BibliographyDiagnostic[];
 } };
 type Raw = { type: string; label: string; properties: Record<string, string> };
@@ -101,7 +103,7 @@ function formatEntry(entry: Entry, diagnostics: BibliographyDiagnostic[]): { par
   }
   Object.entries(mapped).forEach(([field, target]) => { if (supported.has(field) && raw.properties[field] && (target === "author" || target === "editor" ? !names(d[target]).text : !string(d[target]))) warn("bibliography-field-unsupported", field); });
   const locator = doi ? `doi: ${doi}` : url;
-  if (diagnostics.length !== start) return { complete: false, parts: [{ text: [author.text || institution, title || raw.label, year || "n.d.", locator].filter(Boolean).join(". ") + "." }] };
+  if (diagnostics.length !== start) return { complete: false, parts: [{ text: [author.text || institution, title || raw.label, year || "n.d.", locator].filter(Boolean).map(part => part.endsWith(".") ? part : `${part}.`).join(" ") }] };
   const parts: BibliographyPart[] = [];
   const add = (text: string, emphasis = false) => { if (text) parts.push({ text, ...(emphasis ? { emphasis: true as const } : {}) }); };
   const comma = (value: string) => { if (value) add(`${value}, `); };
@@ -190,5 +192,10 @@ export function evaluateBibliography(report: Pick<CitationReport, "bibliography"
     return { key, number, status, parts, text: `[${number}] ${parts.map(p => p.text).join("")}` };
   });
   diagnostics.forEach(d => { if (d.key && !d.path) d.path = report.citations.find(c => c.keys.includes(d.key!))?.path; });
-  return { references, readiness: { status: "evaluated", complete: !diagnostics.some(d => d.severity === "warning"), diagnostics } };
+  const available = [...entries].map(([key, matches]): BibliographyEntry => {
+    if (matches.length > 1) return { key, source: matches[0].source, status: "duplicate", text: key };
+    const formatted = formatEntry(matches[0], []);
+    return { key, source: matches[0].source, status: formatted.complete ? "complete" : "incomplete", text: formatted.parts.map(p => p.text).join("") };
+  });
+  return { references, entries: available, readiness: { status: "evaluated", complete: !diagnostics.some(d => d.severity === "warning"), diagnostics } };
 }

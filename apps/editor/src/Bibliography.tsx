@@ -7,6 +7,13 @@ import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { citationNumbers, BibliographyContext, bibliographyState } from "./citation.tsx";
 import { i18n } from "./i18n.ts";
 
+/** Citable entries follow the Open/Reload snapshot only, never typing or numbering. */
+export function useBibliographyEntries(bibliography: DocumentFileResponse["bibliography"]) {
+  return useMemo(() => bibliography
+    ? evaluateBibliography({ bibliography: bibliography.declarations, citations: [] }, bibliography.sources ?? []).entries
+    : undefined, [bibliography]);
+}
+
 /** Derived display only, outside ProseMirror's content and after its canonical endnotes. */
 export function BibliographyContent({ editor, bibliography, children }: {
   editor: Editor; bibliography: DocumentFileResponse["bibliography"]; children: ReactNode;

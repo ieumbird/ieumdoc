@@ -45,6 +45,7 @@ export const STABLE_SCENARIOS = [
   "cross-reference",
   "citations",
   "bibliography",
+  "citation-authoring",
   "property-drafts",
   "code-highlighting",
   "section-reference",

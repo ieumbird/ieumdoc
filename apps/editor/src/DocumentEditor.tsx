@@ -1,4 +1,5 @@
-import { BibliographyContent } from "./Bibliography.tsx";
+import { BibliographyContent, useBibliographyEntries } from "./Bibliography.tsx";
+import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import type { UiMessage } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -130,6 +131,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   // The selected paragraph text a new cross-reference will replace.
   const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
+  // The caret a slash Citation item left; the form inserts there.
+  const [citationDraft, setCitationDraft] = useState<number | null>(null);
+  const citationEntries = useBibliographyEntries(bibliography);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
   const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
@@ -360,6 +364,18 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   }
 
   const runInsert = (id: string, index: number, slash?: SlashRange) => {
+    const citationKey = citationKeyOfCommand(id);
+    if (citationKey !== undefined && slash) {
+      setBlockMenu(null);
+      insertCitation(editor, slash, { role: "cite:p", keys: [citationKey] });
+      return;
+    }
+    if (id === CITATION_COMMAND && slash) {
+      setBlockMenu(null);
+      editor.view.dispatch(editor.state.tr.delete(slash.from, slash.to));
+      setCitationDraft(slash.from);
+      return;
+    }
     const reference = referenceOfCommand(id);
     if (reference && slash) {
       setBlockMenu(null);
@@ -394,7 +410,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...endnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query)].map(insertMenuItem)
+    ? [...filterInsertCommands(slash.query), ...endnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query), ...citationCommandItems(citationEntries, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {
@@ -434,6 +450,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
+  const citationStyle = citationDraft !== null && citationDraft <= editor.state.doc.content.size ? caretStyle(citationDraft, false) : undefined;
   const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
   const blockMenuStyle: CSSProperties | undefined = visible && blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
@@ -469,6 +486,20 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
             setReferenceDraft(null);
             editor.commands.focus();
           }}
+        />
+      ) : citationDraft !== null && citationStyle ? (
+        <CitationForm
+          entries={citationEntries}
+          style={citationStyle}
+          onApply={(citation) => {
+            insertCitation(editor, { from: citationDraft, to: citationDraft }, citation);
+            setCitationDraft(null);
+          }}
+          onClose={() => {
+            setCitationDraft(null);
+            editor.commands.focus();
+          }}
+          onDismiss={() => setCitationDraft(null)}
         />
       ) : linkDraft && linkStyle ? (
         <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} />

@@ -1,5 +1,6 @@
 import {
   Asterisk,
+  BookOpen,
   Bookmark,
   Code,
   Heading1,
@@ -44,5 +45,5 @@ const INSERT_ICONS: Record<string, LucideIcon> = {
 
 /** The icon the insert menu shows for an insert command or a reference item. */
 export function insertCommandIcon(id: string): LucideIcon | undefined {
-  return id.startsWith("reference:") ? Bookmark : INSERT_ICONS[id];
+  return id.startsWith("reference:") ? Bookmark : id === "citation" || id.startsWith("citation:") ? BookOpen : INSERT_ICONS[id];
 }

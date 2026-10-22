@@ -37,4 +37,5 @@ export type CitationReport = {
   citations: { path: number[]; role: CitationRole; keys: string[]; numbers: number[]; text: string }[];
   readiness: { status: "not-evaluated"; complete: null; diagnostics: [] } | BibliographyEvaluation["readiness"];
   references?: BibliographyEvaluation["references"];
+  entries?: BibliographyEvaluation["entries"];
 };

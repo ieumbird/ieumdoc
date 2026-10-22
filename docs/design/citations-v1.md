@@ -1,8 +1,8 @@
 # Citations v1
 
 - Status: Implemented
-- Last verified: 2026-10-22 (units A and B; execution results recorded below).
-- Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A and B, under [Native document support](document-support-v1.md). Citation search/insertion UI (unit C) remains deferred; #265 is not complete.
+- Last verified: 2026-10-23 (units A, B and C; execution results recorded below).
+- Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A, B and C, under [Native document support](document-support-v1.md). Unit D extensions remain separate decisions.
 
 ## Native meaning and canonical writing
 
@@ -80,7 +80,9 @@ as arrays or JSON strings. Existing revision, dry-run, canonical reparse and ato
 contracts apply; a failure writes no bytes. `--content` also accepts typed citation items.
 
 `check --format json`, `inspect --format json` and edit/format JSON dry runs expose the Core report
-under `citations`. Text check/inspect print declarations, roles, keys, numeric groups and
+under `citations`. Once resources are evaluated, `citations.entries` lists every readable key once,
+in source order, with its source, `complete`/`incomplete`/`duplicate` status and display text
+(the key for a duplicate). Formatting an uncited entry never changes readiness. Text check/inspect print declarations, roles, keys, numeric groups and
 `citation readiness: evaluated; complete: true/false` when citations or declarations exist. `format` preserves declarations and explicit roles in its
 canonical output. Ordinary successful file edits retain their existing stdout contract and send
 resource warnings to stderr; resource warnings do not change successful exit 0. Text check/inspect
@@ -93,7 +95,17 @@ is the document directory, independent of process cwd. This is not a `serve` opt
 An inline citation is a Tiptap atom in the single document state. Its role and keys map both ways
 through the existing inline adapter, and Save replays existing Core content operations. Typing around
 it, moving content, Undo/Redo and supported clipboard operations preserve its meaning. Table captions
-use the same Core numeric display as the rest of the document. No search, selector, insertion menu or key editor is added.
+use the same Core numeric display as the rest of the document.
+
+Authoring (unit C) uses the paragraph slash menu. **Citation…** opens a form at the caret; a query
+also lists up to 20 readable entries whose key or display words start with it, inserted directly as
+`cite:p`. A citation chip's edit button opens the same form with its stored role and keys. The form
+chooses `cite:p` (default), `cite:t` or `cite`, keeps an ordered key group, and searches every readable
+entry through the browser's own list suggestion. Typed keys absent from the bibliography remain citable
+and show as unresolved; keys Core refuses are rejected in the form. Apply uses Core's canonical
+citation (multi-key `cite` becomes `cite:t`); Escape or leaving the form cancels; Remove deletes the
+atom and keeps the surrounding text. Entries follow the tab's Open/Reload snapshot, so a tab whose
+folder cannot read the declared file offers typed keys only. The Editor never writes `.bib` files.
 
 The chip uses shared reference typography and selection tokens. It shows Core numbers and the
 same readiness as the derived list, including caption citations. English/Korean accessible labels
@@ -124,6 +136,7 @@ There is no citeproc, CSL style, automatic export, watcher, or bibliography writ
 Exact punctuation is protected by `packages/core/test/bibliography.test.ts`. Unsupported original
 types (including `proceedings` even when converted to book), unknown semantic fields, conversion
 loss, complex names/dates and missing required fields receive minimal text plus diagnostics.
+Each minimal part ends with exactly one period (`Title. n.d.`, never `n.d..`).
 `abstract`, `keywords`, `file` are intentionally ignored. Converted markup is rendered as literal
 text and diagnosed; URLs are text only. DOI takes precedence over URL. Publication year is required.
 Every rendered scalar and name component is checked for converted markup or residual TeX,
@@ -287,3 +300,31 @@ context and agrees with Node, and the BibTeX hash remains unchanged. No recovery
 or test-seeded record is involved. Existing PNGs were captured from implementation commit
 `cb975a14e51be6b748cde4e28ca153d4c0264ab6`; their fixture rendering is unchanged by these guards,
 and no new screenshot claims are made for recovery.
+
+### Unit C verification (#265)
+
+On Windows, 2026-10-23, Core 241, CLI 66, Editor 268, file-commit 4 and Desktop 40 unit tests and
+`pnpm typecheck` passed. A new Core test fixes `entries`: every readable key once in source order,
+uncited incomplete entries without readiness warnings, one `duplicate` item per repeated key,
+readable sources kept when another fails, and no list before evaluation. The CLI JSON parity test
+compares `check`/`inspect` output with the Core report, including `entries`.
+
+`pnpm browser:test citation-authoring` opens a chapter from the common folder and checks: slash
+search and Enter insertion as `cite:p` with the next number; the form's refusal of an invalid key,
+a pending typed key joining the group, an unresolved typed key, and multi-key `cite` applied as
+`cite:t`; Escape without change; role/key replacement; Remove; Undo/Redo; Save writing explicit
+roles and groups; Save → Reload; and an unchanged BibTeX hash. Writing it exposed two form defects,
+both fixed: clicking a key's remove icon handed the click to ProseMirror and dismissed the form, and
+a removed focused button would have dismissed it for keyboard users. `citations`, `bibliography`,
+`cross-reference`, `footnotes`, `structural-block-authoring`, `basic-blocks`, `link-authoring` and
+`section-reference` also passed.
+
+The form reuses the reference form surface, select, input and button styles; key chips use existing
+border, radius, spacing and type tokens, with no new adjustable value. These 1280px captures were
+taken once by temporary local instrumentation for manual review, not by an automated assertion:
+
+| State | Capture |
+| --- | --- |
+| Slash search for a bibliography word | [Slash search](assets/citation-authoring-265/slash-search-1280.png) |
+| Insert form with a typed missing key and a pending key | [Insert form](assets/citation-authoring-265/insert-form-1280.png) |
+| Edit form opened from an existing citation | [Edit form](assets/citation-authoring-265/edit-form-1280.png) |
