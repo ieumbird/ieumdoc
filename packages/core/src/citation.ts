@@ -1,3 +1,4 @@
+import type { BibliographyEvaluation } from "./bibliography.ts";
 import type { InlineContent } from "./inline.ts";
 
 /** Explicit citation roles. A single cite:t stays a group; multi-key cite canonicalizes to cite:t. */
@@ -34,5 +35,6 @@ export function citationKeys(content: readonly InlineContent[]): string[] {
 export type CitationReport = {
   bibliography: string[];
   citations: { path: number[]; role: CitationRole; keys: string[]; numbers: number[]; text: string }[];
-  readiness: { status: "not-evaluated"; complete: null; diagnostics: [] };
+  readiness: { status: "not-evaluated"; complete: null; diagnostics: [] } | BibliographyEvaluation["readiness"];
+  references?: BibliographyEvaluation["references"];
 };

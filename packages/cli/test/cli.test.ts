@@ -40,11 +40,11 @@ const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
 
-test("citation single edits, batch, check/inspect and format use the same Core report without bibliography I/O", () => {
+test("citation single edits, batch, check/inspect and format use the same Core report and never rewrite bibliography inputs", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-citations-"));
   try {
     const file = path.join(dir, "paper.md"), batchFile = path.join(dir, "batch.md"), operationsFile = path.join(dir, "operations.json");
-    const bib = path.join(dir, "refs.bib"), bibBytes = "This is deliberately not valid BibTeX. Never read or rewrite it.\r\n";
+    const bib = path.join(dir, "refs.bib"), bibBytes = "% No entries. This external bibliography must never be rewritten.\r\n";
     writeFileSync(bib, bibBytes);
     const source = nativeSource("A claim.\n");
     writeFileSync(file, source); writeFileSync(batchFile, source);
@@ -69,7 +69,7 @@ test("citation single edits, batch, check/inspect and format use the same Core r
     assert.equal(result.status, 0, result.stderr);
     const final = readFileSync(file, "utf8");
     assert.equal(readFileSync(batchFile, "utf8"), final);
-    const expected = citationReport(parse(final));
+    const expected = citationReport(parse(final), [{ source: "./refs.bib", status: "ok", text: bibBytes }, { source: "../missing.bib", status: "error", code: "bibliography-unreadable" }]);
     assert.deepEqual(JSON.parse(preview.stdout).citations, expected);
     for (const command of ["check", "inspect"]) {
       const json = run([command, file, "--format", "json"]);
@@ -78,7 +78,7 @@ test("citation single edits, batch, check/inspect and format use the same Core r
       const text = run([command, file]);
       assert.match(text.stdout, /bibliography "\.\/refs\.bib"/);
       assert.match(text.stdout, /keys=\["Other","Key"\] text="\[1\], \[2\]"/);
-      assert.match(text.stdout, /citation readiness: not-evaluated/);
+      assert.match(text.stdout, /citation readiness: evaluated; complete: false/);
     }
     assert.equal(run(["format", file]).status, 0);
     assert.equal(readFileSync(file, "utf8"), final);
@@ -1482,7 +1482,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       references: { unresolved: [] },
       readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
-      citations: { bibliography: [], citations: [], readiness: { status: "not-evaluated", complete: null, diagnostics: [] } },
+      citations: { bibliography: [], citations: [], readiness: { status: "evaluated", complete: true, diagnostics: [] }, references: [] },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);
@@ -2375,5 +2375,52 @@ test("CLI heading numbering persists document settings and exposes the computed 
     const invalid = run(["update-heading-numbering", file, "--enabled", "yes"]);
     assert.notEqual(invalid.status, 0);
     assert.equal(readFileSync(file, "utf8"), saved);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test("CLI bibliography roots are explicit and warnings preserve actual Markdown and BibTeX files", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-bibliography-"));
+  const chapter = path.join(dir, "chapters"); fs.mkdirSync(chapter);
+  const file = path.join(chapter, "paper.md"), bibFile = path.join(dir, "refs.bib");
+  const bib = Buffer.from("% external source\r\n@article{a,author={Zhang, Wei},title={Study},journal={Journal},year={2024}}\r\n");
+  const source = "---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n{cite:p}`a,missing,a`\n";
+  writeFileSync(file, source); writeFileSync(bibFile, bib);
+  try {
+    for (const command of ["check", "inspect", "format"]) {
+      const tail = command === "format" ? ["--dry-run"] : [];
+      const denied = run([command, file, ...tail, "--format", "json"]);
+      assert.equal(denied.status, 0, denied.stderr);
+      assert.deepEqual(JSON.parse(denied.stdout).citations.references.map((r: { status: string }) => r.status), ["unverified", "unverified"]);
+      const allowed = run([command, file, ...tail, "--bibliography-root", dir, "--format", "json"]);
+      assert.equal(allowed.status, 0, allowed.stderr);
+      const report = JSON.parse(allowed.stdout).citations;
+      assert.deepEqual(report.references.map((r: { status: string }) => r.status), ["complete", "unresolved"]);
+      assert.equal(report.readiness.complete, false);
+      assert.equal(report.references[0].text, "[1] W. Zhang, “Study,” Journal, 2024.");
+      assert.equal(readFileSync(file, "utf8"), source);
+      assert.deepEqual(readFileSync(bibFile), bib);
+    }
+    const changed = run(["replace-text", file, "--from", "a", "--to", "b", "--bibliography-root", dir]);
+    // Citation atoms are not rewritten by ordinary text replacement.
+    assert.equal(changed.status, 1);
+    assert.equal(readFileSync(file, "utf8"), source);
+    const formatted = run(["format", file]);
+    assert.equal(formatted.status, 0, formatted.stderr);
+    assert.match(formatted.stderr, /bibliography-unreadable/);
+    const canonical = readFileSync(file, "utf8");
+    assert.match(canonical, /\{cite:p\}`a,missing,a`/);
+    assert.doesNotMatch(canonical, /Study|References|\[1\]/);
+    writeFileSync(bibFile, "@article{a,author={Zhang, Wei},title={Updated},journal={Journal},year={2024}}");
+    const refreshed = run(["inspect", file, "--bibliography-root", dir, "--format", "json"]);
+    assert.match(JSON.parse(refreshed.stdout).citations.references[0].text, /Updated/);
+    const afterExternal = readFileSync(bibFile);
+    writeFileSync(bibFile, "@article{broken");
+    const invalid = run(["format", file, "--bibliography-root", dir, "--dry-run", "--format", "json"]);
+    assert.equal(invalid.status, 0, invalid.stderr);
+    assert.ok(JSON.parse(invalid.stdout).citations.readiness.diagnostics.some((d: { code: string }) => d.code === "bibliography-invalid"));
+    assert.equal(readFileSync(bibFile, "utf8"), "@article{broken");
+    writeFileSync(bibFile, afterExternal);
+    assert.equal(run(["insert-block", file, "--at", "end", "--text", "Editable despite unavailable resources."]).status, 0);
+    assert.deepEqual(readFileSync(bibFile), afterExternal);
+    assert.match(readFileSync(file, "utf8"), /Editable despite unavailable resources/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

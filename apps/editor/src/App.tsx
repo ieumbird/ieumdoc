@@ -299,7 +299,7 @@ export function App() {
     setOperation("opening");
     setError("");
     try {
-      const next = await requestDocument("GET", requestedPath);
+      const next = await requestDocument("GET", requestedPath, folderTree.state?.root);
       if ("start" in next) throw new UiError({ key: "The Host did not return a document." });
       acceptFile(next);
       void offerRecovery(next);
@@ -321,7 +321,7 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      acceptFile(await requestDocument("PUT", path));
+      acceptFile(await requestDocument("PUT", path, folderTree.state?.root));
       // A full-screen sidebar steps aside for the new document, as for an opened one.
       if (sidebarOverlay) setSidebarOpen(false);
       return "";

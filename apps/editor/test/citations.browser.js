@@ -30,7 +30,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     });
     assert(await chips.count() === 9, 'All inline citations, including table caption and endnote, must display');
     assert(JSON.stringify(await chips.allTextContents()) === JSON.stringify(['[1]', '[2]', '[1]', '[2], [3]', '[3], [1]', '[2], [1]', '[5]', '[4]', '[6]']), 'Displayed numbers must match the Core content order');
-    assert((await chips.first().getAttribute('title')).includes('Alpha') && (await chips.first().getAttribute('title')).includes('has not been checked'), 'Exact keys and not-evaluated status must be available');
+    assert((await chips.first().getAttribute('title')).includes('Alpha') && (await chips.first().getAttribute('title')).includes('could not be verified'), 'Exact keys and unverified status must be available');
     assert(await editor.locator('[data-citation][data-resolved]').count() === 0, 'Citation must not claim resource resolution');
     assert((await read()).source === before, 'Open must not write');
     const original = await semantic();
@@ -80,7 +80,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     await page.getByTestId('ui-language').selectOption('ko');
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
-    assert((await chips.first().getAttribute('title')).includes('참고문헌 자료는 아직 확인하지 않았습니다'), 'Korean citation status missing');
+    assert((await chips.first().getAttribute('title')).includes('참고문헌을 확인할 수 없음'), 'Korean citation status missing');
     assert((await editor.locator('[data-testid="table-caption"] [data-citation] > span').getAttribute('title')).includes('참고문헌'), 'Table caption citation must translate too');
     assert(await semantic() === moved, 'Language changes must not change citations');
 
@@ -97,7 +97,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     await page.getByRole('button', { name: '설정', exact: true }).click();
     await page.getByTestId('ui-language').selectOption('en');
     await page.keyboard.press('Escape');
-    assert(resourceRequests.length === 0, 'Unit A must not request bibliography resources');
+    assert(resourceRequests.length === 0, 'Bibliography reads must use the dedicated Host route, never direct .bib URLs');
     return { citations: 9, clipboard: true, liveNumbers: true, saveReload: true, bilingualStatus: true, bibliographyRequests: resourceRequests };
   } finally { page.off('request', request); }
 }

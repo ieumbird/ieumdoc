@@ -1,3 +1,5 @@
+import { BibliographyContent } from "./Bibliography.tsx";
+import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import type { UiMessage } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
@@ -75,6 +77,7 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
 
 type DocumentEditorProps = {
   document: EditableDocument;
+  bibliography?: DocumentFileResponse["bibliography"];
   /** Internal initialization only; the opening model remains the structural baseline. */
   initialSnapshot?: EditorSnapshot;
   documentPath: string;
@@ -95,7 +98,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
+  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -445,7 +448,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
-      <EditorContent editor={editor} />
+      <BibliographyContent editor={editor} bibliography={bibliography}><EditorContent editor={editor} /></BibliographyContent>
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}

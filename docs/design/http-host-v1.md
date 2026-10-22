@@ -6,6 +6,11 @@
 - Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
 - Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/ieumbird/ieumdoc/issues/186)).
 
+Bibliography reads reuse the shared stateless Host and existing Root checks through the dedicated
+`/api/bibliography` endpoint. Only declarations of an admitted, revision-matched document are read;
+resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
+union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
+
 ## Build and run
 
 Build from the selected checkout using the repository's Node.js and pnpm versions:

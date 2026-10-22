@@ -1,3 +1,5 @@
+import { useBibliography } from "./citation.tsx";
+import type { BibliographyEvaluation } from "@ieumdoc/core";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -34,7 +36,7 @@ import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, u
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
-import { Citation, citationNumbers, citationStatus } from "./citation.tsx";
+import { Citation, citationNumbers, citationStatus, citationReadiness } from "./citation.tsx";
 import { citationKeys, citationText } from "@ieumdoc/core/citation";
 import { renderEquation } from "./equation-render.ts";
 import {
@@ -466,6 +468,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const kind = number === undefined ? i18n.t("Table") : `Table ${number}`;
   const label = String(node.attrs.label ?? "");
   const caption = tableCaption(node.toJSON() as TiptapJSON);
+  const bibliography = useBibliography();
   const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
   // References in the caption follow their targets' numbers anywhere in the document.
   const targets = useEditorState({
@@ -499,7 +502,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
     {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
-      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[], new Map(JSON.parse(citationLabels ?? "[]"))) }} /> : null}
+      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[], new Map(JSON.parse(citationLabels ?? "[]")), bibliography) }} /> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
       onApply={apply} onCancel={close}>
@@ -517,7 +520,7 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
  * spans for their NodeViews, show the same KaTeX and reference text as in the document. Display
  * only: the caption is edited in the table's properties.
  */
-function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[], citations: ReadonlyMap<string, number>): string {
+function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[], citations: ReadonlyMap<string, number>, bibliography?: BibliographyEvaluation): string {
   const container = document.createElement("div");
   container.append(DOMSerializer.fromSchema(schema).serializeFragment(schema.nodeFromJSON(toTiptapContent(caption)).content));
   for (const math of container.querySelectorAll<HTMLElement>("span[data-inline-math]")) {
@@ -549,10 +552,10 @@ function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: Ref
     const chip = document.createElement("span");
     chip.className = "cross-reference-chip";
     chip.textContent = text;
-    chip.title = citationStatus(keys, text);
+    chip.title = citationStatus(keys, text, bibliography);
     chip.setAttribute("aria-label", chip.title);
     citation.classList.add("cross-reference", "citation");
-    citation.dataset.readiness = "not-evaluated";
+    citation.dataset.readiness = citationReadiness(keys, bibliography);
     citation.append(chip);
   }
   return container.innerHTML;

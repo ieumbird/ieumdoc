@@ -10,13 +10,16 @@
     "./label": "./src/label.ts",
     "./numbering": "./src/numbering.ts",
     "./citation": "./src/citation.ts",
+    "./bibliography": "./src/bibliography.ts",
     "./section": "./src/section.ts"
   },
   "scripts": {
-    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts test/inline.test.ts test/paragraph.test.ts test/myst-regression.test.ts test/figure.test.ts test/reference.test.ts test/serialize-guard.test.ts test/public-api.test.ts test/native.test.ts test/table.test.ts test/link.test.ts test/inline-math.test.ts test/label.test.ts test/cross-reference.test.ts test/parse-boundary.test.ts test/writeability.test.ts test/structural-authoring.test.ts test/list.test.ts test/code.test.ts test/section.test.ts test/numbering.test.ts test/footnote.test.ts test/endnote.test.ts",
+    "test": "tsx --test test/core.test.ts test/technical-document.test.ts test/editable.test.ts test/inline.test.ts test/paragraph.test.ts test/myst-regression.test.ts test/figure.test.ts test/reference.test.ts test/serialize-guard.test.ts test/public-api.test.ts test/native.test.ts test/table.test.ts test/link.test.ts test/inline-math.test.ts test/label.test.ts test/cross-reference.test.ts test/parse-boundary.test.ts test/writeability.test.ts test/structural-authoring.test.ts test/list.test.ts test/code.test.ts test/section.test.ts test/numbering.test.ts test/footnote.test.ts test/endnote.test.ts test/bibliography.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@citation-js/core": "0.9.0",
+    "@citation-js/plugin-bibtex": "0.9.0",
     "myst-common": "1.10.1",
     "myst-frontmatter": "1.10.1",
     "myst-parser": "1.7.4",

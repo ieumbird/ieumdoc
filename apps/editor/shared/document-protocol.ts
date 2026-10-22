@@ -1,3 +1,4 @@
+import type { BibliographySource } from "@ieumdoc/core";
 import type {
   AdmonitionVariant,
   CodeBlockContent,
@@ -148,6 +149,9 @@ export type SaveRequest = SupportedEdits & {
 };
 
 export type DocumentFileResponse = {
+  /** Per-open dependency context; changing the Sidebar never changes this value. */
+  bibliographyRoot?: string;
+  bibliography?: { declarations: string[]; sources?: BibliographySource[] };
   path: string;
   source: string;
   document: EditableDocument;

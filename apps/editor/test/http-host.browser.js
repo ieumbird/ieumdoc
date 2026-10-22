@@ -1,5 +1,6 @@
 // Production bundle, real HTTP and two independent allowed roots. No mocked file API.
-async (page, { openDocument, screenshots }) => {
+async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots }) => {
+  page.setDefaultTimeout(15000);
   const check = (ok, message) => { if (!ok) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -133,6 +134,22 @@ async (page, { openDocument, screenshots }) => {
     await media.goto(`${origin}/document/unsafe.svg?path=${encodeURIComponent(fileA)}`);
     check(await media.evaluate(() => window.__ieumdocSVG) !== true, 'A directly opened SVG cannot execute with app authority');
   } finally { await media.close(); }
+  // A narrow sidebar does not narrow the server's fixed Root union for declared resources.
+  const bibFile = join(a, 'fixture', 'bibliography.md');
+  await openDocument(page, bibFile); await ready();
+  const refs = page.locator('[data-document-tab][data-active=true]').getByTestId('bibliography');
+  const readBibDocument = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(bibFile)}`)).json()).source;
+  const bibSource = await readBibDocument(), bibHash = bibliographyFixture.hash();
+  const expected = bibliographyFixture.report(bibSource, bibliographyFixture.read()).references.map(r => r.text);
+  const actual = await refs.locator('li[data-key]').evaluateAll(rows => rows.map(row => `${row.querySelector('.bibliography-number').textContent} ${row.querySelector('div > span').textContent}`));
+  check(JSON.stringify(actual) === JSON.stringify(expected), 'Production bundle and Node share bibliography output');
+  await save();
+  check(bibliographyFixture.hash() === bibHash && !(await readBibDocument()).includes('Control Study'), 'HTTP Save leaves bibliography unchanged and derived output absent');
+  bibliographyFixture.change('updated');
+  check((await refs.innerText()).includes('Control Study'), 'HTTP open snapshot remains stable');
+  await reloadDocument(page); await ready();
+  check((await refs.innerText()).includes('Updated Study'), 'HTTP Reload sees external bibliography changes');
+  bibliographyFixture.change('restore');
   if (screenshots) await page.screenshot({path:'tmp/http-host-capture/saved-document.png'});
   return {twoRoots:true, sourceSaveReload:true, newFileAndFolder:true, imageSaveReload:true, draftProtection:true, realConflict:true, mediaSandbox:true};
 }

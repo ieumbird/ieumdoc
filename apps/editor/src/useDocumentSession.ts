@@ -39,6 +39,8 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     () => setRecoveryError("")) : undefined);
   const [document, setDocument] = useState<EditableDocument>(initial.document);
   const sourceRevision = useRef(initial.revision);
+  const [bibliography, setBibliography] = useState(initial.bibliography);
+  const [bibliographyRoot] = useState(initial.bibliographyRoot);
   const [initialBase] = useState<SaveRequest["base"]>(() => ({
     source: initial.source, ...(restored?.savedEdits ? { savedEdits: structuredClone(restored.savedEdits) } : {}),
   }));
@@ -120,6 +122,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     imageChoiceRef.current = null;
     setImageChoice(null);
     setDocument(next.document);
+    setBibliography(next.bibliography);
     setInitialEditorSnapshot(undefined);
     sessionBase.current = { source: next.source };
     setEndnotesMove(!next.endnotesInPlace);
@@ -142,7 +145,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     setNotice("");
     setStatus(requestedPath ? "opening" : "loading");
     try {
-      const next = await requestDocument("GET", requestedPath);
+      const next = await requestDocument("GET", requestedPath, bibliographyRoot);
       if (!current()) return null;
       setReloadDialog(false);
       if ("start" in next) throw new Error("The Host did not return a document.");
@@ -286,7 +289,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   function getSnapshot(): DocumentSessionSnapshot {
     if (!isCurrent() || !editorRef.current) throw new Error("Editor is not ready");
     return structuredClone({
-      file: { path: openedPath, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
+      file: { bibliographyRoot, ...(bibliography ? { bibliography: { declarations: bibliography.declarations } } : {}), path: openedPath, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
       editor: editorRef.current.getSnapshot(),
       ...(sessionBase.current.savedEdits ? { savedEdits: sessionBase.current.savedEdits } : {}),
     });
@@ -296,7 +299,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
 
   return {
     recoveryError, discardRecovery: () => recorder?.discard(),
-    getSnapshot, initialEditorSnapshot, editorRef, document, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
+    getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",
