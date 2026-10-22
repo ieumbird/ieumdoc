@@ -4,6 +4,7 @@
 // closed. The file is a scratch copy under the repository's ignored tmp/ directory; prepare it
 // first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
 async (page, { openDocument }) => {
+  page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -41,7 +42,16 @@ async (page, { openDocument }) => {
       if (!range) throw new Error(`text not found: ${needle}`);
       instance.chain().focus().setTextSelection(range).run();
     }, text);
-    await page.getByTestId('selection-toolbar').waitFor();
+    // #337: CI once never showed the toolbar here. Report the focus state instead of waiting out the test.
+    await page.getByTestId('selection-toolbar').waitFor().catch(async error => {
+      const state = await page.evaluate(() => {
+        const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
+        const { from, to } = instance.state.selection;
+        return { activeElement: document.activeElement?.outerHTML.slice(0, 80), editorFocused: instance.view.hasFocus(),
+          documentFocused: document.hasFocus(), selection: [from, to], linkForms: document.querySelectorAll('[data-testid="link-form"]').length };
+      });
+      throw new Error(`Selection toolbar missing for "${text}": ${JSON.stringify(state)}`, { cause: error });
+    });
   };
   const setLink = async (text, url) => {
     await select(text);
