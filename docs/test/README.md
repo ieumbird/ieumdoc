@@ -111,7 +111,7 @@ Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/su
 
 ## Local recovery regression
 
-`pnpm browser:test recovery-storage recovery` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
+`pnpm browser:test recovery-storage recovery recovery-structure` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `recovery-structure` adds New/title/Enter, Equation/Table/Figure content and captions, dirty Restore → Save → Reload, readable fallback and live Korean/English refusal reasons. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`; `pnpm browser:test recovery-structure --screenshots` captures the structured recovery/fallback in `tmp/331-*.png`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
 
 For #296 PR3, after the builds described above:
 
@@ -122,7 +122,8 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 The HTTP command includes `http-recovery.spec.ts`: actual browser process termination and a new
 PID using the same persistent checkout profile and origin, while the production server stays
-running. Two crashes cover Restore → Save/Reload and external disk modification before Restore
+running. New title/Enter, Equation/Table/Figure and caption content are recorded before the first crash.
+Two crashes cover Restore → Save/Reload and external disk modification before Restore
 → Save 409 without overwrite. Use the runner-owned local Host for this scratch-file test; do not
 point it at a remote/user server. Windows uses Chrome; Linux uses Playwright Chromium in CI.
 

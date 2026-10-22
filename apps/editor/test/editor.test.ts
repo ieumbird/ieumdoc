@@ -1,5 +1,7 @@
 import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
+import { recoveryText } from "../src/recovery-storage.ts";
+import type { DocumentSessionSnapshot } from "../src/useDocumentSession.ts";
 import { editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
 import { freshBlockPath } from "../src/tiptap-edits.ts";
@@ -44,6 +46,52 @@ import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { saveErrorMessage } from "../src/save-error.ts";
 import { RootAccess } from "../server/file-access.ts";
+import { readFilePreview } from "../server/document-api.ts";
+
+test("folder preview validates bytes and size, rejects links, and stays within the selected folder", t => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-preview-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const chosen = path.join(dir, "chosen"); mkdirSync(chosen);
+  const image = path.join(chosen, "한글.PNG");
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+  writeFileSync(image, png);
+  assert.deepEqual(readFilePreview(chosen, image), { bytes: png, mime: "image/png" });
+  assert.throws(() => readFilePreview(dir, chosen), /regular image/);
+  writeFileSync(path.join(dir, "outside.png"), png);
+  assert.throws(() => readFilePreview(chosen, path.join(dir, "outside.png")), /allowed folders/);
+  assert.throws(() => readFilePreview(chosen, path.join(chosen, "missing.png")), /ENOENT/);
+  const svg = path.join(chosen, "diagram.svg");
+  const doctype = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Exported SVG -->\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="red"/></svg>';
+  writeFileSync(svg, doctype);
+  assert.equal(readFilePreview(chosen, svg).bytes.toString(), doctype);
+  writeFileSync(svg, '<!DOCTYPE svg [<!ENTITY secret SYSTEM "file:///outside-secret">]><svg xmlns="http://www.w3.org/2000/svg">&secret;</svg>');
+  assert.throws(() => readFilePreview(chosen, svg), /Invalid SVG/); // No server DTD/entity expansion.
+  writeFileSync(svg, '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script></svg>');
+  assert.equal(readFilePreview(chosen, svg).mime, "image/svg+xml"); // Isolation belongs to transport/img, not sanitization.
+  writeFileSync(svg, "<!doctype html><script>alert(1)</script>");
+  assert.throws(() => readFilePreview(chosen, svg), /Invalid SVG/);
+  writeFileSync(image, "<svg/>");
+  assert.throws(() => readFilePreview(chosen, image), /complete PNG/);
+  writeFileSync(image, Buffer.alloc(10 * 1024 * 1024 + 1));
+  assert.throws(() => readFilePreview(chosen, image), /10 MiB/);
+  writeFileSync(image, Buffer.alloc(0));
+  assert.throws(() => readFilePreview(chosen, image), /empty/);
+  const text = path.join(chosen, "README"); writeFileSync(text, "plain");
+  assert.throws(() => readFilePreview(chosen, text), /Unsupported/);
+  fs.symlinkSync(dir, path.join(chosen, "outside"), process.platform === "win32" ? "junction" : "dir");
+  assert.throws(() => readFilePreview(chosen, path.join(chosen, "outside", "outside.png")), /allowed folders/);
+  const inside = path.join(chosen, "inside"); mkdirSync(inside);
+  writeFileSync(path.join(inside, "photo.png"), png);
+  fs.symlinkSync(inside, path.join(chosen, "linked"), process.platform === "win32" ? "junction" : "dir");
+  assert.throws(() => readFilePreview(chosen, path.join(chosen, "linked", "photo.png")), /allowed folders/);
+  // Windows chmod cannot reliably revoke access, so exercise an actual open failure deterministically.
+  const originalOpen = fs.openSync;
+  t.mock.method(fs, "openSync", (...args: Parameters<typeof fs.openSync>) => {
+    if (args[0] === image) throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+    return originalOpen(...args);
+  });
+  assert.throws(() => readFilePreview(chosen, image), /permission denied/);
+});
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = fileURLToPath(
@@ -752,7 +800,7 @@ test("Host paths refuse unpaired surrogates without creating or reading replacem
   }
 });
 
-test("a chosen folder lists one level of sub-folders and Markdown files, and stays inside", () => {
+test("a chosen folder lists all regular files, marks only documents, and stays inside", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-folder-"));
   const chosen = path.join(dir, "docs");
   const outside = path.join(dir, "outside");
@@ -769,15 +817,15 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
     assert.equal(top.path, path.resolve(chosen));
     assert.equal(top.parent, undefined);
     assert.deepEqual(top.entries.map(entry => `${entry.kind}:${entry.name}`),
-      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
+      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "file:notes.txt", "document:UPPER.MD"]);
     assert.equal(top.entries[1]?.path, path.join(path.resolve(chosen), "a9.md"));
     // The tree can tell files without the native marker apart before anyone opens them.
-    assert.deepEqual(top.entries.map(entry => entry.native), [undefined, true, true, false, true]);
+    assert.deepEqual(top.entries.map(entry => entry.native), [undefined, true, true, false, undefined, true]);
 
     // Choosing a folder can browse outside the eventual sidebar root, with Host-owned crumbs.
     const browsed = browseFolder(chosen);
     // Choosing a folder returns names only, never content.
-    assert.deepEqual(browsed.entries, top.entries.map(({ native: _native, ...entry }) => entry));
+    assert.deepEqual(browsed.entries, top.entries.filter(entry => entry.kind !== "file").map(({ native: _native, ...entry }) => entry));
     assert.equal(browsed.crumbs[0]?.path, path.parse(chosen).root);
     assert.deepEqual(browsed.crumbs.at(-1), { name: "docs", path: chosen });
     for (let index = 1; index < browsed.crumbs.length; index++) {
@@ -791,6 +839,13 @@ test("a chosen folder lists one level of sub-folders and Markdown files, and sta
       ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
     assert.deepEqual(browseFolder(chosen, undefined, "image").entries.map(entry => `${entry.kind}:${entry.name}`),
       ["folder:guides", "image:diagram.svg", "image:photo.JPG"]);
+    for (const name of ["a2.PNG", "a11", "자료.txt"]) writeFileSync(path.join(chosen, name), "names only");
+    const files = listFolder(chosen).entries.filter(entry => entry.kind !== "folder");
+    // Korean collation differs by Host locale; Latin names still interleave numerically across kinds.
+    assert.ok(files.some(entry => entry.name === "자료.txt" && entry.kind === "file"));
+    assert.deepEqual(files.filter(entry => entry.name !== "자료.txt").map(entry => entry.name), ["a2.PNG", "a9.md", "a10.md", "a11", "b.md", "diagram.svg", "notes.txt", "photo.JPG", "UPPER.MD"]);
+    assert.equal(files.find(entry => entry.name === "a2.PNG")?.kind, "image");
+    assert.equal(files.find(entry => entry.name === "a11")?.kind, "file");
 
     const places = folderPlaces().places;
     assert.ok(places.some(place => place.kind === "home" && fs.statSync(place.path).isDirectory()));
@@ -2181,4 +2236,49 @@ test("failed restore reserves no locators across documents or within traversal",
     assert.throws(() => prepareEditorSnapshot(schema, opening, snapshot), /Incompatible editor snapshot: Editor locator exceeds the supported range/);
     assert.deepEqual(kinds.map(kind => suffix(allocateBlockPath(kind))), before.map(value => value + 1), invalidIn);
   }
+});
+
+test("engine-created paragraph normalization produces a restorable snapshot", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("# Title\n\nText")));
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, reason => assert.fail(JSON.stringify(reason)))] });
+  const savedDocument = editorDocumentJSON(state);
+  state = state.applyTransaction(state.tr.insert(state.doc.content.size, schema.nodes.paragraph.create(null, schema.text("New text")))).state;
+  const editorDocument = editorDocumentJSON(state);
+  assert.doesNotThrow(() => prepareEditorSnapshot(schema, opening, { editorDocument, savedDocument }));
+  assert.deepEqual(editorDocument.attrs!.deletedPaths, []);
+});
+
+test("legacy empty deletion sentinel is ignored in both checkpoints, without accepting other damage", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("# Title\n\nText")));
+  const schema = getSchema(editorExtensions());
+  const saved = editorDocumentJSON(EditorState.create({schema, doc:schema.nodeFromJSON(opening)}));
+  for (const key of ["editorDocument", "savedDocument"] as const) {
+    const snapshot = {editorDocument:structuredClone(saved),savedDocument:structuredClone(saved)};
+    snapshot[key].attrs!.deletedPaths = [""];
+    const input = structuredClone(snapshot);
+    assert.deepEqual(prepareEditorSnapshot(schema,opening,snapshot)[key],saved);
+    assert.deepEqual(snapshot,input, "Compatibility must not mutate the stored record");
+    for (const invalid of ["999", "new:1", " ", null]) {
+      (snapshot[key].attrs as Record<string, unknown>).deletedPaths = ["",invalid];
+      assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Invalid editor deletion metadata/);
+    }
+    snapshot[key].attrs!.deletedPaths = [""];
+    snapshot[key].content!.pop();
+    assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Missing editor deletion metadata/);
+  }
+});
+
+test("plaintext salvage keeps readable content without dumping internal attributes", () => {
+  const editorDocument: TiptapJSON = {type:"doc",attrs:{deletedPaths:[""],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
+    {type:"heading",attrs:{sourcePath:"new:1",level:1},content:[{type:"text",text:"Paper"}]},
+    {type:"paragraph",content:[{type:"text",text:"Linked",marks:[{type:"link",attrs:{href:"https://example.com"}}]},{type:"text",text:" prose"},{type:"inlineMath",attrs:{value:"a+b"}}]},
+    {type:"equation",attrs:{latex:"x^2",sourcePath:"new:2"}},
+    {type:"table",attrs:{caption:[{kind:"text",text:"Results"}]},content:[{type:"tableRow",content:[{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell A"}]}]},{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell B"}]}]}]}]},
+    {type:"figure",attrs:{imageUrl:"image.png",imageAlt:"Diagram"},content:[{type:"text",text:"Figure caption"}]},
+  ]};
+  const text = recoveryText({editor:{editorDocument}} as DocumentSessionSnapshot);
+  assert.match(text,/Paper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
+  for (const content of ["Cell A\tCell B", "Results", "Figure caption", "Diagram", "image.png"]) assert.ok(text.includes(content),content);
+  assert.doesNotMatch(text,/\[(?:level|latex|caption|marks):|sourcePath|deletedPaths|headingNumbering|"kind"/);
 });

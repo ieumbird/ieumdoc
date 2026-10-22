@@ -1,7 +1,9 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-22 (#332 citation display and #265 derived References with existing type/spacing tokens; [verification and captures](citations-v1.md#verification)).
+- Last verified: 2026-10-22 (#265 derived References with existing type/spacing tokens; [verification and captures](citations-v1.md#unit-b-verification-265)).
+- Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
+- Previous verification: 2026-10-22 (#332 citation display and shared reference underline token; [verification and captures](citations-v1.md#verification)).
 - Previous verification: 2026-10-19 (#255: Add a title place and empty-title placeholder in the document's subtle hint role).
 - Previous verification: 2026-10-19 (#298: start without a document on the canvas with the product mark and card sections; open-files captures at 1440/768/375px).
 - Previous verification: 2026-10-19 (#321: phone-width sidebar without a rail, covering the screen when open; stable browser suite and 375px captures).
@@ -150,6 +152,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Derived bibliography: one section after endnotes, document font and body line-height, metadata heading/status, `--space-6` separation, `--space-3` top inset, existing subtle rule. Number and wrapped text use a flex row with `--space-2` gap. No new adjustable dimension. [Contract and captures](citations-v1.md#unit-b-verification-265).
 - Reference entry: `--reference-underline-offset` (3px), shared by references and unchecked citations. Citation groups wrap with ordinary inline content.
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
+- File preview entries: `--layout-file-preview-width` (48rem) and `--layout-file-preview-image-max-height` (60dvh) control the preferred modal width and image height cap. The existing viewport inset still bounds the modal.
 
 ## Responsibility boundaries
 
@@ -188,3 +191,41 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 `pnpm browser:prepare` copies `test/browser/fixtures/quiet-document*.md` and the existing local diagram into `tmp/quiet-document`. `pnpm browser:test layout-rules quiet-document` measures actual DOM, captures real API-backed documents and checks focus, draft retention, local overflow and overlay bounds. Required elements are asserted, never substituted with zero; sidebar icon/label checks are explicitly inapplicable when collapsed. Before/After use 1440×1000 / 1024×1000 / 768×1000, 100% zoom, scroll top and equivalent interaction state after fonts/images load.
 
 This is one implemented light presentation. Responsive popover placement, operating-system font fallback and the existing sample diagram intentionally differ from the mockup. No theme variants, fake navigation or proposed product features are included.
+
+
+### Read-only file preview (#217)
+
+The Sidebar keeps its existing row geometry and 16px icon slot: Image for supported images, File for
+other files, and existing native/foreign document icons. A shared modal uses the existing Dialog
+surface, title, description, compact Close button and spacing tokens. Name/path wrap, the image
+contains within the available width and 60dvh, and the dialog stays within the viewport at wide and
+phone widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
+row while document selection and property drafts remain. File information has no edit/open/execute action.
+
+#### #217 verification and captures
+
+The final SVG handler and token-based CSS were captured and tested at clean code HEAD
+`aad457a46a6ab98c9948fc828adc405c2debbb49` on Windows/Chrome, DPR 1, 100% zoom and bundled
+Pretendard. This evidence commit changes documentation/assets only. The earlier Before captures
+were taken with HEAD `811a5662a2c69d804b0d0f419f2d84a4b4df054d` and its unchanged product code (only the failing regression test and
+ignored plan were being prepared). Quiet Document rest states use scroll top and loaded fonts/images.
+
+| State | Before | Final After / new UI | Viewport |
+| --- | --- | --- | --- |
+| Quiet Document, wide rest | [Before](assets/file-preview-217/before-1440.png) | [After](assets/file-preview-217/after-1440.png) | 1440×1000 |
+| Quiet Document, narrow rest | [Before](assets/file-preview-217/before-768.png) | [After](assets/file-preview-217/after-768.png) | 768×1000 |
+| Image preview, English | — | [Wide](assets/file-preview-217/image-1440.png) / [Phone](assets/file-preview-217/image-375.png) | 1440×900 / 375×900 |
+| Image preview, Korean | — | [Korean](assets/file-preview-217/image-ko.png) | 1440×900 |
+| Generic file information | — | [Phone](assets/file-preview-217/file-375.png) | 375×900 |
+| SVG 1.1 DOCTYPE, red square | — | [Decoded image](assets/file-preview-217/doctype-1280.png) | 1280×720 |
+
+The new preview captures retain applied dirty text and an unapplied section-label draft behind the
+modal. The existing dialog width (48rem) and image height cap (60dvh) remain unchanged through
+the Adjustable tokens. `pnpm browser:test file-preview --screenshots`, `layout-rules`, and
+`quiet-document --screenshots` passed at that HEAD with `IEUMDOC_BROWSER_URL=http://127.0.0.1:5193`.
+The SVG regression first failed with `Invalid SVG image`, then passed with XML declaration,
+comment and external SVG 1.1 DOCTYPE. The browser decodes the committed DOCTYPE fixture as 20×20;
+the DOCTYPE-bearing active fixture still cannot execute scripts/events or fetch its external image/DTD
+in the image context. Direct SVG navigation also cannot execute its script under the sandbox CSP.
+No server XML/DTD/entity parser was added.
+Targeted Host and token tests, Editor typecheck/build, documentation and whitespace checks also passed.

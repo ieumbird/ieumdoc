@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
+- Last verified: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
+- Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
 - Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
 - Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
 - Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
@@ -72,8 +73,14 @@ of supplied fields/marks, opening locators and declared deletion metadata; it th
 `Incompatible editor snapshot` error instead of dropping unsupported content. It does not run the
 canonical collector/writer as a restore gate: empty headings, duplicate labels and invalid Unicode
 can remain applied editor content and still fail Save. Schema-compatible initialization is not a
-claim that arbitrary old/future JSON or inconsistent source/revision/edit checkpoints are recoverable;
-there is no migration or repair. The existing Host replay and canonical checks still govern Save.
+claim that arbitrary old/future JSON or inconsistent source/revision/edit checkpoints are recoverable.
+One compatibility exception (#331) removes the empty string from `deletedPaths` in both current and
+saved snapshots, without mutating the record. Earlier engine normalization recorded its temporary
+empty `sourcePath` as a deletion when assigning a new block locator; real title Enter and paragraph
+insertion reproduce that record. The empty string addresses no opening block. All other deletion
+entries, missing deletions, locators, schema content and supplied fields still receive the same checks.
+The producer now excludes this temporary locator from deletion tracking. There is no general
+migration or content repair. The existing Host replay and canonical checks still govern Save.
 
 Pending image-less Figures are applied content. Snapshots exclude Undo history, selection/scroll,
 unapplied property drafts, in-flight requests and image binary backups. Autosave remains deferred
@@ -146,17 +153,62 @@ session identifier, never another window's record. The restored acknowledged rev
 so external edits conflict through the existing Host path.
 
 An incompatible format, malformed checkpoint or unsupported editor schema displays its reason.
+Application-owned recovery reasons follow the selected Korean/English UI language, including while
+the dialog is open; external engine diagnostics remain literal technical details.
 The separately stored plaintext remains available in a selectable text area and **Copy text**;
 **Delete record** remains available. There is no migration framework or canonical repair. Clipboard
 failure leaves the selectable text intact. The shared Sidebar **Settings → Local recovery** explains
 location, retention, deletion, exclusions and guarantee limits, and confirms **Clear all**. Desktop
 About/update controls remain Desktop-only.
 
+Newly recorded plaintext copies contain readable text, LaTeX, table cells/captions, Figure captions,
+image descriptions/paths and link destinations, without generic internal attribute/mark dumps.
+They are content salvage only: no structure, formatting or valid native document is promised, and
+they never enter the official Save path automatically. Previously stored plaintext remains verbatim;
+no heuristic strips bracketed strings from an old copy, since those may be user text. The snapshot
+compatibility exception above can restore affected structured records independently of that old copy.
+
 `recovery-storage` tests real IndexedDB write ordering/barriers, expiry, stale restore and quota
 failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
 isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
 `pnpm browser:test recovery --screenshots` for review captures in `tmp/296/` at 1440×900 and 375×900.
+`recovery-structure` starts with New and title/Enter input, inserts Equation/Table/Figure through
+production editor commands, then checks recorded structure, Restore/dirty/Save/Reload, refusal of
+unknown deletions, readable fallback and live reason-language changes. `--screenshots` captures its
+recovery dialog/fallback in `tmp/331-*.png`. The original Linux #331 record was not obtained;
+Windows reproduction establishes the current producer defect and an equivalent record, not the
+cause of every historical Save-disabled report or a repair of previously flattened disk text.
 Those Vite checks are distinct from the Host process-lifetime checks below.
+
+Visual evidence re-captured on 2026-10-22 after review found that the earlier temporary prompt
+images preceded the dialog and did **not** prove its state. The following replacements were
+inspected with the dialog visible and Restore's enabled/disabled state checked before capture:
+
+- [Prompt before](assets/recovery-331/prompt-before.png): the real New/title/Enter flow generated
+  the empty deletion sentinel; Restore is disabled with the deletion-metadata reason.
+- [Prompt after](assets/recovery-331/prompt-after.png): the same writing/reopen flow with fixed
+  production code offers enabled Restore.
+- [Fallback before](assets/recovery-331/fallback-before-en.png) and
+  [fallback after](assets/recovery-331/fallback-after-en.png): a test-owned record with unknown
+  deletion path `999` is refused in both. The copy shows the old attribute dump versus readable
+  math, table cells/caption and Figure caption.
+- [Korean fallback](assets/recovery-331/fallback-after-ko.png): the same open refusal dialog after
+  switching language, retaining the disabled Restore action and readable copy.
+
+Comparison conditions: Windows Chrome, checkout-owned persistent profile, Vite origin
+`http://127.0.0.1:5191`, 1280×1000 viewport, DPR 1, bundled fonts loaded. Product HEAD was
+`7e62ee22aba6477a067bef4f42f16309eb0afa73`; the capture-only scenario changes are included with
+these images. For prompt-before, only `editor-schema.tsx` and `editor-snapshot.ts` were temporarily
+replaced with `811a5662a2c69d804b0d0f419f2d84a4b4df054d` versions; the temporary scenario asserted
+disabled Restore and stopped after capture. For fallback-before, only `recovery-storage.ts` used
+that older version: **it shows the new guidance with the old producer, not the complete baseline
+UI**. Each temporary replacement was restored and `git diff --exit-code -- apps/editor/src`
+passed before final regression. Test-created filenames differ between runs; content and steps match.
+All fallback images enlarge the textarea to 420px and scroll it to the top **for capture only**;
+this is not the product's default control height or a stylesheet change. The after images expose
+the complete sample copy; the longer old dump still continues below its viewport. No user records
+or user browser profile were accessed. Final `recovery-structure --screenshots` passed; the two
+before runs intentionally stopped at the confirmed refusal or internal-attribute regression.
 
 ### Host persistence verification (#296 PR3)
 

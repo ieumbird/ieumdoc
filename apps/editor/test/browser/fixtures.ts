@@ -28,6 +28,18 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "file-preview": { files: [
+    { name: "document.md", create: () => nativeSource("# Preview\n\nAlpha.\n\n(section-a)=\n\n## Section\n\nBody.\n") },
+    document("diagram.svg"),
+    fixture("doctype.svg"),
+    { name: "active.svg", create: () => '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg" width="160" height="80" onload="window.__previewExecuted=true"><script>window.__previewExecuted=true</script><image href="https://example.invalid/preview-leak"/><text y="20">Read only</text></svg>' },
+    { name: "photo.PNG", create: () => Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") },
+    { name: "delayed.png", create: () => Buffer.from("invalid") },
+    { name: "broken.png", create: () => Buffer.from("invalid") },
+    { name: "notes.txt", create: () => "plain text" },
+    { name: "README", create: () => "extensionless" },
+    { name: "archive.zip", create: () => Buffer.from([0, 1, 2]) },
+  ], scenarios: ["file-preview"] },
   "document-tabs": { files: [
     ...Array.from({ length: 8 }, (_, index) => ({ name: `technical-${index + 1}.md`, create: () => document("technical-document.md").create() })),
     document("diagram.svg"),
@@ -44,7 +56,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__ieumdocSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
   ], scenarios: ["http-host"] },
   "http-host-b/fixture": { files: [{ name: "b.md", create: () => nativeSource("# HTTP B\n\nBeta.\n") }], scenarios: ["http-host"] },
-  "new-document": { files: [], scenarios: ["new-document"] },
+  "new-document": { files: [], scenarios: ["new-document", "recovery-structure"] },
   "open-files": { files: [
     { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
     { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },

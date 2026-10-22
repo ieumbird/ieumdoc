@@ -2560,3 +2560,8 @@ ol.list { list-style: decimal; }
 .bibliography-number { flex-shrink: 0; }
 .bibliography-resources { padding-left: var(--space-4); }
 .citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-info); text-decoration: none; }
+
+/* Read-only folder preview uses the shared modal surface and existing spacing/type roles. */
+.file-preview[data-slot="dialog-content"] { width: min(var(--layout-file-preview-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
+.file-preview-image { display: block; max-width: 100%; max-height: var(--layout-file-preview-image-max-height); object-fit: contain; margin-inline: auto; }
+.file-preview-image[hidden] { display: none; }

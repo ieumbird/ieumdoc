@@ -1,4 +1,6 @@
 import type { DocumentSessionSnapshot } from "./useDocumentSession.ts";
+import type { InlineContent } from "@ieumdoc/core";
+import { toTiptapContent } from "./tiptap-inline.ts";
 
 export const RECOVERY_DAYS = 10;
 export const RECOVERY_DB = "ieumdoc-recovery";
@@ -176,21 +178,27 @@ export const recoveryStorage = {
 
 /** Plaintext escape hatch independent of schema/canonical validation, including atom attributes. */
 export function recoveryText(snapshot: DocumentSessionSnapshot): string {
-  const parts: string[] = [];
-  function visit(value: unknown): void {
-    if (!value || typeof value !== "object") return;
-    const node = value as { text?: unknown; attrs?: Record<string, unknown>; content?: unknown[]; marks?: unknown[] };
-    if (typeof node.text === "string") parts.push(node.text);
-    if (node.marks?.length) parts.push(`[marks: ${JSON.stringify(node.marks)}]`);
-    if (node.attrs) for (const [key, attr] of Object.entries(node.attrs)) {
-      if (key !== "sourcePath" && key !== "deletedPaths" && attr !== "" && attr !== null && attr !== undefined) {
-        parts.push(`[${key}: ${typeof attr === "string" ? attr : JSON.stringify(attr)}]`);
-      }
-    }
-    if (Array.isArray(node.content)) node.content.forEach(visit);
+  // A readable salvage copy, not Markdown serialization or a document write path.
+  function visit(value: unknown): string {
+    if (!value || typeof value !== "object") return "";
+    const node = value as { type?: string; text?: unknown; attrs?: Record<string, unknown>; content?: unknown[]; marks?: {type?: string; attrs?: Record<string, unknown>}[] };
+    const type = node.type;
+    const attrs = node.attrs ?? {};
+    const string = (value: unknown) => typeof value === "string" ? value : "";
+    const separator = type === "doc" ? "\n\n" : type === "table" || type === "bulletList" || type === "orderedList" || type === "listItem" ? "\n" : type === "tableRow" ? "\t" : "";
+    let text = string(node.text) || (Array.isArray(node.content) ? node.content.map(visit).join(separator) : "");
+    if (type === "hardBreak") text = "\n";
+    if (type === "equation") text = string(attrs.latex);
+    if (type === "inlineMath") text = string(attrs.value);
+    if (type === "crossReference" || type === "footnoteReference") text = string(attrs.label);
+    if (type === "citation" && Array.isArray(attrs.keys)) text = attrs.keys.filter(key => typeof key === "string").join(", ");
+    const caption = Array.isArray(attrs.caption) ? visit(toTiptapContent(attrs.caption as InlineContent[])) : string(attrs.caption);
+    const properties = [caption, string(attrs.imageAlt), string(attrs.imageUrl)].filter(Boolean);
+    if (properties.length) text = [text, ...properties].filter(Boolean).join("\n");
+    const links = (node.marks ?? []).filter(mark => mark.type === "link").map(mark => string(mark.attrs?.href));
+    return text + links.filter(Boolean).map(link => ` (${link})`).join("");
   }
-  visit(snapshot.editor.editorDocument);
-  return parts.join("\n");
+  return visit(snapshot.editor.editorDocument);
 }
 
 /** One recorder per mounted document session. Recovery never gates editing, Save or closing. */

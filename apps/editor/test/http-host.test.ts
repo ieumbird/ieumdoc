@@ -11,6 +11,34 @@ import { RootAccess } from "../server/file-access.ts";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 
+test("folder image preview is read-only, root bounded and isolated for GET, HEAD and direct SVG URLs", async t => {
+  const { a, outside, send } = await fixture(t);
+  const route = (root: string, file: string) => `/api/file-preview?${new URLSearchParams({ root, path: file })}`;
+  const response = await send(route(a, path.join(a, "image.png")));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
+  const svg = path.join(a, "active.svg");
+  fs.writeFileSync(svg, '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script></svg>');
+  for (const method of ["GET", "HEAD"]) {
+    const result = await send(route(a, svg), method);
+    assert.equal(result.status, 200);
+    assert.match(result.headers.get("content-security-policy")!, /^sandbox;.*script-src 'none'/);
+    assert.equal(result.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(result.headers.get("cache-control"), "no-store");
+    if (method === "HEAD") assert.equal(await result.text(), "");
+    assert.equal((await send(route(a, path.join(outside, "image.png")), method)).status, 403);
+  }
+  assert.equal((await send(route(outside, path.join(outside, "image.png")))).status, 403);
+  assert.equal((await send(route(a, svg), "POST", {})).status, 405);
+  assert.equal((await send(route(a, path.join(a, "document.md")))).status, 400);
+  assert.equal((await send(route(a, path.join(a, "missing.png")))).status, 400);
+  fs.writeFileSync(path.join(a, "bad.png"), "<svg/>");
+  assert.equal((await send(route(a, path.join(a, "bad.png")))).status, 400);
+  fs.truncateSync(path.join(a, "bad.png"), 10 * 1024 * 1024 + 1);
+  assert.equal((await send(route(a, path.join(a, "bad.png")), "HEAD")).status, 413);
+});
+
 async function fixture(t: TestContext, external?: string) {
   const base = fs.mkdtempSync(path.join(tmpdir(), "ieumdoc-http-"));
   const a = path.join(base, "문서 A"), b = path.join(base, "documents-B");

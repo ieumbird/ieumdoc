@@ -177,10 +177,10 @@ export type DocumentErrorResponse = { error: string; code?: NativeDocumentErrorC
 
 /** One entry of a folder listing: a regular sub-folder, or a regular `.md` file (an image file when choosing an image). */
 /**
- * A listed folder, document or image. In the sidebar folder listing, `native` tells whether a
+ * A listed folder, document, image or other regular file. In the sidebar listing, `native` tells whether a
  * document starts with the native marker; it is absent when the file could not be read.
  */
-export type FolderEntry = { name: string; kind: "folder" | "document" | "image"; path: string; native?: boolean };
+export type FolderEntry = { name: string; kind: "folder" | "document" | "image" | "file"; path: string; native?: boolean };
 
 /**
  * One level of a folder the user chose (`root`). `path` is the listed folder inside it and

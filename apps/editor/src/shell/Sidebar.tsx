@@ -1,7 +1,8 @@
+import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -100,7 +101,7 @@ export function Sidebar({
           />
         ) : (
           <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
-            <p className="sidebar-empty-text">{i18n.t("Open a folder to browse and create its Markdown files.")}</p>
+            <p className="sidebar-empty-text">{i18n.t("Open a folder to browse its files and create documents.")}</p>
             <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
               <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
             {recent.length > 0 && onOpenRecent ? (
@@ -168,6 +169,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
   const [focused, setFocused] = useState<string>();
+  const [preview, setPreview] = useState<TreeItem>();
+  const previewReturn = useRef<HTMLElement | null>(null);
   // The menu item that opens a dialog goes away; the dialog returns focus to `⋯`.
   const more = useRef<HTMLButtonElement>(null);
   // One tab stop: the item last focused, else the open document, else the first item.
@@ -175,7 +178,11 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
 
   const activate = (item: TreeItem) => {
     if (item.entry.kind === "folder") onToggleFolder(item.entry.path);
-    else onOpenDocument(item.entry.path);
+    else if (item.entry.kind === "document") onOpenDocument(item.entry.path);
+    else {
+      previewReturn.current = rows.current.get(item.entry.path) ?? null;
+      setPreview(item);
+    }
   };
   const keyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     const index = items.findIndex(item => item.entry.path === focused);
@@ -221,8 +228,9 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           const folder = entry.kind === "folder";
           const expanded = folder && tree.expanded.has(entry.path);
           // A file without the native marker still opens, to explain why IeumDoc refuses it.
-          const foreign = !folder && entry.native === false;
-          const Icon = foreign ? FileX : !folder ? FileText : expanded ? FolderOpen : Folder;
+          const foreign = entry.kind === "document" && entry.native === false;
+          const description = foreign ? i18n.t("Not an IeumDoc document") : entry.kind === "image" ? i18n.t("Read-only image preview") : entry.kind === "file" ? i18n.t("This file cannot be edited in IeumDoc.") : undefined;
+          const Icon = foreign ? FileX : entry.kind === "image" ? ImageIcon : entry.kind === "file" ? File : !folder ? FileText : expanded ? FolderOpen : Folder;
           return (
             <li
               key={entry.path}
@@ -232,8 +240,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
               data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
-              title={foreign ? `${entry.path}\n${i18n.t("Not an IeumDoc document")}` : entry.path}
-              aria-description={foreign ? i18n.t("Not an IeumDoc document") : undefined}
+              title={description ? `${entry.path}\n${description}` : entry.path}
+              aria-description={description}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
@@ -249,7 +257,9 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
           );
         })}
       </ul>
-      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">{i18n.t("No folders or Markdown files")}</p> : null}
+      {preview ? <FilePreviewDialog key={preview.entry.path} entry={preview.entry} root={tree.root}
+        returnFocus={previewReturn} onClose={() => setPreview(undefined)} /> : null}
+      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">{i18n.t("No files or folders")}</p> : null}
     </section>
   );
 }

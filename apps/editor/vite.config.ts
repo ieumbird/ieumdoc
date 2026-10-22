@@ -31,7 +31,7 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/bibliography" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }
