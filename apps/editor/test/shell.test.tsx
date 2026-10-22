@@ -235,7 +235,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }}
       onToggle={noop} onOpenFolder={noop} />,
   );
-  assert.match(top, /No folders or Markdown files/);
+  assert.match(top, /No files or folders/);
 
   // A file without the native marker stays listed but says it is not an IeumDoc document.
   const mixed = listing(String.raw`C:\docs`, [

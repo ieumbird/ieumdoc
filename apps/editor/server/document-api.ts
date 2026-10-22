@@ -1,10 +1,12 @@
+import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
+import { ImageValidationError, validateImage } from "./image-validation.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createDocument, hasNativeMarker, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
 import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
-import { accessPath, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
+import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import { requestQuery } from "./request-query.ts";
 import { resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
@@ -199,13 +201,25 @@ export async function handleDocumentRequest(
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
-    error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError ? error.status
+    error instanceof DocumentConflictError ? 409 : error instanceof RequestBodyError || error instanceof ImageValidationError ? error.status
       : fileErrorStatus(error instanceof SaveContentError && error.phase === "file" ? error.cause : error),
     errorPayload(error, access));
   let query: URLSearchParams;
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (url === "/api/file-preview") {
+    if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
+    try {
+      const { bytes, mime } = readFilePreview(query.get("root") ?? undefined, query.get("path") ?? undefined, access);
+      res.setHeader("Content-Type", mime);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
+      res.end(req.method === "HEAD" ? undefined : bytes);
+    } catch (error) { failure(error); }
+    return;
+  }
   if (url.startsWith("/document/")) {
     if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
     serveMedia(url.slice("/document/".length), res, query.get("path") ?? undefined, access, req.method === "HEAD");
@@ -341,7 +355,7 @@ function supportedEditsOf(value: unknown): SupportedEdits {
 const entryOrder = new Intl.Collator(undefined, { numeric: true });
 
 /**
- * One level of a folder the user chose. Only regular folders and regular `.md` files are listed:
+ * One level of a folder the user chose. Regular folders and files of every extension are listed:
  * hidden entries and symlinks are left out, and a requested folder must stay inside the chosen
  * one, symlinks resolved. Each document says whether its leading frontmatter carries the native
  * marker, so the tree can set apart files IeumDoc will not open. Nothing is remembered between requests.
@@ -351,7 +365,7 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
   const root = path.resolve(accessPath(requestedRoot.trim(), access));
   const folder = path.resolve(accessPath(requestedPath?.trim() || root, access));
   if (!isInside(root, folder)) throw new Error("folder is outside the chosen folder");
-  const listed = readFolder(folder, "document", () => {
+  const listed = readFolder(folder, "all", () => {
     if (!isInside(fs.realpathSync(root), fs.realpathSync(folder))) throw new Error("folder symlink escapes the chosen folder");
     return { root, path: folder, ...(path.relative(root, folder) === "" ? {} : { parent: path.dirname(folder) }) };
   });
@@ -377,7 +391,7 @@ function withNativeMarker(entry: FolderEntry): FolderEntry {
 }
 
 /**
- * One level of any folder, for choosing which folder to open: the same entries as `listFolder`,
+ * One level of any folder, for choosing which folder to open: folders and Markdown names,
  * and the folders from the filesystem root down to it. Choosing an image lists images instead of
  * Markdown files. Only names are returned, never content.
  */
@@ -452,23 +466,26 @@ function isDirectory(candidate: string): boolean {
   }
 }
 
-type FileKind = Exclude<FolderEntry["kind"], "folder">;
+type FileKind = "document" | "image";
 const fileKinds: Record<FileKind, (extension: string) => boolean> = {
   document: extension => extension === ".md",
   image: extension => Object.hasOwn(MEDIA_TYPES, extension),
 };
 
 /** Reads one level after `check` accepts the folder; filesystem failures become plain messages. */
-function readFolder<T>(folder: string, files: FileKind, check: () => T): T & { entries: FolderEntry[] } {
+function readFolder<T>(folder: string, files: FileKind | "all", check: () => T): T & { entries: FolderEntry[] } {
   try {
     if (!statSync(folder).isDirectory()) throw new Error("folder path must point to a directory");
     const result = check();
     const entries = fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry): FolderEntry[] => {
       if (entry.name.startsWith(".")) return [];
-      const kind = entry.isDirectory() ? "folder" : entry.isFile() && fileKinds[files](path.extname(entry.name).toLowerCase()) ? files : undefined;
+      const extension = path.extname(entry.name).toLowerCase();
+      const kind = entry.isDirectory() ? "folder" : !entry.isFile() ? undefined : files === "all"
+        ? extension === ".md" ? "document" : Object.hasOwn(MEDIA_TYPES, extension) ? "image" : "file"
+        : fileKinds[files](extension) ? files : undefined;
       return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
     });
-    entries.sort((a, b) => (a.kind === b.kind ? entryOrder.compare(a.name, b.name) : a.kind === "folder" ? -1 : 1));
+    entries.sort((a, b) => (a.kind === "folder" && b.kind !== "folder" ? -1 : b.kind === "folder" && a.kind !== "folder" ? 1 : entryOrder.compare(a.name, b.name)));
     return { ...result, entries };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -509,4 +526,46 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
+}
+
+/** Folder preview is independent of document admission and document-relative media permissions. */
+export function readFilePreview(requestedRoot: string | undefined, requestedPath: string | undefined, access: FileAccess = LOCAL_FILE_ACCESS): { bytes: Buffer; mime: string } {
+  if (!requestedRoot?.trim() || !requestedPath?.trim()) throw new Error("folder and image paths are required");
+  const root = path.resolve(accessPath(requestedRoot, access));
+  const file = path.resolve(accessPath(requestedPath, access));
+  const verify = () => {
+    if (!statSync(root).isDirectory() || !isInside(root, file) || root === file) throw new FileAccessError();
+    if (!isInside(fs.realpathSync(root), fs.realpathSync(file))) throw new FileAccessError();
+    // Unlike document media, preview accepts no symlink below the selected root, even within it.
+    for (let current = file; path.relative(root, current) !== ""; current = path.dirname(current)) {
+      if (fs.lstatSync(current).isSymbolicLink()) throw new FileAccessError();
+    }
+    accessPath(file, access);
+  };
+  verify();
+  const before = fs.lstatSync(file);
+  if (!before.isFile()) throw new FileAccessError("Only regular image files can be previewed.");
+  const mime = MEDIA_TYPES[path.extname(file).toLowerCase()];
+  if (!mime) throw new Error("Unsupported image format.");
+  if (before.size > MAX_ASSET_BYTES) throw new ImageValidationError("Image exceeds the 10 MiB limit.", 413);
+  const descriptor = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
+  try {
+    const opened = fs.fstatSync(descriptor);
+    if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) throw new FileAccessError();
+    // Bounded even if the file grows after stat; never read an unbounded stream into memory.
+    const buffer = Buffer.alloc(MAX_ASSET_BYTES + 1);
+    let length = 0, count: number;
+    while (length < buffer.length && (count = fs.readSync(descriptor, buffer, length, buffer.length - length, null)) > 0) length += count;
+    if (length > MAX_ASSET_BYTES) throw new ImageValidationError("Image exceeds the 10 MiB limit.", 413);
+    verify();
+    const current = fs.lstatSync(file);
+    if (current.dev !== opened.dev || current.ino !== opened.ino || current.size !== opened.size || current.mtimeMs !== opened.mtimeMs) throw new FileAccessError();
+    const bytes = buffer.subarray(0, length);
+    if (mime === "image/svg+xml") {
+      // Sniff the SVG root after an optional exported prolog. Never parse a DTD or resolve entities;
+      // the browser's image decoder handles XML. This is not sanitization; CSP/img isolate active SVG.
+      if (!/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[^]*?-->\s*)*(?:<!DOCTYPE\s+svg\b[^<>\[\]]*>\s*)?(?:<!--[^]*?-->\s*)*<svg(?:\s|\/?>)/i.test(decodeUtf8(bytes))) throw new Error("Invalid SVG image.");
+    } else validateImage(mime, bytes);
+    return { bytes, mime };
+  } finally { fs.closeSync(descriptor); }
 }

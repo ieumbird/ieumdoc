@@ -29,6 +29,9 @@
   /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
+  /* Read-only file preview: preferred dialog width and image height cap within the viewport. */
+  --layout-file-preview-width: 48rem;
+  --layout-file-preview-image-max-height: 60dvh;
   /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
   --layout-sidebar-width: 15rem;
   --layout-sidebar-width-narrow: 12.5rem;
