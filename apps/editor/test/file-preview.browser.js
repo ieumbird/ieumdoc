@@ -17,7 +17,7 @@ async (page, { openDocument, screenshots }) => {
   page.on('request', request => {
     if (request.url().includes('/api/document?')) documentReads++;
     if (['PUT','POST','DELETE'].includes(request.method())) writes++;
-    if (request.url().includes('preview-leak')) leaks++;
+    if (request.url().includes('preview-leak') || request.url().includes('svg11.dtd')) leaks++;
   });
   for (const name of ['archive.zip', 'README', 'notes.txt']) {
     await row(name).focus(); await row(name).press('Enter');
@@ -33,9 +33,13 @@ async (page, { openDocument, screenshots }) => {
   const draft = page.getByTestId('label-target-input');
   await draft.fill('section-draft');
   const before = await snapshot();
-  for (const name of ['diagram.svg', 'photo.PNG', 'active.svg']) {
+  for (const name of ['diagram.svg', 'photo.PNG', 'doctype.svg', 'active.svg']) {
     await clickRow(name);
     await dialog().getByRole('img', {name,exact:true}).waitFor();
+    if (name === 'doctype.svg') {
+      check(await dialog().getByRole('img').evaluate(img => img.naturalWidth === 20 && img.naturalHeight === 20), 'DOCTYPE SVG did not decode');
+      if (screenshots) await page.screenshot({path:'tmp/file-preview-capture/doctype.png'});
+    }
     await page.keyboard.press('Control+s');
     await dialog().getByRole('button', {name:'Close',exact:true}).click();
     await dialog().waitFor({state:'detached'});

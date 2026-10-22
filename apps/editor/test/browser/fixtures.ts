@@ -28,7 +28,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "file-preview": { files: [
     { name: "document.md", create: () => nativeSource("# Preview\n\nAlpha.\n\n(section-a)=\n\n## Section\n\nBody.\n") },
     document("diagram.svg"),
-    { name: "active.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80" onload="window.__previewExecuted=true"><script>window.__previewExecuted=true</script><image href="https://example.invalid/preview-leak"/><text y="20">Read only</text></svg>' },
+    fixture("doctype.svg"),
+    { name: "active.svg", create: () => '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg" width="160" height="80" onload="window.__previewExecuted=true"><script>window.__previewExecuted=true</script><image href="https://example.invalid/preview-leak"/><text y="20">Read only</text></svg>' },
     { name: "photo.PNG", create: () => Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") },
     { name: "delayed.png", create: () => Buffer.from("invalid") },
     { name: "broken.png", create: () => Buffer.from("invalid") },

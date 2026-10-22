@@ -59,6 +59,11 @@ test("folder preview validates bytes and size, rejects links, and stays within t
   assert.throws(() => readFilePreview(chosen, path.join(dir, "outside.png")), /allowed folders/);
   assert.throws(() => readFilePreview(chosen, path.join(chosen, "missing.png")), /ENOENT/);
   const svg = path.join(chosen, "diagram.svg");
+  const doctype = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Exported SVG -->\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="red"/></svg>';
+  writeFileSync(svg, doctype);
+  assert.equal(readFilePreview(chosen, svg).bytes.toString(), doctype);
+  writeFileSync(svg, '<!DOCTYPE svg [<!ENTITY secret SYSTEM "file:///outside-secret">]><svg xmlns="http://www.w3.org/2000/svg">&secret;</svg>');
+  assert.throws(() => readFilePreview(chosen, svg), /Invalid SVG/); // No server DTD/entity expansion.
   writeFileSync(svg, '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script></svg>');
   assert.equal(readFilePreview(chosen, svg).mime, "image/svg+xml"); // Isolation belongs to transport/img, not sanitization.
   writeFileSync(svg, "<!doctype html><script>alert(1)</script>");

@@ -218,7 +218,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 - Sidebar의 image/file 선택은 문서 GET, 탭 생성/전환, 이미지 link/copy와 저장을 호출하지 않는다. `.md`는 기존 Core admission과 탭 경로를 유지한다. 기타 파일은 파일명·경로와 편집 불가 안내만 표시하며 내용을 읽거나 실행하지 않는다.
 - `GET /api/file-preview?root=<선택한 폴더>&path=<이미지>`와 HEAD는 Vite/Desktop/HTTP 공통 handler를 사용한다. 문서가 없어도 사용할 수 있다. 정규 이미지 파일만, lexical/real path 모두 선택 root 안이어야 하며 root 하위 symlink/junction은 내부를 향해도 거부한다. HTTP는 별도로 모든 경로에 operator RootAccess를 적용한다. 누락/읽기 실패/비정규 파일/범위 밖 요청은 거부한다.
-- PNG/JPEG/GIF/WebP는 기존 업로드 container 검사와 10 MiB 제한을 재사용한다. SVG도 같은 크기 제한과 UTF-8/SVG 시작 형식 검사를 거치지만 sanitization을 주장하지 않는다. 모든 이미지 응답에 `nosniff`, `no-store`, `sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'` CSP를 부여한다. UI는 img로만 표시하므로 SVG script/event/external resource가 앱 권한으로 실행되지 않는다. 직접 URL/HEAD도 같은 검증/헤더를 사용한다.
+- PNG/JPEG/GIF/WebP는 기존 업로드 container 검사와 10 MiB 제한을 재사용한다. SVG도 같은 크기 제한과 UTF-8/SVG 시작 형식 검사를 거치지만 sanitization을 주장하지 않는다. XML 선언·주석·외부 DOCTYPE이 있는 SVG prolog도 수용한다. 서버는 DTD/entity를 해석하거나 외부 리소스를 조회하지 않으며 internal subset은 이 시작 검사에서 거부한다. 모든 이미지 응답에 `nosniff`, `no-store`, `sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'` CSP를 부여한다. UI는 img로만 표시하므로 SVG script/event/external resource가 앱 권한으로 실행되지 않는다. 직접 URL/HEAD도 같은 검증/헤더를 사용한다.
 - 크기는 open 전과 bounded read 중 검사하고 file descriptor의 identity 및 읽은 뒤 경계를 재확인한다. OS 수준의 filesystem transaction/동시 교체 방지 보장은 아니다. 기존 `/document/`의 문서 상대 media 권한, 문서 읽기·쓰기 admission과 asset 권한은 확장하지 않는다.
 - 공유 Dialog는 닫기/Escape 시 선택한 행으로 focus를 돌리고, 편집기 instance/selection/history/dirty/draft를 유지한다. modal 동안 Ctrl/Cmd+S는 대기한다. 로드 실패는 대화상자에 한 번 안내하며 늦은 로드는 닫힌 미리보기를 다시 열지 않는다. 이는 UI/Host 탐색이며 새 문서 의미 연산이나 CLI parity가 없다.
 

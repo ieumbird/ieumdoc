@@ -562,8 +562,9 @@ export function readFilePreview(requestedRoot: string | undefined, requestedPath
     if (current.dev !== opened.dev || current.ino !== opened.ino || current.size !== opened.size || current.mtimeMs !== opened.mtimeMs) throw new FileAccessError();
     const bytes = buffer.subarray(0, length);
     if (mime === "image/svg+xml") {
-      // This is a format check, not sanitization. CSP and the img context isolate active SVG.
-      if (!/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[^]*?-->\s*)*<svg(?:\s|\/?>)/i.test(decodeUtf8(bytes))) throw new Error("Invalid SVG image.");
+      // Sniff the SVG root after an optional exported prolog. Never parse a DTD or resolve entities;
+      // the browser's image decoder handles XML. This is not sanitization; CSP/img isolate active SVG.
+      if (!/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[^]*?-->\s*)*(?:<!DOCTYPE\s+svg\b[^<>\[\]]*>\s*)?(?:<!--[^]*?-->\s*)*<svg(?:\s|\/?>)/i.test(decodeUtf8(bytes))) throw new Error("Invalid SVG image.");
     } else validateImage(mime, bytes);
     return { bytes, mime };
   } finally { fs.closeSync(descriptor); }
