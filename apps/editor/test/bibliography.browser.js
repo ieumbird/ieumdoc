@@ -111,15 +111,22 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   assert(bibliographyFixture.hash() === updatedHash, 'Save may not overwrite an externally changed bibliography');
   assert((await references.innerText()).includes('Control Study'), 'Save does not refresh the bibliography snapshot');
 
-  let release, seen;
+  let release, seen, failed;
   const gate = new Promise(resolve => { release = resolve; });
-  const requested = new Promise(resolve => { seen = resolve; });
-  const delay = async route => { const response = await route.fetch(); seen(); await gate; await route.fulfill({ response }); };
+  const requested = new Promise((resolve, reject) => { seen = resolve; failed = reject; });
+  const delay = async route => {
+    try { const response = await route.fetch(); seen(); await gate; await route.fulfill({ response }); } catch (error) { failed(error); }
+  };
   await page.route('**/api/bibliography?**', delay);
-  await reloadDocument(page); await requested;
-  assert(await page.getByRole('tab', { name: 'other.md', exact: true, includeHidden: true }).getAttribute('aria-disabled') === 'true', 'Tabs must be disabled during dependency loading');
-  assert((await page.getByTestId('current-file').getAttribute('title')).endsWith('paper.md'), 'Opening remains busy while dependency response is pending');
-  release(); await ready(); await page.unroute('**/api/bibliography?**', delay);
+  try {
+    await reloadDocument(page);
+    await Promise.race([requested, page.waitForTimeout(15000).then(() => { throw Error('Reload must request the bibliography within 15 seconds'); })]);
+    assert(await page.getByRole('tab', { name: 'other.md', exact: true, includeHidden: true }).getAttribute('aria-disabled') === 'true', 'Tabs must be disabled during dependency loading');
+    assert((await page.getByTestId('current-file').getAttribute('title')).endsWith('paper.md'), 'Opening remains busy while dependency response is pending');
+  } finally {
+    release();
+  }
+  await ready(); await page.unroute('**/api/bibliography?**', delay);
   assert((await references.innerText()).includes('Updated Study'), 'Reload must fetch external bibliography changes');
   await compare(await readDocument(), bibliographyFixture.read());
   await page.getByRole('tab', { name: 'other.md', exact: true }).click();
@@ -143,6 +150,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   assert((await editor.locator('[data-citation]').first().getAttribute('aria-label') ?? await editor.locator('[data-citation] > span').first().getAttribute('aria-label')).includes('인용'), 'Citation status translates');
   await capture('references-ko', 1440);
   await capture('references-ko', 375);
+  await page.setViewportSize({ width: 375, height: 1000 });
   const narrow = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
   assert(narrow.scroll <= narrow.width, 'References must wrap without page-level overflow at 375px');
   await page.setViewportSize({ width: 1440, height: 1000 });
