@@ -14,6 +14,9 @@ import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../serv
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { saveErrorMessage } from "../src/save-error.ts";
+import { citationReport, parse, serialize, sameInlineContent, type CitationContent } from "@ieumdoc/core";
+import { citationNumbers } from "../src/citation.tsx";
+import { toTiptapContent } from "../src/tiptap-inline.ts";
 
 const source = nativeSource([
   "# Refs",
@@ -23,6 +26,43 @@ const source = nativeSource([
   ":::{figure} ./d.svg\n:name: fig-a\n:::",
 ].join("\n\n") + "\n");
 const REFERENCES = "2";
+
+test("citation atoms round-trip through the engine and Save, including groups, captions and metadata", () => {
+  const source = "---\nieumdoc: 1\nbibliography: [../missing.bib]\n---\n\n" +
+    "# Citation document\n\nBefore **{cite}`Key`** and {cite:t}`Key` or {cite:p}`Other,Key`.\n\n" +
+    ":::{figure}\n\nFigure {cite}`Figure`\n:::\n\n" +
+    ":::{table} Caption {cite}`Caption`\n\n| Name |\n| --- |\n| {cite}`Cell` |\n:::\n\n" +
+    "- List {cite}`List`\n\nEnd[^n].\n\n[^n]: Endnote {cite}`Endnote`.\n";
+  const model = loadEditableDocument(source);
+  const projection = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(projection), plugins: [structureGuardPlugin(projection, reason => assert.fail(JSON.stringify(reason)))] });
+  assert.deepEqual([...citationNumbers(state.doc)], [...new Map(citationReport(parse(source)).citations.flatMap(c => c.keys.map((key, i) => [key, c.numbers[i]] as const)))]);
+  const paragraph = state.doc.child(1);
+  assert.deepEqual(fromTiptapContent({ type: "doc", content: [paragraph.toJSON()] }), model.blocks[1].block === "paragraph" ? model.blocks[1].content : []);
+  const start = state.doc.child(0).nodeSize + 1;
+  state = state.apply(state.tr.insertText("Edited ", start));
+  const saved = saveEdits(source, collectSupportedEdits(model, editorDocumentJSON(state))).markdown;
+  assert.deepEqual(citationReport(parse(saved)), citationReport(parse(source)));
+  assert.match(saved, /Edited Before/);
+  assert.equal(serialize(parse(saved)), saved);
+  assert.deepEqual(citationNumbers(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(saved)))), citationNumbers(state.doc));
+});
+
+test("citation adapter rejects malformed atoms and retains permitted marks", () => {
+  const citation: CitationContent = { kind: "citation", role: "cite:p", keys: ["Key", "key"] };
+  const content = [{ kind: "delete" as const, children: [{ kind: "strong" as const, children: [citation] }] }];
+  const schema = getSchema(editorExtensions());
+  const json = schema.nodeFromJSON(toTiptapContent(content)).toJSON();
+  assert(sameInlineContent(fromTiptapContent(json), content));
+  for (const node of [
+    { type: "citation", attrs: { role: "cite:year", keys: ["Key"] } },
+    { type: "citation", attrs: { role: "cite", keys: [] } },
+    { type: "citation", attrs: { role: "cite", keys: "Key" } },
+    { type: "citation", attrs: { role: "cite", keys: ["Key"] }, marks: [{ type: "link", attrs: { href: "./x" } }] },
+    { type: "citation", attrs: { role: "cite", keys: ["Key"] }, marks: [{ type: "superscript" }] },
+  ]) assert.throws(() => fromTiptapContent({ type: "doc", content: [{ type: "paragraph", content: [node] }] }), /citation/);
+});
 
 function clone(value: TiptapJSON): TiptapJSON {
   return JSON.parse(JSON.stringify(value)) as TiptapJSON;

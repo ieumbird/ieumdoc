@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
+- Last verified: 2026-10-22 (#332 citation atom preservation through editing, typed clipboard, history and Save → Reload; [Citations](citations-v1.md)).
+- Previous verification: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
 - Previous verification: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
@@ -93,7 +94,12 @@ including reaching the document end, and session identity repair require no CLI 
 Subscript and superscript are InlineContent marks (`subscript`, `superscript`) written as
 the MyST `{sub}` and `{sup}` roles, for text notation such as H{sub}`2`O or m{sup}`2`;
 mathematical meaning belongs in inline math. They never nest in each other and hold no
-references or footnotes. Source that does, or a role with `class`/`label` options, is rejected at native admission. Headless callers use the existing `--content` JSON, so no CLI command is added.
+references, footnotes or citations. Source that does, or a role with `class`/`label` options, is rejected at native admission. Headless callers use the existing `--content` JSON, so no CLI command is added.
+
+[Citation atoms](citations-v1.md) hold the explicit role and exact key group, with optional bold,
+italic or deletion marks. Core supplies their number policy and text. Supported clipboard slices,
+normal editing and Save preserve those attributes and the bibliography declaration. There is no
+citation authoring UI or bibliography resource read in this scope.
 
 ## Table cells and Figure captions
 

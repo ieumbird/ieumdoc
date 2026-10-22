@@ -5,6 +5,7 @@ import {
   inspectDocument,
   isAdmonitionVariant,
   inlineContentLength,
+  inlineContentText,
   insertAdmonition,
   insertHeading,
   insertEquation,
@@ -590,7 +591,5 @@ function figureContent(value: FigureContent | undefined): FigureContent {
 
 function inlineText(content: InlineContent[]): string {
   if (!Array.isArray(content)) return "";
-  return content.map((item) => (item.kind === "text" ? item.text : item.kind === "break" ? "\n"
-    : item.kind === "math" ? `$${item.value}$` : item.kind === "code" ? `\`${item.value}\`` : item.kind === "reference" ? `{${item.role}}\`${item.label}\``
-    : item.kind === "footnote" ? `[^${item.label}]` : inlineText(item.children))).join("");
+  return inlineContentText(content);
 }

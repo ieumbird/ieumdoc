@@ -73,6 +73,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["layout-rules", "quiet-document", "visual-states"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
+  "citations": { files: [fixture("citations.md")], scenarios: ["citations"] },
   "block-move": { files: technical, scenarios: ["block-move"] },
   "document-title": { files: [...technical,
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },

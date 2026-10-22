@@ -42,7 +42,7 @@ test("literal @ text opens, edits and writes safely for both IeumDoc and default
   }
 });
 
-test("bracket citation shorthand refuses with literal guidance, while cite roles stay unsupported", () => {
+test("bracket citation shorthand refuses with literal guidance without changing literal @", () => {
   for (const body of ["[@key]", "[@key, p. 3]", "[@a; @b]", "[see @key, p. 3]",
     "**[@key]**", "- [@key]", "| A |\n|---|\n| [@key] |",
     "Text[^a].\n\n[^a]: [@key]", ":::{note}\n[@key]\n:::"]) {
@@ -63,11 +63,44 @@ test("bracket citation shorthand refuses with literal guidance, while cite roles
     "[@key](https://example.com)", "```text\n[@key]\n```"]) {
     assert.doesNotThrow(() => parse(native(body + "\n")), body);
   }
+});
+
+test("explicit citation roles preserve kind, exact keys and groups through canonical writes", () => {
   for (const role of ["cite", "cite:t", "cite:p"]) {
-    for (const keys of ["key", "a,b"]) {
-      assert.throws(() => parse(native(`{${role}}\`${keys}\`\n`)), NativeDocumentError);
+    for (const keys of ["KeyA", "KeyA; 한글:key"]) {
+      const document = parse(native(`{${role}}\`${keys}\`\n`));
+      const block = getEditableDocument(document).blocks[0];
+      assert(block.block === "paragraph");
+      const canonicalRole = role === "cite" && keys.includes(";") ? "cite:t" : role;
+      assert.deepEqual(block.content, [{ kind: "citation", role: canonicalRole, keys: keys.split("; ") }]);
+      const markdown = serialize(document);
+      assert.equal(markdown, native(`{${canonicalRole}}\`${keys.replace("; ", ",")}\`\n`));
+      assert.deepEqual(getEditableDocument(parse(markdown)), getEditableDocument(document));
+      assert.equal(serialize(parse(markdown)), markdown);
     }
   }
+  for (const body of ["{cite:p}`{see}Key{p. 3}`", "{cite:author}`Key`", "{cite:year}`Key`",
+    "{cite:p}`see [@Key, p. 3]`", "[{cite}`Key`](./url)"]) {
+    assert.throws(() => parse(native(body)), Error, body);
+  }
+});
+
+test("bibliography declarations validate shape without reading resources and keep original spelling", () => {
+  const source = "---\nieumdoc: 1\n# Shared bibliography\nbibliography:\n  - ../refs.bib\n  - ./자료/standards.bib\nnumbering:\n  headings: true\n  title: false\n---\n\nBody.\n";
+  const document = parse(source);
+  assert.equal(serialize(document), source);
+  assert.equal(serialize(updateParagraphInlineContent(document, [1], [{ kind: "text", text: "Edited." }])), source.replace("Body.", "Edited."));
+  for (const value of ["refs.bib", "[]", "null", "[null]", "[1]", "[{title: Book}]", "[refs.bib, refs.bib]",
+    "[refs.bib, ./refs.bib]", "[a/../refs.bib, refs.bib]", "['']", "[' refs.bib']", "[/refs.bib]",
+    "['C:/refs.bib']", "['C:refs.bib']", "['\\\\server\\refs.bib']", "['refs\\a.bib']", "['https://host/refs.bib']",
+    "['*.bib']", "['ref?.bib']", "['[ab].bib']", "['{a,b}.bib']", "['@(a|b).bib']", "['+(a|b).bib']", "['refs.json']", "['refs.bib/']"]) {
+    assert.throws(() => parse(`---\nieumdoc: 1\nbibliography: ${value}\n---\n`), error => {
+      assert(error instanceof NativeDocumentError);
+      assert.equal(error.code, "native-metadata");
+      return true;
+    }, value);
+  }
+  assert.throws(() => parse("---\nieumdoc: 1\nbibliography: [a.bib]\nbibliography: [b.bib]\n---\n"), /Invalid native frontmatter/);
 });
 
 test("native admission checks the marker and the complete YAML contract before writing", () => {

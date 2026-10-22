@@ -71,6 +71,7 @@ pnpm browser:test quiet-document --screenshots      # tmp/visual-refinement/afte
 pnpm browser:test folder-navigation --screenshots   # tmp/picker-capture/
 pnpm browser:test open-files --screenshots          # tmp/visual-refinement/: 시작 화면·폴더 메뉴
 pnpm browser:test footnotes --screenshots           # tmp/visual-refinement/footnotes-*.png: 미주 구역
+pnpm browser:test citations --screenshots           # tmp/visual-refinement/citations-*.png: 인용 표시
 ```
 
 캡처에서 정렬, 간격, 겹침, 잘림, 긴 이름·수식·표의 처리를 본다. 기준은 [layout rules](../design/editor-layout-rules-v1.md)와 [visual language](../design/editor-visual-language-v1.md), 이전 근거는 [review record](../design/editor-visual-refinement-v1-review.md)다.

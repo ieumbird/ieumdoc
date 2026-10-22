@@ -20,7 +20,7 @@ import { assertUnicode } from "./unicode.ts";
  *   canonical write puts them; those the parse dropped are recorded.
  */
 // Bare @name is text. Bracket shorthand is refused from source-token evidence at
-// native admission; explicit cite roles remain parsed and unsupported.
+// native admission; explicit cite roles retain their typed meaning.
 export const OPTIONS = { extensions: { smartquotes: false, citations: false } };
 
 /**

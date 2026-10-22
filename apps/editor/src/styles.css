@@ -1928,12 +1928,21 @@ ol.list { list-style: decimal; }
 .cross-reference[data-resolved="false"] .cross-reference-chip {
   color: var(--id-color-text-subtle);
   text-decoration: underline dashed;
-  text-underline-offset: 3px;
+  text-underline-offset: var(--reference-underline-offset);
 }
 
 .cross-reference-chip:hover {
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: var(--reference-underline-offset);
+}
+
+/* A valid citation whose bibliography has not been evaluated. No resolved/link claim. */
+.citation .cross-reference-chip {
+  color: var(--id-color-text-subtle);
+  cursor: help;
+  white-space: normal;
+  text-decoration: underline dashed;
+  text-underline-offset: var(--reference-underline-offset);
 }
 
 .cross-reference[data-selected="true"] .cross-reference-chip {

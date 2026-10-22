@@ -240,6 +240,9 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       await rest();
       await shot(`${width}-display`);
       await page.getByRole('button',{name:'Files',exact:true}).click();
+      // A phone sidebar covers the document. Leave it closed before the next phone width's
+      // rest/hover captures; crossing 414 → 375 does not cross the responsive breakpoint.
+      if (width < 640) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
     }
   }
   for(const width of [1440,1024,768]) {

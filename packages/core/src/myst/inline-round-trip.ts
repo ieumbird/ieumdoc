@@ -1,4 +1,4 @@
-import { inlineContentText, inlineMarkKey, projectInlineContent, type InlineContent } from "../inline.ts";
+import { inlineContentText, projectInlineContent, sameInlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -23,22 +23,8 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
   const projected = block && projectInlineContent(block);
   if (blocks.length !== 1 || block?.type !== node.type ||
       (node.type === "heading" && block.depth !== node.depth) || !projected ||
-      JSON.stringify(markedText(content)) !== JSON.stringify(markedText(projected)) ||
+      !sameInlineContent(content, projected) ||
       serialize(reparsed) !== markdown) {
     throw new Error(failure);
   }
-}
-
-// Compare rendered text and mark coverage (including each link's target), not
-// text-node fragmentation or the nesting order of marks produced by adapters.
-function markedText(content: InlineContent[], marks: string[] = []): [string, string][] {
-  return content.flatMap((item): [string, string][] => {
-    if (item.kind === "text") return item.text.split("").map((text) => [text, marks.join(",")]);
-    if (item.kind === "break") return [["\n", [...marks, "break"].join(",")]];
-    if (item.kind === "math") return [[`math ${item.value}`, [...marks, "math"].join(",")]];
-    if (item.kind === "code") return item.value.split("").map((text) => [text, [...marks, "code"].sort().join(",")]);
-    if (item.kind === "reference") return [[`reference ${item.role} ${item.label}`, [...marks, "reference"].join(",")]];
-    if (item.kind === "footnote") return [[`footnote ${item.label}`, [...marks, "footnote"].join(",")]];
-    return markedText(item.children, [...new Set([...marks, inlineMarkKey(item)!])].sort());
-  });
 }

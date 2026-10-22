@@ -20,6 +20,7 @@ import {
   replaceText,
   serialize,
   validateStructure,
+  citationReport,
   updateLabel,
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
@@ -38,6 +39,69 @@ for (const [name, target] of [["document.md", fixture], ["technical-document.md"
 const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
+
+test("citation single edits, batch, check/inspect and format use the same Core report without bibliography I/O", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-citations-"));
+  try {
+    const file = path.join(dir, "paper.md"), batchFile = path.join(dir, "batch.md"), operationsFile = path.join(dir, "operations.json");
+    const bib = path.join(dir, "refs.bib"), bibBytes = "This is deliberately not valid BibTeX. Never read or rewrite it.\r\n";
+    writeFileSync(bib, bibBytes);
+    const source = nativeSource("A claim.\n");
+    writeFileSync(file, source); writeFileSync(batchFile, source);
+    const operations = [
+      { command: "update-bibliography", paths: ["./refs.bib", "../missing.bib"] },
+      { command: "insert-citation", path: 1, offset: 1, role: "cite", keys: ["Key", "Other"] },
+      { command: "update-citation", path: 1, offset: 1, role: "cite:p", keys: ["Other", "Key"] },
+      { command: "insert-citation", path: 1, offset: 0, role: "cite:t", keys: ["Key"] },
+      { command: "remove-citation", path: 1, offset: 0 },
+    ];
+    for (const { command, ...options } of operations) {
+      const args = Object.entries(options).flatMap(([key, value]) => [`--${key}`, Array.isArray(value) ? JSON.stringify(value) : String(value)]);
+      const result = run([command, file, ...args]);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, "");
+    }
+    writeFileSync(operationsFile, JSON.stringify(operations));
+    const preview = run(["apply-batch", batchFile, "--operations", operationsFile, "--dry-run", "--format", "json"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.equal(readFileSync(batchFile, "utf8"), source);
+    const result = run(["apply-batch", batchFile, "--operations", operationsFile]);
+    assert.equal(result.status, 0, result.stderr);
+    const final = readFileSync(file, "utf8");
+    assert.equal(readFileSync(batchFile, "utf8"), final);
+    const expected = citationReport(parse(final));
+    assert.deepEqual(JSON.parse(preview.stdout).citations, expected);
+    for (const command of ["check", "inspect"]) {
+      const json = run([command, file, "--format", "json"]);
+      assert.equal(json.status, 0, json.stderr);
+      assert.deepEqual(JSON.parse(json.stdout).citations, expected);
+      const text = run([command, file]);
+      assert.match(text.stdout, /bibliography "\.\/refs\.bib"/);
+      assert.match(text.stdout, /keys=\["Other","Key"\] text="\[1\], \[2\]"/);
+      assert.match(text.stdout, /citation readiness: not-evaluated/);
+    }
+    assert.equal(run(["format", file]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), final);
+    assert.equal(readFileSync(bib, "utf8"), bibBytes);
+
+    for (const args of [
+      ["insert-citation", file, "--path", "1", "--offset", "0", "--role", "cite:year", "--keys", '["Key"]'],
+      ["insert-citation", file, "--path", "1", "--offset", "0", "--role", "cite", "--keys", '[]'],
+      ["insert-citation", file, "--path", "1", "--offset", "0", "--role", "cite", "--keys", '["Key"]', "--suffix", "p. 3"],
+      ["remove-citation", file, "--path", "1", "--offset", "0"],
+      ["update-bibliography", file, "--paths", '["/refs.bib"]'],
+    ]) {
+      assert.equal(run(args).status, 1, args.join(" "));
+      assert.equal(readFileSync(file, "utf8"), final);
+    }
+    writeFileSync(operationsFile, JSON.stringify([{ command: "update-bibliography", paths: [] },
+      { command: "update-citation", path: 1, offset: 0, role: "cite", keys: ["Key"] }]));
+    const failed = run(["apply-batch", file, "--operations", operationsFile]);
+    assert.equal(failed.status, 1);
+    assert.match(failed.stderr, /operation 2 \(update-citation\).*nothing was written/);
+    assert.equal(readFileSync(file, "utf8"), final);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 
 test("CLI rejects malformed paths before I/O and accepts valid Unicode names", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
@@ -399,7 +463,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-footnote", "update-footnote", "update-heading-numbering", "insert-target", "update-label"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -1418,6 +1482,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       references: { unresolved: [] },
       readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
+      citations: { bibliography: [], citations: [], readiness: { status: "not-evaluated", complete: null, diagnostics: [] } },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);

@@ -74,13 +74,15 @@ export function targetNumbers(blocks: NumberedTargets[]): NumberedTargets[] {
   });
 }
 
-/** Footnote numbers by label: MyST numbers footnotes 1, 2, ... in the order their first
- * reference is read, and definitions follow the body. */
-export function footnoteNumbers(references: Iterable<string>): Map<string, number> {
+/** Number exact identifiers 1, 2, ... in the order their first reference is read. */
+export function firstReferenceNumbers(references: Iterable<string>): Map<string, number> {
   const numbers = new Map<string, number>();
   for (const label of references) if (!numbers.has(label)) numbers.set(label, numbers.size + 1);
   return numbers;
 }
+
+/** Endnotes and bibliography keys use the same order policy, with independent namespaces/maps. */
+export const footnoteNumbers = firstReferenceNumbers;
 
 /** A top-level block as endnote ordering sees it: the footnote label it defines, if it is a
  * definition, and the footnote references it holds in document order. */

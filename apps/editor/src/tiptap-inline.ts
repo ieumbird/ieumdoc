@@ -1,4 +1,5 @@
 import type { EditableBlock, InlineContent, ReferenceRole } from "@ieumdoc/core";
+import { citationContentError, type CitationContent, type CitationRole } from "@ieumdoc/core/citation";
 
 export type TiptapMark = {
   type: string;
@@ -62,12 +63,13 @@ export function fromTiptapContent(doc: TiptapJSON): InlineContent[] {
 function toTiptapInline(content: InlineContent[], marks: Marks): TiptapJSON[] {
   const nodes: TiptapJSON[] = [];
   for (const item of content) {
-    if (item.kind === "text" || item.kind === "code" || item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote") {
+    if (item.kind === "text" || item.kind === "code" || item.kind === "break" || item.kind === "math" || item.kind === "reference" || item.kind === "footnote" || item.kind === "citation") {
       if (item.kind === "text" && item.text.length === 0) continue;
       const node: TiptapJSON = item.kind === "break" ? { type: "hardBreak" }
         : item.kind === "math" ? { type: "inlineMath", attrs: { value: item.value } }
         : item.kind === "reference" ? { type: "crossReference", attrs: { role: item.role, label: item.label } }
         : item.kind === "footnote" ? { type: "footnoteReference", attrs: { label: item.label } }
+        : item.kind === "citation" ? { type: "citation", attrs: { role: item.role, keys: [...item.keys] } }
         : item.kind === "code" ? { type: "text", text: item.value }
         : { type: "text", text: item.text };
       const applied: TiptapMark[] = [];
@@ -107,8 +109,12 @@ const SIMPLE_MARKS: Record<string, Mark> = { bold: BOLD, italic: ITALIC, strike:
 
 function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
   if (!isTiptapJSON(node) || (node.type !== "text" && node.type !== "hardBreak" && node.type !== "inlineMath" &&
-      node.type !== "crossReference" && node.type !== "footnoteReference")) {
+      node.type !== "crossReference" && node.type !== "footnoteReference" && node.type !== "citation")) {
     throw new Error(`unsupported Tiptap node ${describeType(node)} at paragraph child ${index}`);
+  }
+  if (node.type === "citation") {
+    const error = citationContentError({ kind: "citation", role: node.attrs?.role, keys: node.attrs?.keys } as CitationContent);
+    if (error || node.content !== undefined) throw new Error(`citation at paragraph child ${index}: ${error ?? "cannot contain children"}`);
   }
   if (node.type === "crossReference" && (!["eq", "numref", "ref"].includes(String(node.attrs?.role)) ||
       typeof node.attrs?.label !== "string" || node.attrs.label.length === 0 || node.content !== undefined)) {
@@ -151,9 +157,10 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
       code = true;
       continue;
     }
-    if ((node.type === "crossReference" || node.type === "footnoteReference") && mark.type === "link") {
-      throw new Error(`a ${node.type === "crossReference" ? "cross-reference" : "footnote reference"} cannot be inside a link at paragraph child ${index}`);
+    if ((node.type === "crossReference" || node.type === "footnoteReference" || node.type === "citation") && mark.type === "link") {
+      throw new Error(`a ${node.type === "crossReference" ? "cross-reference" : node.type === "citation" ? "citation" : "footnote reference"} cannot be inside a link at paragraph child ${index}`);
     }
+    if (node.type === "citation" && ["subscript", "superscript"].includes(mark.type)) throw new Error("citations cannot be subscript or superscript");
     marks.push(mark.type === "link" ? linkMark(mark, index) : SIMPLE_MARKS[mark.type]);
   }
 
@@ -164,6 +171,7 @@ function fromTiptapInline(node: TiptapJSON, index: number): Leaf {
     : node.type === "inlineMath" ? { kind: "math", value: String(node.attrs!.value) }
     : node.type === "crossReference" ? { kind: "reference", role: node.attrs!.role as ReferenceRole, label: String(node.attrs!.label) }
     : node.type === "footnoteReference" ? { kind: "footnote", label: String(node.attrs!.label) }
+    : node.type === "citation" ? { kind: "citation", role: node.attrs!.role as CitationRole, keys: [...node.attrs!.keys as string[]] }
     : code ? { kind: "code", value: node.text! }
     : { kind: "text", text: node.text! };
   const order = Object.keys(SIMPLE_MARKS);

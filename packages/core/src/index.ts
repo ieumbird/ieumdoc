@@ -15,6 +15,7 @@ import { unresolvedReferences as unresolvedReferencesTree } from "./references.t
 import { validateStructure as validateTree } from "./validation.ts";
 import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/heading-numbering.ts";
 import { bodyEndIndex as bodyEndIndexTree, endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
+import { citationReport as citationReportTree, updateBibliography as updateBibliographyTree } from "./myst/citation.ts";
 
 export type { Document, NodePath, BlockSummary } from "./document.ts";
 export { hasNativeMarker, NativeDocumentError } from "./myst/native.ts";
@@ -23,10 +24,12 @@ export { writeIssueOf } from "./write-error.ts";
 export type { WriteIssue } from "./write-error.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export type { InlineContent, ReferenceRole } from "./inline.ts";
+export type { CitationContent, CitationRole, CitationReport } from "./citation.ts";
+export { citationContentError, citationText } from "./citation.ts";
 export type { AdmonitionVariant } from "./myst/admonition.ts";
 export { ADMONITION_VARIANTS, isAdmonitionVariant } from "./myst/admonition.ts";
 /** Paragraph offset length of inline content, as used by split and hard break offsets. */
-export { inlineContentLength } from "./inline.ts";
+export { inlineContentLength, inlineContentText, sameInlineContent } from "./inline.ts";
 export type { FigureContent } from "./figure.ts";
 export type { ListContent, ListItemContent } from "./list.ts";
 export type { CodeBlockContent } from "./code.ts";
@@ -37,6 +40,7 @@ export { labelError, labelKey, targetLabelError } from "./label.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, titleHeading, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
 export { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, headingNumbers, defaultHeadingNumbering, type EndnoteBlock, type HeadingNumbering } from "./numbering.ts";
+export { firstReferenceNumbers } from "./numbering.ts";
 export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
 
 type Opaque<T> = T extends MystDocument ? Document : T;
@@ -67,6 +71,11 @@ export const bodyEndIndex = fence(bodyEndIndexTree);
 /** Unresolved references and unescaped literal syntax from parsed
  * source text; reported, never a write rule. Operation-created text is literal. */
 export const unresolvedReferences = fence(unresolvedReferencesTree);
+export const citationReport = fence(citationReportTree);
+export const updateBibliography = fence(updateBibliographyTree);
+export const insertCitation = fence(operations.insertCitation);
+export const updateCitation = fence(operations.updateCitation);
+export const removeCitation = fence(operations.removeCitation);
 
 export const insertHardBreak = fence(operations.insertHardBreak);
 export const splitParagraph = fence(operations.splitParagraph);
