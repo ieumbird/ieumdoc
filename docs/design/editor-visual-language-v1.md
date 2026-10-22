@@ -199,3 +199,31 @@ surface, title, description, compact Close button and spacing tokens. Name/path 
 contains within the available width and 60dvh, and the dialog stays within the viewport at wide and
 phone widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
 row while document selection and property drafts remain. File information has no edit/open/execute action.
+
+#### #217 verification and captures
+
+The final SVG handler and token-based CSS were captured and tested at clean code HEAD
+`aad457a46a6ab98c9948fc828adc405c2debbb49` on Windows/Chrome, DPR 1, 100% zoom and bundled
+Pretendard. This evidence commit changes documentation/assets only. The earlier Before captures
+were taken with HEAD `811a5662a2c69d804b0d0f419f2d84a4b4df054d` and its unchanged product code (only the failing regression test and
+ignored plan were being prepared). Quiet Document rest states use scroll top and loaded fonts/images.
+
+| State | Before | Final After / new UI | Viewport |
+| --- | --- | --- | --- |
+| Quiet Document, wide rest | [Before](assets/file-preview-217/before-1440.png) | [After](assets/file-preview-217/after-1440.png) | 1440×1000 |
+| Quiet Document, narrow rest | [Before](assets/file-preview-217/before-768.png) | [After](assets/file-preview-217/after-768.png) | 768×1000 |
+| Image preview, English | — | [Wide](assets/file-preview-217/image-1440.png) / [Phone](assets/file-preview-217/image-375.png) | 1440×900 / 375×900 |
+| Image preview, Korean | — | [Korean](assets/file-preview-217/image-ko.png) | 1440×900 |
+| Generic file information | — | [Phone](assets/file-preview-217/file-375.png) | 375×900 |
+| SVG 1.1 DOCTYPE, red square | — | [Decoded image](assets/file-preview-217/doctype-1280.png) | 1280×720 |
+
+The new preview captures retain applied dirty text and an unapplied section-label draft behind the
+modal. The existing dialog width (48rem) and image height cap (60dvh) remain unchanged through
+the Adjustable tokens. `pnpm browser:test file-preview --screenshots`, `layout-rules`, and
+`quiet-document --screenshots` passed at that HEAD with `IEUMDOC_BROWSER_URL=http://127.0.0.1:5193`.
+The SVG regression first failed with `Invalid SVG image`, then passed with XML declaration,
+comment and external SVG 1.1 DOCTYPE. The browser decodes the committed DOCTYPE fixture as 20×20;
+the DOCTYPE-bearing active fixture still cannot execute scripts/events or fetch its external image/DTD
+in the image context. Direct SVG navigation also cannot execute its script under the sandbox CSP.
+No server XML/DTD/entity parser was added.
+Targeted Host and token tests, Editor typecheck/build, documentation and whitespace checks also passed.
