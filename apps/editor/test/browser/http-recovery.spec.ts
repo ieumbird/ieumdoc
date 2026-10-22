@@ -7,6 +7,7 @@ import path from "node:path";
 import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
 import { openDocument, reloadDocument } from "./navigation.ts";
 import { recoveryRecords, resetRecovery } from "./recovery-records.ts";
+import type { Editor } from "@tiptap/core";
 
 // Same checkout-owned persistent Chrome profile as the serial HTTP harness. No server restart.
 const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
@@ -16,6 +17,7 @@ const ready = (page: Page) => page.locator('[data-testid="status"][data-operatio
 test("HTTP recovery survives an owned browser process crash, then Save/Reload and conflict", async ({}, info) => {
   prepareBrowserFixtures();
   const file = path.join(REPOSITORY_ROOT, "tmp/http-host-a/fixture/a.md");
+  writeFileSync(file, "---\nieumdoc: 1\n---\n");
   const original = readFileSync(file, "utf8");
   let context: BrowserContext | undefined;
   const processes: number[] = [];
@@ -52,6 +54,22 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     let page = await launch();
     await resetRecovery(page);
     await openDocument(page, file); await ready(page);
+    await page.getByRole("button", { name: "Add a title", exact: true }).click();
+    await page.keyboard.type("HTTP recovery paper");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("HTTP body.");
+    await page.locator(".document-editor").evaluate(element => {
+      const editor = (element as HTMLElement & {editor: Editor}).editor;
+      editor.commands.insertContentAt(editor.state.doc.content.size, [
+        {type:"equation",attrs:{latex:"x^2 + y^2 = z^2"}},
+        {type:"table",attrs:{caption:[{kind:"text",text:"HTTP table caption"}]},content:[
+          {type:"tableRow",content:[{type:"tableCell",attrs:{header:true},content:[{type:"text",text:"Header"}]}]},
+          {type:"tableRow",content:[{type:"tableCell",attrs:{header:false},content:[{type:"text",text:"Measured cell"}]}]},
+        ]},
+        {type:"figure",content:[{type:"text",text:"HTTP pending figure caption"}]},
+      ]);
+    });
+    const structured = await page.locator(".document-editor").evaluate(element => (element as HTMLElement & {editor:Editor}).editor.getJSON());
     const edit = async (text: string) => {
       await page.locator(".document-editor p").first().click();
       await page.keyboard.press("End"); await page.keyboard.insertText(text);
@@ -69,14 +87,21 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     await page.getByRole("button", { name: "Restore work", exact: true }).click();
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
+    const restored = await page.locator(".document-editor").evaluate(element => (element as HTMLElement & {editor:Editor}).editor.getJSON());
+    // The prose changed after the structural capture; all inserted atoms and table content must match.
+    expect(restored.content?.filter(node => ["equation","table","figure"].includes(node.type!)))
+      .toEqual(structured.content?.filter(node => ["equation","table","figure"].includes(node.type!)));
     expect(readFileSync(file, "utf8")).toBe(original);
     await page.getByTestId("save").click();
     await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
     await expect.poll(() => recoveryRecords(page)).toEqual([]);
     const saved = readFileSync(file, "utf8");
     expect(saved).toContain("HTTP crash recorded.");
+    for (const text of ["HTTP recovery paper","x^2 + y^2 = z^2","Header","Measured cell","HTTP table caption","HTTP pending figure caption"]) expect(saved).toContain(text);
     await reloadDocument(page); await ready(page);
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
+    await expect(page.locator(".document-editor")).toContainText("Measured cell");
+    await expect(page.locator(".document-editor")).toContainText("HTTP pending figure caption");
 
     await edit(" HTTP conflict recorded.");
     const conflictRecord = await recoveryRecords(page);

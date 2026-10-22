@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { RecoveryRecord } from "../recovery-storage.ts";
 import { splitDocumentPath } from "./document-path.ts";
+import { recoveryReasonText } from "../recovery-message.ts";
 
 export function RecoveryList({ records, unavailable = false, onReview }: { records: RecoveryRecord[]; unavailable?: boolean; onReview(record: RecoveryRecord): void }) {
   useTranslation();
@@ -38,11 +39,11 @@ export function RecoveryPrompt({ record, reason, onRestore, onDelete, onClose }:
       <DialogHeader><DialogTitle>{reason ? i18n.t("Recovery cannot be restored") : i18n.t("Restore unsaved work?")}</DialogTitle>
         <DialogDescription render={<div />} className="grid gap-3 break-words">
           <p>{typeof record?.path === "string" ? record.path : i18n.t("Unknown path")}</p>
-          <p>{reason || i18n.t("Restore this local record as unsaved work. Your original file is unchanged; Save still checks for external changes. No automatic merge is performed.")}</p>
+          <p>{reason ? recoveryReasonText(reason) : i18n.t("Restore this local record as unsaved work. Your original file is unchanged; Save still checks for external changes. No automatic merge is performed.")}</p>
           <p>{i18n.t("Only the last recorded applied content is available. Unapplied property drafts and image files are not backed up.")}</p>
         </DialogDescription></DialogHeader>
       <details><summary>{i18n.t("Plaintext recovery copy")}</summary>
-        <p>{i18n.t("Text and applied properties. Document formatting is not preserved.")}</p>
+        <p>{i18n.t("Readable text only. This copy does not restore document structure or formatting.")}</p>
         <textarea className="recovery-text" aria-label={i18n.t("Plaintext recovery copy")} readOnly value={typeof record?.recoveryText === "string" ? record.recoveryText : i18n.t("No plaintext was found in this record.")} />
         <Button variant="secondary" size="sm" onClick={() => void run(async () => {
           if (!navigator.clipboard) throw new UiError({ key: "Clipboard access is unavailable. Select the plaintext and copy it manually." });

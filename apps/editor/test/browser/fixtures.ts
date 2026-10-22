@@ -52,7 +52,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__ieumdocSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
   ], scenarios: ["http-host"] },
   "http-host-b/fixture": { files: [{ name: "b.md", create: () => nativeSource("# HTTP B\n\nBeta.\n") }], scenarios: ["http-host"] },
-  "new-document": { files: [], scenarios: ["new-document"] },
+  "new-document": { files: [], scenarios: ["new-document", "recovery-structure"] },
   "open-files": { files: [
     { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
     { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },
