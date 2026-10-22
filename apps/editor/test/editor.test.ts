@@ -1,5 +1,7 @@
 import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
+import { recoveryText } from "../src/recovery-storage.ts";
+import type { DocumentSessionSnapshot } from "../src/useDocumentSession.ts";
 import { editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
 import { freshBlockPath } from "../src/tiptap-edits.ts";
@@ -2181,4 +2183,49 @@ test("failed restore reserves no locators across documents or within traversal",
     assert.throws(() => prepareEditorSnapshot(schema, opening, snapshot), /Incompatible editor snapshot: Editor locator exceeds the supported range/);
     assert.deepEqual(kinds.map(kind => suffix(allocateBlockPath(kind))), before.map(value => value + 1), invalidIn);
   }
+});
+
+test("engine-created paragraph normalization produces a restorable snapshot", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("# Title\n\nText")));
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, reason => assert.fail(JSON.stringify(reason)))] });
+  const savedDocument = editorDocumentJSON(state);
+  state = state.applyTransaction(state.tr.insert(state.doc.content.size, schema.nodes.paragraph.create(null, schema.text("New text")))).state;
+  const editorDocument = editorDocumentJSON(state);
+  assert.doesNotThrow(() => prepareEditorSnapshot(schema, opening, { editorDocument, savedDocument }));
+  assert.deepEqual(editorDocument.attrs!.deletedPaths, []);
+});
+
+test("legacy empty deletion sentinel is ignored in both checkpoints, without accepting other damage", () => {
+  const opening = toTiptapDocument(loadEditableDocument(nativeSource("# Title\n\nText")));
+  const schema = getSchema(editorExtensions());
+  const saved = editorDocumentJSON(EditorState.create({schema, doc:schema.nodeFromJSON(opening)}));
+  for (const key of ["editorDocument", "savedDocument"] as const) {
+    const snapshot = {editorDocument:structuredClone(saved),savedDocument:structuredClone(saved)};
+    snapshot[key].attrs!.deletedPaths = [""];
+    const input = structuredClone(snapshot);
+    assert.deepEqual(prepareEditorSnapshot(schema,opening,snapshot)[key],saved);
+    assert.deepEqual(snapshot,input, "Compatibility must not mutate the stored record");
+    for (const invalid of ["999", "new:1", " ", null]) {
+      (snapshot[key].attrs as Record<string, unknown>).deletedPaths = ["",invalid];
+      assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Invalid editor deletion metadata/);
+    }
+    snapshot[key].attrs!.deletedPaths = [""];
+    snapshot[key].content!.pop();
+    assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Missing editor deletion metadata/);
+  }
+});
+
+test("plaintext salvage keeps readable content without dumping internal attributes", () => {
+  const editorDocument: TiptapJSON = {type:"doc",attrs:{deletedPaths:[""],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
+    {type:"heading",attrs:{sourcePath:"new:1",level:1},content:[{type:"text",text:"Paper"}]},
+    {type:"paragraph",content:[{type:"text",text:"Linked",marks:[{type:"link",attrs:{href:"https://example.com"}}]},{type:"text",text:" prose"},{type:"inlineMath",attrs:{value:"a+b"}}]},
+    {type:"equation",attrs:{latex:"x^2",sourcePath:"new:2"}},
+    {type:"table",attrs:{caption:[{kind:"text",text:"Results"}]},content:[{type:"tableRow",content:[{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell A"}]}]},{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell B"}]}]}]}]},
+    {type:"figure",attrs:{imageUrl:"image.png",imageAlt:"Diagram"},content:[{type:"text",text:"Figure caption"}]},
+  ]};
+  const text = recoveryText({editor:{editorDocument}} as DocumentSessionSnapshot);
+  assert.match(text,/Paper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
+  for (const content of ["Cell A\tCell B", "Results", "Figure caption", "Diagram", "image.png"]) assert.ok(text.includes(content),content);
+  assert.doesNotMatch(text,/\[(?:level|latex|caption|marks):|sourcePath|deletedPaths|headingNumbering|"kind"/);
 });
