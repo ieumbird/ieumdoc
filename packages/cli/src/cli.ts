@@ -1,3 +1,4 @@
+import { readBibliographySources } from "../../../apps/editor/server/bibliography.ts";
 import fs, { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -797,6 +798,7 @@ function main(argv: string[]): number {
   const { file, flags, format } = parseCommandArgs(command, rest);
   const ifRevision = optionalFlag(flags, "--if-revision");
   const dryRun = flags.includes("--dry-run");
+  const bibliographyRoot = optionalFlag(flags, "--bibliography-root");
 
   /** Apply one Core operation and write the result only over the file as it was read. */
   function edit(path: string, change: (document: Document) => Document): number {
@@ -808,12 +810,12 @@ function main(argv: string[]): number {
     }
     const original = parse(source);
     const references = unresolvedReferences(original);
-    return finishEdit(path, serializeChange(original, change), revision, { command }, dryRun, format, references);
+    return finishEdit(path, serializeChange(original, change), revision, { command }, dryRun, format, references, bibliographyRoot);
   }
 
   if (command === "apply-batch") {
     const { markdown, revision, applied, references } = applyBatch(file, flag(flags, "--operations"), ifRevision);
-    return finishEdit(file, markdown, revision, { command, applied }, dryRun, format, references);
+    return finishEdit(file, markdown, revision, { command, applied }, dryRun, format, references, bibliographyRoot);
   }
   if (isEditCommand(command)) {
     return edit(file, changeFor(command, flags));
@@ -826,10 +828,10 @@ function main(argv: string[]): number {
       return 0;
     }
     case "check": {
-      return checkDocument(parse(readFile(file)), file, format);
+      return checkDocument(parse(readFile(file)), file, format, undefined, bibliographyRoot);
     }
     case "inspect": {
-      process.stdout.write(format === "json" ? inspectFileJson(file) : inspectFile(file));
+      process.stdout.write(format === "json" ? inspectFileJson(file, bibliographyRoot) : inspectFile(file, bibliographyRoot));
       return 0;
     }
     default:
@@ -844,17 +846,21 @@ type Preview = EditResult & { dryRun: true; revision: string; markdown: string;
 
 /** The only edit write boundary. Preview never enters file-commit's mutation path. */
 function finishEdit(file: string, markdown: string, revision: string, result: EditResult,
-  dryRun: boolean, format: OutputFormat, references: ReturnType<typeof unresolvedReferences>): number {
+  dryRun: boolean, format: OutputFormat, references: ReturnType<typeof unresolvedReferences>, bibliographyRoot?: string): number {
   if (dryRun) {
     const resultRevision = textRevision(markdown);
     const document = parse(markdown);
     preflightFileCommit(file, markdown, revision);
     const status = checkDocument(document, file, format, { ...result, dryRun: true, revision: resultRevision, markdown,
-      originalWarnings: references.filter(reference => "footnote" in reference || "syntax" in reference) });
+      originalWarnings: references.filter(reference => "footnote" in reference || "syntax" in reference) }, bibliographyRoot);
     if (status === 0) warnLiteralSyntax(references);
     return status;
   }
+  const citations = resourceReport(parse(markdown), file, bibliographyRoot);
   commitFile(file, markdown, revision);
+  for (const diagnostic of citations.readiness.diagnostics) {
+    if (diagnostic.severity === "warning") process.stderr.write(`warning: ${diagnostic.code}${diagnostic.source ? ` ${quote(diagnostic.source)}` : ""}${diagnostic.key ? ` key=${quote(diagnostic.key)}` : ""}${diagnostic.field ? ` field=${quote(diagnostic.field)}` : ""}\n`);
+  }
   warnLiteralSyntax(references);
   if (result.command === "apply-batch" && format === "json") {
     process.stdout.write(`${JSON.stringify({ ok: true, ...result, revision: textRevision(markdown) })}\n`);
@@ -863,7 +869,7 @@ function finishEdit(file: string, markdown: string, revision: string, result: Ed
 }
 
 /** Shared check diagnostics and presentation for files and canonical edit previews. */
-function checkDocument(document: Document, file: string, format: OutputFormat, preview?: Preview): number {
+function checkDocument(document: Document, file: string, format: OutputFormat, preview?: Preview, bibliographyRoot?: string): number {
   validateStructure(document);
   const writeError = canonicalWriteError(document);
   const unresolved = unresolvedReferences(document);
@@ -884,7 +890,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     return [{ path: block.path, label: block.label, source }];
   });
   const endnotes = { inPlace: endnotesInPlace(document) };
-  const citations = citationReport(document);
+  const citations = resourceReport(document, file, bibliographyRoot);
   if (format === "json") {
     process.stdout.write(`${JSON.stringify({
       ok: writeError === undefined,
@@ -1283,6 +1289,8 @@ function commandHelp(name: string): string {
       "For an empty native document this is index 1. Core resolves the position on the current snapshot.",
       "apply-batch accepts the same position as \"at\": \"end\"."] : []),
     ...(editing && addressed ? ["", BODY_INDEX_NOTE] : []),
+    "", "--bibliography-root <directory> permits declared bibliography files within that directory.",
+    "Default: document directory. Applies to check, inspect and edit previews; never writes .bib files.",
     ...(editing ? ["", ...REVISION_NOTE, ...DRY_RUN_NOTE] : []), ""].join("\n");
 }
 
@@ -1350,7 +1358,7 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     throw new Error(`unexpected argument: ${file ?? "<missing file>"}`);
   }
 
-  const allowed = [...(COMMAND_OPTIONS[command] ?? []), ...(isEditCommand(command)
+  const allowed = ["--bibliography-root", ...(COMMAND_OPTIONS[command] ?? []), ...(isEditCommand(command)
     ? ["--if-revision", "--dry-run", ...(tokens.includes("--dry-run") ? ["--format"] : [])] : [])];
   const seen = new Set<string>();
   const flags: string[] = [];
@@ -1390,18 +1398,18 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
   }
 
   // Validate every filesystem input before any command can perform I/O.
-  for (const input of [file, ...(command === "apply-batch" ? [flag(flags, "--operations")] : [])]) {
+  for (const input of [file, ...(optionalFlag(flags, "--bibliography-root") ? [flag(flags, "--bibliography-root")] : []), ...(command === "apply-batch" ? [flag(flags, "--operations")] : [])]) {
     assertUnicode(input);
   }
   return { file, flags, format };
 }
 
-function inspectFile(file: string): string {
+function inspectFile(file: string, bibliographyRoot?: string): string {
   const document = parse(readFile(file));
-  return `${formatInspect(getEditableDocument(document))}\n${formatCitations(citationReport(document))}`;
+  return `${formatInspect(getEditableDocument(document))}\n${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
 }
 
-function inspectFileJson(file: string): string {
+function inspectFileJson(file: string, bibliographyRoot?: string): string {
   const source = readFile(file);
   const document = parse(source);
   const editable = getEditableDocument(document);
@@ -1410,8 +1418,13 @@ function inspectFileJson(file: string): string {
     command: "inspect",
     revision: textRevision(source),
     nodes: machineNodes(editable),
-    citations: citationReport(document),
+    citations: resourceReport(document, file, bibliographyRoot),
   })}\n`;
+}
+
+function resourceReport(document: Document, file: string, root?: string): CitationReport {
+  const report = citationReport(document);
+  return citationReport(document, readBibliographySources(file, report.bibliography, null, root));
 }
 
 function formatCitations(report: CitationReport): string {
@@ -1419,7 +1432,9 @@ function formatCitations(report: CitationReport): string {
   return [
     ...report.bibliography.map(source => `bibliography ${quote(source)}`),
     ...report.citations.map(citation => `citation (block ${citation.path[0]}) role=${citation.role} keys=${JSON.stringify(citation.keys)} text=${quote(citation.text)}`),
-    `citation readiness: ${report.readiness.status}`,
+    `citation readiness: ${report.readiness.status}; complete: ${report.readiness.complete}`,
+    ...(report.references ?? []).map(reference => `${reference.text} (${reference.status})`),
+    ...report.readiness.diagnostics.map(d => `${d.severity}: ${d.code}${d.source ? ` ${quote(d.source)}` : ""}${d.key ? ` key=${quote(d.key)}` : ""}${d.field ? ` field=${quote(d.field)}` : ""}`),
   ].join("\n") + "\n";
 }
 

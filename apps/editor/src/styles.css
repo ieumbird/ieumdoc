@@ -2529,3 +2529,34 @@ ol.list { list-style: decimal; }
   border-radius: var(--id-radius-sm);
   font: inherit;
 }
+/* A derived reading region follows the editable endnotes without entering document state. */
+.bibliography-region {
+  margin-top: var(--space-6);
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--id-color-border-subtle);
+  color: var(--id-color-text);
+  font-family: var(--font-family-document);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+.bibliography-region > h2 {
+  margin: 0 0 var(--space-2);
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-meta);
+}
+.bibliography-status {
+  display: block;
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+.bibliography-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.bibliography-list > li { display: flex; align-items: baseline; gap: var(--space-2); margin-top: var(--space-2); }
+.bibliography-list > li > div { min-width: 0; }
+.bibliography-number { flex-shrink: 0; }
+.bibliography-resources { padding-left: var(--space-4); }
+.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-info); text-decoration: none; }

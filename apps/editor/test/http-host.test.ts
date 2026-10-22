@@ -268,3 +268,33 @@ test("a protected reverse proxy serves HTML, APIs and media; forwarded headers c
   }, body: JSON.stringify(saveBody(path.join(a, "document.md"))) })).status, 200);
   assert.equal(await rawStatus(url + "/api/document", { Host: "unapproved.example", "X-Forwarded-Host": new URL(external).host }), 403);
 });
+test("HTTP bibliography route reads only admitted declarations within fixed Roots and respects source revision", async t => {
+  const { a, b, outside, send } = await fixture(t);
+  fs.mkdirSync(path.join(a, "chapters"));
+  const file = path.join(a, "chapters", "paper.md");
+  const bib = "@standard{s,title={Standard},organization={Body},number={S-1},year={2024}}";
+  fs.writeFileSync(path.join(a, "refs.bib"), bib);
+  fs.writeFileSync(path.join(outside, "refs.bib"), "private");
+  fs.writeFileSync(file, "---\nieumdoc: 1\nbibliography: [../refs.bib, ../../outside.bib]\n---\n\n{cite}`s`\n");
+  const opened = await (await send(documentQuery(file))).json();
+  const query = new URLSearchParams({ path: file, revision: opened.revision, root: outside, source: path.join(outside, "refs.bib") });
+  const response = await send(`/api/bibliography?${query}`);
+  assert.equal(response.status, 200);
+  const snapshot = await response.json();
+  assert.equal(snapshot.sources[0].text, bib);
+  assert.deepEqual(snapshot.sources[1], { source: "../../outside.bib", status: "error", code: "bibliography-unreadable" });
+  assert.equal(snapshot.sources.length, 2, "caller cannot add undeclared targets");
+  assert.equal((await send(`/api/bibliography?${query}`, "POST", {})).status, 405);
+  assert.equal((await send(`/api/bibliography?${new URLSearchParams({ path: path.join(outside, "document.md"), revision: opened.revision })}`)).status, 403);
+  assert.equal((await send(`/api/bibliography?${new URLSearchParams({ path: path.join(a, "refs.bib"), revision: opened.revision })}`)).status, 400);
+  // A second approved root is readable regardless of the supplied Sidebar context.
+  fs.writeFileSync(path.join(b, "refs.bib"), bib);
+  fs.writeFileSync(file, `---\nieumdoc: 1\nbibliography: [../../documents-B/refs.bib]\n---\n\n{cite}\`s\`\n`);
+  const stale = await (await send(`/api/bibliography?${query}`)).json();
+  assert.ok(stale.sources.every((s: { code: string }) => s.code === "bibliography-changed"));
+  const refreshed = await (await send(documentQuery(file))).json();
+  query.set("revision", refreshed.revision);
+  assert.equal((await (await send(`/api/bibliography?${query}`)).json()).sources[0].text, bib);
+  assert.equal(fs.readFileSync(path.join(a, "refs.bib"), "utf8"), bib);
+  assert.equal(fs.readFileSync(path.join(b, "refs.bib"), "utf8"), bib);
+});

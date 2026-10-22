@@ -1,3 +1,5 @@
+import { createContext, useContext } from "react";
+import type { BibliographyEvaluation } from "@ieumdoc/core";
 import { Node, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
@@ -6,6 +8,19 @@ import { citationKeys, citationText, type CitationRole } from "@ieumdoc/core/cit
 import { endnoteOrder, firstReferenceNumbers } from "@ieumdoc/core/numbering";
 import { endnoteBlocks } from "./endnotes.ts";
 import { i18n } from "./i18n.ts";
+
+export const BibliographyContext = createContext<BibliographyEvaluation | undefined>(undefined);
+export const useBibliography = () => useContext(BibliographyContext);
+
+export function bibliographyState(status: string): string {
+  switch (status) {
+    case "complete": return i18n.t("Limited IEEE format");
+    case "incomplete": return i18n.t("Incomplete reference");
+    case "unresolved": return i18n.t("Citation key not found");
+    case "duplicate": return i18n.t("Duplicate citation key");
+    default: return i18n.t("Bibliography could not be verified");
+  }
+}
 
 // Like endnotes, unchanged engine blocks keep their extracted references and each engine
 // document computes numbers once. Only the engine-to-Core projection belongs here.
@@ -32,8 +47,15 @@ export function citationNumbers(doc: ProseMirrorNode): Map<string, number> {
   return numbers;
 }
 
-export function citationStatus(keys: readonly string[], text: string): string {
+export function citationStatus(keys: readonly string[], text: string, bibliography?: BibliographyEvaluation): string {
+  if (bibliography) return i18n.t("Citation {{numbers}}: {{keys}}. {{status}}.", { numbers: text, keys: keys.join(", "), status: bibliographyState(citationReadiness(keys, bibliography)) });
   return i18n.t("Citation {{numbers}}: {{keys}}. Bibliography has not been checked.", { numbers: text, keys: keys.join(", ") });
+}
+
+export function citationReadiness(keys: readonly string[], bibliography?: BibliographyEvaluation): string {
+  if (!bibliography) return "not-evaluated";
+  const states = keys.map(key => bibliography.references.find(reference => reference.key === key)?.status ?? "unverified");
+  return states.find(state => state !== "complete") ?? "complete";
 }
 
 export function useCitationText(editor: Editor, keys: readonly string[]): string {
@@ -67,10 +89,11 @@ function CitationView({ node, editor, selected }: ReactNodeViewProps) {
   useTranslation();
   const keys = node.attrs.keys as string[];
   const text = useCitationText(editor, keys);
-  const status = citationStatus(keys, text);
+  const bibliography = useBibliography();
+  const status = citationStatus(keys, text, bibliography);
   return <NodeViewWrapper as="span" className="cross-reference citation" data-citation=""
     data-role={node.attrs.role as CitationRole} data-keys={JSON.stringify(keys)}
-    data-selected={String(selected)} data-readiness="not-evaluated">
+    data-selected={String(selected)} data-readiness={citationReadiness(keys, bibliography)}>
     <span className="cross-reference-chip" title={status} aria-label={status}>{text}</span>
   </NodeViewWrapper>;
 }

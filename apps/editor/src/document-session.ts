@@ -19,11 +19,12 @@ export class SaveConflictError extends SaveContentError {
   }
 }
 
-export function requestDocument(method: "PUT", filePath: string): Promise<DocumentResponse>;
-export function requestDocument(method: "GET", filePath?: string): Promise<DocumentResponse | DocumentStartResponse>;
+export function requestDocument(method: "PUT", filePath: string, bibliographyRoot?: string): Promise<DocumentResponse>;
+export function requestDocument(method: "GET", filePath?: string, bibliographyRoot?: string): Promise<DocumentResponse | DocumentStartResponse>;
 export async function requestDocument(
   method: "GET" | "PUT",
   filePath?: string,
+  bibliographyRoot?: string,
 ): Promise<DocumentResponse | DocumentStartResponse> {
   const body = method === "PUT" ? { path: filePath } : undefined;
   const query = method === "GET" && filePath ? `?path=${encodeURIComponent(filePath)}` : "";
@@ -47,7 +48,21 @@ export async function requestDocument(
     }
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
   }
+  const declarations = payload.bibliography?.declarations ?? [];
+  let sources: import("@ieumdoc/core").BibliographySource[] = [];
+  if (declarations.length) {
+    try {
+      const resourceQuery = new URLSearchParams({ path: payload.path, revision: payload.revision });
+      if (bibliographyRoot) resourceQuery.set("root", bibliographyRoot);
+      const resourceResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/bibliography?${resourceQuery}`);
+      const resources = await resourceResponse.json();
+      if (!resourceResponse.ok || resources.revision !== payload.revision || !Array.isArray(resources.sources)) throw new Error();
+      sources = resources.sources;
+    } catch { sources = declarations.map(source => ({ source, status: "error", code: "bibliography-unreadable" })); }
+  }
   return {
+    bibliographyRoot,
+    bibliography: { declarations, sources },
     path: payload.path,
     document: payload.document,
     revision: payload.revision,

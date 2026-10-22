@@ -16,7 +16,7 @@ export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */
-const DOCUMENT_ROUTES = new Set(["/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/figure-validation"]);
+const DOCUMENT_ROUTES = new Set(["/api/bibliography", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/figure-validation"]);
 
 type NodeResponse = { statusCode: number; setHeader(name: string, value: string): void; end(data?: string | Buffer): void };
 type Handler = (req: IncomingMessage, res: ServerResponse, notFound: () => void) => Promise<void> | void;

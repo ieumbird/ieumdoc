@@ -1,3 +1,4 @@
+import { evaluateBibliography, type BibliographySource } from "../bibliography.ts";
 import { isScalar, isSeq, parseDocument } from "yaml";
 import { canonicalCitation, citationContentError, citationText, type CitationContent, type CitationReport } from "../citation.ts";
 import { endnoteOrder, firstReferenceNumbers } from "../numbering.ts";
@@ -86,7 +87,7 @@ export function updateBibliography(document: MystDocument, paths: string[]): Mys
 }
 
 /** Canonical reading order, also before an operation's result has been serialized. Groups are visited once. */
-export function citationReport(document: MystDocument): CitationReport {
+export function citationReport(document: MystDocument, sources?: readonly BibliographySource[]): CitationReport {
   const occurrences: { path: number[]; content: CitationContent }[] = [];
   const visit = (node: MystNode, path: number[]): void => {
     const content = projectCitation(node);
@@ -95,10 +96,11 @@ export function citationReport(document: MystDocument): CitationReport {
   };
   endnoteOrder(endnoteBlocks(document)).forEach(index => visit(document.children[index], [index]));
   const numbers = firstReferenceNumbers(occurrences.flatMap(({ content }) => content.keys));
-  return {
+  const report: CitationReport = {
     bibliography: declaredBibliography(document),
     citations: occurrences.map(({ path, content }) => ({ path, role: content.role, keys: content.keys,
       numbers: content.keys.map(key => numbers.get(key)!), text: citationText(content.keys, numbers) })),
     readiness: { status: "not-evaluated", complete: null, diagnostics: [] },
   };
+  return sources === undefined ? report : { ...report, ...evaluateBibliography(report, sources) };
 }

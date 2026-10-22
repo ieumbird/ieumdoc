@@ -1,5 +1,15 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Bibliography references": "References",
+  "Limited IEEE format": "Limited IEEE format",
+  "Incomplete reference": "Incomplete reference",
+  "Citation key not found": "Citation key not found",
+  "Duplicate citation key": "Duplicate citation key",
+  "Bibliography could not be verified": "Bibliography could not be verified",
+  "References use the snapshot from Open or Reload. Reload to see external changes.": "References use the snapshot from Open or Reload. Reload to see external changes.",
+  "References are incomplete. You can still save this document.": "References are incomplete. You can still save this document.",
+  "Citation {{numbers}}: {{keys}}. {{status}}.": "Citation {{numbers}}: {{keys}}. {{status}}.",
+
   "paragraph": "paragraph",
   "heading": "heading",
   "admonition": "admonition",
@@ -385,6 +395,16 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Bibliography references": "참고문헌",
+  "Limited IEEE format": "제한된 IEEE 서식",
+  "Incomplete reference": "불완전한 참고문헌",
+  "Citation key not found": "인용 키를 찾을 수 없음",
+  "Duplicate citation key": "중복 인용 키",
+  "Bibliography could not be verified": "참고문헌을 확인할 수 없음",
+  "References use the snapshot from Open or Reload. Reload to see external changes.": "열기 또는 다시 불러오기 시점의 참고문헌입니다. 외부 변경은 다시 불러오기로 반영합니다.",
+  "References are incomplete. You can still save this document.": "참고문헌이 완성되지 않았습니다. 문서는 저장할 수 있습니다.",
+  "Citation {{numbers}}: {{keys}}. {{status}}.": "인용 {{numbers}}: {{keys}}. {{status}}.",
+
   "paragraph": "문단",
   "heading": "제목",
   "admonition": "안내",

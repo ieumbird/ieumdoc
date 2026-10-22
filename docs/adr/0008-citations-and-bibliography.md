@@ -1,19 +1,21 @@
 # ADR-0008: 인용·참고문헌 표현 방식 결정안
 
 - Status: Accepted
-- Last verified: 2026-10-22 (단위 A의 구현 계약·검증은 [Citations](../design/citations-v1.md). 아래 2026-10-20 실험은 당시 근거로 보존).
+- Last verified: 2026-10-22 (단위 A·B의 구현 계약·검증은 [Citations](../design/citations-v1.md). 아래 2026-10-20 실험은 당시 근거로 보존).
 - Previous verification: 2026-10-20 (master `3417f5ae949506f4d5acf4cb56186e6d219a5dad`의 Host 경계 재대조, BibTeX 유형 변환·MyST role·일반 `@`·CLI 재실행. 서식 후보의 기존 Node 실행·browser bundle 측정은 비교 근거로 유지. 당시 실제 브라우저·제품 통합 검증은 미실행).
-- Authority: 승인된 product and architectural decision. 단위 A는 [Citations](../design/citations-v1.md)에 구현되었으며 단위 B·C는 후속 범위다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
+- Authority: 승인된 product and architectural decision. 단위 A·B는 [Citations](../design/citations-v1.md)에 구현되었으며 단위 C는 후속 범위다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
 - Decision date: 2026-10-20
 - Related: [결정 이슈 #327](https://github.com/ieumbird/ieumdoc/issues/327), [사용자 요구 #265](https://github.com/ieumbird/ieumdoc/issues/265), [일반 `@` 텍스트 결함 #328](https://github.com/ieumbird/ieumdoc/issues/328), [Discussion #154](https://github.com/ieumbird/ieumdoc/discussions/154), [#155](https://github.com/ieumbird/ieumdoc/discussions/155), [#257](https://github.com/ieumbird/ieumdoc/discussions/257), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md).
+
+Implementation update (2026-10-22): units A and B are implemented in [Citations v1](../design/citations-v1.md). The experiments below retain their original historical scope; unit C remains pending.
 
 ## Context
 
 #265의 문제는 본문 `[1]` 평문과 번호 목록을 사람이 따로 관리해야 한다는 것이다. #154는 CLI, #155는 Visual Editor에서 이 마찰을 보고했고, #257에서도 배치 저작 후 인용 부재가 남았다. #154의 `[@key]` 삽입·읽기 전용 보존 경험은 이전 commit `9545731`의 관찰이다. ADR-0006 이후에는 미지원 내용이 있는 문서 전체를 거부하므로 그 경로를 복원하지 않는다.
 
-현재 `native.ts`의 메타데이터 검증은 `ieumdoc`, `numbering`만 받는다. `projectInlineContent`가 인용을 지원하지 않아 인용 문단은 `native-content`로 거부된다. 내부 MyST parser/writer의 처리 능력, 네이티브 지원 판정, 외부 파일 접근, 서식 표시를 각각 구분해야 한다.
+2026-10-20 결정 당시 `native.ts`의 메타데이터 검증은 `ieumdoc`, `numbering`만 받는다. `projectInlineContent`가 인용을 지원하지 않아 인용 문단은 `native-content`로 거부된다. 내부 MyST parser/writer의 처리 능력, 네이티브 지원 판정, 외부 파일 접근, 서식 표시를 각각 구분해야 한다.
 
-이 작업은 결정 문서와 인덱스만 변경한다. 구현·테스트·의존성·현재 design contract는 변경하지 않으며, 아래 API와 진단 이름은 제안이다.
+당시 ADR 작업은 결정 문서와 인덱스만 변경했다. 아래 구현 단위의 현재 API·진단·검증은 상단 Citations 계약이 기록하며, 당시 실험과 구분한다.
 
 ## Decision
 
@@ -337,9 +339,9 @@ console.log(plugins.input.chain(bib, { target: "@biblatex/entries+list" }));
 
 ## Consequences
 
-기대 효과는 키 기반 인용과 외부 BibTeX를 연결하여 번호를 손으로 맞추는 비용을 없애고, 동일 Core 계산을 CLI와 Editor가 공유하는 것이다. 실제 제품 구현이나 사용자 작업 시간 개선을 측정한 결과는 아니다.
+기대 효과는 키 기반 인용과 외부 BibTeX를 연결하여 번호를 손으로 맞추는 비용을 없애고, 동일 Core 계산을 CLI와 Editor가 공유하는 것이다. 결정 당시 기대 효과이며 사용자 작업 시간 개선을 측정한 결과는 아니다. 현재 구현 검증은 Citations 계약을 따른다.
 
-비용은 함께 전달할 `.bib`, 문서별 읽기 경계의 명시적 전달, 외부 변경 snapshot과 제한된 IEEE formatter의 유지·검증이다. 공용 상위 `.bib`는 허용하지만 무제한 파일 접근으로 확대하지 않는다. 세 role은 보존하되 모두 번호로 표시하고, author-year·locator·prefix/suffix/partial은 보류한다. 제한 밖 서지 항목은 최소 표시와 진단을 제공하며 출판 준비 완료로 보이지 않게 한다. 일반 `@` 결함 #328은 별도 해결이 필요하다. 현재 `.md`의 표식·지원 판정·의미 손실 방지를 완화하여 비용을 숨기지 않는다.
+비용은 함께 전달할 `.bib`, 문서별 읽기 경계의 명시적 전달, 외부 변경 snapshot과 제한된 IEEE formatter의 유지·검증이다. 공용 상위 `.bib`는 허용하지만 무제한 파일 접근으로 확대하지 않는다. 세 role은 보존하되 모두 번호로 표시하고, author-year·locator·prefix/suffix/partial은 보류한다. 제한 밖 서지 항목은 최소 표시와 진단을 제공하며 출판 준비 완료로 보이지 않게 한다. 일반 `@` 결함 #328의 해결과 인용 표현의 경계는 Citations 계약을 따른다. 현재 `.md`의 표식·지원 판정·의미 손실 방지를 완화하여 비용을 숨기지 않는다.
 
 ## Open questions and adoption gates
 
@@ -351,4 +353,4 @@ citeproc 미채택·상위 상대 경로·세 role 수용을 포함한 위 결�
 2. **#328과 shorthand 경계:** 일반 텍스트 `@`의 parse/write, 대괄호 citation-like 입력의 명시적 안내/거부, role의 의미 보존을 함께 확인해야 한다. 이 ADR에서 #328을 해결했다고 하지 않는다.
 3. **Host context·리소스 한도:** local Host의 문서별 읽기 폴더 전달과 재열기 UX, CLI 옵션명, 파일 수·바이트·항목 수 한도·오류 위치·읽는 중 변경 검출은 B 구현 계약에서 구체화한다. HTTP의 고정 Root 정책을 변경하지 않는다.
 4. **후속 의미 확장:** narrative 저자 자동 출력·locator/prefix/suffix/partial·스타일 선택은 별도 요구와 보존 근거가 필요하다. style 엔진은 라이선스와 함께 별도 결정한다.
-5. **실제 제품 검증:** Browser/Node 동일 출력, 접근성·큰 bibliography 성능, HTTP/Windows Desktop의 상위 파일 성공·Root 탈출 거부, Save → Reload·복사/붙여넣기는 미검증이다. A/B/C의 완료 조건으로 남긴다.
+5. **실제 제품 검증:** Browser/Node 동일 출력, 접근성·큰 bibliography 성능, HTTP/Windows Desktop의 상위 파일 성공·Root 탈출 거부, Save → Reload·복사/붙여넣기는 미검증이다. 당시 A/B/C의 완료 조건이다. 현재 A·B 실행 결과와 미검증 플랫폼은 Citations 계약을 따른다.

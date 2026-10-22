@@ -14,6 +14,11 @@
 - Path verification: 2026-10-15 (#278 shared helper and real HTTP refusal before path I/O, no replacement files, valid Unicode names and pre-normalization checks; PR #284 strict percent-encoded query refusal for document/media reads, form decoding and valid Unicode URL regressions).
 - Scope: 실제 filesystem에 접근하는 주체와 Browser Editor, Host, Core 사이의 책임 경계.
 
+Bibliography reads reuse the shared stateless Host and existing Root checks through the dedicated
+`/api/bibliography` endpoint. Only declarations of an admitted, revision-matched document are read;
+resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
+union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
+
 ## Purpose
 
 IeumDoc의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.

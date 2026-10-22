@@ -21,6 +21,9 @@ type ScratchFile = { name: string; create: () => string | Buffer };
 
 const document = (name: string): ScratchFile => ({ name, create: () => readFileSync(path.join(DOCUMENT_DIR, name)) });
 const fixture = (name: string): ScratchFile => ({ name, create: () => readFileSync(path.join(FIXTURE_DIR, name)) });
+const bibliography = (): string => readFileSync(path.join(REPOSITORY_ROOT, "packages/core/test/fixtures/bibliography-v1.bib"), "utf8") +
+  '\n@proceedings{unsupported,title={Unapproved Proceedings},year={2024}}\n' +
+  '@online{unsafe,title={<img src=x onerror=alert(1)>},organization={Lab},year={2024},url={javascript:alert(1)},urldate={2024-01-01}}\n';
 const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
@@ -35,6 +38,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   ], scenarios: ["document-tabs", "recovery"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
+    { name: "bibliography.md", create: () => fixture("bibliography.md").create() },
     { name: "a.md", create: () => nativeSource("# HTTP A\n\nAlpha.\n") },
     document("diagram.svg"),
     { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__ieumdocSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
@@ -73,6 +77,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["layout-rules", "quiet-document", "visual-states"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
+  "bibliography": { files: [
+    { name: "refs.bib", create: bibliography },
+    { name: "chapters/paper.md", create: () => fixture("bibliography.md").create() },
+    { name: "chapters/other.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Other bibliography\n\n{cite}`unicode,unsafe`\n' },
+  ], scenarios: ["bibliography"] },
   "citations": { files: [fixture("citations.md")], scenarios: ["citations"] },
   "block-move": { files: technical, scenarios: ["block-move"] },
   "document-title": { files: [...technical,
@@ -191,6 +200,7 @@ export function prepareBrowserFixtures(tmpRoot = path.join(REPOSITORY_ROOT, "tmp
       mkdirSync(path.dirname(path.join(dir, file.name)), { recursive: true });
       writeFileSync(path.join(dir, file.name), file.create());
     }
+    if (name === "http-host-a/fixture") writeFileSync(path.join(dir, "..", "refs.bib"), bibliography());
     return dir;
   });
 }

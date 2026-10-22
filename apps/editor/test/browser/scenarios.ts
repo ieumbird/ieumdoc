@@ -43,6 +43,7 @@ export const STABLE_SCENARIOS = [
   "label-authoring",
   "cross-reference",
   "citations",
+  "bibliography",
   "property-drafts",
   "code-highlighting",
   "section-reference",
@@ -83,8 +84,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "footnotes", "citations", ...HTTP_SCENARIOS].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|http-host --screenshots");
+  if (screenshots && (requested.length !== 1 || !["ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "footnotes", "citations", "bibliography", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

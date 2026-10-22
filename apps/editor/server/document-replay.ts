@@ -1,6 +1,7 @@
 import { figureCaptionContent } from "@ieumdoc/core/figure";
 import {
   endnotesInPlace,
+  citationReport,
   getEditableDocument,
   inspectDocument,
   isAdmonitionVariant,
@@ -83,9 +84,9 @@ function editAt<T>(target: OrderItem, apply: () => T, cell?: SaveContentError["c
 }
 
 /** The read model, canonical writeability and endnote placement of one parsed snapshot. */
-export function readModel(source: string): { document: EditableDocument; endnotesInPlace: boolean } {
+export function readModel(source: string): { document: EditableDocument; endnotesInPlace: boolean; bibliography: { declarations: string[] } } {
   const document = parse(source);
-  return { document: getEditableDocument(document), endnotesInPlace: endnotesInPlace(document) };
+  return { document: getEditableDocument(document), endnotesInPlace: endnotesInPlace(document), bibliography: { declarations: citationReport(document).bibliography } };
 }
 
 export function saveEdits(

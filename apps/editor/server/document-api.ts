@@ -1,3 +1,4 @@
+import { readBibliographySources } from "./bibliography.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
@@ -209,6 +210,19 @@ export async function handleDocumentRequest(
   if (url.startsWith("/document/")) {
     if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
     serveMedia(url.slice("/document/".length), res, query.get("path") ?? undefined, access, req.method === "HEAD");
+    return;
+  }
+  if (url === "/api/bibliography") {
+    if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+    try {
+      // Read only declarations from an admitted document, never arbitrary caller-supplied targets.
+      const opened = loadDocumentFile(query.get("path") ?? undefined, access);
+      const declarations = opened.bibliography?.declarations ?? [];
+      const sources = query.get("revision") !== opened.revision
+        ? declarations.map(source => ({ source, status: "error", code: "bibliography-changed" }))
+        : readBibliographySources(opened.path, declarations, access, query.get("root") ?? undefined);
+      sendJson(res, 200, { revision: opened.revision, sources });
+    } catch (error) { failure(error); }
     return;
   }
   if (url === "/api/figure-validation") {
