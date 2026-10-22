@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-22 (#332 citation display and shared reference underline token; [verification and captures](citations-v1.md#verification)).
+- Last verified: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
+- Previous verification: 2026-10-22 (#332 citation display and shared reference underline token; [verification and captures](citations-v1.md#verification)).
 - Previous verification: 2026-10-19 (#255: Add a title place and empty-title placeholder in the document's subtle hint role).
 - Previous verification: 2026-10-19 (#298: start without a document on the canvas with the product mark and card sections; open-files captures at 1440/768/375px).
 - Previous verification: 2026-10-19 (#321: phone-width sidebar without a rail, covering the screen when open; stable browser suite and 375px captures).
@@ -187,3 +188,13 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 `pnpm browser:prepare` copies `test/browser/fixtures/quiet-document*.md` and the existing local diagram into `tmp/quiet-document`. `pnpm browser:test layout-rules quiet-document` measures actual DOM, captures real API-backed documents and checks focus, draft retention, local overflow and overlay bounds. Required elements are asserted, never substituted with zero; sidebar icon/label checks are explicitly inapplicable when collapsed. Before/After use 1440×1000 / 1024×1000 / 768×1000, 100% zoom, scroll top and equivalent interaction state after fonts/images load.
 
 This is one implemented light presentation. Responsive popover placement, operating-system font fallback and the existing sample diagram intentionally differ from the mockup. No theme variants, fake navigation or proposed product features are included.
+
+
+### Read-only file preview (#217)
+
+The Sidebar keeps its existing row geometry and 16px icon slot: Image for supported images, File for
+other files, and existing native/foreign document icons. A shared modal uses the existing Dialog
+surface, title, description, compact Close button and spacing tokens. Name/path wrap, the image
+contains within the available width and 60dvh, and the dialog stays within the viewport at wide and
+phone widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
+row while document selection and property drafts remain. File information has no edit/open/execute action.

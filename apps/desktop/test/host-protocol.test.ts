@@ -22,6 +22,20 @@ writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.o
 const handle = createProtocolHandler(editorDir, { document: initial });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
+test("folder preview reuses shared validation and SVG isolation without a startup document", async () => {
+  const start = createProtocolHandler(editorDir, { sample: initial });
+  const route = `${ORIGIN}/api/file-preview?${new URLSearchParams({ root: documents, path: path.join(documents, "diagram.svg") })}`;
+  for (const method of ["GET", "HEAD"]) {
+    const result = await start(new Request(route, { method }));
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get("content-type"), "image/svg+xml");
+    assert.match(result.headers.get("content-security-policy")!, /^sandbox;.*script-src 'none'/);
+    assert.equal(result.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(result.headers.get("cache-control"), "no-store");
+    if (method === "HEAD") assert.equal(await result.text(), "");
+  }
+});
+
 test("serves the Editor build with the content security policy", async () => {
   const page = await get("/index.html");
   assert.equal(page.status, 200);

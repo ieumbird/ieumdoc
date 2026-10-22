@@ -1,5 +1,12 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Read-only image preview": "Read-only image preview",
+  "This file cannot be edited in IeumDoc.": "This file cannot be edited in IeumDoc.",
+  "File information": "File information",
+  "The image could not be previewed. It may be unavailable, damaged, unsupported, or larger than 10 MiB.": "The image could not be previewed. It may be unavailable, damaged, unsupported, or larger than 10 MiB.",
+  "No files or folders": "No files or folders",
+  "Open a folder to browse its files and create documents.": "Open a folder to browse its files and create documents.",
+
   "paragraph": "paragraph",
   "heading": "heading",
   "admonition": "admonition",
@@ -385,6 +392,13 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Read-only image preview": "읽기 전용 이미지 미리보기",
+  "This file cannot be edited in IeumDoc.": "이 파일은 이음독에서 편집할 수 없습니다.",
+  "File information": "파일 정보",
+  "The image could not be previewed. It may be unavailable, damaged, unsupported, or larger than 10 MiB.": "이미지를 미리 볼 수 없습니다. 파일에 접근할 수 없거나 손상된 형식, 미지원 형식 또는 10 MiB를 초과하는 파일일 수 있습니다.",
+  "No files or folders": "파일이나 폴더가 없습니다",
+  "Open a folder to browse its files and create documents.": "폴더를 열어 파일을 탐색하고 문서를 만드세요.",
+
   "paragraph": "문단",
   "heading": "제목",
   "admonition": "안내",

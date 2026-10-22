@@ -402,7 +402,7 @@ export function App() {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+    if (globalThis.document.querySelector('[data-slot="dialog-content"]') || folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
     void save();
   };
   useEffect(() => {

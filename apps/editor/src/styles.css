@@ -2529,3 +2529,8 @@ ol.list { list-style: decimal; }
   border-radius: var(--id-radius-sm);
   font: inherit;
 }
+
+/* Read-only folder preview uses the shared modal surface and existing spacing/type roles. */
+.file-preview[data-slot="dialog-content"] { width: min(48rem, calc(100% - 2rem)); max-width: calc(100% - 2rem); }
+.file-preview-image { display: block; max-width: 100%; max-height: 60dvh; object-fit: contain; margin-inline: auto; }
+.file-preview-image[hidden] { display: none; }

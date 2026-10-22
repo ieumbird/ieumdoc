@@ -41,6 +41,13 @@ async (page, { openDocument, screenshots }) => {
   await picker.getByRole('region', {name:'Start from'}).getByTitle(a, {exact:true}).click();
   await picker.getByRole('option', {name:'fixture', exact:true}).click();
   await page.getByTestId('folder-open').click(); await picker.waitFor({state:'detached'});
+  // Folder preview works before a document exists, using the production Host's selected root.
+  await sidebar.getByRole('treeitem', {name:'diagram.svg', exact:true}).click();
+  const preview = page.locator('[data-slot="dialog-content"]');
+  await preview.getByRole('img', {name:'diagram.svg',exact:true}).waitFor();
+  const folderImage = await page.request.get(`${origin}/api/file-preview?root=${encodeURIComponent(a)}&path=${encodeURIComponent(a + sep + 'fixture' + sep + 'diagram.svg')}`);
+  check(folderImage.status() === 200 && folderImage.headers()['content-type'] === 'image/svg+xml' && folderImage.headers()['content-security-policy'].startsWith('sandbox;'), 'Production preview uses shared safe image handler');
+  await page.keyboard.press('Escape'); await preview.waitFor({state:'detached'});
   await sidebar.getByRole('treeitem', {name:'a.md', exact:true}).click(); await ready();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const save = async () => {
