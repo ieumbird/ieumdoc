@@ -24,7 +24,11 @@ function assertRetained(input: unknown, output: unknown): void {
 export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snapshot: EditorSnapshot): EditorSnapshot {
   function prepare(input: TiptapJSON): TiptapJSON {
     if (input?.type !== "doc") throw new Error("Editor snapshot must contain a doc");
-    const deleted: unknown = input.attrs?.[DELETED_PATHS_ATTR];
+    const recorded: unknown = input.attrs?.[DELETED_PATHS_ATTR];
+    // Older structureGuard normalization recorded the default empty locator as a
+    // deletion when assigning a new engine block's locator. It addresses no block.
+    // Remove only that proven sentinel; validate every real path and both snapshots.
+    const deleted = Array.isArray(recorded) ? recorded.filter(path => path !== "") : recorded;
     const originalPaths = new Set(opening.content?.map(node => String(node.attrs?.sourcePath)));
     if (!Array.isArray(deleted) || !deleted.every(path => typeof path === "string" && originalPaths.has(path))) {
       throw new Error("Invalid editor deletion metadata");

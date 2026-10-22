@@ -905,7 +905,7 @@ export function editorDocumentJSON(state: EditorState): TiptapJSON {
 function snapshotPathsOf(doc: ProseMirrorNode): Set<string> {
   const paths = new Set<string>();
   doc.forEach(node => String(node.attrs.sourcePath).split(";").forEach(path => {
-    if (!isNewBlockPath(path)) paths.add(path);
+    if (path && !isNewBlockPath(path)) paths.add(path);
   }));
   return paths;
 }
