@@ -1,8 +1,9 @@
 import { useReducer, useRef } from "react";
 import type { FolderEntry, FolderResponse } from "../../shared/document-protocol.ts";
 
-// The sidebar's view of the folder the user chose: a tree of one-level Host listings, loaded
-// when a folder is expanded. Page state only; nothing here is stored, watched or scanned.
+// The sidebar's view of the folders the user opened: one tree of one-level Host listings per
+// folder, loaded when a folder is expanded. Only the opened folders' paths are remembered (see
+// preferences.ts); listings and expansion are page state, never stored, watched or scanned.
 
 export type FolderTreeState = {
   /** The chosen folder; every listed folder is inside it. */
@@ -52,6 +53,32 @@ export function folderTreeReducer(state: FolderTreeState | null, action: FolderT
       return { ...state, pending, expanded };
     }
   }
+}
+
+/** Every tree action except opening and closing names the opened folder it belongs to. */
+export type FolderTreesAction =
+  | { type: "openRoot"; listing: FolderResponse }
+  | { type: "closeRoot"; root: string }
+  | (Exclude<FolderTreeAction, { type: "openRoot" | "closeRoot" }> & { root: string });
+
+/** Opened folders in the order they were opened. Opening one already open relists it in place. */
+export function folderTreesReducer(trees: readonly FolderTreeState[], action: FolderTreesAction): FolderTreeState[] {
+  if (action.type === "openRoot") {
+    const { listing } = action;
+    if (!trees.some(tree => tree.root === listing.root)) return [...trees, folderTreeReducer(null, action)!];
+    return trees.map(tree => tree.root === listing.root ? { ...tree, nodes: new Map(tree.nodes).set(listing.path, listing) } : tree);
+  }
+  if (action.type === "closeRoot") return trees.filter(tree => tree.root !== action.root);
+  return trees.map(tree => tree.root === action.root ? folderTreeReducer(tree, action) ?? tree : tree);
+}
+
+/**
+ * The outermost opened folder containing a document or folder; it scopes that item's folder context.
+ * A nested opened folder never narrows the context a wider opened folder already gives.
+ */
+export function containingRoot(roots: readonly string[], itemPath: string): string | undefined {
+  return roots.filter(root => folderChain(root, itemPath).length > 0)
+    .reduce<string | undefined>((outer, root) => outer === undefined || root.length < outer.length ? root : outer, undefined);
 }
 
 export type TreeItem = {
@@ -132,12 +159,13 @@ export function treeKey(items: TreeItem[], index: number, key: string, expanded:
   }
 }
 
-/** Tree state with its Host requests. `request` lists one level of a folder inside the chosen one. */
-export function useFolderTree(request: (root: string, path: string) => Promise<FolderResponse>, onError: (message: string) => void) {
-  const [state, dispatch] = useReducer(folderTreeReducer, null);
-  const latest = useRef(state);
-  latest.current = state;
+/** Opened folders with their Host requests. `request` lists one level of a folder inside an opened one. */
+export function useFolderTrees(request: (root: string, path: string) => Promise<FolderResponse>, onError: (message: string) => void) {
+  const [trees, dispatch] = useReducer(folderTreesReducer, []);
+  const latest = useRef(trees);
+  latest.current = trees;
   const requests = useRef(0);
+  const roots = trees.map(tree => tree.root);
 
   const load = (root: string, path: string) => {
     const id = ++requests.current;
@@ -146,45 +174,49 @@ export function useFolderTree(request: (root: string, path: string) => Promise<F
       listing => dispatch({ type: "loadSuccess", root, path, request: id, listing }),
       (cause: unknown) => {
         dispatch({ type: "loadFailure", root, path, request: id });
-        if (latest.current?.root === root) onError(cause instanceof Error ? cause.message : String(cause));
+        if (latest.current.some(tree => tree.root === root)) onError(cause instanceof Error ? cause.message : String(cause));
       },
     );
   };
 
-  // Expands the folders above a document or folder inside the chosen folder and lists them again (the
-  // chosen folder too unless it was just listed). A document elsewhere changes nothing.
+  // Expands the folders above a document or folder inside an opened folder and lists them again (the
+  // opened folder too unless it was just listed). A document elsewhere changes nothing.
   const show = (root: string, itemPath: string, listRoot: boolean) => {
     for (const folder of folderChain(root, itemPath)) {
-      if (folder !== root) dispatch({ type: "expand", path: folder });
+      if (folder !== root) dispatch({ type: "expand", root, path: folder });
       if (folder !== root || listRoot) load(root, folder);
     }
   };
 
   return {
-    state,
-    /** Shows a newly chosen folder, opened down to the open document when it is inside. */
+    trees,
+    roots,
+    /** The outermost opened folder containing a path, if any. */
+    rootOf: (itemPath: string) => containingRoot(roots, itemPath),
+    /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
     open(listing: FolderResponse, documentPath: string) {
       dispatch({ type: "openRoot", listing });
       show(listing.root, documentPath, false);
     },
-    close: () => dispatch({ type: "closeRoot" }),
+    close: (root: string) => dispatch({ type: "closeRoot", root }),
     /** Expanding lists the folder again; collapsing keeps what was listed. */
-    toggle(path: string) {
-      if (!state) return;
-      if (state.expanded.has(path)) return dispatch({ type: "collapse", path });
-      dispatch({ type: "expand", path });
-      load(state.root, path);
+    toggle(root: string, path: string) {
+      const tree = trees.find(item => item.root === root);
+      if (!tree) return;
+      if (tree.expanded.has(path)) return dispatch({ type: "collapse", root, path });
+      dispatch({ type: "expand", root, path });
+      load(root, path);
     },
     /**
-     * Shows the document just opened or created, or a folder just created; the folders above it
-     * are expanded and listed again, so a new item appears.
+     * Shows the document just opened or created, or a folder just created, in every opened folder
+     * containing it; the folders above it are expanded and listed again, so a new item appears.
      */
     reveal(itemPath: string) {
-      if (state) show(state.root, itemPath, true);
+      for (const root of roots) show(root, itemPath, true);
     },
-    /** Lists a folder the tree already knows again, without expanding anything. */
+    /** Lists a folder the trees already know again, without expanding anything. */
     refresh(path: string) {
-      if (state?.nodes.has(path)) load(state.root, path);
+      for (const tree of trees) if (tree.nodes.has(path)) load(tree.root, path);
     },
   };
 }

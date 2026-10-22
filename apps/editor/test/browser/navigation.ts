@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { Page } from "@playwright/test";
 
-/** Choose through the picker/tree. An existing tab is activated without rereading its content. */
+/** Open (add) the file's folder through the picker, then choose the file in that folder's tree. An existing tab is activated without rereading its content. */
 export async function openDocument(page: Page, file: string): Promise<void> {
   const sidebar = page.getByTestId("sidebar");
   // The rail's toggle, or the TopBar's at phone widths, where a closed sidebar has no rail.
@@ -9,7 +9,7 @@ export async function openDocument(page: Page, file: string): Promise<void> {
   if (await expand.isVisible()) await expand.click();
   await sidebar.getByRole("button", { name: "Files", exact: true }).click();
   if (await sidebar.getByTestId("folder").count()) {
-    await sidebar.getByRole("button", { name: "More actions", exact: true }).click();
+    await sidebar.getByRole("button", { name: "More actions", exact: true }).first().click();
     await page.getByRole("menuitem", { name: "Open folder…", exact: true }).click();
   } else {
     await sidebar.getByRole("button", { name: "Open folder…", exact: true }).click();
@@ -17,7 +17,8 @@ export async function openDocument(page: Page, file: string): Promise<void> {
   await page.getByTestId("folder-path").fill(path.dirname(file));
   await page.getByTestId("folder-open").click();
   await page.getByRole("dialog", { name: "Open folder", exact: true }).waitFor({ state: "detached" });
-  await sidebar.getByRole("treeitem", { name: path.basename(file), exact: true }).click();
+  const folder = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(path.dirname(file))}]`);
+  await folder.getByRole("treeitem", { name: path.basename(file), exact: true }).click();
 }
 
 /** Explicit disk read, including its work-loss confirmation when the target tab is dirty. */

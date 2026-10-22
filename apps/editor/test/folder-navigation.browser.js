@@ -119,10 +119,31 @@ async (page, {screenshots = false} = {}) => {
   await field.press('Escape');
   await dialog.waitFor({state:'detached'});
   result.refreshesOnReopen = await section.getByTitle(folder, {exact:true}).count() === 1;
+
+  // Open adds another folder as its own section; Reload lists the opened folders again in order;
+  // Close folder removes only its own section.
+  const guides = [folder, 'guides'].join(sep);
+  const roots = () => section.evaluateAll(sections => sections.map(element => element.dataset.root));
+  await folderMenu('Open folder…');
+  await enterFolder(guides);
+  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await open.click();
+  await dialog.waitFor({state:'detached'});
+  await section.nth(1).waitFor();
+  assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Open adds a folder after the opened ones');
+  await page.reload();
+  await ready();
+  await section.nth(1).waitFor();
+  assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Reload lists the opened folders again in order');
+  await section.nth(1).getByRole('button', {name:'More actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="folder"]').length === 1);
+  result.opensSeveralFolders = JSON.stringify(await roots()) === JSON.stringify([folder]);
+
   await folderMenu('Close folder');
   await page.reload();
   await ready();
-  assert(await section.count() === 0, 'Reload does not restore a chosen sidebar folder');
+  assert(await section.count() === 0, 'Reload restores no folder after the last one is closed');
   await page.getByRole('button', {name:'Open folder…'}).click();
   const recent = dialog.getByRole('region', {name:'Recent folders'});
   await recent.getByRole('button', {name:folder, exact:true}).click();

@@ -23,9 +23,11 @@ async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog', { name: 'Open folder', exact: true }).waitFor({ state: 'detached' });
   await page.getByRole('button', { name: 'Close authoring.md', exact: true }).click();
-  const chapters = sidebar.getByRole('treeitem', { name: 'chapters', exact: true });
+  // The chapter folder opened first stays open too; use the common folder's own tree.
+  const common = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(root)}]`);
+  const chapters = common.getByRole('treeitem', { name: 'chapters', exact: true });
   if (await chapters.getAttribute('aria-expanded') !== 'true') await chapters.click();
-  await sidebar.getByRole('treeitem', { name: 'authoring.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'authoring.md', exact: true }).click(); await ready();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const form = page.getByTestId('citation-form');
   const citations = () => editor.evaluate(element => {

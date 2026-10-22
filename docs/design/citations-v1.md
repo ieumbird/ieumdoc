@@ -156,7 +156,8 @@ read but the key was absent. Resource failures never affect native admission or 
 
 The shared stateless `/api/bibliography?path=…&revision=…` handler derives declarations from the
 admitted document, checks its revision, and cannot accept arbitrary resource targets. Local Vite/
-Desktop reads pin the selected folder context on document Open; absent context means document
+Desktop reads pin the folder context on document Open: the outermost opened sidebar folder containing
+the document ([ADR-0009](../adr/0009-multiple-opened-folders.md)); absent context means document
 directory. Sidebar folder changes and Reload retain that tab boundary; explicit close/reopen uses
 the new context. HTTP always uses the startup Root union and ignores local folder context. CLI
 uses its explicit root or document directory. Lexical/real paths, symlinks and Root identity are

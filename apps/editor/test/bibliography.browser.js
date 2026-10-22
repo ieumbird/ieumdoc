@@ -60,9 +60,11 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   await capture('unverified', 1440);
 
   await page.getByRole('button', { name: 'Close paper.md', exact: true }).click();
-  const chapters = sidebar.getByRole('treeitem', { name: 'chapters', exact: true });
+  // The chapter folder opened first stays open too; use the common folder's own tree.
+  const common = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(root)}]`);
+  const chapters = common.getByRole('treeitem', { name: 'chapters', exact: true });
   if (await chapters.getAttribute('aria-expanded') !== 'true') await chapters.click();
-  await sidebar.getByRole('treeitem', { name: 'paper.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'paper.md', exact: true }).click(); await ready();
   assert(await references.count() === 1, 'One References region follows the whole document');
   await compare(originalSource, originalBib);
   const bounds = await active.evaluate(panel => ({
@@ -99,7 +101,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   assert(bibliographyFixture.hash() === originalHash, 'Save must leave BibTeX byte-identical');
 
   // Other tabs own independent order and source snapshots, including untrusted strings.
-  await sidebar.getByRole('treeitem', { name: 'other.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'other.md', exact: true }).click(); await ready();
   assert(await rows.first().getAttribute('data-key') === 'unicode', 'Other tab has independent numbering');
   assert(await references.locator('img, script, a[href^="javascript:"]').count() === 0, 'Bibliography strings are typed text, not injected HTML or active URLs');
   const otherDisplay = JSON.stringify(await displayed());

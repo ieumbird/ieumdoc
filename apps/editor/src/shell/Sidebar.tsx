@@ -1,7 +1,7 @@
 import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
+import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
@@ -18,20 +18,18 @@ type SidebarProps = {
   onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
-  /** Recently opened folders, offered without a chosen folder so one click lists one again. */
+  /** Recently opened folders, offered without an opened folder so one click lists one again. */
   recent?: string[];
   onOpenRecent?(folder: string): void;
-  /** Opens New, which shows and lets the user choose the destination folder. */
-  onNew?(): void;
-  newButtonRef?: RefObject<HTMLButtonElement | null>;
+  /** Opens New in an opened folder; it shows and lets the user choose the destination folder. Names the button. */
+  onNew?(root: string, button: HTMLButtonElement): void;
   /** Opens New folder, which likewise shows and chooses where the folder is created. */
-  onNewFolder?(): void;
-  newFolderButtonRef?: RefObject<HTMLButtonElement | null>;
-  /** The folder the user chose, as a tree of the folders listed so far. */
-  folder?: FolderTreeState;
-  onToggleFolder?(path: string): void;
+  onNewFolder?(root: string, button: HTMLButtonElement): void;
+  /** The opened folders, in order, each a tree of the folders listed so far. */
+  folders?: FolderTreeState[];
+  onToggleFolder?(root: string, path: string): void;
   onOpenDocument?(path: string): void;
-  onCloseFolder?(): void;
+  onCloseFolder?(root: string): void;
   /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
   display: Omit<DisplaySettingsProps, "documentPath">;
@@ -39,8 +37,8 @@ type SidebarProps = {
 
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
-  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, newButtonRef, onNewFolder, newFolderButtonRef,
-  folder, onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
+  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, onNewFolder,
+  folders = [], onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
   useTranslation();
   const [tool, setTool] = useState<"files" | "display">("files");
@@ -86,20 +84,19 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: tool switches and collapse retain scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open || tool !== "files"}>
-        {folder ? (
+        {folders.length > 0 ? folders.map(tree => (
           <FolderTree
-            newButtonRef={newButtonRef}
-            newFolderButtonRef={newFolderButtonRef}
-            tree={folder}
+            key={tree.root}
+            tree={tree}
             documentPath={documentPath}
-            onToggleFolder={path => onToggleFolder?.(path)}
+            onToggleFolder={path => onToggleFolder?.(tree.root, path)}
             onOpenDocument={path => onOpenDocument?.(path)}
-            onNew={() => onNew?.()}
-            onNewFolder={() => onNewFolder?.()}
+            onNew={button => onNew?.(tree.root, button)}
+            onNewFolder={button => onNewFolder?.(tree.root, button)}
             onOpenFolder={onOpenFolder}
-            onClose={() => onCloseFolder?.()}
+            onClose={() => onCloseFolder?.(tree.root)}
           />
-        ) : (
+        )) : (
           <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
             <p className="sidebar-empty-text">{i18n.t("Open a folder to browse its files and create documents.")}</p>
             <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
@@ -151,17 +148,16 @@ type FolderTreeProps = {
   documentPath: string;
   onToggleFolder(path: string): void;
   onOpenDocument(path: string): void;
-  onNew(): void;
-  newButtonRef?: RefObject<HTMLButtonElement | null>;
-  onNewFolder(): void;
-  newFolderButtonRef?: RefObject<HTMLButtonElement | null>;
+  onNew(button: HTMLButtonElement): void;
+  onNewFolder(button: HTMLButtonElement): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
   onClose(): void;
 };
 
-/** The chosen folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, newButtonRef, onNewFolder, newFolderButtonRef, onOpenFolder, onClose }: FolderTreeProps) {
+/** One opened folder as a tree: folders expand in place, documents open. */
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onNewFolder, onOpenFolder, onClose }: FolderTreeProps) {
   useTranslation();
+  const labelId = useId();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const folderName = name(tree.root);
@@ -195,14 +191,14 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   };
 
   return (
-    <section className="sidebar-folder" aria-labelledby="sidebar-folder-label" data-testid="folder">
+    <section className="sidebar-folder" aria-labelledby={labelId} data-testid="folder" data-root={tree.root}>
       <div className="sidebar-folder-header">
         {/* Float actions before the name so later lines can use the full text width. */}
         <div className="sidebar-folder-actions">
-          <Button ref={newButtonRef} variant="ghost" size="icon-xs" aria-label={i18n.t("New file in folder")} title={i18n.t("New file…")} onClick={onNew}>
+          <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New file in folder")} title={i18n.t("New file…")} onClick={event => onNew(event.currentTarget)}>
             <Plus />
           </Button>
-          <Button ref={newFolderButtonRef} variant="ghost" size="icon-xs" aria-label={i18n.t("New folder")} title={i18n.t("New folder…")} onClick={onNewFolder}>
+          <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New folder")} title={i18n.t("New folder…")} onClick={event => onNewFolder(event.currentTarget)}>
             <FolderPlus />
           </Button>
           <DropdownMenu>
@@ -218,11 +214,11 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <p className="sidebar-folder-name" id="sidebar-folder-label" title={tree.root}>
+        <p className="sidebar-folder-name" id={labelId} title={tree.root}>
           <span><span className="sidebar-folder-first-word"><FolderOpen aria-hidden="true" />{firstWord}</span>{folderName.slice(firstWord.length)}</span>
         </p>
       </div>
-      <ul className="sidebar-tree" role="tree" aria-labelledby="sidebar-folder-label" onKeyDown={keyDown}>
+      <ul className="sidebar-tree" role="tree" aria-labelledby={labelId} onKeyDown={keyDown}>
         {items.map(item => {
           const { entry } = item;
           const folder = entry.kind === "folder";

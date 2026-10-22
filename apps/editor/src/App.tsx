@@ -13,7 +13,7 @@ import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { activeAfterClose, allTabsPendingWork, openedTab } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
-import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
+import { readDocumentWidth, readOpenFolders, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenFolders, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
@@ -23,7 +23,7 @@ import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
-import { folderChain, knownFolders, useFolderTree, type FolderTreeState } from "./shell/folder-tree.ts";
+import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
 import type {
@@ -244,8 +244,26 @@ export function App() {
       setContinuation({ id, session: owner });
     } else removeTab(id);
   }
-  // The folder the user chose for this page session, as a lazily listed tree; never stored or watched.
-  const folderTree = useFolderTree(requestFolder, setError);
+  // The folders the user opened, each a lazily listed tree; only their paths are remembered, never watched.
+  const folders = useFolderTrees(requestFolder, setError);
+  // Reopen the remembered folders in order. One the Host no longer lists (moved, removed or outside
+  // its roots) is left out quietly. Restoring never writes: only the user's Open and Close do.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const root of readOpenFolders()) {
+        try {
+          const listed = await requestFolder(root);
+          if (!cancelled) folders.open(listed, "");
+        } catch { /* Left out; see above. */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  function closeFolder(root: string): void {
+    folders.close(root);
+    writeOpenFolders(folders.roots.filter(item => item !== root));
+  }
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsReturnFocus = useRef<HTMLElement | null>(null);
@@ -299,7 +317,7 @@ export function App() {
     setOperation("opening");
     setError("");
     try {
-      const next = await requestDocument("GET", requestedPath, folderTree.state?.root);
+      const next = await requestDocument("GET", requestedPath, folders.rootOf(requestedPath));
       if ("start" in next) throw new UiError({ key: "The Host did not return a document." });
       acceptFile(next);
       void offerRecovery(next);
@@ -321,17 +339,20 @@ export function App() {
     setError("");
     setNotice("");
     try {
-      acceptFile(await requestDocument("PUT", path, folderTree.state?.root));
+      acceptFile(await requestDocument("PUT", path, folders.rootOf(path)));
       // A full-screen sidebar steps aside for the new document, as for an opened one.
       if (sidebarOverlay) setSidebarOpen(false);
       return "";
     } catch (cause) { const message = messageOf(cause); setError(message); return message; }
     finally { operationRef.current = false; setOperation(""); }
   }
-  function newFile(): void {
-    if (!folderTree.state) return;
+  /** New in an opened folder starts at the open document's folder when it is inside, else at the folder. */
+  function newDirectoryIn(root: string): string {
+    return folderChain(root, openedPath).at(-1) ?? root;
+  }
+  function newFile(root: string): void {
     if (busy || continuation) { setError({ key: "Wait for the current operation to finish." }); return; }
-    setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
+    setNewDirectory(newDirectoryIn(root));
     setNewDialog(true);
   }
   async function continueSession(shouldSave: boolean): Promise<void> {
@@ -366,7 +387,8 @@ export function App() {
     if (!root) return i18n.t("Enter a folder path.");
     try {
       const listed = await requestFolder(root);
-      folderTree.open(listed, openedPath);
+      folders.open(listed, openedPath);
+      writeOpenFolders(folders.roots.includes(listed.root) ? folders.roots : [...folders.roots, listed.root]);
       setRecentFolders(rememberRecentFolder(listed.root, recentFolders));
       return "";
     } catch (cause) {
@@ -392,7 +414,7 @@ export function App() {
 
   // Opening or creating a document lists its folders again; there is no watch.
   useEffect(() => {
-    if (openedPath) folderTree.reveal(openedPath);
+    if (openedPath) folders.reveal(openedPath);
   }, [openedPath]);
 
   // Ctrl/Cmd+S is the Save button: same path, same messages. The browser's own page save
@@ -488,7 +510,6 @@ export function App() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${sidebarOverlay ? " app-shell--sidebar-overlay" : ""}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
-        newButtonRef={newFileButton}
         open={sidebarOpen}
         documentPath={openedPath}
         display={{
@@ -512,21 +533,23 @@ export function App() {
         }}
         recent={visibleRecent}
         onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
-        onNew={newFile}
-        newFolderButtonRef={newFolderButton}
-        onNewFolder={() => {
-          if (!folderTree.state) return;
-          setNewDirectory(folderChain(folderTree.state.root, openedPath).at(-1) ?? folderTree.state.root);
+        onNew={(root, button) => {
+          newFileButton.current = button;
+          newFile(root);
+        }}
+        onNewFolder={(root, button) => {
+          newFolderButton.current = button;
+          setNewDirectory(newDirectoryIn(root));
           setNewFolderDialog(true);
         }}
-        folder={folderTree.state ?? undefined}
-        onToggleFolder={folderTree.toggle}
+        folders={folders.trees}
+        onToggleFolder={folders.toggle}
         onOpenDocument={(path) => {
           // An overlaid sidebar steps aside for the document it opens.
           if (sidebarOverlay) setSidebarOpen(false);
           void openFolderDocument(path);
         }}
-        onCloseFolder={folderTree.close}
+        onCloseFolder={closeFolder}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
           setSettingsOpen(true);
@@ -539,7 +562,7 @@ export function App() {
             onOpenSidebar={sidebarOverlay && !sidebarOpen ? () => { sidebarFocus.current = "sidebar"; setSidebarOpen(true); } : undefined}
             openSidebarRef={openSidebarButton}
             documentPath={openedPath}
-            location={documentLocation(openedPath, folderTree.state?.root)}
+            location={documentLocation(openedPath, folders.rootOf(openedPath))}
             status={assetPending ? "adding-image" : status}
             unsaved={documentDirty || draftActive}
             view={view}
@@ -623,7 +646,7 @@ export function App() {
         onClose={() => setRecoveryReview(null)} />
       <FolderDialog
         open={folderDialog}
-        initialPath={folderTree.state?.root ?? splitDocumentPath(openedPath).directory}
+        initialPath={folders.rootOf(openedPath) ?? folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory}
         recent={visibleRecent}
         restricted={allowedRoots !== undefined}
         browse={browseHostFolder}
@@ -632,7 +655,7 @@ export function App() {
         onCreateFolder={async (parent, name) => {
           const message = await createFolder(parent, name);
           // Creating while choosing changes no expansion; an already listed folder shows it.
-          if (!message) folderTree.refresh(parent);
+          if (!message) folders.refresh(parent);
           return message;
         }}
         returnFocus={dialogReturnFocus}
@@ -652,7 +675,7 @@ export function App() {
       />
       <NewDialog
         open={newDialog}
-        destinations={folderTree.state ? newDestinations(folderTree.state) : []}
+        destinations={folders.trees.flatMap(newDestinations)}
         directory={newDirectory}
         busy={busy}
         onCreate={(directory, name) => createFile(childPath(directory, name))}
@@ -674,12 +697,12 @@ export function App() {
       <NewDialog
         kind="folder"
         open={newFolderDialog}
-        destinations={folderTree.state ? newDestinations(folderTree.state) : []}
+        destinations={folders.trees.flatMap(newDestinations)}
         directory={newDirectory}
         busy={false}
         onCreate={async (directory, name) => {
           const message = await createFolder(directory, name);
-          if (!message) folderTree.reveal(childPath(directory, name));
+          if (!message) folders.reveal(childPath(directory, name));
           return message;
         }}
         returnFocus={newFolderButton}
