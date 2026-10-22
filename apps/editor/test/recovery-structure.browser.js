@@ -1,5 +1,6 @@
 async (page, { openDocument, reloadDocument, screenshots }) => {
   page.setDefaultTimeout(15000);
+  if (screenshots) await page.setViewportSize({width:1280,height:1000});
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -52,8 +53,12 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openDocument(page,file);
-  if (screenshots) await page.screenshot({path:'tmp/331-recovery-prompt.png'});
+  await page.getByTestId('recovery-prompt').waitFor({state:'visible'});
   check(await page.getByRole('button',{name:'Restore work',exact:true}).isEnabled(), `Generated record refused: ${await page.getByTestId('recovery-prompt').innerText()}; deleted=${JSON.stringify(record.snapshot.editor.editorDocument.attrs.deletedPaths)}`);
+  if (screenshots) {
+    await page.evaluate(()=>document.fonts.ready);
+    await page.screenshot({path:'tmp/331-recovery-prompt.png'});
+  }
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   check(JSON.stringify(await engine.evaluate(n=>n.editor.getJSON()))===JSON.stringify(before),'Restore changed structured engine content');
@@ -82,7 +87,16 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   check(await page.getByRole('button',{name:'Restore work',exact:true}).isDisabled(),'Unknown deletion was accepted');
   await page.getByText('Plaintext recovery copy',{exact:true}).click();
   const fallback = await page.getByRole('textbox',{name:'Plaintext recovery copy'}).inputValue();
-  if (screenshots) await page.screenshot({path:'tmp/331-after-fallback-en.png'});
+  if (screenshots) {
+    // Capture-only enlargement exposes math, table cells and captions together.
+    // This does not change the product stylesheet or the stored recovery text.
+    await page.getByRole('textbox',{name:'Plaintext recovery copy'}).evaluate(element=>{
+      element.style.height='420px';
+      element.scrollTop=0;
+    });
+    await page.evaluate(()=>document.fonts.ready);
+    await page.screenshot({path:'tmp/331-after-fallback-en.png'});
+  }
   for (const text of ['Recovery paper','x^2 + y^2 = z^2','Cell 1','Measured results','Pending figure caption']) check(fallback.includes(text),`Fallback lost ${text}`);
   check(!/\[(level|latex|caption|marks):/.test(fallback),'Fallback leaked internal attributes');
   await page.evaluate(async()=> (await import(performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname==='/src/i18n.ts').name)).i18n.changeLanguage('ko'));

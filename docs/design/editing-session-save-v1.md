@@ -180,6 +180,36 @@ Windows reproduction establishes the current producer defect and an equivalent r
 cause of every historical Save-disabled report or a repair of previously flattened disk text.
 Those Vite checks are distinct from the Host process-lifetime checks below.
 
+Visual evidence re-captured on 2026-10-22 after review found that the earlier temporary prompt
+images preceded the dialog and did **not** prove its state. The following replacements were
+inspected with the dialog visible and Restore's enabled/disabled state checked before capture:
+
+- [Prompt before](assets/recovery-331/prompt-before.png): the real New/title/Enter flow generated
+  the empty deletion sentinel; Restore is disabled with the deletion-metadata reason.
+- [Prompt after](assets/recovery-331/prompt-after.png): the same writing/reopen flow with fixed
+  production code offers enabled Restore.
+- [Fallback before](assets/recovery-331/fallback-before-en.png) and
+  [fallback after](assets/recovery-331/fallback-after-en.png): a test-owned record with unknown
+  deletion path `999` is refused in both. The copy shows the old attribute dump versus readable
+  math, table cells/caption and Figure caption.
+- [Korean fallback](assets/recovery-331/fallback-after-ko.png): the same open refusal dialog after
+  switching language, retaining the disabled Restore action and readable copy.
+
+Comparison conditions: Windows Chrome, checkout-owned persistent profile, Vite origin
+`http://127.0.0.1:5191`, 1280×1000 viewport, DPR 1, bundled fonts loaded. Product HEAD was
+`7e62ee22aba6477a067bef4f42f16309eb0afa73`; the capture-only scenario changes are included with
+these images. For prompt-before, only `editor-schema.tsx` and `editor-snapshot.ts` were temporarily
+replaced with `811a5662a2c69d804b0d0f419f2d84a4b4df054d` versions; the temporary scenario asserted
+disabled Restore and stopped after capture. For fallback-before, only `recovery-storage.ts` used
+that older version: **it shows the new guidance with the old producer, not the complete baseline
+UI**. Each temporary replacement was restored and `git diff --exit-code -- apps/editor/src`
+passed before final regression. Test-created filenames differ between runs; content and steps match.
+All fallback images enlarge the textarea to 420px and scroll it to the top **for capture only**;
+this is not the product's default control height or a stylesheet change. The after images expose
+the complete sample copy; the longer old dump still continues below its viewport. No user records
+or user browser profile were accessed. Final `recovery-structure --screenshots` passed; the two
+before runs intentionally stopped at the confirmed refusal or internal-attribute regression.
+
 ### Host persistence verification (#296 PR3)
 
 On Windows x64, `pnpm browser:test http-host` now also kills the owned Chrome browser process
