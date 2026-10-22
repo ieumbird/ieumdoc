@@ -127,7 +127,7 @@ const REVISION_NOTE = [
 ];
 const DRY_RUN_NOTE = [
   "--dry-run runs the same edits and canonical write checks without committing or creating temporary files.",
-  "Text prints the result revision, check summary (warnings on stderr), then --- markdown --- and canonical Markdown.",
+  "Text prints the result revision, check summary and bibliography diagnostics on stdout, then --- markdown --- and canonical Markdown. Other warnings use stderr.",
   "--dry-run --format json prints dryRun, revision, markdown and the same diagnostic fields as check; batches add applied.",
   "Original literal-syntax warnings also print on stderr; JSON previews keep their Core entries in originalWarnings (or []).",
   "Failures keep the usual stderr messages and exit 1, including in JSON mode.",
@@ -201,11 +201,11 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "update-bibliography",
     group: "Edit — labels, footnotes and numbering",
-    summary: "Set relative .bib declarations without reading bibliography files",
+    summary: "Set relative .bib declarations and evaluate bounded bibliography resources",
     usage: "ieumdoc update-bibliography <file> --paths <json>",
     details: ["--paths is a JSON array of relative .bib paths; [] removes the optional declaration.",
       "Paths use /; ./ and .. are allowed. Duplicate paths, globs, URLs and absolute paths are refused.",
-      "No bibliography resources are read. Citation readiness remains not-evaluated."],
+      "Declared bibliography resources are read within the configured boundary. Resource warnings do not block writing."],
   },
   ...(["insert-citation", "update-citation"] as const).map(name => ({
     name,
@@ -216,7 +216,7 @@ const COMMANDS: CommandSpec[] = [
       "Targets: paragraph, heading, quote, simple admonition, endnote definition, or table cell [table,row,cell].",
       "Offsets use Core UTF-16 inline units; a whole citation group is one unit.",
       name === "insert-citation" ? "Insert at 0 through content length." : "Offset must point to the start of an existing citation atom; surrounding marks are kept.",
-      "Multiple keys with cite canonicalize to cite:t. No bibliography resources are read.", ...PATH_NOTE],
+      "Multiple keys with cite canonicalize to cite:t. Bounded bibliography reads report readiness warnings.", ...PATH_NOTE],
   })),
   {
     name: "remove-citation",
@@ -1290,7 +1290,7 @@ function commandHelp(name: string): string {
       "apply-batch accepts the same position as \"at\": \"end\"."] : []),
     ...(editing && addressed ? ["", BODY_INDEX_NOTE] : []),
     "", "--bibliography-root <directory> permits declared bibliography files within that directory.",
-    "Default: document directory. Applies to check, inspect and edit previews; never writes .bib files.",
+    "Default: document directory. Applies to check, inspect, edits and their previews; never writes .bib files.",
     ...(editing ? ["", ...REVISION_NOTE, ...DRY_RUN_NOTE] : []), ""].join("\n");
 }
 

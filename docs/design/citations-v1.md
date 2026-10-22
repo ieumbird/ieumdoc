@@ -82,9 +82,11 @@ contracts apply; a failure writes no bytes. `--content` also accepts typed citat
 `check --format json`, `inspect --format json` and edit/format JSON dry runs expose the Core report
 under `citations`. Text check/inspect print declarations, roles, keys, numeric groups and
 `citation readiness: evaluated; complete: true/false` when citations or declarations exist. `format` preserves declarations and explicit roles in its
-canonical output; ordinary successful file edits retain the existing silent stdout contract. Resource
-warnings go to stderr and do not change successful exit 0. All commands accept optional
-`--bibliography-root <directory>`; default is the document directory, independent of process cwd.
+canonical output. Ordinary successful file edits retain their existing stdout contract and send
+resource warnings to stderr; resource warnings do not change successful exit 0. Text check/inspect
+and text dry-run diagnostics appear on stdout; JSON output embeds them under `citations`.
+Document check/inspect/edit commands accept optional `--bibliography-root <directory>`; default
+is the document directory, independent of process cwd. This is not a `serve` option.
 
 ## Editor
 
@@ -124,7 +126,11 @@ types (including `proceedings` even when converted to book), unknown semantic fi
 loss, complex names/dates and missing required fields receive minimal text plus diagnostics.
 `abstract`, `keywords`, `file` are intentionally ignored. Converted markup is rendered as literal
 text and diagnosed; URLs are text only. DOI takes precedence over URL. Publication year is required.
-No metadata is silently repaired and `.bib` bytes remain external source authority.
+Every rendered scalar and name component is checked for converted markup or residual TeX,
+including volume/issue/pages and the original `standard.number` supplement. Distinct supported
+original values mapping to one scalar (such as publisher/howpublished or organization/institution)
+are ambiguous and diagnosed; identical original values are accepted. No metadata is silently
+repaired and `.bib` bytes remain external source authority.
 
 Stable diagnostics include `bibliography-type-unsupported`, `bibliography-field-unsupported`,
 `bibliography-field-missing`, `bibliography-key-duplicate`, `bibliography-entry-uncited` (info),
@@ -263,3 +269,21 @@ byte-identical. New References captures scroll to the trailing region after the 
 Remote CI, the full stable browser suite, Linux, packaged Desktop/install/update and a live Zotero
 export were not run. Shared Desktop route wiring and unit tests passed; packaged OS validation
 remains CI/release work. Unit C and #265 umbrella completion remain outstanding.
+
+
+Review corrections (2026-10-22): on base `cb975a14e51be6b748cde4e28ca153d4c0264ab6`,
+six regression inputs (formatted corporate author, volume, pages, standard number, competing
+publisher/howpublished and organization/institution) all incorrectly returned `complete`.
+After the guard corrections all six return `incomplete` with `bibliography-field-unsupported`;
+identical-value collision controls and existing exact IEEE fixtures still pass. The focused Core
+suite (7 tests), CLI suite (66), repository typecheck and actual `bibliography` browser scenario
+passed. CLI help now describes bounded reads rather than promising unevaluated resources.
+
+The extended browser scenario records an actual dirty bibliography document through the production
+recovery producer, verifies its fixed folder context and absence of bibliography source text,
+restarts the page, opens from the narrower chapter folder and restores. Dirty edits and numbers
+survive, References remain unverified through Save, explicit Reload uses the stored common-folder
+context and agrees with Node, and the BibTeX hash remains unchanged. No recovery producer change
+or test-seeded record is involved. Existing PNGs were captured from implementation commit
+`cb975a14e51be6b748cde4e28ca153d4c0264ab6`; their fixture rendering is unchanged by these guards,
+and no new screenshot claims are made for recovery.

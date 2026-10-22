@@ -52,6 +52,22 @@ test("unsupported fields, conversion loss, complex names/dates and missing requi
     assert.equal(result.references?.[0].status, "incomplete");
     assert.equal(result.references?.[0].parts.length, 1);
   }
+  const reviewCases = [
+    [String.raw`@article{key,author={{\emph{Research Lab}}},title={Study},journal={J},year={2024}}`, "author"],
+    [String.raw`@article{key,author={Smith, Jane},title={Study},journal={J},volume={\emph{12}},year={2024}}`, "volume"],
+    [String.raw`@article{key,author={Smith, Jane},title={Study},journal={J},pages={\textbf{4--9}},year={2024}}`, "page"],
+    [String.raw`@standard{key,title={Safety},organization={Body},number={\textbf{STD-42}},year={2024}}`, "number"],
+    [String.raw`@misc{key,title={Study},publisher={Press},howpublished={Online Bulletin},year={2024}}`, "publisher/howpublished"],
+    [String.raw`@standard{key,title={Safety},organization={Org},institution={Inst},number={STD-42},year={2024}}`, "organization/institution"],
+  ];
+  const results = reviewCases.map(([bib]) => evaluate("key", bib));
+  assert.deepEqual(results.map(r => r.references?.[0].status), reviewCases.map(() => "incomplete"));
+  results.forEach((result, index) => {
+    assert.ok(result.readiness.diagnostics.some(d => d.code === "bibliography-field-unsupported" && d.field === reviewCases[index][1]), JSON.stringify(result));
+    assert.equal(result.references?.[0].parts.length, 1);
+  });
+  assert.equal(evaluate("key", '@misc{key,title={Study},publisher={Press},howpublished={Press},year={2024}}').readiness.complete, true);
+  assert.equal(evaluate("key", '@standard{key,title={Safety},organization={Body},institution={Body},number={STD-42},year={2024}}').readiness.complete, true);
   const noYear = evaluate("key", "@online{key,organization={Lab},title={Work},url={https://example.org},urldate={2024-02-29}}");
   assert.match(noYear.references![0].text, /n\.d\./);
 });

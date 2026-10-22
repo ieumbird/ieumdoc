@@ -26,6 +26,7 @@ const fields: Record<string, string[]> = {
   online: ["organization", "urldate", "booktitle", "journaltitle"], misc: ["organization", "howpublished", "publisher"],
 };
 function string(value: unknown): string { return typeof value === "string" || typeof value === "number" ? String(value) : ""; }
+function plain(value: string): boolean { return !/[<>\\]/u.test(value); }
 function names(value: unknown): { text: string; valid: boolean } {
   if (value === undefined) return { text: "", valid: true };
   if (!Array.isArray(value)) return { text: "", valid: false };
@@ -33,6 +34,7 @@ function names(value: unknown): { text: string; valid: boolean } {
   const text = value.map(name => {
     if (!name || typeof name !== "object" || Object.keys(name).some(k => !["given", "family", "literal"].includes(k))) valid = false;
     if (!name || typeof name !== "object") return "";
+    if ([name.given, name.family, name.literal].some(value => value !== undefined && (typeof value !== "string" || !plain(value)))) valid = false;
     if (typeof name.literal === "string") return name.literal;
     if (!name.family) valid = false;
     const initials = string(name.given).split(/[\s-]+/u).filter(Boolean).map(part => `${Array.from(part)[0]}.`).join(" ");
@@ -66,9 +68,6 @@ function formatEntry(entry: Entry, diagnostics: BibliographyDiagnostic[]): { par
   const issued = date(d.issued), accessed = date(d.accessed);
   if (d.issued && !issued) warn("bibliography-field-unsupported", "issued");
   if (d.accessed && !accessed) warn("bibliography-field-unsupported", "accessed");
-  for (const pair of [["journal", "journaltitle"], ["address", "location"]]) {
-    if (pair.every(field => raw.properties[field]) && raw.properties[pair[0]] !== raw.properties[pair[1]]) warn("bibliography-field-unsupported", pair.join("/"));
-  }
   if (author.text && editor.text) warn("bibliography-field-unsupported", "editor");
   const year = issued ? String(issued[0]) : "";
   const title = string(d.title), container = string(d["container-title"]), publisher = string(d.publisher);
@@ -88,12 +87,18 @@ function formatEntry(entry: Entry, diagnostics: BibliographyDiagnostic[]): { par
   if (raw.type === "standard") Object.assign(required, { institution, number });
   if (raw.type === "online") Object.assign(required, { author: authorOrInstitution, URL: url, accessed: accessed?.length === 3 ? accessed.join("-") : "" });
   if (raw.type === "misc") Object.assign(required, { source: doi || url || publisher });
-  for (const field of ["title", "container-title", "publisher", "publisher-place", "edition", "number", "DOI", "URL"]) {
-    if (string(d[field]).includes("<") || string(d[field]).includes(">")) warn("bibliography-field-unsupported", field);
+  for (const field of ["title", "container-title", "publisher", "publisher-place", "edition", "number", "volume", "issue", "page", "DOI", "URL"]) {
+    if (!plain(string(d[field]))) warn("bibliography-field-unsupported", field);
   }
+  if (raw.type === "standard" && (!plain(number) || /[{}]/u.test(number))) warn("bibliography-field-unsupported", "number");
   Object.entries(required).forEach(([field, value]) => { if (!value) warn("bibliography-field-missing", field); });
   // Detect meaningful fields that the converter dropped rather than silently blessing them.
   const mapped: Record<string, string> = { organization: "publisher", author: "author", editor: "editor", title: "title", journal: "container-title", journaltitle: "container-title", booktitle: "container-title", publisher: "publisher", institution: "publisher", volume: "volume", pages: "page", edition: "edition", doi: "DOI", url: "URL", howpublished: "publisher", address: "publisher-place", location: "publisher-place" };
+  // Supported aliases may compete for one converted scalar. Presence alone cannot prove preservation.
+  for (const target of new Set(Object.values(mapped))) {
+    const original = Object.keys(mapped).filter(field => mapped[field] === target && supported.has(field) && raw.properties[field]);
+    if (new Set(original.map(field => raw.properties[field])).size > 1) warn("bibliography-field-unsupported", original.join("/"));
+  }
   Object.entries(mapped).forEach(([field, target]) => { if (supported.has(field) && raw.properties[field] && (target === "author" || target === "editor" ? !names(d[target]).text : !string(d[target]))) warn("bibliography-field-unsupported", field); });
   const locator = doi ? `doi: ${doi}` : url;
   if (diagnostics.length !== start) return { complete: false, parts: [{ text: [author.text || institution, title || raw.label, year || "n.d.", locator].filter(Boolean).join(". ") + "." }] };

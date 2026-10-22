@@ -148,5 +148,37 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: '설정', exact: true }).click();
   await page.getByTestId('ui-language').selectOption('en'); await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
+  // Persist through the real recovery producer, never seed or repair a recovery record.
+  await editor.locator('p').filter({ hasText: 'Move here.' }).click();
+  await page.keyboard.press('End'); await page.keyboard.type(' Bibliography recovery draft.');
+  await page.getByRole('tab', { name: 'paper.md, Unsaved changes', exact: true }).waitFor();
+  const records = () => page.evaluate(async () => (await import('/src/recovery-storage.ts')).recoveryStorage.list());
+  let recorded;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    recorded = (await records()).find(record => record.path === file && record.recoveryText.includes('Bibliography recovery draft.'));
+    if (recorded) break;
+    await page.waitForTimeout(50);
+  }
+  assert(recorded, 'Applied bibliography edits must create a real recovery record within 5 seconds');
+  assert(recorded.snapshot.file.bibliographyRoot === root, 'Recovery must retain the original common folder context');
+  assert(!Object.hasOwn(recorded.snapshot.file.bibliography, 'sources') && !JSON.stringify(recorded).includes('Control Study'), 'Recovery must never persist raw bibliography sources or derived entries');
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload(); await ready();
+  // Opening via the narrower chapter picker must not replace the stored recovery context.
+  await openDocument(page, file); await ready();
+  await page.getByTestId('recovery-prompt').waitFor();
+  await page.getByRole('button', { name: 'Restore work', exact: true }).click();
+  await page.getByTestId('recovery-prompt').waitFor({ state: 'detached' });
+  await editor.getByText(/Bibliography recovery draft/).waitFor();
+  await page.getByRole('tab', { name: 'paper.md, Unsaved changes', exact: true }).waitFor();
+  assert((await displayed()).every(r => r.status === 'unverified'), 'Restored references remain unverified until explicit Reload');
+  await save();
+  assert((await displayed()).every(r => r.status === 'unverified'), 'Restored Save must not implicitly refresh sources');
+  assert((await readDocument()).includes('Bibliography recovery draft.'), 'Restored dirty edits must reach disk');
+  await reloadDocument(page); await ready();
+  assert((await editor.innerText()).includes('Bibliography recovery draft.'), 'Restored Save survives Reload');
+  await compare(await readDocument(), originalBib);
+  assert(bibliographyFixture.hash() === originalHash, 'Recovery, Save and Reload keep bibliography bytes unchanged');
   return { sourceBoundary: true, nodeBrowserParity: true, snapshots: true, saveReload: true, bibHash: originalHash };
 }
