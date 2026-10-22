@@ -123,4 +123,4 @@ export const updateLabel = fence(operations.updateLabel);
 export const insertTarget = fence(operations.insertTarget);
 export const validateFigure = operations.validateFigure;
 export { evaluateBibliography, BIBLIOGRAPHY_LIMITS } from "./bibliography.ts";
-export type { BibliographySource, BibliographyDiagnostic, BibliographyPart, BibliographyReference, BibliographyEvaluation } from "./bibliography.ts";
+export type { BibliographySource, BibliographyDiagnostic, BibliographyPart, BibliographyReference, BibliographyEntry, BibliographyEvaluation } from "./bibliography.ts";

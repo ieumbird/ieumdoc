@@ -2015,6 +2015,54 @@ ol.list { list-style: decimal; }
   font-size: var(--font-size-sm);
 }
 
+/* The citation form lists its ordered key group above the key input, wrapping long keys. */
+.citation-form input {
+  flex: 1 1 12rem;
+}
+
+.citation-keys {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+}
+
+.citation-keys > li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  overflow-wrap: anywhere;
+}
+
+.citation-key-remove {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--id-radius-sm);
+  background: none;
+  color: var(--id-color-text-muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+/* Inside the citation's node view, ProseMirror ignores events whose target is a button but not its icon. */
+.citation-key-remove svg {
+  pointer-events: none;
+}
+
+.citation-key-remove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .document-editor a {
   color: var(--id-color-info);
   text-decoration: underline;

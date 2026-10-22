@@ -1482,7 +1482,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       references: { unresolved: [] },
       readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
-      citations: { bibliography: [], citations: [], readiness: { status: "evaluated", complete: true, diagnostics: [] }, references: [] },
+      citations: { bibliography: [], citations: [], readiness: { status: "evaluated", complete: true, diagnostics: [] }, references: [], entries: [] },
     });
     const textCheck = run(["check", file]);
     const explicitTextCheck = run(["check", file, "--format", "text"]);

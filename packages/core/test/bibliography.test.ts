@@ -92,6 +92,19 @@ test("missing, unverified, duplicate and uncited entries remain distinct; number
   assert.equal(result.citations[0].text, "[1], [2], [1]");
 });
 
+test("citable entries list every readable key once in source order without changing readiness", () => {
+  const result = evaluate("article", text + "\n@article{partial,title={Only a title}}\n");
+  assert.deepEqual(result.entries?.map(e => e.key), ["article", "conference", "book", "report", "standard", "online", "misc", "unicode", "partial"]);
+  assert.deepEqual(result.entries?.[0], { key: "article", source: "refs.bib", status: "complete", text: result.references?.[0].text.replace(/^\[1\] /, "") });
+  assert.deepEqual(result.entries?.at(-1), { key: "partial", source: "refs.bib", status: "incomplete", text: "Only a title. n.d." });
+  assert.equal(result.readiness.complete, true, "Uncited entries are listed without readiness warnings");
+  const duplicates = evaluate("missing", text + "\n@article{article,title={Different}}\n");
+  assert.deepEqual(duplicates.entries?.filter(e => e.key === "article"), [{ key: "article", source: "refs.bib", status: "duplicate", text: "article" }]);
+  const unavailable = citationReport(doc("article", ["refs.bib", "missing.bib"]), [source(text), { source: "missing.bib", status: "error", code: "bibliography-unreadable" }]);
+  assert.equal(unavailable.entries?.length, 8, "Readable sources stay searchable when another source fails");
+  assert.equal(citationReport(doc("article")).entries, undefined, "Unevaluated reports list no entries");
+});
+
 test("parser failures are resource warnings; no implicit input format or remote lookup; crossref fields are diagnosed", () => {
   for (const bib of ["@article{broken"]) {
     const result = evaluate("key", bib);
