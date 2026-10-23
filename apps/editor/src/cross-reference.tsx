@@ -8,7 +8,7 @@ import { Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
-import { labelKey, targetLabelError } from "@ieumdoc/core/label";
+import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
 import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
@@ -146,14 +146,51 @@ export function addSectionLabel(state: EditorState, index: number): Transaction 
 
 /** The target a reference names here, compared the way MyST resolves labels. */
 export function resolvedTarget(targets: ReferenceTarget[], role: ReferenceRole, label: string): ReferenceTarget | undefined {
-  const key = labelKey(label);
-  return targets.find((target) => target.role === role && labelKey(target.label) === key);
+  return resolveLabelReference({ label }, key => targets.find((target) => target.role === role && labelKey(target.label) === key));
+}
+
+/** Remaining references whose resolved target block was removed, not merely relabeled.
+ * Session source paths identify blocks only within this editor's immutable opening snapshot. */
+export function referencesBrokenByDeletion(before: ProseMirrorNode, after: ProseMirrorNode): ReferenceTarget[] {
+  const remaining = new Set<string>();
+  after.forEach(node => remaining.add(String(node.attrs.sourcePath)));
+  const deletedLabels = new Set<string>();
+  before.forEach(node => {
+    if (node.attrs.label && !remaining.has(String(node.attrs.sourcePath))) deletedLabels.add(labelKey(String(node.attrs.label)));
+  });
+  if (!deletedLabels.size) return [];
+  const was = referenceTargets(before);
+  const now = referenceTargets(after);
+  const broken: ReferenceTarget[] = [];
+  const visit = (node: ProseMirrorNode) => {
+    if (node.type.name === "crossReference") {
+      const role = node.attrs.role as ReferenceRole;
+      const label = String(node.attrs.label);
+      if (deletedLabels.has(labelKey(label)) && resolvedTarget(was, role, label) && !resolvedTarget(now, role, label)) broken.push({ role, label });
+    }
+    for (const mark of node.marks) {
+      if (mark.type.name !== "link") continue;
+      const reference = { url: String(mark.attrs.href) };
+      const target = resolveLabelReference(reference, key => was.find(target => labelKey(target.label) === key));
+      if (target && deletedLabels.has(labelKey(target.label)) &&
+          !resolveLabelReference(reference, key => now.find(target => labelKey(target.label) === key))) broken.push(target);
+    }
+  };
+  after.descendants(visit);
+  // Table captions are Core inline content in attrs, rather than engine child nodes.
+  after.forEach(node => {
+    if (node.type.name === "table" && Array.isArray(node.attrs.caption)) {
+      after.type.schema.nodeFromJSON(toTiptapContent(node.attrs.caption)).descendants(visit);
+    }
+  });
+  return broken;
 }
 
 /** How a reference reads, as its chip shows it: the target's computed number, a section's heading
  * text, or the label when it names no target here. */
 export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole, label: string): { text: string; resolved: boolean; kindName: string } {
   const target = resolvedTarget(targets, role, label);
+  if (!target) return { text: i18n.t("Unresolved reference: {{label}}", { label }), resolved: false, kindName: "" };
   const kindName = target?.kind === "table" ? i18n.t("Table") : KIND[role];
   // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
   const shown = target?.number !== undefined ? numberText(target.kind ?? (role === "eq" ? "equation" : "figure"), target.number) : target?.title ?? label;
@@ -161,8 +198,8 @@ export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole
 }
 
 /** What an unresolved reference tells the reader. */
-export function unresolvedStatus(role: ReferenceRole, label: string): string {
-  return i18n.t("Unresolved: no {{kind}} labeled “{{label}}” in this document", { kind: KIND[role], label: label });
+export function unresolvedStatus(_role: ReferenceRole, label: string): string {
+  return i18n.t("Unresolved reference: no target labeled “{{label}}” in this document", { label });
 }
 
 /** Whether a reference names a target of its kind here, compared the way MyST resolves labels. */

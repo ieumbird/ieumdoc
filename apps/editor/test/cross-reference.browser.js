@@ -4,7 +4,7 @@
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
-async (page, { openDocument }) => {
+async (page, { openDocument, screenshots }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -191,7 +191,7 @@ async (page, { openDocument }) => {
     return await chip.count() === 1 ? chip.getAttribute('data-resolved') : 'missing';
   };
   const captionReads = async () => await caption.locator('.inline-math .katex').count() === 1 && !(await caption.innerText()).includes('$') &&
-    await captionChip('Fig. 1') === 'true' && await captionChip('Eq. eq-gone') === 'false';
+    await captionChip('Fig. 1') === 'true' && await captionChip('Unresolved reference: eq-gone') === 'false';
   await openCaption();
   result.captionShowsMathAndReferences = await captionReads();
   const captionFigure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
@@ -200,7 +200,8 @@ async (page, { openDocument }) => {
   await page.getByTestId('figure-label').fill('fig-b');
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
-  result.captionFollowsRelabeledTarget = await captionChip('Fig. fig-a') === 'false';
+  result.captionFollowsRelabeledTarget = await captionChip('Unresolved reference: fig-a') === 'false';
+  result.relabelDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
   await page.keyboard.press('ControlOrMeta+z');
   result.captionUndoResolvesAgain = await captionChip('Fig. 1') === 'true';
   result.captionSourceUnchanged = await sourceText() === captionFresh;
@@ -209,6 +210,82 @@ async (page, { openDocument }) => {
   result.captionSaveKeepsMarkdown = await captionFile() === captionFresh;
   await openCaption();
   result.captionReloaded = await captionReads();
+  await page.evaluate(() => {
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let pos;
+    editor.state.doc.forEach((node, at) => { if (node.attrs.label === 'fig-a') pos = at; });
+    editor.commands.setNodeSelection(pos);
+    editor.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  result.captionOnlyReferenceDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference'));
+  await page.keyboard.press('ControlOrMeta+z');
+  result.captionDeletionUndo = await captionChip('Fig. 1') === 'true' && await page.getByTestId('notice').count() === 0;
+
+  // J. Deleting a referenced target warns at the time of deletion; Undo restores resolution.
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openDocument(page, [root, 'tmp', 'cross-reference', 'delete.md'].join(separator));
+  const active = page.locator('[data-document-tab][data-active=true]');
+  for (const [kind, label, normal] of [['equation', 'eq-a', 'Eq. (1)'], ['figure', 'fig-a', 'Fig. 1'], ['table', 'tbl-a', 'Table 1']]) {
+    const reference = active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
+    if (await reference.innerText() !== normal) throw new Error(`Normal ${kind} reference changed`);
+    await page.evaluate(label => {
+      const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      let pos;
+      editor.state.doc.forEach((node, at) => { if (node.attrs.label === label) pos = at; });
+      editor.commands.setNodeSelection(pos);
+      editor.view.focus();
+    }, label);
+    if (kind === 'table') await active.getByRole('button', {name:'Delete table', exact:true}).click();
+    else await page.keyboard.press('Delete');
+    result[`${kind}DeletionNotice`] = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference') && text.includes('Ctrl+Z'));
+    result[`${kind}BrokenText`] = await reference.innerText() === `Unresolved reference: ${label}`;
+    if (screenshots && kind === 'table') {
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => {
+        for (const element of document.querySelectorAll('*')) {
+          if (element.scrollTop) element.scrollTop = 0;
+        }
+      });
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({path:'tmp/375/deleted-table-1280.png'});
+    }
+    await page.keyboard.press('ControlOrMeta+z');
+    result[`${kind}UndoResolves`] = await reference.innerText() === normal && await reference.locator('..').getAttribute('data-resolved') === 'true';
+    result[`${kind}UndoClearsNotice`] = await page.getByTestId('notice').count() === 0;
+  }
+  // A target with no reference keeps its existing deletion flow and shows no new notice.
+  await page.evaluate(() => {
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let pos;
+    editor.state.doc.forEach((node, at) => { if (node.type.name === 'equation' && !node.attrs.label) pos = at; });
+    editor.commands.setNodeSelection(pos);
+    editor.view.focus();
+  });
+  await page.keyboard.press('Backspace');
+  result.unreferencedDeletionHasNoNotice = await active.locator('[data-block="equation"]').count() === 1 && await page.getByTestId('notice').count() === 0;
+  await page.keyboard.press('ControlOrMeta+z');
+  // The same applied deletion notice and broken chip are translated in the existing UI.
+  await page.getByRole('button', {name:'Settings', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  await page.evaluate(() => {
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let pos;
+    editor.state.doc.forEach((node, at) => { if (node.attrs.label === 'eq-a') pos = at; });
+    editor.commands.setNodeSelection(pos);
+    editor.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  result.koreanDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('참조가 깨졌습니다. Ctrl+Z'));
+  result.koreanBrokenChip = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === '깨진 참조: eq-a';
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.getByRole('button', {name:'설정', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
 
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {

@@ -94,6 +94,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setImageChoice(imageChoiceRef.current);
     });
     return {
+      onNotice: (message: UiMessage) => { if (isCurrent()) setNotice(message); },
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },

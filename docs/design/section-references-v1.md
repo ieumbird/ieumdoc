@@ -1,6 +1,7 @@
 # Section references v1
 
 - Status: Implemented
+- Deletion feedback verification: 2026-10-24 (#375; Core/Editor tests, cross-reference including caption-only references and both UI languages, section-reference and table-authoring browser scenarios; [same-state captures](#deletion-feedback-evidence-375)).
 - Label collision verification: 2026-10-15 (#302 Core/CLI tests, Editor save replay/error propagation tests and source CLI before/after).
 - Literal syntax verification: 2026-10-15 (#304: discriminated source-only entries, shared location ordering and CLI output; Core/CLI tests and source CLI).
 - Label rename verification: 2026-10-15 (#216 Core/CLI tests, canonical round-trip/refusal checks and source CLI before/after run with all four target kinds; Editor entry is deferred).
@@ -27,6 +28,22 @@ Core's section rule already counts targets before a heading as part of that sect
 
 ## Editor
 
+- Deleting a labeled target that leaves a previously resolved role reference or fragment link
+  unresolved shows the existing five-second informational notice: “Deleting this target broke a
+  reference. Press Ctrl+Z to undo.” The document changes immediately in its normal engine
+  transaction; Undo restores the target and resolution and clears that notice. Unreferenced
+  target deletion and label property Apply keep their existing flow. This is reference-loss
+  feedback, not the general deletion-confirmation policy (#379); label rename/update UI (#374)
+  remains separate. Core's shared role/fragment lookup is used by its unresolved diagnostics
+  and the live projection; the Editor does not parse source or introduce a new semantic operation.
+- An unresolved chip reads `Unresolved reference: label` (`깨진 참조: label` in Korean), with
+  its existing dashed treatment and a tooltip explaining that no labeled target exists.
+  It never guesses Figure/Table/Equation from a missing target's role. Resolved `Fig. n`,
+  `Table n`, `Eq. (n)` and section displays retain their existing behavior.
+- Remaining references in table captions and ordinary fragment links participate in deletion
+  feedback too. Removing a reference together with its target shows no reference-loss notice.
+  The feedback and text change add no persistent operation, so no new CLI command is needed.
+
 - The opt-in label rename entry point ("also update references" in label properties) is a follow-up to #216. This change provides Core and CLI only; existing Editor behavior is unchanged.
 - A target's `§ label` metadata (source syntax: `(label)=`) is hidden at rest and appears with its heading on hover, focus or selection ([Visual Language v2](editor-visual-language-v1.md)). Clicking it opens Edit, which reports rule or duplicate errors before Save. Deleting the target removes the label.
 - The slash menu lists labeled sections and unlabeled headings. Picking an unlabeled heading inserts a `sec-<slug>` target and the reference in one transaction, so one Undo step removes both. The slug uses the heading's ASCII letters and digits; otherwise the label is a numbered `sec-n`.
@@ -40,6 +57,29 @@ Core's section rule already counts targets before a heading as part of that sect
 - A reference chip shows `§` and the heading text, as MyST renders `{ref}`, and goes to the heading.
 - Save expresses labels with the existing insert, delete, order and label edits. A target is renamed, never cleared first, so one Save cannot swap a target's label with another block's.
 - Label property Apply and slash-menu insertion retain their existing draft/transaction behavior; document-wide collisions are reported by the existing Save error UI with Core's reason and correction. The `sec-<slug>` generator avoids explicit labels; a collision with another heading's implicit ID is refused on Save. Save replay inserts new targets at their following block (after creating new headings) so the same-heading exception also works in the Editor.
+
+### Deletion feedback evidence (#375)
+
+The extended cross-reference browser scenario failed on the original product code at `a61dff5`:
+Equation/Figure/Table deletions showed no notice and retained kind-prefixed broken text, while Undo
+already restored each target. The unit regression likewise expected `Unresolved reference: gone`
+but received `Eq. gone`. The same assertions pass after this change, including Korean feedback,
+caption-only references, the table's Delete button, keyboard Delete/Backspace, no notice for an
+unreferenced target or a relabel, and Undo restoration/notice removal. Existing Source/Save/Reload
+checks remain in that scenario. Fragment-only feedback and removing link and target together are
+covered by the Editor transaction projection test.
+
+The existing MessageArea notice was chosen because it already communicates applied changes
+without moving focus or adding a confirmation step; it expires after five seconds and keeps the
+normal single engine Undo step. A modal would introduce deletion policy reserved for #379.
+Existing reference typography and dashed unresolved treatment are retained; there are no new
+controls, layout dimensions or styling tokens.
+
+At 1280×720, Windows Chrome, 100% zoom, bundled fonts, document scroll top and the same deleted
+table/engine selection state: [Before](assets/broken-reference-375/before-1280.png),
+[After](assets/broken-reference-375/after-1280.png). Both were captured by
+`pnpm browser:test cross-reference --screenshots` in this worktree with its fixed persistent
+profile. The Before run used the original product files; After used the final implementation.
 
 ## Scope
 
