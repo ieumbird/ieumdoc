@@ -156,6 +156,8 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   const added = clone(projection);
   added.content!.unshift({ type: "equation", attrs: { sourcePath: "new:engine:1", latex: "x", label: "" } });
   assert.equal(referenceTargets(schema.nodeFromJSON(added))[0]?.number, 2);
+  // Revisiting the earlier immutable document (as history does) keeps its own numbering.
+  assert.deepEqual(referenceTargets(doc), targets);
   assert.equal(isResolved(targets, "eq", "eq-a"), true);
   assert.equal(isResolved(targets, "eq", "EQ-A"), true);
   assert.equal(isResolved(targets, "eq", "missing"), false);

@@ -1,7 +1,7 @@
 # Editor guard performance
 
-- Status: Draft
-- Last verified: 2026-10-23 (CPU comparison and four browser regressions; real UI timing pending).
+- Status: Historical
+- Last verified: 2026-10-23 (CPU comparison, four browser regressions, actual UI timing and four large-document Save/Reload checks).
 - Scope: Editor adapter CPU lookup cost; [Continuous editing](../design/document-editing-v1.md) and [ADR-0003](../adr/0003-document-addressing-identity-boundary.md) remain authoritative.
 - Issue: [#349](https://github.com/ieumbird/ieumdoc/issues/349).
 
@@ -87,13 +87,22 @@ Final Editor-only typecheck and `editor.test.ts` rerun passed (88/88). `pnpm bro
 continuous-editing save-session recovery-structure block-move` passed all four scenarios
 (46.1s) against this checkout's own Vite server on port 5193 with its persistent profile.
 
-Real keyboard-to-frame timings and large-document Save/Reload are still pending. Two initial
+Two initial
 measurement attempts were stopped without valid timing samples: the temporary scenario waited
 for a visible `ready` status, although the clean status is empty and `.status:empty` is hidden.
 The existing runner and save-session scenario correctly wait for `state: 'attached'`. The
 temporary scenario now uses that same state condition and bounded diagnostic waits; no product
 code or regression timeout was changed. Its own runner/browser process trees and Vite PID 56940
 were terminated; port 5193 was verified free before returning the browser slot.
+
+After integrating master, the first bounded attempt detected an input-length mismatch during
+warmup: `openDocument` waits for the file click, not for the replacement Editor to finish loading.
+The measurement had selected the previous Editor. The [failed attempt log](assets/editor-guard-performance-2026-10-23/setup-failure.txt)
+is retained. Setup now waits for the target block count and ready state before selecting the
+caret. Every condition starts with a full page reload to the default sample (not the preceding
+condition), and the final four exact target files were independently checked as described below.
+The input-length assertion was retained. These setup failures yielded no accepted timing samples;
+they are not product passes or evidence that a product failure was fixed by retrying.
 
 ## CPU results
 
@@ -124,5 +133,140 @@ It is retained, not replaced by a favorable repeat. Mixed 5000 guard p95 24.991m
 the provisional 16ms target. Although both 2000-block guard samples were below 16ms p95,
 these results do not justify a universal 16ms acceptance gate. Keep 2000 as the proposed
 Windows routine measurement size and 5000 as stress coverage, not document admission limits
-or a product responsiveness guarantee. Browser input must be assessed separately against the
+or a product responsiveness guarantee. Browser input is assessed separately below against the
 provisional 100ms target. No further optimization is justified by lookup results alone.
+
+## Actual browser input and Save/Reload
+
+Measured implementation head: `0836a3d937c3d2d66f43e6bfe08dbba875b33bde`, containing master
+`8b3ea92354f86ef282bfd2a0f73c55ac29c1d29c`. CPU results above retain their original before/after
+revision scope; they were not rerun after integration. This UI run used the same Windows machine,
+the checkout's Vite development server on 5193 and installed headless Chrome through the existing
+`pnpm browser:test` persistent-profile runner, viewport 1280×720. Other workers paused heavy work.
+
+The same fixed plain/mixed bodies were used at 2000/5000 blocks. Setup and focus are outside
+timing. Each condition inserts 25 real `page.keyboard.press('x')` characters at position 2 of
+the first paragraph. Five are warmups; 20 are measured from captured native keydown to the
+second `requestAnimationFrame`. A length assertion after every key requires exactly one added
+character. p50/p95 are sorted samples 10/19 (one-based). This measures the complete Editor/React/
+browser update path plus frame scheduling; it is a frame opportunity proxy, not a physical
+display-paint or OS hardware-input latency measurement. No UI before/after speedup is claimed.
+
+Save is one observed click-to-`saved` duration per document, including automation click dispatch,
+Host replay, canonical serialization and file I/O. It is **not a Save percentile**. The product
+Reload command then rereads the file, and the full engine text must match the pre-save state.
+After the browser closed, an independent Core parse/serialize comparison verified that each
+exact target file equals the entire expected canonical fixture with only those 25 inserted `x`
+characters. This checks all block kinds/content, not just the measured paragraph, and confirms
+that plain/mixed results belong to their named files. [Target identities, block counts and SHA-256](assets/editor-guard-performance-2026-10-23/targets.json)
+record that evidence. [All 20 input samples per condition and observed Save durations](assets/editor-guard-performance-2026-10-23/browser.json)
+are retained without outlier removal.
+
+| Document | Blocks | Input p50 ms | Input p95 ms | Single Save ms | Exact target / Reload |
+| --- | ---: | ---: | ---: | ---: | --- |
+| plain | 2000 | 327.8 | 521.0 | 1356 | pass |
+| plain | 5000 | 1249.2 | 1691.3 | 4659 | pass |
+| mixed | 2000 | 528.9 | 622.3 | 2320 | pass |
+| mixed | 5000 | 1894.1 | 2059.2 | 10064 | pass |
+
+All four conditions **miss the provisional 100ms input target**. The guard lookup improvement
+does not make these large documents responsive. The 2000 routine / 5000 stress proposal is only
+a repeatable verification workload, not a recommended responsive document size. Retain the
+100ms target as unmet; do not raise it to these observations or turn preservation-test success
+into a performance pass. The CPU guard's provisional 16ms target is also not a universal guarantee.
+
+The remaining end-to-end latency needs a separate bounded profile of the actual input pipeline
+(other plugins, notifications/serialization, React, DOM/layout/rendering and recovery work) before
+another optimization. These measurements do not identify which of those dominates, and do not
+justify a transaction cache, incremental engine or numbering registry. Production builds,
+Electron, other hardware, OS IME and long/complex individual blocks are outside this measurement.
+
+The final temporary scenario passed in 3.4 minutes. Its persistent context closed normally;
+the owned Vite PID 58324 was stopped, no profile-owned Chrome remained, and port 5193 was free.
+Temporary measurement modules were moved outside the source tree; no permanent benchmark
+framework, timing gate, timeout relaxation or retry policy was introduced.
+
+## Bounded input profile after the unmet target
+
+On the same implementation head, a separate diagnostic run loaded the verified plain/mixed
+2000-block files and typed four real `y` characters in each, asserting the exact filename,
+block count, second block type and one-character growth after every key. These diagnostic edits
+were not saved. CDP CPU sampling (requested interval 1000 microseconds) and timeline tracing
+surrounded the inputs plus a one-second drain. Analysis below includes only each native-keydown
+to second-animation-frame window. It excludes the drain and does not infer a recovery cost from
+the earlier 521ms p95. This is a four-key profile under instrumentation, **not another p95 run**.
+
+[Compressed raw CPU profiles and timeline traces](assets/editor-guard-performance-2026-10-23/input-profile.json.gz)
+and [derived profile summary](assets/editor-guard-performance-2026-10-23/input-profile-summary.json)
+preserve the evidence. CPU timestamps are reconstructed from `startTime` plus cumulative
+`timeDeltas`, then sorted because this capture contains out-of-order samples (negative deltas).
+Each sample owns the interval to the next chronological sample, clipped to the key windows.
+Thus attributed sample durations sum to the measured windows rather than double-counting
+overlapping intervals. Function costs below include descendants and overlap with each other;
+they must not be added. Trace event totals likewise can overlap through nesting.
+
+| Four-key aggregate | plain 2000 | mixed 2000 |
+| --- | ---: | ---: |
+| Key/frame windows | 1810.042ms | 2178.131ms |
+| React `performWorkOnRoot` inclusive | 1618.294ms (89.4%) | 1539.780ms (70.7%) |
+| `BlockHandles` render inclusive | 931.143ms (51.4%) | 701.348ms (32.2%) |
+| `moveBlockedHint` inclusive | 415.748ms (23.0%) | 314.086ms (14.4%) |
+| `editorTitleIndex` inclusive | 252.408ms (13.9%) | 287.668ms (13.2%) |
+| `blockNumbers` inclusive | not a dominant plain path | 238.996ms (11.0%) |
+| Main-thread `Layout` trace events | 9.421ms | 34.614ms |
+
+Source inspection matches the sampled title path: each of N block handles calls
+`moveBlockedHint`, which rescans N document children through `editorTitleIndex`/`titleMarkers`.
+The first bounded proposal is to calculate that index once for the same React render/document
+and share it across handle hints. No persistent cache is required. The measured title cost also
+shows why this change alone cannot be claimed to meet the 100ms target. Remaining handle
+rendering and mixed-document numbering need separate bounded decisions and subsequent actual
+input measurement; this profile does not authorize an incremental engine or a numbering registry.
+React development instrumentation is visible in the capture, so these shares describe this
+development-server workload and must not be projected onto a production build.
+
+The diagnostic scenario passed in 19.8 seconds; its browser context closed and its own Vite
+PID 9520 was stopped. Port 5193 and profile-owned processes were checked clear before analysis.
+
+### First follow-up scope and verification
+
+Compute the title index once inside each `BlockHandles` render using its current editor document.
+Keep title-fixed hint precedence there; the parent callback supplies only active-draft restrictions.
+This avoids capturing a parent-render title index across the handle component's independent
+transaction updates. Do not change numbering, geometry, validation or draft state in this step.
+Reuse the existing `document-title` and `block-move` browser checks for title changes, Undo,
+fixed-title dragging and Apply/Cancel restrictions, plus Editor typecheck. Then run a bounded
+2000-block diagnostic before deciding the next optimization or repeating all four UI conditions.
+
+The title-once diagnostic passed `document-title` and `block-move`; four-key windows fell from
+1810 to 1300ms plain and 2178 to 1766ms mixed under instrumentation. Remaining handle render
+cost was 450/319ms, translation 237/211ms and Base UI Button 203/190ms (overlapping inclusive
+costs). The next bounded step preserves identical geometry state and memoizes individual handle
+rows with scalar display/permission props and stable callbacks. Locale subscriptions remain on
+each row; current title/draft restrictions are recomputed before row comparison. All geometry
+reads, controls, hover and drag interactions remain. Reuse title, move, hover/layout regressions;
+do not add count/markup assertions. Mixed numbering remains a separate measured path.
+
+With row memoization, title/move/layout-hover regressions passed and the diagnostic plain
+four-key sum was 179ms (individual keys 65.6/40.8/35.8/36.6ms); mixed was 993ms. Mixed
+`blockNumbers` still consumed 253ms inclusive (25.4%). The next step shares its Core-computed
+display numbers only for the identical immutable ProseMirror document, using the existing
+endnote/citation WeakMap pattern. A new document identity recomputes the entire numbering;
+no semantic rule, transaction validation, registry or incremental update is introduced.
+
+The numbering step passed 13 cross-reference unit tests, including revisiting the earlier
+document after numbering a changed one, Editor typecheck and the cross-reference browser
+scenario. Instrumented mixed four-key time fell from 993 to 689ms; `blockNumbers` was no longer
+among the top 55 inclusive paths. Plain remained 176ms. These diagnostic sequences retain
+all four keys including cold first-key effects; they are not percentile acceptance results.
+
+| Diagnostic stage | Raw CPU/timeline | Derived summary | plain / mixed four-key ms |
+| --- | --- | --- | ---: |
+| Title once | [raw](assets/editor-guard-performance-2026-10-23/title-once-profile.json.gz) | [summary](assets/editor-guard-performance-2026-10-23/title-once-profile-summary.json) | 1300 / 1766 |
+| Equal geometry and memoized rows | [raw](assets/editor-guard-performance-2026-10-23/row-memo-profile.json.gz) | [summary](assets/editor-guard-performance-2026-10-23/row-memo-profile-summary.json) | 179 / 993 |
+| Immutable-document display numbering | [raw](assets/editor-guard-performance-2026-10-23/numbering-profile.json.gz) | [summary](assets/editor-guard-performance-2026-10-23/numbering-profile-summary.json) | 176 / 689 |
+
+A subsequent [12-key diagnostic without CPU/timeline instrumentation](assets/editor-guard-performance-2026-10-23/uninstrumented-diagnostic.json)
+still showed a late spike: plain key 11 took 350ms, mixed key 11 took 490.2ms. Most other plain
+keys were 28–39ms and mixed keys 100–150ms. No samples were removed. These results do not pass
+the 100ms input target and require a longer bounded profile before another optimization.
