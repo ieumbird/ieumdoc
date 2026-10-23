@@ -171,6 +171,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 ### CLI revision precondition (#214)
 
+- NodePath 옵션 `--path`는 쉼표로 구분한 음이 아닌 정수이며 숫자 주변 공백은 허용한다. 빈 segment(예: `1,,0`, `1, ,0`, `,1,0`, `1,0,`)와 빈 경로는 `--path must be comma-separated non-negative integers` 오류와 exit 1로 거부한다. `apply-batch`의 `path`도 같은 파서를 사용하며, 단건·배치 실패 시 원본 파일 바이트를 보존한다(#345).
 - `inspect <file> --format json`은 기존 `ok`, `command`, `nodes`에 `revision`을 추가한다. 파일을 한 번 읽은 동일한 원본 text를 Core parse와 `textRevision(source)`에 사용한다. Revision은 canonical serialization의 hash가 아니며 문서에 기록하지 않는다. Text inspect 출력은 유지한다.
 - 공통 `edit()`를 거치는 모든 문서 변경 명령(`format` 포함)은 선택적 `--if-revision <revision>`을 받는다. `create`, `check`, `inspect`, `serve`는 대상이 아니다. 생략하면 기존 명령 형식과 동작을 유지한다.
 - Revision 인자는 정확히 64자리 소문자 hex여야 한다. 형식이 잘못되면 `--if-revision must be 64 lowercase hexadecimal characters`를 stderr에 출력하고 exit 1로 종료한다. 값 누락·중복은 기존 공통 옵션 오류(`missing --if-revision`, `duplicate option: --if-revision`)로 거부한다.
