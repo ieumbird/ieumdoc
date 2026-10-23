@@ -1,6 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
+- Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
 - Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
@@ -170,6 +172,46 @@ equal filenames, Korean/English search and 1440/1024/768/375px bounds. Existing 
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Focus restoration itself changes neither document nor history. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
 - Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Display optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
+
+### Nested inline slash menu (#377)
+
+Implementation scope: expose existing inline insertion paths on Core-backed editable inline
+surfaces. Preserve top-level paragraph order/search/keys; omit block commands everywhere else.
+No new Core semantic operation, CLI command, search ranking or gutter `+` change is needed.
+Completion requires menu/insertion regressions and actual Save → Reload, including a citation-only
+list item (#366), plus Editor tests, typecheck/build and documentation checks.
+
+| Caret location | Citation / document reference | Endnote | Existing Core save contract |
+| --- | --- | --- | --- |
+| Top-level paragraph | Yes; existing full menu | Yes | Paragraph inline content |
+| List item, including nested lists | Yes; inline menu only | Yes | `updateList` with typed item content; [native List contract](document-support-v1.md#supported-meaning) |
+| Quote / simple admonition | Yes; inline menu only | Yes | `updateQuoteInlineContent` / `updateAdmonitionInlineContent` |
+| Endnote definition | Yes; inline menu only | No | `updateFootnoteDefinition` permits citations/references and refuses footnote references |
+| Table header/body cell | Yes; inline menu only | Yes | `updateTableCell` |
+| Figure caption | Yes; inline menu only | Yes | `updateFigure` with inline caption content |
+| Heading, including document title | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
+| Table caption / code / property fields | No menu | No menu | Table caption is not a caret surface in the editor document; code and fields keep literal input |
+
+The Editor schema mirrors these existing Core inline contracts (in particular, a definition
+excludes `footnoteReference`). Menu eligibility and the existing endnote insertion guard use
+that schema; the Editor introduces no new semantic rule. Figure/list Save uses the existing
+typed content operations even though the dedicated Core `insertFootnote`/`insertCitation`
+addressing surface does not include those locations. The same `insertCitation`, `insertReference`
+and `insertEndnote` paths serve all locations. Arrows, Enter and Escape keep the shared menu's
+existing behavior. See [citations](citations-v1.md), [references](section-references-v1.md) and
+[endnotes](footnotes-v1.md) for their persistent contracts.
+
+List and Figure round-trip validation compares the completed intermediate footnote snapshot that
+`serializeFor` already verifies. This lets the existing Save replay edit a list before adding
+its new definitions, just as other inline operations do. It still compares block count,
+list structure, exact inline content and canonical stability; final writes still reject
+missing definitions. No new persistent document combination is introduced.
+
+Code block edits can be saved together with new endnote references (#393). Core compares
+the code block round-trip count with the same completed footnote snapshot used for
+serialization, matching the list and Figure checks. Save replay order is unchanged;
+final writes still require real definitions. The literal `/` code probe in
+`citation-authoring` remains separate from this Core/replay regression coverage.
 
 ## Boundaries
 

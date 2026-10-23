@@ -8,6 +8,7 @@ import {
   getEditableDocument,
   getNode,
   insertFigure,
+  insertFootnoteDefinition,
   moveBlock,
   parse,
   removeBlock,
@@ -24,6 +25,22 @@ import {
 
 const FIGURE_PATH: NodePath = [6];
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
+
+test("Figure caption endnotes can be edited before their definitions are supplied", () => {
+  const document = parse(":::{figure}\n\nCaption.\n:::\n");
+  const before = serialize(document);
+  const caption = [{ kind: "text", text: "Caption." }, { kind: "footnote", label: "new" }] as const;
+  const updated = updateFigure(document, [0], { caption: [...caption] });
+  assert.match(canonicalWriteError(updated) ?? "", /has no definition/);
+  assert.throws(() => serialize(updated), /has no definition/);
+  const complete = insertFootnoteDefinition(updated, 1, "new", [{ kind: "text", text: "Note." }]);
+  const markdown = serialize(complete);
+  const figure = getEditableDocument(parse(markdown)).blocks[0];
+  assert.ok(figure.block === "figure");
+  assert.deepEqual(figure.caption.content, caption);
+  assert.equal(serialize(parse(markdown)), markdown);
+  assert.equal(serialize(document), before);
+});
 
 function semanticFigure(document: MystDocument, index: number) {
   const block = getEditableDocument(document).blocks[index];

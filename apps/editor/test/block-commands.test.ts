@@ -234,8 +234,34 @@ test("slash command removes its query and shares the insert command list", () =>
 
   const inWord = docOf(nativeSource("a/b"));
   assert.equal(slashQueryAt(EditorState.create({ schema, doc: inWord, selection: TextSelection.create(inWord, 3) })), null);
-  const heading = docOf(nativeSource("# /"));
-  assert.equal(slashQueryAt(EditorState.create({ schema, doc: heading, selection: TextSelection.create(heading, 2) })), null);
+});
+
+test("slash opens on supported inline surfaces with only valid command kinds", () => {
+  for (const [source, parent, blocks, endnote] of [
+    ["- /", "paragraph", false, true],
+    ["/", "paragraph", true, true],
+    ["- Outer\n  - /", "paragraph", false, true],
+    ["> /", "quote", false, true],
+    [":::{note}\n/\n:::", "admonition", false, true],
+    ["Body[^n].\n\n[^n]: /", "footnoteDefinition", false, false],
+    ["| / |\n| --- |\n| Cell |", "tableCell", false, true],
+    [":::{figure}\n\n/\n:::", "figure", false, true],
+    ["# /", "heading", false, true],
+  ] as const) {
+    const doc = docOf(nativeSource(source));
+    let position: number | undefined;
+    doc.descendants((node, pos) => {
+      if (node.type.name === parent && node.textContent === "/") position = pos + 2;
+    });
+    assert.ok(position, source);
+    const slash = slashQueryAt(EditorState.create({ schema, doc, selection: TextSelection.create(doc, position) }));
+    assert.ok(slash, source);
+    assert.equal(doc.textBetween(slash.from, slash.to), "/", source);
+    assert.equal(slash.blockCommands, blocks, source);
+    assert.equal(slash.endnote, endnote, source);
+  }
+  const code = docOf(nativeSource("```\n/\n```"));
+  assert.equal(slashQueryAt(EditorState.create({ schema, doc: code, selection: TextSelection.create(code, 2) })), null);
 });
 
 test("slash keeps display prefix and number together, while ordinary queries still end at whitespace", () => {

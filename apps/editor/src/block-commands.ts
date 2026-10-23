@@ -877,14 +877,16 @@ export function deleteBlock(state: EditorState, index: number): Transaction {
   return tr.setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
-export type SlashQuery = SlashRange & { index: number; query: string };
+export type SlashQuery = SlashRange & { index: number; query: string; blockCommands: boolean; endnote: boolean };
 
-/** A `/` typed at a paragraph start or after whitespace opens the insert menu. */
+/** A `/` at the start of editable inline content or after whitespace opens the insert menu.
+ * The schema mirrors Core's supported inline content, including no endnotes in definitions. */
 export function slashQueryAt(state: EditorState): SlashQuery | null {
   const { selection } = state;
   if (!selection.empty) return null;
   const { $from } = selection;
-  if ($from.depth !== 1 || $from.parent.type.name !== "paragraph") return null;
+  const parent = $from.parent;
+  if (!parent.type.contentMatch.matchType(state.schema.nodes.citation)) return null;
   const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\n");
   // Keep a display prefix and its number in one query, including the intermediate space.
   // Other slash commands still end at whitespace rather than consuming subsequent prose.
@@ -895,6 +897,8 @@ export function slashQueryAt(state: EditorState): SlashQuery | null {
     to: $from.pos,
     index: $from.index(0),
     query: match[1],
+    blockCommands: $from.depth === 1 && parent.type.name === "paragraph",
+    endnote: parent.canReplaceWith($from.index(), $from.index(), state.schema.nodes.footnoteReference),
   };
 }
 
