@@ -42,7 +42,8 @@ function DialogContent({
   useTranslation();
   return (
     <DialogPortal>
-      <DialogOverlay />
+      {/* Nested dialogs need their own backdrop above the parent popup for outside dismissal. */}
+      <DialogOverlay forceRender />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
