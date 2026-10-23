@@ -1687,7 +1687,7 @@ function jsonFlag<T>(args: string[], name: string): T {
 
 function pathFlag(args: string[]): NodePath {
   const raw = flag(args, "--path");
-  const path = raw.split(",").map((part) => Number(part.trim()));
+  const path = raw.split(",").map((part) => part.trim() === "" ? NaN : Number(part.trim()));
   if (path.length === 0 || path.some((index) => !Number.isInteger(index) || index < 0)) {
     throw new Error("--path must be comma-separated non-negative integers");
   }
