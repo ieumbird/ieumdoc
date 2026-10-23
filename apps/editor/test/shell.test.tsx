@@ -212,7 +212,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} display={display} folder={folder} onToggle={noop} onOpenFolder={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} display={display} folders={[folder]} onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
@@ -232,7 +232,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);
   const top = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }}
+    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No files or folders/);
@@ -243,7 +243,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },
   ]);
   const marked = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }}
+    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
@@ -251,7 +251,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   try {
     void i18n.changeLanguage("ko");
     const localized = renderToStaticMarkup(
-      <Sidebar open documentPath={PATH} display={display} folder={{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }}
+      <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
         onToggle={noop} onOpenFolder={noop} />,
     );
     assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);

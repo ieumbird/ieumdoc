@@ -211,6 +211,19 @@ button {
   min-height: 0;
 }
 
+/* One opened folder keeps its heading while its tree scrolls; several scroll together as one list. */
+.sidebar-content:has(> .sidebar-folder + .sidebar-folder) {
+  overflow-y: auto;
+}
+
+.sidebar-content:has(> .sidebar-folder + .sidebar-folder) > .sidebar-folder {
+  flex: none;
+}
+
+.sidebar-folder + .sidebar-folder {
+  margin-top: var(--space-3);
+}
+
 .sidebar-folder-header {
   display: flow-root;
   flex-shrink: 0;

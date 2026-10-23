@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#204: Open/New retain tabs without work-loss confirmation; new-document, folder-navigation and image-assets regressions).
+- Last verified: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): Open adds a sidebar folder and opened folders are restored; folder-navigation and stable browser suite).
+- Previous verification: 2026-10-16 (#204: Open/New retain tabs without work-loss confirmation; new-document, folder-navigation and image-assets regressions).
 - Previous verification: 2026-10-14 (image choice through the `image-assets` browser regression; Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload on 2026-10-13).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
 - Core, CLI, Markdown, document saving and each document's single Tiptap editor state are unchanged.
@@ -22,9 +23,10 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   containing root. Paths name server folders. The path field can choose another allowed root.
   Recent folders outside current roots are hidden without deleting the preferences; Host validation
   remains authoritative for every request. No roots are merged into a Workspace.
-- Recently opened folders are browser preferences, retained only after a successful Open.
-  They do not restore a chosen sidebar folder on reload and never enter a document or Host
-  configuration. Quoted paths copied from Explorer are accepted.
+- Open adds the folder to the sidebar's opened folders ([ADR-0009](../adr/0009-multiple-opened-folders.md));
+  one already open is listed again in place. Recently opened folders are browser preferences, retained
+  only after a successful Open. The opened folders' paths are remembered separately and listed again on
+  start; neither enters a document or Host configuration. Quoted paths copied from Explorer are accepted.
 - An unreadable/missing location shows an error and retains the entered path. Earlier
   browse responses cannot replace a newer location; reopening refreshes the listing.
 - New folder, beside Up, shows a name row for the listed folder (the breadcrumb's last folder).
@@ -48,8 +50,8 @@ describes. An error, such as an unsupported or missing file, keeps the picker op
 
 ## Exclusions
 
-No native picker, upload, rename/delete/move, tree inside the dialog, search, watcher, workspace,
-new persistence service or other file-picker UI. Copying is limited to the image choice above. (The chosen folder is shown as a lazily listed tree in the sidebar; see
+No native picker, upload, rename/delete/move, tree inside the dialog, search, watcher, workspace file,
+new persistence service or other file-picker UI. Copying is limited to the image choice above. (Each opened folder is shown as a lazily listed tree in the sidebar; see
 [Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112).) The separate full-file-path dialog is removed (#190). No CLI parity command:
 choosing a folder is interface/Host navigation, not a document semantic operation.
 

@@ -69,6 +69,29 @@ export function readRecentFolders(): string[] {
   }
 }
 
+const OPEN_FOLDERS_KEY = "ieumdoc.openFolders";
+
+/**
+ * The sidebar's opened folders, in order, for this browser and Host origin. Only paths are stored;
+ * each is listed again through the Host on start, which still authorizes it.
+ */
+export function readOpenFolders(): string[] {
+  try {
+    const value: unknown = JSON.parse(globalThis.localStorage?.getItem(OPEN_FOLDERS_KEY) ?? "[]");
+    return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))] : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeOpenFolders(folders: readonly string[]): void {
+  try {
+    globalThis.localStorage?.setItem(OPEN_FOLDERS_KEY, JSON.stringify(folders));
+  } catch {
+    // Storage can be disabled; the folders then stay open for this page only.
+  }
+}
+
 /** Puts a folder first in the recent list; returns the new list. */
 export function rememberRecentFolder(folder: string, previous = readRecentFolders()): string[] {
   const recent = [folder, ...previous.filter(item => item !== folder)].slice(0, RECENT_FOLDER_LIMIT);

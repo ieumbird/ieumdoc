@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FolderEntry, FolderResponse } from "../shared/document-protocol.ts";
-import { folderChain, folderTreeReducer, knownFolders, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
+import { containingRoot, folderChain, folderTreeReducer, folderTreesReducer, knownFolders, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
 
 const ROOT = "/r";
 const folder = (path: string): FolderEntry => ({ name: path.split("/").pop()!, kind: "folder", path });
@@ -107,4 +107,29 @@ test("tree keys move through visible items, expand, collapse and return to the p
   assert.equal(key(3, "ArrowLeft"), undefined);
   assert.deepEqual(key(1, "Enter"), { activate: items[1] });
   assert.deepEqual(key(0, " "), { activate: items[0] });
+});
+
+test("opened folders keep their order; reopening relists in place and closing removes only that folder", () => {
+  const rootListing = (root: string, entries: FolderEntry[]): FolderResponse => ({ root, path: root, entries });
+  let trees = folderTreesReducer([], { type: "openRoot", listing: rootListing("/r", [folder("/r/a")]) });
+  trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing("/s", [doc("/s/n.md")]) });
+  trees = folderTreesReducer(trees, { type: "expand", root: "/r", path: "/r/a" });
+  trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing("/r", [folder("/r/a"), doc("/r/new.md")]) });
+  assert.deepEqual(trees.map(tree => tree.root), ["/r", "/s"]);
+  assert.ok(trees[0].expanded.has("/r/a"), "Reopening keeps the folder's expansion");
+  assert.deepEqual(trees[0].nodes.get("/r")?.entries.map(entry => entry.name), ["a", "new.md"]);
+  // Actions reach only the folder they name, even for a path another folder could list.
+  trees = folderTreesReducer(trees, { type: "loadStart", root: "/s", path: "/r/a", request: 1 });
+  assert.equal(trees[0].pending.size, 0);
+  trees = folderTreesReducer(trees, { type: "closeRoot", root: "/r" });
+  assert.deepEqual(trees.map(tree => tree.root), ["/s"]);
+});
+
+test("an item's folder context is the outermost opened folder containing it", () => {
+  const roots = ["/r/a", "/r", "/s"];
+  assert.equal(containingRoot(roots, "/r/a/b/x.md"), "/r", "A nested opened folder does not narrow the context");
+  assert.equal(containingRoot(roots, "/r/z.md"), "/r");
+  assert.equal(containingRoot(roots, "/rr/z.md"), undefined, "A sibling with a shared prefix is outside");
+  assert.equal(containingRoot(roots, "/t/z.md"), undefined);
+  assert.equal(containingRoot([String.raw`C:\docs`], String.raw`C:\docs\guide.md`), String.raw`C:\docs`);
 });

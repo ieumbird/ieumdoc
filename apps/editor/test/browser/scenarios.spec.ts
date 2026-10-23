@@ -89,8 +89,9 @@ const test = base.extend<{}, { session: BrowserContext }>({
       await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
       await page.mouse.move(0, 0);
       await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
-      // Keep the persistent browser profile, but isolate recovery records between scenarios.
-      // Reloads inside a scenario deliberately retain IndexedDB for persistence checks.
+      // Keep the persistent browser profile, but isolate recovery records and opened folders between
+      // scenarios. Reloads inside a scenario deliberately retain both for persistence checks.
+      await page.evaluate(() => localStorage.removeItem("ieumdoc.openFolders"));
       await page.evaluate(() => new Promise<void>((resolve, reject) => {
         const request = indexedDB.deleteDatabase("ieumdoc-recovery");
         request.onsuccess = () => resolve();
