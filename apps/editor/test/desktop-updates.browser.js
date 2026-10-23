@@ -71,7 +71,9 @@ async (page, { screenshots = false, openDocument }) => {
   const stable = page.getByRole('radio', {name:/^Stable/});
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
-  check(await page.getByTestId('ui-language').evaluate(node => node === document.activeElement), 'Settings did not focus its first language control');
+  // Base UI queues initial focus on an animation frame; visible is not yet focus-ready.
+  // Observe real focus without moving it, so missing initial focus still fails.
+  await page.waitForFunction(() => document.activeElement?.matches('[data-testid="ui-language"]'), undefined, {timeout:5_000});
   await stable.focus();
   await push({phase:'no-stable-release'});
   check(await status() === 'No Stable release has been published yet.', 'Stable absence is not explained');

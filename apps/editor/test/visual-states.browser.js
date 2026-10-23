@@ -52,6 +52,9 @@ async page => {
   await page.getByTestId('folder-open').click();
   const currentFile = page.getByRole('treeitem', {name:'quiet-document.md', exact:true});
   await currentFile.click();
+  // The previous document's Outline stays current while this file is still opening.
+  // Wait for this row's state before measuring its marker; missing CSS must still fail below.
+  await currentFile.and(page.locator('[aria-current="page"]')).waitFor();
   await page.locator('.document-outline-item[aria-current="location"]').waitFor();
   await page.evaluate(async () => {await document.fonts.ready; document.activeElement?.blur();});
   await page.mouse.move(0,0);
