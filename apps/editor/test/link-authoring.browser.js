@@ -28,10 +28,11 @@ async (page, { openDocument }) => {
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   };
   const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
-  // Select text through the editor's own selection (the state a mouse selection produces).
-  // Setting the DOM selection from a script races with ProseMirror's DOM updates after a link change.
-  const select = async text => {
-    await page.evaluate(needle => {
+  // Focus synchronously before setting the engine selection. Tiptap's chain().focus() queues
+  // an animation frame, leaving a window where a native focus/selectionchange can read an old
+  // DOM caret back into the engine before the requested range has reached the DOM (#343).
+  const select = async (text, step) => {
+    const expected = await page.evaluate(needle => {
       const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
       let range;
       instance.state.doc.descendants((node, position) => {
@@ -40,21 +41,25 @@ async (page, { openDocument }) => {
         if (index >= 0) range = { from: position + index, to: position + index + needle.length };
       });
       if (!range) throw new Error(`text not found: ${needle}`);
-      instance.chain().focus().setTextSelection(range).run();
+      instance.view.focus();
+      instance.commands.setTextSelection(range);
+      return [range.from, range.to];
     }, text);
     // #337: CI once never showed the toolbar here. Report the focus state instead of waiting out the test.
     await page.getByTestId('selection-toolbar').waitFor().catch(async error => {
       const state = await page.evaluate(() => {
         const instance = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
         const { from, to } = instance.state.selection;
+        const dom = getSelection();
         return { activeElement: document.activeElement?.outerHTML.slice(0, 80), editorFocused: instance.view.hasFocus(),
-          documentFocused: document.hasFocus(), selection: [from, to], linkForms: document.querySelectorAll('[data-testid="link-form"]').length };
+          documentFocused: document.hasFocus(), selection: [from, to], linkForms: document.querySelectorAll('[data-testid="link-form"]').length,
+          selectedText: instance.state.doc.textBetween(from, to), domText: dom?.toString(), domCollapsed: dom?.isCollapsed };
       });
-      throw new Error(`Selection toolbar missing for "${text}": ${JSON.stringify(state)}`, { cause: error });
+      throw new Error(`Selection toolbar missing at ${step} for "${text}" (expected ${JSON.stringify(expected)}): ${JSON.stringify(state)}`, { cause: error });
     });
   };
   const setLink = async (text, url) => {
-    await select(text);
+    await select(text, 'set invalid-save link');
     await page.getByRole('button', {name:'Link', exact:true}).click();
     await page.getByTestId('link-url').fill(url);
     await page.getByTestId('link-apply').click();
@@ -72,7 +77,7 @@ async (page, { openDocument }) => {
   result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
 
   // Retarget an existing link: the form opens with its current URL.
-  await select('OpenAI');
+  await select('OpenAI', 'initial retarget');
   await page.getByRole('button', {name:'Link', exact:true}).click();
   result.formPrefilled = await page.getByTestId('link-url').inputValue() === 'https://openai.com';
   // Transient inline input closes without Apply on any outside blur, including tab switches.
@@ -89,7 +94,7 @@ async (page, { openDocument }) => {
     }
     await page.getByTestId('link-form').waitFor({state:'detached'});
     if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Link blur applied input on ${destination}`);
-    await select('OpenAI');
+    await select('OpenAI', `after blur to ${destination}`);
     await page.getByRole('button', {name:'Link',exact:true}).click();
     if (await page.getByTestId('link-url').inputValue() !== 'https://openai.com') throw new Error(`Link input survived blur on ${destination}`);
   }
@@ -100,17 +105,17 @@ async (page, { openDocument }) => {
 
   // Relabel: typing inside the link text keeps the link. (Typing at the very start or end of a
   // link, or over all of its text, is outside the link: links are non-inclusive marks.)
-  await select('pen');
+  await select('pen', 'relabel existing link');
   await page.keyboard.type('PEN');
 
   // Remove the link inside bold text; bold stays.
-  await select('docs');
+  await select('docs', 'remove bold link');
   await page.getByRole('button', {name:'Link', exact:true}).click();
   await page.getByTestId('link-remove').click();
   await page.getByTestId('link-form').waitFor({state:'detached'});
 
   // Add a link to plain text; the form rejects a URL with spaces first.
-  await select('linked');
+  await select('linked', 'add plain-text link');
   await page.getByRole('button', {name:'Link', exact:true}).click();
   await page.getByTestId('link-url').fill('https://example.com/a b');
   await page.getByTestId('link-apply').click();
