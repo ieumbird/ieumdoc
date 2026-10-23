@@ -1889,6 +1889,22 @@ test("paragraph split saves final edited parts through Core and preserves other 
   }
 });
 
+test("citation-only split parts replay through Host with opening-snapshot offsets", () => {
+  const source = nativeSource('X{cite:p}`Beta,Alpha,Beta`\n');
+  const editable = loadEditableDocument(source);
+  const projection = toTiptapDocument(editable);
+  const original = projection.content![0];
+  projection.content!.splice(0, 1,
+    { ...original, content: [{ type: "text", text: "X" }] },
+    { ...original, content: original.content!.slice(1) });
+  const edits = collectSupportedEdits(editable, projection);
+  assert.ok(edits.splits?.length);
+  const saved = saveEdits(source, edits).markdown;
+  assert.equal(saved, nativeSource('X\n\n{cite:p}`Beta,Alpha,Beta`\n'));
+  assert.deepEqual(toTiptapDocument(loadEditableDocument(saved)).content!.map(node => node.content),
+    projection.content!.map(node => node.content));
+});
+
 test("invalid or stale paragraph splits never invoke the file writer", () => {
   const text = (value: string): InlineContent[] => [{kind: "text", text: value}];
   for (const parts of [[[],text("AB")], [text("AB"),[]], [text(" "),text("AB")], [text("AB"),text(" ")]]) {
