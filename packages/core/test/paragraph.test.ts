@@ -14,6 +14,18 @@ function stable(d: MystDocument) {
 }
 function content(d: MystDocument,index=0) { return projectInlineContent(d.children[index])!; }
 function text(d: MystDocument,index=0) { return inlineContentText(content(d,index)); }
+test('citation-only split and merge preserve roles, key order and marks', () => {
+  const atom = '**{cite:p}`Beta,Alpha,Beta`**';
+  const original = parse('X{cite:p}`Beta,Alpha,Beta`');
+  const split = stable(splitParagraph(original, [0], 1));
+  assert.deepEqual(content(split, 1), content(parse('{cite:p}`Beta,Alpha,Beta`')));
+  assert.equal(serialize(stable(mergeParagraphWithPrevious(split, [1]))), serialize(original));
+
+  const pair = parse(`${atom}\n\n*{cite:t}\`Alpha,Gamma\`*`);
+  const merged = stable(mergeParagraphWithPrevious(pair, [1]));
+  assert.deepEqual(content(merged), [...content(pair), ...content(pair, 1)]);
+  assert.equal(serialize(stable(splitParagraph(merged, [0], 1))), serialize(pair));
+});
 for(const [source,offset] of [['ABCD',2],['**ABCD**',2],['*ABCD*',2],['**A*BC*D**',2],['A**BC**D',1]] as const) {
   test(`hard break preserves marks: ${source}`,()=>{
     const original=parse(source), before=serialize(original);

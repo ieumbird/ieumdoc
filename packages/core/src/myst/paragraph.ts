@@ -1,4 +1,4 @@
-import { inlineMarkKey, projectInlineContent, type InlineContent } from "../inline.ts";
+import { projectInlineContent, sameInlineContent, type InlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -9,9 +9,7 @@ import { DocumentWriteError } from "../write-error.ts";
  * persistent paragraphs. Never insert padding or invisible placeholders. */
 export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
-  if (!content || !semanticUnits(content).some((unit) =>
-    unit.kind === "math" || unit.kind === "reference" || unit.kind === "footnote" || unit.kind === "code" ||
-    (unit.kind === "text" && unit.text.trim().length > 0))) {
+  if (!content || !hasParagraphContent(content)) {
     throw new DocumentWriteError("persistent paragraph must contain non-empty text", { action: "Enter text or delete this block." });
   }
   const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
@@ -24,25 +22,17 @@ export function assertPersistentParagraph(node: MystNode): void {
   const reparsed = parse(markdown).children.filter((block) => block.type !== "footnoteDefinition");
   const projected = reparsed.length === 1 && reparsed[0].type === "paragraph"
     ? projectInlineContent(reparsed[0]) : undefined;
-  if (!projected || JSON.stringify(semanticUnits(content)) !== JSON.stringify(semanticUnits(projected)) ||
+  if (!projected || !sameInlineContent(content, projected) ||
       serialize(parse(markdown)) !== markdown) {
     throw new Error(failure);
   }
 }
 
-function semanticUnits(content: InlineContent[], marks: string[] = []): { kind: string; text: string; marks: string[] }[] {
-  return content.flatMap((item) => {
-    const mark = inlineMarkKey(item);
-    if (mark !== undefined && "children" in item) {
-      return semanticUnits(item.children, [...new Set([...marks, mark])].sort());
-    }
-    // Inline math is one unit carrying its source.
-    if (item.kind === "math") return [{ kind: "math", text: item.value, marks }];
-    if (item.kind === "code") return item.value.split("").map((text) => ({ kind: "code", text, marks }));
-    if (item.kind === "reference") return [{ kind: "reference", text: `${item.role} ${item.label}`, marks }];
-    if (item.kind === "footnote") return [{ kind: "footnote", text: item.label, marks }];
-    // split("") deliberately counts UTF-16 units, not Unicode code points.
-    return (item.kind === "text" ? item.text.split("") : ["\n"])
-      .map((text) => ({ kind: item.kind, text, marks }));
+function hasParagraphContent(content: InlineContent[]): boolean {
+  return content.some((item) => {
+    if ("children" in item) return hasParagraphContent(item.children);
+    if (item.kind === "text") return item.text.trim().length > 0;
+    if (item.kind === "code") return item.value.length > 0;
+    return item.kind === "math" || item.kind === "reference" || item.kind === "footnote" || item.kind === "citation";
   });
 }

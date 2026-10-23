@@ -75,6 +75,29 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
     assert((await read()).source === written.source, 'Repeated Save must be canonical and stable');
 
+    // Enter leaves a citation-only paragraph; Backspace rejoins it through real Host saves.
+    const citationCaret = () => editor.evaluate(element => {
+      const e = element.editor;
+      e.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'citation' && node.attrs.keys[0] === 'Alpha' && node.attrs.role === 'cite') {
+          e.commands.setTextSelection(pos); return false;
+        }
+      });
+      e.view.focus();
+    });
+    await citationCaret();
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
+    assert((await read()).source.includes('Move here.\n\n**{cite}`Alpha`**'), 'Split must persist the marked citation-only paragraph');
+    await reloadDocument(page); await ready();
+    assert(await semantic() === moved, 'Split Reload must retain all citation semantics');
+    await citationCaret();
+    await page.keyboard.press('Backspace');
+    await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
+    assert((await read()).source === written.source, 'Merge must restore the original canonical bytes');
+    await reloadDocument(page); await ready();
+    assert(await semantic() === moved, 'Merge Reload must retain all citation semantics');
+
     // Already-open citation NodeViews and static table captions must both react to language changes.
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByTestId('ui-language').selectOption('ko');
