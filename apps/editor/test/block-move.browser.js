@@ -51,6 +51,28 @@ async (page, { openDocument, withBlockHover }) => {
   const original = await order();
   const result = {};
 
+  const menuOffset = async () => {
+    await equation.hover({position:{x:4, y:4}});
+    await page.getByRole('button', {name:/^Move equation block \d+$/}).click();
+    const menu = page.getByRole('menu', {name:'Block actions', exact:true});
+    await menu.waitFor();
+    const offset = (await menu.boundingBox()).y - (await equation.boundingBox()).y;
+    await page.keyboard.press('Escape');
+    await menu.waitFor({state:'detached'});
+    return offset;
+  };
+  const anchorOffset = await menuOffset();
+  // Wrapping and resizing shift every later handle. A memoized control must use its new
+  // coordinates for both its menu and the real drag-source outline checked below.
+  const paragraph = editor.locator(':scope > p').first();
+  const paragraphBefore = await paragraph.boundingBox();
+  await paragraph.click();
+  await page.keyboard.press('End');
+  await page.keyboard.insertText(' Wrapping moves the following controls.'.repeat(8));
+  await page.setViewportSize({width:1100, height:1600});
+  result.paragraphWrapped = (await paragraph.boundingBox()).height > paragraphBefore.height;
+  result.menuFollowsWrapAndResize = Math.abs(await menuOffset() - anchorOffset) <= 1;
+
   // 1. While dragging the Equation: it is tinted, and the line sits centred in the gap above the target.
   const equationBox = await equation.boundingBox();
   const movedOrder = await withBlockHover(page, async () => {
@@ -109,6 +131,7 @@ async (page, { openDocument, withBlockHover }) => {
   await page.keyboard.press('ControlOrMeta+Shift+z');
   result.redoMovesWithoutEditing = await order() === movedOrder && await equation.getAttribute('data-editing') === 'false' &&
     await page.getByTestId('equation-editor').count() === 0;
+  result.menuFollowsReorder = Math.abs(await menuOffset() - anchorOffset) <= 1;
 
   // 6. An unapplied Equation draft pins its block: the handle says why, a drag does nothing, and the draft stays.
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4, y:4}});

@@ -26,10 +26,12 @@ the submitted document before collecting Core edits. This changes lookup cost, n
 deletion declarations, history, or canonical write rules. Measurement scope and limits are in
 the [guard performance record](../reviews/editor-guard-performance-2026-10-23.md).
 
-Block handles read the current document's title index once per handle render. Unchanged handle
+Block handles read the current document's title index once per transaction/layout refresh. Unchanged handle
 rows retain their rendered controls, while geometry, visibility, menu state, move restrictions
 and language changes still update them. Geometry reads are retained; equal measured geometry
-reuses the previous state. Equation/Figure/Table display numbers share the Core-computed result
+reuses the previous state. Source-path identity and title status also invalidate that state,
+and draft changes invalidate the hint callback, preserving move permissions after reorder or
+same-sized content changes. Equation/Figure/Table display numbers share the Core-computed result
 only for the identical immutable engine document, as endnote/citation numbering already does.
 A changed document recomputes numbering; source semantics and canonical output are unchanged.
 

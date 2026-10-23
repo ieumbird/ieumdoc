@@ -270,3 +270,52 @@ A subsequent [12-key diagnostic without CPU/timeline instrumentation](assets/edi
 still showed a late spike: plain key 11 took 350ms, mixed key 11 took 490.2ms. Most other plain
 keys were 28–39ms and mixed keys 100–150ms. No samples were removed. These results do not pass
 the 100ms input target and require a longer bounded profile before another optimization.
+
+After integrating master `cdcedde0020ec4b625245688decb769a24fb858a` and running
+`pnpm install --frozen-lockfile`, head `bdcb2516f03c467732660772563157b0b15190fc` was profiled
+for 12 keys ([raw](assets/editor-guard-performance-2026-10-23/long-profile.json.gz),
+[aggregate](assets/editor-guard-performance-2026-10-23/long-profile-summary.json),
+[key 11](assets/editor-guard-performance-2026-10-23/long-profile-key11.json)). Key 11 took
+400.7/586.2ms; React accounted for 345/411ms inclusive and `HandleRow` for 104/117ms.
+There was no `TimerFire` in either key window, and recovery/capture was not a dominant stack.
+This evidence does not support changing recovery timing or safety.
+
+A separate [geometry diagnostic](assets/editor-guard-performance-2026-10-23/wrap-diagnostic.json)
+confirmed the trigger: exactly at key 11, the first paragraph height changed from 28.890625 to
+57.78125px and the second block moved down by 28.890625px in both documents. All later row
+tops consequently changed. The approved local follow-up separates each positioning wrapper
+from its memoized controls; current top/height are read through a local geometry ref by menu
+and drag callbacks. Position, visibility and menu-open attributes update on the wrapper;
+permissions, block kind/index and locale still update the controls. No custom memo comparator,
+geometry-read suppression, recovery or validation change is introduced. Verify title, move,
+hover/layout and the complete uninstrumented 12-key sequence, including wrapping.
+
+The wrapper follow-up passed title/move/layout-hover checks; the uninstrumented wrap key was
+143.3ms plain and 182.8ms mixed, still not an acceptance pass. Existing `block-move` now also
+checks menu anchor displacement after actual wrapping, viewport resize and reorder; its existing
+real-drag tint assertion checks the new coordinates. That scenario and `ui-language` passed.
+
+An updated 12-key profile reduced TableTools to 47ms of 1926ms mixed (2.5%), with no TableTools
+samples in a representative steady key. No TableTools change is justified or made. Residual
+BlockHandles rendering was 191ms plain / 238ms mixed. The final bounded optimization uses
+standard React memoization on BlockHandles and stabilizes the parent's hint callback until its
+existing draft revision changes. Its own transaction/ResizeObserver updates continue reading
+all geometry. State equality includes source-path identity and the current title flag, not only
+dimensions/type/endnote status: same-sized structural changes must refresh draft permissions.
+Title lookup occurs once per refresh from the current document. Locale subscriptions and menu
+props independently invalidate rendering. No custom React comparator is used. After affected
+regressions, run the actual four-condition acceptance before considering further scope.
+
+The [wrapper diagnostic](assets/editor-guard-performance-2026-10-23/wrapper-diagnostic.json)
+and subsequent [raw profile](assets/editor-guard-performance-2026-10-23/wrapper-profile.json.gz)
+with [summary](assets/editor-guard-performance-2026-10-23/wrapper-profile-summary.json) retain
+the intermediate evidence; these are not measurements of the final memoized boundary.
+
+One unchanged `document-title` run after the memo boundary failed its composite
+`emptyTitleRemoved` check ([failure](assets/editor-guard-performance-2026-10-23/title-removal-failure.txt)).
+All other title checks passed. A diagnostic with the same assertion passed, followed by six
+isolated empty-title cycles that also passed; their [observed state](assets/editor-guard-performance-2026-10-23/title-removal-diagnostic.json)
+shows no title, visible Add a title, original paragraph and clean status. The original failure
+did not capture those individual predicates, so its cause remains unestablished. No timeout,
+assertion, recovery or title implementation was changed to make it pass. Retain this limitation
+and rerun the unchanged scenario with the final affected-area set.

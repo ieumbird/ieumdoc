@@ -138,7 +138,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const citationEntries = useBibliographyEntries(bibliography);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
-  const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
+  const [draftRevision, draftsChanged] = useReducer((count: number) => count + 1, 0);
   const reportDraft = useCallback((kind: DraftKind, path: string, active: boolean) => {
     const key = `${kind}:${path}`;
     if (activeDrafts.current.has(key) === active) return;
@@ -151,11 +151,6 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       if (current && !current.isDestroyed) current.view.dispatch(current.state.tr.setMeta(ENDNOTE_DRAFT_CLOSED, true));
     });
   }, []);
-  const moveBlockedHint = (index: number) => {
-    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
-    const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
-    return draft ? i18n.t("Apply or Cancel the {{kind}} edit before moving it.", { kind: i18n.t(draft.kind) }) : undefined;
-  };
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
   const [editorOptions] = useState<UseEditorOptions>(() => {
@@ -207,6 +202,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   });
   const editor = useEditor(editorOptions);
   draftEditor.current = editor;
+  // A draft transition invalidates the handle hints even when document geometry is unchanged.
+  const moveBlockedHint = useCallback((index: number) => {
+    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
+    const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
+    return draft ? i18n.t("Apply or Cancel the {{kind}} edit before moving it.", { kind: i18n.t(draft.kind) }) : undefined;
+  }, [editor, draftRevision]);
 
   useEffect(() => {
     // Re-evaluate decoration text (placeholders/title) without a transaction, history entry,

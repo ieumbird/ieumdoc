@@ -1,0 +1,169 @@
+{
+  "titleMarked": true,
+  "handleFixed": true,
+  "guardRefuses": true,
+  "enterAtStart": true,
+  "enterSplitsBelow": true,
+  "emptyTitlePlaceholder": true,
+  "titleSaved": true,
+  "addHidden": true,
+  "emptyTitleRemoved": true,
+  "diagnostics": [
+    {
+      "pass": 0,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    },
+    {
+      "pass": 1,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    },
+    {
+      "pass": 2,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    },
+    {
+      "pass": 3,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    },
+    {
+      "pass": 4,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    },
+    {
+      "pass": 5,
+      "blocks": [
+        "paragraph:Lead paragraph."
+      ],
+      "titleCount": 0,
+      "addVisible": true,
+      "status": "",
+      "selection": {
+        "type": "text",
+        "anchor": 3,
+        "head": 3
+      },
+      "lead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      },
+      "currentLead": {
+        "x": 336,
+        "y": 198.890625,
+        "width": 592,
+        "height": 28.890625
+      }
+    }
+  ]
+}
