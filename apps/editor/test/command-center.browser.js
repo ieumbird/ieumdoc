@@ -59,7 +59,8 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   // before the Dialog's deferred initial-focus pass, without changing the old document.
   const failures = [];
   await page.clock.install({time:new Date('2026-10-24T00:00:00Z')});
-  await page.clock.pauseAt(new Date('2026-10-24T00:00:00Z'));
+  // install starts a running clock; pause in its future even when the runner is under load.
+  await page.clock.pauseAt(new Date('2026-10-24T00:01:00Z'));
   try {
     for (const [shortcut,expected] of [['Control+p','technical'],['Control+Shift+p','>technical']]) {
       await page.keyboard.press(shortcut);
