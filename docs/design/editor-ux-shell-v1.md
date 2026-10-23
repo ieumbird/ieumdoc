@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
 - Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
@@ -206,11 +207,11 @@ its new definitions, just as other inline operations do. It still compares block
 list structure, exact inline content and canonical stability; final writes still reject
 missing definitions. No new persistent document combination is introduced.
 
-Out-of-scope finding: editing a code block in the same Save as new endnote references can
-still fail the existing Core code-block round-trip count check before definitions are replayed
-(`code block cannot round-trip losslessly through canonical Markdown`). The literal `/` code
-probe in `citation-authoring` is restored before persisting the supported inline insertions;
-code-block persistence is not changed by #377.
+Code block edits can be saved together with new endnote references (#393). Core compares
+the code block round-trip count with the same completed footnote snapshot used for
+serialization, matching the list and Figure checks. Save replay order is unchanged;
+final writes still require real definitions. The literal `/` code probe in
+`citation-authoring` remains separate from this Core/replay regression coverage.
 
 ## Boundaries
 

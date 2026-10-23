@@ -85,6 +85,22 @@ async (page, { openDocument }) => {
   await ready();
   await chip.waitFor();
   result.saveReload = await chip.getAttribute('data-resolved') === 'true' && JSON.stringify(await labels()) === JSON.stringify(['sec-install', 'sec-1']);
+  await editor.locator('h2').filter({hasText:/Install/}).hover();
+  await edit.first().click();
+  await page.getByTestId('label-target-input').fill('sec-renamed');
+  await page.getByTestId('label-target-apply').click();
+  await page.getByTestId('label-target-editor').waitFor({state:'detached'});
+  result.renameResolved = await chip.getAttribute('data-label') === 'sec-renamed' && await chip.getAttribute('data-resolved') === 'true';
+  await page.keyboard.press('ControlOrMeta+z');
+  result.renameUndoTogether = await chip.getAttribute('data-label') === 'sec-install' && (await labels())[0] === 'sec-install';
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await page.locator('.top-bar [data-testid="save"]').click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  result.renameWritten = (await read()).includes('(sec-renamed)=') && (await read()).includes('{ref}`sec-renamed`');
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await ready();
+  result.renameReloaded = await chip.getAttribute('data-label') === 'sec-renamed' && await chip.getAttribute('data-resolved') === 'true';
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
   return result;
 }

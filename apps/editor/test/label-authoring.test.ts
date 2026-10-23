@@ -11,6 +11,69 @@ import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../serv
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { saveErrorMessage } from "../src/save-error.ts";
+import { getSchema } from "@tiptap/core";
+import { EditorState } from "@tiptap/pm/state";
+import { history, undo, redo } from "@tiptap/pm/history";
+import { editorExtensions, editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { updateLabelProperties } from "../src/label-rename.ts";
+import { updateFigure } from "../src/block-commands.ts";
+
+test("property Apply collects final references once, preserves them through replay and undoes atomically", () => {
+  const source = nativeSource("# Rename\n\nSee **{eq}`eq-a`**, {numref}`tbl-a`, {numref}`fig-a`, {ref}`sec-a` and [detail](#eq-a).\n\n" +
+    "```{math}\n:label: eq-a\nx\n```\n\n" +
+    ":::{figure}\n:name: fig-a\n\nCaption {eq}`eq-a`.\n:::\n\n" +
+    ":::{table} **Caption {eq}`eq-a`** and [detail](#eq-a)\n:name: tbl-a\n\n| Head |\n| --- |\n| {eq}`eq-a` |\n:::\n\n" +
+    "- Item {eq}`eq-a`\n\n> Quote {eq}`eq-a`.\n\n(sec-a)=\n\n## Section\n\nOther [file](other.md#eq-a).\n");
+  const model = loadEditableDocument(source);
+  const baseline = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(baseline),
+    plugins: [history(), structureGuardPlugin(baseline, reason => assert.fail(JSON.stringify(reason)))] });
+  const position = (type: string) => { let result = -1; state.doc.forEach((node, pos) => { if (node.type.name === type) result = pos; }); return result; };
+  const dispatch = (tr: Parameters<typeof state.apply>[0]) => { state = state.apply(tr); };
+  for (const [type, from] of [["equation", "eq-a"], ["figure", "fig-a"], ["table", "tbl-a"], ["labelTarget", "sec-a"]]) {
+    const before = state.doc;
+    const pos = position(type);
+    const attrs = { label: `${from}-new` };
+    const caption = type === "figure" ? state.doc.nodeAt(pos)!.content.append(schema.nodeFromJSON({ type: "paragraph", content: [
+      { type: "text", text: " Self " }, { type: "crossReference", attrs: { role: "numref", label: from } },
+    ] }).content) : undefined;
+    dispatch(type === "figure" ? updateFigure(state, pos, attrs, caption)
+      : updateLabelProperties(state, pos, attrs));
+    const after = state.doc;
+    assert(undo(state, dispatch));
+    assert(state.doc.eq(before), `${type} undo must restore labels, references and properties together`);
+    assert(redo(state, dispatch));
+    assert(state.doc.eq(after));
+  }
+  const edits = collectSupportedEdits(model, editorDocumentJSON(state));
+  const saved = saveEdits(source, edits).markdown;
+  assert.match(saved, /\*\*\{eq\}`eq-a-new`\*\*/);
+  assert.match(saved, /Caption \{eq\}`eq-a-new`/);
+  assert.match(saved, /Self \{numref\}`fig-a-new`/);
+  assert.match(saved, /\[detail\]\(#eq-a-new\)/);
+  assert.match(saved, /\{numref\}`tbl-a-new`, \{numref\}`fig-a-new`, \{ref\}`sec-a-new`/);
+  assert.match(saved, /Item \{eq\}`eq-a-new`/);
+  assert.match(saved, /Quote \{eq\}`eq-a-new`/);
+  assert.match(saved, /other.md#eq-a/);
+  assert(state.doc.eq(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(saved)))), "Reload must reproduce the applied editor document");
+  const beforeConflict = state.doc;
+  assert.throws(() => updateLabelProperties(state, position("equation"), { label: "tbl-a-new" }), /already names another target/);
+  assert(state.doc.eq(beforeConflict));
+  // A later manual reference to the old label must remain as written; Host replay must not
+  // infer another rename from the final label delta. A second rename also uses live labels.
+  dispatch(updateLabelProperties(state, position("equation"), { label: "eq-final" }));
+  let referencePos = -1;
+  state.doc.descendants((node, pos) => { if (referencePos < 0 && node.type.name === "crossReference") referencePos = pos; });
+  dispatch(state.tr.setNodeMarkup(referencePos, undefined, { role: "eq", label: "eq-a" }));
+  const final = saveEdits(source, collectSupportedEdits(model, editorDocumentJSON(state))).markdown;
+  assert.match(final, /See \*\*\{eq\}`eq-a`\*\*/);
+  assert.match(final, /Caption \{eq\}`eq-final`/);
+  dispatch(updateLabelProperties(state, position("equation"), { label: "" }));
+  const cleared = saveEdits(source, collectSupportedEdits(model, editorDocumentJSON(state))).markdown;
+  assert(!cleared.includes(":label: eq-final"));
+  assert.match(cleared, /Caption \{eq\}`eq-final`/);
+});
 
 const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
@@ -21,7 +84,7 @@ const FIGURE = "7";
 const EQUATION = "10";
 const LATEX = String.raw`i^{\ast} = \frac{P^{\ast}}{V_{\mathrm{rms}}}`;
 
-/** Label edits made in the editor document, as the Editor would submit them. */
+/** Explicit label-only payloads: the Host must preserve the caller's final reference content. */
 function relabel(labels: Record<string, string>): { editable: EditableDocument; next: TiptapJSON } {
   const editable = loadEditableDocument(source);
   const next = toTiptapDocument(editable);
@@ -38,7 +101,7 @@ function labels(document: EditableDocument) {
     : block.block === "figure" ? [["figure", block.label, block.imageUrl, block.imageAlt, block.caption.text]] : []);
 }
 
-test("Equation and Figure labels change through Save; content and every other line are kept", () => {
+test("Host label-only payloads preserve final reference content without another rewrite", () => {
   const { editable, next } = relabel({ [EQUATION]: "eq-reference", [FIGURE]: "fig-diagram" });
   const edits = collectSupportedEdits(editable, next);
   assert.deepEqual(edits.labels, [

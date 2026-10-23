@@ -183,6 +183,35 @@ async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
   await reloadDocument(page); await ready();
   assert(await citationOnly(), 'Save → Reload retains the citation-only list item');
   assert(await inlineContent() === nestedContent, 'Save → Reload retains exact inline content on every supported surface, including new endnote definitions');
+  // #374 + #377: these references came from the real nested slash menu, including
+  // the document title, a heading and the Figure caption. Rename through the property form.
+  const references = editor.getByTestId('cross-reference');
+  const beforeRename = await inlineContent();
+  const referenceCount = await references.count();
+  assert(await editor.locator('h1 [data-testid="cross-reference"]').count() === 1 &&
+    await editor.locator('figcaption [data-testid="cross-reference"]').count() === 1,
+    'Nested slash references must be present in the title and Figure caption');
+  await editor.locator('h2').filter({ hasText: /^Target$/ }).hover();
+  await page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit').click();
+  await page.getByTestId('label-target-input').fill('section-renamed');
+  await page.getByTestId('label-target-apply').click();
+  await page.getByTestId('label-target-editor').waitFor({ state: 'detached' });
+  const referencesFollow = async () => await references.count() === referenceCount && referenceCount > 0 &&
+    await references.evaluateAll(nodes => nodes.every(node => node.dataset.label === 'section-renamed' && node.dataset.resolved === 'true'));
+  assert(await referencesFollow(), 'All slash-inserted references follow the renamed section');
+  await page.keyboard.press('ControlOrMeta+z');
+  assert(await inlineContent() === beforeRename && await page.getByTestId('label-target').getAttribute('data-label') === 'section',
+    'One Undo restores the section label and all nested inline references');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  assert(await referencesFollow(), 'Redo reapplies the nested reference rename');
+  const renamedContent = await inlineContent();
+  const renameSave = page.waitForResponse(response => response.url().endsWith('/api/document') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  assert((await renameSave).ok(), 'Save accepts the nested reference rename');
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({ state: 'attached' });
+  await reloadDocument(page); await ready();
+  assert(await referencesFollow() && await inlineContent() === renamedContent,
+    'Save → Reload retains the renamed title, caption and other nested references');
   assert(bibliographyFixture.hash() === bibHash, 'Nested authoring never writes the BibTeX file');
-  return { slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, bibHash };
+  return { slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }

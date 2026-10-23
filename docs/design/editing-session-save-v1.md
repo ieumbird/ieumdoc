@@ -38,6 +38,13 @@ Source view, editor history and drafts. No tab limit or automatic eviction is im
 
 ## Save acknowledgement
 
+Label property Apply (#374) uses Core's [label rename plan](section-references-v1.md#editor)
+against the live target/reference context and commits the properties and reference attributes in
+one engine transaction. Collection submits those final reference contents alongside label deltas.
+Replay assigns labels without another reference rewrite, preserving manual retargeting made after
+Apply and avoiding a second rename based on the opening snapshot. Save acknowledgement retains
+this history, so Undo/Redo across Save restores the coupled label/reference change.
+
 Open/New starts a session with the original Markdown, its Core read model and one Tiptap editor. Opening projection is initialized lazily once per keyed editor lifetime (StrictMode may verify the initializer twice); Open/New/Reload mount a new editor, while renders and Save retain it. `sourcePath` addresses that **opening snapshot**, not the latest disk positions. A successful Save updates the acknowledged revision and submitted editor snapshot; it does not remount the editor, rewrite its nodes or remap its history. ProseMirror owns selection and Undo/Redo, including edits that predate Save. Save closes the current history group so input typed while the request runs remains a subsequent undo event.
 
 Extension and view option identities also remain stable for this keyed lifetime, preserving NodeViews that hold drafts across React rerenders. [Endnotes](footnotes-v1.md#editor) need no session state of their own: Core's snapshot already places them after the body, the displayed order is the saved order, and canonical write places them again.
