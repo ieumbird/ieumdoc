@@ -13,7 +13,7 @@ import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
-import { readDocumentWidth, readOpenFolders, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenFolders, type DocumentWidth } from "./preferences.ts";
+import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
@@ -251,24 +251,6 @@ export function App() {
   }
   // The folders the user opened, each a lazily listed tree; only their paths are remembered, never watched.
   const folders = useFolderTrees(requestFolder, setError);
-  // Reopen the remembered folders in order. One the Host no longer lists (moved, removed or outside
-  // its roots) is left out quietly. Restoring never writes: only the user's Open and Close do.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      for (const root of readOpenFolders()) {
-        try {
-          const listed = await requestFolder(root);
-          if (!cancelled) folders.open(listed, "");
-        } catch { /* Left out; see above. */ }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  function closeFolder(root: string): void {
-    folders.close(root);
-    writeOpenFolders(folders.roots.filter(item => item !== root));
-  }
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsReturnFocus = useRef<HTMLElement | null>(null);
@@ -393,7 +375,6 @@ export function App() {
     try {
       const listed = await requestFolder(root);
       folders.open(listed, openedPath);
-      writeOpenFolders(folders.roots.includes(listed.root) ? folders.roots : [...folders.roots, listed.root]);
       setRecentFolders(rememberRecentFolder(listed.root, recentFolders));
       return "";
     } catch (cause) {
@@ -601,7 +582,7 @@ export function App() {
           if (sidebarOverlay) setSidebarOpen(false);
           void openFolderDocument(path);
         }}
-        onCloseFolder={closeFolder}
+        onCloseFolder={folders.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
           setSettingsOpen(true);
@@ -730,7 +711,7 @@ export function App() {
       />
       <NewDialog
         open={newDialog}
-        destinations={folders.trees.flatMap(newDestinations)}
+        destinations={newDestinations(folders.trees)}
         directory={newDirectory}
         busy={busy}
         onCreate={(directory, name) => createFile(childPath(directory, name))}
@@ -752,7 +733,7 @@ export function App() {
       <NewDialog
         kind="folder"
         open={newFolderDialog}
-        destinations={folders.trees.flatMap(newDestinations)}
+        destinations={newDestinations(folders.trees)}
         directory={newDirectory}
         busy={false}
         onCreate={async (directory, name) => {
@@ -802,13 +783,20 @@ export function App() {
   );
 }
 
-/** Folders New can create in, named from the chosen folder down: `docs`, `docs\guides`. */
-function newDestinations(tree: FolderTreeState): NewDestination[] {
-  const separator = tree.root.includes("\\") ? "\\" : "/";
-  const name = splitDocumentPath(tree.root).name || tree.root;
-  const prefix = tree.root.endsWith(separator) ? tree.root : tree.root + separator;
-  const base = name.endsWith(separator) ? name : name + separator;
-  return knownFolders(tree).map(path => ({ path, label: path === tree.root ? name : base + path.slice(prefix.length) }));
+/** Unique New locations in opened-folder/tree order; the first tree supplies each path's label. */
+function newDestinations(trees: readonly FolderTreeState[]): NewDestination[] {
+  const seen = new Set<string>();
+  return trees.flatMap(tree => {
+    const separator = tree.root.includes("\\") ? "\\" : "/";
+    const name = splitDocumentPath(tree.root).name || tree.root;
+    const prefix = tree.root.endsWith(separator) ? tree.root : tree.root + separator;
+    const base = name.endsWith(separator) ? name : name + separator;
+    return knownFolders(tree).filter(path => {
+      if (seen.has(path)) return false;
+      seen.add(path);
+      return true;
+    }).map(path => ({ path, label: path === tree.root ? name : base + path.slice(prefix.length) }));
+  });
 }
 
 /** Asks the Host for one level of a folder inside the folder the user chose. */

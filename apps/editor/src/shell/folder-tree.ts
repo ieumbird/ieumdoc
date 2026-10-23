@@ -1,5 +1,6 @@
-import { useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { FolderEntry, FolderResponse } from "../../shared/document-protocol.ts";
+import { readOpenFolders, writeOpenFolders } from "../preferences.ts";
 
 // The sidebar's view of the folders the user opened: one tree of one-level Host listings per
 // folder, loaded when a folder is expanded. Only the opened folders' paths are remembered (see
@@ -160,12 +161,35 @@ export function treeKey(items: TreeItem[], index: number, key: string, expanded:
 }
 
 /** Opened folders with their Host requests. `request` lists one level of a folder inside an opened one. */
-export function useFolderTrees(request: (root: string, path: string) => Promise<FolderResponse>, onError: (message: string) => void) {
+export function useFolderTrees(request: (root: string, path?: string) => Promise<FolderResponse>, onError: (message: string) => void) {
   const [trees, dispatch] = useReducer(folderTreesReducer, []);
   const latest = useRef(trees);
   latest.current = trees;
   const requests = useRef(0);
   const roots = trees.map(tree => tree.root);
+  const [restored, setRestored] = useState(false);
+  const [remember, setRemember] = useState(false);
+
+  // Restoration alone never rewrites preferences, including paths the Host no longer lists.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const root of readOpenFolders()) {
+        try {
+          const listing = await request(root);
+          if (!cancelled) dispatch({ type: "openRoot", listing });
+        } catch { /* Moved, removed or refused folders are left out quietly. */ }
+      }
+      if (!cancelled) setRestored(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Derive remembered paths from the same current state as the Sidebar, never an async caller's
+  // render. A user change during restoration waits so pending remembered folders are not lost.
+  useEffect(() => {
+    if (restored && remember) writeOpenFolders(trees.map(tree => tree.root));
+  }, [trees, restored, remember]);
 
   const load = (root: string, path: string) => {
     const id = ++requests.current;
@@ -196,9 +220,13 @@ export function useFolderTrees(request: (root: string, path: string) => Promise<
     /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
     open(listing: FolderResponse, documentPath: string) {
       dispatch({ type: "openRoot", listing });
+      setRemember(true);
       show(listing.root, documentPath, false);
     },
-    close: (root: string) => dispatch({ type: "closeRoot", root }),
+    close(root: string) {
+      dispatch({ type: "closeRoot", root });
+      setRemember(true);
+    },
     /** Expanding lists the folder again; collapsing keeps what was listed. */
     toggle(root: string, path: string) {
       const tree = trees.find(item => item.root === root);

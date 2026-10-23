@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): Open adds a sidebar folder and opened folders are restored; folder-navigation and stable browser suite).
+- Last verified: 2026-10-24 (#367: delayed restoration/Open/Close, remembered paths and Reload, and unique nested New destinations; folder-memory browser regression).
+- Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): Open adds a sidebar folder and opened folders are restored; folder-navigation and stable browser suite).
 - Previous verification: 2026-10-16 (#204: Open/New retain tabs without work-loss confirmation; new-document, folder-navigation and image-assets regressions).
 - Previous verification: 2026-10-14 (image choice through the `image-assets` browser regression; Vite full browser suite and HTTP two-root navigation, creation, narrow/wide layout and Save/Reload on 2026-10-13).
 - Scope: choose a Host folder inside the existing Editor dialog, without an OS window, and create folders from it or the sidebar folder.
@@ -27,6 +28,12 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   one already open is listed again in place. Recently opened folders are browser preferences, retained
   only after a successful Open. The opened folders' paths are remembered separately and listed again on
   start; neither enters a document or Host configuration. Quoted paths copied from Explorer are accepted.
+- The folder-tree hook owns both the live opened list and its remembered paths. After a successful
+  user Open or Close, it remembers the latest reduced list. During startup restoration, writing is
+  deferred until all remembered paths have been tried, so pending folders cannot be lost. Restoration
+  alone does not rewrite preferences: missing/refused folders stay remembered until the next user
+  Open/Close, while remaining quietly absent from the Sidebar. A user change during restoration
+  writes the final live list once restoration finishes, excluding those failed paths.
 - An unreadable/missing location shows an error and retains the entered path. Earlier
   browse responses cannot replace a newer location; reopening refreshes the listing.
 - New folder, beside Up, shows a name row for the listed folder (the breadcrumb's last folder).
@@ -62,8 +69,10 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
   sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
   save / Cancel** confirmation belongs to closing a dirty tab. See
   [Switching and recovery](editing-session-save-v1.md#switching-and-recovery).
-- The New dialog's Location field shows and chooses the destination: the chosen folder and
-  every sub-folder listed in the tree so far, expanded or not, named from the chosen folder.
+- The New dialog's Location field shows and chooses the destination: all opened folders and
+  every sub-folder listed in their trees so far, expanded or not. Each Host-normalized path appears
+  once. In opened-folder order, then tree order, the first occurrence supplies its position and label
+  (named from that opened folder); a later overlapping tree does not rename it.
   It starts at the open document's folder when that is inside the chosen folder, otherwise at
   the chosen folder. No hidden state chooses it: expanding or collapsing folders does not.
   A folder deeper than the tree has listed appears once its parent is expanded.
