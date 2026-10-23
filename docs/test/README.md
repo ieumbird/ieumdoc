@@ -27,6 +27,13 @@ pnpm browser:test save-session       # 관련 시나리오만 선택
 
 runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
+`link-authoring` focuses the ProseMirror view synchronously before installing each scripted text
+selection. Its toolbar failure keeps the 15-second limit and reports the scenario phase, requested
+range, actual engine selection and DOM selection. For #343, holding Tiptap's queued focus while
+native focus/selectionchange ran first made `readDOMChange` collapse `[12,18]` to `[1,1]`; the same
+controlled ordering retained `[12,18]` after this change. The earlier natural `[52,52]` failure was
+not reproduced in the 54-scenario baseline, so that exact event order remains unconfirmed.
+
 ## Production HTTP regression
 
 로컬에서는 관련 HTTP boundary tests와 아래 HTTP browser 시나리오를 실행한다. CLI 패키징·배포 경계를 바꿀 때 `package`·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows/Linux HTTP CI에 맡긴다.
