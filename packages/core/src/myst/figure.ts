@@ -1,6 +1,6 @@
 import { figureCaptionContent, type FigureContent } from "../figure.ts";
 import { inlineContentToNodes, projectInlineContent, sameInlineContent, type InlineContent } from "../inline.ts";
-import { bodyIndex } from "./footnote.ts";
+import { bodyIndex, completeFootnotes } from "./footnote.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
@@ -78,12 +78,14 @@ export function assertFigureRoundTrip(
 ): void {
   const failure = "Figure cannot be preserved through canonical round-trip";
   const document = { type: "root", children: root.children ?? [] };
-  const markdown = serializeFor(document, failure);
+  // A caption may introduce an endnote before the session supplies its definition.
+  const complete = completeFootnotes(document);
+  const markdown = serializeFor(complete, failure);
   const reparsed = parse(markdown);
   const node = reparsed.children[bodyIndex(document, index)];
   const content = node && supportedFigureContent(node);
   if (
-    reparsed.children.length !== (root.children ?? []).length ||
+    reparsed.children.length !== complete.children.length ||
     !content ||
     content.imageUrl !== figure.imageUrl ||
     content.imageAlt !== figure.imageAlt ||

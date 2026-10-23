@@ -201,14 +201,15 @@ function reveal(editor: Editor, selection: Selection, pos: number, point?: Retur
 }
 
 /**
- * Replace a slash query in a paragraph, and the space before it, with a new endnote: a reference
+ * Replace a slash query in supported inline content, and the space before it, with a new endnote: a reference
  * keeping the bold/italic marks there, and an empty definition that takes the caret in the
  * endnotes region. The label is Core's next unused number. Save writes both through Core.
  */
 export function insertEndnote(editor: Editor, range: { from: number; to: number }, sourcePath: string): boolean {
   const { state } = editor;
   const $from = state.doc.resolve(range.from);
-  if ($from.depth !== 1 || $from.parent.type.name !== "paragraph" || !$from.sameParent(state.doc.resolve(range.to))) return false;
+  if (!$from.sameParent(state.doc.resolve(range.to)) ||
+      !$from.parent.canReplaceWith($from.index(), $from.index(), state.schema.nodes.footnoteReference)) return false;
   const label = nextFootnoteLabel(footnoteLabels(state.doc));
   const marks = (state.storedMarks ?? $from.marks()).filter((mark) => mark.type.name === "bold" || mark.type.name === "italic");
   // `/` opens after a space; the reference follows the word, as footnotes are written.
