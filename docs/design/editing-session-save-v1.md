@@ -1,7 +1,9 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
+- Last verified: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
+- Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
+- Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
 - Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
 - Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
 - Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
@@ -150,6 +152,39 @@ readonly-protocol writers cannot coexist after upgrade. They need a reload to re
 This is a storage-protocol upgrade, not document snapshot migration.
 The prior readwrite-count reduction claim (60 to 10) is withdrawn: every applied edit again uses a
 write transaction, limited to barriers. Current-document serialization sharing remains unchanged.
+
+Explicit **Delete record** opens the shared Editor Dialog confirmation, identifying the record's
+full document path (or Unknown document for malformed metadata) and warning that deletion cannot
+be undone. This applies both from the start screen and when opening a matching document, including
+incompatible records. **Cancel**, Escape and outside dismissal preserve the record and return focus
+to Delete record. **Settings → Clear all** uses the same confirmation surface, identifies all local
+records and warns that deletion cannot be undone; cancellation returns focus to its original button.
+Cancel receives initial focus; pending deletion disables actions and dismissal. Save, Don't save,
+Reload, expiry and the tab-close deletion-retry notice retain their existing behavior. These are
+Editor-local interactions, with no Core semantic operation or CLI parity requirement (#382, #379).
+
+#382 visual evidence uses the same recorded document and viewport before requesting deletion and
+with the new confirmation open (the former immediate-delete behavior had no confirmation surface):
+[review at 1440px](assets/recovery-382/prompt-1440.png),
+[confirmation at 1440px](assets/recovery-382/delete-confirm-1440.png),
+[review at 375px](assets/recovery-382/prompt-375.png),
+[confirmation at 375px](assets/recovery-382/delete-confirm-375.png),
+[Korean confirmation at 375px](assets/recovery-382/delete-confirm-ko-375.png),
+[Clear all at 375px](assets/recovery-382/clear-confirm-375.png).
+Capture refresh for the #391 review: product/test HEAD
+`b46c13d0f85ca4cddc9e4afe361eabc1b7ce61b1` (latest master merged), Windows Chrome,
+checkout-owned persistent profile, Vite `http://127.0.0.1:5173`, 1440×900 and 375×900,
+DPR 1 / 100% zoom, scroll top, the same recovery record before deletion and with the
+confirmation open. Korean capture changes only the UI language while that dialog stays open.
+Bundled Pretendard Variable 1.3.9 and the existing product font stack are unchanged;
+each capture waits for `document.fonts.ready`. The nested confirmation now has its own
+Base UI backdrop, dimming/blurring the parent while keeping only the top dialog interactive.
+The pre-existing narrow parent recovery-review clipping is outside this change.
+
+The recovery scenario checks confirmed deletion, Cancel/Escape preservation and focus return,
+all-record cancellation, outside-click dismissal of only the top confirmation at both entry points,
+pending outside-click refusal at both entry points, live Korean/English target and warning text,
+and popup content bounds.
 
 The start screen lists records newest first, with document name/path/time and **Review recovery**.
 Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**

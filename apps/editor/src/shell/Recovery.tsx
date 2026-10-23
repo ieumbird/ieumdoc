@@ -2,7 +2,7 @@ import { UiError } from "../ui-message.ts";
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useState } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { RecoveryRecord } from "../recovery-storage.ts";
@@ -28,6 +28,8 @@ export function RecoveryPrompt({ record, reason, onRestore, onDelete, onClose }:
 }) {
   useTranslation();
   const [pending, setPending] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteButton = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useMessageState("");
   const [problem, setProblem] = useMessageState("");
   const run = async (action: () => Promise<void>) => {
@@ -53,8 +55,37 @@ export function RecoveryPrompt({ record, reason, onRestore, onDelete, onClose }:
       {problem ? <p role="alert">{problem}</p> : null}
       <DialogFooter>
         <Button variant="secondary" size="sm" disabled={pending} onClick={onClose} autoFocus>{i18n.t("Not now")}</Button>
-        <Button variant="destructive" size="sm" disabled={pending} onClick={() => void run(onDelete)}>{i18n.t("Delete record")}</Button>
+        <Button variant="destructive" size="sm" disabled={pending} ref={deleteButton} onClick={() => setConfirmDelete(true)}>{i18n.t("Delete record")}</Button>
         <Button size="sm" disabled={pending || Boolean(reason)} onClick={() => void run(onRestore)}>{i18n.t("Restore work")}</Button>
+      </DialogFooter>
+      <RecoveryDeleteDialog open={confirmDelete} pending={pending} finalFocus={deleteButton}
+        onCancel={() => setConfirmDelete(false)} onDelete={() => void run(async () => { try { await onDelete(); } finally { setConfirmDelete(false); } })}
+        path={typeof record?.path === "string" ? record.path : i18n.t("Unknown document")} />
+    </DialogContent>
+  </Dialog>;
+}
+
+/** Explicit local-record deletion only; Save/Reload and session cleanup own their existing paths. */
+export function RecoveryDeleteDialog({ open, pending, path, finalFocus, onCancel, onDelete }: {
+  open: boolean; pending: boolean; path?: string;
+  finalFocus: ComponentProps<typeof DialogContent>["finalFocus"];
+  onCancel(): void; onDelete(): void;
+}) {
+  useTranslation();
+  return <Dialog open={open} onOpenChange={next => { if (!next && !pending) onCancel(); }}>
+    <DialogContent showCloseButton={false} finalFocus={finalFocus} aria-busy={pending}>
+      <DialogHeader>
+        <DialogTitle>{path === undefined ? i18n.t("Delete all recovery records?") : i18n.t("Delete recovery record?")}</DialogTitle>
+        <DialogDescription render={<div />} className="grid gap-3 [overflow-wrap:anywhere]">
+          <p>{path === undefined
+            ? i18n.t("Delete all local records? Scheduled recordings are cancelled too. Only the next applied edit starts recording again, including edits in other open windows. Your open work and original files stay unchanged.")
+            : i18n.t("Delete the local recovery record for {{name}}?", { name: path })}</p>
+          <p>{i18n.t("This cannot be undone.")}</p>
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel} autoFocus>{i18n.t("Cancel")}</Button>
+        <Button variant="destructive" size="sm" disabled={pending} onClick={onDelete}>{path === undefined ? i18n.t("Delete all records") : i18n.t("Delete record")}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
