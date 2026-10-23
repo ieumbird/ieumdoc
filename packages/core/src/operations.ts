@@ -530,11 +530,14 @@ function normalizeList(list: ListContent): ListContent {
 }
 
 function assertListRoundTrip(document: MystDocument, index: number, list: ListContent): void {
-  const markdown = serializeFor(document, LIST_FAILURE);
+  // Session edits may introduce references before their definitions. Compare against the
+  // same completed snapshot serializeFor checks; final writes still require real definitions.
+  const complete = completeFootnotes(document);
+  const markdown = serializeFor(complete, LIST_FAILURE);
   const reparsed = parse(markdown);
   const reloaded = reparsed.children[bodyIndex(document, index)];
   const content = reloaded && supportedListContent(reloaded);
-  if (reparsed.children.length !== document.children.length || !content || !sameList(content, list) ||
+  if (reparsed.children.length !== complete.children.length || !content || !sameList(content, list) ||
       serialize(reparsed) !== markdown) {
     throw new Error(LIST_FAILURE);
   }
