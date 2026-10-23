@@ -206,7 +206,15 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.unroute('**/api/document', holdSave);
   const saved = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file('technical-1.md'))}`)).json()).source;
   check(saved.includes('command center edit'), 'Center did not save the active document');
-  await run('reload'); await ready();
+  // Reload starts after the center closes; the preceding ready state is not completion.
+  const reloadResponse = page.waitForResponse(response => response.request().method()==='GET' &&
+    response.url()===`${origin}/api/document?path=${encodeURIComponent(file('technical-1.md'))}`);
+  await run('reload');
+  const reloaded = await reloadResponse;
+  check(reloaded.ok(), 'Reload request failed');
+  await reloaded.finished();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await ready();
   check((await editor().innerText()).includes('command center edit'), 'Reload lost the saved content');
   result.tabStateAndSaveReload = true;
   await run('source');
