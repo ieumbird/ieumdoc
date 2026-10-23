@@ -294,6 +294,8 @@ export function saveEdits(
       throw new Error(`label does not match at [${edit.path.join(",")}]`);
     }
   }
+  // Reference changes are already final inline content in this payload (including manual
+  // retargeting after a rename). Do not rewrite them again during label replay.
   // Clear the changed labels first, so labels can move between blocks in one save.
   // A section label target is its label and is only renamed.
   for (const edit of labels) {
