@@ -49,7 +49,19 @@ function sourceSyntaxDiagnostics(document: MystDocument): ((LiteralSyntax | Cita
   const inUrl = (state: Parameters<typeof backticks>[0], position = state.pos): boolean => {
     let ranges = urls.get(state);
     if (!ranges) urls.set(state, ranges = tokenizer.linkify.match(state.src) ?? []);
-    return ranges.some(range => range.index <= position && position < range.lastIndex);
+    // The pinned linkify-it match merge emits ordered, non-overlapping ranges
+    // (patches/linkify-it@4.0.1.patch). Lookahead can rewind state.pos, so search
+    // independently rather than retaining a forward-only range cursor.
+    let low = 0;
+    let high = ranges.length - 1;
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      const range = ranges[middle];
+      if (position < range.index) high = middle - 1;
+      else if (position >= range.lastIndex) low = middle + 1;
+      else return true;
+    }
+    return false;
   };
   tokenizer.inline.ruler.at("backticks", (state, silent) => {
     const start = state.pos;

@@ -52,6 +52,20 @@ test("literal syntax diagnostics exclude prose, escapes, resolved syntax and non
   ]) assert.deepEqual(unresolvedReferences(parse(source)), [], source);
 });
 
+test("URL exclusions preserve surrounding diagnostics across link-label lookahead", () => {
+  const document = parse("[before][missing] https://example.org/[a][b] [between][missing] " +
+    "https://example.net/[^hidden] [after][missing]");
+  assert.deepEqual(unresolvedReferences(document), ["before", "between", "after"].map(text => ({
+    syntax: "reference-link", label: "missing", source: `[${text}][missing]`, path: [0], line: 1,
+  })));
+  // The failed outer label scans ahead over the URL and footnote, then rewinds.
+  assert.deepEqual(unresolvedReferences(parse(
+    "[outer https://example.org/[a][b] [^missing]] https://example.net/[a][b] [tail][missing]")), [
+    { footnote: true, label: "missing", path: [0], line: 1 },
+    { syntax: "reference-link", label: "missing", source: "[tail][missing]", path: [0], line: 1 },
+  ]);
+});
+
 test("valid link display text excludes nested reference shapes while standalone text still warns", () => {
   for (const [literal, syntax, label] of [
     ["[details][missing]", "reference-link", "missing"],
