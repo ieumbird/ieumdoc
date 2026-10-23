@@ -83,3 +83,51 @@ index 42d6851b6783811d8655bde20689a21412372d59..a09bec68ea00a4319d50b822677b9ac1
  }
  
  
+diff --git a/lib/rules_inline/html_inline.js b/lib/rules_inline/html_inline.js
+index d3078192ab39d09ce4a3a859d2f7b2f91aa09610..a0e9b3b2cb48d080b53cce5df8cdc8f0daff6c04 100644
+--- a/lib/rules_inline/html_inline.js
++++ b/lib/rules_inline/html_inline.js
+@@ -21,6 +21,35 @@ function isLetter(ch) {
+ }
+ 
+ 
++// Backport the upstream terminator-scan mitigation without changing 13.x HTML
++// grammar. Keep one cached search per terminator: an unclosed PI must not hide
++// a later valid comment (or vice versa). Reuse successful searches as well,
++// since the old comment grammar can reject a candidate before its terminator.
++function hasTerminator(state, pos) {
++  var src = state.src;
++  var terminator, start;
++  if (src.startsWith('<!--', pos)) {
++    terminator = '-->'; start = pos + 4;
++  } else if (src.startsWith('<![CDATA[', pos)) {
++    terminator = ']]>'; start = pos + 9;
++  } else if (src.charCodeAt(pos + 1) === 0x3F/* ? */) {
++    terminator = '?>'; start = pos + 2;
++  } else if (src.charCodeAt(pos + 1) === 0x21/* ! */ && isLetter(src.charCodeAt(pos + 2))) {
++    terminator = '>'; start = pos + 3;
++  } else {
++    return true;
++  }
++  var searches = state.htmlTerminatorSearches || (state.htmlTerminatorSearches = {});
++  var cached = searches[terminator];
++  // Inline lookahead may return to an earlier position; only reuse searches
++  // whose covered interval contains this start.
++  if (!cached || start < cached.start || (cached.end >= 0 && start > cached.end)) {
++    cached = searches[terminator] = { start: start, end: src.indexOf(terminator, start) };
++  }
++  return cached.end >= 0;
++}
++
++
+ module.exports = function html_inline(state, silent) {
+   var ch, match, max, token,
+       pos = state.pos;
+@@ -43,6 +72,7 @@ module.exports = function html_inline(state, silent) {
+     return false;
+   }
+ 
++  if (!hasTerminator(state, pos)) { return false; }
+   match = state.src.slice(pos).match(HTML_TAG_RE);
+   if (!match) { return false; }
+ 

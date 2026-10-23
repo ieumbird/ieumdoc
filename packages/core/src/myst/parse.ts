@@ -21,6 +21,8 @@ import { assertUnicode } from "./unicode.ts";
  */
 // Bare @name is text. Bracket shorthand is refused from source-token evidence at
 // native admission; explicit cite roles retain their typed meaning.
+// Keep MyST's HTML recognition: disabling it would admit unsupported HTML as text.
+// The pinned markdown-it patch bounds unterminated inline HTML scans instead.
 export const OPTIONS = { extensions: { smartquotes: false, citations: false } };
 
 /**
