@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState } from "@tiptap/pm/state";
-import { addSectionLabel, isResolved, newSectionLabel, referenceCommandItems, referenceOfCommand, referenceTargets } from "../src/cross-reference.tsx";
+import { addSectionLabel, isResolved, newSectionLabel, referenceCommandItems, referenceOfCommand, referenceTargets, referenceDisplay, referencesBrokenByDeletion } from "../src/cross-reference.tsx";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { fromTiptapContent } from "../src/tiptap-inline.ts";
@@ -17,6 +17,7 @@ import { saveErrorMessage } from "../src/save-error.ts";
 import { citationReport, parse, serialize, sameInlineContent, type CitationContent } from "@ieumdoc/core";
 import { citationNumbers } from "../src/citation.tsx";
 import { toTiptapContent } from "../src/tiptap-inline.ts";
+import { i18n } from "../src/i18n.ts";
 
 const source = nativeSource([
   "# Refs",
@@ -26,6 +27,36 @@ const source = nativeSource([
   ":::{figure} ./d.svg\n:name: fig-a\n:::",
 ].join("\n\n") + "\n");
 const REFERENCES = "2";
+
+test("deletion notices distinguish a remaining fragment link from a relabel or removal of both link and target", () => {
+  const schema = getSchema(editorExtensions());
+  const projection = toTiptapDocument(loadEditableDocument(nativeSource("See [details](#EQ-A).\n\n```{math}\n:label: eq-a\na=b\n```\n")));
+  const before = schema.nodeFromJSON(projection);
+  const relabeled = clone(projection);
+  relabeled.content!.at(-1)!.attrs!.label = "eq-b";
+  assert.deepEqual(referencesBrokenByDeletion(before, schema.nodeFromJSON(relabeled)), []);
+  const removed = clone(projection);
+  removed.content!.pop();
+  assert.ok(referencesBrokenByDeletion(before, schema.nodeFromJSON(removed)).some(target => target.label === "eq-a"));
+  removed.content![0].content = [{ type: "text", text: "No reference remains." }];
+  assert.deepEqual(referencesBrokenByDeletion(before, schema.nodeFromJSON(removed)), []);
+});
+
+test("missing reference chips identify the broken reference without guessing its target kind", async () => {
+  try {
+    for (const language of ["en", "ko"]) {
+      await i18n.changeLanguage(language);
+      for (const role of ["eq", "numref", "ref"] as const) {
+        assert.equal(referenceDisplay([], role, "gone").text, language === "ko" ? "깨진 참조: gone" : "Unresolved reference: gone");
+      }
+    }
+  } finally {
+    await i18n.changeLanguage("en");
+  }
+  assert.equal(referenceDisplay([{ role: "numref", label: "table", kind: "table", number: 1 }], "numref", "table").text, "Table 1");
+  assert.equal(referenceDisplay([{ role: "numref", label: "figure", number: 1 }], "numref", "figure").text, "Fig. 1");
+  assert.equal(referenceDisplay([{ role: "eq", label: "equation", number: 1 }], "eq", "equation").text, "Eq. (1)");
+});
 
 test("citation atoms round-trip through the engine and Save, including groups, captions and metadata", () => {
   const source = "---\nieumdoc: 1\nbibliography: [../missing.bib]\n---\n\n" +

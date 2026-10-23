@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { referencesBrokenByDeletion } from "../src/cross-reference.tsx";
 import { fileURLToPath } from "node:url";
 import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
@@ -41,6 +42,7 @@ test("property Apply collects final references once, preserves them through repl
     dispatch(type === "figure" ? updateFigure(state, pos, attrs, caption)
       : updateLabelProperties(state, pos, attrs));
     const after = state.doc;
+    assert.deepEqual(referencesBrokenByDeletion(before, after), [], `${type} atomic rename must not be classified as deletion`);
     assert(undo(state, dispatch));
     assert(state.doc.eq(before), `${type} undo must restore labels, references and properties together`);
     assert(redo(state, dispatch));
