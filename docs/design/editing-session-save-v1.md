@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
+- Last verified: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
+- Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
 - Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
 - Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
 - Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
@@ -316,7 +317,7 @@ External changes retain the existing revision conflict check. The user can copy 
 
 Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New, Reload, recovery or Settings dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
 
-Current behavior: explicit Save and separate local recovery of applied work; no autosave or recovery of unapplied drafts. `beforeunload` remains the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s independent tabs, shared tab-close confirmation and client recovery are implemented above; full Desktop/HTTP persistence and crash verification remains #296 PR3. Autosave is deferred (#297).
+Current behavior: explicit Save and separate local recovery of applied work; no autosave or recovery of unapplied drafts. `beforeunload` remains the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s independent tabs, shared tab-close confirmation and client recovery are implemented above. Windows Desktop/HTTP persistence and crash checks, their required CI and remaining platform/guarantee limits are recorded in [Host persistence verification](#host-persistence-verification-296-pr3). Autosave is deferred (#297).
 
 Desktop update restarts additionally ask the live Editor about every tab's unsaved content/drafts and pending Save/Source/assets/Opening/Creating through the typed bridge. Missing answers, renderer failure and timeout refuse. The window closes normally before the installer starts, preserving `beforeunload` as a second guard. Ordinary quit never installs an update. This keeps explicit Save and the separate client recovery boundary; see [Desktop updates](desktop-distribution-v1.md#update-lifecycle-and-work-protection).
 

@@ -40,11 +40,21 @@ pnpm --filter @ieumdoc/editor build
 ## Contribution workflow
 
 - 하나의 문제에 하나의 응집된 PR을 만든다. 관련 issue가 있으면 연결한다.
-- `master`는 repository ruleset `Protect master`로 보호한다. 2026-10-12에 설정해 API로 확인했으며 bypass 대상은 없다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. merge 전에 CI의 aggregate 검사 `Core, CLI, Editor, and browser regressions`가 통과해야 한다. 개인 운영이라 필요한 승인 수는 0이다. 규칙을 바꿀 때는 이 문단도 함께 갱신한다.
+- `master`는 repository ruleset `Protect master` (ID `24910269`)로 보호한다. 2026-10-23에 읽기 전용 API로 확인한 설정은 active, bypass 대상 없음, GitHub required approval count 0이다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. 필수 CI aggregate 검사는 `Core, CLI, Editor, and browser regressions`다. 독립 승인 후 통합 담당자가 `strict_required_status_checks_policy=true`, `required_review_thread_resolution=true`를 적용했고, 같은 날 읽기 전용 API로 두 값과 나머지 설정 보존을 확인했다(설정 수정 시각: `2026-10-23T15:11:07.360+09:00`). 최신 base 기준 필수 검사와 review thread 해결을 서버에서도 요구한다. 규칙을 바꿀 때는 API로 확인하고 이 설정 기록도 함께 갱신한다.
 - 가장 작고 단순한 변경을 우선하고, 확인되지 않은 필요를 위한 abstraction이나 infrastructure를 추가하지 않는다.
 - current behavior를 바꾸면 관련 design document도 같은 PR에서 갱신한다. 새 문서는 [docs index](docs/README.md)에 직접 연결한다.
 - historical review의 당시 결과를 현재 계약처럼 고쳐 쓰지 않는다. 상태와 현재 authority를 링크한다.
 - 실패 원인을 숨기거나 테스트 기준을 약화해 통과시키지 않는다.
+
+### Review and sequential merge
+
+모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있지만, 병합은 통합 담당자 한 명이 한 PR씩 순차로 수행한다. 별도 merge bot이나 queue는 두지 않는다.
+
+1. 최신 `origin/master`를 fetch하고 PR branch에 반영한다. 현재 head가 최신 master를 포함하는지 확인하고, 그 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공이나 변경 전 base의 검사로 대신하지 않는다.
+2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. 승인 기록에는 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 남긴다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
+3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없으므로, 이 경우 별도 agent의 독립 검토 verdict와 SHA를 PR 댓글로 기록한다. 이 댓글은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
+4. 통합 담당자는 병합 직전에 PR head가 승인 SHA와 같은지, 최신 master를 포함하는지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 병합하지 않는다. 다른 PR 병합으로 master가 바뀌면 최신 master를 반영하고 CI와 별도 agent 검토를 다시 받는다.
+5. 수정 commit, conflict 해결, merge/rebase 등으로 head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 검증과 별도 agent의 `APPROVE`를 받은 뒤 통합 담당자가 병합한다. 다음 PR은 변경된 master를 기준으로 같은 순서를 반복한다.
 
 ## Verification matrix
 

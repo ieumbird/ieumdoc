@@ -140,6 +140,19 @@ test("public Core converts a paragraph to a heading and back without losing inli
   assert.equal(serialize(parse(back)), back);
 });
 
+test("citation-only heading converts to a paragraph without losing its meaning", () => {
+  const document = parse('## **{cite:p}`Beta,Alpha,Beta`**\n');
+  const before = getEditableDocument(document).blocks[0];
+  const changed = convertBlock(document, [0], { block: "paragraph" });
+  const markdown = serialize(changed);
+  const reparsed = parse(markdown);
+  const after = getEditableDocument(reparsed).blocks[0];
+  assert.equal(after.block, "paragraph");
+  assert.deepEqual(after.block === "paragraph" && after.content, before.block === "heading" && before.content);
+  assert.equal(serialize(reparsed), markdown);
+  assert.equal(serialize(document), '## **{cite:p}`Beta,Alpha,Beta`**\n');
+});
+
 test("public Core rejects block conversions that cannot keep the block's meaning", () => {
   const document = parse("# Title\n\nFirst line\\\nsecond line.\n\n- item\n\nPlain text.\n");
   const before = serialize(document);
