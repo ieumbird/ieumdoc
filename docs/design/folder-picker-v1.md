@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#367 review follow-up: same-path user Open/Close wins over late restoration, unchanged paths are not rewritten; folder-memory browser regression).
+- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit Open replaces another tab's preference and survives Reload, tree-only updates do not write; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367 review follow-up: same-path user Open/Close wins over late restoration, unchanged paths are not rewritten; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: delayed restoration/Open/Close, remembered paths and Reload, and unique nested New destinations; folder-memory browser regression).
 - Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): Open adds a sidebar folder and opened folders are restored; folder-navigation and stable browser suite).
 - Previous verification: 2026-10-16 (#204: Open/New retain tabs without work-loss confirmation; new-document, folder-navigation and image-assets regressions).
@@ -37,8 +38,9 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   writes the final live list once restoration finishes, excluding those failed paths.
 - A successful user Open or Close of a Host-normalized path during restoration takes precedence
   over that path's older restoration response. In particular, Open then Close stays closed after
-  the late response and Reload. Only a changed remembered path list (including order) is written;
-  expansion, collapse, listing refresh and reopening the same list do not rewrite it. A cancelled
+  the late response and Reload. Every successful explicit Open/Close remembers the current live list,
+  even when its paths are unchanged or another browser tab has saved a different list. Expansion,
+  collapse and listing refresh never write preferences, so they leave another tab's saved list intact. A cancelled
   restoration sends no further folder requests after its current request settles.
 - An unreadable/missing location shows an error and retains the entered path. Earlier
   browse responses cannot replace a newer location; reopening refreshes the listing.

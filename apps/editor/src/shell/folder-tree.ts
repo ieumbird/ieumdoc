@@ -167,9 +167,10 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
   latest.current = trees;
   const requests = useRef(0);
   const roots = trees.map(tree => tree.root);
+  // Compare path values in the effect dependencies, independently of tree listing/expansion state.
+  const serializedRoots = JSON.stringify(roots);
   const [restored, setRestored] = useState(false);
-  const [remember, setRemember] = useState(false);
-  const rememberedRoots = useRef<readonly string[]>([]);
+  const [rememberVersion, rememberFolders] = useReducer(version => version + 1, 0);
   const userChangedRoots = useRef(new Set<string>());
 
   // Restoration alone never rewrites preferences, including paths the Host no longer lists.
@@ -177,7 +178,6 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     let cancelled = false;
     void (async () => {
       const saved = readOpenFolders();
-      rememberedRoots.current = saved;
       for (const root of saved) {
         if (cancelled) return;
         try {
@@ -191,16 +191,12 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     return () => { cancelled = true; };
   }, []);
 
-  // Derive remembered paths from the same current state as the Sidebar, never an async caller's
-  // render. A user change during restoration waits so pending remembered folders are not lost.
+  // Every explicit Open/Close remembers the current list, even after another browser tab wrote it.
+  // Tree-only changes do not write. During restoration, user changes wait for all remembered paths.
   useEffect(() => {
-    if (!restored || !remember) return;
-    const next = trees.map(tree => tree.root);
-    const previous = rememberedRoots.current;
-    if (next.length === previous.length && next.every((root, index) => root === previous[index])) return;
-    writeOpenFolders(next);
-    rememberedRoots.current = next;
-  }, [trees, restored, remember]);
+    if (!restored || rememberVersion === 0) return;
+    writeOpenFolders(JSON.parse(serializedRoots) as string[]);
+  }, [serializedRoots, restored, rememberVersion]);
 
   const load = (root: string, path: string) => {
     const id = ++requests.current;
@@ -232,13 +228,13 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     open(listing: FolderResponse, documentPath: string) {
       if (!restored) userChangedRoots.current.add(listing.root);
       dispatch({ type: "openRoot", listing });
-      setRemember(true);
+      rememberFolders();
       show(listing.root, documentPath, false);
     },
     close(root: string) {
       if (!restored) userChangedRoots.current.add(root);
       dispatch({ type: "closeRoot", root });
-      setRemember(true);
+      rememberFolders();
     },
     /** Expanding lists the folder again; collapsing keeps what was listed. */
     toggle(root: string, path: string) {

@@ -1,6 +1,6 @@
 // Startup restoration competes with user navigation; inspect the Sidebar, preferences and Reload.
 async (page) => {
-  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  const ready = (target = page) => target.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const sep = defaultPath.includes('\\') ? '\\' : '/';
@@ -11,9 +11,9 @@ async (page) => {
   const failures = [];
   const check = (condition, message) => { if (!condition) failures.push(message); };
   const same = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
-  const roots = () => page.locator('[data-testid="folder"] .sidebar-folder-name').evaluateAll(nodes => nodes.map(node => node.title));
+  const roots = (target = page) => target.locator('[data-testid="folder"] .sidebar-folder-name').evaluateAll(nodes => nodes.map(node => node.title));
   const remembered = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.openFolders') ?? '[]'));
-  const waitRoots = expected => page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll('[data-testid="folder"] .sidebar-folder-name')].map(node => node.title)) === JSON.stringify(expected), expected, {timeout:15000});
+  const waitRoots = (expected, target = page) => target.waitForFunction(expected => JSON.stringify([...document.querySelectorAll('[data-testid="folder"] .sidebar-folder-name')].map(node => node.title)) === JSON.stringify(expected), expected, {timeout:15000});
   const checkMemory = async (expected, context) => {
     // Let the render and its persistence effect finish before observing browser preferences.
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -32,16 +32,16 @@ async (page) => {
     await page.reload();
     await ready();
   };
-  const section = path => page.getByTestId('folder').filter({has:page.locator('.sidebar-folder-name').getByText(path.split(sep).pop(), {exact:true})});
-  const menu = async (path, name) => {
-    await section(path).getByRole('button', {name:'More actions', exact:true}).click();
-    await page.getByRole('menuitem', {name, exact:true}).click();
+  const section = (path, target = page) => target.getByTestId('folder').filter({has:target.locator('.sidebar-folder-name').getByText(path.split(sep).pop(), {exact:true})});
+  const menu = async (path, name, target = page) => {
+    await section(path, target).getByRole('button', {name:'More actions', exact:true}).click();
+    await target.getByRole('menuitem', {name, exact:true}).click();
   };
-  const startOpen = async path => {
-    if (await page.getByTestId('folder').count()) await menu(a, 'Open folder…');
-    else await page.getByRole('button', {name:'Open folder…', exact:true}).click();
-    await page.getByTestId('folder-path').fill(path);
-    await page.getByTestId('folder-open').click();
+  const startOpen = async (path, target = page) => {
+    if (await target.getByTestId('folder').count()) await menu(a, 'Open folder…', target);
+    else await target.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await target.getByTestId('folder-path').fill(path);
+    await target.getByTestId('folder-open').click();
   };
   const hold = async path => {
     let release, started;
@@ -165,7 +165,46 @@ async (page) => {
   await checkMemory([b], 'User navigation removes failed restoration paths');
   await reload([b]);
 
-  // Preference writes depend on the path list, not expansion, listings or reopening an existing root.
+  // Two browser tabs share preferences, while their live Sidebar lists remain independent.
+  await seed([a]);
+  await waitRoots([a]);
+  const other = await page.context().newPage();
+  try {
+    await other.goto(page.url());
+    await ready(other);
+    await waitRoots([a], other);
+    await startOpen(b, other);
+    await waitRoots([a, b], other);
+    await other.getByRole('dialog').waitFor({state:'detached'});
+    await menu(a, 'Close folder', other);
+    await waitRoots([b], other);
+    await checkMemory([b], 'The second tab remembers B after closing A');
+    check(same(await roots(), [a]), 'Another tab must not change this tab\'s live Sidebar');
+
+    await startOpen(a);
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await checkMemory([a], 'Explicit same-path Open must replace another tab\'s preference');
+
+    // Let the second tab write B again after this tab has already performed a user Open.
+    await menu(b, 'Close folder', other);
+    await waitRoots([], other);
+    await startOpen(b, other);
+    await waitRoots([b], other);
+    await other.getByRole('dialog').waitFor({state:'detached'});
+    await checkMemory([b], 'The most recent user operation remembers its own tab\'s list');
+    await section(a).getByRole('treeitem', {name:'guides', exact:true}).click();
+    await section(a).getByRole('treeitem', {name:'install.md', exact:true}).waitFor();
+    await section(a).getByRole('treeitem', {name:'guides', exact:true}).click();
+    await section(a).getByRole('treeitem', {name:'install.md', exact:true}).waitFor({state:'detached'});
+    await checkMemory([b], 'Tree-only updates must leave another tab\'s preference intact');
+
+    await startOpen(a);
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await checkMemory([a], 'The last explicit Open remembers the current Sidebar list');
+    await reload([a]);
+  } finally { await other.close(); }
+
+  // Tree-only updates never rewrite an unchanged path list; explicit user Open still remembers it.
   await seed([a]);
   await waitRoots([a]);
   await startOpen(c);
@@ -186,11 +225,14 @@ async (page) => {
   await install.waitFor();
   await guides.click();
   await install.waitFor({state:'detached'});
-  await startOpen(a);
-  await page.getByRole('dialog').waitFor({state:'detached'});
   await checkMemory([a, c], 'Tree-only changes preserve the remembered list');
   check(await page.evaluate(() => window.folderPreferenceWrites) === 0,
-    'Expansion, listing, collapse and reopening rewrote an unchanged path preference');
+    'Expansion, listing and collapse rewrote an unchanged path preference');
+  await startOpen(a);
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await checkMemory([a, c], 'An explicit same-list Open still remembers the current paths');
+  check(await page.evaluate(() => window.folderPreferenceWrites) > 0,
+    'An explicit same-list Open did not write the current paths');
 
   // Overlapping trees keep separate Sidebar sections, but each New destination appears once.
   // The first opened tree supplies the label, regardless of whether it is the parent or child.
@@ -212,5 +254,6 @@ async (page) => {
   }
   if (failures.length) throw new Error(failures.join('\n'));
   return {responseOrders:true, closeDuringRestoration:true, closeDuringOpen:true, samePathCloseWins:true,
-    writesOnlyChangedPaths:true, failedRestoration:true, reload:true, uniqueDestinations:true};
+    treeUpdatesDoNotWrite:true, explicitOpenRemembers:true, crossTabPreference:true,
+    failedRestoration:true, reload:true, uniqueDestinations:true};
 }
