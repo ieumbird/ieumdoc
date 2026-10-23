@@ -99,11 +99,11 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   }
   for (const text of ['Recovery paper','x^2 + y^2 = z^2','Cell 1','Measured results','Pending figure caption']) check(fallback.includes(text),`Fallback lost ${text}`);
   check(!/\[(level|latex|caption|marks):/.test(fallback),'Fallback leaked internal attributes');
-  await page.evaluate(async()=> (await import(performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname==='/src/i18n.ts').name)).i18n.changeLanguage('ko'));
+  await page.evaluate(async()=> (await import('/src/i18n.ts')).i18n.changeLanguage('ko'));
   await page.getByText('호환되지 않는 편집기 기록: 편집기 삭제 기록이 올바르지 않습니다',{exact:true}).waitFor();
   check(await page.getByRole('button',{name:'작업 복구',exact:true}).isDisabled(),'Language change changed restore permission');
   if (screenshots) await page.screenshot({path:'tmp/331-after-fallback-ko.png'});
-  await page.evaluate(async()=> (await import(performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname==='/src/i18n.ts').name)).i18n.changeLanguage('en'));
+  await page.evaluate(async()=> (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
   await page.getByText('Incompatible editor snapshot: Invalid editor deletion metadata',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Delete record',exact:true}).click();
   return {created:true, structuredRestore:true, dirty:true, saveReload:true, invalidRefused:true, readableFallback:true, openDialogLanguage:true};
