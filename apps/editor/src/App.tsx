@@ -7,6 +7,7 @@ import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-
 import { prepareRecovery } from "./recovery-restore.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -518,7 +519,14 @@ export function App() {
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
       detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation), takesFocus: true,
-      run: () => { activateTab(tab.id); globalThis.document.getElementById(`tab-${tab.id}`)?.focus({ preventScroll: true }); },
+      run: () => {
+        // The center has released its modal boundary; reveal the retained editor before focusing it.
+        flushSync(() => activateTab(tab.id));
+        const owner = sessions.current.get(tab.id);
+        const target = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget()
+          : globalThis.document.getElementById(`tab-${tab.id}`);
+        target?.focus({ preventScroll: true });
+      },
     })),
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },

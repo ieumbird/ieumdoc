@@ -50,7 +50,7 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
           <DialogDescription className="sr-only">{i18n.t("Search opened documents and existing commands. Type > for commands only.")}</DialogDescription>
           <div className="command-center-search">
             <Search aria-hidden="true" size={16} />
-            <Combobox.Input ref={input} aria-label={i18n.t("Search documents and commands")}
+            <Combobox.Input ref={input} autoFocus aria-label={i18n.t("Search documents and commands")}
               placeholder={i18n.t("Search documents and commands")}
               render={<Input />} />
             <kbd aria-hidden="true">Esc</kbd>

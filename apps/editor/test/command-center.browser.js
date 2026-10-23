@@ -55,6 +55,63 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   check(after.same && JSON.stringify(after.json)===JSON.stringify(before.json) && JSON.stringify(after.selection)===JSON.stringify(before.selection), 'Cancel changed editor or selection');
   result.cancelPreservesEditorAndSelection = true;
 
+  // Delay the next animation frame while sending real keys: opening must accept typing
+  // before the Dialog's deferred initial-focus pass, without changing the old document.
+  const failures = [];
+  await page.clock.install({time:new Date('2026-10-24T00:00:00Z')});
+  await page.clock.pauseAt(new Date('2026-10-24T00:00:00Z'));
+  try {
+    for (const [shortcut,expected] of [['Control+p','technical'],['Control+Shift+p','>technical']]) {
+      await page.keyboard.press(shortcut);
+      await page.keyboard.type('technical');
+      await page.clock.runFor(50);
+      await waitForInput();
+      if (await input().inputValue() !== expected ||
+        await editor().evaluate(n => JSON.stringify(n.editor.getJSON())) !== JSON.stringify(before.json)) {
+        failures.push(`Immediate ${shortcut} typing lost search characters or edited the document`);
+      }
+      await page.keyboard.press('Escape');
+      await page.clock.runFor(50);
+      await center().waitFor({state:'detached'});
+    }
+  } finally { await page.clock.resume(); }
+
+  // Search navigation and pointer movement share Base UI's one highlighted result.
+  await open();
+  await page.keyboard.type('> s');
+  await page.keyboard.press('ArrowDown');
+  const visual = center().getByRole('option',{name:'Visual',exact:true});
+  check(await visual.getAttribute('data-highlighted') !== null, 'First Down after typing did not move to the next result');
+  const highlightedSurface = await visual.evaluate(n => getComputedStyle(n).backgroundColor);
+  const settings = center().getByRole('option',{name:'Settings',exact:true});
+  await settings.hover();
+  check(await settings.getAttribute('data-highlighted') !== null &&
+    await center().locator('[data-highlighted]').count() === 1 &&
+    await input().getAttribute('aria-activedescendant') === await settings.getAttribute('id'), 'Hover and keyboard active result diverged');
+  check(highlightedSurface !== 'rgba(0, 0, 0, 0)' &&
+    await settings.evaluate(n => getComputedStyle(n).backgroundColor) === highlightedSurface,
+    'Hover has no selected-surface feedback');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/keyboard-hover-386.png'});
+  await page.keyboard.press('ArrowUp');
+  check(await center().getByRole('option',{name:'Collapse sidebar',exact:true}).getAttribute('data-highlighted') !== null,
+    'Keyboard did not continue from the hovered result');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  result.searchArrowsAndHover = true;
+
+  // Both a newly opened tab and a retained tab must accept typing without an editor click.
+  await openDocument(page, file('technical-2.md')); await ready();
+  for (const [index,name] of ['technical-1','technical-2','technical-2','technical-1'].entries()) {
+    await open(name);
+    await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+    await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent===`${name}.md`, name);
+    const marker = `focus386${index}`;
+    await page.keyboard.type(marker);
+    if (!(await editor().innerText()).includes(marker)) failures.push(`Document selection did not focus ${name}`);
+    else await page.keyboard.press('Control+z');
+  }
+  check(failures.length === 0, failures.join('; '));
+  result.immediateSearchAndDocumentTyping = true;
+
   await open('', 'Control+Shift+p');
   check(await input().inputValue() === '>', 'Command shortcut did not select command-only mode');
   check(await center().getByRole('option', {name:'technical-1.md',exact:true}).count() === 0, 'Command-only mode lists documents');
@@ -153,6 +210,13 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   result.tabStateAndSaveReload = true;
   await run('source');
   await activeDocument(page).getByTestId('source-view').waitFor();
+  await open('technical-2');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await open('technical-1');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await activeDocument(page).getByTestId('source-view').waitFor();
+  check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).evaluate(n => n===document.activeElement),
+    'Selecting a Source tab lost its view or focused the hidden editor');
   await run('visual');
   await editor().waitFor();
   check(await page.getByTestId('view-visual').evaluate(n => n===document.activeElement), 'View command left focus in hidden content');
