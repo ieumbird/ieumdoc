@@ -543,6 +543,7 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
+  container-type: inline-size;
 }
 
 /* Only this row scrolls horizontally; the shared Save controls keep their own row. */
@@ -602,7 +603,8 @@ button {
 .document-tab > button:disabled, .document-tab > [aria-disabled="true"] { cursor: default; color: var(--id-color-text-subtle); }
 
 .top-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -614,7 +616,7 @@ button {
 
 .top-bar-identity {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-3);
   min-width: 0;
 }
@@ -663,7 +665,108 @@ button {
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-3);
+  justify-self: end;
 }
+
+.command-center-trigger[data-slot="button"] {
+  width: 100%;
+  max-width: var(--layout-command-center-width);
+  justify-self: center;
+  justify-content: flex-start;
+  min-width: 0;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  color: var(--id-color-text-muted);
+  background: var(--id-color-surface-subtle);
+}
+.command-center-trigger .document-path { flex: 1; justify-content: center; }
+.command-center-trigger .document-path-name { color: var(--id-color-text); }
+.command-center-trigger > svg { flex-shrink: 0; }
+.command-center-trigger kbd, .command-center-dialog kbd {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+  color: var(--id-color-text-subtle);
+}
+
+/* Panel widths change the available header independently of viewport width. Keep a real
+ * center at wide widths; on narrow headers the search gets a centered row of its own. */
+@container (width < 56rem) {
+  .top-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3);
+    padding-block: var(--space-2);
+  }
+  .command-center-trigger { grid-column: 1 / -1; grid-row: 1; }
+  .top-bar-identity { grid-column: 1; grid-row: 2; }
+  .top-bar-actions { grid-column: 2; grid-row: 2; }
+  .top-bar-identity .status { white-space: normal; }
+}
+@container (width < 27rem) {
+  .top-bar-identity { display: contents; }
+  .top-bar-sidebar { grid-column: 1; grid-row: 2; }
+  .top-bar-identity .status { grid-column: 1 / -1; grid-row: 3; }
+  .command-center-trigger kbd { display: none; }
+}
+
+.command-center-dialog[data-slot="dialog-content"] {
+  top: clamp(var(--space-6), 10vh, 6rem);
+  translate: -50% 0;
+  width: calc(100% - var(--space-8));
+  max-width: var(--layout-command-center-popup-width);
+  max-height: calc(90dvh - var(--space-8));
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--id-radius-md);
+}
+.command-center-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: var(--border-width) solid var(--id-color-border);
+  color: var(--id-color-text-muted);
+}
+.command-center-search > svg, .command-center-result > svg { flex-shrink: 0; }
+.command-center-search input { flex: 1; }
+.command-center-results {
+  overflow-y: auto;
+  max-height: min(var(--layout-command-center-list-height), 60dvh);
+  padding: var(--space-1);
+  scroll-padding-block: var(--space-1);
+}
+.command-center-results:empty { padding: 0; }
+.command-center-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-2);
+  border-radius: var(--id-radius-sm);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-label);
+  cursor: pointer;
+}
+.command-center-result[data-highlighted] { background: var(--id-color-surface-selected); }
+.command-center-result[data-disabled] { color: var(--id-color-text-subtle); cursor: default; }
+.command-center-result-copy { display: grid; flex: 1; min-width: 0; }
+.command-center-result-label, .command-center-result-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-center-result-detail { color: var(--id-color-text-muted); font-size: var(--font-size-xs); }
+.command-center-empty { margin: 0; padding: var(--space-6); text-align: center; color: var(--id-color-text-muted); }
+.command-center-empty:empty { padding: 0; }
+.command-center-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-width) solid var(--id-color-border);
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+}
+.command-center-footer kbd { margin-right: var(--space-1); }
 
 /* Spacing distinguishes views and file actions without adding toolbar chrome. */
 .top-bar-group {

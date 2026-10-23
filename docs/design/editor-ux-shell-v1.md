@@ -1,7 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders as separate Sidebar sections, Open adds, per-folder Close, restored paths and outermost-folder location/New; Editor unit tests and stable browser suite).
+- Last verified: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
+- Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders as separate Sidebar sections, Open adds, per-folder Close, restored paths and outermost-folder location/New; Editor unit tests and stable browser suite).
 - Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
 - Previous verification: 2026-10-20 (#256: bundled Korean/English settings, live language changes and editing preservation; `ui-language` browser scenario and Editor tests).
 - Previous verification: 2026-10-19 (#255: document title area, Add a title, fixed title handle and Enter below the title; `document-title` browser scenario).
@@ -39,7 +40,7 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 | Sidebar | IeumDoc, then Files / Display tool buttons. Files is initially selected. Each tool opens the same panel space; choosing it from the collapsed rail also expands the sidebar. Collapse/expand retains the selected tool. Both buttons remain keyboard reachable and report selected/expanded state. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, Open folder… as its only general document-navigation entry, followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (icon and name, full path in `title`) with `+` (New file in folder), New folder and a `⋯` menu: Open folder… (adds a folder; one already open is listed again in place), Close folder (removes only that folder; tabs stay open). Below each heading the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). The folders above the open document expand by themselves in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Expanded folders and tool choice are page state only and are not restored on page reload. Switching tools or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text and a vertical current marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Display | Identifies the current document by filename (full path in title). Saved in document contains Number headings: the existing H2–H6 setting, engine Undo/Redo and Save behavior. It is disabled without a document, during pending work and in Source, with a reason shown. Local view contains Wide document, remembered here and never written to Markdown or included in document history/dirty state. It remains available without a document and in Source. Tab enters the selected content; Escape in Display returns focus to its opening tool button. Tool changes do not remount the editor or discard its selection, history or drafts. This is separate from Desktop Settings/About. |
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and keeps that mark inside the list's visible area. The list scrolls by itself and is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
-| TopBar | At phone widths with the sidebar closed, Expand sidebar first; then the document's location, then its filename (full path in title), and actual status on the left; the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
+| TopBar | At phone widths with the sidebar closed, Expand sidebar first; actual status on the left; the centered command-center button contains the document's location and filename (full path in title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
@@ -95,6 +96,52 @@ opens its default document on a fresh page load. HTTP offers allowed server fold
 those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 
+## Command center (#363)
+
+The current document's location/name is a searchable command-center button centered in the TopBar.
+The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+P opens a
+search dialog near the top center; Ctrl/Cmd+Shift+P starts with `>` to list commands only.
+The input searches already-open document names/paths and existing shell command names, including
+their Korean/English aliases. It does not list unopened files or search document contents.
+
+Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
+and Settings handlers and their current availability. Switching to an opened document reuses tab
+activation: no document read/write, new editor state or implicit save. Pending operations retain the
+same switching and document-action restrictions; unavailable results remain visibly disabled.
+Without an open document, the center still offers folder/settings/view-layout commands.
+
+Base UI Combobox owns keyboard highlighting, selection and IME handling inside the shared Dialog.
+Arrow keys move between available results; Enter runs the chosen item. Escape/outside dismissal
+returns to the invoking control or editor without changing its selection/history/property drafts.
+A selected command closes the center before opening its target dialog; that dialog owns focus.
+Other dialogs retain their shortcuts, and Ctrl/Cmd+S cannot save behind the center.
+No-match feedback and controls are translated with the existing UI language.
+
+This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
+existing file/session handlers remain authoritative. The first version has no command plugin system,
+recent-command persistence, filesystem index or new document-content actions.
+
+### Command center verification (#363)
+
+Clean-base captures were taken at `4b55e5506ea85a3ef4bc1c99f92c2e5b7f18e710` before product
+edits. The same `quiet-document` fixture, 100% zoom, loaded fonts/images and scroll-top state
+were captured after implementation. The 768px header now uses two rows; document typography and
+horizontal geometry remain unchanged. New-center captures show real opened documents, not a mockup.
+
+| State | Before | After | Viewport |
+| --- | --- | --- | --- |
+| Quiet Document, wide | [Before](assets/command-center-363/before-1440.png) | [After](assets/command-center-363/after-1440.png) | 1440×1000 |
+| Quiet Document, narrow | [Before](assets/command-center-363/before-768.png) | [After](assets/command-center-363/after-768.png) | 768×1000 |
+| Center search | — | [Opened documents and commands](assets/command-center-363/search-1440.png) | 1440×900 |
+| Phone | — | [Entry](assets/command-center-363/center-375.png), [Korean command search](assets/command-center-363/search-ko-375.png) | 375×900 |
+
+`command-center` checks no-document/disabled/no-match states, cancel preserving the editor and
+selection, command-only shortcut, IME and Save shortcut ownership, modal focus handoff, dirty tab
+and property-draft retention, Undo/Redo, real Save/Reload, pending-Save restrictions, view switching,
+equal filenames, Korean/English search and 1440/1024/768/375px bounds. Existing `editor-shell`,
+`document-tabs`, `ui-language`, `layout-rules` and `quiet-document` also passed. Editor tests
+(272), typecheck/build, documentation and whitespace checks passed. No Core/CLI semantics changed.
+
 ## Writing interactions
 
 - The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
@@ -111,7 +158,7 @@ semantics, so it has no CLI counterpart.
 
 ## Boundaries
 
-No workspace, recursive filesystem scan, folder watch, search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
+No workspace, recursive filesystem scan, folder watch, filesystem/content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
 
