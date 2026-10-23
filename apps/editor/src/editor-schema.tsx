@@ -39,6 +39,7 @@ import { FootnoteReference } from "./footnote.tsx";
 import { Citation, citationNumbers, citationStatus, citationReadiness } from "./citation.tsx";
 import { citationKeys, citationText } from "@ieumdoc/core/citation";
 import { renderEquation } from "./equation-render.ts";
+import { snapshotBlocksByPath } from "./tiptap-edits.ts";
 import {
   DELETED_PATHS_ATTR,
   figureContent,
@@ -61,16 +62,12 @@ import { TableCellFocus, TableTools } from "./table-tools.tsx";
 export type DraftKind = "Equation" | "Figure" | "Table" | "Section label";
 export type DraftListener = (kind: DraftKind, path: string, active: boolean) => void;
 
-/** Core's persistent Figure validation through the Host; resolves to an error message, if any. */
 /** Core's persistent validation of a Figure Apply: its properties and its label. */
 export type FigureValidator = (figure: FigureContent, label: string) => Promise<string | undefined>;
 /** An image chosen for a Figure. `discard` removes a copy made for it, once no Figure will use it. */
 export type ImageChoice = { path: string; discard?(): void };
 /** Lets the user choose an image on the Host for this document; undefined when cancelled. */
 export type ImageChooser = (documentPath: string, returnFocus: RefObject<HTMLElement | null>) => Promise<ImageChoice | undefined>;
-
-/** Core's block source replacement through the Host: the block a source makes at a snapshot path,
- * after the session's other applied sources. Rejects with Core's reason. */
 
 /** An open Equation form is unsaved when changed, or when its placeholder was never applied. */
 export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
@@ -865,7 +862,7 @@ export function editorExtensions(
 }
 
 export function createEditorExtensions(
-  baseline: TiptapJSON | (() => TiptapJSON),
+  baseline: TiptapJSON,
   onReject: (reason?: UiMessage) => void,
   onDraftChange?: DraftListener,
   documentPath?: string,
@@ -881,7 +878,7 @@ export function createEditorExtensions(
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 
-function structureGuard(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[]): Extension {
+function structureGuard(baseline: TiptapJSON, onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[]): Extension {
   return Extension.create({
     name: "structureGuard",
     addProseMirrorPlugins() {
@@ -920,12 +917,8 @@ function commandDeletions(transaction: Transaction, declared: string[]): string[
   return removed.length ? [...new Set([...declared, ...removed])] : declared;
 }
 
-/** The snapshot baseline with the document's applied block sources in place. */
-function sessionBaseline(baseline: TiptapJSON | (() => TiptapJSON)): TiptapJSON {
-  return typeof baseline === "function" ? baseline() : baseline;
-}
-
-export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[] = []): Plugin {
+export function structureGuardPlugin(baseline: TiptapJSON, onReject: (reason?: UiMessage) => void, initialDeletedPaths: readonly string[] = []): Plugin {
+  const blocksByPath = snapshotBlocksByPath(baseline);
   return new Plugin<string[]>({
     key: structureGuardKey,
     state: {
@@ -944,18 +937,17 @@ export function structureGuardPlugin(baseline: TiptapJSON | (() => TiptapJSON), 
         return false;
       }
       try {
-        const base = sessionBaseline(baseline);
-        const next = normalizeEngineDocument(base, {
+        const next = normalizeEngineDocument(baseline, {
           ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
-        }, transaction.before.childCount !== transaction.doc.childCount);
-        if (isSupportedDocumentChange(base, next)) return true;
+        }, transaction.before.childCount !== transaction.doc.childCount, blocksByPath);
+        if (isSupportedDocumentChange(baseline, next, blocksByPath)) return true;
       } catch { /* Unrepresentable input keeps the previous document. */ }
       onReject();
       return false;
     },
     appendTransaction(transactions, old, state) {
       if (!transactions.some(tr => tr.docChanged)) return null;
-      const normalized = normalizeEngineDocument(sessionBaseline(baseline), state.doc.toJSON(), old.doc.childCount !== state.doc.childCount);
+      const normalized = normalizeEngineDocument(baseline, state.doc.toJSON(), old.doc.childCount !== state.doc.childCount, blocksByPath);
       const tr = state.tr;
       state.doc.forEach((node, pos, index) => {
         const attrs = normalized.content![index].attrs!;

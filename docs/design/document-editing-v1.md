@@ -15,6 +15,15 @@ Highlighting is display-only and keeps the existing lowlight common language set
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
 
+The structure guard uses one path lookup for its fixed opening snapshot; document-local
+groups preserve first appearance and split-part order. Every document-changing transaction
+still receives full representability validation. Validation normalization and the appended
+transaction's actual locator normalization remain separate, including fresh locator allocation;
+no transaction result cache or incremental semantic engine is used. Save independently validates
+the submitted document before collecting Core edits. This changes lookup cost, not admission,
+deletion declarations, history, or canonical write rules. Measurement scope and limits are in
+the [guard performance record](../reviews/editor-guard-performance-2026-10-23.md).
+
 - Enter splits prose and headings, exits a heading at its end, and creates space
   beside an atomic block. Backspace/Delete use engine joins and selections. A
   heading joined with prose that has line breaks becomes a paragraph to retain them
