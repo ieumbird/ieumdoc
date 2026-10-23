@@ -1,10 +1,11 @@
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
+import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
 import { writeUiLanguage, type UiLanguage } from "../preferences.ts";
 
@@ -64,6 +65,7 @@ type SettingsDialogProps = {
 export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const [clearConfirm, setClearConfirm] = useState(false);
+  const clearButton = useRef<HTMLButtonElement>(null);
   const [clearing, setClearing] = useState(false);
   const [recoveryProblem, setRecoveryProblem] = useMessageState("");
   const [problem, setProblem] = useMessageState("");
@@ -102,16 +104,12 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
           <p className="settings-status">{i18n.t("Records expire 10 days after the last recording, at the next startup or cleanup. Closing a window keeps them. A clean Save, a tab's Don't save, a successful Reload, or Delete record removes that session's record.")}</p>
           <p className="settings-status">{i18n.t("Unapplied property drafts, Undo history, selection, pending requests and image files are not backed up. Recording may fail; changes after the last record may be lost. Saving the original and recording recovery are separate operations.")}</p>
           <p className="settings-status">{storageProblem || i18n.t("recoveryCount", { count: recoveryCount })}</p>
-          {clearConfirm ? <div className="grid gap-3">
-            <p className="settings-status">{i18n.t("Delete all local records? Scheduled recordings are cancelled too. Only the next applied edit starts recording again, including edits in other open windows. Your open work and original files stay unchanged.")}</p>
-            <div className="settings-actions">
-              <Button size="sm" variant="secondary" disabled={clearing} onClick={() => setClearConfirm(false)}>{i18n.t("Cancel")}</Button>
-              <Button size="sm" variant="destructive" disabled={clearing} onClick={() => {
-                setClearing(true); setRecoveryProblem("");
-                void onClearRecovery?.().then(() => setClearConfirm(false)).catch(error => setRecoveryProblem(String(error))).finally(() => setClearing(false));
-              }}>{i18n.t("Delete all records")}</Button>
-            </div>
-          </div> : <Button size="sm" variant="secondary" onClick={() => setClearConfirm(true)}>{i18n.t("Clear all recovery records…")}</Button>}
+          <Button ref={clearButton} size="sm" variant="secondary" onClick={() => setClearConfirm(true)}>{i18n.t("Clear all recovery records…")}</Button>
+          <RecoveryDeleteDialog open={clearConfirm} pending={clearing} finalFocus={clearButton}
+            onCancel={() => setClearConfirm(false)} onDelete={() => {
+              setClearing(true); setRecoveryProblem("");
+              void onClearRecovery?.().then(() => setClearConfirm(false)).catch(error => setRecoveryProblem(String(error))).finally(() => { setClearConfirm(false); setClearing(false); });
+            }} />
           {recoveryProblem ? <p role="alert">{recoveryProblem}</p> : null}
         </section>
         {info && desktop ? (

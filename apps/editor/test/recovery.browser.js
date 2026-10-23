@@ -20,11 +20,16 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     if (!screenshots) return;
     for (const width of [1440,375]) {
       await page.setViewportSize({width,height:900});
+      await page.waitForFunction(narrow => document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay") === narrow, width < 640);
       await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); });
       await page.screenshot({path:`tmp/296/${name}-${width}.png`});
+      for (const dialog of await page.getByRole('dialog', {name:/^(Delete recovery record\?|복구 기록을 삭제할까요\?|Delete all recovery records\?)$/}).all()) {
+        if (await dialog.isVisible()) check(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth), `${name} dialog content overflows at ${width}`);
+      }
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} overflows at ${width}`);
     }
     await page.setViewportSize({width:1440,height:900});
+    await page.waitForFunction(() => !document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay"));
   };
   // Opening/restoring must also work where the secure-context-only UUID API is absent.
   await page.addInitScript(() => Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined}));
@@ -57,6 +62,29 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await capture('list');
   await openDocument(page,file); await ready(page);
   await page.getByTestId('recovery-prompt').waitFor(); await capture('prompt');
+  const beforeDelete = await records();
+  const deleteButton = page.getByRole('button',{name:'Delete record',exact:true});
+  await deleteButton.click();
+  const deleteConfirm = page.getByRole('dialog',{name:'Delete recovery record?',exact:true});
+  await deleteConfirm.waitFor({timeout:5000});
+  await capture('delete-confirm');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('ko'));
+  const koreanConfirm = page.getByRole('dialog',{name:'복구 기록을 삭제할까요?',exact:true});
+  check((await koreanConfirm.innerText()).includes(first.path) && (await koreanConfirm.innerText()).includes('이 작업은 되돌릴 수 없습니다.'), 'Korean confirmation lost its target or warning');
+  await capture('delete-confirm-ko');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
+  check((await deleteConfirm.innerText()).includes(first.path), 'Delete confirmation omitted the record path');
+  check((await deleteConfirm.innerText()).includes('This cannot be undone.'), 'Delete confirmation omitted irreversible loss');
+  check(JSON.stringify(await records()) === JSON.stringify(beforeDelete), 'Opening confirmation deleted a record');
+  await deleteConfirm.getByRole('button',{name:'Cancel',exact:true}).click();
+  await deleteConfirm.waitFor({state:'hidden'});
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Delete record', null, {timeout:5000});
+  check(JSON.stringify(await records()) === JSON.stringify(beforeDelete), 'Cancel changed recovery records');
+  await deleteButton.click(); await deleteConfirm.waitFor({timeout:5000});
+  await page.keyboard.press('Escape'); await deleteConfirm.waitFor({state:'hidden'});
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Delete record', null, {timeout:5000});
+  check(JSON.stringify(await records()) === JSON.stringify(beforeDelete), 'Escape changed recovery records');
+
   await page.keyboard.press('Control+s');
   check(JSON.stringify(await records()) === JSON.stringify([first]), 'Save shortcut bypassed recovery modal');
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
@@ -158,6 +186,13 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.keyboard.press('Control+s');
   check(await page.getByTestId('status').getAttribute('data-operation') === 'ready', 'Save shortcut bypassed Settings modal');
   await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).click();
+  const clearConfirm = page.getByRole('dialog',{name:'Delete all recovery records?',exact:true});
+  await clearConfirm.waitFor({timeout:5000});
+  const beforeClear = await records();
+  await clearConfirm.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Clear all recovery records…', null, {timeout:5000});
+  check(JSON.stringify(await records()) === JSON.stringify(beforeClear), 'Cancel clear changed records');
+  await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).click();
   await capture('clear-confirm');
   const laterWindow = await page.context().newPage();
   try {
@@ -218,7 +253,8 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Copy text',exact:true}).click();
   await page.getByText(/Clipboard access is unavailable/).waitFor();
   await capture('incompatible');
-  await page.getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
+  await page.getByRole('button',{name:'Delete record',exact:true}).click();
+  await page.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
   await page.getByText('No local recovery records.',{exact:true}).waitFor();
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
@@ -230,7 +266,8 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByText('The recovery opening source or saved checkpoint is incomplete.',{exact:true}).waitFor();
   await page.getByText('Plaintext recovery copy',{exact:true}).click();
   check((await page.getByRole('textbox',{name:'Plaintext recovery copy'}).inputValue()).includes('Malformed record text'), 'Malformed record lost plaintext fallback');
-  await page.getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
+  await page.getByRole('button',{name:'Delete record',exact:true}).click();
+  await page.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
   await page.addInitScript(() => Object.defineProperty(window,'indexedDB',{get() { throw new DOMException('Storage access denied','SecurityError'); }}));
   await page.reload(); await ready(page);
   await page.getByTestId('writeability-warning').filter({hasText:'Local recovery is unavailable'}).waitFor();
