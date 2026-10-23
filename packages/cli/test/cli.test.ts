@@ -1535,6 +1535,46 @@ test("CLI rejects unknown, duplicate, and unnecessary arguments without writing"
   }
 });
 
+test("CLI rejects empty NodePath segments in single and batch writes while accepting spaced nested paths", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-node-path-"));
+  const file = path.join(dir, "table.md");
+  const operations = path.join(dir, "operations.json");
+  const original = Buffer.from(nativeSource("| A | B |\n| --- | --- |\n| C | D |\n"));
+  writeFileSync(file, original);
+  try {
+    for (const locator of ["1,,0", "1, ,0", ",1,0", "1,0,", "", " "]) {
+      const single = run(["update-table-cell", file, "--path", locator, "--text", "Changed"]);
+      assert.equal(single.status, 1, locator);
+      assert.match(single.stderr, /--path must be comma-separated non-negative integers/);
+      assert.deepEqual(readFileSync(file), original, locator);
+
+      writeFileSync(operations, JSON.stringify([
+        { command: "update-table-cell", path: "1,0,0", text: "Earlier change" },
+        { command: "update-table-cell", path: locator, text: "Changed" },
+      ]));
+      const batch = run(["apply-batch", file, "--operations", operations]);
+      assert.equal(batch.status, 1, locator);
+      assert.match(batch.stderr, /operation 2 \(update-table-cell\): --path must be comma-separated non-negative integers; nothing was written/);
+      assert.deepEqual(readFileSync(file), original, locator);
+    }
+
+    const single = run(["update-table-cell", file, "--path", " 1 , 0 , 0 ", "--text", "Single"]);
+    assert.equal(single.status, 0, single.stderr);
+    writeFileSync(operations, JSON.stringify([
+      { command: "update-table-cell", path: " 1 , 1 , 0 ", text: "Batch" },
+    ]));
+    const batch = run(["apply-batch", file, "--operations", operations]);
+    assert.equal(batch.status, 0, batch.stderr);
+    const table = getEditableDocument(parse(readFileSync(file, "utf8"))).blocks[0];
+    assert.equal(table.block, "table");
+    if (table.block === "table") {
+      assert.deepEqual(table.rows.map(row => row.cells.map(cell => cell.text)), [["Single", "B"], ["Batch", "D"]]);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI accepts an inspect revision for edits and format without printing a new revision", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-revision-"));
   const file = path.join(dir, "document.md");

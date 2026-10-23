@@ -196,11 +196,11 @@ IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한
 
 ## Project status and non-goals
 
-현재 Beta 배포 버전은 `0.0.1-beta.4`이며 배포 위치는 [GitHub Prerelease](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.4)입니다. 초기 Beta는 CI에서 검증한 unsigned Windows x64 installer로 공개하며 설치 시 Windows 경고가 나타날 수 있습니다. 서명된 릴리즈와 Stable 공개는 후속 작업입니다. 패키징과 업데이트는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)에 따라 구현되었습니다. `apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 재사용하며 장기 backend 결정이 아닙니다.
+초기 Beta의 설치·공개 버전은 [Windows Desktop](#windows-desktop), 패키징·업데이트와 검증 경계는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다. `apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 재사용하며 장기 backend 결정이 아닙니다.
 
-**Planned direction:** AI/MCP integration과 broader automation, cross-document identity, transclusion·requirement semantics는 후속 설계 대상입니다. [Desktop/VS Code spikes](docs/README.md#historical-reviews-and-spikes)는 당시 실험 근거입니다. Desktop 제품 채택의 현재 authority는 ADR-0004이며 공개 출시와는 구분합니다.
+**Planned direction:** AI/MCP integration과 broader automation, cross-document identity, transclusion·requirement semantics는 후속 설계 대상입니다. 다음 milestone 후보인 [두 문서의 Requirement·TestCase 연결 → CLI 누락 조회 → Editor 관계 탐색](https://github.com/ieumbird/ieumdoc/issues/347)은 범위와 identity 선행 결정이 필요한 Proposed 상태이며 구현 승인이 아닙니다. [Desktop/VS Code spikes](docs/README.md#historical-reviews-and-spikes)는 당시 실험 근거이며, Desktop 제품 채택의 현재 authority는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)입니다.
 
-현재 autosave, durable draft recovery, collaboration, workspace/Git 관리 UI는 제공하지 않습니다. 문서의 의미는 Core가 소유하고 인터페이스는 이를 연결한다는 원칙을 유지합니다.
+명시적 Save와 원본에서 분리된 적용된 편집 내용의 로컬 복구를 제공합니다. 복구 대상·Host 검증·보장 한계는 [Editing session and Save](docs/design/editing-session-save-v1.md#local-recovery-records-296-pr2)를 따릅니다. 자동 저장은 [보류](docs/adr/0007-editing-session-lifetime.md#1-저장은-명시적-동작이며-자동-저장은-보류한다)되어 있으며 collaboration, workspace/Git 관리 UI는 제공하지 않습니다. 문서의 의미는 Core가 소유하고 인터페이스는 이를 연결한다는 원칙을 유지합니다.
 
 ## Documentation
 

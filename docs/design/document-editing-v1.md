@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-22 (#332 citation atom preservation through editing, typed clipboard, history and Save → Reload; [Citations](citations-v1.md)).
+- Last verified: 2026-10-23 (citation scope reconciled with the implemented units A–C [Citations contract](citations-v1.md); documentation comparison only).
+- Previous verification: 2026-10-22 (#332 citation atom preservation through editing, typed clipboard, history and Save → Reload; [Citations](citations-v1.md)).
 - Previous verification: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
 - Previous verification: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
@@ -98,8 +99,8 @@ references, footnotes or citations. Source that does, or a role with `class`/`la
 
 [Citation atoms](citations-v1.md) hold the explicit role and exact key group, with optional bold,
 italic or deletion marks. Core supplies their number policy and text. Supported clipboard slices,
-normal editing and Save preserve those attributes and the bibliography declaration. There is no
-citation authoring UI or bibliography resource read in this scope.
+normal editing and Save preserve those attributes and the bibliography declaration. Citation
+authoring UI and bibliography resource reads follow the [Citations contract](citations-v1.md#editor).
 
 ## Table cells and Figure captions
 
