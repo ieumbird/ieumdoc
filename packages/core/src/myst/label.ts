@@ -1,6 +1,7 @@
 import { isTargetIdentifierNode, normalizeLabel } from "myst-common";
 import { basicTransformations, enumerateTargetsTransform, ReferenceState } from "myst-transforms";
 import { VFile } from "vfile";
+import { resolveLabelReference } from "../label.ts";
 import type { NodePath } from "../document.ts";
 import { DocumentWriteError } from "../write-error.ts";
 import { cloneDocument, getNode, type MystDocument, type MystNode } from "./tree.ts";
@@ -103,13 +104,10 @@ type ReferenceLookup =
 /** Shared role/link lookup order, including MyST's raw-then-normalized fragment lookup. */
 export function resolveReference<T>(node: MystNode, lookup: (identifier: string) => T | undefined): T | undefined {
   if (node.type === "crossReference" && typeof node.label === "string") {
-    const identifier = typeof node.identifier === "string" ? node.identifier : labelIdentifier(node.label);
-    return identifier ? lookup(identifier) : undefined;
+    return resolveLabelReference({ label: node.label, ...(typeof node.identifier === "string" ? { identifier: node.identifier } : {}) }, lookup);
   }
   if (node.type === "link" && typeof node.url === "string" && node.url.startsWith("#")) {
-    const label = node.url.slice(1);
-    const identifier = labelIdentifier(label);
-    return identifier ? lookup(label) ?? lookup(identifier) : undefined;
+    return resolveLabelReference({ url: node.url }, lookup);
   }
   return undefined;
 }
