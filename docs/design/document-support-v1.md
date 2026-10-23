@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-22 (#332 citation roles and bibliography declarations; Core/CLI/Editor tests and browser Save → Reload, detailed in [Citations](citations-v1.md)).
+- Last verified: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
+- Previous verification: 2026-10-22 (#332 citation roles and bibliography declarations; Core/CLI/Editor tests and browser Save → Reload, detailed in [Citations](citations-v1.md)).
 - Previous verification: 2026-10-20 (#328: literal @ admission, canonical escaping and bracket shorthand refusal; Core/CLI tests and Editor save-path code inspection).
 - Previous verification: 2026-10-19 (#255: the leading level-1 heading is the document title and stays first in Core operations; admission and format unchanged).
 - Previous verification: 2026-10-17 (UX review: Core `hasNativeMarker` for the sidebar folder listing; Core native tests and the stable browser suite. Admission unchanged).
@@ -42,7 +43,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | Equation | Display math value and optional label; no enumeration overrides or arbitrary attributes. |
 | Figure | Empty/pending or one image, optional alt text, label and one supported inline caption. Alt text requires an image. No legends, subfigures, Mermaid or extra directive/image attributes. |
 | Table | Rectangular GFM table with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. No merged cells, legends or extra directive attributes. |
-| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. No tasks or arbitrary nested blocks. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. Each item's `inlineContentText(...).trim()` must be non-empty: citation-only and footnote-reference-only items count as content in admission and writes, including nested lists. Whitespace-only text or marked content and breaks alone are refused. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | One supported paragraph in a quote; thematic break; standard admonition kinds with one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no references inside definitions; label targets and semantic references under their existing contracts. |

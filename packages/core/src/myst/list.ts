@@ -1,4 +1,4 @@
-import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
+import { inlineContentText, inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { ListContent, ListItemContent } from "../list.ts";
 import type { MystNode } from "./tree.ts";
 
@@ -37,8 +37,7 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
 
 /** An item needs visible content: whitespace alone does not persist as a Markdown list item. */
 export function hasVisibleContent(content: InlineContent[]): boolean {
-  return content.some((item) => item.kind === "math" || item.kind === "reference" || item.kind === "code" ||
-    (item.kind === "text" && item.text.trim().length > 0) || ("children" in item && hasVisibleContent(item.children)));
+  return inlineContentText(content).trim().length > 0;
 }
 
 /** The MyST structure myst-parser produces for a Markdown list of this content. */
