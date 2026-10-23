@@ -87,6 +87,7 @@ export function App() {
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
+  const recentFoldersRef = useRef(recentFolders);
   const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
   const visibleRecent = visibleRecentFolders(recentFolders, allowedRoots);
   const [newDialog, setNewDialog] = useState(false);
@@ -375,7 +376,9 @@ export function App() {
     try {
       const listed = await requestFolder(root);
       folders.open(listed, openedPath);
-      setRecentFolders(rememberRecentFolder(listed.root, recentFolders));
+      // Responses can overlap; advance the list before another completion or render.
+      recentFoldersRef.current = rememberRecentFolder(listed.root, recentFoldersRef.current);
+      setRecentFolders(recentFoldersRef.current);
       return "";
     } catch (cause) {
       return messageOf(cause);

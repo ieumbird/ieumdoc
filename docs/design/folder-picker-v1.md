@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit Open replaces another tab's preference and survives Reload, tree-only updates do not write; folder-memory browser regression).
+- Last verified: 2026-10-24 (#371: concurrent explicit Opens in both response orders retain recent folders in the UI, storage and Reload; unavailable storage retains the page list; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open replaces another tab's preference and survives Reload, tree-only updates do not write; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path user Open/Close wins over late restoration, unchanged paths are not rewritten; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: delayed restoration/Open/Close, remembered paths and Reload, and unique nested New destinations; folder-memory browser regression).
 - Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): Open adds a sidebar folder and opened folders are restored; folder-navigation and stable browser suite).
@@ -28,8 +29,10 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   remains authoritative for every request. No roots are merged into a Workspace.
 - Open adds the folder to the sidebar's opened folders ([ADR-0009](../adr/0009-multiple-opened-folders.md));
   one already open is listed again in place. Recently opened folders are browser preferences, retained
-  only after a successful Open. The opened folders' paths are remembered separately and listed again on
-  start; neither enters a document or Host configuration. Quoted paths copied from Explorer are accepted.
+  only after a successful Open. Overlapping successful Opens each update the latest recent list in
+  completion order (most recently completed first), retaining up to five distinct paths. If browser
+  storage is unavailable, the recent list still updates for this page. The opened folders' paths are remembered separately
+  and listed again on start; neither enters a document or Host configuration. Quoted paths copied from Explorer are accepted.
 - The folder-tree hook owns both the live opened list and its remembered paths. After a successful
   user Open or Close, it remembers the latest reduced list. During startup restoration, writing is
   deferred until all remembered paths have been tried, so pending folders cannot be lost. Restoration

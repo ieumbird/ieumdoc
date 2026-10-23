@@ -39,7 +39,7 @@ async (page) => {
   };
   const startOpen = async (path, target = page) => {
     if (await target.getByTestId('folder').count()) await menu(a, 'Open folder…', target);
-    else await target.getByRole('button', {name:'Open folder…', exact:true}).click();
+    else await target.getByTestId('sidebar-empty').getByRole('button', {name:'Open folder…', exact:true}).click();
     await target.getByTestId('folder-path').fill(path);
     await target.getByTestId('folder-open').click();
   };
@@ -61,6 +61,57 @@ async (page) => {
       allowNewRequests:() => { holdNewRequests = false; },
       release, dispose:async () => { release(); await page.unroute('**/api/folder?*', handler); }};
   };
+
+  // Explicit Opens share their starting render but must retain both successful completions.
+  const startScreen = route => route.fulfill({json:{start:true}});
+  await page.route('**/api/document', startScreen);
+  try {
+    for (const [reverse, storageBlocked] of [[false, false], [true, false], [false, true], [true, true]]) {
+      await page.evaluate(saved => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify(saved)), [a, c]);
+      await seed([]);
+      if (storageBlocked) await page.evaluate(() => {
+        const setItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value) {
+          if (key === 'ieumdoc.recentFolders') throw new Error('Preference storage disabled');
+          return setItem.call(this, key, value);
+        };
+      });
+      const openingB = await hold(b);
+      const openingC = await hold(c);
+      try {
+        const recent = page.getByTestId('document-start');
+        await recent.getByTitle(c, {exact:true}).click();
+        await openingC.requested();
+        await startOpen(b);
+        await openingB.requested();
+        const first = reverse ? c : b;
+        const last = reverse ? b : c;
+        (reverse ? openingC : openingB).release();
+        await waitRoots([first]);
+        (reverse ? openingB : openingC).release();
+        await waitRoots([first, last]);
+        await page.getByRole('dialog').waitFor({state:'detached'});
+        const expected = [last, first, a];
+        const checkRecent = async context => {
+          await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+          const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.recentFolders') ?? '[]'));
+          const shown = await page.getByTestId('document-start').locator('button[title]').evaluateAll(nodes => nodes.map(node => node.title));
+          const expectedSaved = storageBlocked ? [a, c] : expected;
+          check(same(saved, expectedSaved), `${context}: recent stored ${JSON.stringify(saved)}, expected ${JSON.stringify(expectedSaved)}`);
+          check(same(shown, expected), `${context}: recent displayed ${JSON.stringify(shown)}, expected ${JSON.stringify(expected)}`);
+        };
+        await checkRecent('Concurrent Open');
+        if (!storageBlocked) {
+          await reload([first, last]);
+          await checkRecent('Concurrent Open after Reload');
+        }
+      } finally {
+        await openingB.dispose();
+        await openingC.dispose();
+        if (storageBlocked) { await page.reload(); await ready(); }
+      }
+    }
+  } finally { await page.unroute('**/api/document', startScreen); }
 
   // Both response orders: the Open handler starts before the remembered folder is available.
   for (const openFirst of [false, true]) {
@@ -254,6 +305,6 @@ async (page) => {
   }
   if (failures.length) throw new Error(failures.join('\n'));
   return {responseOrders:true, closeDuringRestoration:true, closeDuringOpen:true, samePathCloseWins:true,
-    treeUpdatesDoNotWrite:true, explicitOpenRemembers:true, crossTabPreference:true,
+    concurrentRecentOpens:true, recentStorageUnavailable:true, treeUpdatesDoNotWrite:true, explicitOpenRemembers:true, crossTabPreference:true,
     failedRestoration:true, reload:true, uniqueDestinations:true};
 }
