@@ -1,6 +1,7 @@
 # Endnotes (MyST footnotes)
 
 - Status: Implemented
+- Code/endnote save verification: 2026-10-24 (#393: Core paragraph/list intermediate snapshots with code update/insert, missing-definition final-write refusals, and Editor Save replay regression).
 - Nested authoring verification: 2026-10-24 (#377: Core list/Figure incomplete-operation and final-write refusal regressions; Editor slash tests and `citation-authoring` insertion/Save → Reload, with Endnote absent from definitions).
 - Diagnostic verification: 2026-10-15 (#290 / #304: shared source-only diagnostics, indexed source locations and CLI check/write warning integration).
 - Body-end verification: 2026-10-15 (#280 Core insertion index with/without endnotes and empty native documents; CLI single/batch insertion before definitions).
@@ -61,7 +62,7 @@ This is the shared source-only diagnostic contract for syntax MyST silently read
 - **Dropped definitions**: an unreferenced or repeated definition that the parse dropped is recorded on the document. Canonical write refuses that document and names the footnote.
 - **Write rule**: each definition must be referenced and each reference must have a definition, once per label; otherwise the reload would drop or reread them. Example: removing the last reference to `[^n]` makes Save fail with `footnote [^n] has no reference, and MyST drops an unreferenced definition`.
 - **Operation checks**: an operation's round-trip check covers its own blocks. It completes the footnotes on a copy, so a paragraph with a footnote can be checked on its own and a session can pass through an intermediate state. Checks find a body block at its canonical index (`bodyIndex`) and a definition by its label, so a block inserted after the endnotes or a reordered reference does not fail the check.
-- List insert/update and Figure caption checks compare block count with that same completed copy, including temporary definitions for new references. The full content and canonical stability must still match; an intermediate state without real definitions remains unwritable. This supports the existing Editor Save order, which updates body blocks before inserting new definitions.
+- List insert/update, code block insert/update and Figure caption checks compare block count with that same completed copy, including temporary definitions for new references. The full content and canonical stability must still match; an intermediate state without real definitions remains unwritable. This supports the existing Editor Save order, which updates body blocks before inserting new definitions.
 - **Inline content**: `{ kind: "footnote", label }` is inline content. The label is kept as written and matched exactly, as markdown-it-footnote matches it. Links cannot contain footnotes.
 - **Read model**: a definition is an editable `footnote` block with its `label` and one paragraph of supported inline content, without footnote references. Unsupported definitions reject native admission. `footnoteNumbers` gives numbers in first-reference order.
 - **Operations**:
