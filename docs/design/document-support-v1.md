@@ -46,7 +46,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. Each item must contain non-whitespace text or supported inline content such as a citation, footnote reference, math, code or semantic reference, including within marks. This applies to admission and writes at every nesting level. Items containing only whitespace or line breaks, including marks wrapping only whitespace, are refused. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | One supported paragraph in a quote; thematic break; standard admonition kinds with one supported paragraph. No custom titles/options or additional nested blocks. |
-| Footnote and target | One non-empty supported paragraph per definition, no references inside definitions; label targets and semantic references under their existing contracts. |
+| Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
 
 Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported read-only opening or block source replacement is provided.
 

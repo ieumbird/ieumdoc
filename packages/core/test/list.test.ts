@@ -44,6 +44,27 @@ test("removing list text preserves the remaining citation or footnote through na
   }
 });
 
+test("list operations allow new endnote references before definitions are supplied", () => {
+  const document = core.parse("---\nieumdoc: 1\n---\n\n- Original.\n\nAfter.\n");
+  const original = core.serialize(document);
+  const list: ListContent = { ordered: false, items: [
+    { content: [{ kind: "citation", role: "cite:p", keys: ["Alpha"] }] },
+    { content: text("Outer"), list: { ordered: false, items: [{ content: [{ kind: "footnote", label: "new" }] }] } },
+  ] };
+  for (const insert of [false, true]) {
+    const updated = insert ? core.insertList(document, 3, list) : core.updateList(document, [1], list);
+    assert.match(core.canonicalWriteError(updated) ?? "", /has no definition/);
+    assert.throws(() => core.serialize(updated), /has no definition/);
+    const complete = core.insertFootnoteDefinition(updated, insert ? 4 : 3, "new", text("Note."));
+    const markdown = core.serialize(complete);
+    const reopened = core.parse(markdown);
+    const block = core.getEditableDocument(reopened).blocks.find(block => block.path[0] === (insert ? 3 : 1));
+    assert.deepEqual(block, { block: "list", path: [insert ? 3 : 1], ...list });
+    assert.equal(core.serialize(reopened), markdown);
+    assert.equal(core.serialize(document), original);
+  }
+});
+
 const nestedList: ListContent = {
   ordered: false,
   items: [
