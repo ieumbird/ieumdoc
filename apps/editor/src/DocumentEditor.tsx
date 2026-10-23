@@ -408,11 +408,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editor.view.focus();
   };
 
-  // `/` and `+` open the same insert menu over the same command list.
+  // Only top-level paragraphs offer block commands; other inline surfaces keep this menu.
   const slash = blockMenu ? null : slashQueryAt(editor.state);
   const slashOpen = slash !== null && slash.from !== slashDismissed && focused;
   const slashItems = slash
-    ? [...filterInsertCommands(slash.query), ...endnoteCommandItems(slash.query), ...referenceCommandItems(editor.state.doc, slash.query), ...citationCommandItems(citationEntries, slash.query)].map(insertMenuItem)
+    ? [...(slash.blockCommands ? filterInsertCommands(slash.query) : []), ...(slash.endnote ? endnoteCommandItems(slash.query) : []), ...referenceCommandItems(editor.state.doc, slash.query), ...citationCommandItems(citationEntries, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   slashKeys.current = (event) => {
