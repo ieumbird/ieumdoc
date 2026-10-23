@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as core from "@ieumdoc/core";
 import {
   getEditableDocument,
   insertList,
@@ -11,6 +12,37 @@ import {
 } from "./core-internal.ts";
 
 const text = (value: string): InlineContent[] => [{ kind: "text", text: value }];
+
+const inlineOnlyItems: { source: string; content: InlineContent[]; definitions?: string }[] = [
+  { source: "{cite}`Alpha`", content: [{ kind: "citation", role: "cite", keys: ["Alpha"] }] },
+  { source: "{cite:t}`Alpha`", content: [{ kind: "citation", role: "cite:t", keys: ["Alpha"] }] },
+  { source: "{cite:p}`Alpha`", content: [{ kind: "citation", role: "cite:p", keys: ["Alpha"] }] },
+  { source: "{cite:p}`Alpha,Beta`", content: [{ kind: "citation", role: "cite:p", keys: ["Alpha", "Beta"] }] },
+  { source: "**{cite:p}`Alpha`**", content: [{ kind: "strong", children: [{ kind: "citation", role: "cite:p", keys: ["Alpha"] }] }] },
+  { source: "[^note]", content: [{ kind: "footnote", label: "note" }], definitions: "\n[^note]: Note.\n" },
+];
+
+test("native lists admit citation-only and footnote-only items, including nested lists", () => {
+  for (const { source, content, definitions = "" } of inlineOnlyItems) {
+    const document = core.parse(`---\nieumdoc: 1\n---\n\n- ${source}\n  - ${source}\n${definitions}`);
+    const list: ListContent = { ordered: false, items: [{ content, list: { ordered: false, items: [{ content }] } }] };
+    assert.deepEqual(core.getEditableDocument(document).blocks[0], { block: "list", path: [1], ...list });
+    const markdown = core.serialize(core.updateList(document, [1], list));
+    assert.deepEqual(core.getEditableDocument(core.parse(markdown)), core.getEditableDocument(document));
+    assert.equal(core.serialize(core.parse(markdown)), markdown);
+  }
+});
+
+test("removing list text preserves the remaining citation or footnote through native Save and reopen", () => {
+  for (const { source, content, definitions = "" } of inlineOnlyItems) {
+    const document = core.parse(`---\nieumdoc: 1\n---\n\n- X${source}\n${definitions}`);
+    const list: ListContent = { ordered: false, items: [{ content }] };
+    const markdown = core.serialize(core.updateList(document, [1], list));
+    const reparsed = core.parse(markdown);
+    assert.deepEqual(core.getEditableDocument(reparsed).blocks[0], { block: "list", path: [1], ...list });
+    assert.equal(core.serialize(reparsed), markdown);
+  }
+});
 
 const nestedList: ListContent = {
   ordered: false,
@@ -82,7 +114,6 @@ test("public Core rejects invalid list edits without mutating the source", () =>
   const item = { content: text("b") };
   const invalid = [
     () => insertList(document, 1, { ordered: false, items: [] }),
-    () => insertList(document, 1, { ordered: false, items: [{ content: text("   ") }] }),
     () => insertList(document, 1, { ordered: false, start: 2, items: [item] }),
     () => insertList(document, 1, { ordered: true, start: -1, items: [item] }),
     () => insertList(document, 1, { ordered: false, items: [{ content: text("a\n\nb") }] }),
@@ -93,6 +124,19 @@ test("public Core rejects invalid list edits without mutating the source", () =>
     () => updateList(document, [0], { ordered: false, items: [item] }),
     () => updateList(document, [1, 0], { ordered: false, items: [item] }),
   ];
+
+  const emptyItems: InlineContent[][] = [
+    [], text(" \t "), [{ kind: "break" }],
+    [{ kind: "emphasis", children: text("   ") }],
+    [{ kind: "strong", children: [{ kind: "delete", children: text(" \t ") }] }],
+    [{ kind: "link", url: "https://example.com", children: text("   ") }],
+  ];
+  for (const content of emptyItems) {
+    const list: ListContent = { ordered: false, items: [{ content }] };
+    assert.throws(() => insertList(document, 1, list), /list item must contain non-empty text/);
+    assert.throws(() => updateList(document, [1], list), /list item must contain non-empty text/);
+    assert.equal(serialize(document), before);
+  }
 
   for (const operation of invalid) {
     assert.throws(operation);
