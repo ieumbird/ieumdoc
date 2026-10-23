@@ -22,6 +22,9 @@ unsupported. Projection checks every citation/group field and canonical writing 
 semantic fingerprint guard. Ambiguous keys or parser/writer meaning changes fail closed.
 Citation atoms have Core inline offset length one, regardless of the number of keys. Bold, italic
 and deletion marks preserve their meaning; links and subscript/superscript cannot contain citations.
+Citation-only content is a non-empty persistent paragraph, including after paragraph split/merge
+or heading-to-paragraph conversion. The shared inline semantic comparison verifies canonical
+round-trip preservation of roles, ordered keys and marks; whitespace-only results remain refused.
 
 The #328 boundary remains: bare `@name` is literal text, canonical writing escapes it when needed
 by default MyST, and unescaped bracket shorthand is rejected. Its `native-content` correction
@@ -195,6 +198,28 @@ the adjacent `better-bibtex-LICENSE.txt` preserves upstream MIT terms. Its unsup
 explicitly diagnosed. Zotero itself was not run or connected.
 
 ## Verification
+
+### Citation paragraph stabilization plan (2026-10-23)
+
+Scope: preserve citation-only content through existing paragraph split, merge and heading
+conversion, and reuse the shared inline semantic comparison. Completion requires exact role,
+key order and marks after canonical round-trip, Host replay and representative browser
+split/merge Save → Reload. Existing empty/whitespace, UTF-16 and unsupported-content refusals
+remain required. No new operation, CLI surface, parser or Editor schema change is needed;
+existing CLI commands already call these Core operations. Verification uses Core tests,
+targeted Editor replay tests, repository typecheck/docs checks and the `citations` browser scenario.
+
+Results for [#351](https://github.com/ieumbird/ieumdoc/issues/351): the new split and conversion
+regressions failed on base `496d800` with the non-empty error before the fix. After the fix,
+Core 243 tests, Editor `editor.test.ts` 89 tests, repository typecheck, Editor build,
+`pnpm docs:check` and `git diff --check` passed. The `citations` browser scenario passed against
+this checkout's Vite server on port 5272: actual Enter split left a bold citation-only paragraph,
+Save → Reload retained its semantics, and Backspace merge plus Save → Reload restored the
+pre-split canonical bytes. The Host regression additionally checks opening-snapshot offsets
+through Tiptap edit collection and replay. No new CLI operation is introduced and Core cases
+are not repeated in CLI/browser. Full browser, HTTP and packaged Desktop suites remain CI checks.
+Vite's existing large-chunk warning remains. The caller-owned Vite process and runner-owned
+persistent browser context were closed after verification.
 
 ### Unit A historical evidence (#332)
 
