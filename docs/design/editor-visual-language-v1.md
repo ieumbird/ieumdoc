@@ -159,6 +159,12 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
 - File preview entries: `--layout-file-preview-width` (48rem) and `--layout-file-preview-image-max-height` (60dvh) control the preferred modal width and image height cap. The existing viewport inset still bounds the modal.
 
+Shortcut labels in the existing TopBar key chip and button tooltips use the platform notation
+from the [shared definitions](../../apps/editor/src/shortcuts.ts), also used for ARIA and command
+items. The longer center label uses the existing chip and responsive layout; no new control,
+surface or adjustable dimension is introduced. The [shortcut contract](editor-ux-shell-v1.md#shortcut-contract-381)
+owns key choices and behavior.
+
 ## Responsibility boundaries
 
 Recovery uses the existing start-screen section/label/text roles and compact secondary Review action, with wrapping names/paths and dates. The empty state is plain explanatory text. Restore/incompatible prompts use the shared Dialog, primary Restore, destructive Delete and secondary Not now (initial focus), a selectable plaintext disclosure, and existing stacked narrow-screen footer. Settings uses its existing section rhythm; Clear all uses the shared deletion confirmation Dialog. Failures use a standing MessageArea warning, not an expiring notice. There is no start-screen redesign or new theme.

@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
 - Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
 - Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
@@ -114,8 +115,11 @@ semantics, so it has no CLI counterpart.
 ## Command center (#363)
 
 The current document's location/name is a searchable command-center button centered in the TopBar.
-The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+P opens a
-search dialog near the top center; Ctrl/Cmd+Shift+P starts with `>` to list commands only.
+The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+Alt+Shift+P
+(Option for Alt on macOS) opens a search dialog near the top center. Type `>` to list commands only.
+Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
+The shortcut uses `event.code`, exact modifiers and no active IME composition; other modal dialogs
+still block opening the center and Save behind them.
 The input searches already-open document names/paths and existing shell command names, including
 their Korean/English aliases. It does not list unopened files or search document contents.
 
@@ -137,6 +141,66 @@ No-match feedback and controls are translated with the existing UI language.
 This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
 existing file/session handlers remain authoritative. The first version has no command plugin system,
 recent-command persistence, filesystem index or new document-content actions.
+
+### Shortcut contract (#381)
+
+The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own physical keys, modifiers,
+platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
+consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
+The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
+selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
+validation, Apply/Remove, Escape and blur dismissal. It does nothing behind a modal or during IME
+composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
+
+Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378):
+
+| Candidate | Official default / decision |
+| --- | --- |
+| Ctrl/Cmd+P | Chrome/Edge print; removed |
+| Ctrl+Shift+P | Edge system print; removed |
+| Ctrl+K | Chrome/Edge address-bar search; rejected for links |
+| Ctrl+Shift+K | Edge duplicate tab; rejected for links |
+| Ctrl/Cmd+Alt+P | macOS Chrome Page Setup; rejected for center |
+| Ctrl/Cmd+Alt+Shift+P | No listed Chrome/Edge or Windows/macOS system default; selected for center |
+| Ctrl/Cmd+Alt+Shift+K | No listed Chrome/Edge or Windows/macOS system default; selected for link |
+
+Checked against the official [Chrome](https://support.google.com/chrome/answer/157179?hl=en),
+[Edge](https://support.microsoft.com/en-us/edge/keyboard-shortcuts-in-microsoft-edge),
+[Windows](https://support.microsoft.com/en-us/windows/keyboard-shortcuts-in-windows) and
+[macOS](https://support.apple.com/en-us/102650) lists. Alt maps to Option on macOS. Absence from
+those lists is evidence about defaults, not a guarantee about user-installed global shortcuts.
+Desktop has no application menu (`Menu.setApplicationMenu(null)`), hence no menu accelerator collision.
+macOS was reviewed at document level only; the supported runtime verification target is Windows.
+
+#### #381 verification and captures
+
+Windows Chrome 155.0.8059.85 passed `command-center`, `link-authoring`, `layout-rules` and
+`quiet-document`; Edge 155.0.4283.62 passed the two shortcut scenarios using the same checkout-owned
+persistent profile sequentially. These exercise actual renderer keyboard dispatch, Korean key values
+with physical codes, composition exclusion, tooltips/ARIA, modal blocking and real file Save → Reload.
+Printing is checked by uncancelled `Ctrl+P` / `Ctrl+Shift+P` events with no center opening.
+Electron 44.7.0 (Chromium 152.0.7977.130) staged-app smoke passed center opening/typing, link opening/Apply
+and a null application menu. Desktop tests passed 40/40; Editor tests passed 277/277.
+
+Native browser chrome (including the actual print window and address bar) is **not verified**:
+Computer Use stopped because it could not determine the browser URL confidently enough for policy.
+No native key was sent after that stop. Runtime integration success and official default-shortcut
+lists are separate evidence; this record does not claim a completed native browser/OS collision audit.
+An exploratory headed Chrome run also exposed an intermittent link-form focus timeout and a 15px
+native-scrollbar difference in the layout scenario; the standard headless runner passed both scenarios
+without changing the assertions. No browser-runner or focus-policy change is included here.
+
+Same-path `quiet-document --screenshots` product comparison at base `c587663` and #381 implementation,
+Windows Chrome, DPR 1 / 100% zoom, bundled Pretendard, scroll top, equivalent rest state:
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×1000 | [Before](assets/shortcuts-381/before-1440.png) | [After](assets/shortcuts-381/after-1440.png) |
+| 375×1000 | [Before](assets/shortcuts-381/before-375.png) | [After](assets/shortcuts-381/after-375.png) |
+
+The base product files were temporarily restored and the implementation reapplied in the same
+worktree; no other checkout or Chrome profile was created. Only the existing shortcut chip/tooltip
+text changes. Document layout and control positions retain the Visual Language rules.
 
 ### Command center verification (#363)
 
@@ -167,7 +231,7 @@ equal filenames, Korean/English search and 1440/1024/768/375px bounds. Existing 
 - Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; `Fig. 2`, `Eq. 3` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
 - Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (caption and label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
-- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
+- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+Alt+Shift+K); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
 - Figure selection shows the selection outline only. Explicit Edit opens Image/Alt text/Label fields and a Caption field for plain captions; rich captions are edited in the document. Metadata Apply preserves rich caption content. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Focus restoration itself changes neither document nor history. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.

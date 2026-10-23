@@ -1,3 +1,4 @@
+import { COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT } from "../shortcuts.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
@@ -8,9 +9,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { splitDocumentPath } from "./document-path.ts";
 
 export type DocumentView = "visual" | "source";
-
-const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
-const COMMAND_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘P" : "Ctrl+P";
 
 type TopBarProps = {
   /** At phone widths the closed sidebar has no rail; the TopBar opens it. */
@@ -88,8 +86,8 @@ export function TopBar({
         </p>
       </div>
       <Button type="button" variant="outline" className="command-center-trigger"
-        aria-label={i18n.t("Command center")} title={i18n.t("Command center ({{shortcut}})", { shortcut: COMMAND_SHORTCUT_LABEL })}
-        aria-haspopup="dialog" aria-keyshortcuts="Control+P Meta+P" onClick={onOpenCommandCenter}
+        aria-label={i18n.t("Command center")} title={i18n.t("Command center ({{shortcut}})", { shortcut: COMMAND_CENTER_SHORTCUT.label })}
+        aria-haspopup="dialog" aria-keyshortcuts={COMMAND_CENTER_SHORTCUT.aria} onClick={onOpenCommandCenter}
         onMouseDown={event => { if (event.button === 0) event.preventDefault(); }}>
         <Search aria-hidden="true" />
         <span className="document-path" title={documentPath || undefined}>
@@ -100,7 +98,7 @@ export function TopBar({
             {documentPath ? name : i18n.t("No file opened")}
           </span>
         </span>
-        <kbd aria-hidden="true">{COMMAND_SHORTCUT_LABEL}</kbd>
+        <kbd aria-hidden="true">{COMMAND_CENTER_SHORTCUT.label}</kbd>
       </Button>
       <div className="top-bar-actions">
         <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
@@ -127,7 +125,7 @@ export function TopBar({
         <div className="top-bar-group" role="group" aria-label={i18n.t("File actions")}>
             <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
               aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
-              title={i18n.t("Save ({{shortcut}})", { shortcut: SAVE_SHORTCUT_LABEL })} aria-keyshortcuts="Control+S Meta+S">
+              title={i18n.t("Save ({{shortcut}})", { shortcut: SAVE_SHORTCUT.label })} aria-keyshortcuts={SAVE_SHORTCUT.aria}>
               {saveLabel}
             </Button>
           {onReload ? (

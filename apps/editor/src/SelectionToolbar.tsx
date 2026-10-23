@@ -1,3 +1,4 @@
+import { LINK_SHORTCUT } from "./shortcuts.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
@@ -94,7 +95,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Code aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Link")} title={tip(i18n.t("Link"))}
+        aria-label={i18n.t("Link")} title={`${i18n.t("Link")} (${LINK_SHORTCUT.label})`} aria-keyshortcuts={LINK_SHORTCUT.aria}
         aria-pressed={editor.isActive("link")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditLink() : onReject())}

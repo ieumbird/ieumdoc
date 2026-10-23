@@ -60,7 +60,7 @@ async (page, { openDocument }) => {
   };
   const setLink = async (text, url) => {
     await select(text, 'set invalid-save link');
-    await page.getByRole('button', {name:'Link', exact:true}).click();
+    await page.keyboard.press('Control+Alt+Shift+k');
     await page.getByTestId('link-url').fill(url);
     await page.getByTestId('link-apply').click();
     await page.getByTestId('link-form').waitFor({state:'detached'});
@@ -78,7 +78,22 @@ async (page, { openDocument }) => {
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');
-  await page.getByRole('button', {name:'Link', exact:true}).click();
+  const linkButton = page.getByRole('button', {name:'Link',exact:true});
+  if (await linkButton.getAttribute('title') !== 'Link (Ctrl+Alt+Shift+K)' ||
+      await linkButton.getAttribute('aria-keyshortcuts') !== 'Control+Alt+Shift+K Meta+Alt+Shift+K') throw Error('Link shortcut label mismatch');
+  await page.keyboard.press('Control+Alt+Shift+k');
+  await page.getByTestId('link-url').waitFor();
+  await page.getByTestId('link-url').press('Escape');
+  await page.getByTestId('link-form').waitFor({state:'detached'});
+  await select('OpenAI', 'Korean code shortcut');
+  await editor.locator('.ProseMirror').dispatchEvent('keydown',
+    {key:'ㅏ',code:'KeyK',ctrlKey:true,altKey:true,shiftKey:true,isComposing:true,bubbles:true,cancelable:true});
+  if (await page.getByTestId('link-form').count()) throw Error('Link shortcut interrupted composition');
+  await editor.locator('.ProseMirror').dispatchEvent('keydown',
+    {key:'ㅏ',code:'KeyK',ctrlKey:true,altKey:true,shiftKey:true,bubbles:true,cancelable:true});
+  await page.getByTestId('link-url').waitFor();
+  result.physicalKeyLinkShortcut = true;
+
   result.formPrefilled = await page.getByTestId('link-url').inputValue() === 'https://openai.com';
   // Transient inline input closes without Apply on any outside blur, including tab switches.
   const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
@@ -116,7 +131,7 @@ async (page, { openDocument }) => {
 
   // Add a link to plain text; the form rejects a URL with spaces first.
   await select('linked', 'add plain-text link');
-  await page.getByRole('button', {name:'Link', exact:true}).click();
+  await page.keyboard.press('Control+Alt+Shift+k');
   await page.getByTestId('link-url').fill('https://example.com/a b');
   await page.getByTestId('link-apply').click();
   result.spacesRejectedInForm = await page.getByText('A URL cannot contain spaces.').filter({visible:true}).count() === 1;

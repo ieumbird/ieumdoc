@@ -23,6 +23,24 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
+import { COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT } from "../src/shortcuts.ts";
+
+test("shell shortcuts use physical keys with exact modifiers on Control and Command keyboards", () => {
+  const key = (overrides: Partial<KeyboardEvent>) => ({ code: "KeyP", key: "ㅖ", ctrlKey: true,
+    metaKey: false, altKey: true, shiftKey: true, isComposing: false, ...overrides }) as KeyboardEvent;
+  assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({})), true);
+  assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ ctrlKey: false, metaKey: true })), true);
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "KeyK", key: "ㅏ" })), true);
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "KeyK", ctrlKey: false, metaKey: true })), true);
+  for (const shortcut of [COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT]) {
+    const code = shortcut === COMMAND_CENTER_SHORTCUT ? "KeyP" : "KeyK";
+    assert.equal(shortcut.matches(key({ code, isComposing: true })), false);
+    assert.equal(shortcut.matches(key({ code, altKey: false })), false);
+    assert.equal(shortcut.matches(key({ code, shiftKey: false })), false);
+    assert.equal(shortcut.matches(key({ code, ctrlKey: false })), false);
+    assert.equal(shortcut.matches(key({ code: "KeyL" })), false);
+  }
+});
 
 test("command center searches document paths and translated commands, with an explicit command-only prefix", () => {
   const items: CommandCenterItem[] = [
