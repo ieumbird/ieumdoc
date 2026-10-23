@@ -46,14 +46,18 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     n.editor.view.focus();
   });
   const before = await editor().evaluate(n => ({json:n.editor.getJSON(),selection:n.editor.state.selection.toJSON()}));
-  await open();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Escape');
-  await center().waitFor({state:'detached'});
-  await page.waitForFunction(() => document.activeElement?.classList.contains('document-editor'), null, {timeout:5000});
-  const after = await editor().evaluate(n => ({json:n.editor.getJSON(),selection:n.editor.state.selection.toJSON(),same:n.editor===window.commandCenterEditor}));
-  check(after.same && JSON.stringify(after.json)===JSON.stringify(before.json) && JSON.stringify(after.selection)===JSON.stringify(before.selection), 'Cancel changed editor or selection');
+  for (const dismissal of ['Escape', 'outside click']) {
+    await open();
+    await page.keyboard.press('ArrowDown');
+    if (dismissal === 'Escape') await page.keyboard.press('Escape');
+    else await page.locator('[data-slot="dialog-overlay"]').click({position:{x:8,y:8}});
+    await center().waitFor({state:'detached'});
+    await page.waitForFunction(() => document.activeElement?.classList.contains('document-editor'), null, {timeout:5000});
+    const after = await editor().evaluate(n => ({json:n.editor.getJSON(),selection:n.editor.state.selection.toJSON(),same:n.editor===window.commandCenterEditor}));
+    check(after.same && JSON.stringify(after.json)===JSON.stringify(before.json) && JSON.stringify(after.selection)===JSON.stringify(before.selection), `${dismissal} changed editor or selection`);
+  }
   result.cancelPreservesEditorAndSelection = true;
+  result.outsideClickRestoresEditorFocus = true;
 
   // Delay the next animation frame while sending real keys: opening must accept typing
   // before the Dialog's deferred initial-focus pass, without changing the old document.
