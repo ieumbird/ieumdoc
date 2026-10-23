@@ -15,7 +15,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     }
     throw new Error(`Expected ${expected} recovery records, found ${JSON.stringify(await records())}`);
   };
-  const confirmPendingDeletion = async (dialog, actionName) => {
+  const confirmPendingDeletion = async (dialog, actionName, whilePending = async () => {}) => {
     const before = await records();
     await page.evaluate(async () => {
       const {recoveryStorage:store} = await import('/src/recovery-storage.ts');
@@ -28,10 +28,12 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     });
     await dialog.getByRole('button',{name:actionName,exact:true}).click();
     await page.waitForFunction(() => document.querySelector('[role="dialog"][aria-busy="true"]'));
+    await whilePending(before);
     await page.mouse.click(2,2);
     check(await dialog.isVisible(), 'Outside click dismissed a pending deletion');
     check(await dialog.getByRole('button',{name:'Cancel',exact:true}).isDisabled(), 'Pending cancellation remained enabled');
-    check(JSON.stringify(await records()) === JSON.stringify(before), 'Pending deletion changed records before storage completed');
+    const pendingIds = new Set((await records()).map(record => record.id));
+    check(before.every(record => pendingIds.has(record.id)), 'Pending deletion removed a record before storage completed');
     await page.evaluate(() => window.releaseRecoveryDelete());
     await dialog.waitFor({state:'hidden',timeout:5000});
   };
@@ -232,9 +234,23 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     await laterWindow.goto(origin); await ready(laterWindow);
     await openDocument(laterWindow,file); await ready(laterWindow);
     await laterWindow.getByRole('button',{name:'Not now',exact:true}).click();
-    await edit(laterWindow,'Other window scheduled before clear. ');
-    await edit(page,'Scheduled before clear. ');
-    await confirmPendingDeletion(clearConfirm, 'Delete all records'); await count(0);
+    await confirmPendingDeletion(clearConfirm, 'Delete all records', async before => {
+      // Commit an existing record update and a new other-window record while deletion is gated.
+      await edit(laterWindow,'Other window recorded during pending clear. ');
+      await edit(page,'Recorded during pending clear. ');
+      let committed = [];
+      for (let attempt = 0; attempt < 100; attempt++) {
+        committed = await records();
+        if (committed.some(record => record.recoveryText.includes('Other window recorded during pending clear.')) &&
+            committed.some(record => record.recoveryText.includes('Recorded during pending clear.'))) break;
+        await page.waitForTimeout(50);
+      }
+      check(committed.some(record => !before.some(previous => previous.id === record.id) && record.recoveryText.includes('Other window recorded during pending clear.')), 'Concurrent write did not add another window record');
+      check(before.some(previous => committed.some(record => record.id === previous.id && record.recoveryText.includes('Recorded during pending clear.') && record.recoveryText !== previous.recoveryText)), 'Concurrent write did not update an existing record');
+      // Also leave writes scheduled at the actual Clear-all boundary to test invalidation below.
+      await edit(laterWindow,'Other window scheduled before clear. ');
+      await edit(page,'Scheduled before clear. ');
+    }); await count(0);
     await page.waitForTimeout(650); await count(0);
     await edit(laterWindow,'Other window after clear. '); await count(1);
     check((await records())[0].recoveryText.includes('Other window after clear.'), 'Other window could not resume after clear');
@@ -314,6 +330,6 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('Storage unavailable but Save works.'), 'Unavailable recovery blocked original Save');
   return { malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
-    failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true,
+    failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true, pendingConcurrentWrites:true,
     quotaFailureVisible:true, incompatiblePlaintext:true, screenshots };
 }
