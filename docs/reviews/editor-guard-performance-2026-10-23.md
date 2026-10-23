@@ -1,11 +1,57 @@
-# Editor guard performance
+# Editor input and guard performance
 
 - Status: Historical
-- Last verified: 2026-10-23 (CPU comparison, four browser regressions, actual UI timing and four large-document Save/Reload checks).
-- Scope: Editor adapter CPU lookup cost; [Continuous editing](../design/document-editing-v1.md) and [ADR-0003](../adr/0003-document-addressing-identity-boundary.md) remain authoritative.
+- Last verified: 2026-10-23 (final source 7a214dcb: Editor 271/271, typecheck/build, eight browser regressions, actual four-condition input and complete canonical Save/Reload verification; mixed 2000 input target unmet).
+- Scope: Editor adapter lookups, handle rendering and display numbering; [Continuous editing](../design/document-editing-v1.md) and [ADR-0003](../adr/0003-document-addressing-identity-boundary.md) remain authoritative.
 - Issue: [#349](https://github.com/ieumbird/ieumdoc/issues/349).
 
-## Plan
+## Final actual UI acceptance
+
+Measured source head: `7a214dcb2480505a189d1fa09dba51dac80e3146`, including master
+`2a03c35abf57e9cad8133409989b17086deec9f5` and the frozen-lockfile-installed parser patches.
+This is the measurement of the final handle/numbering changes; earlier UI and profile sections
+below describe intermediate implementations, and the guard-only CPU comparison retains its
+original revision scope.
+
+| Document | Blocks | Input p50 ms | Input p95 ms | Single Save ms | Full canonical target / Reload |
+| --- | ---: | ---: | ---: | ---: | --- |
+| plain | 2000 | 19.7 | 27.5 | 465 | pass |
+| mixed | 2000 | 100.6 | 111.7 | 1608 | pass |
+| plain | 5000 | 83.1 | 109.7 | 1250 | pass |
+| mixed | 5000 | 374.7 | 392.6 | 4687 | pass |
+
+The provisional **2000-block input p95 100ms target passes for plain and remains unmet for
+mixed**. The 5000-block cases are stress evidence, not the routine acceptance gate. Overall
+long-document responsiveness is not complete; #349 remains open and the PR remains Draft.
+Preservation success does not convert the mixed result into a performance pass. No threshold
+was increased and no outlier was removed.
+
+The fixed original bodies were restored before this run. Each condition typed 25 native `x`
+keys at the first paragraph's position 2, with five warmups and 20 measured keydown-to-second-rAF
+samples. Setup/focus stayed outside timing. The named file, block count and second block type
+were checked before input; every key increased engine text length by one. Same Windows machine,
+1280×720 viewport, Vite development server and installed headless Chrome persistent runner;
+other workers paused heavy work. CPU/timeline instrumentation was off. p50/p95 remain sorted
+samples 10/19 (one-based). This is a frame-opportunity proxy, not hardware-input or physical-paint
+latency. Save is a single click-to-saved observation, not a percentile. Production/Electron and
+other hardware remain outside this measurement.
+
+[Final chronological and sorted samples](assets/editor-guard-performance-2026-10-23/browser-final.json)
+and [exact whole-document canonical comparisons, identities and hashes](assets/editor-guard-performance-2026-10-23/targets-final.json)
+retain the results. Actual Reload matched engine text in every case, and an independent Core
+parse/serialize comparison confirmed the complete expected document with only 25 inserted `x`
+characters. The final measurement scenario passed in 1.3 minutes. Final regression and process
+cleanup status are recorded separately below.
+
+Final changed-area verification on that source passed Editor tests **271/271**, Editor typecheck,
+Editor production build, and eight browser scenarios: continuous-editing, save-session,
+recovery-structure, block-move, document-title, ui-language, layout-rules and cross-reference.
+The unchanged document-title scenario passed this final run; its earlier isolated failure and
+unestablished cause remain recorded below. The owned measurement/regression Vite PID 29852
+was stopped, persistent contexts closed normally, and port 5193/profile-owned processes were
+checked clear. The build retains its existing large-chunk advisory.
+
+## Original lookup plan
 
 Scope: reuse opening-snapshot path lookup and per-document path groups in normalization,
 validation and Save collection. Remove the unused baseline callback union and source-editing
@@ -136,7 +182,7 @@ Windows routine measurement size and 5000 as stress coverage, not document admis
 or a product responsiveness guarantee. Browser input is assessed separately below against the
 provisional 100ms target. No further optimization is justified by lookup results alone.
 
-## Actual browser input and Save/Reload
+## Intermediate lookup-only browser input and Save/Reload
 
 Measured implementation head: `0836a3d937c3d2d66f43e6bfe08dbba875b33bde`, containing master
 `8b3ea92354f86ef282bfd2a0f73c55ac29c1d29c`. CPU results above retain their original before/after
@@ -319,3 +365,35 @@ shows no title, visible Add a title, original paragraph and clean status. The or
 did not capture those individual predicates, so its cause remains unestablished. No timeout,
 assertion, recovery or title implementation was changed to make it pass. Retain this limitation
 and rerun the unchanged scenario with the final affected-area set.
+
+## Residual profile of the final source
+
+After acceptance, a single bounded diagnostic on the same source used only mixed 2000: five
+warmup `y` keys, then six profiled keys. The saved fixture already contained the acceptance
+run's 25 `x` characters; the sixth profiled key therefore included the separately verified
+paragraph wrap. No code changed and the acceptance run was not repeated. The six instrumented
+durations were 119.4, 109.3, 110.7, 110.1, 108.6 and 250.3ms, totaling 808.345ms by trace marks.
+These are diagnostic durations, not a p95 estimate. [Raw profile](assets/editor-guard-performance-2026-10-23/current-profile.json.gz)
+and [summary](assets/editor-guard-performance-2026-10-23/current-profile-summary.json) retain the capture.
+
+| Sampled path in six key windows | Inclusive ms | Share |
+| --- | ---: | ---: |
+| `blockNumberAt` | 9.512 | 1.18% |
+| `resolve`/`findIndex` specifically beneath `blockNumberAt` | 7.951 | 0.98% |
+| Number selector's `getPos` → `posBeforeChild` | 10.998 | 1.36% |
+| Handle `rectangles` | 152.915 | 18.92% |
+| `nodeDOM` → `descAt` specifically beneath `rectangles` | 54.540 | 6.75% |
+| `BlockHandles` render | 58.779 | 7.27% |
+| React `performWorkOnRoot` | 249.444 | 30.86% |
+
+Paths overlap; percentages must not be summed. `getBoundingClientRect` self time was
+105.965ms across callers. Main-thread trace events included Layout 53.424ms, PrePaint 56.784ms,
+HitTest 40.763ms and Paint 28.940ms; these cannot be added to sampled CPU costs as independent
+time. The measured approximately 1% resolve cost does not justify another position cache.
+Remaining DOM lookup/geometry and rendering work has not been proven removable while preserving
+the engine's DOM mapping and controls. No further implementation, geometry-read suppression,
+virtualization or recovery/validation change follows from this diagnostic alone.
+
+The diagnostic's own Vite PID 51820 was stopped, its persistent context closed normally, and
+port 5193 and owned browser/server processes were checked clear. No task-owned background process
+or temporary measurement source module remains.

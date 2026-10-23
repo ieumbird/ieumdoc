@@ -1,0 +1,60 @@
+[
+  {
+    "file": "tmp/guard-performance/plain-2000.md",
+    "kind": "plain",
+    "n": 2000,
+    "blockTypes": {
+      "paragraph": 2000
+    },
+    "exactCanonicalMatch": true,
+    "insertedCharacters": 25,
+    "sha256": "29d6ccfa004dc5dee983011cbdc9df4123acfa17ad3347d8d199e6ee23d1eaa6"
+  },
+  {
+    "file": "tmp/guard-performance/plain-5000.md",
+    "kind": "plain",
+    "n": 5000,
+    "blockTypes": {
+      "paragraph": 5000
+    },
+    "exactCanonicalMatch": true,
+    "insertedCharacters": 25,
+    "sha256": "b56784bf61dd2628a78436670d041d5f22ac65abdc5c4f4c4c95857ed4ca48a1"
+  },
+  {
+    "file": "tmp/guard-performance/mixed-2000.md",
+    "kind": "mixed",
+    "n": 2000,
+    "blockTypes": {
+      "paragraph": 250,
+      "heading": 250,
+      "quote": 250,
+      "code": 250,
+      "equation": 250,
+      "table": 250,
+      "list": 250,
+      "divider": 250
+    },
+    "exactCanonicalMatch": true,
+    "insertedCharacters": 25,
+    "sha256": "4188b20783d8ca5dbe19542a8162da080a647f294284e35dd191708cb91ad062"
+  },
+  {
+    "file": "tmp/guard-performance/mixed-5000.md",
+    "kind": "mixed",
+    "n": 5000,
+    "blockTypes": {
+      "paragraph": 625,
+      "heading": 625,
+      "quote": 625,
+      "code": 625,
+      "equation": 625,
+      "table": 625,
+      "list": 625,
+      "divider": 625
+    },
+    "exactCanonicalMatch": true,
+    "insertedCharacters": 25,
+    "sha256": "9210b144fd4dc82a7d5fb07c9257d034be4ad7e0d9c452585782c83178912fdb"
+  }
+]
