@@ -26,8 +26,14 @@ than forcing a new major into the parser/plugins. The following local patches ar
 `pnpm-workspace.yaml` and hashed in the lockfile:
 
 - `patches/linkify-it@4.0.1.patch`: backports upstream
-  [105e5d7](https://github.com/markdown-it/linkify-it/commit/105e5d7), the fix released in 5.0.2 for
+  [6be6d15](https://github.com/markdown-it/linkify-it/commit/6be6d15), released in 5.0.1 for
+  [GHSA-22p9-wv53-3rq4](https://github.com/advisories/GHSA-22p9-wv53-3rq4), and
+  [105e5d7](https://github.com/markdown-it/linkify-it/commit/105e5d7), released in 5.0.2 for
   [GHSA-v245-v573-v5vm](https://github.com/advisories/GHSA-v245-v573-v5vm).
+  The first fix scans schemed links, fuzzy emails and fuzzy links independently with global
+  regex cursors, then merges their ordered matches. It removes repeated tail slicing/searches
+  and the old internal scan cache. The upstream functions are retained in the 4.x CommonJS
+  entry point; no new Core URL parser or registry is introduced.
   Email local-parts are bounded at 64 characters and URL credential recognition at 50, matching
   upstream. These are recognizer grammar limits, not a document input limit; text and explicit
   Markdown links are not truncated. Exceptionally long credentials/local-parts may no longer
@@ -61,20 +67,57 @@ exercise all four special HTML construct families through public `parse()` and
 `unresolvedReferences()`. Separate controls prove URL diagnostics still run and native HTML
 refusal/literal canonical behavior is preserved. Existing semantic/canonical fixtures are reused.
 
-Local verification: MyST regression 10/10, Core suite 244/244, workspace typecheck and Editor build
-passed. The initial cold pre-fix run also hit the existing smartquotes child-process 10-second
+The follow-up baseline `a9e4f8f` still had the separate fuzzy-email/link tail scan vulnerability.
+The new public API regression failed with 136,153 searched characters for a 1,048-character
+paragraph containing 128 emails. After the `6be6d15` backport it bounds consumed regex search
+spans on both public admission and reference diagnostics for repeated emails and fuzzy links;
+every expected URL must still be recognized. It uses small inputs, not timing thresholds.
+A local differential check of 512 mixed email/link/text combinations against the prior
+recognizer found no difference in normalized matches or offsets. This is bounded compatibility
+evidence, not an exhaustive URL grammar proof.
+
+Local verification before the latest master integration: MyST regression 11/11, Core suite
+245/245, CLI 66/66, Editor 270/270, workspace typecheck and Editor build passed.
+The initial cold pre-fix run also hit the existing smartquotes child-process 10-second
 guard; the unchanged guard passed on the subsequent targeted run and full Core suite. No
 performance claim is based on those elapsed times. Editor build retains its existing large-chunk
 warning. Packaging/platform and full integration checks remain required CI work.
 
-`pnpm browser:test writeability-preflight reference-save-reload` passed 2/2 against this
+At the earlier head `a9e4f8f`, `pnpm browser:test writeability-preflight reference-save-reload` passed 2/2 against this
 worktree's Vite on port 5197 with the persistent browser profile. This verifies Host refusal
 state retention and reference Save → Reload integration, not another timing benchmark. The
 runner closed its browser context; Vite and its execution session were stopped and the port
 and worktree-owned browser processes were checked for cleanup.
 
+## Production audit and reachability
+
 `pnpm audit --prod --json` on 2026-10-23 reports **14 advisories: 3 high, 9 moderate, 2 low**.
-The registry audit sees the original package versions and does not certify local backports;
-the count is unchanged. This work fixes the two demonstrated paths above and retains the prior
-smartquotes patch. It does not claim every remaining advisory is fixed or unreachable, nor prove
-linear complexity for every possible Markdown input.
+The registry audit sees the original package versions and does not certify local backports.
+The count is unchanged; a patched reachable path and a configuration-disabled path are different
+claims. The table covers all 14 reported advisories, rather than treating automatic linkify being
+off as evidence about the manually called recognizer.
+
+| Advisory | Installed dependency | Current Core/Editor path and treatment |
+| --- | --- | --- |
+| [GHSA-22p9-wv53-3rq4](https://github.com/advisories/GHSA-22p9-wv53-3rq4) | linkify-it 4.0.1 | Public parse/diagnostics reach `match`; fuzzy-link/email scan loop fixed by the `6be6d15` backport. |
+| [GHSA-v245-v573-v5vm](https://github.com/advisories/GHSA-v245-v573-v5vm) | linkify-it 4.0.1 | Same reachable recognizer; mailto/credential scans bounded by the `105e5d7` backport. |
+| [GHSA-vfgh-jcmw-g37q](https://github.com/advisories/GHSA-vfgh-jcmw-g37q) | markdown-it 13.0.2 | HTML inline rule is reachable; terminator search backport preserves 13.x grammar and native refusal. |
+| [GHSA-38c4-r59v-3vqw](https://github.com/advisories/GHSA-38c4-r59v-3vqw) | markdown-it 13.0.2 | Automatic linkify rule is disabled. Manual URL diagnostics do not run markdown-it's linkify rule. No advisory-specific backport. |
+| [GHSA-253c-mchw-3w2r](https://github.com/advisories/GHSA-253c-mchw-3w2r) | markdown-it 13.0.2 | Automatic linkify rule is disabled; its token rewrite/asterisk scans are not the direct recognizer call. No advisory-specific backport. |
+| [GHSA-6v5v-wf23-fmfq](https://github.com/advisories/GHSA-6v5v-wf23-fmfq) | markdown-it 13.0.2 | Smartquotes is disabled at the shared Core options boundary; the existing replacement-batching backport is also retained. |
+| [GHSA-r7fv-28h4-cvq7](https://github.com/advisories/GHSA-r7fv-28h4-cvq7) | markdown-it 13.0.2 | Smartquotes rule is disabled in Core parsing and diagnostic tokenizers. The retained patch is not a claim that every default-tokenizer smartquotes case is fixed. |
+| [GHSA-8cw4-87c7-c6xx](https://github.com/advisories/GHSA-8cw4-87c7-c6xx) | csv-parse 5.6.0 via myst-directives | CSV-table parsing is reachable, but its options do not enable `columns` or `group_columns_by_name`; vulnerable object-column construction is not used. No patch. |
+| [GHSA-3wc5-fcw2-2329](https://github.com/advisories/GHSA-3wc5-fcw2-2329) | KaTeX 0.15.6 via myst-transforms | Legacy renderer is not called by Core. Editor uses its separate 0.18.7 dependency. No legacy patch. |
+| [GHSA-f98w-7cxr-ff2h](https://github.com/advisories/GHSA-f98w-7cxr-ff2h) | KaTeX 0.15.6 via myst-transforms | Same unused legacy renderer; Editor uses 0.18.7 with `trust:false`. No legacy patch. |
+| [GHSA-cvr6-37gx-v8wc](https://github.com/advisories/GHSA-cvr6-37gx-v8wc) | KaTeX 0.15.6 via myst-transforms | Same unused legacy renderer; Editor uses 0.18.7. No legacy patch. |
+| [GHSA-cg87-wmx4-v546](https://github.com/advisories/GHSA-cg87-wmx4-v546) | KaTeX 0.15.6 via myst-transforms | Same unused legacy renderer; Editor uses 0.18.7 with `trust:false`. No legacy patch. |
+| [GHSA-64fm-8hw2-v72w](https://github.com/advisories/GHSA-64fm-8hw2-v72w) | KaTeX 0.15.6 via myst-transforms | Same unused legacy renderer; Editor uses 0.18.7. No legacy patch. |
+| [GHSA-238p-pmpm-9mq7](https://github.com/advisories/GHSA-238p-pmpm-9mq7) | KaTeX 0.15.6 via myst-transforms | Same unused legacy renderer; Editor uses 0.18.7. No legacy patch. |
+
+Evidence boundaries: the MyST regression instruments public URL/HTML calls, asserts raw parsing
+does not call linkify, rejects legacy KaTeX renderer calls, and checks prototype-like CSV headers
+as ordinary cells. Installed `myst-directives/dist/table.js` supplies only CSV text-format options;
+Core imports only selected transforms. [Editor equation rendering](../../apps/editor/src/equation-render.ts)
+uses the separately pinned renderer. Reassess this table if parser options, transforms or CSV
+options change. These are current execution-path conclusions, not universal safety guarantees
+for the installed packages or a proof of linear complexity for every Markdown input.

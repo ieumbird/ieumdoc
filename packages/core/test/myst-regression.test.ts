@@ -98,6 +98,45 @@ test("public admission and reference diagnostics reach the patched URL recognize
   assert.equal(recognizer.matchAtStart("mailto:" + "a".repeat(65) + "@example.org"), null);
 });
 
+test("public URL scans do not rescan tails for repeated fuzzy emails and links", (t) => {
+  const LinkifyIt = markdownRequire("linkify-it");
+  const match = LinkifyIt.prototype.match;
+  const exec = RegExp.prototype.exec;
+  const observed = new WeakSet<RegExp>();
+  const scans: { input: number; work: number; matches: number }[] = [];
+  let work = 0;
+  t.mock.method(RegExp.prototype, "exec", function (this: RegExp, input: string) {
+    const start = this.global ? this.lastIndex : 0;
+    const result = exec.call(this, input);
+    if (observed.has(this)) work += result ? result.index + result[0].length - start : input.length - start;
+    return result;
+  });
+  t.mock.method(LinkifyIt.prototype, "match", function (this: { re: Record<string, unknown> }, input: string) {
+    for (const re of Object.values(this.re)) if (re instanceof RegExp) observed.add(re);
+    const before = work;
+    const result = match.call(this, input);
+    scans.push({ input: input.length, work: work - before, matches: result?.length ?? 0 });
+    return result;
+  });
+  // Small inputs and consumed search spans, not wall-clock timing or huge payloads.
+  for (const repeated of ["a@b.com\n", "a.com "]) {
+    const input = native("[missing][target] " + repeated.repeat(128) + " @name");
+    scans.length = 0;
+    const document = publicCore.parse(input);
+    assert.ok(scans.length > 0);
+    const admissionScans = scans.length;
+    assert.deepEqual(publicCore.unresolvedReferences(document).map(item => item.label), ["target"]);
+    assert.ok(scans.length > admissionScans);
+    for (const scan of scans) {
+      assert.equal(scan.matches, 128, "every fuzzy URL must still be recognized");
+      assert.ok(scan.work <= scan.input * 8,
+        `${repeated.trim()}: ${scan.work} searched characters for ${scan.input} input characters`);
+    }
+    const canonical = publicCore.serialize(document);
+    assert.equal(publicCore.serialize(publicCore.parse(canonical)), canonical);
+  }
+});
+
 test("public parsing bounds repeated unterminated inline HTML scans", (t) => {
   const { HTML_TAG_RE } = markdownRequire("./lib/common/html_re");
   const exec = RegExp.prototype.exec;
