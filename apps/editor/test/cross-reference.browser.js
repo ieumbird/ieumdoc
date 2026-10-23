@@ -141,20 +141,26 @@ async (page, { openDocument, screenshots }) => {
   await page.keyboard.press('Home');
   await page.keyboard.type('Now ');
 
-  // G. Renaming a label leaves references as written and shows them unresolved at once.
+  // G. Renaming a label keeps the references resolved in the same transaction.
   const equationB = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').nth(1);
   await equationB.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equationB.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-label').fill('eq-c');
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
-  result.renamedTargetShowsUnresolved = await chip(paragraph(1), 'Eq. eq-b').getAttribute('data-resolved') === 'false';
+  result.renamedTargetStaysResolved = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true';
+  await page.keyboard.press('ControlOrMeta+z');
+  await equationB.locator('.block-kind').filter({hasText:'eq-b'}).waitFor({state:'attached', timeout:5000});
+  result.renameUndoTogether = await chip(paragraph(1), 'Eq. eq-b').getAttribute('data-resolved') === 'true' &&
+    (await equationB.locator('.block-kind').textContent()).includes('eq-b');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  result.renameRedoTogether = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true';
 
   // H. Source shows the unsaved result; Save writes exactly that; Reload keeps kinds and targets.
   const preview = await sourceText();
   const expectedLines = [
-    'The current is set by the {eq}`eq-b` and shown in the diagram. {numref}`fig-a`',
-    'Now See {eq}`eq-b` and [details](#eq-a) with **bold** and $x$.',
+    'The current is set by the {eq}`eq-c` and shown in the diagram. {numref}`fig-a`',
+    'Now See {eq}`eq-c` and [details](#eq-a) with **bold** and $x$.',
     'See {numref}`missing-fig` for later and eq-a.',
     '```{math}\n:label: eq-a\n\na = b\n```',
     '```{math}\n:label: eq-c\n\nc = d\n```',
@@ -166,8 +172,8 @@ async (page, { openDocument, screenshots }) => {
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.saveMatchesSource = await markdown() === preview;
   await open();
-  result.reloadedReferences = await chip(paragraph(0), 'Eq. eq-b').count() === 1 && await chip(paragraph(0), 'Fig. fig-a').count() === 1 &&
-    await chip(paragraph(1), 'Eq. eq-b').getAttribute('data-resolved') === 'false' &&
+  result.reloadedReferences = await chip(paragraph(0), 'Eq. eq-c').count() === 1 && await chip(paragraph(0), 'Fig. fig-a').count() === 1 &&
+    await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true' &&
     await chip(paragraph(2), 'Fig. missing-fig').getAttribute('data-resolved') === 'false' &&
     await chip(paragraph(0), 'Fig. fig-a').getAttribute('data-resolved') === 'true';
   result.reloadedSourceMatchesFile = await sourceText() === await markdown();
@@ -200,8 +206,8 @@ async (page, { openDocument, screenshots }) => {
   await page.getByTestId('figure-label').fill('fig-b');
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
-  result.captionFollowsRelabeledTarget = await captionChip('Unresolved reference: fig-a') === 'false';
   result.relabelDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
+  result.captionFollowsRelabeledTarget = await captionChip('Fig. 1') === 'true';
   await page.keyboard.press('ControlOrMeta+z');
   result.captionUndoResolvesAgain = await captionChip('Fig. 1') === 'true';
   result.captionSourceUnchanged = await sourceText() === captionFresh;

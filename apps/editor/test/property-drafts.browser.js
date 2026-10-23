@@ -78,7 +78,7 @@ async (page, { openDocument }) => {
     const cases = [
       {kind:'figure', type:'figure', field:'figure-caption', first:'figure-image-url', value:'Applied caption.', label:'fig-a'},
       {kind:'table', type:'table', field:'table-caption-input', first:'table-caption-input', value:'Applied values', label:'tbl-a'},
-      {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'section-a'},
+      {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'SECTION-A'},
     ];
     for (const item of cases) for (const mode of ['click', 'enter']) {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.

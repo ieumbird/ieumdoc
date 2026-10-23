@@ -137,6 +137,10 @@ async (page, { openDocument }) => {
       await page.getByTestId('equation-label').fill(label);
       const applied = clone(initial);
       Object.assign(applied.content.find(node => node.type === 'equation').attrs, {latex:'x + 1', label});
+      // This fixture's equation reference follows the Apply label, including a case-only rename.
+      for (const block of applied.content) for (const inline of block.content ?? []) {
+        if (inline.type === 'crossReference') inline.attrs.label = label;
+      }
       if (mode === 'click') await page.getByTestId('equation-apply').click();
       else await page.getByTestId(mode === 'label-enter' ? 'equation-label' : 'equation-apply').press('Enter');
       await assertContent(applied);
@@ -171,7 +175,7 @@ async (page, { openDocument }) => {
       await assertContent(typed);
       const preview = await source();
       if (!preview.includes(':label: ' + label) || !preview.includes('x + 1') || !preview.includes('Typed275') ||
-          (file !== 'only.md' && !preview.includes('{eq}`eq-a`'))) throw new Error(`${file}: Source lost applied content`);
+          (file !== 'only.md' && !preview.includes('{eq}`' + label + '`'))) throw new Error(`${file}: Source lost applied content`);
       const response = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
       await page.getByTestId('save').click();
       if ((await response).status() !== 200) throw new Error(`${file}: real Save failed`);

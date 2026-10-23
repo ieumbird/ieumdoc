@@ -76,7 +76,7 @@ async (page, { openDocument }) => {
     await page.getByRole('button', {name:'Insert block after paragraph block 9'}).click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name, exact:true}).click();
   };
-  const reference = 'See [Figure](#fig-control) and {eq}`eq-current`.';
+  const reference = 'See [Figure](#fig-diagram) and {eq}`eq-reference`.';
   const latex = 'i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}}';
 
   const fresh = await markdown();
@@ -102,7 +102,9 @@ async (page, { openDocument }) => {
   const preview = await sourceText();
   result.sourceShowsUnsavedLabels = preview.includes(`\`\`\`{math}\n:label: eq-reference\n\n${latex}\n\`\`\``) &&
     preview.includes(':::{figure} ./diagram.svg\n:name: fig-diagram\n:alt: Control block diagram\n\nControl block diagram of the grid-connected converter.\n:::');
-  result.referencesNotRenamed = preview.includes(reference);
+  result.referencesRenamed = preview.includes(reference);
+  result.screenReferencesRenamed = await page.locator('[data-document-tab][data-active=true] [data-testid="cross-reference"][data-label="eq-reference"]').getAttribute('data-resolved') === 'true' &&
+    await page.locator('[data-document-tab][data-active=true] .document-editor a[href="#fig-diagram"]').count() === 1;
   result.fileUntouchedBeforeSave = await markdown() === fresh;
 
   // B. Save writes exactly what Source showed; Reload keeps labels and content.
@@ -113,18 +115,16 @@ async (page, { openDocument }) => {
     await figure.locator('.block-kind').textContent() === 'Figure 1 · fig-diagram';
   result.reloadedSourceMatchesFile = await sourceText() === await markdown();
 
-  // C. A duplicate (compared like MyST identifiers) fails Save and Source without writing.
+  // C. Core refuses a conflicting rename at Apply, retaining the form and applied state.
   const beforeDuplicate = await markdown();
-  const errorsBefore = problems.length;
-  await setEquationLabel(equation, 'FIG-Diagram');
-  await page.getByRole('button', {name:'Save', exact:true}).click();
-  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
-  result.duplicateSaveRejected = /already names another target/.test(await page.getByTestId('error').innerText());
-  await page.getByTestId('view-source').click();
-  await page.getByText(/Source view unavailable: .*already names another target/).filter({visible:true}).waitFor();
-  result.duplicateSourceRejected = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').count() === 0;
+  await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-label').fill('FIG-Diagram');
+  await page.getByTestId('equation-apply').click();
+  await page.getByTestId('equation-editor').getByText(/already names another target/).waitFor();
+  result.duplicateApplyRejected = (await equation.locator('.block-kind').textContent()).includes('eq-reference');
   result.duplicateNotWritten = await markdown() === beforeDuplicate;
-  result.duplicateRequestsLogged = problems.splice(errorsBefore).every(text => text.includes('400 (Bad Request)'));
+  await page.getByTestId('equation-cancel').click();
 
   // D. A label with surrounding spaces is refused at Apply and keeps the form open.
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});

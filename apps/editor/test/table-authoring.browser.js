@@ -241,6 +241,21 @@ async (page, { openDocument, reloadDocument }) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.tableReferenceReloaded = await page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
 
+  await tables.last().hover({position:{x:4,y:4}});
+  await tables.last().getByRole('button', {name:'Edit table', exact:true}).click();
+  await page.getByTestId('table-label').fill('tbl-renamed');
+  await page.getByTestId('table-apply').click();
+  await page.getByTestId('table-editor').waitFor({state:'detached'});
+  result.tableRenameKeepsReference = await ref.getAttribute('data-label') === 'tbl-renamed' && await ref.getAttribute('data-resolved') === 'true';
+  await page.keyboard.press('ControlOrMeta+z');
+  await tables.last().locator('.block-kind').filter({hasText:'tbl-ports'}).waitFor({state:'attached', timeout:5000});
+  result.tableRenameUndo = await ref.getAttribute('data-label') === 'tbl-ports' && (await tables.last().locator('.block-kind').textContent()).includes('tbl-ports');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  result.tableRenameSaved = await save() && (await read()).includes('{numref}`tbl-renamed`');
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  result.tableRenameReloaded = await ref.getAttribute('data-label') === 'tbl-renamed' && await ref.getAttribute('data-resolved') === 'true';
+
   // Last-column protection and explicit table deletion remain undoable.
   const finalTable = tables.last();
   await finalTable.locator('td').first().click();
