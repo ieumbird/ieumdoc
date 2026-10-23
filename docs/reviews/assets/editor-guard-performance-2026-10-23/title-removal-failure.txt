@@ -1,0 +1,32 @@
+$ tsx apps/editor/test/browser/run.ts "document-title" "block-move" "ui-language" "layout-rules"
+
+Running 4 tests using 1 worker
+
+(node:6460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 apps\editor\test\browser\scenarios.spec.ts:142:3 › document-title (6.5s)
+(node:29968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 2 apps\editor\test\browser\scenarios.spec.ts:142:3 › block-move (4.5s)
+  ok 3 apps\editor\test\browser\scenarios.spec.ts:142:3 › ui-language (5.8s)
+  ok 4 apps\editor\test\browser\scenarios.spec.ts:142:3 › layout-rules (11.3s)
+
+
+  1) apps\editor\test\browser\scenarios.spec.ts:142:3 › document-title ─────────────────────────────
+
+    Error: Document title checks failed: emptyTitleRemoved {"titleMarked":true,"handleFixed":true,"guardRefuses":true,"enterAtStart":true,"enterSplitsBelow":true,"emptyTitlePlaceholder":true,"titleSaved":true,"addHidden":true,"emptyTitleRemoved":false}
+        at evalmachine.<anonymous>:104:28
+        at file:///C:/Users/swBaek/.paseo/worktrees/3icu9gjp/stabilize-performance/apps/editor/test/browser/scenarios.spec.ts:154:20
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1654:9
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1134:11
+        at TimeoutManager.withRunnable (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:403:14)
+        at TestInfoImpl._runWithTimeout (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1132:7)
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1652:7
+        at WorkerMain._runTest (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1625:5)
+        at WorkerMain.runTestGroup (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1520:9)
+        at process.<anonymous> (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\stabilize-performance\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\common\index.js:1944:25)
+
+  1 failed
+    apps\editor\test\browser\scenarios.spec.ts:142:3 › document-title ──────────────────────────────
+  3 passed (35.8s)
+[ELIFECYCLE] Command failed with exit code 1.

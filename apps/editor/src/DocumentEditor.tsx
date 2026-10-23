@@ -18,7 +18,7 @@ import {
   type SlashRange,
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
-import { addTitle, editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
+import { addTitle, editorTitleIndex } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
@@ -124,6 +124,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const scheduleOutline = useRef(() => {});
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
+  const insertBlockMenu = useCallback((index: number, top: number) => setBlockMenu({ kind: "insert", index, top }), []);
+  const openBlockMenu = useCallback((index: number, top: number) => setBlockMenu({ kind: "block", index, top }), []);
   const [slashActive, setSlashActive] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
@@ -136,7 +138,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const citationEntries = useBibliographyEntries(bibliography);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
-  const [, draftsChanged] = useReducer((count: number) => count + 1, 0);
+  const [draftRevision, draftsChanged] = useReducer((count: number) => count + 1, 0);
   const reportDraft = useCallback((kind: DraftKind, path: string, active: boolean) => {
     const key = `${kind}:${path}`;
     if (activeDrafts.current.has(key) === active) return;
@@ -149,12 +151,6 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       if (current && !current.isDestroyed) current.view.dispatch(current.state.tr.setMeta(ENDNOTE_DRAFT_CLOSED, true));
     });
   }, []);
-  const moveBlockedHint = (index: number) => {
-    if (index === editorTitleIndex(editor.state.doc)) return `${i18n.t(TITLE_FIXED)} ${i18n.t("Block actions")}`;
-    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
-    const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
-    return draft ? i18n.t("Apply or Cancel the {{kind}} edit before moving it.", { kind: i18n.t(draft.kind) }) : undefined;
-  };
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
   const [editorOptions] = useState<UseEditorOptions>(() => {
@@ -206,6 +202,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   });
   const editor = useEditor(editorOptions);
   draftEditor.current = editor;
+  // A draft transition invalidates the handle hints even when document geometry is unchanged.
+  const moveBlockedHint = useCallback((index: number) => {
+    const path = String(editor.state.doc.maybeChild(index)?.attrs.sourcePath ?? "");
+    const draft = [...activeDrafts.current.values()].find(draft => draft.path === path);
+    return draft ? i18n.t("Apply or Cancel the {{kind}} edit before moving it.", { kind: i18n.t(draft.kind) }) : undefined;
+  }, [editor, draftRevision]);
 
   useEffect(() => {
     // Re-evaluate decoration text (placeholders/title) without a transaction, history entry,
@@ -469,8 +471,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}
-        onInsert={(index, top) => setBlockMenu({ kind: "insert", index, top })}
-        onOpenMenu={(index, top) => setBlockMenu({ kind: "block", index, top })}
+        onInsert={insertBlockMenu}
+        onOpenMenu={openBlockMenu}
         moveBlockedHint={moveBlockedHint}
       /> : null}
       {referenceDraft && referenceStyle ? (

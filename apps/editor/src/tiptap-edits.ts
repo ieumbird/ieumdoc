@@ -65,6 +65,27 @@ const LIST_BLOCKS = new Set(["bulletList", "orderedList"]);
 /** Text blocks that convert into each other as a new block with a fresh locator. */
 const TEXT_BLOCKS = new Set(["paragraph", "heading", "codeBlock"]);
 
+/** Opening-snapshot lookup. Keep the first occurrence, as the former find did. */
+export function snapshotBlocksByPath(baseline: TiptapJSON): ReadonlyMap<string, TiptapJSON> {
+  const blocks = new Map<string, TiptapJSON>();
+  for (const node of baseline.content ?? []) {
+    const key = sourcePathOf(node);
+    if (!blocks.has(key)) blocks.set(key, node);
+  }
+  return blocks;
+}
+
+function groupBlocksByPath(nodes: TiptapJSON[]): Map<string, TiptapJSON[]> {
+  const groups = new Map<string, TiptapJSON[]>();
+  for (const node of nodes) {
+    const key = sourcePathOf(node);
+    const group = groups.get(key);
+    if (group) group.push(node);
+    else groups.set(key, [node]);
+  }
+  return groups;
+}
+
 export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJSON): SupportedEdits & Required<Pick<SupportedEdits, "headings" | "paragraphs">> {
   const document = snapshot;
   assertSupportedDocumentChange(toTiptapDocument(document), next);
@@ -92,9 +113,8 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     phase: "collect", block: { index: (next.content ?? []).indexOf(node), type: node.type ?? "unknown" },
     action,
   });
-  const keys = [...new Set(nodes.map(sourcePathOf))];
-  for (const key of keys) {
-    const group = nodes.filter(node => sourcePathOf(node) === key);
+  const blocksByPath = new Map(document.blocks.map(block => [pathKey(block.path), block]));
+  for (const [key, group] of groupBlocksByPath(nodes)) {
     const paths = snapshotPaths(key);
     paths.forEach(path => used.add(path));
     if (paths.length === 0) {
@@ -134,7 +154,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     }
     const node = group[0];
     atEditorBlock(next, node, () => {
-      const block = document.blocks.find(block => pathKey(block.path) === paths[0])!;
+      const block = blocksByPath.get(paths[0])!;
       if (paths.length > 1) {
         merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
       } else if (block.block === "heading" && block.editable) {
@@ -286,9 +306,9 @@ export function appliedDocument(document: TiptapJSON): TiptapJSON {
   return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }
 
-export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): boolean {
+export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON, blocksByPath?: ReadonlyMap<string, TiptapJSON>): boolean {
   try {
-    assertSupportedDocumentChange(baseline, next);
+    assertSupportedDocumentChange(baseline, next, blocksByPath);
     return true;
   } catch {
     return false;
@@ -299,11 +319,11 @@ export function freshBlockPath(): string { return allocateBlockPath("engine"); }
 
 /** Adapt engine-created blocks to opening-snapshot locators, without changing content.
  * Kept separate from validation: unknown semantics still fail closed. */
-export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, emptySpace = false): TiptapJSON {
+export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, emptySpace = false, blocksByPath = snapshotBlocksByPath(baseline)): TiptapJSON {
   const seen = new Set<string>();
   const content = (next.content ?? []).map(node => {
     const key = sourcePathOf(node);
-    const original = baseline.content?.find(block => sourcePathOf(block) === key);
+    const original = blocksByPath.get(key);
     const conversion = TEXT_BLOCKS.has(node.type ?? "") && TEXT_BLOCKS.has(original?.type ?? "") && node.type !== original?.type;
     const emptyParagraph = node.type === "paragraph" && !(node.content?.length);
     const duplicate = seen.has(key) && node.type !== "paragraph";
@@ -325,7 +345,7 @@ export function normalizeEngineDocument(baseline: TiptapJSON, next: TiptapJSON, 
  * representable here; a missing snapshot block must be declared as deleted.
  * The structure guard declares deletions from accepted engine transactions.
  */
-export function assertSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON): void {
+export function assertSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON, blocksByPath = snapshotBlocksByPath(baseline)): void {
   if (baseline.type !== "doc" || next.type !== "doc") {
     throw new Error('Tiptap document must have type "doc"');
   }
@@ -335,15 +355,14 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
     throw new Error("Tiptap document content must be an array");
   }
   const used = new Set<string>();
-  for (const key of new Set(after.map(sourcePathOf))) {
+  for (const [key, group] of groupBlocksByPath(after)) {
     const all = key.split(";");
     for (const path of all) {
-      if (used.has(path) || (!isNewBlockPath(path) && !before.some(node => sourcePathOf(node) === path))) {
+      if (used.has(path) || (!isNewBlockPath(path) && !blocksByPath.has(path))) {
         throw new Error("block insertion or identity changed");
       }
       used.add(path);
     }
-    const group = after.filter(node => sourcePathOf(node) === key);
     const paths = snapshotPaths(key);
     if (paths.length === 0) {
       for (const node of group) {
@@ -351,7 +370,7 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
       }
       continue;
     }
-    const originals = paths.map(path => before.find(node => sourcePathOf(node) === path));
+    const originals = paths.map(path => blocksByPath.get(path));
     if (all.length > 1 && originals.some(block => block!.type !== "paragraph")) {
       throw new Error("only editable paragraphs can merge");
     }

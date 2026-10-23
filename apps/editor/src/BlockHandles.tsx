@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
 import { endnoteLabel } from "./endnotes.ts";
-import { editorTitleIndex } from "./document-title.ts";
+import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
 
 type BlockHandlesProps = {
@@ -21,11 +21,44 @@ type BlockHandlesProps = {
 /** An endnote follows its first reference: it is not dragged, and nothing is inserted after it. */
 const ENDNOTE_HINT = "Endnotes follow the order of their first reference. Click for block actions.";
 
-export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
+type HandleControlsProps = {
+  index: number;
+  name: string;
+  endnote: boolean;
+  blocked?: string;
+  onInsert(index: number): void;
+  onOpenMenu(index: number): void;
+  onDragStart(event: ReactDragEvent, index: number): void;
+};
+
+const HandleControls = memo(function HandleControls({ index, name, endnote, blocked,
+  onInsert, onOpenMenu, onDragStart }: HandleControlsProps) {
+  useTranslation();
+  const kind = i18n.t(name, { defaultValue: name });
+  return <>
+    {endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert"
+      aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind, number: index + 1 })}
+      title={i18n.t("Insert block below")} aria-haspopup="menu"
+      onMouseDown={event => event.stopPropagation()} onClick={() => onInsert(index)}>+</Button>}
+    <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={endnote}
+      aria-label={endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind, number: index + 1 })}
+      title={blocked ?? i18n.t("Drag to move, click for block actions")} aria-haspopup="menu"
+      onMouseDown={event => event.stopPropagation()} onClick={() => onOpenMenu(index)}
+      onDragStart={event => {
+        if (blocked) { event.preventDefault(); return; }
+        onDragStart(event, index);
+      }}>⠿</Button>
+  </>;
+});
+
+export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
   useTranslation();
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
-  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean }[]>([]);
+  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean; title: boolean; sourcePath: string }[]>([]);
+  // Event handlers read the latest measured geometry, not the controls' last render.
+  const geometry = useRef(blocks);
+  geometry.current = blocks;
   const [active, setActive] = useState(-1);
   const [hovered, setHovered] = useState(-1);
   const [dropTop, setDropTop] = useState<number | null>(null);
@@ -79,12 +112,19 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
     const update = () => {
       const rects = rectangles();
       const top = host.getBoundingClientRect().top;
-      setBlocks(rects.map((rect, index) => {
+      const titleIndex = editorTitleIndex(editor.state.doc);
+      const next = rects.map((rect, index) => {
         const node = editor.state.doc.child(index);
         const endnote = endnoteLabel(node) !== undefined;
-        return {top: rect.top - top, height: rect.height, endnote,
+        return {top: rect.top - top, height: rect.height, endnote, title: index === titleIndex,
+          sourcePath: String(node.attrs.sourcePath ?? ""),
           name: endnote ? "endnote" : node.type.name.replace(/Block$/, "").toLowerCase()};
-      }));
+      });
+      setBlocks(previous => previous.length === next.length && previous.every((block, index) => {
+        const current = next[index];
+        return block.top === current.top && block.height === current.height && block.name === current.name &&
+          block.endnote === current.endnote && block.title === current.title && block.sourcePath === current.sourcePath;
+      }) ? previous : next);
       updateHovered(rects);
     };
     const transaction = () => {
@@ -153,34 +193,30 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
       host.removeEventListener("dragend", finish);
     };
   }, [editor]);
+  const insert = useCallback((index: number) => {
+    const block = geometry.current[index];
+    if (block) onInsert(index, block.top);
+  }, [onInsert]);
+  const openMenu = useCallback((index: number) => {
+    const block = geometry.current[index];
+    if (block) onOpenMenu(index, block.top);
+  }, [onOpenMenu]);
+  const startDrag = useCallback((event: ReactDragEvent, index: number) => {
+    const block = geometry.current[index];
+    if (!block) { event.preventDefault(); return; }
+    drag.current = {index, doc: editor.state.doc};
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", i18n.t("Move block"));
+    setMoving({top: block.top, height: block.height});
+  }, [editor]);
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => {
-      const kind = i18n.t(block.name, { defaultValue: block.name });
-      const blocked = block.endnote ? i18n.t(ENDNOTE_HINT) : moveBlockedHint?.(index);
-      return <div key={index}
-        className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
-        data-menu-open={menuIndex === index}
-        style={{top: block.top}}>
-        {block.endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert" aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind, number: index + 1 })}
-          title={i18n.t("Insert block below")} aria-haspopup="menu"
-          onMouseDown={event => event.stopPropagation()}
-          onClick={() => onInsert(index, block.top)}>+</Button>}
-        <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={block.endnote}
-          aria-label={block.endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind, number: index + 1 })}
-          title={blocked ?? i18n.t("Drag to move, click for block actions")}
-          aria-haspopup="menu"
-          onMouseDown={event => event.stopPropagation()}
-          onClick={() => onOpenMenu(index, block.top)}
-          onDragStart={event => {
-            if (blocked) {
-              event.preventDefault();
-              return;
-            }
-            drag.current = {index, doc: editor.state.doc};
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", i18n.t("Move block"));
-            setMoving({top: block.top, height: block.height});
-          }}>⠿</Button>
+      const blocked = block.endnote ? i18n.t(ENDNOTE_HINT)
+        : block.title ? `${i18n.t(TITLE_FIXED)} ${i18n.t("Block actions")}` : moveBlockedHint?.(index);
+      return <div key={index} className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
+        data-menu-open={menuIndex === index} style={{top: block.top}}>
+        <HandleControls index={index} name={block.name} endnote={block.endnote}
+          blocked={blocked} onInsert={insert} onOpenMenu={openMenu} onDragStart={startDrag} />
       </div>;
     })}
     {!moving && blocks[hovered] && <div className="block-hover-outline" data-testid="block-hover-outline" aria-hidden="true"
@@ -189,4 +225,4 @@ export function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBloc
     {moving && <div className="block-drag-source" data-testid="block-drag-source" style={moving} />}
     {dropTop !== null && <div className="block-drop-line" data-testid="block-drop-line" style={{top: dropTop}} />}
   </div>;
-}
+});

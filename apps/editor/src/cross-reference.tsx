@@ -25,15 +25,22 @@ const KIND: Record<ReferenceRole, string> = { get eq() { return i18n.t("Equation
 const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig.", ref: "§" };
 const HEADINGS = new Set(["heading"]);
 
+// Each immutable engine document shares the same display numbers across its NodeViews.
+const numbersOf = new WeakMap<ProseMirrorNode, readonly Readonly<NumberedTargets>[]>();
+
 /**
  * The equation, figure and table numbers of each top-level block of the current editor
  * document, by Core's numbering rule: snapshot blocks keep the targets Core counted, blocks
  * added since have their kind's default. Numbers are display only and never saved.
  */
-export function blockNumbers(doc: ProseMirrorNode): NumberedTargets[] {
+export function blockNumbers(doc: ProseMirrorNode): readonly Readonly<NumberedTargets>[] {
+  const existing = numbersOf.get(doc);
+  if (existing) return existing;
   const blocks: NumberedTargets[] = [];
   doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.attrs.caption })));
-  return targetNumbers(blocks);
+  const numbers = targetNumbers(blocks);
+  numbersOf.set(doc, numbers);
+  return numbers;
 }
 
 /** The computed number of the top-level block at `pos`, for one target kind. */

@@ -1,0 +1,1275 @@
+[
+  {
+    "kind": "plain",
+    "keyFrameMs": [
+      538.2000000476837,
+      434.89999997615814,
+      468.3000000715256,
+      368.7000000476837
+    ],
+    "windowMs": 1810.042,
+    "sampleMs": 1810.041999999986,
+    "self": [
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/document-title.ts:10",
+        "ms": 204.969,
+        "percent": 11.32
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:322",
+        "ms": 169.582,
+        "percent": 9.37
+      },
+      {
+        "name": "measure :0",
+        "ms": 151.16,
+        "percent": 8.35
+      },
+      {
+        "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:192",
+        "ms": 145.079,
+        "percent": 8.02
+      },
+      {
+        "name": "jsxDEVImpl http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:149",
+        "ms": 65.452,
+        "percent": 3.62
+      },
+      {
+        "name": "extendTranslation http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:619",
+        "ms": 58.361,
+        "percent": 3.22
+      },
+      {
+        "name": "(garbage collector) :0",
+        "ms": 55.399,
+        "percent": 3.06
+      },
+      {
+        "name": "translate http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:460",
+        "ms": 51.029,
+        "percent": 2.82
+      },
+      {
+        "name": "extractFromKey http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:438",
+        "ms": 47.137,
+        "percent": 2.6
+      },
+      {
+        "name": "(program) :0",
+        "ms": 41.845,
+        "percent": 2.31
+      },
+      {
+        "name": "run :0",
+        "ms": 37.831,
+        "percent": 2.09
+      },
+      {
+        "name": "ReactElement http://127.0.0.1:5193/node_modules/.vite/deps/react.js?v=78f44598:133",
+        "ms": 32.678,
+        "percent": 1.81
+      },
+      {
+        "name": "resolve http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:670",
+        "ms": 28.881,
+        "percent": 1.6
+      },
+      {
+        "name": "updateProperties http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:10695",
+        "ms": 27.86,
+        "percent": 1.54
+      },
+      {
+        "name": "useRenderElementProps http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:529",
+        "ms": 26.658,
+        "percent": 1.47
+      },
+      {
+        "name": "moveBlockedHint http://127.0.0.1:5193/src/DocumentEditor.tsx:104",
+        "ms": 24.509,
+        "percent": 1.35
+      },
+      {
+        "name": "useButton http://127.0.0.1:5193/node_modules/.vite/deps/useButton-x80c0MxK.js?v=78f44598:66",
+        "ms": 24.478,
+        "percent": 1.35
+      },
+      {
+        "name": "validateProperty http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:1974",
+        "ms": 22.745,
+        "percent": 1.26
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1060",
+        "ms": 22.205,
+        "percent": 1.23
+      },
+      {
+        "name": "mergePropsN http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:262",
+        "ms": 21.87,
+        "percent": 1.21
+      },
+      {
+        "name": "mergeProps http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:240",
+        "ms": 20.808,
+        "percent": 1.15
+      },
+      {
+        "name": "renderTag http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:590",
+        "ms": 19.633,
+        "percent": 1.08
+      },
+      {
+        "name": "descAt http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:701",
+        "ms": 18.534,
+        "percent": 1.02
+      },
+      {
+        "name": "getResource http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:278",
+        "ms": 17.035,
+        "percent": 0.94
+      },
+      {
+        "name": "BlockHandles http://127.0.0.1:5193/src/BlockHandles.tsx:13",
+        "ms": 16.994,
+        "percent": 0.94
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/node_modules/.vite/deps/@base-ui_react_button.js?v=78f44598:11",
+        "ms": 16.99,
+        "percent": 0.94
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:165",
+        "ms": 15.297,
+        "percent": 0.85
+      },
+      {
+        "name": "commitUpdate http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:11377",
+        "ms": 14.818,
+        "percent": 0.82
+      },
+      {
+        "name": "getBoundingClientRect :0",
+        "ms": 14.518,
+        "percent": 0.8
+      },
+      {
+        "name": "setProp http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:10284",
+        "ms": 13.548,
+        "percent": 0.75
+      },
+      {
+        "name": "updateEffectImpl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:5042",
+        "ms": 13.069,
+        "percent": 0.72
+      },
+      {
+        "name": "exports.createElement http://127.0.0.1:5193/node_modules/.vite/deps/react.js?v=78f44598:624",
+        "ms": 12.452,
+        "percent": 0.69
+      },
+      {
+        "name": "validateProperties$2 http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:1966",
+        "ms": 12.316,
+        "percent": 0.68
+      },
+      {
+        "name": "nest http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1090",
+        "ms": 12.187,
+        "percent": 0.67
+      },
+      {
+        "name": "mergeCached http://127.0.0.1:5193/node_modules/.vite/deps/cn.js?v=78f44598:789",
+        "ms": 12.133,
+        "percent": 0.67
+      },
+      {
+        "name": "get isLeaf http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1994",
+        "ms": 10.941,
+        "percent": 0.6
+      },
+      {
+        "name": "now :0",
+        "ms": 10.715,
+        "percent": 0.59
+      },
+      {
+        "name": "reconcileChildFibersImpl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:3956",
+        "ms": 10.067,
+        "percent": 0.56
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/rolldown-runtime-DC62tzP2.js?v=78f44598:22",
+        "ms": 9.719,
+        "percent": 0.54
+      },
+      {
+        "name": "createTask :0",
+        "ms": 9.217,
+        "percent": 0.51
+      },
+      {
+        "name": "useCallback http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:14513",
+        "ms": 8.966,
+        "percent": 0.5
+      },
+      {
+        "name": "regexSafe http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:986",
+        "ms": 8.802,
+        "percent": 0.49
+      },
+      {
+        "name": "commitMutationEffectsOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7841",
+        "ms": 8.465,
+        "percent": 0.47
+      },
+      {
+        "name": "useRef http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:14565",
+        "ms": 8.137,
+        "percent": 0.45
+      },
+      {
+        "name": "createWorkInProgress http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:2879",
+        "ms": 7.791,
+        "percent": 0.43
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:699",
+        "ms": 7.74,
+        "percent": 0.43
+      },
+      {
+        "name": "get nodeSize http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1105",
+        "ms": 7.501,
+        "percent": 0.41
+      },
+      {
+        "name": "toResolveHierarchy http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:867",
+        "ms": 7.37,
+        "percent": 0.41
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/src/components/ui/button.tsx:29",
+        "ms": 7.244,
+        "percent": 0.4
+      },
+      {
+        "name": "commitHookEffectListUnmount http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:6917",
+        "ms": 6.354,
+        "percent": 0.35
+      },
+      {
+        "name": "useRenderElement http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:518",
+        "ms": 6.195,
+        "percent": 0.34
+      },
+      {
+        "name": "effect http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:167",
+        "ms": 6.035,
+        "percent": 0.33
+      },
+      {
+        "name": "defineKeyPropWarningGetter http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:89",
+        "ms": 5.82,
+        "percent": 0.32
+      },
+      {
+        "name": "assertSupportedDocumentChange http://127.0.0.1:5193/src/tiptap-edits.ts:401",
+        "ms": 5.538,
+        "percent": 0.31
+      },
+      {
+        "name": "setValueForStyles http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:1908",
+        "ms": 5.107,
+        "percent": 0.28
+      }
+    ],
+    "inclusive": [
+      {
+        "name": "(root) :0",
+        "ms": 1810.042,
+        "percent": 100
+      },
+      {
+        "name": "performWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8661",
+        "ms": 1618.294,
+        "percent": 89.41
+      },
+      {
+        "name": "performSyncWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9838",
+        "ms": 1618.294,
+        "percent": 89.41
+      },
+      {
+        "name": "flushSyncWorkAcrossRoots_impl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9743",
+        "ms": 1618.294,
+        "percent": 89.41
+      },
+      {
+        "name": "processRootScheduleInMicrotask http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9770",
+        "ms": 1618.294,
+        "percent": 89.41
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9852",
+        "ms": 1618.294,
+        "percent": 89.41
+      },
+      {
+        "name": "run :0",
+        "ms": 1570.984,
+        "percent": 86.79
+      },
+      {
+        "name": "runWithFiberInDEV http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:940",
+        "ms": 1401.543,
+        "percent": 77.43
+      },
+      {
+        "name": "renderRootSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8987",
+        "ms": 1313.733,
+        "percent": 72.58
+      },
+      {
+        "name": "workLoopSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9043",
+        "ms": 1308.905,
+        "percent": 72.31
+      },
+      {
+        "name": "performUnitOfWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9146",
+        "ms": 1308.851,
+        "percent": 72.31
+      },
+      {
+        "name": "beginWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:6328",
+        "ms": 1277.997,
+        "percent": 70.61
+      },
+      {
+        "name": "renderWithHooks http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:4388",
+        "ms": 1232.545,
+        "percent": 68.09
+      },
+      {
+        "name": "updateFunctionComponent http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:5767",
+        "ms": 995.285,
+        "percent": 54.99
+      },
+      {
+        "name": "BlockHandles http://127.0.0.1:5193/src/BlockHandles.tsx:13",
+        "ms": 931.143,
+        "percent": 51.44
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:165",
+        "ms": 912.588,
+        "percent": 50.42
+      },
+      {
+        "name": "setIsStrictModeForDevtools http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:989",
+        "ms": 553.663,
+        "percent": 30.59
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:322",
+        "ms": 435.464,
+        "percent": 24.06
+      },
+      {
+        "name": "moveBlockedHint http://127.0.0.1:5193/src/DocumentEditor.tsx:104",
+        "ms": 415.748,
+        "percent": 22.97
+      },
+      {
+        "name": "completeRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9254",
+        "ms": 304.561,
+        "percent": 16.83
+      },
+      {
+        "name": "completeRootWhenReady http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8780",
+        "ms": 304.561,
+        "percent": 16.83
+      },
+      {
+        "name": "commitRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9302",
+        "ms": 302.128,
+        "percent": 16.69
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1131",
+        "ms": 294.947,
+        "percent": 16.3
+      },
+      {
+        "name": "t http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1809",
+        "ms": 277.363,
+        "percent": 15.32
+      },
+      {
+        "name": "translate http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:460",
+        "ms": 272.611,
+        "percent": 15.06
+      },
+      {
+        "name": "updateForwardRef http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:5587",
+        "ms": 255.378,
+        "percent": 14.11
+      },
+      {
+        "name": "editorTitleIndex http://127.0.0.1:5193/src/document-title.ts:14",
+        "ms": 252.408,
+        "percent": 13.94
+      },
+      {
+        "name": "titleMarkers http://127.0.0.1:5193/src/document-title.ts:8",
+        "ms": 250.79,
+        "percent": 13.86
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/node_modules/.vite/deps/@base-ui_react_button.js?v=78f44598:11",
+        "ms": 239.869,
+        "percent": 13.25
+      },
+      {
+        "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:192",
+        "ms": 225.568,
+        "percent": 12.46
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/document-title.ts:10",
+        "ms": 204.969,
+        "percent": 11.32
+      },
+      {
+        "name": "useRenderElement http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:518",
+        "ms": 151.668,
+        "percent": 8.38
+      },
+      {
+        "name": "measure :0",
+        "ms": 151.16,
+        "percent": 8.35
+      },
+      {
+        "name": "flushPassiveEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9546",
+        "ms": 149.602,
+        "percent": 8.27
+      },
+      {
+        "name": "flushPendingEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9539",
+        "ms": 149.602,
+        "percent": 8.27
+      },
+      {
+        "name": "flushSpawnedWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9456",
+        "ms": 149.602,
+        "percent": 8.27
+      },
+      {
+        "name": "commitPassiveMountOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8303",
+        "ms": 148.78,
+        "percent": 8.22
+      },
+      {
+        "name": "recursivelyTraversePassiveMountEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8298",
+        "ms": 148.78,
+        "percent": 8.22
+      },
+      {
+        "name": "logComponentRender http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:2633",
+        "ms": 148.643,
+        "percent": 8.21
+      },
+      {
+        "name": "commitMutationEffectsOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7841",
+        "ms": 143.865,
+        "percent": 7.95
+      },
+      {
+        "name": "recursivelyTraverseMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7803",
+        "ms": 143.865,
+        "percent": 7.95
+      },
+      {
+        "name": "flushMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9360",
+        "ms": 143.865,
+        "percent": 7.95
+      },
+      {
+        "name": "extendTranslation http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:619",
+        "ms": 110.958,
+        "percent": 6.13
+      },
+      {
+        "name": "commitHostUpdate http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7087",
+        "ms": 103.262,
+        "percent": 5.7
+      },
+      {
+        "name": "commitUpdate http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:11377",
+        "ms": 96.394,
+        "percent": 5.33
+      },
+      {
+        "name": "flush http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3742",
+        "ms": 91.901,
+        "percent": 5.08
+      },
+      {
+        "name": "DOMObserver.observer http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3648",
+        "ms": 91.901,
+        "percent": 5.08
+      },
+      {
+        "name": "readDOMChange http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3985",
+        "ms": 90.339,
+        "percent": 4.99
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:4263",
+        "ms": 90.339,
+        "percent": 4.99
+      },
+      {
+        "name": "resolve http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:670",
+        "ms": 87.788,
+        "percent": 4.85
+      },
+      {
+        "name": "dispatchTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=78f44598:6416",
+        "ms": 81.893,
+        "percent": 4.52
+      },
+      {
+        "name": "EditorView.dispatch http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:4626",
+        "ms": 81.893,
+        "percent": 4.52
+      },
+      {
+        "name": "updateProperties http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:10695",
+        "ms": 81.576,
+        "percent": 4.51
+      },
+      {
+        "name": "useRenderElementProps http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:529",
+        "ms": 79.148,
+        "percent": 4.37
+      },
+      {
+        "name": "jsxDEVImpl http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:149",
+        "ms": 71.272,
+        "percent": 3.94
+      }
+    ],
+    "traceTotals": {
+      "EventDispatch": 5350.858,
+      "v8.callFunction": 3547.375000000001,
+      "FunctionCall": 1775.5449999999994,
+      "v8.newInstance": 0.009000000000000001,
+      "V8.DeoptimizeCode": 0.191,
+      "UpdateLayoutTree": 0.324,
+      "Layout": 9.421,
+      "UserTiming::Measure": 30.043999999999645,
+      "V8.GC_HEAP_EXTERNAL_PROLOGUE": 0.25500000000000006,
+      "MinorGC": 41.632000000000005,
+      "V8.GC_HEAP_PROLOGUE": 0.04200000000000002,
+      "V8.GCScavenger": 40.55500000000001,
+      "V8.GC_SCAVENGER": 39.95700000000001,
+      "V8.GC_HEAP_PROLOGUE_SAFEPOINT": 0.02100000000000001,
+      "V8.GC_SCAVENGER_SCAVENGE": 39.636,
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY": 0.7730000000000001,
+      "ComputeWeaknessProcessor start": 0.027000000000000017,
+      "V8.GC_SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL": 0.461,
+      "V8.GC_SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES": 2.051,
+      "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE": 31.677000000000003,
+      "Parallel scavenge started": 0.025000000000000015,
+      "V8.GC_SCAVENGER_SCAVENGE_ROOTS": 1.3920000000000003,
+      "V8.GC_SCAVENGER_SCAVENGE_PARALLEL": 19.73,
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS": 1.2209999999999996,
+      "ClearWeaknessProcessor start": 0.027000000000000017,
+      "V8.GC_SCAVENGER_TRACED_HANDLES_RESET_PARALLEL": 0.438,
+      "V8.GC_SCAVENGER_SCAVENGE_FINALIZE": 1.0050000000000001,
+      "V8.GC_SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED": 0.21700000000000008,
+      "V8.GC_SCAVENGER_FREE_REMEMBERED_SET": 0.7490000000000002,
+      "V8.GC_SCAVENGER_RESIZE_NEW_SPACE": 0.02100000000000001,
+      "V8.GC_HEAP_EPILOGUE_SAFEPOINT": 0.07700000000000003,
+      "V8.GC_HEAP_EPILOGUE": 0.11000000000000006,
+      "V8.GC_HEAP_EXTERNAL_EPILOGUE": 0.050000000000000024,
+      "V8.GC_TIME_TO_SAFEPOINT": 0.01900000000000001,
+      "BeginRemoteFontLoad": 0.093,
+      "PrePaint": 2.8419999999999996,
+      "HitTest": 6.59,
+      "FireAnimationFrame": 1.867,
+      "Paint": 4.525,
+      "Layerize": 0.772,
+      "V8.GCIncrementalMarking": 4.38399999999999,
+      "V8.GC_MC_INCREMENTAL": 3.916999999999995,
+      "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING": 0.6710000000000003,
+      "Major concurrent marking rescheduled": 0.08200000000000006,
+      "MajorGC": 11.308,
+      "V8.GCFinalizeMC": 11.266,
+      "V8.GC_MARK_COMPACTOR": 11.253,
+      "V8.GC_MC_PROLOGUE": 0.008,
+      "V8.GC_MC_MARK": 4.546,
+      "V8.GC_MC_MARK_FINISH_INCREMENTAL": 0.002,
+      "V8.GC_MC_MARK_ROOTS": 0.08600000000000001,
+      "V8.GC_MC_MARK_CLIENT_HEAPS": 0.001,
+      "V8.GC_MC_MARK_RETAIN_MAPS": 0.028,
+      "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL": 2.444,
+      "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING": 2.9620000000000015,
+      "V8.GC_MC_MARK_EMBEDDER_TRACING": 2.899,
+      "V8.GC_CONSERVATIVE_STACK_SCANNING": 0.001,
+      "V8.GC_MC_MARK_FULL_CLOSURE_SERIAL": 1.594,
+      "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR": 0.389,
+      "V8.GC_MC_CLEAR": 1.091,
+      "ClearStringTableJob started": 0.005,
+      "ClearTrivialWeakRefJob started": 0.001,
+      "ClearNonTrivialWeakRefs started": 0.001,
+      "V8.GC_MC_CLEAR_JOIN_JOB": 0.946,
+      "V8.GC_MC_CLEAR_WEAK_COLLECTIONS": 0.279,
+      "V8.GC_MC_CLEAR_FLUSHABLE_BYTECODE": 0.002,
+      "V8.GC_MC_CLEAR_SWEEP_TRUSTED_POINTER_TABLE": 0.047,
+      "V8.GC_MC_SWEEP": 0.127,
+      "V8.GC_MC_EVACUATE": 3.8499999999999996,
+      "V8.GC_MC_EVACUATE_PROLOGUE": 0.034,
+      "V8.GC_MC_EVACUATE_COPY": 1.922,
+      "PageEvacuationJob started": 0.001,
+      "V8.GC_MC_EVACUATE_COPY_PARALLEL": 1.747,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS": 1.872,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS": 1.17,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS": 0.001,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN": 0.41,
+      "PointersUpdatingJob started": 0.002,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_PARALLEL": 0.215,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_WEAK": 0.008,
+      "V8.GC_MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES": 0.271,
+      "V8.GC_MC_EVACUATE_CLEAN_UP": 0.003,
+      "V8.GC_MC_EVACUATE_EPILOGUE": 0.013,
+      "V8.GC_MC_SWEEP_NEW_LO": 0.003,
+      "V8.GC_MC_EVACUATE_REBALANCE": 0.001,
+      "V8.GC_MC_FINISH": 0.344,
+      "V8.GC_MC_FINISH_SWEEP_ARRAY_BUFFERS": 0.006,
+      "V8.GC_MC_SWEEP_START_JOBS": 0.008,
+      "V8.GC_MC_EPILOGUE": 0.002,
+      "V8.GC_HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES": 0.022,
+      "V8.GC_HEAP_EMBEDDER_TRACING_EPILOGUE": 0.464,
+      "V8.GCPhantomHandleProcessingCallback": 0.023,
+      "V8.GC_HEAP_EXTERNAL_SECOND_PASS_CALLBACKS": 0.007,
+      "V8.GC_HEAP_ENSURE_SWEEPING_COMPLETED": 0.337,
+      "V8.GC_MC_COMPLETE_SWEEP_ARRAY_BUFFERS": 0.009,
+      "V8.GC_MC_COMPLETE_SWEEPING": 0.003
+    }
+  },
+  {
+    "kind": "mixed",
+    "keyFrameMs": [
+      643.6999999284744,
+      479.5,
+      576,
+      478.89999997615814
+    ],
+    "windowMs": 2178.1310000000003,
+    "sampleMs": 2178.1310000001145,
+    "self": [
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/document-title.ts:10",
+        "ms": 215.035,
+        "percent": 9.87
+      },
+      {
+        "name": "(program) :0",
+        "ms": 162.639,
+        "percent": 7.47
+      },
+      {
+        "name": "blockNumbers http://127.0.0.1:5193/src/cross-reference.tsx:39",
+        "ms": 155.295,
+        "percent": 7.13
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:322",
+        "ms": 152.224,
+        "percent": 6.99
+      },
+      {
+        "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:192",
+        "ms": 151.035,
+        "percent": 6.93
+      },
+      {
+        "name": "measure :0",
+        "ms": 126.082,
+        "percent": 5.79
+      },
+      {
+        "name": "interpolate http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1027",
+        "ms": 66.945,
+        "percent": 3.07
+      },
+      {
+        "name": "getBoundingClientRect :0",
+        "ms": 66.644,
+        "percent": 3.06
+      },
+      {
+        "name": "(garbage collector) :0",
+        "ms": 65.945,
+        "percent": 3.03
+      },
+      {
+        "name": "ReactElement http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:105",
+        "ms": 57.606,
+        "percent": 2.64
+      },
+      {
+        "name": "commitBeforeMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7361",
+        "ms": 38.11,
+        "percent": 1.75
+      },
+      {
+        "name": "ReactElement http://127.0.0.1:5193/node_modules/.vite/deps/react.js?v=78f44598:133",
+        "ms": 34.255,
+        "percent": 1.57
+      },
+      {
+        "name": "run :0",
+        "ms": 31.979,
+        "percent": 1.47
+      },
+      {
+        "name": "renderTag http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:590",
+        "ms": 28.3,
+        "percent": 1.3
+      },
+      {
+        "name": "BlockHandles http://127.0.0.1:5193/src/BlockHandles.tsx:13",
+        "ms": 26.448,
+        "percent": 1.21
+      },
+      {
+        "name": "get isLeaf http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1994",
+        "ms": 25.939,
+        "percent": 1.19
+      },
+      {
+        "name": "looksLikeObjectPath http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:123",
+        "ms": 25.089,
+        "percent": 1.15
+      },
+      {
+        "name": "extendTranslation http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:619",
+        "ms": 23.344,
+        "percent": 1.07
+      },
+      {
+        "name": "translate http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:460",
+        "ms": 22.736,
+        "percent": 1.04
+      },
+      {
+        "name": "commitRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9302",
+        "ms": 20.262,
+        "percent": 0.93
+      },
+      {
+        "name": "toResolveHierarchy http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:867",
+        "ms": 20.207,
+        "percent": 0.93
+      },
+      {
+        "name": "updateProperties http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:10695",
+        "ms": 18.807,
+        "percent": 0.86
+      },
+      {
+        "name": "get clientHeight :0",
+        "ms": 17.487,
+        "percent": 0.8
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:681",
+        "ms": 17.234,
+        "percent": 0.79
+      },
+      {
+        "name": "validateProperty http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:1974",
+        "ms": 15.871,
+        "percent": 0.73
+      },
+      {
+        "name": "mutablyMergeInto http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:288",
+        "ms": 15.543,
+        "percent": 0.71
+      },
+      {
+        "name": "descAt http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:701",
+        "ms": 15.087,
+        "percent": 0.69
+      },
+      {
+        "name": "warnUnknownProperties http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:2094",
+        "ms": 14.162,
+        "percent": 0.65
+      },
+      {
+        "name": "copyInitialProps http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:277",
+        "ms": 14.002,
+        "percent": 0.64
+      },
+      {
+        "name": "createTask :0",
+        "ms": 13.973,
+        "percent": 0.64
+      },
+      {
+        "name": "setProp http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:10284",
+        "ms": 13.88,
+        "percent": 0.64
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/src/components/ui/button.tsx:29",
+        "ms": 12.622,
+        "percent": 0.58
+      },
+      {
+        "name": "get nodeSize http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1105",
+        "ms": 12.46,
+        "percent": 0.57
+      },
+      {
+        "name": "shouldSetTextContent http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:11339",
+        "ms": 12.455,
+        "percent": 0.57
+      },
+      {
+        "name": "defineKeyPropWarningGetter http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:89",
+        "ms": 12.435,
+        "percent": 0.57
+      },
+      {
+        "name": "nest http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1090",
+        "ms": 12.403,
+        "percent": 0.57
+      },
+      {
+        "name": "exports.createElement http://127.0.0.1:5193/node_modules/.vite/deps/react.js?v=78f44598:624",
+        "ms": 12.383,
+        "percent": 0.57
+      },
+      {
+        "name": "mergeCached http://127.0.0.1:5193/node_modules/.vite/deps/cn.js?v=78f44598:789",
+        "ms": 11.178,
+        "percent": 0.51
+      },
+      {
+        "name": "getResource http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:278",
+        "ms": 10.931,
+        "percent": 0.5
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/node_modules/.vite/deps/@base-ui_react_button.js?v=78f44598:11",
+        "ms": 10.887,
+        "percent": 0.5
+      },
+      {
+        "name": "runWithFiberInDEV http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:940",
+        "ms": 10.84,
+        "percent": 0.5
+      },
+      {
+        "name": "commitUpdate http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:11377",
+        "ms": 9.842,
+        "percent": 0.45
+      },
+      {
+        "name": "areHookInputsEqual http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:4381",
+        "ms": 9.414,
+        "percent": 0.43
+      },
+      {
+        "name": "hasLoadedNamespace http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1818",
+        "ms": 9.41,
+        "percent": 0.43
+      },
+      {
+        "name": "extractFromKey http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:438",
+        "ms": 9.337,
+        "percent": 0.43
+      },
+      {
+        "name": "validateProperty$1 http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:1950",
+        "ms": 8.439,
+        "percent": 0.39
+      },
+      {
+        "name": "reconcileChildFibersImpl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:3956",
+        "ms": 7.918,
+        "percent": 0.36
+      },
+      {
+        "name": "getLastOfPath http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:26",
+        "ms": 7.865,
+        "percent": 0.36
+      },
+      {
+        "name": "mergeObjects http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:200",
+        "ms": 7.841,
+        "percent": 0.36
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:126",
+        "ms": 7.83,
+        "percent": 0.36
+      },
+      {
+        "name": "get isLeaf http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1361",
+        "ms": 7.786,
+        "percent": 0.36
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/useButton-x80c0MxK.js?v=78f44598:102",
+        "ms": 7.775,
+        "percent": 0.36
+      },
+      {
+        "name": "jsxDEVImpl http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:149",
+        "ms": 7.75,
+        "percent": 0.36
+      },
+      {
+        "name": "updated http://127.0.0.1:5193/src/DocumentEditor.tsx:252",
+        "ms": 7.716,
+        "percent": 0.35
+      },
+      {
+        "name": "commitMutationEffectsOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7841",
+        "ms": 7.272,
+        "percent": 0.33
+      }
+    ],
+    "inclusive": [
+      {
+        "name": "(root) :0",
+        "ms": 2178.131,
+        "percent": 100
+      },
+      {
+        "name": "performWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8661",
+        "ms": 1539.78,
+        "percent": 70.69
+      },
+      {
+        "name": "performSyncWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9838",
+        "ms": 1539.78,
+        "percent": 70.69
+      },
+      {
+        "name": "flushSyncWorkAcrossRoots_impl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9743",
+        "ms": 1539.78,
+        "percent": 70.69
+      },
+      {
+        "name": "processRootScheduleInMicrotask http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9770",
+        "ms": 1539.78,
+        "percent": 70.69
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9852",
+        "ms": 1539.78,
+        "percent": 70.69
+      },
+      {
+        "name": "run :0",
+        "ms": 1446.098,
+        "percent": 66.39
+      },
+      {
+        "name": "renderRootSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8987",
+        "ms": 1205.433,
+        "percent": 55.34
+      },
+      {
+        "name": "runWithFiberInDEV http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:940",
+        "ms": 1203.83,
+        "percent": 55.27
+      },
+      {
+        "name": "workLoopSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9043",
+        "ms": 1199.668,
+        "percent": 55.08
+      },
+      {
+        "name": "performUnitOfWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9146",
+        "ms": 1198.119,
+        "percent": 55.01
+      },
+      {
+        "name": "beginWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:6328",
+        "ms": 1169.228,
+        "percent": 53.68
+      },
+      {
+        "name": "renderWithHooks http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:4388",
+        "ms": 1108.766,
+        "percent": 50.9
+      },
+      {
+        "name": "updateFunctionComponent http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:5767",
+        "ms": 927.795,
+        "percent": 42.6
+      },
+      {
+        "name": "BlockHandles http://127.0.0.1:5193/src/BlockHandles.tsx:13",
+        "ms": 701.348,
+        "percent": 32.2
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:165",
+        "ms": 674.9,
+        "percent": 30.99
+      },
+      {
+        "name": "setIsStrictModeForDevtools http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:989",
+        "ms": 489.639,
+        "percent": 22.48
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:322",
+        "ms": 485.416,
+        "percent": 22.29
+      },
+      {
+        "name": "flush http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3742",
+        "ms": 396.895,
+        "percent": 18.22
+      },
+      {
+        "name": "DOMObserver.observer http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3648",
+        "ms": 396.895,
+        "percent": 18.22
+      },
+      {
+        "name": "readDOMChange http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:3985",
+        "ms": 395.015,
+        "percent": 18.14
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:4263",
+        "ms": 395.015,
+        "percent": 18.14
+      },
+      {
+        "name": "dispatchTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=78f44598:6416",
+        "ms": 394.469,
+        "percent": 18.11
+      },
+      {
+        "name": "EditorView.dispatch http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=78f44598:4626",
+        "ms": 394.469,
+        "percent": 18.11
+      },
+      {
+        "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=78f44598:1131",
+        "ms": 378.362,
+        "percent": 17.37
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=78f44598:3226",
+        "ms": 359.08,
+        "percent": 16.49
+      },
+      {
+        "name": "emit http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=78f44598:3224",
+        "ms": 359.08,
+        "percent": 16.49
+      },
+      {
+        "name": "completeRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9254",
+        "ms": 334.347,
+        "percent": 15.35
+      },
+      {
+        "name": "completeRootWhenReady http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8780",
+        "ms": 334.347,
+        "percent": 15.35
+      },
+      {
+        "name": "commitRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9302",
+        "ms": 329.587,
+        "percent": 15.13
+      },
+      {
+        "name": "moveBlockedHint http://127.0.0.1:5193/src/DocumentEditor.tsx:104",
+        "ms": 314.086,
+        "percent": 14.42
+      },
+      {
+        "name": "editorTitleIndex http://127.0.0.1:5193/src/document-title.ts:14",
+        "ms": 287.668,
+        "percent": 13.21
+      },
+      {
+        "name": "titleMarkers http://127.0.0.1:5193/src/document-title.ts:8",
+        "ms": 286.154,
+        "percent": 13.14
+      },
+      {
+        "name": "t http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:1809",
+        "ms": 269.268,
+        "percent": 12.36
+      },
+      {
+        "name": "translate http://127.0.0.1:5193/node_modules/.vite/deps/i18next.js?v=78f44598:460",
+        "ms": 264.596,
+        "percent": 12.15
+      },
+      {
+        "name": "memoizedSelector http://127.0.0.1:5193/node_modules/.vite/deps/with-selector-C4IGxsPc.js?v=78f44598:31",
+        "ms": 254.633,
+        "percent": 11.69
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/with-selector-C4IGxsPc.js?v=78f44598:50",
+        "ms": 254.633,
+        "percent": 11.69
+      },
+      {
+        "name": "fn http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_react.js?v=78f44598:654",
+        "ms": 254.633,
+        "percent": 11.69
+      },
+      {
+        "name": "selector http://127.0.0.1:5193/src/cross-reference.tsx:57",
+        "ms": 253.045,
+        "percent": 11.62
+      },
+      {
+        "name": "blockNumberAt http://127.0.0.1:5193/src/cross-reference.tsx:49",
+        "ms": 249.947,
+        "percent": 11.48
+      },
+      {
+        "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=78f44598:192",
+        "ms": 242.799,
+        "percent": 11.15
+      },
+      {
+        "name": "blockNumbers http://127.0.0.1:5193/src/cross-reference.tsx:39",
+        "ms": 238.996,
+        "percent": 10.97
+      },
+      {
+        "name": "(anonymous) http://127.0.0.1:5193/src/document-title.ts:10",
+        "ms": 215.035,
+        "percent": 9.87
+      },
+      {
+        "name": "updateForwardRef http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:5587",
+        "ms": 198.253,
+        "percent": 9.1
+      },
+      {
+        "name": "Button http://127.0.0.1:5193/node_modules/.vite/deps/@base-ui_react_button.js?v=78f44598:11",
+        "ms": 179.389,
+        "percent": 8.24
+      },
+      {
+        "name": "(program) :0",
+        "ms": 162.639,
+        "percent": 7.47
+      },
+      {
+        "name": "useRenderElement http://127.0.0.1:5193/node_modules/.vite/deps/useRenderElement-DjAj12X6.js?v=78f44598:518",
+        "ms": 141.883,
+        "percent": 6.51
+      },
+      {
+        "name": "measure :0",
+        "ms": 126.082,
+        "percent": 5.79
+      },
+      {
+        "name": "commitMutationEffectsOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7841",
+        "ms": 125.491,
+        "percent": 5.76
+      },
+      {
+        "name": "recursivelyTraverseMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:7803",
+        "ms": 125.491,
+        "percent": 5.76
+      },
+      {
+        "name": "flushMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9360",
+        "ms": 125.491,
+        "percent": 5.76
+      },
+      {
+        "name": "flushPassiveEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9546",
+        "ms": 124.618,
+        "percent": 5.72
+      },
+      {
+        "name": "flushPendingEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9539",
+        "ms": 124.618,
+        "percent": 5.72
+      },
+      {
+        "name": "flushSpawnedWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:9456",
+        "ms": 124.618,
+        "percent": 5.72
+      },
+      {
+        "name": "commitPassiveMountOnFiber http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=78f44598:8303",
+        "ms": 123.954,
+        "percent": 5.69
+      }
+    ],
+    "traceTotals": {
+      "EventDispatch": 5862.955999999999,
+      "v8.callFunction": 4029.530999999998,
+      "FunctionCall": 2021.9549999999995,
+      "v8.newInstance": 0.009000000000000001,
+      "V8.DeoptimizeCode": 0.23800000000000007,
+      "UpdateLayoutTree": 5.355,
+      "Layout": 34.614000000000004,
+      "V8.GC_HEAP_EXTERNAL_PROLOGUE": 0.20100000000000012,
+      "MinorGC": 54.872,
+      "V8.GC_HEAP_PROLOGUE": 0.046000000000000034,
+      "V8.GCScavenger": 53.54399999999999,
+      "V8.GC_TIME_TO_SAFEPOINT": 0.03600000000000002,
+      "V8.GC_SCAVENGER": 53.196999999999996,
+      "V8.GC_SCAVENGER_SCAVENGE": 52.81200000000001,
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY": 1.526999999999999,
+      "ComputeWeaknessProcessor start": 0.035000000000000024,
+      "V8.GC_SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL": 1.1059999999999999,
+      "V8.GC_SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES": 5.061999999999999,
+      "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE": 29.813000000000002,
+      "Parallel scavenge started": 0.032000000000000015,
+      "V8.GC_SCAVENGER_SCAVENGE_ROOTS": 2.224,
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS": 12.169999999999996,
+      "ClearWeaknessProcessor start": 0.03800000000000003,
+      "V8.GC_SCAVENGER_TRACED_HANDLES_RESET_PARALLEL": 2.817999999999999,
+      "V8.GC_SCAVENGER_SCAVENGE_FINALIZE": 1.1880000000000002,
+      "V8.GC_SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED": 0.24000000000000013,
+      "V8.GC_SCAVENGER_FREE_REMEMBERED_SET": 0.6950000000000003,
+      "V8.GC_SCAVENGER_RESIZE_NEW_SPACE": 0.03100000000000002,
+      "V8.GC_HEAP_EPILOGUE_SAFEPOINT": 0.08100000000000004,
+      "V8.GC_HEAP_EPILOGUE": 0.1360000000000001,
+      "V8.GC_HEAP_EXTERNAL_EPILOGUE": 0.05300000000000003,
+      "V8.GC_SCAVENGER_SCAVENGE_PARALLEL": 18.237000000000005,
+      "UserTiming::Measure": 24.29999999999976,
+      "V8.GC_HEAP_PROLOGUE_SAFEPOINT": 0.026000000000000016,
+      "BeginRemoteFontLoad": 0.085,
+      "PrePaint": 16.852999999999998,
+      "HitTest": 33.336,
+      "FireAnimationFrame": 99.34700000000001,
+      "IntersectionObserverController::computeIntersections": 0.035,
+      "Paint": 18.427,
+      "Layerize": 1.791,
+      "V8.GC_SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS": 0.011,
+      "V8.GC_SCAVENGER_SWEEP_ARRAY_BUFFERS": 0.005
+    }
+  }
+]
