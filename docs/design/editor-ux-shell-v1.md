@@ -1,9 +1,10 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Last verified: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
 - Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
-- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
 - Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
@@ -125,9 +126,16 @@ activation: no document read/write, new editor state or implicit save. Pending o
 same switching and document-action restrictions; unavailable results remain visibly disabled.
 Without an open document, the center still offers folder/settings/view-layout commands.
 
-Base UI Combobox owns keyboard highlighting, selection and IME handling inside the shared Dialog.
-Arrow keys move between available results; Enter runs the chosen item. Escape/outside dismissal
-returns to the invoking control or editor without changing its selection/history/property drafts.
+Base UI Combobox owns keyboard/pointer highlighting, selection and IME handling inside the shared
+Dialog. Filtering highlights the first match; the first Down moves to the next available result.
+Hover moves the same active highlight, using the existing selected surface; arrows continue from
+that item. Enter runs the chosen item. The search input autofocuses on mount so typing immediately
+after the opening shortcut goes to search, including before the Dialog's deferred initial focus.
+Selecting a Visual document focuses its editor after tab activation and modal dismissal, preserving
+its selection and allowing immediate typing; this applies to a newly opened or retained tab and
+reselecting the active tab. A tab retained in read-only Source keeps that view and tab-button focus.
+Escape/outside dismissal returns to the invoking control or editor without changing its
+selection/history/property drafts.
 A selected command closes the center before opening its target dialog; that dialog owns focus.
 Outline and sidebar commands hand focus to their surviving toggle, including when the invoking
 control was inside the panel being hidden. On a phone, closing the sidebar focuses its TopBar opener.
@@ -158,6 +166,30 @@ and property-draft retention, Undo/Redo, real Save/Reload, pending-Save restrict
 equal filenames, Korean/English search and 1440/1024/768/375px bounds. Existing `editor-shell`,
 `document-tabs`, `ui-language`, `layout-rules` and `quiet-document` also passed. Editor tests
 (272), typecheck/build, documentation and whitespace checks passed. No Core/CLI semantics changed.
+
+### Command center keyboard verification (#386)
+
+At base `a61dff5b32b6c6d36b8c8d225539700b07789589`, on Windows Chrome in the same worktree,
+Ctrl+P followed immediately by typing `technical` lost its first character to the editor in 3 of
+12 attempts. The Dialog schedules initial focus on the next animation frame; mounting the search
+input with autofocus closes that gap while retaining the Dialog's focus/dismissal handling.
+Document selection focused the tab button, so immediate typing failed for both retained and newly
+opened tabs, including selecting the active tab again. Selection now activates the tab together with
+dismissal and supplies its existing editor focus target to the Dialog's final-focus handling.
+
+The first-Down and missing-hover reports were not reproduced: ten search attempts covered direct
+typing (`> o`, `> s`, `technical`), fill, replacing a query and searching after no matches. Down moved
+to the next result. Seven pointer attempts moved the same active highlight and showed the existing
+selected surface. No navigation, hover, style, search-scope or shortcut-mapping change was made.
+
+The existing `command-center` scenario failed before the fix for immediate search typing and both
+document focus cases. It now sends real keyboard input while delaying the next animation frame,
+checks both opening shortcuts, first Down, hover appearance/shared active item, arrows after hover,
+and immediate typing/Undo after retained/newly opened/active-tab selection. Source view, editor
+state/history/property drafts, cancellation, panel hiding and command/modal focus handoff remain
+covered. A repeat of the unthrottled typing probe passed all 12 attempts after the fix. Related
+`editor-shell`, `document-tabs`, `ui-language`, `layout-rules` and `quiet-document` checks also passed.
+No Core operation or CLI command is needed for these Editor-only focus interactions.
 
 ## Writing interactions
 
