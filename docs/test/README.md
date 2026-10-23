@@ -79,7 +79,7 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
 
-`desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
+`desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. 키보드로 Settings를 열면 첫 언어 컨트롤의 실제 포커스를 기다린다. 대화상자 표시만으로 Base UI의 비동기 초기 포커스 완료를 가정하지 않으며, 검사에서 포커스를 강제로 이동하지 않는다. 포커스가 오지 않으면 5초 안에 실패한다(#342). `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
 
 CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·packaged regressions는 항상 실행하고 install/update 단계만 경로 규칙의 `update` 출력에 따라 실행한다. PR에서는 경로별로 job을 선택하며, master push와 미분류 경로 변경은 전체 검증한다. aggregate required job의 성공·skipped·취소 판정과 경로 요약은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix), 실제 규칙은 [ci.yml](../../.github/workflows/ci.yml)을 따른다. 수동 release workflow는 기존 tag를 검증하고 최종 artifact를 검증/업로드한다. 서명/승인 절차는 [Contributing](../../CONTRIBUTING.md#windows-desktop-builds-and-releases), 현재 계약과 검증 결과는 [Desktop distribution](../design/desktop-distribution-v1.md)에 있다.
 
