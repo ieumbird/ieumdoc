@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Unresolved reference: {{label}}": "Unresolved reference: {{label}}",
+  "Unresolved reference: no target labeled “{{label}}” in this document": "Unresolved reference: no target labeled “{{label}}” in this document",
+  "Deleting this target broke a reference. Press {{shortcut}} to undo.": "Deleting this target broke a reference. Press {{shortcut}} to undo.",
   "Command center": "Command center",
   "Command center ({{shortcut}})": "Command center ({{shortcut}})",
   "Search documents and commands": "Search documents and commands",
@@ -439,6 +442,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Unresolved reference: {{label}}": "깨진 참조: {{label}}",
+  "Unresolved reference: no target labeled “{{label}}” in this document": "깨진 참조: 문서에 “{{label}}” 레이블의 대상이 없습니다",
+  "Deleting this target broke a reference. Press {{shortcut}} to undo.": "대상을 삭제하여 참조가 깨졌습니다. {{shortcut}}로 되돌릴 수 있습니다.",
   "Command center": "커맨드 센터",
   "Command center ({{shortcut}})": "커맨드 센터 ({{shortcut}})",
   "Search documents and commands": "문서 및 명령 검색",

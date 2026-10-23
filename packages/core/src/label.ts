@@ -31,3 +31,18 @@ export function targetLabelError(label: string): string | undefined {
 export function labelKey(label: string): string {
   return label.replace(/[\t\n\r ]+/g, " ").replace(/['‘’"“”]+/g, "").trim().toLowerCase();
 }
+
+/** Shared role/fragment lookup for Core diagnostics and live interface projections.
+ * Fragment links try the literal label first, as MyST does; roles use the identifier. */
+export function resolveLabelReference<T>(reference: { label?: string; identifier?: string; url?: string }, lookup: (identifier: string) => T | undefined): T | undefined {
+  if (typeof reference.url === "string" && reference.url.startsWith("#")) {
+    const label = reference.url.slice(1);
+    const identifier = labelKey(label);
+    return identifier ? lookup(label) ?? lookup(identifier) : undefined;
+  }
+  if (typeof reference.label === "string") {
+    const identifier = reference.identifier ?? labelKey(reference.label);
+    return identifier ? lookup(identifier) : undefined;
+  }
+  return undefined;
+}
