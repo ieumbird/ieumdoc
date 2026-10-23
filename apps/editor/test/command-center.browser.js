@@ -87,6 +87,24 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   result.modalHandoff = true;
 
+  // Commands may hide their invoking control. Hand focus to the toggle that survives.
+  await page.setViewportSize({width:1440,height:900});
+  const panel = page.getByTestId('document-panel');
+  if (!await panel.isVisible()) await page.getByRole('button',{name:'Outline',exact:true}).click();
+  await panel.getByRole('button',{name:'Hide outline',exact:true}).focus();
+  await run('hide outline');
+  await panel.waitFor({state:'detached'});
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
+  await run('show outline');
+  await panel.waitFor();
+  await page.getByRole('button',{name:'Display',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await run('collapse sidebar');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
+  await run('expand sidebar');
+  await page.getByRole('button',{name:'Files',exact:true}).click();
+  result.panelCommandsRetainFocus = true;
+
   // Existing tabs retain their editor, unapplied property draft, and native history.
   await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
   await page.keyboard.type('command center edit ');
@@ -165,6 +183,13 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   }
   result.responsiveCenter = true;
+  await run('expand sidebar');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
+  await page.getByRole('button',{name:'Display',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await run('collapse sidebar');
+  await page.waitForFunction(() => document.querySelector('.top-bar-sidebar')===document.activeElement, null, {timeout:5000});
+  result.phoneSidebarFocus = true;
   await run('settings');
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});

@@ -114,6 +114,8 @@ Base UI Combobox owns keyboard highlighting, selection and IME handling inside t
 Arrow keys move between available results; Enter runs the chosen item. Escape/outside dismissal
 returns to the invoking control or editor without changing its selection/history/property drafts.
 A selected command closes the center before opening its target dialog; that dialog owns focus.
+Outline and sidebar commands hand focus to their surviving toggle, including when the invoking
+control was inside the panel being hidden. On a phone, closing the sidebar focuses its TopBar opener.
 Other dialogs retain their shortcuts, and Ctrl/Cmd+S cannot save behind the center.
 No-match feedback and controls are translated with the existing UI language.
 
