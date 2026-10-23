@@ -3,7 +3,8 @@
 - Status: Implemented
 - Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
-- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
+- Last verified: 2026-10-24 (#383: Reload restores document tab paths/order/active identity; recovery priority and explicit startup routing; document-tabs/recovery/recovery-structure browser regressions).
+- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
 - Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
@@ -61,6 +62,14 @@ block it. **Save / Don't save / Cancel** is used for closing one dirty tab. Fail
 applied edits after Save keep that tab. Inactive tabs keep their state with overlays and measurement
 suspended. Browser unload and Desktop close/update inspect all tabs. See the
 [editing-session contract](editing-session-save-v1.md#switching-and-recovery).
+
+On Reload or Desktop restart, tab paths, order and active identity are restored from browser
+preferences, after opened-folder restoration. Missing/refused/non-native documents are quietly
+excluded; no document content, cursor or undo is remembered here. Explicit URL/Desktop launch paths
+win over remembered tabs, and unsaved recovery records retain their existing review flow rather than
+being opened automatically from disk. Restoration alone does not rewrite preferences; successful
+user Open/New, Close, recovery Restore or tab selection remembers the current list. An empty list
+keeps the start screen. See [startup precedence and recovery](editing-session-save-v1.md#tab-navigation-memory-383).
 
 A folder heading's `+` opens the New filename form without work-loss confirmation. Its Location field shows the destination and lists the
 opened folders and every sub-folder their trees have listed, each named from its opened folder

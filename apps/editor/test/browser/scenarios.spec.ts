@@ -85,13 +85,17 @@ const test = base.extend<{}, { session: BrowserContext }>({
     page.on("console", consoleListener);
     page.on("pageerror", pageErrorListener);
     try {
+      // Establish this origin without mounting App against the previous scenario's paths.
+      // Scratch preparation may already have removed those files. The route is consumed once;
+      // the real startup below, and all reloads inside the scenario, use the actual Editor.
+      await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: "<!doctype html>" }), { times: 1 });
       await page.goto(url);
-      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
-      await page.mouse.move(0, 0);
-      await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       // Keep the persistent browser profile, but isolate recovery records and opened folders between
       // scenarios. Reloads inside a scenario deliberately retain both for persistence checks.
-      await page.evaluate(() => localStorage.removeItem("ieumdoc.openFolders"));
+      await page.evaluate(() => {
+        localStorage.removeItem("ieumdoc.openFolders");
+        localStorage.removeItem("ieumdoc.openTabs");
+      });
       await page.evaluate(() => new Promise<void>((resolve, reject) => {
         const request = indexedDB.deleteDatabase("ieumdoc-recovery");
         request.onsuccess = () => resolve();
@@ -99,6 +103,8 @@ const test = base.extend<{}, { session: BrowserContext }>({
       }));
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       await use(page);
     } finally {
       const classification = classifyConsoleErrors(testInfo.title, errors);
