@@ -14,6 +14,8 @@ Changing an existing non-empty label also retargets its same-document references
 [Core-backed label rename](section-references-v1.md#editor) (#374). Caption/label and reference changes
 share one Undo/Redo step and survive Save/Reload. Rich caption references and fragment links follow
 renamed targets without losing their formatting. Clearing the label retains references as written.
+Deleting a referenced target uses the [shared deletion feedback](section-references-v1.md#editor);
+unresolved caption references use the same kind-neutral text as body reference chips.
 
 The properties field authors plain single-line caption text. Existing formatted inline captions retain their content unless the user replaces the caption text; Core and CLI also accept InlineContent. In the document a caption reads as the body does: its formatting and links, inline math rendered by KaTeX, and references showing their target's computed number (or the dashed unresolved form), following label and numbering changes anywhere in the document. The caption is display only there: its math and references are not clickable, and it is never re-written by being shown. Merged cells, additional legends and directive options reject native admission. No new table editor engine or persistence architecture is introduced.
 

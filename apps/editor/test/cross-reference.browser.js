@@ -5,6 +5,7 @@
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
 async (page, { openDocument, screenshots }) => {
+  page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -149,12 +150,22 @@ async (page, { openDocument, screenshots }) => {
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   result.renamedTargetStaysResolved = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true';
+  result.equationRenameDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
   await page.keyboard.press('ControlOrMeta+z');
   await equationB.locator('.block-kind').filter({hasText:'eq-b'}).waitFor({state:'attached', timeout:5000});
   result.renameUndoTogether = await chip(paragraph(1), 'Eq. eq-b').getAttribute('data-resolved') === 'true' &&
     (await equationB.locator('.block-kind').textContent()).includes('eq-b');
   await page.keyboard.press('ControlOrMeta+Shift+z');
   result.renameRedoTogether = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true';
+  result.renameRedoDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
+  // The atomic rename above is not deletion; deleting that renamed target still is.
+  await chip(paragraph(1), 'Eq. eq-c').locator('.cross-reference-chip').click();
+  await page.keyboard.press('Delete');
+  result.renamedTargetDeletionWarns = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference')) &&
+    await chip(paragraph(1), 'Eq. eq-c').locator('.cross-reference-chip').innerText() === 'Unresolved reference: eq-c';
+  await page.keyboard.press('ControlOrMeta+z');
+  result.renamedTargetDeletionUndo = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true' &&
+    await page.getByTestId('notice').count() === 0;
 
   // H. Source shows the unsaved result; Save writes exactly that; Reload keeps kinds and targets.
   const preview = await sourceText();

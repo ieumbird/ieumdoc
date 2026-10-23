@@ -66,6 +66,14 @@ Core's section rule already counts targets before a heading as part of that sect
 
 ### Deletion feedback evidence (#375)
 
+Rename/deletion integration (2026-10-24, #374/#375): non-empty label Apply rewrites the target
+and its resolved references in one transaction and does not trigger deletion feedback. The
+combined cross-reference scenario checks this for Equation and Figure caption references,
+retains rename Undo/Redo and Save/Reload, then deletes the renamed Equation to check the new
+label's unresolved display, deletion notice and Undo restoration. The existing Editor rename
+test checks all four target kinds against `referencesBrokenByDeletion`. Existing missing
+references retain the kind-neutral unresolved text above; renaming does not create new ones.
+
 Review follow-up (2026-10-24): at `f5d3ee9`, deleting `eq-a`, waiting 650ms for a separate history
 group, deleting `fig-a`, then Undo once restored the figure but incorrectly cleared the notice
 while `eq-a` remained unresolved. This sequence now lives in the existing browser scenario,
@@ -98,7 +106,7 @@ profile. The Before run used the original product files; After used the final im
 
 ## Scope
 
-- Renaming a label leaves references untouched by default. The explicit opt-in below updates only references that resolved to the selected target before the change.
+- Core's default `updateLabel` and CLI without `--update-references` leave references untouched. The explicit opt-in below updates only references that resolved to the selected target before the change; Editor properties always use that opt-in for non-empty renames as described above.
 - Ordinary `[text](#label)` links stay links; Core does not promote them to references. Empty-text links such as `[](#label)` reject native admission.
 - `check` diagnoses references as MyST resolves them on one page. A link whose URL starts with `#` (`[](#label)` or `[text](#label)`) is a reference: one that names no target is reported like an unresolved role reference (`link` instead of `role` in JSON), stays as written and does not fail the check. Targets are labeled blocks, `(label)=` targets and the implicit IDs MyST gives unlabeled headings (`## Install` → `#install`); a heading with a label has no implicit ID. Links without `#`, including external URLs with a fragment, are never reported.
 - MyST's target lookup reads a plain object. The shared Core lookup distinguishes registered targets, missing targets and inherited-property failures. Fragment lookup tries the as-written name before its normalized identifier; an inherited value stops fallback because MyST throws before reaching the normalized target. Role lookup uses only the normalized identifier. `unresolvedReferences`/CLI `check` report these failures with an optional `reason` string on the existing role/link entry; text output shows that reason. They remain warning-only (`check` exit 0), preserve the reference as written, and are never reported as resolved.
