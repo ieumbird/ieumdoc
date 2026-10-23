@@ -1,6 +1,7 @@
 # Citations v1
 
 - Status: Implemented
+- Nested authoring verification: 2026-10-24 (#377: Editor slash tests and `citation-authoring` menu/insertion/Save → Reload on lists, quotes, simple admonitions, endnote definitions, cells, Figure captions and headings, including a citation-only list item).
 - Last verified: 2026-10-23 (units A, B and C; execution results recorded below).
 - Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A, B and C, under [Native document support](document-support-v1.md). Unit D extensions remain separate decisions.
 
@@ -100,7 +101,10 @@ through the existing inline adapter, and Save replays existing Core content oper
 it, moving content, Undo/Redo and supported clipboard operations preserve its meaning. Table captions
 use the same Core numeric display as the rest of the document.
 
-Authoring (unit C) uses the paragraph slash menu. **Citation…** opens a form at the caret; a query
+Authoring uses the slash menu on supported inline surfaces: paragraphs, list items (including
+nested lists), quotes, simple admonitions, endnote definitions, table cells, Figure captions and
+headings. Only top-level paragraphs also offer block commands; the [location matrix](editor-ux-shell-v1.md#nested-inline-slash-menu-377)
+records the existing Core save paths. **Citation…** opens a form at the caret; a query
 also lists up to 20 readable entries whose key or display words start with it, inserted directly as
 `cite:p`. A citation chip's edit button opens the same form with its stored role and keys. The form
 chooses `cite:p` (default), `cite:t` or `cite`, keeps an ordered key group, and searches every readable

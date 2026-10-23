@@ -35,6 +35,13 @@ Public `serialize` and `canonicalWriteError` validate the final state; an empty 
 
 ## Editor session states
 
+The caption slash menu offers citations, document references and Endnote through the shared
+[inline insertion paths](editor-ux-shell-v1.md#nested-inline-slash-menu-377). Existing
+`updateFigure` Save replay retains the typed inline caption. Its round-trip count compares the
+same completed intermediate footnote snapshot as serialization, allowing a new caption
+reference before the session supplies its definition. Final writes still refuse missing
+definitions; all caption/property/label and canonical-stability comparisons remain required.
+
 Closing properties retains a text selection inside the caption, otherwise returning
 a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
 Apply changes attributes without replacing an unchanged caption, preserving its
