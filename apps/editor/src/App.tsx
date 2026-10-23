@@ -517,8 +517,14 @@ export function App() {
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
-      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation), takesFocus: true,
-      run: () => { activateTab(tab.id); globalThis.document.getElementById(`tab-${tab.id}`)?.focus({ preventScroll: true }); },
+      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation),
+      run: () => {
+        activateTab(tab.id);
+        const owner = sessions.current.get(tab.id);
+        // The retained target can still be hidden here; Dialog focuses it after activation/dismissal.
+        commandReturnFocus.current = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget() ?? null
+          : globalThis.document.getElementById(`tab-${tab.id}`);
+      },
     })),
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
