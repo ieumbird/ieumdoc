@@ -255,6 +255,26 @@ async (page, { openDocument, screenshots }) => {
     result[`${kind}UndoResolves`] = await reference.innerText() === normal && await reference.locator('..').getAttribute('data-resolved') === 'true';
     result[`${kind}UndoClearsNotice`] = await page.getByTestId('notice').count() === 0;
   }
+  // Separate Undo groups: restoring only the last target must not hide earlier breakage.
+  for (const label of ['eq-a', 'fig-a']) {
+    await page.evaluate(label => {
+      const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      let pos;
+      editor.state.doc.forEach((node, at) => { if (node.attrs.label === label) pos = at; });
+      editor.commands.setNodeSelection(pos);
+      editor.view.focus();
+    }, label);
+    await page.keyboard.press('Delete');
+    if (label === 'eq-a') await page.waitForTimeout(650); // engine history's 500ms grouping delay
+  }
+  await page.keyboard.press('ControlOrMeta+z');
+  result.partialUndoRestoresOnlyLastTarget = await active.locator('[data-label="fig-a"] .cross-reference-chip').innerText() === 'Fig. 1' &&
+    await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === 'Unresolved reference: eq-a';
+  result.partialUndoKeepsEarlierDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference'));
+  await page.keyboard.press('ControlOrMeta+z');
+  result.completeUndoClearsDeletionNotice = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === 'Eq. (1)' &&
+    await page.getByTestId('notice').count() === 0;
+
   // A target with no reference keeps its existing deletion flow and shows no new notice.
   await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
@@ -282,6 +302,33 @@ async (page, { openDocument, screenshots }) => {
   result.koreanDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('참조가 깨졌습니다. Ctrl+Z'));
   result.koreanBrokenChip = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === '깨진 참조: eq-a';
   await page.keyboard.press('ControlOrMeta+z');
+  await page.getByRole('button', {name:'설정', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+
+  // Emulate Apple's platform branch before module initialization, using this same profile.
+  // This checks displayed shortcuts, not a native macOS keyboard run.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openDocument(page, [root, 'tmp', 'cross-reference', 'delete.md'].join(separator));
+  await active.locator('[data-testid="cross-reference"][data-label="eq-a"][data-resolved="true"]').waitFor();
+  await page.evaluate(() => {
+    const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let pos;
+    editor.state.doc.forEach((node, at) => { if (node.attrs.label === 'eq-a') pos = at; });
+    editor.commands.setNodeSelection(pos);
+    editor.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  result.appleShortcutEnglish = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('Press ⌘Z to undo.'));
+  await page.getByRole('button', {name:'Settings', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  result.appleShortcutKorean = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('⌘Z로 되돌릴 수 있습니다.'));
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.commands.undo());
   await page.getByRole('button', {name:'설정', exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape');

@@ -30,8 +30,11 @@ Core's section rule already counts targets before a heading as part of that sect
 
 - Deleting a labeled target that leaves a previously resolved role reference or fragment link
   unresolved shows the existing five-second informational notice: “Deleting this target broke a
-  reference. Press Ctrl+Z to undo.” The document changes immediately in its normal engine
-  transaction; Undo restores the target and resolution and clears that notice. Unreferenced
+  reference. Press Ctrl+Z to undo.” Apple platforms show `⌘Z`, following the existing TopBar
+  shortcut convention; both languages interpolate the shortcut. The document changes immediately
+  in its normal engine transaction. References broken by successive deletions are tracked together:
+  partial Undo retains the notice while an earlier deletion still leaves a broken reference, and
+  complete restoration clears it (the ordinary five-second expiry still applies). Unreferenced
   target deletion and label property Apply keep their existing flow. This is reference-loss
   feedback, not the general deletion-confirmation policy (#379); label rename/update UI (#374)
   remains separate. Core's shared role/fragment lookup is used by its unresolved diagnostics
@@ -59,6 +62,15 @@ Core's section rule already counts targets before a heading as part of that sect
 - Label property Apply and slash-menu insertion retain their existing draft/transaction behavior; document-wide collisions are reported by the existing Save error UI with Core's reason and correction. The `sec-<slug>` generator avoids explicit labels; a collision with another heading's implicit ID is refused on Save. Save replay inserts new targets at their following block (after creating new headings) so the same-heading exception also works in the Editor.
 
 ### Deletion feedback evidence (#375)
+
+Review follow-up (2026-10-24): at `f5d3ee9`, deleting `eq-a`, waiting 650ms for a separate history
+group, deleting `fig-a`, then Undo once restored the figure but incorrectly cleared the notice
+while `eq-a` remained unresolved. This sequence now lives in the existing browser scenario,
+including complete Undo. Tracked references accumulate by role/normalized label instead of
+replacing the previous deletion's set. Target enumeration for restoration runs once after a
+block type/label layout change, not on ordinary text input; the existing cheap deletion precheck
+and early return remain. The browser also checks the existing Apple shortcut convention with
+`navigator.platform` emulation in both languages; this is not a native macOS execution.
 
 The extended cross-reference browser scenario failed on the original product code at `a61dff5`:
 Equation/Figure/Table deletions showed no notice and retained kind-prefixed broken text, while Undo
