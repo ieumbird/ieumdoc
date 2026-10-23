@@ -76,8 +76,9 @@ A local differential check of 512 mixed email/link/text combinations against the
 recognizer found no difference in normalized matches or offsets. This is bounded compatibility
 evidence, not an exhaustive URL grammar proof.
 
-Local verification before the latest master integration: MyST regression 11/11, Core suite
-245/245, CLI 66/66, Editor 270/270, workspace typecheck and Editor build passed.
+After integrating master `ec1e35b` (citation structure, CLI locator and current contracts), local
+verification passed: Core 247/247 (including MyST regression 11/11), CLI 67/67, Editor 271/271,
+workspace typecheck, Editor build, frozen-lockfile installation and docs/diff checks.
 The initial cold pre-fix run also hit the existing smartquotes child-process 10-second
 guard; the unchanged guard passed on the subsequent targeted run and full Core suite. No
 performance claim is based on those elapsed times. Editor build retains its existing large-chunk
@@ -88,6 +89,8 @@ worktree's Vite on port 5197 with the persistent browser profile. This verifies 
 state retention and reference Save → Reload integration, not another timing benchmark. The
 runner closed its browser context; Vite and its execution session were stopped and the port
 and worktree-owned browser processes were checked for cleanup.
+Browser revalidation of the additional fuzzy-scan backport and integrated master is queued;
+the earlier browser result is not presented as final-head verification.
 
 ## Production audit and reachability
 
