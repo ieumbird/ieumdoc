@@ -40,7 +40,7 @@ pnpm --filter @ieumdoc/editor build
 ## Contribution workflow
 
 - 하나의 문제에 하나의 응집된 PR을 만든다. 관련 issue가 있으면 연결한다.
-- `master`는 repository ruleset `Protect master` (ID `24910269`)로 보호한다. 2026-10-23에 읽기 전용 API로 확인한 설정은 active, bypass 대상 없음, GitHub required approval count 0이다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. 필수 CI aggregate 검사는 `Core, CLI, Editor, and browser regressions`다. 이 확인 시점에는 `strict_required_status_checks_policy=false`, `required_review_thread_resolution=false`이며, 두 값의 `true` 적용은 독립 승인 후 통합 담당자가 수행할 pending 작업이다. 적용 후 API로 다시 확인하고 이 설정 기록도 함께 갱신한다. 아래 병합 절차는 해당 서버 설정 적용 전에도 지킨다.
+- `master`는 repository ruleset `Protect master` (ID `24910269`)로 보호한다. 2026-10-23에 읽기 전용 API로 확인한 설정은 active, bypass 대상 없음, GitHub required approval count 0이다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. 필수 CI aggregate 검사는 `Core, CLI, Editor, and browser regressions`다. 독립 승인 후 통합 담당자가 `strict_required_status_checks_policy=true`, `required_review_thread_resolution=true`를 적용했고, 같은 날 읽기 전용 API로 두 값과 나머지 설정 보존을 확인했다(설정 수정 시각: `2026-10-23T15:11:07.360+09:00`). 최신 base 기준 필수 검사와 review thread 해결을 서버에서도 요구한다. 규칙을 바꿀 때는 API로 확인하고 이 설정 기록도 함께 갱신한다.
 - 가장 작고 단순한 변경을 우선하고, 확인되지 않은 필요를 위한 abstraction이나 infrastructure를 추가하지 않는다.
 - current behavior를 바꾸면 관련 design document도 같은 PR에서 갱신한다. 새 문서는 [docs index](docs/README.md)에 직접 연결한다.
 - historical review의 당시 결과를 현재 계약처럼 고쳐 쓰지 않는다. 상태와 현재 authority를 링크한다.
