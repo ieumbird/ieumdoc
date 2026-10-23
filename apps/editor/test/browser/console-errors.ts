@@ -68,10 +68,6 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "admonition-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
   ],
-  "label-authoring": [
-    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected duplicate-label save"},
-    {status: 400, pathname: "/api/document-source", minimum: 1, description: "rejected duplicate-label Source preview"},
-  ],
   "footnotes": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected save that would drop an unreferenced footnote"},
   ],

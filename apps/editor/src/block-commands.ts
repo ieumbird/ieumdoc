@@ -8,6 +8,7 @@ import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@
 import { isNewBlockPath } from "./tiptap-document.ts";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
+import { updateLabelProperties } from "./label-rename.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -363,9 +364,7 @@ export function updateFigure(
 ): Transaction {
   const figure = state.doc.nodeAt(position);
   if (figure?.type.name !== "figure") throw new Error("Figure target changed.");
-  if (caption === undefined) return closeHistory(state.tr.setNodeMarkup(position, undefined, { ...figure.attrs, ...attributes }));
-  const replacement = figure.type.create({ ...figure.attrs, ...attributes }, caption);
-  return closeHistory(state.tr.replaceWith(position, position + figure.nodeSize, replacement));
+  return updateLabelProperties(state, position, attributes, caption);
 }
 
 /** The new atom block is node-selected so its NodeView opens its authoring UI. */
