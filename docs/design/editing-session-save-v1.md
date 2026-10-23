@@ -384,6 +384,10 @@ without changing Core semantics or adding a CLI operation. The
 covers immediate typing at middle/end/sole Equations, a reference-preserving label
 case change, Undo/Redo before and after Save, Source equality with disk and Reload.
 
+The rename-to-missing observation above predates #374. Current non-empty property renames
+[update references atomically](section-references-v1.md#editor); they do not trigger #375's
+deletion notice. The original reproduction remains historical evidence of the focus bug.
+
 Review follow-up on `1b76abb` reproduced the same loss for Figure, Table and section
 label properties. With a caret in unrelated prose, Edit → Apply click or Enter →
 typing left a whole-block NodeSelection, replaced that target with prose, and

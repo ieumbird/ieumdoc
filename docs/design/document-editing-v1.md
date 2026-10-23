@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (source 7a214dcb lookup/handle/display-numbering changes: Editor 271/271, typecheck/build, eight browser regressions and actual 2000/5000-block input plus complete canonical Save/Reload; mixed 2000 input p95 111.7ms remains above 100ms; [evidence and limits](../reviews/editor-guard-performance-2026-10-23.md)).
+- Last verified: 2026-10-24 (#387 atom boundary selection: Editor 273/273, typecheck/build, six browser scenarios including the 48-case keyboard matrix, visible selection, deletion, Undo/Redo and disk Save/Reload).
+- Previous verification: 2026-10-23 (source 7a214dcb lookup/handle/display-numbering changes: Editor 271/271, typecheck/build, eight browser regressions and actual 2000/5000-block input plus complete canonical Save/Reload; mixed 2000 input p95 111.7ms remains above 100ms; [evidence and limits](../reviews/editor-guard-performance-2026-10-23.md)).
 - Previous verification: 2026-10-23 (citation scope reconciled with the implemented units A–C [Citations contract](citations-v1.md); documentation comparison only).
 - Previous verification: 2026-10-22 (#332 citation atom preservation through editing, typed clipboard, history and Save → Reload; [Citations](citations-v1.md)).
 - Previous verification: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
@@ -40,6 +41,15 @@ A changed document recomputes numbering; source semantics and canonical output a
   heading joined with prose that has line breaks becomes a paragraph to retain them
   (headings hold marks and inline atoms but no line breaks, #58).
   Admonitions, Figures and table cells are isolating: they never silently become prose.
+  At the start/end of a non-empty top-level paragraph or heading, Backspace/Delete
+  first node-selects an adjacent selectable atom (for example an Equation or divider),
+  without changing content or adding a history event. The existing node selection
+  styling makes this step visible; pressing Backspace or Delete again deletes it
+  through the normal engine path, including the existing reference-deletion handling.
+  Prose joins, empty-paragraph removal, list lifting, isolating boundaries and a
+  Backspace at the first block keep their existing behavior. Selection uses the
+  engine's `selectNodeBackward`/`selectNodeForward` before its join commands; no Core
+  operation or CLI command is added for this keyboard interaction.
 - With a caret in an editable top-level heading, Tab changes H2 to H3 (one level
   deeper), and Shift+Tab changes H3 to H2 (one level higher). Each change is one
   Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
@@ -238,6 +248,32 @@ command is added; pasting is an editor input interaction.
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
 Automated composition events exercise the browser input lifecycle, not an OS IME.
+
+`atom-boundaries` (#387) exercises real Backspace/Delete across six adjacent block
+kinds and four caret block kinds. It checks the first key's selection/document,
+visible Equation selection, second-key deletion in both directions, Undo/Redo,
+real disk Save and Reload, first-block no-op and empty-paragraph removal. The baseline on `0475227` failed the first-key selection assertion: Equation and divider disappeared
+from both heading and paragraph boundaries. The following matrix records that
+baseline and the implemented behavior; each cell is Backspace / Delete. Lists use
+the first/last item's boundary; quotes use their isolating text boundary.
+
+| Adjacent block | Caret block | Before | After |
+| --- | --- | --- | --- |
+| Equation, divider | Heading, paragraph | Delete atom / Delete atom | Select atom / Select atom |
+| Figure, table, admonition | Heading, paragraph | Select block / Select block | Unchanged |
+| Code (textblock, not atom) | Heading, paragraph | Join / Join | Unchanged |
+| Equation, divider, Figure, table, admonition | List | Lift item / Select block | Unchanged |
+| Code | List | Lift item / Join | Unchanged |
+| All six kinds | Quote | No change / No change | Unchanged |
+
+The adapter only changes atom selection precedence for non-empty top-level prose;
+it leaves the other keymaps in place. The baseline was gathered before the fix,
+not inferred solely from dependency source. Tiptap 3.31.3's default Backspace chain
+runs input-rule undo, first-empty-block conversion, `deleteSelection`, `joinBackward`,
+then `selectNodeBackward`; Delete runs `deleteSelection`, `deleteCurrentNode`,
+`joinForward`, then `selectNodeForward`. ProseMirror commands 1.7.2's join atom
+fallback therefore deletes before the selection fallback. The higher-priority
+Markdown input-rule undo and the existing list/empty-block commands remain intact.
 
 `equation-node-selection-typing` covers actual preview selection, ASCII typing,
 single/multiline plain-text clipboard paste, duplicate-label paste refusal,

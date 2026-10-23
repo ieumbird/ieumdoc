@@ -141,6 +141,16 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         return true;
       };
       const join = (backward: boolean) => {
+        const { state, commands } = this.editor;
+        const { $from } = state.selection;
+        // Before the engine join can delete an adjacent atom, show its normal node
+        // selection. Keep empty-block removal, list lifting and isolating boundaries.
+        if ($from.depth === 1 && $from.parent.content.size > 0 &&
+            ["paragraph", "heading"].includes($from.parent.type.name)) {
+          const adjacent = state.doc.resolve(backward ? $from.before() : $from.after());
+          const node = backward ? adjacent.nodeBefore : adjacent.nodeAfter;
+          if (node?.isAtom && (backward ? commands.selectNodeBackward() : commands.selectNodeForward())) return true;
+        }
         const tr = joinRichProse(this.editor.state, backward);
         if (!tr) return false;
         this.editor.view.dispatch(tr); return true;

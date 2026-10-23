@@ -1,6 +1,7 @@
 /** The stable browser suite, shared by the runner and its coverage/selection checks. */
 export const STABLE_SCENARIOS = [
   "continuous-editing",
+  "atom-boundaries",
   "editor-shell",
   "command-center",
   "ui-language",
@@ -89,7 +90,7 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+  if (screenshots && (requested.length !== 1 || !["cross-reference", "command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", ...HTTP_SCENARIOS].includes(requested[0]!))) {
     throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };

@@ -21,13 +21,14 @@ import { BlockHandles } from "./BlockHandles.tsx";
 import { addTitle, editorTitleIndex } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon } from "./command-icons.ts";
-import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm } from "./cross-reference.tsx";
+import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm, referencesBrokenByDeletion, referenceTargets, isResolved, type ReferenceTarget } from "./cross-reference.tsx";
 import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
+import { labelKey } from "@ieumdoc/core/label";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
   createEditorExtensions,
@@ -43,6 +44,7 @@ import { documentEnd } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
+const UNDO_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z";
 
 /** An insert command or reference item as the insert menu shows it: grouped, with its icon. */
 function insertMenuItem(item: { id: string; label: string; group: string; hint?: string }): CommandMenuItem {
@@ -83,6 +85,7 @@ type DocumentEditorProps = {
   initialSnapshot?: EditorSnapshot;
   documentPath: string;
   onStructuralReject: (reason?: UiMessage) => void;
+  onNotice?: (message: UiMessage) => void;
   onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
   onAssetError?: (reason: string) => void;
@@ -99,7 +102,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
+  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -107,6 +110,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // Each tab keeps its editor; only Reload remounts it. Save keeps its opening projection.
   const [projection] = useState(() => toTiptapDocument(document));
   const pending = useRef<TiptapJSON | null>(null);
+  const brokenReferences = useRef(new Map<string, ReferenceTarget>());
   const saved = useRef<TiptapJSON | null>(null);
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
@@ -187,7 +191,29 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       enableInputRules: [MARKDOWN_INPUT_RULES],
       onTransaction({ transaction }) {
         // Block indexes are snapshot positions; a document change invalidates an open menu.
-        if (transaction.docChanged) setBlockMenu(null);
+        if (transaction.docChanged) {
+          setBlockMenu(null);
+          const broken = referencesBrokenByDeletion(transaction.before, transaction.doc);
+          if (broken.length) {
+            for (const reference of broken) brokenReferences.current.set(`${reference.role}:${labelKey(reference.label)}`, reference);
+            onNotice?.({ key: "Deleting this target broke a reference. Press {{shortcut}} to undo.", values: { shortcut: UNDO_SHORTCUT_LABEL } });
+          } else if (brokenReferences.current.size) {
+            // Ordinary text input cannot restore a target. Keep this check to cheap block
+            // type/label comparisons; enumerate targets only after their shape changes.
+            let targetsChanged = transaction.before.childCount !== transaction.doc.childCount;
+            transaction.before.forEach((node, _pos, index) => {
+              const next = transaction.doc.maybeChild(index);
+              if (node.type !== next?.type || node.attrs.label !== next?.attrs.label) targetsChanged = true;
+            });
+            if (targetsChanged) {
+              const targets = referenceTargets(transaction.doc);
+              for (const [key, reference] of brokenReferences.current) {
+                if (isResolved(targets, reference.role, reference.label)) brokenReferences.current.delete(key);
+              }
+              if (!brokenReferences.current.size) onNotice?.("");
+            }
+          }
+        }
       },
       editorProps: {
         handleKeyDown: (_view, event) => slashKeys.current(event),

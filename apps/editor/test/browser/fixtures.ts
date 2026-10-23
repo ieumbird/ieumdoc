@@ -72,6 +72,16 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "image-assets-outside": { files: [{ name: "photo.png", create: () =>
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") }], scenarios: ["image-assets"] },
   "external-html-paste": { files: [{ name: "external.md", create: () => nativeSource("# External\n\nAlpha.\n\nOmega.\n") }], scenarios: ["external-html-paste"] },
+  "atom-boundaries": { files: [{ name: "boundaries.md", create: () => nativeSource(
+    "# Atom boundaries\n\n" + ["equation", "figure", "table", "code", "divider", "admonition"].flatMap((kind, i) =>
+      ["heading", "paragraph", "list", "quote"].flatMap((current, j) => ["Backspace", "Delete"].map(key => {
+        const id = `${i}-${j}-${key}`;
+        const text = `Boundary ${id}`;
+        const prose = current === "heading" ? `## ${text}` : current === "list" ? `- ${text}` : current === "quote" ? `> ${text}` : text;
+        const block = { equation: "$$\nx+y\n$$", figure: ":::{figure}\n\nCaption.\n:::", table: "| Head |\n| --- |\n| Cell |", code: "```\ncode\n```", divider: "---", admonition: ":::{note}\nNote.\n:::" }[kind]!;
+        return `Guard ${id}.\n\n` + (key === "Backspace" ? `${block}\n\n${prose}` : `${prose}\n\n${block}`) + `\n\nTail ${id}.\n\n`;
+      }))).join("")
+  ) }], scenarios: ["atom-boundaries"] },
   "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
     { name: "edge-equation.md", create: () => nativeSource("$$\nx\n$$\n") },
     // Every inline kind a heading, Figure caption and table cell hold (#58).
@@ -168,6 +178,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg"),
+    { name: "delete.md", create: () => nativeSource("# Delete targets\n\nSee {eq}`eq-a`, {numref}`fig-a` and {numref}`tbl-a`.\n\n" +
+      "```{math}\n:label: eq-a\na=b\n```\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
+      ":::{table} Ports\n:name: tbl-a\n\n| a | b |\n| - | - |\n| 1 | 2 |\n:::\n\n```{math}\nx=y\n```\n") },
     // A table caption holding inline math, a resolved and an unresolved reference (#165), canonical.
     { name: "caption.md", create: () => nativeSource("# Caption\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
       ":::{table} **Bold** with $x^2$, [link](https://example.com), {numref}`fig-a` and {eq}`eq-gone`\n:name: tbl-a\n\n" +
