@@ -2,15 +2,48 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getEditableDocument,
+  canonicalWriteError,
+  insertFootnoteDefinition,
   insertCodeBlock,
   insertParagraph,
   parse,
   serialize,
   splitParagraph,
   updateCodeBlock,
+  updateList,
+  updateParagraphInlineContent,
   type CodeBlockContent,
   type InlineContent,
 } from "./core-internal.ts";
+
+for (const body of ["Body.", "- Body."]) {
+  test(`code edits preserve new endnotes before definitions are inserted: ${body}`, () => {
+    const document = parse(`${body}\n\n\`\`\`js\nOld.\n\`\`\`\n`);
+    const original = JSON.stringify(document);
+    const content: InlineContent[] = [{ kind: "text", text: "Body." }, { kind: "footnote", label: "n" }];
+    const incomplete = body.startsWith("-")
+      ? updateList(document, [0], { ordered: false, items: [{ content }] })
+      : updateParagraphInlineContent(document, [0], content);
+    const before = JSON.stringify(incomplete);
+    // Both code operations share the round-trip guard; neither may persist synthetic definitions.
+    for (const edited of [
+      updateCodeBlock(incomplete, [1], { language: "text", code: "Edited." }),
+      insertCodeBlock(incomplete, 1, { language: "text", code: "Edited." }),
+    ]) {
+      assert.match(canonicalWriteError(edited) ?? "", /has no definition/);
+      assert.throws(() => serialize(edited), /has no definition/);
+      const complete = insertFootnoteDefinition(edited, edited.children.length, "n", [{ kind: "text", text: "New note." }]);
+      const markdown = serialize(complete);
+      assert.equal(serialize(parse(markdown)), markdown);
+      assert.deepEqual(getEditableDocument(parse(markdown)), getEditableDocument(complete));
+      assert.match(markdown, /Body\.\[\^n\]/);
+      assert.match(markdown, /```text\nEdited\.\n```/);
+      assert.match(markdown, /\[\^n\]: New note\./);
+    }
+    assert.equal(JSON.stringify(incomplete), before);
+    assert.equal(JSON.stringify(document), original);
+  });
+}
 
 test("fenced and indented code project as editable Code block v1 content", () => {
   const blocks = getEditableDocument(parse("```python\nprint(1)\n```\n\n    indented\n    code\n")).blocks;
