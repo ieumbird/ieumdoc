@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
+- Last verified: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
+- Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
 - Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
 - Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
 - Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
@@ -163,8 +164,20 @@ with the new confirmation open (the former immediate-delete behavior had no conf
 [confirmation at 375px](assets/recovery-382/delete-confirm-375.png),
 [Korean confirmation at 375px](assets/recovery-382/delete-confirm-ko-375.png),
 [Clear all at 375px](assets/recovery-382/clear-confirm-375.png).
+Capture refresh for the #391 review: product/test HEAD
+`b46c13d0f85ca4cddc9e4afe361eabc1b7ce61b1` (latest master merged), Windows Chrome,
+checkout-owned persistent profile, Vite `http://127.0.0.1:5173`, 1440×900 and 375×900,
+DPR 1 / 100% zoom, scroll top, the same recovery record before deletion and with the
+confirmation open. Korean capture changes only the UI language while that dialog stays open.
+Bundled Pretendard Variable 1.3.9 and the existing product font stack are unchanged;
+each capture waits for `document.fonts.ready`. The nested confirmation now has its own
+Base UI backdrop, dimming/blurring the parent while keeping only the top dialog interactive.
+The pre-existing narrow parent recovery-review clipping is outside this change.
+
 The recovery scenario checks confirmed deletion, Cancel/Escape preservation and focus return,
-all-record cancellation, live Korean/English target and warning text, and popup content bounds.
+all-record cancellation, outside-click dismissal of only the top confirmation at both entry points,
+pending outside-click refusal at both entry points, live Korean/English target and warning text,
+and popup content bounds.
 
 The start screen lists records newest first, with document name/path/time and **Review recovery**.
 Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**
