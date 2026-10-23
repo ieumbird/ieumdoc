@@ -1,6 +1,7 @@
 /** The stable browser suite, shared by the runner and its coverage/selection checks. */
 export const STABLE_SCENARIOS = [
   "continuous-editing",
+  "atom-boundaries",
   "editor-shell",
   "command-center",
   "ui-language",
