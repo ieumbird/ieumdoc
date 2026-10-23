@@ -45,11 +45,12 @@ async (page) => {
   };
   const hold = async path => {
     let release, started;
+    let holdNewRequests = true;
     const gate = new Promise(resolve => { release = resolve; });
     const requested = new Promise(resolve => { started = resolve; });
     const handler = async route => {
       const query = Object.fromEntries(route.request().url().split('?')[1].split('&').map(part => part.split('=').map(value => decodeURIComponent(value.replaceAll('+', ' ')))));
-      if (query.root !== path || query.path !== undefined) return route.fallback();
+      if (query.root !== path || query.path !== undefined || !holdNewRequests) return route.fallback();
       const response = await route.fetch();
       started();
       await gate;
@@ -57,6 +58,7 @@ async (page) => {
     };
     await page.route('**/api/folder?*', handler);
     return {requested:() => Promise.race([requested, page.waitForTimeout(15000).then(() => { throw new Error(`Listing did not start: ${path}`); })]),
+      allowNewRequests:() => { holdNewRequests = false; },
       release, dispose:async () => { release(); await page.unroute('**/api/folder?*', handler); }};
   };
 
@@ -131,6 +133,27 @@ async (page) => {
     await page.unroute('**/api/document', startWithoutDocument);
   }
 
+  // The user opens and closes the same path while its older startup listing is still pending.
+  const restoringA = await hold(a);
+  try {
+    await seed([a]);
+    await restoringA.requested();
+    restoringA.allowNewRequests();
+    await startOpen(a);
+    await waitRoots([a]);
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await menu(a, 'Close folder');
+    await waitRoots([]);
+    await checkMemory([a], 'Same-path Close still defers persistence until restoration completes');
+    const answered = page.waitForResponse(response => response.url().startsWith(`${origin}/api/folder?`) &&
+      response.url().includes(`root=${encodeURIComponent(a)}`));
+    restoringA.release();
+    await answered;
+    await checkMemory([], 'Late restoration must retain the same-path user Close');
+    check(same(await roots(), []), 'Late restoration reopened a folder the user explicitly closed');
+    await reload([]);
+  } finally { await restoringA.dispose(); }
+
   // A failed restoration is quiet and does not rewrite preferences until the user navigates.
   const missing = [a, 'missing-folder'].join(sep);
   await seed([a, missing, b]);
@@ -141,6 +164,33 @@ async (page) => {
   await waitRoots([b]);
   await checkMemory([b], 'User navigation removes failed restoration paths');
   await reload([b]);
+
+  // Preference writes depend on the path list, not expansion, listings or reopening an existing root.
+  await seed([a]);
+  await waitRoots([a]);
+  await startOpen(c);
+  await waitRoots([a, c]);
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await checkMemory([a, c], 'An explicit Open remembers the changed path list');
+  await page.evaluate(() => {
+    window.folderPreferenceWrites = 0;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === 'ieumdoc.openFolders') window.folderPreferenceWrites++;
+      return setItem.call(this, key, value);
+    };
+  });
+  const guides = section(a).getByRole('treeitem', {name:'guides', exact:true});
+  const install = section(a).getByRole('treeitem', {name:'install.md', exact:true});
+  await guides.click();
+  await install.waitFor();
+  await guides.click();
+  await install.waitFor({state:'detached'});
+  await startOpen(a);
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await checkMemory([a, c], 'Tree-only changes preserve the remembered list');
+  check(await page.evaluate(() => window.folderPreferenceWrites) === 0,
+    'Expansion, listing, collapse and reopening rewrote an unchanged path preference');
 
   // Overlapping trees keep separate Sidebar sections, but each New destination appears once.
   // The first opened tree supplies the label, regardless of whether it is the parent or child.
@@ -161,5 +211,6 @@ async (page) => {
     }
   }
   if (failures.length) throw new Error(failures.join('\n'));
-  return {responseOrders:true, closeDuringRestoration:true, closeDuringOpen:true, failedRestoration:true, reload:true, uniqueDestinations:true};
+  return {responseOrders:true, closeDuringRestoration:true, closeDuringOpen:true, samePathCloseWins:true,
+    writesOnlyChangedPaths:true, failedRestoration:true, reload:true, uniqueDestinations:true};
 }

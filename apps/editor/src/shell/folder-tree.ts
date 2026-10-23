@@ -169,15 +169,21 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
   const roots = trees.map(tree => tree.root);
   const [restored, setRestored] = useState(false);
   const [remember, setRemember] = useState(false);
+  const rememberedRoots = useRef<readonly string[]>([]);
+  const userChangedRoots = useRef(new Set<string>());
 
   // Restoration alone never rewrites preferences, including paths the Host no longer lists.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      for (const root of readOpenFolders()) {
+      const saved = readOpenFolders();
+      rememberedRoots.current = saved;
+      for (const root of saved) {
+        if (cancelled) return;
         try {
           const listing = await request(root);
-          if (!cancelled) dispatch({ type: "openRoot", listing });
+          // A user's Open/Close of this Host path takes precedence over its older restoration.
+          if (!cancelled && !userChangedRoots.current.has(listing.root)) dispatch({ type: "openRoot", listing });
         } catch { /* Moved, removed or refused folders are left out quietly. */ }
       }
       if (!cancelled) setRestored(true);
@@ -188,7 +194,12 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
   // Derive remembered paths from the same current state as the Sidebar, never an async caller's
   // render. A user change during restoration waits so pending remembered folders are not lost.
   useEffect(() => {
-    if (restored && remember) writeOpenFolders(trees.map(tree => tree.root));
+    if (!restored || !remember) return;
+    const next = trees.map(tree => tree.root);
+    const previous = rememberedRoots.current;
+    if (next.length === previous.length && next.every((root, index) => root === previous[index])) return;
+    writeOpenFolders(next);
+    rememberedRoots.current = next;
   }, [trees, restored, remember]);
 
   const load = (root: string, path: string) => {
@@ -219,11 +230,13 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     rootOf: (itemPath: string) => containingRoot(roots, itemPath),
     /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
     open(listing: FolderResponse, documentPath: string) {
+      if (!restored) userChangedRoots.current.add(listing.root);
       dispatch({ type: "openRoot", listing });
       setRemember(true);
       show(listing.root, documentPath, false);
     },
     close(root: string) {
+      if (!restored) userChangedRoots.current.add(root);
       dispatch({ type: "closeRoot", root });
       setRemember(true);
     },
