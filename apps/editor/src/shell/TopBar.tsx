@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import type { Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -10,11 +10,13 @@ import { splitDocumentPath } from "./document-path.ts";
 export type DocumentView = "visual" | "source";
 
 const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
+const COMMAND_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘P" : "Ctrl+P";
 
 type TopBarProps = {
   /** At phone widths the closed sidebar has no rail; the TopBar opens it. */
   onOpenSidebar?(): void;
   openSidebarRef?: Ref<HTMLButtonElement>;
+  onOpenCommandCenter?(): void;
   documentPath: string;
   /** The folders holding the document, shown before its name; the tab row already names it. */
   location?: string[];
@@ -38,14 +40,14 @@ type TopBarProps = {
 };
 
 /**
- * Document identity and its state on the left, so status changes never move the controls.
- * The identity is the document's location: its folders, then its name, which the tab below repeats.
+ * The centered document/location button opens the command center. Status has its own left cell,
+ * so an unsaved/saved notice never moves the center or actions.
  * On the right: Visual/Source and Outline, then Save and the File actions menu. Only Save with unsaved
  * changes takes the accent. Spaced groups separate view and file actions; Visual/Source is a
  * segmented control and Outline a pressed toggle, so the blue marker belongs to tabs alone.
  */
 export function TopBar({
-  onOpenSidebar, openSidebarRef, documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
+  onOpenSidebar, openSidebarRef, onOpenCommandCenter, documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
@@ -81,18 +83,25 @@ export function TopBar({
             <PanelLeftOpen aria-hidden="true" />
           </Button>
         ) : null}
-        <p className="document-path" title={documentPath || undefined}>
+        <p className="status" data-testid="status" data-operation={status} role="status">
+          {displayStatus}
+        </p>
+      </div>
+      <Button type="button" variant="outline" className="command-center-trigger"
+        aria-label={i18n.t("Command center")} title={i18n.t("Command center ({{shortcut}})", { shortcut: COMMAND_SHORTCUT_LABEL })}
+        aria-haspopup="dialog" aria-keyshortcuts="Control+P Meta+P" onClick={onOpenCommandCenter}
+        onMouseDown={event => { if (event.button === 0) event.preventDefault(); }}>
+        <Search aria-hidden="true" />
+        <span className="document-path" title={documentPath || undefined}>
           {documentPath ? location.map((folder, index) => (
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
           )) : null}
           <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
             {documentPath ? name : i18n.t("No file opened")}
           </span>
-        </p>
-        <p className="status" data-testid="status" data-operation={status} role="status">
-          {displayStatus}
-        </p>
-      </div>
+        </span>
+        <kbd aria-hidden="true">{COMMAND_SHORTCUT_LABEL}</kbd>
+      </Button>
       <div className="top-bar-actions">
         <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
           <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>

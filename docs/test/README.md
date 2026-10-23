@@ -2,6 +2,8 @@
 
 변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
+`command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+P·명령 전용 모드, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. 기존 `layout-rules`는 사용 가능한 header 너비에 따른 한 줄/두 줄 배치와 가운데 정렬을 함께 검사한다.
+
 ## 자동 검증
 
 저장소 루트에서 변경 유형에 필요한 명령을 선택한다. 패키지 선택 실행은 예를 들어 `pnpm --filter @ieumdoc/core test`를 사용한다.

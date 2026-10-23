@@ -10,7 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
-import { activeAfterClose, allTabsPendingWork, openedTab } from "./document-tabs.ts";
+import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenFolders, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenFolders, type DocumentWidth } from "./preferences.ts";
@@ -26,6 +26,9 @@ import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
+import { CommandCenter } from "./shell/CommandCenter.tsx";
+import type { CommandCenterItem } from "./shell/command-center.ts";
+import { Columns3, Copy, FileText, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -81,6 +84,8 @@ export function App() {
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
+  const [commandQuery, setCommandQuery] = useState<string | null>(null);
+  const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
   const visibleRecent = visibleRecentFolders(recentFolders, allowedRoots);
@@ -421,6 +426,14 @@ export function App() {
   // never applies. Modal dialogs cover the Save button, so the shortcut waits for them too.
   const saveShortcut = useRef<(event: KeyboardEvent) => void>(() => {});
   saveShortcut.current = (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing &&
+        (event.key.toLowerCase() === "p" || event.code === "KeyP")) {
+      event.preventDefault();
+      if (globalThis.document.querySelector('[data-slot="dialog-content"]:not(.command-center-dialog)') ||
+          folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+      openCommandCenter(event.shiftKey ? ">" : "");
+      return;
+    }
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
@@ -507,6 +520,45 @@ export function App() {
     writeDocumentWidth(next);
   }
 
+  function openCommandCenter(query = ""): void {
+    if (commandQuery === null) {
+      commandReturnFocus.current = globalThis.document.activeElement instanceof HTMLElement ? globalThis.document.activeElement : null;
+    }
+    setCommandQuery(query);
+  }
+
+  // The center is another entry to the same handlers and availability conditions as the shell.
+  // It owns no document operation, indexing or persistent command registry.
+  const commandDocumentNames = tabNames(tabs);
+  const commandItems: CommandCenterItem[] = [
+    ...tabs.map((tab, index) => ({
+      id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
+      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation), takesFocus: true,
+      run: () => { activateTab(tab.id); globalThis.document.getElementById(`tab-${tab.id}`)?.focus({ preventScroll: true }); },
+    })),
+    { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
+      keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
+    { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
+      keywords: ["save", "저장"], shortcut: "Ctrl/⌘ S", run: () => { void save(); } },
+    { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
+      keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
+    { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
+      keywords: ["copy path", "경로 복사"], run: () => { void copyPath(); } },
+    { id: "visual", kind: "command", label: i18n.t("Visual"), icon: FileText, disabled: !document || busy, takesFocus: true,
+      keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-visual"]')?.focus(); setView("visual"); } },
+    { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
+      keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
+    { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
+      keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); setPanelOpen(value => !value); } },
+    { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
+      keywords: ["sidebar", "사이드바"], takesFocus: true,
+      run: () => { sidebarFocus.current = sidebarOverlay && sidebarOpen ? "top-bar" : "sidebar"; setSidebarOpen(value => !value); } },
+    { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
+      keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
+    { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
+      keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsOpen(true); void refreshRecovery(); } },
+  ];
+
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${sidebarOverlay ? " app-shell--sidebar-overlay" : ""}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
@@ -559,6 +611,7 @@ export function App() {
       <div className="app-main">
         <div className="app-header" ref={header}>
           <TopBar
+            onOpenCommandCenter={() => openCommandCenter()}
             onOpenSidebar={sidebarOverlay && !sidebarOpen ? () => { sidebarFocus.current = "sidebar"; setSidebarOpen(true); } : undefined}
             openSidebarRef={openSidebarButton}
             documentPath={openedPath}
@@ -641,6 +694,8 @@ export function App() {
           returnFocus={settingsReturnFocus}
           onClose={() => setSettingsOpen(false)}
         />
+      <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
+        returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />
       <RecoveryPrompt key={recoveryReview?.record.id ?? "closed"} record={recoveryReview?.record ?? null} reason={recoveryReview?.reason ?? ""}
         onRestore={restoreRecovery} onDelete={async () => { if (recoveryReview) await deleteRecovery(recoveryReview.record.id); setRecoveryReview(null); }}
         onClose={() => setRecoveryReview(null)} />

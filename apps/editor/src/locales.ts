@@ -1,5 +1,14 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Command center": "Command center",
+  "Command center ({{shortcut}})": "Command center ({{shortcut}})",
+  "Search documents and commands": "Search documents and commands",
+  "Search opened documents and existing commands. Type > for commands only.": "Search opened documents and existing commands. Type > for commands only.",
+  "Type > for commands": "Type > for commands",
+  "Navigate": "Navigate",
+  "Run": "Run",
+  "Show outline": "Show outline",
+  "Standard document width": "Standard document width",
   "This recovery format is not supported by this version of IeumDoc.": "This recovery format is not supported by this version of IeumDoc.",
   "The recovery opening source or saved checkpoint is incomplete.": "The recovery opening source or saved checkpoint is incomplete.",
   "Editor content would be lost": "Editor content would be lost",
@@ -430,6 +439,15 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Command center": "커맨드 센터",
+  "Command center ({{shortcut}})": "커맨드 센터 ({{shortcut}})",
+  "Search documents and commands": "문서 및 명령 검색",
+  "Search opened documents and existing commands. Type > for commands only.": "열린 문서와 기존 명령을 검색합니다. >를 입력하면 명령만 검색합니다.",
+  "Type > for commands": ">를 입력하여 명령 검색",
+  "Navigate": "이동",
+  "Run": "실행",
+  "Show outline": "개요 표시",
+  "Standard document width": "표준 문서 너비",
   "This recovery format is not supported by this version of IeumDoc.": "이 버전의 이음독은 이 복구 기록 형식을 지원하지 않습니다.",
   "The recovery opening source or saved checkpoint is incomplete.": "복구 기록의 원본 문서 또는 저장 기준점이 불완전합니다.",
   "Editor content would be lost": "편집 내용이 유실될 수 있습니다",

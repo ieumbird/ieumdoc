@@ -2,6 +2,7 @@
 export const STABLE_SCENARIOS = [
   "continuous-editing",
   "editor-shell",
+  "command-center",
   "ui-language",
   "layout-rules",
   "quiet-document",
@@ -87,7 +88,7 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+  if (screenshots && (requested.length !== 1 || !["command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", ...HTTP_SCENARIOS].includes(requested[0]!))) {
     throw new Error("Use: pnpm browser:test quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };

@@ -21,6 +21,24 @@ import { en, ko } from "../src/locales.ts";
 import { messageText, type UiMessage } from "../src/ui-message.ts";
 import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
 import { filterInsertCommands } from "../src/block-commands.ts";
+import { FileText } from "lucide-react";
+import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
+
+test("command center searches document paths and translated commands, with an explicit command-only prefix", () => {
+  const items: CommandCenterItem[] = [
+    { id: "document", kind: "document", label: "save-guide.md", detail: "C:/guides/문서/save-guide.md", icon: FileText, run() {} },
+    { id: "save", kind: "command", label: "저장", keywords: ["save"], disabled: true, icon: FileText, run() {} },
+    { id: "copy", kind: "command", label: "Copy path", keywords: ["경로 복사"], icon: FileText, run() {} },
+  ];
+  const ids = (query: string) => filterCommandCenterItems(items, query).map(item => item.id);
+  assert.deepEqual(ids("SAVE"), ["document", "save"]);
+  assert.deepEqual(ids("> SAVE"), ["save"]);
+  assert.deepEqual(ids("저장"), ["save"]);
+  assert.deepEqual(ids("문서 GUIDE"), ["document"]);
+  assert.deepEqual(ids("> 경로 복사"), ["copy"]);
+  assert.deepEqual(ids("unknown"), []);
+  assert.equal(filterCommandCenterItems(items, "> save")[0]?.disabled, true);
+});
 
 test("bundled languages cover keys and interpolation parameters without relying on fallback", () => {
   assert.deepEqual(Object.keys(ko).sort(), Object.keys(en).sort());
