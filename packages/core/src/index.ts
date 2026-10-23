@@ -37,6 +37,7 @@ export type { BlockConversion, TableCellInput } from "./operations.ts";
 export type { UnresolvedReference } from "./references.ts";
 export { figureContentError } from "./figure.ts";
 export { labelError, labelKey, targetLabelError } from "./label.ts";
+export { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "./myst/label-rename-plan.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, titleHeading, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type NumberedTargets } from "./numbering.ts";
 export { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, headingNumbers, defaultHeadingNumbering, type EndnoteBlock, type HeadingNumbering } from "./numbering.ts";

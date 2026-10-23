@@ -16,10 +16,45 @@ import {
   type MystDocument,
 } from "./core-internal.ts";
 import { referenceTargetIndex } from "../src/myst/label.ts";
+import { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 const EQUATION = 9;
 const FIGURE = 6;
+
+test("live label rename plans share updateLabel resolution, canonical refusal and target context", () => {
+  const references: LabelRenameReference[] = [
+    { kind: "reference", role: "ref", label: "OLD" },
+    { kind: "reference", role: "eq", label: "old" },
+    { kind: "link", url: "#Old" },
+    { kind: "link", url: "other.md#old" },
+    { kind: "reference", role: "numref", label: "missing" },
+    { kind: "link", url: "#Old%20Label" },
+  ];
+  for (const block of ["equation", "figure", "table", "target"]) {
+    const blocks: LabelRenameBlock[] = [{ block, label: "Old" },
+      { block: "heading", level: 2, content: [{ kind: "text", text: "Install" }] }];
+    const before = structuredClone({ blocks, references });
+    assert.deepEqual(planLabelRename(blocks, 0, "new", references), [
+      { index: 0, reference: { kind: "reference", role: "ref", label: "new" } },
+      { index: 1, reference: { kind: "reference", role: "eq", label: "new" } },
+      { index: 2, reference: { kind: "link", url: "#new" } },
+    ]);
+    assert.deepEqual({ blocks, references }, before);
+    if (block !== "target") assert.throws(() => planLabelRename(blocks, 0, "install", references), /already names another target/);
+    assert.throws(() => planLabelRename([...blocks, { block: "equation", label: "new" }], 0, "new", references), /already names another target/);
+    assert.throws(() => planLabelRename(blocks, 0, "missing", references), /previously unresolved reference/);
+    assert.throws(() => planLabelRename(blocks, 0, "new label", references), block === "target" ? /ASCII/ : /cannot be rewritten/);
+    assert.throws(() => planLabelRename(blocks, 0, "new", [...references, { kind: "link", url: "#toString" }]), /inherited Object.prototype/);
+    assert.throws(() => planLabelRename(blocks, 0, "", references), /non-empty/);
+  }
+  assert.throws(() => planLabelRename([{ block: "target", label: "old" }, { block: "paragraph" },
+    { block: "heading", content: [{ kind: "text", text: "Heading" }] }], 0, "new", references), /immediately before a heading/);
+  assert.throws(() => planLabelRename([{ block: "equation", label: "old" }, { block: "figure", label: "OLD" }], 0, "new", references), /ambiguous target/);
+  assert.deepEqual(planLabelRename([{ block: "equation", label: "old" }, { block: "target", label: "trailing" }], 0, "new", [
+    { kind: "reference", role: "eq", label: "old" }, { kind: "reference", role: "ref", label: "trailing" },
+  ]), [{ index: 0, reference: { kind: "reference", role: "eq", label: "new" } }]);
+});
 
 function block(document: MystDocument, index: number) {
   return getEditableDocument(document).blocks[index];

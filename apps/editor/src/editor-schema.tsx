@@ -1,4 +1,5 @@
 import { useBibliography } from "./citation.tsx";
+import { updateLabelProperties } from "./label-rename.ts";
 import type { BibliographyEvaluation } from "@ieumdoc/core";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -454,7 +455,7 @@ function tableNode(onDraftChange?: DraftListener) {
   });
 }
 
-function TableView({ node, editor, getPos, updateAttributes, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
   const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
@@ -487,7 +488,11 @@ function TableView({ node, editor, getPos, updateAttributes, selected, onDraftCh
   const apply = () => {
     const invalid: UiMessage | undefined = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? { key: "Caption must be a single line without surrounding spaces." } : undefined);
     if (invalid) { setError(invalid); return; }
-    updateAttributes({ label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [] });
+    const position = getPos();
+    if (typeof position !== "number") return;
+    try {
+      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [] }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
@@ -634,7 +639,7 @@ function sectionLabelError(doc: ProseMirrorNode, own: number, label: string): st
   return taken ? i18n.t("Label \"{{label}}\" already names another target in this document.", { label: label }) : undefined;
 }
 
-function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
+function LabelTargetView({ node, editor, getPos, selected }: ReactNodeViewProps) {
   useTranslation();
   const formId = useId();
   const label = String(node.attrs.label ?? "");
@@ -655,7 +660,9 @@ function LabelTargetView({ node, editor, getPos, updateAttributes, selected }: R
     const position = getPos();
     const invalid = typeof position === "number" ? sectionLabelError(editor.state.doc, position, draft) : undefined;
     if (invalid) { setError(invalid); return; }
-    updateAttributes({ label: draft });
+    if (typeof position !== "number") return;
+    try { editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft })); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
   };
   // Authoring metadata like a Figure label: it takes no space and shows with its heading.
@@ -1072,7 +1079,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     focusBlock(view, getPos);
   };
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
-  // Whether the label is referenceable and unique in the document is checked by Core on Save.
+  // Core checks the live target/reference context before committing a label rename.
   const apply = async () => {
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
@@ -1121,8 +1128,14 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const copy = copied.current;
     copied.current = undefined;
     // One undo step: undo returns the form's previous value.
-    view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel },
-      captionContent.eq(latest.content) ? undefined : captionContent));
+    try {
+      view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel },
+        captionContent.eq(latest.content) ? undefined : captionContent));
+    } catch (cause) {
+      copied.current = copy;
+      setError(cause instanceof Error ? cause.message : String(cause));
+      return;
+    }
     let used = false;
     view.state.doc.forEach(block => { used ||= block.type.name === "figure" && block.attrs.imageUrl === copy?.path; });
     if (!used) copy?.discard?.();
@@ -1272,7 +1285,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string): st
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
-function EquationView({ node, editor, selected, updateAttributes, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
@@ -1338,7 +1351,7 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
     if (isUnappliedNewEquation) view.focus();
     else focusBlock(view, getPos);
   };
-  // Whether the label is referenceable and unique in the document is checked by Core on Save.
+  // Core checks the live target/reference context before committing a label rename.
   const apply = () => {
     if (draft.length === 0) {
       setError({ key: "Equation LaTeX cannot be empty." });
@@ -1350,7 +1363,10 @@ function EquationView({ node, editor, selected, updateAttributes, deleteNode, ge
       return;
     }
     cancelFocus();
-    updateAttributes({ latex: draft, label: labelDraft });
+    const position = getPos();
+    if (typeof position !== "number") return;
+    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft })); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
