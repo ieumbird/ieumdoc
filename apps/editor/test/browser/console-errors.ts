@@ -80,6 +80,9 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 400, pathname: "/api/folder", minimum: 1, description: "a missing folder or file cannot be opened as a folder, and New folder rejects reserved or existing names"},
     {status: 400, pathname: "/api/folder-browse", minimum: 1, description: "a missing folder cannot be browsed"},
   ],
+  "folder-memory": [
+    {status: 400, pathname: "/api/folder", minimum: 1, description: "a remembered missing folder is quietly skipped during restoration"},
+  ],
 };
 
 export function classifyConsoleErrors(scenario: string, messages: string[]) {

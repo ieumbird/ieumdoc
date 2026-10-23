@@ -51,6 +51,7 @@ export const STABLE_SCENARIOS = [
   "code-highlighting",
   "section-reference",
   "folder-navigation",
+  "folder-memory",
   "file-preview",
   "footnotes",
   "focus-caret",

@@ -1,7 +1,10 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
+- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
+- Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
 - Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders as separate Sidebar sections, Open adds, per-folder Close, restored paths and outermost-folder location/New; Editor unit tests and stable browser suite).
 - Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
 - Previous verification: 2026-10-20 (#256: bundled Korean/English settings, live language changes and editing preservation; `ui-language` browser scenario and Editor tests).
@@ -59,7 +62,8 @@ suspended. Browser unload and Desktop close/update inspect all tabs. See the
 
 A folder heading's `+` opens the New filename form without work-loss confirmation. Its Location field shows the destination and lists the
 opened folders and every sub-folder their trees have listed, each named from its opened folder
-(`docs`, `docs\guides`); it starts at the open document's folder when that is inside the
+(`docs`, `docs\guides`). Overlapping trees contribute each Host-normalized path only once: the first
+occurrence in opened-folder order, then tree order, supplies its position and label. It starts at the open document's folder when that is inside the
 heading's folder, otherwise at that folder. Expanding or collapsing folders never changes it.
 New asks for a filename, adds `.md` if omitted and uses the existing creation checks; success
 opens the document in a new tab and lists its folder again. When the modal closes after successful creation,
@@ -68,6 +72,15 @@ rejected creation, returns focus to the New button.
 It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
 The heading's New folder uses the same Location and starting destination for a folder name;
 success shows the folder in the tree and returns focus to New folder. See [New folder](folder-picker-v1.md#new-folder).
+
+The folder-tree hook owns the live opened list and the preference derived from it. User Open/Close
+remembers the latest reduced list; if startup restoration is pending, writing waits until every
+remembered path has been tried. Restoration alone leaves preferences unchanged, including paths
+the Host no longer lists. A user Open/Close of the same Host-normalized path wins over a late
+restoration response, so a closed folder stays closed. Successful explicit Open/Close always
+remembers that browser tab's current list, including a same-path Open after another tab saved a
+different list. Tree expansion and listing updates never write preferences. See
+[Folder picker behavior](folder-picker-v1.md#behavior).
 
 Behavior change (sidebar chrome cleanup): the sidebar no longer has the Open…, Open folder…
 and New button row or the separate current-document row. The app-level New, which took a full

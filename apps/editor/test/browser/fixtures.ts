@@ -199,7 +199,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "guides/install.md", create: () => nativeSource("# Install\n\nInstall body.\n") },
       { name: "자료/메모.md", create: () => nativeSource("# 메모\n\n내용.\n") },
     ],
-    scenarios: ["folder-navigation"],
+    scenarios: ["folder-navigation", "folder-memory"],
   },
 };
 

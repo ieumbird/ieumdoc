@@ -1,7 +1,10 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders in the Sidebar, paths restored from browser preferences, outermost-folder context; Host handlers unchanged; Editor unit tests and stable browser suite).
+- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit Open/Close remembers the current tab's list, tree-only updates leave preferences intact; folder-memory browser regression; Host handlers unchanged).
+- Previous verification: 2026-10-24 (#367 review follow-up: user Open/Close wins over same-path restoration, unchanged path preferences are not rewritten; folder-memory browser regression; Host handlers unchanged).
+- Previous verification: 2026-10-24 (#367: browser preference restoration/Open/Close race and Reload regression; tab Non-goal compared with [ADR-0007](../adr/0007-editing-session-lifetime.md) and the [editing-session contract](editing-session-save-v1.md#switching-and-recovery); Host handlers unchanged).
+- Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders in the Sidebar, paths restored from browser preferences, outermost-folder context; Host handlers unchanged; Editor unit tests and stable browser suite).
 - Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
 - Literal syntax verification: 2026-10-15 (#304: original-source warnings in check, single/batch writes and dry-run JSON; Core/CLI tests and source CLI).
 - CLI preview verification: 2026-10-15 (#292: shared file-commit preflight, dry-run no-write boundary, failure parity and result/check output; source CLI and Core/CLI/file-commit tests).
@@ -214,7 +217,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | Lazy one-level Host listing | 지원. folder를 펼칠 때 그 folder 하나만 위 API로 list한다. |
 | Recursive scan | 지원하지 않음. Host도 Editor도 하위 folder를 미리 읽지 않는다. |
 | Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때만 반영된다. |
-| Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 펼친 상태와 Workspace 파일은 없다. |
+| Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 복원 자체는 preference를 다시 쓰지 않는다. 성공한 명시적 사용자 Open/Close는 같은 목록이거나 다른 브라우저 탭이 preference를 바꿨어도 현재 탭의 열린 목록을 기억한다. 복원 중이면 모든 경로의 시도가 끝날 때까지 저장을 미룬다. 같은 Host 정규화 경로의 사용자 Open/Close는 늦은 복원 응답보다 우선한다. 펼치기·접기·listing 갱신은 preference를 쓰지 않는다. 펼친 상태와 Workspace 파일은 없다. |
 - 일반 directory와 모든 확장자의 일반 파일(확장자 없는 파일 포함)을 넣는다. `.md`는 document, 기존 MEDIA_TYPES의 PNG/JPEG/GIF/WebP/SVG는 image, 나머지는 file이다. 확장자는 대소문자를 구분하지 않는다. 폴더 먼저, 파일 종류와 무관하게 숫자를 인식한 이름순으로 정렬한다. `.`으로 시작하는 항목과 symlink(Windows junction 포함), 비정규 파일은 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
 - Host가 반환한 정규화 경로로 열린 탭을 식별한다. 요청 경로가 이미 열린 탭 경로와 정확히 같으면 Host GET 없이 그 세션을 활성화하므로, 디스크에서 파일이 사라지거나 읽을 수 없게 되어도 열린 세션을 유지한다. 일치하지 않는 경로·별칭은 기존 `GET /api/document`로 읽고 반환된 정규화 경로를 다시 비교한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 그 문서를 담은 각 열린 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.
@@ -234,7 +237,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - [Folder picker](folder-picker-v1.md)는 앱 안에서 경로를 고른다. OS 선택창, upload, 별도 복사본은 없다. Open을 누르기 전의 탐색은 sidebar와 문서를 바꾸지 않는다.
 - `GET /api/folder-browse?path=<folder>`는 `{ path, crumbs, entries }`를 돌려준다. `crumbs`는 filesystem root부터 해당 folder까지의 `{ name, path }` 목록이며 Host가 계산한다. 정렬과 hidden/symlink 제외는 Folder listing v1과 같지만, 폴더 선택은 기존 `.md` 필터, 이미지 선택은 기존 이미지 필터를 유지한다. 선택 전 탐색은 이름과 종류만 돌려주고 파일 내용(`native`)은 읽지 않는다. 선택 전의 탐색은 sidebar의 `root` 제한을 사용하지 않는다.
 - `GET /api/folder-places`는 `{ places: [{ kind, name, path }] }`를 돌려준다. Home, 실제 존재하는 Documents, Windows drive roots 또는 `/`가 시작점이다. Host는 탐색 위치나 최근 목록을 저장하지 않는다.
-- Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하고, 새로고침 시 sidebar folder를 자동으로 복원하지 않는다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
+- Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하며, Recent 자체는 복원 목록이 아니다. 별도의 `ieumdoc.openFolders` preference가 위 Folder listing v1과 [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 sidebar folder를 복원한다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
 
 ### Folder creation v1
 
@@ -304,7 +307,7 @@ New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전
 
 - workspace file 또는 project concept. Sidebar의 열린 folder 목록은 경로만 기억하는 탐색 상태일 뿐 workspace가 아니다([ADR-0009](../adr/0009-multiple-opened-folders.md)).
 - Git repository detection, recent workspace, 재귀 filesystem scan, 검색 또는 index (Sidebar의 lazy tree UI는 위 Folder listing v1 범위다)
-- `.ieumdoc/`, workspace config, 여러 문서 동시 열기 또는 문서 간 탐색 기록
+- `.ieumdoc/`, workspace config 또는 문서 간 탐색 기록. 여러 문서를 탭으로 여는 기능은 [ADR-0007](../adr/0007-editing-session-lifetime.md)과 [편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)의 현재 범위이며, Host는 탭 상태를 소유하지 않는다.
 - 특정 HTTP API, localhost server 또는 production backend architecture
 - browser file upload 또는 Browser File System Access API를 기본 architecture로 채택하는 결정
 - database, remote document service 또는 별도 document storage를 SSOT로 추가하는 결정

@@ -1,5 +1,6 @@
-import { useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import type { FolderEntry, FolderResponse } from "../../shared/document-protocol.ts";
+import { readOpenFolders, writeOpenFolders } from "../preferences.ts";
 
 // The sidebar's view of the folders the user opened: one tree of one-level Host listings per
 // folder, loaded when a folder is expanded. Only the opened folders' paths are remembered (see
@@ -160,12 +161,42 @@ export function treeKey(items: TreeItem[], index: number, key: string, expanded:
 }
 
 /** Opened folders with their Host requests. `request` lists one level of a folder inside an opened one. */
-export function useFolderTrees(request: (root: string, path: string) => Promise<FolderResponse>, onError: (message: string) => void) {
+export function useFolderTrees(request: (root: string, path?: string) => Promise<FolderResponse>, onError: (message: string) => void) {
   const [trees, dispatch] = useReducer(folderTreesReducer, []);
   const latest = useRef(trees);
   latest.current = trees;
   const requests = useRef(0);
   const roots = trees.map(tree => tree.root);
+  // Compare path values in the effect dependencies, independently of tree listing/expansion state.
+  const serializedRoots = JSON.stringify(roots);
+  const [restored, setRestored] = useState(false);
+  const [rememberVersion, rememberFolders] = useReducer(version => version + 1, 0);
+  const userChangedRoots = useRef(new Set<string>());
+
+  // Restoration alone never rewrites preferences, including paths the Host no longer lists.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const saved = readOpenFolders();
+      for (const root of saved) {
+        if (cancelled) return;
+        try {
+          const listing = await request(root);
+          // A user's Open/Close of this Host path takes precedence over its older restoration.
+          if (!cancelled && !userChangedRoots.current.has(listing.root)) dispatch({ type: "openRoot", listing });
+        } catch { /* Moved, removed or refused folders are left out quietly. */ }
+      }
+      if (!cancelled) setRestored(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Every explicit Open/Close remembers the current list, even after another browser tab wrote it.
+  // Tree-only changes do not write. During restoration, user changes wait for all remembered paths.
+  useEffect(() => {
+    if (!restored || rememberVersion === 0) return;
+    writeOpenFolders(JSON.parse(serializedRoots) as string[]);
+  }, [serializedRoots, restored, rememberVersion]);
 
   const load = (root: string, path: string) => {
     const id = ++requests.current;
@@ -195,10 +226,16 @@ export function useFolderTrees(request: (root: string, path: string) => Promise<
     rootOf: (itemPath: string) => containingRoot(roots, itemPath),
     /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
     open(listing: FolderResponse, documentPath: string) {
+      if (!restored) userChangedRoots.current.add(listing.root);
       dispatch({ type: "openRoot", listing });
+      rememberFolders();
       show(listing.root, documentPath, false);
     },
-    close: (root: string) => dispatch({ type: "closeRoot", root }),
+    close(root: string) {
+      if (!restored) userChangedRoots.current.add(root);
+      dispatch({ type: "closeRoot", root });
+      rememberFolders();
+    },
     /** Expanding lists the folder again; collapsing keeps what was listed. */
     toggle(root: string, path: string) {
       const tree = trees.find(item => item.root === root);
