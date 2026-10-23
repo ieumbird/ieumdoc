@@ -140,17 +140,21 @@ test("definitions project to labeled footnote definition blocks", () => {
     content: [{ type: "footnoteReference", attrs: { label: "b" } }] }).check());
 });
 
-test("a new footnote and an edited definition save through Core in their endnote place", () => {
-  const editable = loadEditableDocument(source);
+test("a new footnote, code edit and edited definition save through Core in their endnote place", () => {
+  const withCode = source + "\n```js\nOld.\n```\n";
+  const editable = loadEditableDocument(withCode);
   const next = toTiptapDocument(editable);
   const blocks = next.content!;
   blocks[1].content = [{ type: "footnoteReference", attrs: { label: "1" } }, ...blocks[1].content!];
-  blocks[2].content = [{ type: "text", text: "Edited", marks: [{ type: "bold" }] }, { type: "text", text: " note." }];
+  const definition = blocks.find(block => block.type === "footnoteDefinition" && block.attrs?.label === "a")!;
+  definition.content = [{ type: "text", text: "Edited", marks: [{ type: "bold" }] }, { type: "text", text: " note." }];
+  const code = blocks.find(block => block.type === "codeBlock")!;
+  code.content = [{ type: "text", text: "Edited." }];
   blocks.push({ type: "footnoteDefinition", attrs: { sourcePath: "new:footnote", label: "1" }, content: [{ type: "text", text: "New note." }] });
-  const saved = saveEdits(source, collectSupportedEdits(editable, next));
+  const saved = saveEdits(withCode, collectSupportedEdits(editable, next));
   assert.equal(saved.markdown,
-    nativeSource("# Notes\n\n[^1]A claim[^a] and another[^b].\n\n[^1]: New note.\n\n[^a]: **Edited** note.\n\n[^b]: First paragraph.\n"));
-  const savedBlock = loadEditableDocument(saved.markdown).blocks[2];
+    nativeSource("# Notes\n\n[^1]A claim[^a] and another[^b].\n\n```js\nEdited.\n```\n\n[^1]: New note.\n\n[^a]: **Edited** note.\n\n[^b]: First paragraph.\n"));
+  const savedBlock = loadEditableDocument(saved.markdown).blocks[3];
   assert.equal(savedBlock.block === "footnote" && savedBlock.editable, true);
 });
 
