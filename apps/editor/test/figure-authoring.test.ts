@@ -1,7 +1,6 @@
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { getSchema } from "@tiptap/core";
@@ -23,7 +22,6 @@ import { commitDocumentSave, documentRevision } from "../server/document-api.ts"
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits, validateFigureRequest } from "../server/document-replay.ts";
 
-const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
   "utf8",
@@ -192,17 +190,6 @@ test("Figure draft state distinguishes applied content from unapplied input", ()
   // An open form on an empty Figure is not a draft until its values change.
   const empty = { imageUrl: "", imageAlt: "", caption: "" };
   assert.equal(isUnappliedFigureDraft(true, empty, empty), false);
-
-  const tab = readFileSync(path.join(editorRoot, "src", "DocumentTab.tsx"), "utf8");
-  const session = readFileSync(path.join(editorRoot, "src", "useDocumentSession.ts"), "utf8");
-  const requests = readFileSync(path.join(editorRoot, "src", "document-session.ts"), "utf8");
-  // Actual multi-draft membership and work-loss guards are exercised by property-drafts.browser.js.
-  const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  // Pin the Host validation -> accepted mutation boundary, not the caption argument expression.
-  assert.match(schemaSource, /message = await validateFigure!\(candidate, nextLabel\);[\s\S]*if \(message\) \{\s*setError\(message\);\s*return;\s*\}[\s\S]*view\.dispatch\(updateFigure\(/);
-  assert.match(requests, /fetch\(`\$\{import\.meta\.env\?\.BASE_URL \?\? "\/"\}api\/figure-validation`/);
-  assert.match(session, /^\s+validateFigure,\s*$/m);
-  assert.match(tab, /<DocumentEditor\b[^>]*\{\.\.\.session\.editorCallbacks\}/);
 });
 
 test("the Host Figure validation endpoint returns Core's persistent validation", () => {

@@ -43,6 +43,8 @@ function sourceSyntaxDiagnostics(document: MystDocument): ((LiteralSyntax | Cita
   tokenizer.inline.ruler.enable("backticks");
   // MyST leaves bare URLs as text (linkify is off). Reuse markdown-it's URL
   // recognizer solely to suppress diagnostics there; do not change parsing options.
+  // Public native admission and unresolvedReferences both reach this recognizer;
+  // it requires the pinned linkify-it security backport, even with linkify off.
   const urls = new WeakMap<object, { index: number; lastIndex: number }[]>();
   const inUrl = (state: Parameters<typeof backticks>[0], position = state.pos): boolean => {
     let ranges = urls.get(state);
