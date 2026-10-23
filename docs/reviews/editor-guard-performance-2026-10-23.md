@@ -21,8 +21,9 @@ original revision scope.
 | mixed | 5000 | 374.7 | 392.6 | 4687 | pass |
 
 The provisional **2000-block input p95 100ms target passes for plain and remains unmet for
-mixed**. The 5000-block cases are stress evidence, not the routine acceptance gate. Overall
-long-document responsiveness is not complete; #349 remains open and the PR remains Draft.
+mixed**. The 5000-block cases are stress evidence, not the routine acceptance gate. The user
+accepted the current bounded improvement for #349; the unmet mixed-document 100ms target is
+tracked separately in [#362](https://github.com/ieumbird/ieumdoc/issues/362).
 Preservation success does not convert the mixed result into a performance pass. No threshold
 was increased and no outlier was removed.
 
