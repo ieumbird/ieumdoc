@@ -15,6 +15,26 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     }
     throw new Error(`Expected ${expected} recovery records, found ${JSON.stringify(await records())}`);
   };
+  const confirmPendingDeletion = async (dialog, actionName) => {
+    const before = await records();
+    await page.evaluate(async () => {
+      const {recoveryStorage:store} = await import('/src/recovery-storage.ts');
+      const original = store.delete;
+      const gate = new Promise(resolve => { window.releaseRecoveryDelete = resolve; });
+      store.delete = async (...args) => {
+        try { await gate; return await original.apply(store,args); }
+        finally { store.delete = original; delete window.releaseRecoveryDelete; }
+      };
+    });
+    await dialog.getByRole('button',{name:actionName,exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('[role="dialog"][aria-busy="true"]'));
+    await page.mouse.click(2,2);
+    check(await dialog.isVisible(), 'Outside click dismissed a pending deletion');
+    check(await dialog.getByRole('button',{name:'Cancel',exact:true}).isDisabled(), 'Pending cancellation remained enabled');
+    check(JSON.stringify(await records()) === JSON.stringify(before), 'Pending deletion changed records before storage completed');
+    await page.evaluate(() => window.releaseRecoveryDelete());
+    await dialog.waitFor({state:'hidden',timeout:5000});
+  };
   const edit = (target, text) => engine(target).evaluate((node,text) => node.editor.commands.insertContentAt(1,text), text);
   const capture = async name => {
     if (!screenshots) return;
@@ -85,6 +105,12 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.waitForFunction(() => document.activeElement?.textContent === 'Delete record', null, {timeout:5000});
   check(JSON.stringify(await records()) === JSON.stringify(beforeDelete), 'Escape changed recovery records');
 
+  await deleteButton.click(); await deleteConfirm.waitFor({timeout:5000});
+  await page.mouse.click(2,2);
+  await deleteConfirm.waitFor({state:'hidden',timeout:5000});
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Delete record', null, {timeout:5000});
+  check(await page.getByTestId('recovery-prompt').isVisible(), 'Outside dismissal closed the parent recovery review');
+  check(JSON.stringify(await records()) === JSON.stringify(beforeDelete), 'Outside dismissal changed recovery records');
   await page.keyboard.press('Control+s');
   check(JSON.stringify(await records()) === JSON.stringify([first]), 'Save shortcut bypassed recovery modal');
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
@@ -193,6 +219,13 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.waitForFunction(() => document.activeElement?.textContent === 'Clear all recovery records…', null, {timeout:5000});
   check(JSON.stringify(await records()) === JSON.stringify(beforeClear), 'Cancel clear changed records');
   await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).click();
+  await clearConfirm.waitFor({timeout:5000});
+  await page.mouse.click(2,2);
+  await clearConfirm.waitFor({state:'hidden',timeout:5000});
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Clear all recovery records…', null, {timeout:5000});
+  check(await page.getByTestId('settings-dialog').isVisible(), 'Outside dismissal closed Settings');
+  check(JSON.stringify(await records()) === JSON.stringify(beforeClear), 'Outside clear dismissal changed records');
+  await page.getByRole('button',{name:'Clear all recovery records…',exact:true}).click();
   await capture('clear-confirm');
   const laterWindow = await page.context().newPage();
   try {
@@ -201,7 +234,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     await laterWindow.getByRole('button',{name:'Not now',exact:true}).click();
     await edit(laterWindow,'Other window scheduled before clear. ');
     await edit(page,'Scheduled before clear. ');
-    await page.getByRole('button',{name:'Delete all records',exact:true}).click(); await count(0);
+    await confirmPendingDeletion(clearConfirm, 'Delete all records'); await count(0);
     await page.waitForTimeout(650); await count(0);
     await edit(laterWindow,'Other window after clear. '); await count(1);
     check((await records())[0].recoveryText.includes('Other window after clear.'), 'Other window could not resume after clear');
@@ -254,7 +287,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByText(/Clipboard access is unavailable/).waitFor();
   await capture('incompatible');
   await page.getByRole('button',{name:'Delete record',exact:true}).click();
-  await page.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
+  await confirmPendingDeletion(page.getByRole('dialog',{name:'Delete recovery record?',exact:true}), 'Delete record'); await count(0);
   await page.getByText('No local recovery records.',{exact:true}).waitFor();
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
