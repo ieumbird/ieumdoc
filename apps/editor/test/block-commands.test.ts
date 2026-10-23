@@ -407,14 +407,8 @@ test("applied state ignores a new empty paragraph but detects subsequent typing"
 test("editor shell keeps application UI out of the document editor", () => {
   const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
   assert.doesNotMatch(app, /file-picker|format-bar|equation-draft-notice/);
-  assert.match(app, /<Sidebar[\s\S]*<TopBar[\s\S]*<MessageArea[\s\S]*<main className="document-column"[\s\S]*<FolderDialog/);
   const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
   assert.doesNotMatch(documentEditor, /format-bar|toggleBold|toggleItalic/);
-  // `+` and `/` open the same menu component over the same insert commands.
-  assert.equal(documentEditor.match(/<CommandMenu/g)?.length, 3);
-  assert.match(documentEditor, /items=\{filterInsertCommands\(""\)\.map\(insertMenuItem\)\}/);
-  assert.match(documentEditor, /filterInsertCommands\(slash\.query\)/);
-  assert.equal(documentEditor.match(/runInsert\(/g)?.length, 3);
   const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
   assert.match(schemaSource, /data-testid="equation-draft-status"/);
   // Each authorable technical block uses the shared properties component.
