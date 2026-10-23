@@ -113,13 +113,16 @@ guard; the unchanged guard passed on the subsequent targeted run and full Core s
 performance claim is based on those elapsed times. Editor build retains its existing large-chunk
 warning. Packaging/platform and full integration checks remain required CI work.
 
-At the earlier head `a9e4f8f`, `pnpm browser:test writeability-preflight reference-save-reload` passed 2/2 against this
-worktree's Vite on port 5197 with the persistent browser profile. This verifies Host refusal
-state retention and reference Save → Reload integration, not another timing benchmark. The
-runner closed its browser context; Vite and its execution session were stopped and the port
-and worktree-owned browser processes were checked for cleanup.
-Browser revalidation of the additional fuzzy-scan backport and integrated master is queued;
-the earlier browser result is not presented as final-head verification.
+After integrating master `8b3ea92354f86ef282bfd2a0f73c55ac29c1d29c` without conflicts,
+`pnpm browser:test writeability-preflight reference-save-reload` passed 2/2 at source head
+`d5fd9198f73e620a8a4499f369a4c15fada48c70`, against this worktree's Vite on port 5197 with
+its persistent browser profile. Both URL backports and the HTML patch were present. This
+verifies Host refusal state retention and reference Save → Reload integration, not a timing
+benchmark. The runner closed its browser context; owned Vite PID 39548 and its execution session
+were stopped, with no listener on 5197 or remaining worktree-owned browser process.
+That master update changed only two unrelated browser scenarios and their test documentation;
+the Core/CLI/Editor suites above were not redundantly rerun. The subsequent evidence update is
+documentation-only. Required CI and independent approval must still match the final PR head.
 
 ## Production audit and reachability
 
