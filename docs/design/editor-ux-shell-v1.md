@@ -173,8 +173,8 @@ Ctrl+P followed immediately by typing `technical` lost its first character to th
 12 attempts. The Dialog schedules initial focus on the next animation frame; mounting the search
 input with autofocus closes that gap while retaining the Dialog's focus/dismissal handling.
 Document selection focused the tab button, so immediate typing failed for both retained and newly
-opened tabs, including selecting the active tab again. Selection now reveals the tab synchronously
-and uses the existing editor focus target after the modal closes.
+opened tabs, including selecting the active tab again. Selection now activates the tab together with
+dismissal and supplies its existing editor focus target to the Dialog's final-focus handling.
 
 The first-Down and missing-hover reports were not reproduced: ten search attempts covered direct
 typing (`> o`, `> s`, `technical`), fill, replacing a query and searching after no matches. Down moved

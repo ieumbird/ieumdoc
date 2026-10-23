@@ -7,7 +7,6 @@ import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-
 import { prepareRecovery } from "./recovery-restore.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -518,14 +517,13 @@ export function App() {
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
-      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation), takesFocus: true,
+      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation),
       run: () => {
-        // The center has released its modal boundary; reveal the retained editor before focusing it.
-        flushSync(() => activateTab(tab.id));
+        activateTab(tab.id);
         const owner = sessions.current.get(tab.id);
-        const target = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget()
+        // The retained target can still be hidden here; Dialog focuses it after activation/dismissal.
+        commandReturnFocus.current = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget() ?? null
           : globalThis.document.getElementById(`tab-${tab.id}`);
-        target?.focus({ preventScroll: true });
       },
     })),
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,

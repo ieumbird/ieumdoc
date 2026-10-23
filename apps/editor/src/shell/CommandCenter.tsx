@@ -35,6 +35,8 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
         if (!item || item.disabled) return;
         selected.current = item;
         transfersFocus.current = Boolean(item.takesFocus);
+        // Activate the retained tab in the same commit as dismissal; Dialog owns final focus.
+        if (item.kind === "document") item.run();
         onClose();
       }}>
       <Dialog open={open} onOpenChange={close} onOpenChangeComplete={next => {
@@ -42,7 +44,7 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
         const item = selected.current;
         selected.current = null;
         // Let the old modal release focus and inertness before opening a folder/settings dialog.
-        item?.run();
+        if (item?.kind === "command") item.run();
       }}>
         <DialogContent className="command-center-dialog" showCloseButton={false} initialFocus={input}
           finalFocus={() => transfersFocus.current ? false : returnFocus.current ?? true}>
