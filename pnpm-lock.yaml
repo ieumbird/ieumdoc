@@ -163,7 +163,8 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  markdown-it@13.0.2: 75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367
+  linkify-it@4.0.1: f16b751c92faa9d66ba4fba73c7ed8d38bb8558799b3e9a797eb564678a4a257
+  markdown-it@13.0.2: 6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9
   prosemirror-view@1.42.4: c15481847001cbb00c496debe1b605250cbe1e7720cd3719b998fed5519db37e
 
 importers:
@@ -6637,7 +6638,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  linkify-it@4.0.1:
+  linkify-it@4.0.1(patch_hash=f16b751c92faa9d66ba4fba73c7ed8d38bb8558799b3e9a797eb564678a4a257):
     dependencies:
       uc.micro: 1.0.6
 
@@ -6685,35 +6686,35 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  markdown-it-amsmath@0.4.0(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)):
+  markdown-it-amsmath@0.4.0(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)):
     dependencies:
-      markdown-it: 13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)
+      markdown-it: 13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)
 
   markdown-it-deflist@2.1.0: {}
 
-  markdown-it-dollarmath@0.5.0(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)):
+  markdown-it-dollarmath@0.5.0(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)):
     dependencies:
-      markdown-it: 13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)
+      markdown-it: 13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)
 
   markdown-it-footnote@4.0.0: {}
 
   markdown-it-front-matter@0.2.4: {}
 
-  markdown-it-myst@1.0.18(@types/markdown-it@13.0.9)(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)):
+  markdown-it-myst@1.0.18(@types/markdown-it@13.0.9)(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)):
     dependencies:
       '@types/markdown-it': 13.0.9
       js-yaml: 4.3.2
-      markdown-it: 13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)
+      markdown-it: 13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)
       vfile: 5.3.7
       vfile-message: 3.1.4
 
   markdown-it-task-lists@2.1.1: {}
 
-  markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367):
+  markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9):
     dependencies:
       argparse: 2.0.1
       entities: 3.0.1
-      linkify-it: 4.0.1
+      linkify-it: 4.0.1(patch_hash=f16b751c92faa9d66ba4fba73c7ed8d38bb8558799b3e9a797eb564678a4a257)
       mdurl: 1.0.1
       uc.micro: 1.0.6
 
@@ -7055,13 +7056,13 @@ snapshots:
     dependencies:
       '@types/markdown-it': 13.0.9
       he: 1.2.0
-      markdown-it: 13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)
-      markdown-it-amsmath: 0.4.0(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367))
+      markdown-it: 13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)
+      markdown-it-amsmath: 0.4.0(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9))
       markdown-it-deflist: 2.1.0
-      markdown-it-dollarmath: 0.5.0(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367))
+      markdown-it-dollarmath: 0.5.0(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9))
       markdown-it-footnote: 4.0.0
       markdown-it-front-matter: 0.2.4
-      markdown-it-myst: 1.0.18(@types/markdown-it@13.0.9)(markdown-it@13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367))
+      markdown-it-myst: 1.0.18(@types/markdown-it@13.0.9)(markdown-it@13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9))
       markdown-it-task-lists: 2.1.1
       myst-common: 1.10.1
       myst-directives: 1.7.4
@@ -7091,7 +7092,7 @@ snapshots:
       classnames: 2.5.1
       hast: 1.0.0
       hast-util-to-mdast: 8.4.1
-      markdown-it: 13.0.2(patch_hash=75a49093d9a516fb476eb5f721b5997a01a575993e1e720bde2fcecb42e56367)
+      markdown-it: 13.0.2(patch_hash=6cdfa96d710d0c9074bee965f743cf626379860eeaf367b632a9993c5068d4c9)
       mdast: 3.0.0
       mdast-util-find-and-replace: 2.2.2
       mdast-util-to-hast: 12.3.0

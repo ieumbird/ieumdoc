@@ -15,6 +15,8 @@ Core rejects unpaired UTF-16 surrogates before parsing source and before canonic
 
 Public `parse(source)` accepts an IeumDoc native document. It validates the marker, metadata and complete semantic structure, then performs canonical write preflight. It never returns a partially supported document. Public `serialize(document)` validates native semantics before and after canonical output. Existing serializer diagnostics, complete semantic fingerprints and round-trip guards remain mandatory. MyST fragment parsing is internal to Core operations and serialization.
 
+HTML recognition remains enabled so unsupported HTML is refused instead of silently admitted as literal text. Public source diagnostics reach the URL recognizer even though automatic linkification is off. The [Parser security boundary](parser-security-v1.md) records the pinned URL/inline HTML backports, public API verification and removal conditions.
+
 A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional `numbering` and optional `bibliography` are allowed. `numbering` accepts only `headings: boolean` and `title: false`; omitting it disables heading numbering. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts, prefixes and per-level settings are unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
 
 ```markdown
