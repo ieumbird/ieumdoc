@@ -60,7 +60,7 @@ test("URL exclusions preserve surrounding diagnostics across link-label lookahea
   })));
   // The failed outer label scans ahead over the URL and footnote, then rewinds.
   assert.deepEqual(unresolvedReferences(parse(
-    "[outer https://example.org/[x] [^missing]] https://example.net/[a][b] [tail][missing]")), [
+    "[outer https://example.org/[a][b] [^missing]] https://example.net/[a][b] [tail][missing]")), [
     { footnote: true, label: "missing", path: [0], line: 1 },
     { syntax: "reference-link", label: "missing", source: "[tail][missing]", path: [0], line: 1 },
   ]);
