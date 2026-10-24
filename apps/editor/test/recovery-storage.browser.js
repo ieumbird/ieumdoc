@@ -55,6 +55,21 @@ async page => page.evaluate(async () => {
     live = snapshot('not yet recorded'); recorder.edit(); recorder.cancel(); await wait();
     check((await list())[0]?.recoveryText === 'latest at write turn', 'Ordinary disposal removed the last successful record');
 
+    // Clean acknowledgement survives disposal before the 500ms write. It applies
+    // only to this session, even when another window has the same document path.
+    await record('other-clean-window');
+    live = null; recorder.edit(false); recorder.cancel();
+    check((await list()).map(record => record.id).join() === 'other-clean-window', 'Immediate clean acknowledgement lost or deleted another session');
+    await store.delete('other-clean-window');
+    live = snapshot('dirty after acknowledged clean'); recorder.edit(); await wait();
+    check((await list())[0]?.recoveryText === 'dirty after acknowledged clean', 'A new applied edit remained hidden behind clean acknowledgement');
+
+    // An in-flight Save can change the saved baseline after clean Undo, without a
+    // further applied edit. Cleanup must preserve its ticket for that live checkpoint.
+    live = null; recorder.edit(false); await list();
+    live = snapshot('dirty against newer Save acknowledgement'); recorder.checkpoint(); await wait();
+    check((await list())[0]?.recoveryText === 'dirty against newer Save acknowledgement', 'Clean listing invalidated the live Save checkpoint');
+
     recorder.edit(); live = null;
     await wait();
     check(!(await list()).length, 'Applied dirty was not rechecked at the write turn');
@@ -86,11 +101,20 @@ async page => page.evaluate(async () => {
     const blocking = db.transaction(['records','barriers'], 'readwrite');
     const barriers = blocking.objectStore('barriers');
     const spin = () => { const request = barriers.get('all'); request.onsuccess = () => { if (!release) spin(); }; }; spin();
+    // A clean Undo can queue cleanup, then Redo/new input can arrive while IndexedDB
+    // is busy. The cleanup must capture the newer dirty work, never blindly delete it.
+    let recorded;
+    const completed = new Promise(resolve => { recorded = resolve; });
+    const rapid = createRecoveryRecorder('rapid', () => live, error => errors.push(String(error)), () => recorded());
+    live = null; rapid.edit(false);
+    live = snapshot('Redo after clean Undo'); rapid.edit();
     const tokenPromise = store.ticket('a');
     const writing = tokenPromise.then(token => store.write('a', token, () => ({id:'a',version:1,path:'/test.md',recordedAt:Date.now(),recoveryText:live.file.revision,snapshot:live})));
     live = { ...snapshot('newer applied edits after Save'), file: { ...snapshot('').file, revision:'b'.repeat(64) } };
-    release = true; await writing; db.close();
-    check((await list())[0].snapshot.file.revision === 'b'.repeat(64), 'Write did not use the latest acknowledged revision');
+    release = true; await writing; await completed; rapid.cancel(); db.close();
+    check((await list()).find(record => record.id === 'rapid')?.recoveryText === 'newer applied edits after Save', 'Queued clean cleanup deleted newer dirty work');
+    check((await list()).find(record => record.id === 'a')?.snapshot.file.revision === 'b'.repeat(64), 'Write did not use the latest acknowledged revision');
+    await store.delete('rapid');
 
     await record('other-window'); await store.delete('a');
     check((await list()).map(r => r.id).join() === 'other-window', 'One session deleted another session record');
@@ -208,6 +232,29 @@ async page => page.evaluate(async () => {
       check(!(await metadata()).length, 'Expired records leave permanent metadata');
     } finally { Date.now = realNow; await store.delete(); }
 
+    // Synchronous acknowledgement access can fail independently of IndexedDB.
+    // Fail closed for new writes, keeping the last committed dirty record visible.
+    live = snapshot('record before acknowledgement failure'); recorder.edit(); await wait();
+    const beforeAcknowledgementFailure = await list();
+    const removeItem = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = () => { throw new DOMException('Test acknowledgement denied','SecurityError'); };
+    try {
+      live = snapshot('unrecorded while acknowledgement denied'); recorder.edit();
+      check(errors.some(error => error.includes('acknowledgement denied')), 'Acknowledgement failure was swallowed');
+      check(JSON.stringify(await list()) === JSON.stringify(beforeAcknowledgementFailure), 'Acknowledgement failure deleted or overwrote recorded work');
+    } finally { Storage.prototype.removeItem = removeItem; }
+    errors = []; recorder.edit(); await wait();
+    check(!errors.length && (await list()).some(record => record.recoveryText === 'unrecorded while acknowledgement denied'), 'Recording did not resume after acknowledgement access recovered');
+
+    const beforeUnreadableAcknowledgement = await list();
+    live = null; recorder.edit(false); recorder.cancel();
+    const storageKey = Storage.prototype.key;
+    Storage.prototype.key = () => { throw new DOMException('Test acknowledgement unreadable','SecurityError'); };
+    try { check(JSON.stringify(await list()) === JSON.stringify(beforeUnreadableAcknowledgement), 'Unreadable acknowledgement authorized deletion'); }
+    finally { Storage.prototype.key = storageKey; }
+    check(!(await list()).length, 'Readable clean acknowledgement did not resume cleanup');
+    live = snapshot('resumed after unreadable acknowledgement');
+
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function(...args) {
       if (this.name === 'records') throw new DOMException('Test quota exhausted', 'QuotaExceededError');
@@ -228,6 +275,7 @@ async page => page.evaluate(async () => {
     return { liveCapture:true, dirtyRecheck:true, deleteBarrier:true, clearBarrier:true, nextEditResumes:true,
       acknowledgedRevision:true, sessionIsolation:true, expiration:true, staleRestoreRefused:true, quotaFailure:true,
       registeredTickets:true, protocolUpgrade:true, boundedMetadata:true, staleTicketAfterGC:true, postGCPendingEdit:true,
-      negativeAgeDirect:true, negativeAgeScheduled:true, ticketUpperExpiry:true };
+      negativeAgeDirect:true, negativeAgeScheduled:true, ticketUpperExpiry:true,
+      cleanAcknowledgement:true, dirtyAfterClean:true, acknowledgementFailureRetainsRecord:true, queuedCleanRetainsNewInput:true };
   } finally { recorder.cancel(); await store.delete(); }
 })

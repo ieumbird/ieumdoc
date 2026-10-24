@@ -81,7 +81,9 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
 
-`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에는 그 문서의 복구 기록 제거를 기다린다. 편집기의 Undo 완료만으로 비동기 복구 정리가 끝났다고 가정하지 않는다. 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있다(#405).
+`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. #407은 Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에 그 문서의 복구 기록 제거를 기다리도록 했다. 당시에는 Undo 완료 뒤에도 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있었다(#405).
+
+#409에서 clean 전환은 동기식 세션 표식을 남기고, 복구 목록 읽기가 500ms 기록 턴보다 먼저여도 오래된 기록을 정리한다. 위 `cross-reference`의 제거 대기는 실제 IndexedDB 기록 부재를 확인하는 가치가 있어 유지한다. 즉시 Reload의 제품 회귀는 `document-tabs`가 **같은 browser turn의 Undo → Reload**로 검사하며, 그 사이 삭제 대기·Save를 넣지 않는다. 브라우저 탭 닫기 뒤 재열기에서도 제안이 없어야 하고, 일부 편집만 Undo해 실제 미저장 내용이 남으면 제안과 기록이 유지되어야 한다. `recovery-storage`는 clean 표식 후 disposal, 다른 세션 보존, IndexedDB가 밀린 사이 새 입력이 온 경우의 live snapshot 보존, 표식 접근 실패 시 기존 기록과 경고를 검사한다. 기존 `recovery`의 다른 창 Save/외부 revision 충돌 검사는 그대로 유지한다.
 
 `footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
 
