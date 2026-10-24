@@ -256,7 +256,7 @@ test("document path splits for display without changing the address", () => {
 test("sidebar without a folder offers only Open folder, and collapses", () => {
   const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} />);
   assert.match(open, /IeumDoc/);
-  assert.match(open, />Open folder…</);
+  assert.match(open, /<button\b(?=[^>]*aria-label="Open folder…")(?=[^>]*title="Open folder…")/);
   assert.doesNotMatch(open, /Open file…/);
   assert.doesNotMatch(open, /data-testid="folder"/);
   // No app-level full-path New and no second listing of the open document; TopBar names it.
@@ -304,7 +304,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   // New names no folder here: its dialog shows and chooses the destination.
   assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file…")[^>]*>/);
   assert.match(html, /<button\b(?=[^>]*aria-label="New folder")(?=[^>]*title="New folder…")[^>]*>/);
-  // Open folder and Close folder are behind one menu instead of a row of buttons.
+  // General Open stays in the header; the folder menu contains only folder actions.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);

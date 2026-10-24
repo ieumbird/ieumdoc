@@ -27,8 +27,7 @@ async (page, { openPath }) => {
 
   await openPath(page, documentA);
   // New creates in the displayed sidebar folder, so the scratch folder is opened first.
-  await page.getByRole('button', {name:'More actions', exact:true}).click();
-  await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
+  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
   await page.getByTestId('folder-path').fill(dir);
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});

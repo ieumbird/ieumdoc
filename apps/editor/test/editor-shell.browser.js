@@ -32,6 +32,14 @@ async page => {
     const openFolder = page.getByRole('button',{name:'Open folder…', exact:true});
     result.folderOnlyEntry = await page.getByRole('button',{name:'Open file…', exact:true}).count() === 0;
     await openFolder.focus();
+    await page.keyboard.press('Tab');
+    result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse sidebar', exact:true}));
+    await page.keyboard.press('Tab');
+    result.headerTabToFiles = await isFocused(page.getByRole('button', {name:'Files', exact:true}));
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    result.headerReverseTab = await isFocused(openFolder);
+    await openFolder.focus();
     await page.keyboard.press('Enter');
     await page.getByTestId('folder-path').waitFor();
     await page.keyboard.press('Escape');
@@ -51,6 +59,7 @@ async page => {
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     await display.focus();
     await page.keyboard.press('Enter');
+    result.openFolderInDisplay = await openFolder.isVisible();
     result.displayReopens = await numbering.isVisible() && await isFocused(display) &&
       await page.locator('.display-file').textContent() === 'technical-document.md';
     await page.keyboard.press('Tab');

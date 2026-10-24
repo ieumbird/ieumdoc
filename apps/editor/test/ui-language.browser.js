@@ -44,6 +44,8 @@ async (page, { openPath, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Page language did not update');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
+    const koreanOpen = page.getByTestId('sidebar').getByRole('button', {name:'폴더 열기…', exact:true});
+    check(await koreanOpen.isVisible() && await koreanOpen.getAttribute('title') === '폴더 열기…', 'Korean header Open folder name and tooltip must match');
     check(await admonitionLabel.innerText() === '참고', 'Existing Admonition label did not switch language');
     check(await page.getByRole('button', { name: /번째 문단 블록 뒤에 삽입/ }).count() > 0, 'Paragraph handle exposes its internal English type');
     check(await page.getByRole('button', { name: /번째 제목 블록 이동/ }).count() > 0, 'Heading handle exposes its internal English type');

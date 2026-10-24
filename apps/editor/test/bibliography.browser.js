@@ -31,8 +31,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
     const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
     if (await expand.isVisible()) await expand.click();
     await sidebar.getByRole('button', { name: 'Files', exact: true }).click();
-    await sidebar.getByRole('button', { name: 'More actions', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Open folder…', exact: true }).click();
+    await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
     await page.getByTestId('folder-path').fill(folder);
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog', { name: 'Open folder', exact: true }).waitFor({ state: 'detached' });

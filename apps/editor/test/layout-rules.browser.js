@@ -10,8 +10,7 @@ async (page, { openPath, withBlockHover }) => {
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openPath(page, file);
   // The sidebar is measured with its folder: heading, actions and listed files.
-  await page.getByRole('button',{name:'More actions',exact:true}).click();
-  await page.getByRole('menuitem',{name:'Open folder…',exact:true}).click();
+  await page.getByTestId('sidebar').getByRole('button',{name:'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)));
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});

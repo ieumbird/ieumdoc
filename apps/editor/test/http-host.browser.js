@@ -17,10 +17,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   const sidebar = page.getByTestId('sidebar');
   const picker = page.getByRole('dialog', {name:'Open folder', exact:true});
   const openPicker = async () => {
-    if (await sidebar.getByTestId('folder').count()) {
-      await sidebar.getByRole('button', {name:'More actions', exact:true}).first().click();
-      await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
-    } else await sidebar.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await sidebar.getByRole('button', {name:'Open folder…', exact:true}).click();
     await picker.waitFor();
   };
   await openPicker();
