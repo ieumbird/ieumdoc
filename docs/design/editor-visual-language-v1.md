@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#395: recovery review path wrapping and footer bounds at 1440/375px; [same-state evidence](editing-session-save-v1.md#recovery-review-layout-395)).
+- Last verified: 2026-10-24 (#401: long-name/path dialogs at 1440/375px; [measurements and captures](#long-dialog-names-and-paths-401)).
+- Previous verification: 2026-10-24 (#395: recovery review path wrapping and footer bounds at 1440/375px; [same-state evidence](editing-session-save-v1.md#recovery-review-layout-395)).
 - Previous verification: 2026-10-24 (#382 / #391 review: recovery deletion confirmations, nested backdrop outside dismissal/pending guards; refreshed 1440/375px English/Korean [captures and environment](editing-session-save-v1.md#local-recovery-records-296-pr2)).
 - Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
 - Previous verification: 2026-10-23 (#265 citation form reusing the reference form surface and existing tokens; [verification and captures](citations-v1.md#unit-c-verification-265)).
@@ -117,7 +118,7 @@ The shell distinguishes current location, hovered alternatives, pressed/open con
 | Document tab row | White header surface with a structural bottom rule. 14px regular filename, a fixed dirty-dot slot, and 28px close target with a 16px icon. Active uses dark text and the shared horizontal interaction marker; hover uses the neutral surface and keyboard focus uses the inset ring independently. Long names ellipsize, full paths remain tooltips, and parent folders distinguish equal names: the distinguishing folder follows the filename in 12px subtle text and keeps its width (up to half the label), so the filename ellipsizes first. Tabs never move Save into their horizontal scroller. |
 | Sidebar and Document panel | One current rule for both the open file and section being read: selected surface, selected text and a 3px vertical interaction marker. Hover uses the neutral hover surface; current+hover uses selected-hover and keeps the marker. An independent inset focus ring is not clipped by the scrolling lists. Current does not change font metrics or text placement. The folder and Outline headings remain 14px semibold; ordinary rows remain 14px regular. Folder icons/chevrons, wrapping/indent limits and compact ghost actions retain their behavior. Files/Display buttons switch the left panel contents within its existing width. The active tool shows only its horizontal interaction marker: no face and no border while its content is expanded; hover adds the neutral hover face. Closed, the rail keeps both icons with accessible names/tooltips. Files retains its tree when hidden. In Files without a folder, Open folder… is the sole document-opening action, a borderless soft hover-surface action. Display identifies its target filename and separates Saved in document from Local view using section labels, 24px spacing and secondary scope help. Native checkboxes show their actual checked state, use the interaction color and an explicit keyboard focus ring; disabled numbering keeps a readable reason. Shared Settings stays in its separate footer. |
 | Controls | Base UI and native controls share 6px radii, 32px standard/28px compact targets and 16px icon slots. Ghost rest is transparent; hover is visible on a panel as well as white paper. Open menus, including TopBar File actions, use only the neutral pressed face, without a control boundary; tabs and toggles with an interaction marker (sidebar tools) take neither face nor border when open or on; the on Outline toggle takes only its selected face. Secondary/Cancel uses a white outlined face, with neutral hover. Refs, events and selection preservation are retained. Controls and overlays change state without decorative transitions, pressed movement or enter/exit animations. Save alone keeps its reduced-motion-aware progress spinner. |
-| Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Dialog titles are 16px semibold. Native selects share the field box and end in a 16px chevron. A refused Open first says in plain words why and what to do, then shows Core's exact reason and action as 12/16px details beside a structural rule. Open/New/Folder retain and associate their error messages. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The continuous document uses its separate, gentler paper shadow. |
+| Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Dialog titles are 16px semibold. Native selects share the field box and end in a 16px chevron. A refused Open first says in plain words why and what to do, then shows Core's exact reason and action as 12/16px details beside a structural rule. Open/New/Folder retain and associate their error messages. Refused Open descriptions use `overflow-wrap: anywhere` so unbroken names and Core detail paths do not enlarge the intrinsic grid width. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The continuous document uses its separate, gentler paper shadow. |
 | Color | Interaction (`interaction`, selected roles): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Most chrome stays neutral; the current document tab and sidebar tool carry the interaction marker, the on Outline toggle the selected face. Brand and danger meanings remain unchanged. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. An unresolved reference explicitly reads `Unresolved reference: label` (localized), without a guessed kind prefix. Deleting a referenced target uses the existing transient MessageArea notice with platform-appropriate Undo guidance (Ctrl+Z / ⌘Z); no modal or new control is added. Selected uses the interaction axis. Citations use the same numeric text and selected treatment, with subtle dashed text for unchecked, incomplete, missing or duplicate resources; complete limited IEEE entries use content-link color without an underline. Their accessible label/tooltip gives exact keys and Core readiness in the chosen UI language; there is no navigation. |
 | Slash reference choices | Use the existing menu row, typography, icon and selected state. Show `Fig. 2 · caption summary`, `Table 1 · caption summary` or `Eq. (3) · label`; a missing Figure/Table caption falls back to its label. Long captions are summarized, while the full caption remains searchable. Section names retain `Section reference: heading text`. [Search/display contract](section-references-v1.md#editor). |
@@ -186,7 +187,7 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Sidebar Display | Files/Display remain reachable collapsed. Selecting a tool keeps focus on its button; Tab enters its content. Escape from Display returns to its button without changing the tool, values or document. |
 | Command center | Shared Dialog near the top center, max 36rem wide and bounded by the viewport. Base UI Combobox owns highlighting, arrows, Enter and IME; Escape/outside dismissal returns to the opener without editing. A command opening another modal hands off focus after close. The search and results use existing input/control/type/surface tokens; results scroll within the popup. |
 | File actions `⋯` / Reload, Copy path | Base UI Menu owns navigation/dismissal. Copy path writes the document's full path to the clipboard and confirms with a temporary notice; where the browser offers no Clipboard API (a non-HTTPS remote page), it shows an error that explains this instead. Reload opens the existing work-loss confirmation when needed; cancel, Escape or successful loading returns to the File actions trigger. |
-| Unsaved changes confirmation | Shared Dialog surface, 16px padding, 12px paragraph gap and compact 28px Button actions. Save uses the primary role; Don't save uses `destructive`; Cancel uses `secondary` and receives initial focus. Actions stack on narrow screens using the existing footer. Cancel/Escape/outside dismissal restores the invoking control; pending close-Save disables actions and dismissal. Successful tab close focuses the active neighbour (or the start action after the last tab); New and unsupported-Open alerts retain their existing dialog focus. Draft-loss guidance is ordinary description text, not another warning bar. |
+| Unsaved changes confirmation | Shared Dialog surface, 16px padding, 12px paragraph gap and compact 28px Button actions. Save uses the primary role; Don't save uses `destructive`; Cancel uses `secondary` and receives initial focus. Actions stack on narrow screens using the existing footer. Cancel/Escape/outside dismissal restores the invoking control; pending close-Save disables actions and dismissal. Successful tab close focuses the active neighbour (or the start action after the last tab); New and unsupported-Open alerts retain their existing dialog focus. Draft-loss guidance is ordinary description text, not another warning bar. The description uses `overflow-wrap: anywhere` to keep long unbroken filenames and footer actions inside the popup. |
 | Recovery deletion confirmation | The same shared Dialog header/description/footer, secondary Cancel with initial focus and compact destructive Delete action. Identify one record by full path, or all local records, and explicitly state that deletion cannot be undone. Long paths wrap within the popup at phone widths. Cancel/Escape/outside dismissal returns focus to the invoking delete/clear button; pending deletion disables actions and dismissal. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog, whose closing returns it to `⋯`. |
 
@@ -205,7 +206,7 @@ This is one implemented light presentation. Responsive popover placement, operat
 
 The Sidebar keeps its existing row geometry and 16px icon slot: Image for supported images, File for
 other files, and existing native/foreign document icons. A shared modal uses the existing Dialog
-surface, title, description, compact Close button and spacing tokens. Name/path wrap, the image
+surface, title, description, compact Close button and spacing tokens. Name/path use `overflow-wrap: anywhere` so long unbroken text stays inside the intrinsic grid width; the image
 contains within the available width and 60dvh, and the dialog stays within the viewport at wide and
 phone widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
 row while document selection and property drafts remain. File information has no edit/open/execute action.
@@ -237,3 +238,62 @@ the DOCTYPE-bearing active fixture still cannot execute scripts/events or fetch 
 in the image context. Direct SVG navigation also cannot execute its script under the sandbox CSP.
 No server XML/DTD/entity parser was added.
 Targeted Host and token tests, Editor typecheck/build, documentation and whitespace checks also passed.
+
+
+### Long dialog names and paths (#401)
+
+On 2026-10-24, all three candidates reproduced overflow at both 1440×900 and 375×900.
+Only four text classes changed from `break-words` to `[overflow-wrap:anywhere]`: the unsaved
+and refused-Open descriptions, and file-preview title/path. Shared Dialog, spacing, controls,
+normal prose line breaking and desktop footer direction retain their existing rules.
+Core/CLI semantics are unchanged; this is an Editor presentation correction.
+
+The extended existing `open-files` and `file-preview` browser scenarios failed before the product
+change and passed after it. They measure popup/text `clientWidth` and `scrollWidth`, each button's
+bounds, and enabled button actionability at both widths, even without `--screenshots`.
+The file-preview fixture is a real ZIP entry; Open/Close uses the existing mocked document Host flow,
+including a native admission refusal with a long path in its technical reason. Names contain Korean
+and an unbroken ASCII run (no spaces or hyphens); the full Windows path contains no spaces.
+Assertions are deferred until all candidate widths have been measured, without weakening them.
+
+| Dialog | Viewport width | Before client/scroll | After client/scroll | Before buttons outside | After |
+| --- | --- | --- | --- | --- | --- |
+| Unsaved changes | 1440 | 382/1160 | 382/382 | Save | All inside |
+| Unsaved changes | 375 | 341/1160 | 341/341 | All three | All inside |
+| Cannot open document | 1440 | 382/1160 | 382/382 | None | All inside |
+| Cannot open document | 375 | 341/1160 | 341/341 | OK | All inside |
+| File preview | 1440 | 766/1161 | 766/766 | None | All inside |
+| File preview | 375 | 341/1161 | 341/341 | None | All inside |
+
+Raw measurements: [before Open/Close](assets/dialog-wrap-401/before-open.json),
+[after Open/Close](assets/dialog-wrap-401/after-open.json),
+[before preview](assets/dialog-wrap-401/before-preview.json),
+[after preview](assets/dialog-wrap-401/after-preview.json).
+Before expanded text widths were 1128px (Open/Close) and 1129px (preview).
+After, Open/Close text is 350px at 1440 and 309px at 375 (technical details 337/296px);
+preview title/path are 734px and 309px. Every measured text node has equal client/scroll widths.
+
+Capture metadata: HEAD `e0708061839a76bf19c2824e53e5f3dbfff4463e` for both sets.
+Before has only the scenario/fixture additions; After adds the four product class replacements.
+Windows installed Chrome, persistent profile for this same worktree, Vite at port 5197,
+DPR 1, visualViewport scale 1 (100% zoom), bundled Pretendard Variable 1.3.9, `document.fonts.ready`,
+scroll top, English UI. The existing server on 5173 belonged to another worktree; its initial
+run is excluded from this evidence. No checkout/profile was created for capture comparison.
+
+| Dialog / width | Before | After |
+| --- | --- | --- |
+| Unsaved / 1440 | [Before](assets/dialog-wrap-401/before-unsaved-1440.png) | [After](assets/dialog-wrap-401/after-unsaved-1440.png) |
+| Unsaved / 375 | [Before](assets/dialog-wrap-401/before-unsaved-375.png) | [After](assets/dialog-wrap-401/after-unsaved-375.png) |
+| Refused Open / 1440 | [Before](assets/dialog-wrap-401/before-refusal-1440.png) | [After](assets/dialog-wrap-401/after-refusal-1440.png) |
+| Refused Open / 375 | [Before](assets/dialog-wrap-401/before-refusal-375.png) | [After](assets/dialog-wrap-401/after-refusal-375.png) |
+| Preview / 1440 | [Before](assets/dialog-wrap-401/before-preview-1440.png) | [After](assets/dialog-wrap-401/after-preview-1440.png) |
+| Preview / 375 | [Before](assets/dialog-wrap-401/before-preview-375.png) | [After](assets/dialog-wrap-401/after-preview-375.png) |
+
+Visual inspection confirms wrapped text and visible buttons at phone widths, with horizontal
+Open/Close footers retained on desktop. Existing verification records above remain unchanged.
+
+Local validation: Editor tests 276 passed; `open-files --screenshots`, `file-preview --screenshots`,
+`layout-rules`, `quiet-document`, and `writeability-preflight` passed. Workspace `typecheck`,
+Editor `build`, `docs:check` and `git diff --check` passed. Build emitted the existing punycode
+externalization and chunk-size warnings. Packaging and other-platform checks belong to required CI;
+no packaging or Host boundary changed.

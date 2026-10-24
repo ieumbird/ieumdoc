@@ -757,7 +757,7 @@ export function App() {
         <DialogContent showCloseButton={false} finalFocus={openRefusalReturnFocus}>
           <DialogHeader>
             <DialogTitle>{i18n.t("Cannot open document")}</DialogTitle>
-            <DialogDescription render={<div />} className="grid gap-4 break-words">
+            <DialogDescription render={<div />} className="grid gap-4 [overflow-wrap:anywhere]">
               <p>{i18n.t("“{{name}}” is not a supported IeumDoc document.", { name: openRefusal ? splitDocumentPath(openRefusal.path).name : "" })}</p>
               {/* In plain words first; Core's exact reason and action follow as the details. */}
               {openRefusal?.code === "native-marker" ? (
