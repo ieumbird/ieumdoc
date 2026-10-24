@@ -165,6 +165,9 @@ from the [shared definitions](../../apps/editor/src/shortcuts.ts), also used for
 items. The two-key center label (Ctrl+/ or ⌘/) uses the existing chip and responsive layout; no new control,
 surface or adjustable dimension is introduced. The [shortcut contract](editor-ux-shell-v1.md#shortcut-contract-381)
 owns key choices and behavior.
+Shortcut labels denote characters. Keyboard layout may put a character on another key or leave no
+unshifted, unreserved combination; the existing buttons remain available. The tooltip/ARIA text
+does not promise that a US physical key position works on every layout.
 
 ## Responsibility boundaries
 

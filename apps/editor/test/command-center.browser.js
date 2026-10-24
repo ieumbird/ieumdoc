@@ -30,16 +30,33 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
       {key:'p',code:'KeyP',ctrlKey:true,shiftKey,bubbles:true,cancelable:true})), shiftKey);
     check(allowed && await center().count() === 0, 'Print shortcut was intercepted');
   }
+  // German Slash-position '-' must retain browser zoom; opaque IME keys cannot hide its VK.
+  for (const key of ['-', 'Process', 'Unidentified']) {
+    const allowed = await page.evaluate(key => window.dispatchEvent(new KeyboardEvent('keydown',
+      {key,code:'Slash',keyCode:189,ctrlKey:true,bubbles:true,cancelable:true})), key);
+    check(allowed && await center().count() === 0, 'German zoom shortcut was intercepted');
+  }
+  for (const event of [{key:'/',code:'Digit7',keyCode:55,shiftKey:true},
+    {key:'/',code:'Period',keyCode:190,shiftKey:true}, {key:'!',code:'Slash',keyCode:223},
+    {key:'／',code:'Slash',keyCode:191}]) {
+    const allowed = await page.evaluate(event => window.dispatchEvent(new KeyboardEvent('keydown',
+      {...event,ctrlKey:true,bubbles:true,cancelable:true})), event);
+    check(allowed && await center().count() === 0, 'A shifted or different character opened the center');
+  }
   await page.keyboard.press('Control+Alt+Shift+KeyP');
   check(await center().count() === 0, 'Previous AltGr-prone shortcut still opens the center');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
-    {key:'／',code:'Slash',ctrlKey:true,isComposing:true,bubbles:true,cancelable:true})));
+    {key:'Process',code:'Slash',keyCode:229,ctrlKey:true,isComposing:true,bubbles:true,cancelable:true})));
   check(await center().count() === 0, 'Shortcut interrupted IME composition');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
-    {key:'／',code:'Slash',ctrlKey:true,bubbles:true,cancelable:true})));
+    {key:'Process',code:'Slash',keyCode:229,ctrlKey:true,bubbles:true,cancelable:true})));
   await waitForInput();
   await page.keyboard.type('settings');
   check(await input().inputValue() === 'settings', 'Typing after shortcut missed the command input');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
+    {key:'Unidentified',code:'Slash',keyCode:0,ctrlKey:true,bubbles:true,cancelable:true})));
+  await waitForInput();
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   const trigger = page.getByRole('button',{name:'Command center',exact:true});
   check(await trigger.getAttribute('title') === 'Command center (Ctrl+/)' &&

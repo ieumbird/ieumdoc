@@ -78,6 +78,17 @@ async (page, { openDocument }) => {
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');
+  for (const event of [
+    {key:'ä',code:'Quote',keyCode:222},
+    {key:'ù',code:'Quote',keyCode:192},
+    {key:"'",code:'Digit4',keyCode:52},
+    {key:"'",code:'Backslash',keyCode:220,shiftKey:true},
+    ...['Process','Unidentified'].map(key => ({key,code:'Quote',keyCode:52})),
+  ]) {
+    const allowed = await editor.locator('.ProseMirror').evaluate((node,event) => node.dispatchEvent(new KeyboardEvent('keydown',
+      {...event,ctrlKey:true,bubbles:true,cancelable:true})), event);
+    if (!allowed || await page.getByTestId('link-form').count()) throw Error('Layout-specific key was intercepted by Link');
+  }
   const linkButton = page.getByRole('button', {name:'Link',exact:true});
   if (await linkButton.getAttribute('title') !== "Link (Ctrl+')" ||
       await linkButton.getAttribute('aria-keyshortcuts') !== "Control+' Meta+'") throw Error('Link shortcut label mismatch');
@@ -89,10 +100,10 @@ async (page, { openDocument }) => {
   await page.getByTestId('link-form').waitFor({state:'detached'});
   await select('OpenAI', 'Korean code shortcut');
   await editor.locator('.ProseMirror').dispatchEvent('keydown',
-    {key:'＇',code:'Quote',ctrlKey:true,isComposing:true,bubbles:true,cancelable:true});
+    {key:'Process',code:'Quote',keyCode:229,ctrlKey:true,isComposing:true,bubbles:true,cancelable:true});
   if (await page.getByTestId('link-form').count()) throw Error('Link shortcut interrupted composition');
   await editor.locator('.ProseMirror').dispatchEvent('keydown',
-    {key:'＇',code:'Quote',ctrlKey:true,bubbles:true,cancelable:true});
+    {key:'Unidentified',code:'Quote',keyCode:0,ctrlKey:true,bubbles:true,cancelable:true});
   await page.getByTestId('link-url').waitFor();
   result.physicalKeyLinkShortcut = true;
 

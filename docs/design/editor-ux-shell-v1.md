@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
 - Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
 - Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
 - Last verified: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
@@ -130,7 +131,7 @@ The current document's location/name is a searchable command-center button cente
 The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+/
 opens a search dialog near the top center. Type `>` to list commands only.
 Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
-The shortcut uses `event.code`, exact modifiers and no active IME composition; other modal dialogs
+The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
 still block opening the center and Save behind them.
 The input searches already-open document names/paths and existing shell command names, including
 their Korean/English aliases. It does not list unopened files or search document contents.
@@ -163,7 +164,7 @@ recent-command persistence, filesystem index or new document-content actions.
 
 ### Shortcut contract (#381)
 
-The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own physical keys, modifiers,
+The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
 platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
 consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
 The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
@@ -173,7 +174,7 @@ through ProseMirror, so a previous form cannot later blur a newly opened link fo
 composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
 
 Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378). The two-key bindings are
-**Ctrl/Cmd+/** (physical `Slash`) for the center and **Ctrl/Cmd+'** (physical `Quote`, apostrophe)
+**Ctrl/Cmd+/** (slash character) for the center and **Ctrl/Cmd+'** (apostrophe character)
 for links. Neither uses Alt/AltGr or Shift. The old Ctrl/Cmd+Alt+Shift+P/K bindings are removed;
 Ctrl/Cmd+P and Ctrl/Cmd+Shift+P remain unhandled so browser printing is preserved.
 
@@ -185,11 +186,66 @@ The selected bindings have no listed browser or global system default. Apple's C
 status bar in Finder only; it does not apply when Chrome/Edge has focus. The
 [Microsoft Korean layout](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor.html)
 includes unshifted slash (after period) and apostrophe (after semicolon, before Enter).
-Physical codes work with Korean IME, including full-width punctuation; active composition is ignored.
+Literal `event.key` must be `/` or `'`. A different character at the same position is not a shortcut;
+full-width punctuation is a different character too. Only `Process` or `Unidentified` may fall back
+to `event.code` (`Slash` / `Quote`), and active composition is still ignored.
 Left Ctrl is recommended on Korean layouts where right Ctrl is Hanja conversion. No input-source
 switching shortcut is claimed. No Core or CLI semantics change.
 
-#### Two-key candidate audit (#381, supersedes the earlier three-modifier choice)
+#### Keyboard-layout safety (#381 review follow-up)
+
+Browser accelerators are also checked conservatively: `keyCode` must be the definition's unshifted
+punctuation virtual key (191 for `/`, 222 for `'`), unspecified (0), or IME Process (229).
+Other native mappings are passed through, even if an IME reports an opaque key or the visible
+character matches. This is necessary because French AZERTY apostrophe uses digit 4: character-only
+matching would compete with Ctrl+4. A German `Process`/`Unidentified` event with VK_MINUS (189)
+must likewise retain browser zoom. Chromium derives browser accelerators from the
+[Windows virtual key](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/content_accelerators/accelerator_util.cc),
+not just the DOM character. The numeric guard deliberately uses the legacy field for this supported
+Chromium boundary; [Windows virtual-key definitions](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
+identify those values. Unknown native mappings fail closed rather than claiming cross-layout support.
+
+Shift remains disallowed. We do not introduce Ctrl/Cmd+Shift+7 or any other layout-dependent alias:
+the displayed two-key bindings must not grow an unverified browser/OS accelerator. Layouts requiring
+Shift, AltGr, or a reserved virtual key use the existing Command center / Link buttons instead.
+The tooltip, ARIA and command-item definitions remain unchanged and denote characters, not universal
+physical positions. Depending on the layout, the character can be on another key; not every layout
+has a usable unshifted, unreserved keyboard combination. No automatic remapping is claimed.
+
+Official layouts: [US](https://learn.microsoft.com/en-us/globalization/keyboards/kbdus),
+[Korean](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor),
+[German](https://learn.microsoft.com/en-us/globalization/keyboards/kbdgr),
+[French legacy AZERTY](https://learn.microsoft.com/en-us/globalization/keyboards/kbdfr).
+
+| Layout / event | Center | Link | Browser behavior |
+| --- | --- | --- | --- |
+| US, Korean literal `/` / `'`, VK 191 / 222 | Opens | Opens | No listed default replaced |
+| Korean opaque `Process` / `Unidentified`, Slash / Quote, VK 229 / 0 / matching punctuation | Opens | Opens | Composition still ignored; other physical codes passed through |
+| German Slash-position `-`, VK 189; Quote-position `ä` | Does not open | Does not open | Ctrl+- zoom preserved |
+| German Shift+7 `/`; Shift+Backslash `'` | Does not open | Does not open | Shift aliases deliberately unavailable; use buttons |
+| French Slash-position `!`; Quote-position `ù` | Does not open | Does not open | Different characters passed through |
+| French Shift+Period `/`; digit-4 apostrophe | Does not open | Does not open | Ctrl+4 tab switch preserved; use buttons |
+| Opaque key masking VK_MINUS / VK_4 | Does not open | Does not open | Browser zoom / tab switch preserved |
+
+At pre-fix `e2ee863`, the revised shell test failed on German zoom, and existing browser scenarios
+failed with `German zoom shortcut was intercepted` and `Layout-specific key was intercepted by Link`.
+The current scenarios cover literal US punctuation, Korean opaque IME keys/composition, German
+minus/umlaut and shifted variants, and French characters/digit-4 apostrophe. The original immediate
+search typing, modal blocking, shared labels/ARIA and prior-link-form focus regression are retained.
+
+Headed installed Chrome 155.0.8059.85 and Edge 155.0.4283.62 were additionally sent layout-specific
+CDP key/code/virtual-key tuples. Both an ordinary input and the actual Editor retained German Ctrl+-:
+DPR 1 → 0.899999976 for `-`, `Process`, and `Unidentified` with Slash / VK 189, without opening the
+center. After Ctrl+0 reset, literal and opaque US/Korean center/link cases opened their existing UI.
+French apostrophe / digit-4 VK 52, including opaque variants, still activated browser tab 4 without
+opening Link. German/French shifted or umlaut characters did not open the forms. These are protocol
+reproductions against official layouts, not hardware/OS layout switching. No native UI was screen
+automated. The same checkout-owned Chrome and fixed Edge profiles were reused and zoom reset.
+
+#### Earlier two-key candidate audit (#381, historical physical-only implementation)
+
+The following US-key probe and its recorded results predate the layout-safety fix above. They do
+not establish safety on German/French layouts; the review follow-up supersedes that inference.
 
 Each row below was sent with Playwright to an input in a **headed installed** Windows Chrome
 155.0.8059.85 and Edge 155.0.4283.62, then to Electron 44.7.0 / Chromium 152.0.7977.130.

@@ -25,20 +25,38 @@ import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
 import { COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT } from "../src/shortcuts.ts";
 
-test("shell shortcuts use physical keys with exact modifiers on Control and Command keyboards", () => {
-  const key = (overrides: Partial<KeyboardEvent>) => ({ code: "Slash", key: "／", ctrlKey: true,
+test("shell shortcuts follow characters and preserve layout-specific browser accelerators", () => {
+  const key = (overrides: Partial<KeyboardEvent>) => ({ code: "Slash", key: "/", keyCode: 191, ctrlKey: true,
     metaKey: false, altKey: false, shiftKey: false, isComposing: false, ...overrides }) as KeyboardEvent;
   assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({})), true);
   assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ ctrlKey: false, metaKey: true })), true);
-  assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "＇" })), true);
-  assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", ctrlKey: false, metaKey: true })), true);
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "'", keyCode: 222 })), true);
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "'", keyCode: 222, ctrlKey: false, metaKey: true })), true);
+  assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ key: "-", keyCode: 189 })), false, "German zoom out");
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "ä", keyCode: 222 })), false, "German umlaut");
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "Digit4", key: "'", keyCode: 52 })), false, "French tab 4");
+  assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ code: "Digit7", shiftKey: true })), false, "German shifted slash");
+  assert.equal(LINK_SHORTCUT.matches(key({ code: "Backslash", key: "'", keyCode: 220, shiftKey: true })), false, "German shifted apostrophe");
+  assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ key: "／" })), false, "Full-width punctuation is a different character");
   for (const shortcut of [COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT]) {
     const code = shortcut === COMMAND_CENTER_SHORTCUT ? "Slash" : "Quote";
-    assert.equal(shortcut.matches(key({ code, isComposing: true })), false);
-    assert.equal(shortcut.matches(key({ code, altKey: true })), false);
-    assert.equal(shortcut.matches(key({ code, shiftKey: true })), false);
-    assert.equal(shortcut.matches(key({ code, ctrlKey: false })), false);
-    assert.equal(shortcut.matches(key({ code: "KeyL" })), false);
+    const character = code === "Slash" ? "/" : "'";
+    const keyCode = code === "Slash" ? 191 : 222;
+    const event = { code, key: character, keyCode };
+    assert.equal(shortcut.matches(key({ ...event, isComposing: true })), false);
+    assert.equal(shortcut.matches(key({ ...event, altKey: true })), false);
+    assert.equal(shortcut.matches(key({ ...event, shiftKey: true })), false);
+    assert.equal(shortcut.matches(key({ ...event, ctrlKey: false })), false);
+    assert.equal(shortcut.matches(key({ ...event, code: "KeyL" })), true, "Visible character owns the binding");
+    for (const opaque of ["Process", "Unidentified"]) {
+      for (const imeCode of [0, 229, keyCode]) {
+        assert.equal(shortcut.matches(key({ code, key: opaque, keyCode: imeCode })), true);
+      }
+      for (const reserved of [189, 187, 109, 107, 48, 52, 75, 76, 80]) {
+        assert.equal(shortcut.matches(key({ code, key: opaque, keyCode: reserved })), false, "IME cannot mask a browser accelerator");
+      }
+      assert.equal(shortcut.matches(key({ code: "KeyL", key: opaque, keyCode: 229 })), false);
+    }
   }
 });
 
