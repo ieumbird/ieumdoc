@@ -124,20 +124,29 @@ An applied update that returns to the acknowledged saved snapshot, including Und
 acknowledges that session as clean in origin-local `localStorage` (#409). It reuses the editor's
 existing applied-content dirty comparison, including the submitted snapshot acknowledged by Save,
 rather than comparing recovery text with the current disk file. Each `ieumdoc.recoveryClean.v1.<id>`
-entry contains only a random nonce: no path, content, revision, cursor or history. Redo or new applied
-input removes it **before** obtaining a recording ticket. A dirty IndexedDB write also removes it
-before putting its live snapshot, including when Save changed the acknowledged baseline.
+entry contains only that session's nonnegative recording generation counter: no path, content, revision, cursor
+or history. New v1 records carry the optional `recordingGeneration` field; existing v1 records
+without it remain readable and are never deleted by a clean acknowledgement. Restore starts the
+moved record at generation zero of the new session. Redo or new applied input removes the acknowledgement
+**before** obtaining a recording ticket and advances the generation after clean state. A dirty
+IndexedDB write also removes the acknowledgement and advances if needed before putting its live
+snapshot, including when Save changed the acknowledged baseline. A stale clean entry that reappears
+after a process crash cannot match a newer committed dirty generation: localStorage and IndexedDB
+are not assumed to flush atomically.
 
 Listing recovery consumes these acknowledgements in the IndexedDB transaction that deletes
-only the corresponding obsolete records. Like a clean recorder snapshot, this retains the live
+only the corresponding obsolete records at or before the acknowledged generation. This includes
+older committed work when rapid Undo/Redo/Undo never committed the intervening dirty generation.
+Like a clean recorder snapshot, this retains the live
 ticket so a later Save acknowledgement can record newer dirty work without a further edit;
 explicit deletion/expiry still invalidates tickets. Listing removes the matching
-nonce only after commit, including orphan entries; a newer clean acknowledgement survives an older
+generation only after commit, including orphan entries; a newer dirty/clean generation survives an older
 cleanup completion. Thus immediate Reload and normal browser/Desktop close do not offer the old
 record while the 500ms write is still pending. Partial Undo with applied changes retains recovery;
 another window's distinct session identifier is unaffected, even for the same path. This is recovery
-metadata, not navigation memory or an additional document write path. Record format, 10-day expiry,
-restored revision and external-conflict checks are unchanged.
+metadata, not navigation memory or an additional document write path. The optional record field
+requires no DB version change or migration; 10-day expiry, restored revision and external-conflict
+checks are unchanged.
 
 If acknowledgements cannot be read, listing keeps the records. If an applied edit cannot update its
 acknowledgement, recording is cancelled and the existing persistent recovery warning is shown;

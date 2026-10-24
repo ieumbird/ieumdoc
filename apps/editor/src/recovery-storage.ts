@@ -9,6 +9,8 @@ export type RecoveryRecord = {
   version: number;
   path: string;
   recordedAt: number;
+  /** Optional for existing v1 records; changes when dirty work follows clean state. */
+  recordingGeneration?: number;
   recoveryText: string;
   snapshot: DocumentSessionSnapshot;
 };
@@ -27,7 +29,7 @@ function cleanAcknowledgements(): Map<string, string> {
       const key = localStorage.key(index);
       if (!key?.startsWith(CLEAN_PREFIX)) continue;
       const value = localStorage.getItem(key);
-      if (value && /^[a-f0-9]{32}$/.test(value)) result.set(key.slice(CLEAN_PREFIX.length), value);
+      if (value !== null && /^(0|[1-9]\d*)$/.test(value) && Number.isSafeInteger(Number(value))) result.set(key.slice(CLEAN_PREFIX.length), value);
     }
   } catch { result.clear(); /* Unavailable acknowledgements never authorize record deletion. */ }
   return result;
@@ -95,7 +97,7 @@ export const recoveryStorage = {
         try {
           barriers.delete(["session", record.id]);
           records.delete(record.id);
-          records.put({ ...record, id });
+          records.put({ ...record, id, recordingGeneration: 0 });
           done(undefined);
         } catch (error) { fail(error); }
       };
@@ -182,7 +184,11 @@ export const recoveryStorage = {
           const kept: RecoveryRecord[] = [];
           for (const record of read.result as RecoveryRecord[]) {
             const expired = Number.isFinite(record.recordedAt) && now - record.recordedAt >= RECOVERY_DAYS * 86400000;
-            if (clean.has(record.id) || expired) {
+            const recordedGeneration = record.recordingGeneration;
+            const cleanGeneration = clean.get(record.id);
+            const acknowledged = typeof recordedGeneration === "number" && Number.isSafeInteger(recordedGeneration) &&
+              recordedGeneration >= 0 && cleanGeneration !== undefined && recordedGeneration <= Number(cleanGeneration);
+            if (acknowledged || expired) {
               records.delete(record.id);
               // Clean acknowledgement is the recorder's null snapshot, not an explicit
               // discard. Preserve its live ticket for a newer Save acknowledgement.
@@ -195,8 +201,8 @@ export const recoveryStorage = {
         } catch (error) { fail(error); }
       };
     });
-    // Consume only after commit, including orphaned acknowledgements. A later clean
-    // edit has a different nonce and must survive this older cleanup completion.
+    // Consume only after commit, including orphaned acknowledgements. A later dirty/
+    // clean generation must survive this older cleanup completion.
     for (const [id, nonce] of clean) {
       try { if (localStorage.getItem(CLEAN_PREFIX + id) === nonce) clearClean(id); }
       catch { /* Keeping an already-clean acknowledgement is safe. */ }
@@ -238,6 +244,12 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
   let queue = Promise.resolve();
   let failures = 0;
   let edited = false;
+  let recordingGeneration = 0;
+  let acknowledgedClean = false;
+  const resumeDirty = () => {
+    if (acknowledgedClean) { recordingGeneration++; acknowledgedClean = false; }
+    return recordingGeneration;
+  };
   const reportFailure = (error: unknown) => { failures++; failed(error); };
   const schedule = () => {
     if (timer || !permit) return;
@@ -253,7 +265,7 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
           if (current !== epoch) return undefined;
           const snapshot = capture();
           capturedFailures = failures;
-          return snapshot ? { id, version: 1, path: snapshot.file.path, recordedAt: Date.now(), recoveryText: recoveryText(snapshot), snapshot } : null;
+          return snapshot ? { id, version: 1, recordingGeneration: resumeDirty(), path: snapshot.file.path, recordedAt: Date.now(), recoveryText: recoveryText(snapshot), snapshot } : null;
         });
         if (written && current === epoch && capturedFailures === failures) succeeded();
       }).catch(error => { if (current === epoch) reportFailure(error); });
@@ -264,8 +276,8 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
     edit(dirty = true) {
       edited = true;
       try {
-        if (dirty) clearClean(id);
-        else localStorage.setItem(CLEAN_PREFIX + id, newRecoveryId());
+        if (dirty) { clearClean(id); resumeDirty(); }
+        else { localStorage.setItem(CLEAN_PREFIX + id, String(recordingGeneration)); acknowledgedClean = true; }
       } catch (error) {
         // Never put dirty work behind a clean acknowledgement we could not clear.
         cancel(); reportFailure(error); return;

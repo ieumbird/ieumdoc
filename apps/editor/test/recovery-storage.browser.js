@@ -30,6 +30,8 @@ async page => page.evaluate(async () => {
     });
     let oldClosed = false; oldDb.onversionchange = () => { oldClosed = true; oldDb.close(); };
     check((await list())[0]?.recoveryText === 'preserved', 'Storage upgrade changed an existing recovery record');
+    localStorage.setItem('ieumdoc.recoveryClean.v1.existing', '0');
+    check((await list())[0]?.recoveryText === 'preserved', 'Clean metadata deleted a legacy record without a recording generation');
     const oldRefused = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB,2); request.onerror=()=>resolve(request.error.name==='VersionError'); request.onsuccess=()=>{request.result.close();resolve(false);}; });
     check(oldRefused && oldClosed, 'Old unbounded ticket protocol can still open the database');
     let oldWriteRefused = false;
@@ -63,6 +65,20 @@ async page => page.evaluate(async () => {
     await store.delete('other-clean-window');
     live = snapshot('dirty after acknowledged clean'); recorder.edit(); await wait();
     check((await list())[0]?.recoveryText === 'dirty after acknowledged clean', 'A new applied edit remained hidden behind clean acknowledgement');
+
+    // A process crash may persist IndexedDB but revert localStorage independently.
+    // Reappearing old clean metadata must never erase a newer committed dirty record.
+    live = null; recorder.edit(false);
+    const cleanKey = 'ieumdoc.recoveryClean.v1.a';
+    const staleClean = localStorage.getItem(cleanKey);
+    live = snapshot('dirty committed after the old clean acknowledgement'); recorder.edit(); await wait();
+    localStorage.setItem(cleanKey, staleClean);
+    check((await list())[0]?.recoveryText === 'dirty committed after the old clean acknowledgement', 'Reappearing clean metadata deleted newer committed work');
+
+    live = null; recorder.edit(false);
+    live = snapshot('Redo not committed yet'); recorder.edit();
+    live = null; recorder.edit(false); recorder.cancel();
+    check(!(await list()).length, 'Rapid Undo/Redo/Undo left an older dirty generation recoverable');
 
     // An in-flight Save can change the saved baseline after clean Undo, without a
     // further applied edit. Cleanup must preserve its ticket for that live checkpoint.
