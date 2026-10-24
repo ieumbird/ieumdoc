@@ -297,3 +297,16 @@ Local validation: Editor tests 276 passed; `open-files --screenshots`, `file-pre
 Editor `build`, `docs:check` and `git diff --check` passed. Build emitted the existing punycode
 externalization and chunk-size warnings. Packaging and other-platform checks belong to required CI;
 no packaging or Host boundary changed.
+
+
+#### Latest master integration (#401)
+
+After the captures above, master `0648ce98b6f3e77c531520b40a6cab66f405cf5c` (#397 tab restoration)
+was merged without conflicts at `861ade17ad4826e77ed7a92a50a64005e3bd2516`.
+Editor tests (277), workspace typecheck, Editor build and documentation/whitespace checks passed.
+The long-preview setup now explicitly reopens a closed narrow overlay sidebar before choosing its
+file, just as the existing navigation helper does; measured dialog assertions remain immediate.
+`open-files` and `file-preview` passed together. The first CI run's unrelated `cross-reference`
+(Settings lookup) and `save-session` (Reload initial focus) failures also passed locally after the
+merge; the new Open/Close and preview checks had already passed in that first CI run.
+The preserved capture HEAD and historical measurements above are not rewritten as merge-head evidence.
