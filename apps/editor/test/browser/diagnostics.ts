@@ -78,7 +78,8 @@ export async function finishScenarioDiagnostics(
   await capture("console-errors", () => attachText("console-errors.json", JSON.stringify(consoleErrors, null, 2), "application/json"));
   await capture("error-context", async () => {
     const snapshot = await page.locator("body").ariaSnapshot({ timeout: 5_000 }).catch(error => `Snapshot unavailable: ${String(error)}`);
-    const errors = testInfo.errors.map(error => error.stack ?? error.message ?? String(error));
+    // Scenario scripts run in a VM: their Error objects may be serialized as `value`.
+    const errors = testInfo.errors.map(error => error.stack ?? error.message ?? error.value ?? JSON.stringify(error));
     await attachText("error-context.md", `# ${testInfo.title}\n\n${[...errors, ...consoleErrors.unexpected, ...consoleErrors.missing].join("\n\n")}\n\n## Page snapshot\n\n\`\`\`yaml\n${snapshot}\n\`\`\`\n`, "text/markdown");
   });
   await capture("screenshot", async () => {
