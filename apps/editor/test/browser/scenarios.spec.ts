@@ -11,6 +11,7 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openDocument, reloadDocument } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
+import { recoveryRecords } from "./recovery-records.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
@@ -149,7 +150,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -159,7 +160,7 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { screenshots, openDocument, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
+    const result = await scenario(page, { screenshots, expect, recoveryRecords, openDocument, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });
