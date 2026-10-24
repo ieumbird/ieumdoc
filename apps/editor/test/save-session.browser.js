@@ -172,6 +172,8 @@ async (page, { openDocument, reloadDocument }) => {
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
   const keepEditing = page.getByRole('button', {name:'Keep editing', exact:true});
   const discard = page.getByRole('button', {name:'Discard and reload', exact:true});
+  // Base UI applies initial focus on an animation frame after the dialog becomes visible.
+  await keepEditing.and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
   check('reloadDefaultsToKeepEditing', await keepEditing.evaluate(element => element === document.activeElement));
   // Measure rendered colors, not utility classes; all button faces are opaque.
   const discardAppearance = () => discard.evaluate(element => {
