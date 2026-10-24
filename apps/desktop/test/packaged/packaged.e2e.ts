@@ -271,8 +271,7 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /\.\/assets\/image-[^)]+\.png/);
 
-    await page.getByRole("button", { name: "More actions", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Open folder…", exact: true }).click();
+    await page.getByTestId("sidebar").getByRole("button", { name: "Open folder…", exact: true }).click();
     await page.getByTestId("folder-path").fill(folder);
     await page.getByTestId("folder-open").click();
     await page.getByTestId("folder").getByRole("treeitem", { name: "doc.md" }).waitFor();
