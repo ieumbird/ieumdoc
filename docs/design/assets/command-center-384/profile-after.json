@@ -1,0 +1,174 @@
+{
+  "fixture": {
+    "documents": 2000,
+    "sidebar": "collapsed",
+    "cpuThrottling": false,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "trials": [
+    {
+      "openMs": 333,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 52
+        },
+        {
+          "key": "u",
+          "ms": 53
+        },
+        {
+          "key": "l",
+          "ms": 53
+        }
+      ],
+      "uniqueMs": 64,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    },
+    {
+      "openMs": 256,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 72
+        },
+        {
+          "key": "u",
+          "ms": 71
+        },
+        {
+          "key": "l",
+          "ms": 71
+        }
+      ],
+      "uniqueMs": 53,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    },
+    {
+      "openMs": 204,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 53
+        },
+        {
+          "key": "u",
+          "ms": 53
+        },
+        {
+          "key": "l",
+          "ms": 35
+        }
+      ],
+      "uniqueMs": 55,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    }
+  ],
+  "profile": {
+    "durationMs": 737,
+    "categories": {
+      "other": 528.8220000000001,
+      "App": 14.653,
+      "React render/commit": 187.571,
+      "filter": 6.2330000000000005
+    },
+    "self": [
+      {
+        "fn": "(program)",
+        "url": "",
+        "ms": 396
+      },
+      {
+        "fn": "(idle)",
+        "url": "",
+        "ms": 104
+      },
+      {
+        "fn": "(garbage collector)",
+        "url": "",
+        "ms": 11
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 9
+      },
+      {
+        "fn": "pushHostContext",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 8
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "updateElement",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "updateProperties",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "run",
+        "url": "",
+        "ms": 5
+      },
+      {
+        "fn": "beginWork",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "validateProperties$2",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "focus",
+        "url": "",
+        "ms": 5
+      },
+      {
+        "fn": "",
+        "url": "command-center.ts",
+        "ms": 5
+      },
+      {
+        "fn": "updateProperties",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "resetRegExp",
+        "url": "i18next.js?v=639f67f4",
+        "ms": 3
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 3
+      },
+      {
+        "fn": "exports.createElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 3
+      }
+    ]
+  }
+}

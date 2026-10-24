@@ -1,12 +1,12 @@
 import { citationReport, parse } from "@ieumdoc/core";
 import { test as base, expect, chromium, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
-import type { Editor } from "@tiptap/core";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { classifyConsoleErrors } from "./console-errors.ts";
+import { finishScenarioDiagnostics, savedSourceAssertion } from "./diagnostics.ts";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openDocument, openPath, reloadDocument, waitForActivePath } from "./navigation.ts";
@@ -76,6 +76,8 @@ const test = base.extend<{}, { session: BrowserContext }>({
   }, { scope: "worker" }],
   page: async ({ session }, use, testInfo) => {
     prepareBrowserFixtures();
+    // Keep action history cheap; capture UI state/ARIA/PNG separately on failure.
+    await session.tracing.start({ screenshots: false, snapshots: false, sources: true });
     const page = await session.newPage();
     const errors: string[] = [];
     const consoleListener = (message: ConsoleMessage) => {
@@ -112,28 +114,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
     } finally {
       const classification = classifyConsoleErrors(testInfo.title, errors);
       try {
-        if (testInfo.status !== testInfo.expectedStatus || classification.unexpected.length || classification.missing.length) {
-          const diagnostic = await page.evaluate(() => {
-            const visible = (element: Element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
-            const editor = document.querySelector<HTMLElement & { editor?: Editor }>('[data-document-tab][data-active="true"] .document-editor');
-            const instance = editor?.editor;
-            const selection = instance?.state.selection;
-            const active = document.activeElement;
-            return {
-              url: location.href,
-              viewport: [innerWidth, innerHeight],
-              activeElement: active ? { tag: active.tagName, testId: active.getAttribute("data-testid"), role: active.getAttribute("role"), label: active.getAttribute("aria-label"), className: typeof active.className === "string" ? active.className : "" } : null,
-              editorFocused: instance?.view.hasFocus() ?? false,
-              selection: selection ? { type: selection.constructor.name, empty: selection.empty, from: selection.from, to: selection.to, parent: selection.$from.parent.type.name, text: instance!.state.doc.textBetween(selection.from, selection.to, " ") } : null,
-              visibleMenus: [...document.querySelectorAll<HTMLElement>('[role="menu"]')].filter(visible).map(element => ({ label: element.getAttribute("aria-label"), text: element.innerText })),
-              visibleMenuItems: [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(visible).map(element => element.innerText),
-              visibleDialogs: [...document.querySelectorAll('[role="dialog"]')].filter(visible).map(element => ({ label: element.getAttribute("aria-label"), testId: element.getAttribute("data-testid") })),
-              status: document.querySelector<HTMLElement>('[data-testid="status"]')?.innerText ?? null,
-              editorTextLength: editor?.innerText.length ?? 0,
-            };
-          }).catch(error => ({ diagnosticError: String(error) }));
-          await testInfo.attach("browser-state", { body: JSON.stringify(diagnostic), contentType: "application/json" });
-        }
+        await finishScenarioDiagnostics(session, page, testInfo, { errors, ...classification });
       } finally {
         page.off("console", consoleListener);
         page.off("pageerror", pageErrorListener);
@@ -150,7 +131,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -160,7 +141,7 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { screenshots, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
+    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });

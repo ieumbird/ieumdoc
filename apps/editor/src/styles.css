@@ -751,6 +751,7 @@ button {
 }
 .command-center-result[data-highlighted] { background: var(--id-color-surface-selected); }
 .command-center-result[data-disabled] { color: var(--id-color-text-subtle); cursor: default; }
+.command-center-result[data-foreign] { color: var(--id-color-text-subtle); }
 .command-center-result-copy { display: grid; flex: 1; min-width: 0; }
 .command-center-result-label, .command-center-result-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-center-result-detail { color: var(--id-color-text-muted); font-size: var(--font-size-xs); }

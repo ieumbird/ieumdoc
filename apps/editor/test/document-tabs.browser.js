@@ -44,6 +44,8 @@ async (page, { openPath, reloadDocument, activeDocument, removeTabFixture, scree
     await page.keyboard.press('Control+Slash');
     const center = page.getByRole('dialog',{name:'Command center',exact:true});
     await center.getByRole('combobox').fill(name);
+    const match = center.getByRole('option',{name,exact:true});
+    check(await match.count() === 1 && (await match.innerText()).includes('Opened tab'), 'Restored tab was missing, duplicated or shown as an unopened file');
     await page.keyboard.press('Enter');
     await center.waitFor({state:'detached'});
     await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent === name &&

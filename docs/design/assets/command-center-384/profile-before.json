@@ -1,0 +1,171 @@
+{
+  "fixture": {
+    "documents": 2000,
+    "sidebar": "collapsed",
+    "cpuThrottling": false,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "trials": [
+    {
+      "openMs": 1387,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 666
+        },
+        {
+          "key": "u",
+          "ms": 831
+        },
+        {
+          "key": "l",
+          "ms": 579
+        }
+      ],
+      "uniqueMs": 204,
+      "rendered": 1
+    },
+    {
+      "openMs": 1085,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 666
+        },
+        {
+          "key": "u",
+          "ms": 648
+        },
+        {
+          "key": "l",
+          "ms": 413
+        }
+      ],
+      "uniqueMs": 171,
+      "rendered": 1
+    },
+    {
+      "openMs": 1031,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 504
+        },
+        {
+          "key": "u",
+          "ms": 486
+        },
+        {
+          "key": "l",
+          "ms": 395
+        }
+      ],
+      "uniqueMs": 168,
+      "rendered": 1
+    }
+  ],
+  "profile": {
+    "durationMs": 3137,
+    "categories": {
+      "other": 1192.8729999999998,
+      "App": 12.193000000000001,
+      "React render/commit": 1925.8090000000007,
+      "filter": 6.333
+    },
+    "self": [
+      {
+        "fn": "(program)",
+        "url": "",
+        "ms": 858
+      },
+      {
+        "fn": "(garbage collector)",
+        "url": "",
+        "ms": 158
+      },
+      {
+        "fn": "focus",
+        "url": "",
+        "ms": 124
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 77
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 64
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 58
+      },
+      {
+        "fn": "(idle)",
+        "url": "",
+        "ms": 56
+      },
+      {
+        "fn": "ComboboxItemInner",
+        "url": "@base-ui_react_combobox.js?v=639f67f4",
+        "ms": 45
+      },
+      {
+        "fn": "updateProperties",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 29
+      },
+      {
+        "fn": "ComboboxItemInner",
+        "url": "@base-ui_react_combobox.js?v=639f67f4",
+        "ms": 25
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 22
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 22
+      },
+      {
+        "fn": "useRenderElementProps",
+        "url": "useRenderElement-DjAj12X6.js?v=639f67f4",
+        "ms": 22
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 20
+      },
+      {
+        "fn": "run",
+        "url": "",
+        "ms": 19
+      },
+      {
+        "fn": "useState",
+        "url": "inertValue-BM_QIdu3.js?v=639f67f4",
+        "ms": 19
+      },
+      {
+        "fn": "commitUpdate",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 19
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 17
+      }
+    ]
+  }
+}

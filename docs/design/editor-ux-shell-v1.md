@@ -1,10 +1,13 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
+- Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
 - Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
 - Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
 - Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
 - Last verified: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
+- Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
 - Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
 - Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
@@ -133,8 +136,9 @@ opens a search dialog near the top center. Type `>` to list commands only.
 Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
 The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
 still block opening the center and Save behind them.
-The input searches already-open document names/paths and existing shell command names, including
-their Korean/English aliases. It does not list unopened files or search document contents.
+The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
+existing shell command names, including their Korean/English aliases. It does not search document
+contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
 
 Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
 and Settings handlers and their current availability. Switching to an opened document reuses tab
@@ -161,6 +165,50 @@ No-match feedback and controls are translated with the existing UI language.
 This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
 existing file/session handlers remain authoritative. The first version has no command plugin system,
 recent-command persistence, filesystem index or new document-content actions.
+
+### Listed document search (#384)
+
+The source is the in-memory listing cache reachable from the roots of **all currently opened sidebar
+folders** ([ADR-0009](../adr/0009-multiple-opened-folders.md)). Starting at each root, follow folder
+entries in the current parent listings and collect each reached listing's `document` entries,
+regardless of expansion or sidebar visibility. A subfolder whose contents have never been listed
+contributes no files. If a parent is relisted without a child folder, that disconnected child's
+retained cache stops contributing immediately. Restoring the child entry makes its retained listing
+reachable again, including while collapsed. Search does not change the sidebar's cache preservation
+or expansion behavior. Closing a root removes its contribution. Candidate collection and path sorting
+run only while the center is open and are memoized until the opened-folder trees change.
+Search itself neither requests Host listings/document reads nor expands folders, recursively lists
+the filesystem, builds an index or stores the search source in preferences.
+
+Results use the Host-resolved path as identity: an opened tab replaces that file's listing result,
+and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
+with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
+its full path. Existing commands follow in their existing order. Name/path word matching and the
+`>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
+The existing height-bounded, scrolling Combobox renders only the first 50 matches in that order.
+A persistent count status shows the full match count, including zero. Above 50 it shows the visible
+and total counts with guidance to type more to narrow the search, in Korean or English. Base UI's
+always-mounted `Combobox.Status` supplies a polite, atomic live region, including its initial text
+announcement handling. Base UI still owns highlight, arrows and Enter within the displayed matches;
+there are no page controls. To reach a match outside the first 50, narrow the query: filtering still
+searches the entire source. This explicit presentation limit replaces the earlier pagination decision
+without changing source scope, ordering, matching or shell action handlers. No ranking, search index,
+virtualization library or document-content command is introduced.
+
+As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
+the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
+same admission explanation available through either navigation entry. The existing Host/Core
+admission check remains authoritative even for a listing marked native. Images, other regular files
+and folders are omitted: they are preview/navigation entries rather than editable documents and
+retain their existing sidebar entry points.
+
+Selecting an unopened file closes the center before calling the same `openFolderDocument` handler
+as the sidebar, including existing operation/continuation restrictions, retained dirty tabs and
+property drafts, admission refusal and recovery flows. A successful open focuses the mounted Visual
+editor; an admission/recovery dialog owns its focus. Opening a file may relist/reveal its folders
+through the existing open path; those requests are not search-time discovery. Opened-tab selection
+keeps #386's synchronous tab activation and Dialog final-focus behavior, including Source tabs.
+This is Editor navigation, so no Core operation or CLI command is added.
 
 ### Shortcut contract (#381)
 
@@ -383,6 +431,98 @@ covered. A repeat of the unthrottled typing probe passed all 12 attempts after t
 `editor-shell`, `document-tabs`, `ui-language`, `layout-rules` and `quiet-document` checks also passed.
 No Core operation or CLI command is needed for these Editor-only focus interactions.
 
+### Listed document search verification (#384)
+
+The extended `command-center` scenario failed against base `144e34af8ec75c1d14fad045f76440d8da72aead`
+before product edits: `Sidebar-listed unopened document missing from search`. Actual Windows Chrome
+[before](assets/command-center-384/before.png) / [after](assets/command-center-384/after.png) captures
+show the same `technical` query, opened `technical-1.md`, listed scratch folder and 1280×720 viewport
+(default DPR/100% zoom, bundled Pretendard). Both came from this same worktree and its existing
+persistent browser profile; no extra checkout or temporary Chrome profile was used.
+
+The scenario now checks tab/file distinction and ordering without result truncation, no Host request
+while searching, unloaded-child exclusion, collapsed-child inclusion, overlapping-root and tab-path
+deduplication, image/other-file exclusion, immediate typing/Undo after opening a file, retained dirty
+work, busy restrictions and the real non-native refusal with unchanged active document. The existing
+#386 immediate search/tab-focus and Source/IME/modal/history/draft checks remain. New-editor focus
+runs after Tiptap's Strict Mode DOM reattachment in a cancellable microtask; the browser check adds
+no focus polling or reload before typing. The visual change reuses the existing result layout,
+selected surface and sidebar subtle-text/crossed-file treatment; no adjustable value is introduced.
+
+### Listed search review follow-up (#384)
+
+The existing scenario failed on reviewed head `4fdb5bc8ffc8f91403d58a84c4ba50ab934b497f`
+with `Disconnected child cache remained searchable after parent relisting`. It now expands/collapses
+`alpha`, removes that entry from the next parent response, verifies the sidebar and search omit it,
+then restores the parent entry and verifies its preserved collapsed listing is searchable again.
+The folder-tree reducer/cache lifecycle is unchanged; search reuses `knownFolders` for reachability.
+
+Performance measurements used 2,000 synthetic native document entries in one existing scratch folder,
+one initial document tab, collapsed sidebar, 1280×720, the same worktree/persistent Windows headless
+Chrome/Vite development setup and no CPU throttling. Three trials measured Control+P and real `b`,
+`u`, `l` key presses through two subsequent animation frames; unique search used `fill('bulk-1999')`.
+These are local end-to-end observations including Playwright overhead, not production benchmarks or
+fixed timing gates. The after run includes #397 on `cda1397` (subsequent changes add tests/evidence).
+
+| Measurement | Reviewed implementation | After follow-up |
+| --- | --- | --- |
+| Open, three trials (ms) | 1387 / 1085 / 1031 | 333 / 256 / 204 |
+| Real b/u/l input, nine key presses (ms) | 395–831 | 35–72 |
+| Unique search, three trials (ms) | 204 / 171 / 168 | 64 / 53 / 55 |
+| Chrome CPU samples with React render/commit frames, extra open + b/u/l run | about 1926 ms | about 188 ms |
+| Samples within filter / App, same profile | about 6 / 12 ms | about 6 / 15 ms |
+
+The sampling profile identified result rendering/commit as the main input bottleneck, rather than
+text matching. The source also regenerated all file candidates during closed-center App renders.
+Open-only memoized collection/sorting removes that unnecessary work; the 50-row page bounds rendering
+without limiting full-scope filtering or making late results unreachable. The sampled totals are
+stack categories, not isolated component timings; idle/native/other work is not listed above.
+The [before](assets/command-center-384/profile-before.json) and
+[after](assets/command-center-384/profile-after.json) summaries retain all trial values and top samples.
+
+The existing `command-center` scenario now also supplies the synthetic 2,000-entry listing, checks
+visible range/total, real Tab/Enter previous/next access and within-page arrows, no Host requests,
+query narrowing to the final document, actual open and immediate editor typing/Undo. Only that last
+target is a real scratch file; there is no 2,000-file fixture or timing assertion. Existing restored-tab
+checks in `document-tabs` also verify one `Opened tab` result per restored path. Actual pagination at
+[1280px](assets/command-center-384/paged-1280.png) and [375px](assets/command-center-384/paged-375.png)
+uses existing footer typography/spacing, shared Button controls and tokens, with no new adjustable value.
+
+### Listed search result-limit follow-up (#384)
+
+After the review approved `5dfb690`, the integration owner selected a simpler presentation: the first
+50 matches, a full count at every size, and explicit narrowing guidance above 50, without page controls.
+The current [listed-search contract](#listed-document-search-384) supersedes the pagination behavior
+recorded in the preceding verification; those earlier measurements and captures remain historical evidence.
+Reachability, open-only/tree-state memoization, full-source matching and result order are unchanged.
+
+The existing 2,000-entry browser check now verifies the first/last displayed paths, the 50-row bound,
+real ArrowDown access to the 50th match and existing wrap/stay behavior at that boundary. It checks
+the overflow guidance, counts of 10/0/1 after query changes, and the same mounted polite/atomic live
+status throughout. Korean command search also checks its translated count. Narrowing to the final
+file still opens it with immediate editor typing/Undo, with no Host request during search. These are
+DOM/keyboard accessibility checks, not a claim of manual screen-reader verification.
+
+The same three-trial probe and 2,000-document fixture described above ran after merging #402. The
+worktree, persistent Chrome profile, 1280×720 viewport, collapsed sidebar, one initial tab and no CPU
+throttling were retained. The current worktree's Vite server used port 5174 because another worktree
+already owned 5173; its `/api/document` path was checked before measurement.
+
+| Measurement | First-50 presentation |
+| --- | --- |
+| Open, three trials (ms) | 348 / 325 / 278 |
+| Real b/u/l input, nine key presses (ms) | 52–89 |
+| Unique search, three trials (ms) | 66 / 59 / 67 |
+| React render/commit CPU samples, extra open + b/u/l run | about 371 ms |
+| Filter / App samples, same profile | about 8 / 17 ms |
+
+The [raw summary](assets/command-center-384/profile-limited.json) retains each value and sampled
+stacks. This local development observation includes Playwright overhead and has no timing threshold;
+it does not claim a speed improvement over the earlier bounded pagination run. Actual first-50
+captures at [1280px](assets/command-center-384/limited-1280.png) and
+[375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
+paged captures, with existing footer typography/spacing and no new adjustable style value.
+
 ## Writing interactions
 
 - The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
@@ -439,7 +579,7 @@ final writes still require real definitions. The literal `/` code probe in
 
 ## Boundaries
 
-No workspace, recursive filesystem scan, folder watch, filesystem/content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
+No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
 

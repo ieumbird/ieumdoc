@@ -93,9 +93,20 @@ async (page, { openPath }) => {
   const lead = await page.locator('[data-document-tab][data-active=true] .paragraph').first().boundingBox();
   await page.mouse.click(lead.x + 20, lead.y + lead.height / 2);
   await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').waitFor({state:'detached', timeout:2000}).catch(() => {});
-  result.emptyTitleRemoved = await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').count() === 0 &&
-    await addEmpty.isVisible() && (await blocks())[0] === 'paragraph:Lead paragraph.' &&
-    !(await page.getByTestId('status').innerText()).includes('Unsaved');
+  const emptyTitleState = {
+    titleCount: await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').count(),
+    addVisible: await addEmpty.isVisible(),
+    firstBlock: (await blocks())[0],
+    status: await page.getByTestId('status').innerText(),
+  };
+  const emptyTitleChecks = {
+    noTitle: emptyTitleState.titleCount === 0,
+    addVisible: emptyTitleState.addVisible,
+    leadParagraph: emptyTitleState.firstBlock === 'paragraph:Lead paragraph.',
+    noUnsaved: !emptyTitleState.status.includes('Unsaved'),
+  };
+  result.emptyTitleRemoved = Object.values(emptyTitleChecks).every(Boolean);
+  check(result.emptyTitleRemoved, `emptyTitleRemoved failed: ${Object.entries(emptyTitleChecks).filter(([, ok]) => !ok).map(([name]) => name).join(', ')} ${JSON.stringify(emptyTitleState)}`);
 
   const failed = Object.entries(result).filter(([, ok]) => !ok).map(([name]) => name);
   if (failed.length) throw new Error(`Document title checks failed: ${failed.join(', ')} ${JSON.stringify(result)}`);

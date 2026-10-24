@@ -337,7 +337,16 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openPath(page, deletionPath);
+  try { await openPath(page, deletionPath); }
+  catch (cause) {
+    const state = await page.evaluate(() => ({
+      language:document.documentElement.lang, viewport:[innerWidth,innerHeight],
+      dialogs:[...document.querySelectorAll('[role="dialog"]')].map(n => n.textContent),
+      sidebar:document.querySelector('[data-testid="sidebar"]')?.outerHTML.slice(0,3000),
+      memory:localStorage.getItem('ieumdoc.openTabs'),
+    }));
+    throw new Error(`Apple reload navigation failed: ${JSON.stringify(state)}`, {cause});
+  }
   await active.locator('[data-testid="cross-reference"][data-label="eq-a"][data-resolved="true"]').waitFor();
   await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
