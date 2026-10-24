@@ -39,6 +39,37 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   await flush();
   check(await page.evaluate(() => window.tabMemoryWrites) === 0, 'Restoration rewrote tab memory');
 
+  // A default document that will not be used must not block either startup route.
+  const startupFailures = [];
+  let targetReads = 0;
+  const countTarget = request => {
+    if (request.method() === 'GET' && request.url().includes('/api/document?path=')) targetReads++;
+  };
+  const failedDefault = route => route.fulfill({status:400,json:{code:'native-marker',error:'Default document unavailable'}});
+  page.on('request',countTarget);
+  await page.route('**/api/document',failedDefault);
+  try {
+    for (const explicit of [false,true]) {
+      targetReads = 0;
+      await page.goto(explicit ? `${origin}/?path=${encodeURIComponent(b)}` : origin); await ready();
+      const names = await page.getByRole('tab').allTextContents();
+      const expected = explicit ? ['technical-2.md'] : ['technical-1.md','technical-2.md'];
+      if (JSON.stringify(names) !== JSON.stringify(expected) || targetReads === 0 || await page.getByTestId('error').count()) {
+        startupFailures.push(`${explicit ? 'Explicit URL' : 'Remembered tabs'} depended on the unused default: tabs=${JSON.stringify(names)}, targetReads=${targetReads}`);
+      }
+    }
+    // When the default actually is the fallback, its failure must still be visible.
+    await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+    await page.goto(origin); await ready();
+    check(await page.getByRole('tab').count() === 0 && (await page.getByTestId('error').innerText()).includes('Default document unavailable'), 'A real fallback failure lost its startup error');
+  } finally {
+    page.off('request',countTarget);
+    await page.unroute('**/api/document',failedDefault);
+    await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+    await page.goto(origin); await ready();
+  }
+  check(startupFailures.length === 0,startupFailures.join('\n'));
+
   // A different browser tab may change storage. Session reports and Save leave that choice
   // alone, while even an explicit same-tab selection remembers this page's current list.
   const other = await page.context().newPage();
@@ -113,6 +144,14 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
     check(await desktopPage.getByRole('tab').count() === 1, 'URL did not override Desktop navigation memory');
     await desktopPage.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
     check(await desktopPage.getByTestId('document-start').getByRole('button',{name:'Open sample document',exact:true}).isVisible(), 'URL startup lost Host sample information after the last close');
+    await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+    await desktopPage.route('**/api/document',failedDefault);
+    await desktopPage.goto(origin);
+    await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab').count() === 0 && (await desktopPage.getByTestId('error').innerText()).includes('Default document unavailable'), 'A failed Desktop launch file silently fell back to remembered tabs');
+    await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);
+    await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1 && !await desktopPage.getByTestId('error').count(), 'An explicit URL was blocked by a failed Desktop default');
   } finally { await desktopPage.close(); }
   await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
   await page.reload(); await ready();

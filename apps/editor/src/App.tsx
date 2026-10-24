@@ -241,8 +241,14 @@ export function App() {
     void (async () => {
       const path = new URLSearchParams(window.location.search).get("path")?.trim() || undefined;
       const saved = readOpenTabs();
-      // Keep Host start metadata (sample/allowed roots) even for an explicit URL open.
-      const first = await requestDocument("GET");
+      // Keep Host metadata and Desktop launch-file precedence. A browser default that
+      // will not be used is optional; its failure cannot block the higher-priority route.
+      let first: DocumentFileResponse | DocumentStartResponse;
+      try { first = await requestDocument("GET"); }
+      catch (cause) {
+        if (!path && (desktop || !saved)) throw cause;
+        first = { start: true };
+      }
       if (!current) return;
       const next = path ? await requestDocument("GET", path, folders.rootOf(path)) : first;
       if (!current) return;

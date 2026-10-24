@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
+- Last verified: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
+- Previous verification: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
 - Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
 - Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
 - Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
@@ -356,6 +357,15 @@ screen on Reload rather than reopening the development sample.
 | No usable preference | Keeps the existing Host start behavior: HTTP/Desktop start screen or Vite development sample. An explicit startup/default document with a matching record keeps the existing recovery offer. |
 | Remembered path has a recovery record | Does not automatically open its disk version, even if the record is incompatible. With no clean tabs, the existing start-screen recovery list is visible. If clean tabs restore and hide that list, the newest matching record is offered in the existing review dialog. Not now retains it. Restore uses the existing explicit flow and creates one unsaved tab. Other records remain available on the start screen. |
 | Recovery storage cannot be read | Automatic remembered-tab restoration is deferred for this startup, preserving the existing recovery-unavailable message. Explicit opens remain available. This avoids treating unknown recovery state as clean work. |
+
+The pathless Host read retains sample/allowed-root metadata when supplied and identifies a Desktop
+launch document. Its failure does not prevent an explicit URL request, or browser remembered-tab
+restoration (including an intentionally empty list): the unused development default is not a
+prerequisite. Those document requests still go through the Host independently. If the default is
+actually needed because no usable preference or URL exists, its failure keeps the existing startup
+error. Without a URL, Desktop still requires its first response: a failing launch document must not
+silently fall back to remembered tabs. Metadata cannot be invented when that read fails; the
+Desktop bridge and every Host request's access validation remain unchanged.
 
 Automatic startup (including an explicit URL/launch argument) leaves navigation memory unchanged
 until the next successful user action. Neither navigation restoration nor exclusions write/delete
