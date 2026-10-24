@@ -93,6 +93,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     await citationCaret();
     await page.keyboard.press('Backspace');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
+    throw Error('Intentional #423 CI diagnostic probe after Backspace and Save; revert after inspecting uploaded history');
     await assertSavedSource((await read()).source, written.source, 'Merge must restore the original canonical bytes');
     await reloadDocument(page); await ready();
     assert(await semantic() === moved, 'Merge Reload must retain all citation semantics');

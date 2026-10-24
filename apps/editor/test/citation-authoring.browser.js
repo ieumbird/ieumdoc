@@ -101,6 +101,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   assert(JSON.parse(await citations()).includes('cite:p:conference'), 'Undo restores the removed citation');
   await page.keyboard.press('Control+Shift+z');
   assert(await citations() === removed, 'Redo removes it again');
+  throw Error('Intentional #423 CI diagnostic probe after Undo and Redo; revert after inspecting uploaded history');
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({ state: 'attached' });
