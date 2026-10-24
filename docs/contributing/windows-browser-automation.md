@@ -9,7 +9,7 @@
 ## 실행 규칙
 
 - 프로젝트 검증은 `pnpm browser:test`를 사용한다. 실행 방법과 scratch fixture는 [검증 안내](../test/README.md)에 있다.
-- runner는 Playwright Test의 worker fixture에서 `chromium.launchPersistentContext`로 checkout별 고정 profile을 재사용한다. Windows에서는 설치형 Chrome을 사용하며 worker는 하나씩 실행한다.
+- runner는 Playwright Test의 worker fixture에서 `chromium.launchPersistentContext`로 checkout별 고정 profile을 재사용한다. Windows에서는 설치형 Chrome을 사용하며 worker는 하나씩 실행한다. `IEUMDOC_BROWSER_CHANNEL=msedge`는 설치형 Edge를 선택하고 같은 checkout hash에 `-edge`를 붙인 고정 profile 하나를 재사용한다. 채널은 순차 실행한다.
 - `playwright-cli`를 직접 사용할 때도 `open --persistent`로 연다. 디버깅 중 다시 접속할 때는 기존 session을 재사용한다.
 - 기본 `open`의 새 임시 profile, 임시 `--user-data-dir`, 반복적인 Playwright `launch()`로 설치형 Chrome을 실행하지 않는다. 짧은 간격으로 새 Chrome을 여러 번 띄우지 않는다.
 - 같은 checkout의 browser runner를 동시에 여러 개 실행하지 않는다.

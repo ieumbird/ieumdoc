@@ -110,10 +110,10 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   check(await page.getByRole('tab',{includeHidden:true}).count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true,includeHidden:true}).count() === 1, 'Tab memory bypassed recovery or failed to restore the clean tab');
   check(JSON.stringify(await records()) === JSON.stringify([first]), 'Automatic tab restoration changed the recovery record');
   check(await page.evaluate(() => localStorage.getItem('ieumdoc.openTabs')) === navigation, 'Recovery exclusion rewrote navigation memory');
-  await page.keyboard.press('Control+p');
+  await page.keyboard.press('Control+Slash');
   check(await page.getByTestId('recovery-prompt').isVisible() && !await page.getByRole('dialog',{name:'Command center',exact:true}).count(), 'Command center bypassed the startup recovery dialog');
   await page.getByRole('button',{name:'Not now',exact:true}).click();
-  await page.keyboard.press('Control+p');
+  await page.keyboard.press('Control+Slash');
   const restoredCenter = page.getByRole('dialog',{name:'Command center',exact:true});
   await restoredCenter.getByRole('combobox').fill('technical-2.md');
   await page.keyboard.press('Enter');

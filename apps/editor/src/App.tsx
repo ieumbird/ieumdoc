@@ -1,3 +1,4 @@
+import { COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT } from "./shortcuts.ts";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -474,12 +475,11 @@ export function App() {
   // never applies. Modal dialogs cover the Save button, so the shortcut waits for them too.
   const saveShortcut = useRef<(event: KeyboardEvent) => void>(() => {});
   saveShortcut.current = (event) => {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing &&
-        (event.key.toLowerCase() === "p" || event.code === "KeyP")) {
+    if (COMMAND_CENTER_SHORTCUT.matches(event)) {
       event.preventDefault();
       if (globalThis.document.querySelector('[data-slot="dialog-content"]:not(.command-center-dialog)') ||
           folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
-      openCommandCenter(event.shiftKey ? ">" : "");
+      openCommandCenter("");
       return;
     }
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
@@ -593,7 +593,7 @@ export function App() {
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
-      keywords: ["save", "저장"], shortcut: "Ctrl/⌘ S", run: () => { void save(); } },
+      keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
     { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
       keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
     { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
