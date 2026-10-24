@@ -4,7 +4,7 @@
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
-async (page, { openDocument, screenshots }) => {
+async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -242,7 +242,8 @@ async (page, { openDocument, screenshots }) => {
   // J. Deleting a referenced target warns at the time of deletion; Undo restores resolution.
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page, [root, 'tmp', 'cross-reference', 'delete.md'].join(separator));
+  const deletionPath = [root, 'tmp', 'cross-reference', 'delete.md'].join(separator);
+  await openDocument(page, deletionPath);
   const active = page.locator('[data-document-tab][data-active=true]');
   for (const [kind, label, normal] of [['equation', 'eq-a', 'Eq. (1)'], ['figure', 'fig-a', 'Fig. 1'], ['table', 'tbl-a', 'Table 1']]) {
     const reference = active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
@@ -318,18 +319,24 @@ async (page, { openDocument, screenshots }) => {
   await page.keyboard.press('Delete');
   result.koreanDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('참조가 깨졌습니다. Ctrl+Z'));
   result.koreanBrokenChip = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === '깨진 참조: eq-a';
+  // Exercise a committed deletion record, so the following Undo must also clear recovery.
+  await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === deletionPath)).toBe(true);
   await page.keyboard.press('ControlOrMeta+z');
   await page.getByRole('button', {name:'설정', exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
 
+  // Undo updates the editor immediately; its recovery cleanup is asynchronous. Reloading first
+  // can legitimately offer the older recorded deletion and make the sidebar modal-inaccessible.
+  await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === deletionPath)).toBe(false);
+
   // Emulate Apple's platform branch before module initialization, using this same profile.
   // This checks displayed shortcuts, not a native macOS keyboard run.
   await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page, [root, 'tmp', 'cross-reference', 'delete.md'].join(separator));
+  await openDocument(page, deletionPath);
   await active.locator('[data-testid="cross-reference"][data-label="eq-a"][data-resolved="true"]').waitFor();
   await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;

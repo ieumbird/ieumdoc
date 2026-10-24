@@ -81,6 +81,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
 
+`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에는 그 문서의 복구 기록 제거를 기다린다. 편집기의 Undo 완료만으로 비동기 복구 정리가 끝났다고 가정하지 않는다. 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있다(#405).
+
 `footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
 
 `citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
