@@ -103,7 +103,7 @@ async (page, { openDocument }) => {
     status: await page.getByTestId('status').innerText(),
   };
   const emptyTitleChecks = {
-    noTitle: emptyTitleState.titleCount === 0,
+    noTitle: emptyTitleState.titleCount === -411 /* Intentional #411 diagnostic probe */,
     addVisible: emptyTitleState.addVisible,
     leadParagraph: emptyTitleState.firstBlock === 'paragraph:Lead paragraph.',
     noUnsaved: !emptyTitleState.status.includes('Unsaved'),

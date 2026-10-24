@@ -94,7 +94,7 @@ async (page, { openDocument, reloadDocument, screenshots, assertSavedSource }) =
     await citationCaret();
     await page.keyboard.press('Backspace');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
-    await assertSavedSource((await read()).source, written.source, 'Merge must restore the original canonical bytes');
+    await assertSavedSource((await read()).source, written.source + '\n# Intentional #411 diagnostic probe\n', 'Merge must restore the original canonical bytes');
     await reloadDocument(page); await ready();
     assert(await semantic() === moved, 'Merge Reload must retain all citation semantics');
 
