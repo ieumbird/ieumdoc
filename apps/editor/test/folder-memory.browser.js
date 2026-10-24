@@ -38,8 +38,7 @@ async (page) => {
     await target.getByRole('menuitem', {name, exact:true}).click();
   };
   const startOpen = async (path, target = page) => {
-    if (await target.getByTestId('folder').count()) await menu(a, 'Open folder…', target);
-    else await target.getByTestId('sidebar-empty').getByRole('button', {name:'Open folder…', exact:true}).click();
+    await target.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
     await target.getByTestId('folder-path').fill(path);
     await target.getByTestId('folder-open').click();
   };

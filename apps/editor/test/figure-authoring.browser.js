@@ -331,8 +331,7 @@ async (page, { openDocument }) => {
     // In a new empty document, `/figure` makes the only block an empty Figure that saves.
     const emptyName = `empty-${Date.now()}.md`;
     const emptyPath = filePath.replace('technical-document.md', emptyName);
-    await page.getByRole('button', {name:'More actions', exact:true}).click();
-    await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
+    await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
     await page.getByTestId('folder-path').fill(filePath.slice(0, -'technical-document.md'.length));
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});

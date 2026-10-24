@@ -276,11 +276,14 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await page.getByTestId('link-form').count()===0, 'Link form opened over Settings');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  const folderReturnTarget = await page.evaluateHandle(() => document.activeElement);
   await run('open folder');
   await page.getByTestId('folder-path').waitFor();
   await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid')==='folder-path', null, {timeout:5000});
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await page.evaluate(target => target === document.activeElement, folderReturnTarget), 'Open folder command lost its focus return');
+  await folderReturnTarget.dispose();
   result.modalHandoff = true;
 
   // Commands may hide their invoking control. Hand focus to the toggle that survives.

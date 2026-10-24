@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#383: remembered document tabs reuse restored folder context; folder navigation/memory and tab browser regressions).
+- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Previous verification: 2026-10-24 (#383: remembered document tabs reuse restored folder context; folder navigation/memory and tab browser regressions).
 - Previous verification: 2026-10-24 (#371: concurrent explicit Opens in both response orders retain recent folders in the UI, storage and Reload; unavailable storage retains the page list; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open replaces another tab's preference and survives Reload, tree-only updates do not write; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path user Open/Close wins over late restoration, unchanged paths are not rewritten; folder-memory browser regression).
@@ -15,6 +16,14 @@
 Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
 
 ## Behavior
+
+- The expanded Sidebar header has one Open folder… icon button in a fixed position with any
+  number of opened folders, also while Display is selected. Empty Files has no duplicate entry;
+  per-folder menus contain only Close folder. Start-screen and command-center Open folder remain.
+  All use the existing picker/handler. The Sidebar button's accessible name and tooltip use the
+  existing English/Korean translation; Open, Cancel and Escape return focus to that button.
+  See the [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385)
+  and [same-state visual evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385).
 
 - The path field determines the folder to open. Typing filters its parent's sub-folders;
   Tab or Right completes into a match, Up/Down moves through matches, and Enter opens the
@@ -79,7 +88,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 
 ## New document in a sidebar folder
 
-- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Open folder…, Close folder).
+- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Close folder only). General Open folder… stays in the Sidebar header.
 - `+` opens the filename form without an unsaved-work confirmation. Success adds a new tab; existing
   sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
   save / Cancel** confirmation belongs to closing a dirty tab. See
