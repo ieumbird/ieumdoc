@@ -58,11 +58,12 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 
 ### CI
 
-#### 실패 진단 (#411)
+#### 실패 진단 (#411, #423)
 
 `scenarios.spec.ts`는 재사용 persistent context에서 시나리오마다 tracing을 시작하고, 실패 시에만 `tmp/browser-results/scenarios-<이름>/trace.zip`으로 보존한다. 성공 시 trace는 버린다. 성공 실행의 비용을 줄이기 위해 trace는 action·API 로그·console·source를 기록한다. 매 action의 DOM/network snapshot과 연속 스크린샷 filmstrip은 기록하지 않는다. 실패 시점의 접근성 snapshot·PNG·focus/selection은 아래 파일로 별도 보존한다. timeout·재시도·판정 기준은 바꾸지 않는다. Playwright 기본 context/page fixture가 아닌 이 fixture가 페이지를 닫기 전에 아래 파일을 직접 저장한다.
 
 - `browser-state.json`: 브라우저 페이지 URL, 문서 탭과 활성 탭, focus 요소, DOM/ProseMirror selection, 메뉴·dialog·status. 닫힌 페이지 등 수집 실패도 기록한다.
+- `input-events.json`: 실패 직전 현재 페이지의 최근 400개 이벤트(고정 크기 링 버퍼). 각 항목의 `timestamp`(UTC), `elapsedMs`(페이지 시작 이후), `sequence` 순으로 키 입력 당시 상태와 이후 변화를 대조한다. `keydown`/`keyup`에는 대상 tag/testId/role/label, 원래 key/code, modifier·repeat·composing을, `focusin`/`focusout`에는 previous/next 요소를 기록한다. 모든 항목은 당시 activeElement, DOM selection의 anchor/focus 노드·offset·텍스트 길이와 활성 Editor의 selection(from/to/type), focus, undoDepth/redoDepth를 포함한다. `transaction`에는 발생시킨 Editor와 docChanged 및 해당 transaction selection도 있다. `editor-attached`와 Editor별 id/tab/active로 여러 문서 탭과 재생성된 인스턴스를 구분한다. 활성 탭 외 Editor의 transaction도 구독한다.
 - `error-context.md`, `test-failed.png`: 실패 메시지와 접근성 snapshot, 실패 시점 viewport. 캡처 중 실패는 `diagnostic-errors.json`에 기록하며 최초 테스트 오류를 대체하지 않는다.
 - `console-errors.json`: console/pageerror 원문과 예상·예상 밖·누락 분류. console 검사만 실패한 경우에도 위 진단을 저장한다.
 - `saved-source-<번호>-expected.md`, `saved-source-<번호>-actual.md`: 공통 `assertSavedSource(actual, expected, message)`를 사용하는 저장 비교가 실패했을 때의 정확한 문자열. assertion 메시지에도 diff가 표시된다. 현재 `citations`의 원문/반복 Save/Merge 비교에 적용한다.
@@ -70,6 +71,10 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-1` 또는 `editor-browser-ci-logs-2` artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `ieumdoc/ieumdoc/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
 
 artifact를 내려받아 `trace.zip`을 찾은 뒤 `pnpm exec playwright show-trace <trace.zip 경로>`로 action 순서·selector·좌표·API 로그를 조사하고, 실패 시점의 UI는 `error-context.md`, `test-failed.png`, `browser-state.json`을 함께 본다. 저장 차이는 `git diff --no-index -- <expected.md> <actual.md>`로 확인한다(diff가 있으면 exit 1). 진단 저장은 실패 시에만 하며, 성공 시 기존 scenario-result 이외의 영구 파일은 추가하지 않는다.
+
+키 입력 조사에서는 `input-events.json`의 `events`에서 `type === "keydown"`과 `key === "Backspace"`(또는 Undo/Redo의 `z`)를 찾는다. `activeElement`/`target`과 당시 `activeEditor`를 먼저 보고, 뒤따르는 transaction의 selection·history 깊이 및 Save 쪽 focusout/focusin과 비교한다. capture 단계의 keydown은 Editor가 키를 처리하기 **전**, keyup은 처리 **후**의 상태다. 브라우저의 selectionchange는 비동기 통지이므로 키·transaction 항목에 함께 찍힌 selection을 우선한다. `dropped`는 버퍼에서 밀려난 개수다. 전체 navigation/Reload 시 버퍼와 elapsedMs는 초기화되며, renderer crash나 닫힌 페이지에서는 이력을 읽지 못하고 파일에 diagnosticError가 남는다. 브라우저 탭은 시나리오 page 범위이며 문서 탭마다 별도 파일을 만들지 않는다.
+
+수집은 테스트 fixture의 `addInitScript`와 DOM listener/MutationObserver, 기존 `element.editor` 및 Tiptap 공개 transaction 이벤트만 사용한다. 공개 `@tiptap/pm/history`의 undoDepth/redoDepth를 포함한 테스트 전용 스크립트를 worker마다 한 번 메모리에서 bundle하여 개발 서버와 production HTTP Host에 동일하게 주입한다. 제품 build에 진단 코드를 넣거나 event마다 Node로 전송하지 않으며, 성공 시 파일·attachment를 추가하지 않는다. 이력에는 문서 본문/선택 텍스트/입력 값/clipboard/transaction steps를 저장하지 않는다. DOM 텍스트는 길이만, label·testId·tab 식별자는 최대 80자로 제한하고 key 값은 원래대로 둔다. 따라서 짧은 입력은 key 시퀀스로 드러날 수 있으며 완전한 익명화는 아니다. 기존 trace·browser-state·saved-source의 별도 수집 범위는 이 제한으로 바뀌지 않는다.
 
 `.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build), browser `--shard=1/2`·`--shard=2/2`, Windows/Linux HTTP package·browser, Windows Desktop package·자산 검증·설치/업데이트 회귀가 병렬로 돌고, aggregate 필수 check는 모두 성공했을 때만 통과한다.
 

@@ -45,6 +45,14 @@ export async function finishScenarioDiagnostics(
     writeFileSync(file, text);
     await testInfo.attach(name, { path: file, contentType });
   };
+  await capture("input-events", async () => {
+    const history = await page.evaluate(() => {
+      const read = (window as typeof window & { __ieumdocInputEvents?: () => unknown }).__ieumdocInputEvents;
+      if (!read) throw new Error("Input event recorder unavailable in this document");
+      return read();
+    }).catch(error => ({ diagnosticError: String(error) }));
+    await attachText("input-events.json", JSON.stringify(history, null, 2), "application/json");
+  });
   await capture("browser-state", async () => {
     const state = await page.evaluate(() => {
       const visible = (element: Element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";

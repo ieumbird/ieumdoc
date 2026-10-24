@@ -12,6 +12,7 @@ import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openDocument, openPath, reloadDocument, waitForActivePath } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
 import { recoveryRecords } from "./recovery-records.ts";
+import { inputEventScript } from "./input-event-script.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
@@ -31,7 +32,8 @@ function sourceDigest(): string {
   return hash.digest("hex");
 }
 
-const test = base.extend<{}, { session: BrowserContext }>({
+const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
+  inputEvents: [async ({}, use) => { await use(await inputEventScript()); }, { scope: "worker" }],
   session: [async ({}, use) => {
     const before = sourceDigest();
     const context = await chromium.launchPersistentContext(profile, {
@@ -74,11 +76,12 @@ const test = base.extend<{}, { session: BrowserContext }>({
       }
     }
   }, { scope: "worker" }],
-  page: async ({ session }, use, testInfo) => {
+  page: async ({ session, inputEvents }, use, testInfo) => {
     prepareBrowserFixtures();
     // Keep action history cheap; capture UI state/ARIA/PNG separately on failure.
     await session.tracing.start({ screenshots: false, snapshots: false, sources: true });
     const page = await session.newPage();
+    await page.addInitScript({ content: inputEvents });
     const errors: string[] = [];
     const consoleListener = (message: ConsoleMessage) => {
       if (message.type() === "error") {
