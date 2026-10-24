@@ -9,6 +9,8 @@ import { readOpenFolders, writeOpenFolders } from "../preferences.ts";
 export type FolderTreeState = {
   /** The chosen folder; every listed folder is inside it. */
   root: string;
+  /** Section visibility is page state, independent of the subfolders' expansion. */
+  sectionExpanded: boolean;
   /** Loaded listings by folder path. A collapsed folder keeps its listing. */
   nodes: ReadonlyMap<string, FolderResponse>;
   expanded: ReadonlySet<string>;
@@ -19,6 +21,7 @@ export type FolderTreeState = {
 export type FolderTreeAction =
   | { type: "openRoot"; listing: FolderResponse }
   | { type: "closeRoot" }
+  | { type: "setSectionExpanded"; expanded: boolean }
   | { type: "expand"; path: string }
   | { type: "collapse"; path: string }
   | { type: "loadStart"; root: string; path: string; request: number }
@@ -27,10 +30,12 @@ export type FolderTreeAction =
 
 export function folderTreeReducer(state: FolderTreeState | null, action: FolderTreeAction): FolderTreeState | null {
   if (action.type === "openRoot") {
-    return { root: action.listing.root, nodes: new Map([[action.listing.path, action.listing]]), expanded: new Set(), pending: new Map() };
+    return { root: action.listing.root, sectionExpanded: true, nodes: new Map([[action.listing.path, action.listing]]), expanded: new Set(), pending: new Map() };
   }
   if (!state || action.type === "closeRoot") return null;
   switch (action.type) {
+    case "setSectionExpanded":
+      return state.sectionExpanded === action.expanded ? state : { ...state, sectionExpanded: action.expanded };
     case "expand":
       return state.expanded.has(action.path) ? state : { ...state, expanded: new Set(state.expanded).add(action.path) };
     case "collapse": {
@@ -237,6 +242,11 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
       dispatch({ type: "closeRoot", root });
       rememberFolders();
     },
+    /** Hiding a section keeps its listings and subfolder expansion, without Host requests. */
+    toggleSection(root: string) {
+      const tree = trees.find(item => item.root === root);
+      if (tree) dispatch({ type: "setSectionExpanded", root, expanded: !tree.sectionExpanded });
+    },
     /** Expanding lists the folder again; collapsing keeps what was listed. */
     toggle(root: string, path: string) {
       const tree = trees.find(item => item.root === root);
@@ -250,7 +260,10 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
      * containing it; the folders above it are expanded and listed again, so a new item appears.
      */
     reveal(itemPath: string) {
-      for (const root of roots) show(root, itemPath, true);
+      for (const root of roots) {
+        if (folderChain(root, itemPath).length > 0) dispatch({ type: "setSectionExpanded", root, expanded: true });
+        show(root, itemPath, true);
+      }
     },
     /** Lists a folder the trees already know again, without expanding anything. */
     refresh(path: string) {

@@ -275,11 +275,15 @@ async (page) => {
   await install.waitFor();
   await guides.click();
   await install.waitFor({state:'detached'});
+  const sectionToggle = section(a).getByRole('button', {name:/^(Collapse|Expand) folder /});
+  await sectionToggle.click();
+  check(!await section(a).getByRole('tree').isVisible(), 'Section collapse hides the tree');
   await checkMemory([a, c], 'Tree-only changes preserve the remembered list');
   check(await page.evaluate(() => window.folderPreferenceWrites) === 0,
     'Expansion, listing and collapse rewrote an unchanged path preference');
   await startOpen(a);
   await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await sectionToggle.getAttribute('aria-expanded') === 'false', 'Explicit same-root relist preserves section collapse');
   await checkMemory([a, c], 'An explicit same-list Open still remembers the current paths');
   check(await page.evaluate(() => window.folderPreferenceWrites) > 0,
     'An explicit same-list Open did not write the current paths');

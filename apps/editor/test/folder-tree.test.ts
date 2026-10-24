@@ -112,11 +112,15 @@ test("tree keys move through visible items, expand, collapse and return to the p
 test("opened folders keep their order; reopening relists in place and closing removes only that folder", () => {
   const rootListing = (root: string, entries: FolderEntry[]): FolderResponse => ({ root, path: root, entries });
   let trees = folderTreesReducer([], { type: "openRoot", listing: rootListing("/r", [folder("/r/a")]) });
+  assert.equal(trees[0].sectionExpanded, true);
+  trees = folderTreesReducer(trees, { type: "setSectionExpanded", root: "/r", expanded: false });
   trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing("/s", [doc("/s/n.md")]) });
   trees = folderTreesReducer(trees, { type: "expand", root: "/r", path: "/r/a" });
   trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing("/r", [folder("/r/a"), doc("/r/new.md")]) });
   assert.deepEqual(trees.map(tree => tree.root), ["/r", "/s"]);
   assert.ok(trees[0].expanded.has("/r/a"), "Reopening keeps the folder's expansion");
+  assert.equal(trees[0].sectionExpanded, false, "Relisting keeps the section collapsed");
+  assert.equal(trees[1].sectionExpanded, true, "Other sections stay expanded");
   assert.deepEqual(trees[0].nodes.get("/r")?.entries.map(entry => entry.name), ["a", "new.md"]);
   // Actions reach only the folder they name, even for a path another folder could list.
   trees = folderTreesReducer(trees, { type: "loadStart", root: "/s", path: "/r/a", request: 1 });

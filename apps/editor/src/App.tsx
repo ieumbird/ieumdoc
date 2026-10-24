@@ -695,6 +695,7 @@ export function App() {
         }}
         folders={folders.trees}
         onToggleFolder={folders.toggle}
+        onToggleSection={folders.toggleSection}
         onOpenDocument={(path) => {
           // An overlaid sidebar steps aside for the document it opens.
           if (sidebarOverlay) setSidebarOpen(false);

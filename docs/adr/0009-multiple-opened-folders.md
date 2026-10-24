@@ -1,7 +1,8 @@
 # ADR-0009: 사이드바에 여러 폴더 열기
 
 - Status: Accepted
-- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Last verified: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](../design/editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-23 (implemented with this decision; [Editor UX shell](../design/editor-ux-shell-v1.md), [Folder listing](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112) and [Folder picker](../design/folder-picker-v1.md) contracts updated in the same change).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#235](https://github.com/ieumbird/ieumdoc/issues/235), [ADR-0005](0005-http-host.md) (#186).
 - Decision date: 2026-10-23
@@ -55,3 +56,22 @@ The original 2026-10-23 decision below is retained. The folder-menu Open folder 
 - Each folder's `⋯` contains only actions on that folder (`Close folder`). Remove the repeated `Open folder…` and the duplicate empty-Files entry. Keep the start-screen entry and command-center command.
 - This supersedes only section 1's folder-menu entry placement. Existing picker/handler, append/relist behavior, opened/recent folder preferences, Host authorization and all other decisions remain unchanged.
 - This is a refinement of this ADR's existing interface composition, with explicit owner approval, rather than a new architecture decision. Under [documentation governance](../contributing/documentation-governance.md#update-rules), retain the original decision/date and add this dated amendment; update the current [shell](../design/editor-ux-shell-v1.md) and [picker](../design/folder-picker-v1.md) contracts in the same PR. Previous verification records are historical evidence and are not rewritten. This interface-only navigation has no Core operation or CLI parity command.
+
+## Amendment 2026-10-25: Collapsible folder sections (#425)
+
+- Status: Accepted. Repository owner requested collapsible opened-folder sections in
+  [#425](https://github.com/ieumbird/ieumdoc/issues/425).
+- Each opened folder's heading has a disclosure button hiding/showing its entire tree; its
+  New file, New folder and Close folder actions remain available. New sections start expanded.
+- Section expansion, like child-folder expansion, is page state only and is never stored.
+  Relisting an existing root or opening/closing other roots retains its section state; closing
+  that root discards it. Reload and reopening a closed root start expanded. Cached listings and
+  child expansion survive section collapse. Existing document/folder reveal also expands the
+  containing sections; manual collapse of the active document is allowed until that reveal runs.
+- This adds section disclosure to section 1's existing interface composition and clarifies
+  section 2's unchanged no-expansion-persistence boundary. It does not supersede the 2026-10-24
+  entry-placement amendment or change Host/Core/CLI/Workspace boundaries. Under
+  [documentation governance](../contributing/documentation-governance.md#update-rules), retain
+  the original decision/date and verification records, and update the current
+  [shell contract](../design/editor-ux-shell-v1.md#collapsible-folder-sections-425) in the same PR;
+  this interface refinement does not require a separate architecture ADR.

@@ -28,6 +28,7 @@ type SidebarProps = {
   /** The opened folders, in order, each a tree of the folders listed so far. */
   folders?: FolderTreeState[];
   onToggleFolder?(root: string, path: string): void;
+  onToggleSection?(root: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
   /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
@@ -38,7 +39,7 @@ type SidebarProps = {
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
   open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onOpenDocument, onCloseFolder, onSettings, display,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onSettings, display,
 }: SidebarProps) {
   useTranslation();
   const [tool, setTool] = useState<"files" | "display">("files");
@@ -97,6 +98,7 @@ export function Sidebar({
             tree={tree}
             documentPath={documentPath}
             onToggleFolder={path => onToggleFolder?.(tree.root, path)}
+            onToggleSection={() => onToggleSection?.(tree.root)}
             onOpenDocument={path => onOpenDocument?.(path)}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
@@ -151,6 +153,7 @@ type FolderTreeProps = {
   tree: FolderTreeState;
   documentPath: string;
   onToggleFolder(path: string): void;
+  onToggleSection(): void;
   onOpenDocument(path: string): void;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
@@ -158,12 +161,13 @@ type FolderTreeProps = {
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onNewFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onClose }: FolderTreeProps) {
   useTranslation();
-  const labelId = useId();
+  const treeId = useId();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
   const name = (path: string) => splitDocumentPath(path).name || path;
   const folderName = name(tree.root);
+  const toggleName = i18n.t(tree.sectionExpanded ? "Collapse folder {{name}}" : "Expand folder {{name}}", { name: folderName });
   const firstWord = folderName.match(/^\s*\S+/)?.[0] ?? folderName;
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
@@ -192,7 +196,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   };
 
   return (
-    <section className="sidebar-folder" aria-labelledby={labelId} data-testid="folder" data-root={tree.root}>
+    <section className="sidebar-folder" aria-label={folderName} data-testid="folder" data-root={tree.root}>
       <div className="sidebar-folder-header">
         {/* Float actions before the name so later lines can use the full text width. */}
         <div className="sidebar-folder-actions">
@@ -212,11 +216,15 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <p className="sidebar-folder-name" id={labelId} title={tree.root}>
-          <span><span className="sidebar-folder-first-word"><FolderOpen aria-hidden="true" />{firstWord}</span>{folderName.slice(firstWord.length)}</span>
+        <p className="sidebar-folder-name" title={tree.root}>
+          <span><span className="sidebar-folder-first-word">
+            <Button type="button" variant="ghost" size="icon-xs" className="sidebar-folder-toggle"
+              aria-label={toggleName} title={toggleName} aria-expanded={tree.sectionExpanded} aria-controls={treeId}
+              onClick={onToggleSection}><ChevronRight aria-hidden="true" /></Button>
+            {firstWord}</span>{folderName.slice(firstWord.length)}</span>
         </p>
       </div>
-      <ul className="sidebar-tree" role="tree" aria-labelledby={labelId} onKeyDown={keyDown}>
+      <ul id={treeId} className="sidebar-tree" role="tree" aria-label={folderName} hidden={!tree.sectionExpanded} onKeyDown={keyDown}>
         {items.map(item => {
           const { entry } = item;
           const folder = entry.kind === "folder";
@@ -253,7 +261,7 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
       </ul>
       {preview ? <FilePreviewDialog key={preview.entry.path} entry={preview.entry} root={tree.root}
         returnFocus={previewReturn} onClose={() => setPreview(undefined)} /> : null}
-      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty">{i18n.t("No files or folders")}</p> : null}
+      {tree.nodes.get(tree.root)?.entries.length === 0 ? <p className="sidebar-folder-empty" hidden={!tree.sectionExpanded}>{i18n.t("No files or folders")}</p> : null}
     </section>
   );
 }

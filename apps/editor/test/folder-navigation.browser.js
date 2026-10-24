@@ -75,6 +75,9 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
       assert(!previous || JSON.stringify(previous) === JSON.stringify(geometry), `Folder count moved the header entry at ${width}px`);
       headerPositions.set(width, geometry);
       if (screenshots && width !== 1024) {
+        const sectionToggle = section.first().getByRole('button', {name:/^(Collapse|Expand) folder /});
+        const wasCollapsed = state !== 'empty' && await sectionToggle.getAttribute('aria-expanded') === 'false';
+        if (wasCollapsed) await sectionToggle.click();
         const environment = await page.evaluate(async () => {
           await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur();
           return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
@@ -84,6 +87,13 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
         await page.mouse.move(width - 2, 2);
         await page.screenshot({path:`tmp/picker-capture/sidebar-after-${state}-${width}.png`});
         captureMetadata.push({state, ...environment});
+        if (state !== 'empty') {
+          await sectionToggle.click();
+          await page.evaluate(() => document.activeElement?.blur());
+          await page.mouse.move(width - 2, 2);
+          await page.screenshot({path:`tmp/picker-capture/sidebar-collapsed-${state}-${width}.png`});
+          if (!wasCollapsed) await sectionToggle.click();
+        }
       }
       assert(await openFolder.getAttribute('title') === 'Open folder…', 'Header name and tooltip must match');
       await openFolder.focus();
@@ -184,6 +194,22 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await section.waitFor();
   assert(await openFolder.evaluate(node => node === document.activeElement), 'Successful folder Open returns focus to header');
   await checkSidebarEntry('one');
+  const sectionToggle = target => target.getByRole('button', {name:/^(Collapse|Expand) folder /});
+  const firstSection = section.first();
+  const toggle = sectionToggle(firstSection);
+  assert(await toggle.count() === 1 && await toggle.getAttribute('aria-expanded') === 'true',
+    'Opened folder section must expose an expanded toggle button');
+  assert(await toggle.getAttribute('aria-controls') === await firstSection.getByRole('tree').getAttribute('id'),
+    'Section toggle must control its tree');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  assert(await toggle.getAttribute('aria-expanded') === 'false' && !await firstSection.getByRole('tree').isVisible(),
+    'Enter must collapse the whole section');
+  await item('New file in folder').click();
+  await page.getByTestId('new-file-name').waitFor();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Cancelled New must keep the section collapsed');
   result.enterOpensTypedFolder = await section.getByTitle(folder, {exact:true}).count() === 1;
   const refreshed = page.waitForResponse(response => response.url().includes('/api/folder-browse?') &&
     requestedFolder(response.url()) === folder + sep);
@@ -204,16 +230,22 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await open.click();
   await dialog.waitFor({state:'detached'});
   await section.nth(1).waitFor();
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Opening another folder must keep section collapse');
   await checkSidebarEntry('several');
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Relisting and tool/layout changes must keep section collapse');
   assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Open adds a folder after the opened ones');
   await page.reload();
   await ready();
   await section.nth(1).waitFor();
+  assert(await toggle.getAttribute('aria-expanded') === 'true' && await firstSection.getByRole('tree').isVisible(),
+    'Reload must restore the folder expanded, without persisting section collapse');
   assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Reload lists the opened folders again in order');
+  await toggle.click();
   await section.nth(1).getByRole('button', {name:'More actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="folder"]').length === 1);
   result.opensSeveralFolders = JSON.stringify(await roots()) === JSON.stringify([folder]);
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Closing another folder must retain section collapse');
 
   await folderMenu('Close folder');
   await page.reload();
@@ -327,6 +359,20 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   const retained = await treeState();
   assert(retained.scroll > 0, 'Short window must exercise a scrolled tree');
   const requestsBeforeSwitch = folderRequests.length;
+  await toggle.focus();
+  await page.keyboard.press('Space');
+  assert(await toggle.getAttribute('aria-expanded') === 'false' && !await tree.isVisible() && await current() === 'install.md',
+    'Space must hide even the current document without changing it');
+  await page.keyboard.press('Shift+Tab');
+  assert(await item('More actions').evaluate(node => node === document.activeElement), 'Reverse Tab returns to folder actions');
+  await page.keyboard.press('Tab');
+  assert(await toggle.evaluate(node => node === document.activeElement), 'Tab reaches the section toggle after folder actions');
+  await page.keyboard.press('Space');
+  assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-current') === 'page' &&
+    JSON.stringify(await treeState()) === JSON.stringify(retained) && folderRequests.length === requestsBeforeSwitch,
+    'Expanding section must retain child expansion, current marker, scroll and keyboard stop without relisting');
+  await page.keyboard.press('Tab');
+  assert(await tree.locator('[tabindex="0"]').evaluate(node => node === document.activeElement), 'Tab enters the retained tree stop');
   await page.getByRole('button', {name:'Display', exact:true}).click();
   assert(!await tree.isVisible(), 'Files must not remain exposed under Display');
   await page.getByRole('button', {name:'Files', exact:true}).click();
@@ -421,6 +467,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await page.setViewportSize({width:375, height:812});
   // Phone widths start with the sidebar collapsed; opened, it overlays the document.
   await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+  await toggle.click();
   await item('New file in folder').click();
   const filename = page.getByTestId('new-file-name');
   assert(await page.getByTestId('new-file-directory').inputValue() === folder, 'Root folder is the creation destination');
@@ -502,6 +549,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   // Sidebar New folder starts at the open document's folder; a collapsed destination is expanded
   // to show the folder, which can take a new file at once. The open document stays.
   if (await row('guides').getAttribute('aria-expanded') === 'true') await row('guides').click();
+  await toggle.click();
   await item('New folder').click();
   const folderDestination = page.getByTestId('new-folder-directory');
   assert(await folderDestination.inputValue() === subFolder, "New folder starts in the open document's folder");
@@ -548,6 +596,12 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor({state:'hidden'});
   result.menuKeyboard = await more.evaluate(node => node === document.activeElement) && await section.count() === 1;
 
+  await toggle.click();
+  await openFolder.click();
+  await field.fill(folder);
+  await open.click();
+  await dialog.waitFor({state:'detached'});
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Relisting the active document root must respect manual section collapse');
   await folderMenu('Close folder');
   result.closes = await section.count() === 0 && await current() === '추가.md';
 
@@ -601,7 +655,8 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
             glyphs.push(...range.getClientRects());
           }
         }
-        const buttons = [...required('.sidebar-folder-actions').querySelectorAll('button')];
+        const toggle = required('.sidebar-folder-toggle');
+        const buttons = [...required('.sidebar-folder-actions').querySelectorAll('button'), toggle];
         const rootStyle = getComputedStyle(document.documentElement);
         return {
           text: label.textContent,
@@ -617,15 +672,23 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
             return rect.left >= bounds.left && rect.right <= bounds.right + 0.5 &&
               button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
           }),
+          toggleTarget: toggle.getBoundingClientRect().width === parseFloat(rootStyle.getPropertyValue('--size-control-compact')) * parseFloat(rootStyle.fontSize) &&
+            toggle.getBoundingClientRect().height === parseFloat(rootStyle.getPropertyValue('--size-control-compact')) * parseFloat(rootStyle.fontSize),
+          toggleNeutral: getComputedStyle(toggle).backgroundColor === 'rgba(0, 0, 0, 0)',
           compact: Math.abs(bounds.height - actions.height) < 0.5 && Math.abs(icon.top + icon.height / 2 - actions.top - actions.height / 2) < 0.5,
           labelGap: glyphs[0].left - icon.right,
           expectedGap: parseFloat(rootStyle.getPropertyValue('--space-2')) * parseFloat(rootStyle.fontSize),
         };
       }, name);
-      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.iconAtFirstLine && geometry.reachable,
+      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.iconAtFirstLine && geometry.reachable && geometry.toggleTarget && geometry.toggleNeutral,
         `Folder name must be fully visible with reachable actions at ${width}px: ${JSON.stringify(geometry)}`);
       assert(name === 'a' ? geometry.lines === 1 && geometry.compact && Math.abs(geometry.labelGap - geometry.expectedGap) < 0.5 : geometry.lines > 1,
         `Short folder alignment / long folder wrapping at ${width}px: ${JSON.stringify(geometry)}`);
+      const empty = section.getByText('No files or folders', {exact:true});
+      await toggle.click();
+      assert(!await empty.isVisible() && !await section.getByRole('tree').isVisible(), 'Empty help must collapse with the tree');
+      await toggle.click();
+      assert(await empty.isVisible(), 'Expanding an empty section restores its help');
     }
     await folderMenu('Close folder');
   }
