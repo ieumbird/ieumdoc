@@ -373,6 +373,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'English alias did not find a Korean command');
   await korean.getByRole('combobox').fill('> 저장');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
+  check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
   if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-375.png'});
   await korean.getByRole('combobox').fill('> settings');
   await page.keyboard.press('Enter');
@@ -381,7 +382,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   result.bilingualSearch = true;
 
   // A large Host listing stays fully searchable without mounting every match. Keep timing out
-  // of regression assertions; protect bounded rows, explicit counts, paging and keyboard access.
+  // of regression assertions; protect bounded rows, live counts, narrowing and keyboard access.
   await page.setViewportSize({width:1280,height:720});
   const bulk = Array.from({length:2000},(_,i) => {
     const name = `bulk-${String(i).padStart(4,'0')}.md`;
@@ -402,33 +403,33 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     searchRequests = 0;
     page.on('request', countSearchRequests);
     await open('bulk');
-    const firstPageCount = await center().getByRole('option').count();
-    check(firstPageCount > 1 && firstPageCount < bulk.length, 'Large result set was not bounded');
-    check(await center().getByRole('status').filter({hasText:'of 2000 results'}).isVisible(), 'Paging concealed the total match count');
-    check(await center().getByRole('option').first().getAttribute('aria-label') === 'bulk-0000.md', 'First page lost path order');
-    if (screenshots) await page.screenshot({path:'tmp/command-center/paged-1280.png'});
-    await page.keyboard.press('Tab');
-    check(await page.evaluate(() => document.activeElement?.textContent === 'Next results'), 'Next page is not reachable by Tab');
-    await page.keyboard.press('Enter');
-    const nextName = `bulk-${String(firstPageCount).padStart(4,'0')}.md`;
-    await center().getByRole('option',{name:nextName,exact:true}).waitFor();
-    check(await input().evaluate(n => n === document.activeElement), 'Paging did not return focus to search');
+    const visibleCount = await center().getByRole('option').count();
+    check(visibleCount === 50, 'Large result set did not show only the first 50 matches');
+    const count = center().getByTestId('command-center-count');
+    check(await count.innerText() === 'Showing 50 of 2000 results. Type more to narrow your search.', 'Truncated results concealed the total or narrowing guidance');
+    check(await count.getAttribute('role') === 'status' && await count.getAttribute('aria-live') === 'polite' && await count.getAttribute('aria-atomic') === 'true', 'Count is not a polite atomic live status');
+    await count.evaluate(n => { window.commandCenterCount = n; });
+    check(await center().getByRole('button',{name:/Previous results|Next results/}).count() === 0, 'Pagination controls remain');
+    check(await center().getByRole('option').first().getAttribute('aria-label') === 'bulk-0000.md' && await center().getByRole('option').last().getAttribute('aria-label') === 'bulk-0049.md', 'Truncation lost path order');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-1280.png'});
+    for (let i = 1; i < visibleCount; i++) await page.keyboard.press('ArrowDown');
+    check(await center().getByRole('option',{name:'bulk-0049.md',exact:true}).getAttribute('data-highlighted') !== null, 'Keyboard cannot reach the last visible match');
     await page.keyboard.press('ArrowDown');
-    check(await center().getByRole('option',{name:`bulk-${String(firstPageCount+1).padStart(4,'0')}.md`,exact:true}).getAttribute('data-highlighted') !== null, 'Paged results lost keyboard navigation');
-    await page.keyboard.press('Tab');
-    check(await page.evaluate(() => document.activeElement?.textContent === 'Previous results'), 'Previous page is not reachable by Tab');
-    await page.keyboard.press('Enter');
-    await center().getByRole('option',{name:'bulk-0000.md',exact:true}).waitFor();
+    const highlighted = await center().locator('[role="option"][data-highlighted]').getAttribute('aria-label');
+    check(highlighted === 'bulk-0000.md' || highlighted === 'bulk-0049.md', 'ArrowDown escaped the visible matches');
+    check(await center().getByRole('option').count() === 50, 'Keyboard navigation expanded the result limit');
     await page.setViewportSize({width:375,height:900});
-    for (const name of ['Previous results','Next results']) {
-      const box = await center().getByRole('button',{name,exact:true}).boundingBox();
-      check(box && box.x >= 0 && box.x + box.width <= 375, `Paging control clipped on phone: ${name}`);
-    }
-    if (screenshots) await page.screenshot({path:'tmp/command-center/paged-375.png'});
+    const box = await count.boundingBox();
+    check(box && box.x >= 0 && box.x + box.width <= 375, 'Result count clipped on phone');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-375.png'});
+    await input().fill('bulk-000');
+    check(await center().getByRole('option').count() === 10 && await count.innerText() === 'Results: 10', 'Narrowing did not recompute the full result count');
+    await input().fill('bulk-no-match');
+    check(await center().getByRole('option').count() === 0 && await count.innerText() === 'Results: 0', 'Empty search lost its count');
     await input().fill('bulk-1999');
-    check(await center().getByRole('option').count() === 1, 'Narrowing searched only the current page');
-    check(await center().getByRole('button',{name:'Next results',exact:true}).count() === 0, 'Narrowed search retained stale pagination');
-    check(searchRequests === 0, 'Paging/searching made Host requests');
+    check(await center().getByRole('option').count() === 1 && await count.innerText() === 'Results: 1', 'Narrowing searched only the first 50 matches');
+    check(await count.evaluate(n => n === window.commandCenterCount), 'Query changes remounted the live count status');
+    check(searchRequests === 0, 'Searching made Host requests');
     page.off('request', countSearchRequests);
     await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
     await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'bulk-1999.md');
@@ -436,7 +437,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     await page.keyboard.type('bulk384');
     check((await editor().innerText()).includes('bulk384'), 'A late search result did not open with editor focus');
     await page.keyboard.press('Control+z');
-    result.largeListing = {documents:bulk.length,firstPageCount};
+    result.largeListing = {documents:bulk.length,visibleCount};
   } finally {
     page.off('request', countSearchRequests);
     await page.unroute('**/api/folder?**', bulkListing);

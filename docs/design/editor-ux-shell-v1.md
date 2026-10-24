@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
 - Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
 - Last verified: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
 - Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
@@ -178,13 +179,15 @@ and overlapping opened roots yield one file result. Opened tabs keep tab order a
 with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
 its full path. Existing commands follow in their existing order. Name/path word matching and the
 `>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
-The existing height-bounded, scrolling Combobox renders at most 50 matches on one page. Larger result
-sets show the current range and full count, with Previous results / Next results buttons. Those buttons
-are reachable by Tab and return focus to search after changing page; Base UI still owns highlight,
-arrows and Enter within the page. Every match is available through paging or narrowing the query,
-which resets to page one. No match is silently dropped, and no ranking, search index, virtualization
-library or document-content command is introduced. The DOM bound addresses measured rendering cost
-without changing the source scope, ordering, matching or shell action handlers.
+The existing height-bounded, scrolling Combobox renders only the first 50 matches in that order.
+A persistent count status shows the full match count, including zero. Above 50 it shows the visible
+and total counts with guidance to type more to narrow the search, in Korean or English. Base UI's
+always-mounted `Combobox.Status` supplies a polite, atomic live region, including its initial text
+announcement handling. Base UI still owns highlight, arrows and Enter within the displayed matches;
+there are no page controls. To reach a match outside the first 50, narrow the query: filtering still
+searches the entire source. This explicit presentation limit replaces the earlier pagination decision
+without changing source scope, ordering, matching or shell action handlers. No ranking, search index,
+virtualization library or document-content command is introduced.
 
 As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
 the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
@@ -302,6 +305,41 @@ target is a real scratch file; there is no 2,000-file fixture or timing assertio
 checks in `document-tabs` also verify one `Opened tab` result per restored path. Actual pagination at
 [1280px](assets/command-center-384/paged-1280.png) and [375px](assets/command-center-384/paged-375.png)
 uses existing footer typography/spacing, shared Button controls and tokens, with no new adjustable value.
+
+### Listed search result-limit follow-up (#384)
+
+After the review approved `5dfb690`, the integration owner selected a simpler presentation: the first
+50 matches, a full count at every size, and explicit narrowing guidance above 50, without page controls.
+The current [listed-search contract](#listed-document-search-384) supersedes the pagination behavior
+recorded in the preceding verification; those earlier measurements and captures remain historical evidence.
+Reachability, open-only/tree-state memoization, full-source matching and result order are unchanged.
+
+The existing 2,000-entry browser check now verifies the first/last displayed paths, the 50-row bound,
+real ArrowDown access to the 50th match and existing wrap/stay behavior at that boundary. It checks
+the overflow guidance, counts of 10/0/1 after query changes, and the same mounted polite/atomic live
+status throughout. Korean command search also checks its translated count. Narrowing to the final
+file still opens it with immediate editor typing/Undo, with no Host request during search. These are
+DOM/keyboard accessibility checks, not a claim of manual screen-reader verification.
+
+The same three-trial probe and 2,000-document fixture described above ran after merging #402. The
+worktree, persistent Chrome profile, 1280×720 viewport, collapsed sidebar, one initial tab and no CPU
+throttling were retained. The current worktree's Vite server used port 5174 because another worktree
+already owned 5173; its `/api/document` path was checked before measurement.
+
+| Measurement | First-50 presentation |
+| --- | --- |
+| Open, three trials (ms) | 348 / 325 / 278 |
+| Real b/u/l input, nine key presses (ms) | 52–89 |
+| Unique search, three trials (ms) | 66 / 59 / 67 |
+| React render/commit CPU samples, extra open + b/u/l run | about 371 ms |
+| Filter / App samples, same profile | about 8 / 17 ms |
+
+The [raw summary](assets/command-center-384/profile-limited.json) retains each value and sampled
+stacks. This local development observation includes Playwright overhead and has no timing threshold;
+it does not claim a speed improvement over the earlier bounded pagination run. Actual first-50
+captures at [1280px](assets/command-center-384/limited-1280.png) and
+[375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
+paged captures, with existing footer typography/spacing and no new adjustable style value.
 
 ## Writing interactions
 
