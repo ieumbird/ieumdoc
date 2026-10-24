@@ -180,6 +180,15 @@ naturally, and all three folder actions remain reachable in the full-screen phon
 The 200px sidebar and wrapped Korean/unbroken names retain their geometry and reachable targets.
 These are visual/navigation checks, not new document semantics or platform packaging evidence.
 
+The first full CI at implementation head `6e5bf3f1df5689088efaeb7e635640a20277c092`
+([run 40133576414](https://github.com/ieumbird/ieumdoc/actions/runs/40133576414)) passed quality,
+Desktop/HTTP and browser shard 2/2, but shard 1/2 failed in cross-reference: its partial button-name
+query also matched the new `Collapse folder cross-reference` control. The unchanged scenario
+reproduced that strict-mode ambiguity locally. Scope its existing selection-toolbar action to
+that toolbar with the exact accessible name; the same scenario then passes. No product code,
+assertion/timeout or capture source changed. The failure remains historical evidence; the new
+head requires its own full CI result, recorded in the PR.
+
 ## Sidebar Open folder entry (#385)
 
 The [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385) records the owner-approved #380 decision 3. This changes entry placement only: the existing picker, handler, add/relist behavior, recent/opened preferences, start-screen entry and command-center command remain. The expanded header entry uses the existing English/Korean Open folder… name as both accessible label and tooltip. Tab order is Open folder → Collapse sidebar → Files → Display → selected panel content; Shift+Tab reverses it. Picker Open, Cancel and Escape return focus to the header opener. Phone sidebar dismissal retains its TopBar focus behavior. The collapsed rail remains the existing expand/Files/Display navigation.
