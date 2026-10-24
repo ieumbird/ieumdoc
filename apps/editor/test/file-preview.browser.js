@@ -62,6 +62,9 @@ async (page, { openDocument, screenshots }) => {
     if (width === 375) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     await clickRow('diagram.svg');
     await dialog().getByRole('img').waitFor();
+    // A cached image can appear before Dialog's asynchronous initial focus. Escape must
+    // exercise the preview's keyboard owner, not the still-focused phone sidebar row.
+    await page.waitForFunction(() => document.querySelector('[data-slot="dialog-content"]')?.contains(document.activeElement), null, {timeout:5000});
     const box = await dialog().boundingBox();
     check(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= 900, 'Preview exceeds viewport');
     if (screenshots) await page.screenshot({path:`tmp/file-preview-capture/image-${width}.png`});

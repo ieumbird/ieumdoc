@@ -202,6 +202,17 @@ Direct review confirms the first section remains collapsed after Reload, the oth
 tree remains visible, and names/actions/document geometry match the existing collapsed view.
 The earlier disclosure captures and their metadata below remain historical evidence.
 
+The first persistence CI at `e9d58bbdb0626f1c6e481685e6687970dfaa7ed9`
+([run 40136117318](https://github.com/ieumbird/ieumdoc/actions/runs/40136117318)) passed quality,
+Desktop/HTTP and browser shard 1/2, including folder-memory; shard 2/2 passed folder-navigation
+but failed file-preview's phone archive-row click. Its input-events artifact shows Escape targeting
+the still-focused tree row, then focus moving to Expand sidebar: the preview image was visible
+before the modal's initial focus, and the sidebar closed too. The unchanged local file-preview
+passes. The viewport preview case now explicitly asserts modal focus ownership (within 5 seconds)
+before its Escape. This adds a readiness assertion without forcing focus, reopening the sidebar,
+changing product behavior or weakening the existing preview/content checks. Capture sources are
+unchanged; the new test-only head needs its own final checks and CI, recorded in the PR.
+
 ### Section disclosure verification and captures
 
 The clean base's existing folder-navigation and quiet-document checks passed. Before product
