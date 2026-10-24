@@ -3,6 +3,7 @@
 // Editor without the bridge shows common recovery Settings only. Updater behavior itself is tested in apps/desktop.
 // pnpm browser:test desktop-updates
 async (page, { screenshots = false, openDocument }) => {
+  page.setDefaultTimeout(15000);
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   check(await page.getByRole('button', {name:'Settings'}).count() === 1, 'Common recovery Settings is missing');
@@ -241,6 +242,8 @@ async (page, { screenshots = false, openDocument }) => {
     `Unexpected Desktop calls ${JSON.stringify(recorded)}`);
 
   // Started without a document, nothing can be lost: the start allows the restart.
+  // Close the saved tabs so navigation memory also deliberately starts empty (#383).
+  for (const name of ['updates.md','technical-document.md']) await page.getByRole('button',{name:`Close ${name}`,exact:true}).click();
   const firstRequest = route => route.request().method() === 'GET' ? route.fulfill({json:{start:true}}) : route.continue();
   await page.route(/\/api\/document$/, firstRequest);
   try {

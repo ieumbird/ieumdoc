@@ -1,6 +1,7 @@
 // Run with pnpm browser:test open-files.
 // Mocks two selected Markdown files while exercising the real Editor state flow.
 async (page, { openDocument, screenshots = false }) => {
+  page.setDefaultTimeout(15000);
   await page.unroute('**/api/document');
   await page.unrouteAll();
   await page.reload();
@@ -114,6 +115,9 @@ async (page, { openDocument, screenshots = false }) => {
     await start.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Choosing a tree file did not leave the start');
     await page.reload();
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Reload did not restore the chosen document');
+    await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).click();
     await start.waitFor();
     await start.getByRole('button', {name:'Open sample document', exact:true}).click();
     await start.waitFor({state:'detached'});
@@ -124,6 +128,9 @@ async (page, { openDocument, screenshots = false }) => {
     if (!await start.getByRole('button', {name:'Open sample document',exact:true}).isVisible()) throw new Error('Last close lost the Host sample information');
     startNext = false;
 
+    // Exercise the existing Host default when there is no navigation preference. A remembered
+    // empty list instead deliberately keeps the start screen after the last close (#383).
+    await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('File A was not opened');

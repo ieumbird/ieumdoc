@@ -14,7 +14,7 @@ import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
-import { readDocumentWidth, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, type DocumentWidth } from "./preferences.ts";
+import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
@@ -96,6 +96,14 @@ export function App() {
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [tabsRestored, setTabsRestored] = useState(false);
+  const [rememberVersion, rememberTabs] = useReducer(version => version + 1, 0);
+  const serializedTabs = JSON.stringify({ paths: tabs.map(tab => tab.path), activePath: tabs.find(tab => tab.id === activeId)?.path ?? null });
+  // Like folder memory, explicit actions remember the live list, even after another tab wrote it.
+  // Session reports, Save and restoration alone never write navigation preferences.
+  useEffect(() => {
+    if (tabsRestored && rememberVersion > 0) writeOpenTabs(JSON.parse(serializedTabs));
+  }, [serializedTabs, tabsRestored, rememberVersion]);
   const sessions = useRef(new Map<string, DocumentSession>());
   const [, refreshShell] = useReducer(value => value + 1, 0);
   const reportSession = useCallback((id: string, next: DocumentSession | null) => {
@@ -114,7 +122,7 @@ export function App() {
       return records;
     } catch (cause) {
       setRecoveryProblem({ key: "Local recovery is unavailable: {{reason}}. Save or copy your work before closing.", values: { reason: messageOf(cause) } });
-      return [];
+      return null;
     }
   }, []);
   function reviewRecovery(record: RecoveryRecord): void {
@@ -124,7 +132,7 @@ export function App() {
   }
   async function offerRecovery(file: DocumentFileResponse): Promise<void> {
     const records = await refreshRecovery();
-    const matching = records.find(record => record.path === file.path && !tabs.some(tab => tab.recoveryId === record.id));
+    const matching = records?.find(record => record.path === file.path && !tabs.some(tab => tab.recoveryId === record.id));
     if (matching) reviewRecovery(matching);
   }
   async function deleteRecovery(id?: string): Promise<void> {
@@ -145,6 +153,7 @@ export function App() {
     const id = `document-${++nextId.current}`;
     setTabs(previous => [...previous.filter(tab => tab.id !== existing?.id), { id, path: record.path, file: restored.file, recoveryId, restored }]);
     setActiveId(id);
+    rememberTabs();
     setRecoveryReview(null);
     await refreshRecovery();
   }
@@ -161,6 +170,8 @@ export function App() {
   const [operation, setOperation] = useState<Operation | "">("loading");
   const operationRef = useRef(true);
   const [error, setError] = useMessageState("");
+  // Restore folder context before opening tabs, including their bibliography resources.
+  const folders = useFolderTrees(requestFolder, setError);
   const [notice, setNotice] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
@@ -190,7 +201,9 @@ export function App() {
   const selectImage = async (source: string) => session ? session.selectImage(source) : "";
 
   function activateTab(id: string): void {
-    if (id === activeId || operationRef.current || session?.busyRef.current || continuation) return;
+    if (operationRef.current || session?.busyRef.current || continuation) return;
+    rememberTabs();
+    if (id === activeId) return;
     if (activeId) scrollPositions.current.set(activeId, window.scrollY);
     setActiveId(id);
     setError("");
@@ -210,6 +223,7 @@ export function App() {
   }, [activeId, tabs.length]);
 
   function acceptFile(file: DocumentFileResponse): void {
+    rememberTabs();
     const existing = openedTab(tabs, file.path);
     if (activeId) scrollPositions.current.set(activeId, window.scrollY);
     if (existing) setActiveId(existing.id);
@@ -221,16 +235,68 @@ export function App() {
     }
   }
   useEffect(() => {
+    // Only remembered tabs need restored folder context. Without them, retain the existing
+    // usable start/default document while folder restoration continues independently.
+    if (tabsRestored || !folders.restored && readOpenTabs()?.paths.length) return;
     let current = true;
-    void requestDocument("GET").then(next => {
+    void (async () => {
+      const path = new URLSearchParams(window.location.search).get("path")?.trim() || undefined;
+      const saved = readOpenTabs();
+      // Keep Host metadata and Desktop launch-file precedence. A browser default that
+      // will not be used is optional; its failure cannot block the higher-priority route.
+      let first: DocumentFileResponse | DocumentStartResponse;
+      try { first = await requestDocument("GET"); }
+      catch (cause) {
+        if (!path && (desktop || !saved)) throw cause;
+        first = { start: true };
+      }
       if (!current) return;
-      if ("start" in next) { setStart(next); setAllowedRoots(next.allowedRoots); }
-      else { setStart({ start: true }); acceptFile(next); void offerRecovery(next); }
-    }).catch(cause => { if (current) setError(cause instanceof Error ? cause : String(cause)); }).finally(() => {
-      if (current) { operationRef.current = false; setOperation(""); }
+      const next = path ? await requestDocument("GET", path, folders.rootOf(path)) : first;
+      if (!current) return;
+      const records = await refreshRecovery();
+      if (!current) return;
+      const initialTabs: Tab[] = [];
+      const add = (file: DocumentFileResponse) => {
+        if (!openedTab(initialTabs, file.path)) initialTabs.push({ id: `document-${++nextId.current}`, path: file.path, file, recoveryId: newRecoveryId() });
+      };
+      // Explicit URL/ Desktop launch documents win over navigation memory. The Vite default
+      // is only a fallback when no preference exists; an empty preference keeps the start screen.
+      const explicit = Boolean(path || desktop && !("start" in next));
+      let activePath: string | null = null;
+      let recovery: RecoveryRecord | undefined;
+      if (explicit || !saved) {
+        if (!("start" in next)) {
+          add(next);
+          activePath = next.path;
+          recovery = records?.find(record => record.path === next.path);
+        }
+      } else if (records) {
+        for (const remembered of saved.paths) {
+          if (!current) return;
+          // Even malformed/unsupported recovery records retain their existing review flow.
+          if (records.some(record => record.path === remembered)) continue;
+          try {
+            const file = await requestDocument("GET", remembered, folders.rootOf(remembered));
+            if (!current) return;
+            if (!("start" in file) && !records.some(record => record.path === file.path)) add(file);
+          } catch { /* Missing, refused and non-native documents are quietly left out. */ }
+        }
+        activePath = saved.activePath;
+        recovery = records.find(record => saved.paths.includes(record.path));
+      }
+      if (!current) return;
+      setStart("start" in first ? first : { start: true });
+      if ("start" in first) setAllowedRoots(first.allowedRoots);
+      setTabs(initialTabs);
+      setActiveId(openedTab(initialTabs, activePath ?? "")?.id ?? initialTabs[0]?.id ?? null);
+      // With no clean tabs, the existing start-screen list already offers every record.
+      // If clean tabs hide that list, surface the newest matching record in its usual dialog.
+      if (recovery && (explicit || !saved || initialTabs.length > 0)) reviewRecovery(recovery);
+    })().catch(cause => { if (current) setError(cause instanceof Error ? cause : String(cause)); }).finally(() => {
+      if (current) { operationRef.current = false; setOperation(""); setTabsRestored(true); }
     });
     return () => { current = false; };
-  }, []);
+  }, [folders.restored]);
 
   function removeTab(id: string): void {
     const next = activeAfterClose(tabs, activeId, id);
@@ -242,6 +308,7 @@ export function App() {
     focusAfterClose.current = true;
     setTabs(previous => previous.filter(tab => tab.id !== id));
     setActiveId(next);
+    rememberTabs();
   }
   function closeTab(id: string): void {
     const owner = sessions.current.get(id);
@@ -251,8 +318,6 @@ export function App() {
       setContinuation({ id, session: owner });
     } else removeTab(id);
   }
-  // The folders the user opened, each a lazily listed tree; only their paths are remembered, never watched.
-  const folders = useFolderTrees(requestFolder, setError);
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsReturnFocus = useRef<HTMLElement | null>(null);
@@ -397,7 +462,6 @@ export function App() {
   }
 
   async function openFolderDocument(path: string): Promise<void> {
-    if (path === openedPath) return;
     const message = await openFile(path);
     if (message) setError(message);
   }

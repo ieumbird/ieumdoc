@@ -1,4 +1,5 @@
 async (page, { openDocument, reloadDocument, activeDocument, screenshots = false }) => {
+  page.setDefaultTimeout(15000);
   const check = (ok, why) => { if (!ok) throw new Error(why); };
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -98,9 +99,27 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   const first = (await records())[0];
   check(first.snapshot.editor.savedDocument && first.snapshot.file.source && first.snapshot.file.revision, 'Opening/checkpoint absent');
 
-  // A normal page reload keeps the record; opening its document offers it first.
+  // Tab memory restores clean documents, but leaves unsaved work to the existing review.
+  const cleanFile = [root, 'tmp', 'document-tabs', 'technical-2.md'].join(sep);
+  await openDocument(page,cleanFile); await ready(page);
+  await page.getByRole('tab',{name:'technical-1.md, Unsaved changes',exact:true}).click();
+  const navigation = await page.evaluate(() => localStorage.getItem('ieumdoc.openTabs'));
   page.on('dialog', dialog => dialog.accept());
   await page.reload(); await ready(page);
+  await page.getByTestId('recovery-prompt').waitFor();
+  check(await page.getByRole('tab',{includeHidden:true}).count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true,includeHidden:true}).count() === 1, 'Tab memory bypassed recovery or failed to restore the clean tab');
+  check(JSON.stringify(await records()) === JSON.stringify([first]), 'Automatic tab restoration changed the recovery record');
+  check(await page.evaluate(() => localStorage.getItem('ieumdoc.openTabs')) === navigation, 'Recovery exclusion rewrote navigation memory');
+  await page.keyboard.press('Control+Slash');
+  check(await page.getByTestId('recovery-prompt').isVisible() && !await page.getByRole('dialog',{name:'Command center',exact:true}).count(), 'Command center bypassed the startup recovery dialog');
+  await page.getByRole('button',{name:'Not now',exact:true}).click();
+  await page.keyboard.press('Control+Slash');
+  const restoredCenter = page.getByRole('dialog',{name:'Command center',exact:true});
+  await restoredCenter.getByRole('combobox').fill('technical-2.md');
+  await page.keyboard.press('Enter');
+  await restoredCenter.waitFor({state:'detached'});
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active="true"] .document-editor')?.editor.view.hasFocus());
+  await page.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
   await page.getByRole('button',{name:'Review recovery'}).waitFor();
   await capture('list');
   await openDocument(page,file); await ready(page);
@@ -139,6 +158,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   await engine(page).getByText(/Recovered applied text/).waitFor();
+  check(await page.getByRole('tab').count() === 1, 'Recovery and remembered tabs opened the document twice');
   check(await engine(page).evaluate(n => !n.editor.can().undo()), 'Restored Undo history should be empty');
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
@@ -339,8 +359,10 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Delete record',exact:true}).click();
   await page.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
   await page.addInitScript(() => Object.defineProperty(window,'indexedDB',{get() { throw new DOMException('Storage access denied','SecurityError'); }}));
+  await page.evaluate(path => localStorage.setItem('ieumdoc.openTabs',JSON.stringify({paths:[path],activePath:path})),file);
   await page.reload(); await ready(page);
   await page.getByTestId('writeability-warning').filter({hasText:'Local recovery is unavailable'}).waitFor();
+  check(await page.getByRole('tab').count() === 0, 'Unavailable recovery was bypassed by automatic tab restoration');
   await capture('unavailable');
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('heading',{name:'Local recovery',exact:true}).waitFor();

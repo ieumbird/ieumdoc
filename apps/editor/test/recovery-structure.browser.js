@@ -52,7 +52,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   page.on('dialog',dialog=>dialog.accept());
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page,file);
+  // The clean startup tab is restored; the dirty New document offers recovery first.
   await page.getByTestId('recovery-prompt').waitFor({state:'visible'});
   check(await page.getByRole('button',{name:'Restore work',exact:true}).isEnabled(), `Generated record refused: ${await page.getByTestId('recovery-prompt').innerText()}; deleted=${JSON.stringify(record.snapshot.editor.editorDocument.attrs.deletedPaths)}`);
   if (screenshots) {
@@ -82,7 +82,6 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   },record);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page,file);
   await page.getByText('Incompatible editor snapshot: Invalid editor deletion metadata',{exact:true}).waitFor();
   check(await page.getByRole('button',{name:'Restore work',exact:true}).isDisabled(),'Unknown deletion was accepted');
   await page.getByText('Plaintext recovery copy',{exact:true}).click();

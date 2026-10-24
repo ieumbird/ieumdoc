@@ -14,9 +14,171 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
     await page.getByRole('tab', {name:new RegExp(`^${name.replaceAll('.', '\\.')}(, Unsaved changes)?$`)}).click();
     await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent === name, name);
   };
+  const memory = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.openTabs')));
+  const flush = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.addInitScript(() => {
+    window.tabMemoryWrites = 0;
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === 'ieumdoc.openTabs') window.tabMemoryWrites++;
+      return write.call(this,key,value);
+    };
+  });
   check(await page.getByRole('tab').count() === 1, 'The startup document is not the first tab');
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
+  // Navigation memory restores order and active identity, without restoring editor state.
+  await openDocument(page, a); await ready();
+  await openDocument(page, b); await ready();
+  await activate('technical-1.md');
+  await page.reload(); await ready();
+  check(await page.getByRole('tab').count() === 2, 'Reload did not restore both open document tabs');
+  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Reload changed the remembered tab order');
+  check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Reload did not restore the last active tab');
+  check(JSON.stringify(await memory()) === JSON.stringify({paths:[a,b],activePath:a}), 'Navigation memory contains more than paths, order and active identity');
+  await flush();
+  check(await page.evaluate(() => window.tabMemoryWrites) === 0, 'Restoration rewrote tab memory');
+
+  // Restored sessions use the shared command-center dismissal/final-focus path (#392).
+  for (const name of ['technical-2.md','technical-1.md']) {
+    await page.keyboard.press('Control+Slash');
+    const center = page.getByRole('dialog',{name:'Command center',exact:true});
+    await center.getByRole('combobox').fill(name);
+    await page.keyboard.press('Enter');
+    await center.waitFor({state:'detached'});
+    await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent === name &&
+      document.querySelector('[data-document-tab][data-active="true"] .document-editor')?.editor.view.hasFocus(),name);
+  }
+
+  // A default document that will not be used must not block either startup route.
+  const startupFailures = [];
+  let targetReads = 0;
+  const countTarget = request => {
+    if (request.method() === 'GET' && request.url().includes('/api/document?path=')) targetReads++;
+  };
+  const failedDefault = route => route.fulfill({status:400,json:{code:'native-marker',error:'Default document unavailable'}});
+  page.on('request',countTarget);
+  await page.route('**/api/document',failedDefault);
+  try {
+    for (const explicit of [false,true]) {
+      targetReads = 0;
+      await page.goto(explicit ? `${origin}/?path=${encodeURIComponent(b)}` : origin); await ready();
+      const names = await page.getByRole('tab').allTextContents();
+      const expected = explicit ? ['technical-2.md'] : ['technical-1.md','technical-2.md'];
+      if (JSON.stringify(names) !== JSON.stringify(expected) || targetReads === 0 || await page.getByTestId('error').count()) {
+        startupFailures.push(`${explicit ? 'Explicit URL' : 'Remembered tabs'} depended on the unused default: tabs=${JSON.stringify(names)}, targetReads=${targetReads}`);
+      }
+    }
+    // When the default actually is the fallback, its failure must still be visible.
+    await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+    await page.goto(origin); await ready();
+    check(await page.getByRole('tab').count() === 0 && (await page.getByTestId('error').innerText()).includes('Default document unavailable'), 'A real fallback failure lost its startup error');
+  } finally {
+    page.off('request',countTarget);
+    await page.unroute('**/api/document',failedDefault);
+    await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+    await page.goto(origin); await ready();
+  }
+  check(startupFailures.length === 0,startupFailures.join('\n'));
+
+  // A different browser tab may change storage. Session reports and Save leave that choice
+  // alone, while even an explicit same-tab selection remembers this page's current list.
+  const other = await page.context().newPage();
+  try {
+    await other.goto(origin); await other.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await other.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
+    await other.waitForFunction(path => JSON.parse(localStorage.getItem('ieumdoc.openTabs')).paths.length === 1 && JSON.parse(localStorage.getItem('ieumdoc.openTabs')).activePath === path, b);
+    await page.getByTestId('save').click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+    check(JSON.stringify(await memory()) === JSON.stringify({paths:[b],activePath:b}), 'Save overwrote another browser tab’s navigation memory');
+    await activate('technical-1.md'); await flush();
+    check(JSON.stringify(await memory()) === JSON.stringify({paths:[a,b],activePath:a}), 'An explicit same-tab selection did not replace stale shared memory');
+  } finally { await other.close(); }
+  for (const name of ['technical-2.md','technical-1.md']) await page.getByRole('button',{name:`Close ${name}`,exact:true}).click();
+  await page.reload(); await ready();
+  check(await page.getByTestId('document-start').isVisible() && await page.getByRole('tab').count() === 0, 'Closing every tab did not survive Reload');
+
+  // Mixed remembered paths are checked by the real Host. A held final response proves
+  // startup cannot publish a partial list or write it back before all paths are checked.
+  const missing = file('missing.md'), denied = file('denied.md'), nonnative = [root,'README.md'].join(sep);
+  const saved = {paths:[a,missing,denied,nonnative,b,a.replaceAll(sep,sep === '\\' ? '/' : '\\')],activePath:missing};
+  await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), saved);
+  let release, arrived;
+  const gate = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { arrived = resolve; });
+  const hold = async route => {
+    const path = decodeURIComponent(route.request().url().split('?path=')[1] ?? '');
+    if (path === denied) return route.fulfill({status:403,json:{error:'Path denied by Host'}});
+    if (path !== b) return route.fallback();
+    const response = await route.fetch(); arrived(); await gate; await route.fulfill({response});
+  };
+  await page.route('**/api/document?**',hold);
+  try {
+    await page.reload();
+    await Promise.race([started,page.waitForTimeout(15000).then(() => { throw new Error('Restoration did not request the final remembered document'); })]);
+    check(await page.getByRole('tab').count() === 0 && JSON.stringify(await memory()) === JSON.stringify(saved), 'Pending restoration published or remembered an incomplete tab list');
+    release(); await ready();
+  } finally { release(); await page.unroute('**/api/document?**',hold); }
+  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Missing/refused/non-native paths or Host aliases changed restored order/deduplication');
+  check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Missing active path did not fall back to the first surviving tab');
+  check(!await page.getByTestId('error').count() && !await page.getByRole('dialog').count(), 'An excluded remembered path interrupted startup');
+  await flush();
+  check(JSON.stringify(await memory()) === JSON.stringify(saved) && await page.evaluate(() => window.tabMemoryWrites) === 0, 'Exclusion alone rewrote remembered paths');
+
+  // An explicit URL request wins and still does not rewrite memory merely by starting.
+  await page.goto(`${origin}/?path=${encodeURIComponent(b)}`); await ready();
+  check(await page.getByRole('tab').count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1, 'Explicit URL did not take precedence over remembered tabs');
+  check(JSON.stringify(await memory()) === JSON.stringify(saved), 'Explicit startup rewrote the remembered list');
+  await page.getByRole('tab',{name:'technical-2.md',exact:true}).click(); await flush();
+  check(JSON.stringify(await memory()) === JSON.stringify({paths:[b],activePath:b}), 'The first user action did not prune excluded paths');
+  await page.goto(origin); await ready();
+  await page.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
+
+  // Desktop exposes its explicit file argument through the first Host response. With
+  // no argument it returns the start response, which allows normal tab restoration.
+  const desktopPage = await page.context().newPage();
+  try {
+    await desktopPage.addInitScript(() => {
+      window.ieumdocDesktop = {
+        info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},postponed:null}),
+        onUpdateState: () => () => {}, onRestartCheck: () => () => {},
+      };
+    });
+    await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+    await desktopPage.goto(origin); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab').count() === 1 && await desktopPage.getByRole('tab',{name:'technical-document.md',exact:true}).count() === 1, 'Desktop file argument did not take precedence');
+    await desktopPage.route('**/api/document',route => route.fulfill({json:{start:true,sample:loaded.path}}));
+    await desktopPage.reload(); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(JSON.stringify(await desktopPage.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']) && await desktopPage.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Desktop startup without an argument did not restore tabs');
+    await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);
+    await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab').count() === 1, 'URL did not override Desktop navigation memory');
+    await desktopPage.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
+    check(await desktopPage.getByTestId('document-start').getByRole('button',{name:'Open sample document',exact:true}).isVisible(), 'URL startup lost Host sample information after the last close');
+    await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+    await desktopPage.route('**/api/document',failedDefault);
+    await desktopPage.goto(origin);
+    await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab').count() === 0 && (await desktopPage.getByTestId('error').innerText()).includes('Default document unavailable'), 'A failed Desktop launch file silently fell back to remembered tabs');
+    await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);
+    await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(await desktopPage.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1 && !await desktopPage.getByTestId('error').count(), 'An explicit URL was blocked by a failed Desktop default');
+  } finally { await desktopPage.close(); }
+  await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
+  await page.reload(); await ready();
+  for (const name of ['technical-2.md','technical-1.md']) await page.getByRole('button',{name:`Close ${name}`,exact:true}).click();
+  // Disabled preference storage must not block ordinary Open/Close.
+  await page.evaluate(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key,value) {
+      if (key === 'ieumdoc.openTabs') throw new Error('Preference storage disabled');
+      return write.call(this,key,value);
+    };
+  });
+  await openDocument(page,a); await ready();
+  await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
+  check(await page.getByTestId('document-start').isVisible(), 'Disabled storage blocked tab navigation');
+  await page.reload(); await ready();
   await openDocument(page, a); await ready();
   await editor().evaluate(n => {
     window.tabEditorA = n.editor;

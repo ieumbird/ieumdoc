@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#371: concurrent explicit Opens in both response orders retain recent folders in the UI, storage and Reload; unavailable storage retains the page list; folder-memory browser regression).
+- Last verified: 2026-10-24 (#383: remembered document tabs reuse restored folder context; folder navigation/memory and tab browser regressions).
+- Previous verification: 2026-10-24 (#371: concurrent explicit Opens in both response orders retain recent folders in the UI, storage and Reload; unavailable storage retains the page list; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open replaces another tab's preference and survives Reload, tree-only updates do not write; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367 review follow-up: same-path user Open/Close wins over late restoration, unchanged paths are not rewritten; folder-memory browser regression).
 - Previous verification: 2026-10-24 (#367: delayed restoration/Open/Close, remembered paths and Reload, and unique nested New destinations; folder-memory browser regression).
@@ -39,6 +40,9 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   alone does not rewrite preferences: missing/refused folders stay remembered until the next user
   Open/Close, while remaining quietly absent from the Sidebar. A user change during restoration
   writes the final live list once restoration finishes, excluding those failed paths.
+- Document tabs restore after this folder restoration, using the same outermost opened-folder
+  context as explicit Open. Their separate path/order/active preference follows the same
+  restoration-only no-write boundary; see [tab navigation memory](editing-session-save-v1.md#tab-navigation-memory-383).
 - A successful user Open or Close of a Host-normalized path during restoration takes precedence
   over that path's older restoration response. In particular, Open then Close stays closed after
   the late response and Reload. Every successful explicit Open/Close remembers the current live list,
