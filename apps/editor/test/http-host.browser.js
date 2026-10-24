@@ -1,5 +1,5 @@
 // Production bundle, real HTTP and two independent allowed roots. No mocked file API.
-async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots }) => {
+async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
   page.setDefaultTimeout(15000);
   const check = (ok, message) => { if (!ok) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -50,6 +50,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   check(folderImage.status() === 200 && folderImage.headers()['content-type'] === 'image/svg+xml' && folderImage.headers()['content-security-policy'].startsWith('sandbox;'), 'Production preview uses shared safe image handler');
   await page.keyboard.press('Escape'); await preview.waitFor({state:'detached'});
   await sidebar.getByRole('treeitem', {name:'a.md', exact:true}).click(); await ready();
+  await waitForActivePath(page, fileA); await ready();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();
@@ -58,7 +59,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   await editor.locator('p').filter({hasText:'Alpha.'}).click();
   await page.keyboard.press('End'); await page.keyboard.type(' HTTP saved.');
   // Cross-root Open retains A; single-tab close owns the work-loss dialog.
-  await openDocument(page, fileB); await ready();
+  await openPath(page, fileB);
   await page.getByRole('tab', {name:'a.md, Unsaved changes',exact:true}).click();
   check((await editor.innerText()).includes('HTTP saved.'), 'Cross-root Open lost A');
   await page.getByRole('button', {name:'Close a.md',exact:true}).click();
@@ -69,7 +70,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
   check(await page.getByTestId('current-file').getAttribute('title') === fileB, 'Close Save did not select the neighbour');
-  await openDocument(page, fileA); await ready();
+  await openPath(page, fileA);
   check((await editor.innerText()).includes('HTTP saved.'), 'Close Save did not persist through the real Host');
   await editor.locator('p').filter({hasText:'Alpha.'}).click(); await page.keyboard.press('End');
   await page.keyboard.insertText(' 한글 😀 �'); await save();
@@ -77,7 +78,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click(); await ready();
   check((await editor.innerText()).includes('HTTP saved.'), 'Root A Save survives Reload');
   check((await editor.innerText()).includes('한글 😀 �'), 'Valid Unicode survives repeated Save and Reload');
-  await openDocument(page, fileB); await ready();
+  await openPath(page, fileB);
   check((await editor.innerText()).includes('Beta.'), 'Root B opens independently');
   // Both roots' folders stay open; create in B's own section.
   const folderB = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(join(b, 'fixture'))}]`);
@@ -111,12 +112,12 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure', exact:true}).click();
   await page.getByTestId('figure-caption').fill('Unapplied HTTP draft');
-  await openDocument(page, fileA);
+  await openPath(page, fileA);
   await page.getByRole('tab', {name:'fresh.md, Unsaved changes',exact:true}).click();
   check(await page.getByTestId('figure-caption').inputValue() === 'Unapplied HTTP draft', 'Cross-root switching lost a property draft');
   check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Draft tab was replaced');
   await page.getByTestId('figure-cancel').click();
-  await openDocument(page, fileA); await ready();
+  await openPath(page, fileA);
   // Another client commits using the same real API; the Editor's stale baseline must get 409.
   const loaded = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json();
   const external = await page.request.post(origin + '/api/document', { headers:{Origin:origin}, data:{
@@ -139,7 +140,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   } finally { await media.close(); }
   // A narrow sidebar does not narrow the server's fixed Root union for declared resources.
   const bibFile = join(a, 'fixture', 'bibliography.md');
-  await openDocument(page, bibFile); await ready();
+  await openPath(page, bibFile);
   const refs = page.locator('[data-document-tab][data-active=true]').getByTestId('bibliography');
   const readBibDocument = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(bibFile)}`)).json()).source;
   const bibSource = await readBibDocument(), bibHash = bibliographyFixture.hash();

@@ -3,7 +3,7 @@
 // stays a semantic reference and `[](#...)` fragment links stay ordinary links (issue #12).
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument }) => {
+async (page, { openPath, openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -38,8 +38,7 @@ async (page, { openDocument }) => {
 
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page, filePath);
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, filePath);
   const article = await page.getByRole('article').innerText();
   const saved = await markdown();
   const result = {

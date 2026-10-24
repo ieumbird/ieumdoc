@@ -3,7 +3,7 @@
 // drag, changes that would push it down are refused with a notice, Enter in it continues below it,
 // a document without one offers Add a title, and a title left empty goes away again. Scratch files
 // live under the repository's ignored tmp/ directory.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.setViewportSize({width: 1280, height: 1000});
   await page.reload();
@@ -21,8 +21,7 @@ async (page, { openDocument }) => {
   const caretBlock = () => editor.evaluate(node => node.editor.state.selection.$from.index(0));
   const result = {};
 
-  await openDocument(page, scratch('technical-document.md'));
-  await ready();
+  await openPath(page, scratch('technical-document.md'));
   const title = page.locator('[data-document-tab][data-active=true] [data-document-title="true"]');
   result.titleMarked = await title.count() === 1 && (await title.innerText()).trim() === 'Converter Control';
   const original = await blocks();
@@ -72,8 +71,7 @@ async (page, { openDocument }) => {
   check(JSON.stringify(await blocks()) === JSON.stringify(original), 'Undo did not restore the split title');
 
   // Without a title, Add a title starts one at the top; typing and Save write it as the leading H1.
-  await openDocument(page, scratch('untitled.md'));
-  await ready();
+  await openPath(page, scratch('untitled.md'));
   const add = page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title', exact:true});
   await add.click();
   const empty = page.locator('[data-document-tab][data-active=true] [data-document-title="true"]');
@@ -87,8 +85,7 @@ async (page, { openDocument }) => {
   result.addHidden = await add.count() === 0;
 
   // A title left empty goes away once the caret leaves it, leaving the document unchanged.
-  await openDocument(page, scratch('untitled-empty.md'));
-  await ready();
+  await openPath(page, scratch('untitled-empty.md'));
   const addEmpty = page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title', exact:true});
   await addEmpty.click();
   await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').waitFor();

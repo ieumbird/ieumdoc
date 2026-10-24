@@ -3,7 +3,7 @@
 // reloads a real file, and checks that cross-references stay read-only and invalid links fail
 // closed. The file is a scratch copy under the repository's ignored tmp/ directory; prepare it
 // first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -24,8 +24,7 @@ async (page, { openDocument }) => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, file);
   };
   const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   // Focus synchronously before setting the engine selection. Tiptap's chain().focus() queues

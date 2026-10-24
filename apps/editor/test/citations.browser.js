@@ -1,6 +1,6 @@
 // Interface regression: real typing, typed clipboard, live numbering and Save → Reload.
 // Optional images are manual review evidence, never pass/fail pixel assertions.
-async (page, { openDocument, reloadDocument, screenshots }) => {
+async (page, { openPath, reloadDocument, screenshots }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -17,8 +17,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   page.on('request', request);
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await openDocument(page, file);
-    await ready();
+    await openPath(page, file);
     const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
     const chips = editor.locator('[data-citation] > .cross-reference-chip');
     const semantic = () => editor.evaluate(element => {

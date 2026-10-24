@@ -5,7 +5,7 @@
 // rows and columns are then moved, realigned and removed from the block menu, and saved again. Finally, the caret
 // leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
-async (page, { openDocument, reloadDocument }) => {
+async (page, { openPath, reloadDocument }) => {
   // Rendering a caption must not rebuild a schema with duplicated extensions (Tiptap warns).
   const tiptapWarnings = [];
   const onConsole = message => { if (message.text().startsWith('[tiptap warn]')) tiptapWarnings.push(message.text()); };
@@ -27,8 +27,7 @@ async (page, { openDocument, reloadDocument }) => {
   const fresh = '---\nieumdoc: 1\n---\n\n# Tables\n\nIntro paragraph.\n\n| Name | Value |\n| ---- | ----- |\n| U    | AC    |\n';
   if (await read() !== fresh) throw new Error('Scratch document is not a fresh tables.md copy');
   const open = async () => {
-    await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, file);
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
   const save = async () => {

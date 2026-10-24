@@ -1,5 +1,5 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
-async (page, { openDocument, withBlockHover }) => {
+async (page, { openPath, withBlockHover }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -8,8 +8,7 @@ async (page, { openDocument, withBlockHover }) => {
   const file = [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, file);
   // The sidebar is measured with its folder: heading, actions and listed files.
   await page.getByRole('button',{name:'More actions',exact:true}).click();
   await page.getByRole('menuitem',{name:'Open folder…',exact:true}).click();

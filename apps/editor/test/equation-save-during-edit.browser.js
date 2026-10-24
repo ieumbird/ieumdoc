@@ -1,6 +1,6 @@
 // Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/equation-save-during-edit.browser.js.
 // Delayed-save drafts, then real scratch-file Apply/typing/history/Source/Save/Reload.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unroute('**/api/document');
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -118,8 +118,7 @@ async (page, { openDocument }) => {
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
       const path = [root, 'tmp', 'equation-editing', file].join(sep);
-      await openDocument(page, path);
-      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+      await openPath(page, path);
       const initial = await snapshot();
       const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
       const reference = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference');
@@ -191,8 +190,7 @@ async (page, { openDocument }) => {
       await assertContent(typed);
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-      await openDocument(page, path);
-      await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+      await openPath(page, path);
       if (await source() !== preview || await equation.count() !== 1 ||
           (file !== 'only.md' && await reference.getAttribute('data-resolved') !== 'true')) {
         throw new Error(`${file}: Reload lost equation, prose or reference`);

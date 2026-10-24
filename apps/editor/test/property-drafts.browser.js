@@ -1,5 +1,5 @@
 // Independent property drafts keep dirty status, focus and discard protection.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -8,8 +8,7 @@ async (page, { openDocument }) => {
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const file = [...initial.path.split(sep).slice(0,-4), 'tmp', 'property-drafts', 'drafts.md'].join(sep);
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const json = () => editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
@@ -82,7 +81,7 @@ async (page, { openDocument }) => {
     ];
     for (const item of cases) for (const mode of ['click', 'enter']) {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.
-      await openDocument(page, focusFile); await ready();
+      await openPath(page, focusFile);
       await page.getByText('Before.', {exact:true}).filter({visible:true}).click();
       const target = page.locator(`[data-document-tab][data-active=true] [data-block="${item.kind}"]`);
       if (item.type === 'labelTarget') {

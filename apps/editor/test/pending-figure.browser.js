@@ -1,6 +1,6 @@
 // Real user session regression: empty → pending with caption/label → image → pending,
 // including Source, native history and edits made during a real-file Save.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -20,8 +20,7 @@ async (page, { openDocument }) => {
   const open = async () => {
     await page.reload();
     await ready();
-    await openDocument(page, file);
-    await ready();
+    await openPath(page, file);
   };
   const save = async () => {
     await page.getByTestId('save').click();

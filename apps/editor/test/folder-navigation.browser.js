@@ -1,5 +1,5 @@
 // Choose a folder, expand it as a tree in the sidebar and open its documents; unsaved work blocks switching.
-async (page, {screenshots = false} = {}) => {
+async (page, { waitForActivePath, screenshots = false } = {}) => {
   await page.unrouteAll();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
@@ -322,6 +322,7 @@ async (page, {screenshots = false} = {}) => {
   await page.keyboard.press('End');
   await page.keyboard.type(' Draft.');
   await row('notes.md').click();
+  await waitForActivePath(page, [folder, 'notes.md'].join(sep)); await ready();
   await page.getByRole('tab', {name:'install.md, Unsaved changes',exact:true}).click();
   result.keepsUnsavedWork = await current() === 'install.md' &&
     (await page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first().innerText()).endsWith('Draft.');

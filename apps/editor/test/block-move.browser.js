@@ -4,7 +4,7 @@
 // a moved Equation or Figure is not opened for editing; undo/redo keep that; and a block with an
 // unapplied draft cannot be moved, so the draft is not lost. Nothing is saved. Scratch files live
 // under the repository's ignored tmp/ directory.
-async (page, { openDocument, withBlockHover }) => {
+async (page, { openPath, withBlockHover }) => {
   await page.unrouteAll();
   // The whole document fits, so nothing scrolls under the pointer mid-drag.
   await page.setViewportSize({width: 1280, height: 1600});
@@ -24,8 +24,7 @@ async (page, { openDocument, withBlockHover }) => {
   const before = await read();
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
-  await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
 
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');

@@ -3,7 +3,7 @@
 // Save/Reload against a real file, and checks that duplicate and invalid labels never write.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -23,8 +23,7 @@ async (page, { openDocument }) => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, filePath);
   };
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();

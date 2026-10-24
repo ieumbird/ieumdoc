@@ -3,7 +3,7 @@
 // checks that neither switches the document, so the late preview can only show A's Markdown.
 // Uses the scratch files prepared for source-view.browser.js (see docs/test/TEST_GUIDE.md);
 // the scenario writes nothing.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -25,8 +25,7 @@ async (page, { openDocument }) => {
   }
   if (await exists(created, 'created-during-preview.md')) throw new Error(`Remove ${created} first`);
 
-  await openDocument(page, documentA);
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, documentA);
   // New creates in the displayed sidebar folder, so the scratch folder is opened first.
   await page.getByRole('button', {name:'More actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();

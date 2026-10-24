@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
-import { openDocument, reloadDocument } from "./navigation.ts";
+import { openPath, reloadDocument } from "./navigation.ts";
 import { recoveryRecords, resetRecovery } from "./recovery-records.ts";
 import type { Editor } from "@tiptap/core";
 
@@ -53,7 +53,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
   try {
     let page = await launch();
     await resetRecovery(page);
-    await openDocument(page, file); await ready(page);
+    await openPath(page, file);
     await page.getByRole("button", { name: "Add a title", exact: true }).click();
     await page.keyboard.type("HTTP recovery paper");
     await page.keyboard.press("Enter");
@@ -82,7 +82,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     page = await launch();
     expect(await recoveryRecords(page)).toEqual(recorded);
     await expect(page.getByRole("button", { name: "Review recovery", exact: true })).toBeVisible();
-    await openDocument(page, file); await ready(page);
+    await openPath(page, file);
     await page.getByTestId("recovery-prompt").waitFor();
     await page.getByRole("button", { name: "Restore work", exact: true }).click();
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();

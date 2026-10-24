@@ -1,5 +1,5 @@
 // Real document-specific read boundary, independent tab snapshots and derived References.
-async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots }) => {
+async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -50,7 +50,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   };
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await openDocument(page, file); await ready();
+  await openPath(page, file);
   assert(await rows.count() === 9, 'One derived item per cited key, including unresolved keys');
   assert(await rows.filter({ has: page.locator('[data-readiness="complete"]') }).count() === 0, 'Narrow chapter scope must not grant parent access');
   assert((await displayed()).every(r => r.status === 'unverified'), 'Unavailable parent source must not fabricate missing-key warnings');
@@ -64,7 +64,8 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   const common = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(root)}]`);
   const chapters = common.getByRole('treeitem', { name: 'chapters', exact: true });
   if (await chapters.getAttribute('aria-expanded') !== 'true') await chapters.click();
-  await common.getByRole('treeitem', { name: 'paper.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'paper.md', exact: true }).click();
+  await waitForActivePath(page, file); await ready();
   assert(await references.count() === 1, 'One References region follows the whole document');
   await compare(originalSource, originalBib);
   const bounds = await active.evaluate(panel => ({
@@ -101,7 +102,8 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   assert(bibliographyFixture.hash() === originalHash, 'Save must leave BibTeX byte-identical');
 
   // Other tabs own independent order and source snapshots, including untrusted strings.
-  await common.getByRole('treeitem', { name: 'other.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'other.md', exact: true }).click();
+  await waitForActivePath(page, [root, 'chapters', 'other.md'].join(sep)); await ready();
   assert(await rows.first().getAttribute('data-key') === 'unicode', 'Other tab has independent numbering');
   assert(await references.locator('img, script, a[href^="javascript:"]').count() === 0, 'Bibliography strings are typed text, not injected HTML or active URLs');
   const otherDisplay = JSON.stringify(await displayed());
@@ -178,7 +180,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   // Opening via the narrower chapter picker must not replace the stored recovery context.
   await page.getByTestId('recovery-prompt').waitFor();
   await page.getByRole('button', { name: 'Not now', exact: true }).click();
-  await openDocument(page, file); await ready();
+  await openPath(page, file);
   await page.getByTestId('recovery-prompt').waitFor();
   await page.getByRole('button', { name: 'Restore work', exact: true }).click();
   await page.getByTestId('recovery-prompt').waitFor({ state: 'detached' });

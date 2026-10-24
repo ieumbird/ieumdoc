@@ -1,5 +1,5 @@
 // Focused Issue #21 regression. Prepare tmp/figure-authoring first with `pnpm browser:prepare`.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -8,8 +8,7 @@ async (page, { openDocument }) => {
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const filePath = [root, 'tmp', 'figure-authoring', 'technical-document.md'].join(separator);
   const openScratch = async () => {
-    await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, filePath);
   };
   const semantic = async () => {
     const response = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(filePath)}`)).json();

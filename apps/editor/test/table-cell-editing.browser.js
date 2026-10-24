@@ -3,7 +3,7 @@
 // cells keep applied, pasted and removed formatting, Enter exits the table, and read-only cells stay unchanged.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes those copies only.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -26,8 +26,7 @@ async (page, { openDocument }) => {
   const open = async file => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, file);
   };
   const save = async () => {
     await page.getByRole('button', {name:'Save', exact:true}).click();

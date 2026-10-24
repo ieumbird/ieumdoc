@@ -5,7 +5,7 @@
 // after Control+End had moved the DOM caret but before the change was read. Here the check is
 // held and run at the key's keyup, the order recorded on CI, so that race happens every time.
 // Focus without a key, or with a modifier alone, must still restore the editor's caret.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -15,8 +15,7 @@ async (page, { openDocument }) => {
   const sep = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(sep).slice(0, -4).join(sep);
   const file = [root, 'tmp', 'focus-caret', 'focus.md'].join(sep);
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');

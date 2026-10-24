@@ -28,3 +28,16 @@ export async function reloadDocument(page: Page): Promise<void> {
 }
 
 export const activeDocument = (page: Page) => page.locator('[data-document-tab][data-active="true"]');
+
+/** Open a successful document and wait for its exact active path before using the editor. */
+export async function openPath(page: Page, file: string): Promise<void> {
+  await openDocument(page, file);
+  await waitForActivePath(page, file);
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
+}
+
+/** Wait after a scoped tree selection without reopening or changing its folder access. */
+export async function waitForActivePath(page: Page, file: string): Promise<void> {
+  // The click can finish while the previous document is still active and ready.
+  await page.waitForFunction(file => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === file, file);
+}
