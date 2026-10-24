@@ -2,7 +2,7 @@
 
 변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
-`command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+P·명령 전용 모드, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. 기존 `layout-rules`는 사용 가능한 header 너비에 따른 한 줄/두 줄 배치와 가운데 정렬을 함께 검사한다.
+`command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+/·명령 전용 모드와 Ctrl/Cmd+P 인쇄 통과, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `link-authoring`은 Ctrl/Cmd+'로 기존 링크 폼 열기·적용, 실제 Save → Reload와 이전 폼의 지연 포커스 회귀도 검사한다. 단축키·표시·ARIA와 후보별 Chrome/Edge 자동 검사 방법은 [shortcut contract](../design/editor-ux-shell-v1.md#shortcut-contract-381)에 있다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. 기존 `layout-rules`는 사용 가능한 header 너비에 따른 한 줄/두 줄 배치와 가운데 정렬을 함께 검사한다.
 
 ## 자동 검증
 
@@ -80,6 +80,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 `visual-states`는 연 파일 행의 `aria-current="page"`를 기다린 뒤 파일·Outline의 현재 표식과 hover·keyboard focus·geometry를 측정한다. 파일 GET이 진행 중일 때 이전 문서의 Outline 표식은 남아 있을 수 있으므로 새 파일의 준비 신호가 아니다. 현재 상태를 기다린 뒤에도 비색상 표식의 실제 CSS와 너비를 별도로 검사한다.
 
 `ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
+
+`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에는 그 문서의 복구 기록 제거를 기다린다. 편집기의 Undo 완료만으로 비동기 복구 정리가 끝났다고 가정하지 않는다. 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있다(#405).
 
 `footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
 

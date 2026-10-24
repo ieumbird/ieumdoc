@@ -11,11 +11,14 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openDocument, reloadDocument } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
+import { recoveryRecords } from "./recovery-records.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
 const screenshots = process.env.IEUMDOC_BROWSER_SCREENSHOTS === "true";
-const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
+const channel = process.env.IEUMDOC_BROWSER_CHANNEL ?? (process.platform === "win32" ? "chrome" : undefined);
+if (channel && channel !== "chrome" && channel !== "msedge") throw new Error("Unsupported browser channel");
+const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16) + (channel === "msedge" ? "-edge" : ""));
 
 function sourceDigest(): string {
   const hash = createHash("sha256");
@@ -32,7 +35,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
   session: [async ({}, use) => {
     const before = sourceDigest();
     const context = await chromium.launchPersistentContext(profile, {
-      ...(process.platform === "win32" ? { channel: "chrome" } : {}),
+      ...(channel ? { channel } : {}),
       headless: true,
       locale: "en-US",
       viewport: { width: 1280, height: 720 },
@@ -147,7 +150,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -157,7 +160,7 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { screenshots, openDocument, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
+    const result = await scenario(page, { screenshots, expect, recoveryRecords, openDocument, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });

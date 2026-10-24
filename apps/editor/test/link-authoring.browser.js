@@ -60,7 +60,7 @@ async (page, { openDocument }) => {
   };
   const setLink = async (text, url) => {
     await select(text, 'set invalid-save link');
-    await page.getByRole('button', {name:'Link', exact:true}).click();
+    await page.keyboard.press("Control+Quote");
     await page.getByTestId('link-url').fill(url);
     await page.getByTestId('link-apply').click();
     await page.getByTestId('link-form').waitFor({state:'detached'});
@@ -78,7 +78,35 @@ async (page, { openDocument }) => {
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');
-  await page.getByRole('button', {name:'Link', exact:true}).click();
+  for (const event of [
+    {key:'ä',code:'Quote',keyCode:222},
+    {key:'ù',code:'Quote',keyCode:192},
+    {key:"'",code:'Digit4',keyCode:52},
+    {key:"'",code:'Backslash',keyCode:220,shiftKey:true},
+    ...['Process','Unidentified'].map(key => ({key,code:'Quote',keyCode:52})),
+  ]) {
+    const allowed = await editor.locator('.ProseMirror').evaluate((node,event) => node.dispatchEvent(new KeyboardEvent('keydown',
+      {...event,ctrlKey:true,bubbles:true,cancelable:true})), event);
+    if (!allowed || await page.getByTestId('link-form').count()) throw Error('Layout-specific key was intercepted by Link');
+  }
+  const linkButton = page.getByRole('button', {name:'Link',exact:true});
+  if (await linkButton.getAttribute('title') !== "Link (Ctrl+')" ||
+      await linkButton.getAttribute('aria-keyshortcuts') !== "Control+' Meta+'") throw Error('Link shortcut label mismatch');
+  await page.keyboard.press('Control+Alt+Shift+KeyK');
+  if (await page.getByTestId('link-form').count()) throw Error('Previous AltGr-prone shortcut still opens the link form');
+  await page.keyboard.press("Control+Quote");
+  await page.getByTestId('link-url').waitFor();
+  await page.getByTestId('link-url').press('Escape');
+  await page.getByTestId('link-form').waitFor({state:'detached'});
+  await select('OpenAI', 'Korean code shortcut');
+  await editor.locator('.ProseMirror').dispatchEvent('keydown',
+    {key:'Process',code:'Quote',keyCode:229,ctrlKey:true,isComposing:true,bubbles:true,cancelable:true});
+  if (await page.getByTestId('link-form').count()) throw Error('Link shortcut interrupted composition');
+  await editor.locator('.ProseMirror').dispatchEvent('keydown',
+    {key:'Unidentified',code:'Quote',keyCode:0,ctrlKey:true,bubbles:true,cancelable:true});
+  await page.getByTestId('link-url').waitFor();
+  result.physicalKeyLinkShortcut = true;
+
   result.formPrefilled = await page.getByTestId('link-url').inputValue() === 'https://openai.com';
   // Transient inline input closes without Apply on any outside blur, including tab switches.
   const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
@@ -111,12 +139,21 @@ async (page, { openDocument }) => {
   // Remove the link inside bold text; bold stays.
   await select('docs', 'remove bold link');
   await page.getByRole('button', {name:'Link', exact:true}).click();
-  await page.getByTestId('link-remove').click();
+  // Hold only frames queued by Remove so a slow old focus callback cannot escape coverage.
+  // Restore the browser scheduler immediately; release the held work after the next form opens.
+  await page.getByTestId('link-remove').evaluate(button => {
+    const schedule = window.requestAnimationFrame;
+    window.previousLinkFrames = [];
+    window.requestAnimationFrame = callback => { window.previousLinkFrames.push(callback); return 0; };
+    try { button.click(); } finally { window.requestAnimationFrame = schedule; }
+  });
   await page.getByTestId('link-form').waitFor({state:'detached'});
 
   // Add a link to plain text; the form rejects a URL with spaces first.
   await select('linked', 'add plain-text link');
-  await page.getByRole('button', {name:'Link', exact:true}).click();
+  await page.keyboard.press("Control+Quote");
+  await page.getByTestId('link-url').waitFor();
+  await page.evaluate(() => window.previousLinkFrames.forEach(callback => callback(performance.now())));
   await page.getByTestId('link-url').fill('https://example.com/a b');
   await page.getByTestId('link-apply').click();
   result.spacesRejectedInForm = await page.getByText('A URL cannot contain spaces.').filter({visible:true}).count() === 1;
