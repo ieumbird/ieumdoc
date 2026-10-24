@@ -6,7 +6,7 @@ import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -534,12 +534,18 @@ export function App() {
   // The center is another entry to the same handlers and availability conditions as the shell.
   // It owns no document operation, indexing or persistent command registry.
   const commandDocumentNames = tabNames(tabs);
-  // Read the existing listing cache, including collapsed folders. Searching never lists a folder.
-  const listedDocuments = new Map<string, FolderEntry>();
-  for (const tree of folders.trees) for (const listing of tree.nodes.values()) {
-    for (const entry of listing.entries) if (entry.kind === "document") listedDocuments.set(entry.path, entry);
-  }
-  for (const tab of tabs) listedDocuments.delete(tab.path);
+  const commandOpen = commandQuery !== null;
+  const listedDocuments = useMemo(() => {
+    if (!commandOpen) return [];
+    const listed = new Map<string, FolderEntry>();
+    // Follow current parent listings, regardless of expansion. Disconnected caches stay in the
+    // sidebar for reuse but do not contribute search results. No Host discovery is involved.
+    for (const tree of folders.trees) for (const path of knownFolders(tree)) {
+      for (const entry of tree.nodes.get(path)?.entries ?? []) if (entry.kind === "document") listed.set(entry.path, entry);
+    }
+    return [...listed.values()].sort((a, b) => a.path.localeCompare(b.path));
+  }, [commandOpen, folders.trees]);
+  const openedPaths = new Set(tabs.map(tab => tab.path));
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
@@ -552,7 +558,7 @@ export function App() {
           : globalThis.document.getElementById(`tab-${tab.id}`);
       },
     })),
-    ...[...listedDocuments.values()].sort((a, b) => a.path.localeCompare(b.path)).map(entry => ({
+    ...listedDocuments.filter(entry => !openedPaths.has(entry.path)).map(entry => ({
       id: `file:${entry.path}`, kind: "file" as const, label: entry.name,
       detail: `${i18n.t("Files")} · ${entry.native === false ? `${i18n.t("Not an IeumDoc document")} · ` : ""}${entry.path}`,
       icon: entry.native === false ? FileX : FileText, foreign: entry.native === false,

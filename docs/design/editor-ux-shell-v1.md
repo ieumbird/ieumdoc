@@ -150,11 +150,15 @@ recent-command persistence, filesystem index or new document-content actions.
 
 ### Listed document search (#384)
 
-The source is the in-memory `nodes` listing cache of **all currently opened sidebar folders**
-([ADR-0009](../adr/0009-multiple-opened-folders.md)). Every cached listing contributes its
-`document` entries, even while its folder is collapsed or the sidebar is hidden. A subfolder
-whose contents have never been listed contributes no files. Closing a root removes its listings
-from this source; opening/relisting/expanding retains the existing sidebar cache lifecycle.
+The source is the in-memory listing cache reachable from the roots of **all currently opened sidebar
+folders** ([ADR-0009](../adr/0009-multiple-opened-folders.md)). Starting at each root, follow folder
+entries in the current parent listings and collect each reached listing's `document` entries,
+regardless of expansion or sidebar visibility. A subfolder whose contents have never been listed
+contributes no files. If a parent is relisted without a child folder, that disconnected child's
+retained cache stops contributing immediately. Restoring the child entry makes its retained listing
+reachable again, including while collapsed. Search does not change the sidebar's cache preservation
+or expansion behavior. Closing a root removes its contribution. Candidate collection and path sorting
+run only while the center is open and are memoized until the opened-folder trees change.
 Search itself neither requests Host listings/document reads nor expands folders, recursively lists
 the filesystem, builds an index or stores the search source in preferences.
 
@@ -162,9 +166,14 @@ Results use the Host-resolved path as identity: an opened tab replaces that file
 and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
 with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
 its full path. Existing commands follow in their existing order. Name/path word matching and the
-`>` commands-only mode are unchanged. There is no result-count truncation: the existing height-bounded,
-scrolling Combobox list keeps every match reachable by pointer and keyboard. There is no new ranking
-or document-content command.
+`>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
+The existing height-bounded, scrolling Combobox renders at most 50 matches on one page. Larger result
+sets show the current range and full count, with Previous results / Next results buttons. Those buttons
+are reachable by Tab and return focus to search after changing page; Base UI still owns highlight,
+arrows and Enter within the page. Every match is available through paging or narrowing the query,
+which resets to page one. No match is silently dropped, and no ranking, search index, virtualization
+library or document-content command is introduced. The DOM bound addresses measured rendering cost
+without changing the source scope, ordering, matching or shell action handlers.
 
 As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
 the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the

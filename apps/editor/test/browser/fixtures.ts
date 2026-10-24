@@ -42,6 +42,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   ], scenarios: ["file-preview"] },
   "document-tabs": { files: [
     ...Array.from({ length: 8 }, (_, index) => ({ name: `technical-${index + 1}.md`, create: () => document("technical-document.md").create() })),
+    { name: "bulk-1999.md", create: () => document("technical-document.md").create() },
     { name: "foreign.md", create: () => "# Foreign Markdown\n\nNo native marker.\n" },
     { name: "notes.txt", create: () => "Not a document" },
     document("diagram.svg"),

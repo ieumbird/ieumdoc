@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Combobox } from "@base-ui/react/combobox";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { Input } from "@/components/ui/input.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
 import { filterCommandCenterItems, type CommandCenterItem } from "./command-center.ts";
 
@@ -15,21 +16,33 @@ type Props = {
   onClose(): void;
 };
 
+// Bound DOM work without dropping matches; every result remains searchable and paged.
+const RESULTS_PER_PAGE = 50;
+
 export function CommandCenter({ open, initialQuery, items, returnFocus, onClose }: Props) {
   useTranslation();
   const [query, setQuery] = useState(initialQuery);
+  const [resultPage, setResultPage] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const selected = useRef<CommandCenterItem | null>(null);
   const transfersFocus = useRef(false);
   useEffect(() => {
-    if (open) { setQuery(initialQuery); transfersFocus.current = false; }
+    if (open) { setQuery(initialQuery); setResultPage(0); transfersFocus.current = false; }
   }, [open, initialQuery]);
-  const filtered = filterCommandCenterItems(items, query);
+  const filtered = useMemo(() => open ? filterCommandCenterItems(items, query) : [], [items, query, open]);
+  const lastPage = Math.max(0, Math.ceil(filtered.length / RESULTS_PER_PAGE) - 1);
+  const page = Math.min(resultPage, lastPage);
+  const first = page * RESULTS_PER_PAGE;
+  const visible = useMemo(() => filtered.slice(first, first + RESULTS_PER_PAGE), [filtered, first]);
+  const changePage = (next: number) => {
+    setResultPage(next);
+    input.current?.focus();
+  };
   const close = (next: boolean) => { if (!next) onClose(); };
   return (
     <Combobox.Root<CommandCenterItem> inline open={open} onOpenChange={close} autoHighlight
-      items={items} filteredItems={filtered} value={null} inputValue={query}
-      onInputValueChange={setQuery} itemToStringLabel={item => item.label}
+      items={visible} filteredItems={visible} value={null} inputValue={query}
+      onInputValueChange={next => { setQuery(next); setResultPage(0); }} itemToStringLabel={item => item.label}
       isItemEqualToValue={(a, b) => a.id === b.id}
       onValueChange={item => {
         if (!item || item.disabled) return;
@@ -72,6 +85,15 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
               </Combobox.Item>
             )}
           </Combobox.List>
+          {lastPage > 0 ? <div className="command-center-footer">
+            <span role="status">{i18n.t("Showing {{first}}–{{last}} of {{total}} results. Narrow your search or change page.", {
+              first: first + 1, last: first + visible.length, total: filtered.length,
+            })}</span>
+            <div className="command-center-page-controls">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => changePage(page - 1)}>{i18n.t("Previous results")}</Button>
+              <Button variant="ghost" size="sm" disabled={page === lastPage} onClick={() => changePage(page + 1)}>{i18n.t("Next results")}</Button>
+            </div>
+          </div> : null}
           <div className="command-center-footer">
             <span>{i18n.t("Type > for commands")}</span>
             <span><kbd>↑↓</kbd> {i18n.t("Navigate")} <kbd>Enter</kbd> {i18n.t("Run")}</span>

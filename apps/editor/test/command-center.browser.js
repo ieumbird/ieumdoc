@@ -46,7 +46,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     await page.getByTestId('folder-path').fill(path + sep);
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});
-    await page.locator(`[data-testid="folder"][data-root="${path.replaceAll('\\','\\\\')}"]`).waitFor();
+    await page.locator(`[data-testid="folder"][data-root="${path.replaceAll('\\','\\\\')}"]`).waitFor({state:'attached'});
   };
   const folderPath = file('').slice(0,-1);
   await openFolder(folderPath);
@@ -80,6 +80,26 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await open('guide.md');
   check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Collapsed loaded folder omitted or unlisted sibling included');
   check((await center().getByRole('option',{name:'guide.md',exact:true}).innerText()).includes([folderPath,'alpha','guide.md'].join(sep)), 'Collapsed result has no path');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  // Relisting a parent can disconnect a preserved child cache. Collapsed, reachable caches
+  // remain searchable, but a removed child must not leak results from its old listing.
+  const removeAlpha = async route => {
+    const response = await route.fetch();
+    const listing = await response.json();
+    if (listing.path === folderPath) listing.entries = listing.entries.filter(entry => entry.name !== 'alpha');
+    await route.fulfill({response,json:listing});
+  };
+  await page.route('**/api/folder?**', removeAlpha);
+  try {
+    await openFolder(folderPath);
+    check(await folder.getByRole('treeitem',{name:'alpha',exact:true}).count() === 0, 'Parent relisting still displays the removed folder');
+    await open('guide.md');
+    check(await center().getByRole('option').count() === 0, 'Disconnected child cache remained searchable after parent relisting');
+    await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  } finally { await page.unroute('**/api/folder?**', removeAlpha); }
+  await openFolder(folderPath);
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Restoring the parent entry lost its collapsed child cache');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   // Overlapping opened roots must not duplicate the same cached file.
   await openFolder([folderPath,'alpha'].join(sep));
@@ -359,5 +379,67 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   result.bilingualSearch = true;
+
+  // A large Host listing stays fully searchable without mounting every match. Keep timing out
+  // of regression assertions; protect bounded rows, explicit counts, paging and keyboard access.
+  await page.setViewportSize({width:1280,height:720});
+  const bulk = Array.from({length:2000},(_,i) => {
+    const name = `bulk-${String(i).padStart(4,'0')}.md`;
+    return {name,path:file(name),kind:'document',native:true};
+  });
+  const bulkListing = async route => {
+    const response = await route.fetch();
+    const listing = await response.json();
+    if (listing.path === folderPath) listing.entries = bulk;
+    await route.fulfill({response,json:listing});
+  };
+  await page.route('**/api/folder?**', bulkListing);
+  try {
+    await openFolder(folderPath);
+    await folder.getByRole('treeitem',{name:'bulk-1999.md',exact:true,includeHidden:true}).waitFor({state:'attached'});
+    const collapse = page.getByRole('button',{name:'Collapse sidebar',exact:true});
+    if (await collapse.isVisible()) await collapse.click();
+    searchRequests = 0;
+    page.on('request', countSearchRequests);
+    await open('bulk');
+    const firstPageCount = await center().getByRole('option').count();
+    check(firstPageCount > 1 && firstPageCount < bulk.length, 'Large result set was not bounded');
+    check(await center().getByRole('status').filter({hasText:'of 2000 results'}).isVisible(), 'Paging concealed the total match count');
+    check(await center().getByRole('option').first().getAttribute('aria-label') === 'bulk-0000.md', 'First page lost path order');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/paged-1280.png'});
+    await page.keyboard.press('Tab');
+    check(await page.evaluate(() => document.activeElement?.textContent === 'Next results'), 'Next page is not reachable by Tab');
+    await page.keyboard.press('Enter');
+    const nextName = `bulk-${String(firstPageCount).padStart(4,'0')}.md`;
+    await center().getByRole('option',{name:nextName,exact:true}).waitFor();
+    check(await input().evaluate(n => n === document.activeElement), 'Paging did not return focus to search');
+    await page.keyboard.press('ArrowDown');
+    check(await center().getByRole('option',{name:`bulk-${String(firstPageCount+1).padStart(4,'0')}.md`,exact:true}).getAttribute('data-highlighted') !== null, 'Paged results lost keyboard navigation');
+    await page.keyboard.press('Tab');
+    check(await page.evaluate(() => document.activeElement?.textContent === 'Previous results'), 'Previous page is not reachable by Tab');
+    await page.keyboard.press('Enter');
+    await center().getByRole('option',{name:'bulk-0000.md',exact:true}).waitFor();
+    await page.setViewportSize({width:375,height:900});
+    for (const name of ['Previous results','Next results']) {
+      const box = await center().getByRole('button',{name,exact:true}).boundingBox();
+      check(box && box.x >= 0 && box.x + box.width <= 375, `Paging control clipped on phone: ${name}`);
+    }
+    if (screenshots) await page.screenshot({path:'tmp/command-center/paged-375.png'});
+    await input().fill('bulk-1999');
+    check(await center().getByRole('option').count() === 1, 'Narrowing searched only the current page');
+    check(await center().getByRole('button',{name:'Next results',exact:true}).count() === 0, 'Narrowed search retained stale pagination');
+    check(searchRequests === 0, 'Paging/searching made Host requests');
+    page.off('request', countSearchRequests);
+    await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+    await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'bulk-1999.md');
+    await ready();
+    await page.keyboard.type('bulk384');
+    check((await editor().innerText()).includes('bulk384'), 'A late search result did not open with editor focus');
+    await page.keyboard.press('Control+z');
+    result.largeListing = {documents:bulk.length,firstPageCount};
+  } finally {
+    page.off('request', countSearchRequests);
+    await page.unroute('**/api/folder?**', bulkListing);
+  }
   return result;
 }
