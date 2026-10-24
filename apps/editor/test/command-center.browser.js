@@ -40,6 +40,78 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await center().waitFor({state:'detached'});
 
   await openDocument(page, file('technical-1.md')); await ready();
+  // Search only listings already held by the sidebar, including collapsed cached children.
+  const openFolder = async path => {
+    await run('open folder');
+    await page.getByTestId('folder-path').fill(path + sep);
+    await page.getByTestId('folder-open').click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.locator(`[data-testid="folder"][data-root="${path.replaceAll('\\','\\\\')}"]`).waitFor();
+  };
+  const folderPath = file('').slice(0,-1);
+  await openFolder(folderPath);
+  const folder = page.getByTestId('folder').first();
+  await folder.getByRole('treeitem',{name:'technical-8.md',exact:true}).waitFor();
+  let searchRequests = 0;
+  const countSearchRequests = request => { if (/\/api\/(folder|document)(\?|$)/.test(request.url())) searchRequests++; };
+  page.on('request', countSearchRequests);
+  await open('technical');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/sidebar-search-384.png'});
+  const matches = await center().getByRole('option').allTextContents();
+  check(matches.some(text => text.includes('technical-8.md')), 'Sidebar-listed unopened document missing from search');
+  check(await center().getByRole('option',{name:'technical-1.md',exact:true}).count() === 1, 'Opened tab duplicated by sidebar listing');
+  check((await center().getByRole('option',{name:'technical-1.md',exact:true}).innerText()).includes('Opened tab'), 'Opened tab not distinguished');
+  check((await center().getByRole('option',{name:'technical-8.md',exact:true}).innerText()).includes('Files'), 'Unopened file not distinguished');
+  check(JSON.stringify(await center().getByRole('option').evaluateAll(nodes => nodes.map(n => n.getAttribute('aria-label')))) ===
+    JSON.stringify(Array.from({length:8}, (_,i) => `technical-${i+1}.md`)), 'Results did not keep tabs first and unopened files in path order');
+  await input().fill('guide.md');
+  check(await center().getByRole('option').count() === 0, 'Unlisted subfolder document appeared in search');
+  for (const excluded of ['diagram.svg','notes.txt']) {
+    await input().fill(excluded);
+    check(await center().getByRole('option').count() === 0, `Non-document ${excluded} appeared in document search`);
+  }
+  check(searchRequests === 0, 'Searching made a Host listing or document request');
+  page.off('request', countSearchRequests);
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+
+  await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
+  await folder.getByRole('treeitem',{name:'guide.md',exact:true}).waitFor();
+  await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Collapsed loaded folder omitted or unlisted sibling included');
+  check((await center().getByRole('option',{name:'guide.md',exact:true}).innerText()).includes([folderPath,'alpha','guide.md'].join(sep)), 'Collapsed result has no path');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  // Overlapping opened roots must not duplicate the same cached file.
+  await openFolder([folderPath,'alpha'].join(sep));
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Overlapping roots duplicated a document');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+
+  // Existing dirty content is retained; opening a file must hand focus to its mounted editor.
+  await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
+  await page.keyboard.type('retained384');
+  const retained = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
+  await open('technical-8.md');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'technical-8.md');
+  await ready();
+  await page.keyboard.type('opened384');
+  check((await editor().innerText()).includes('opened384'), 'Unopened file did not focus its editor');
+  await page.keyboard.press('Control+z');
+  await open('technical-1.md');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  check(await editor().evaluate(n => JSON.stringify(n.editor.getJSON())) === retained, 'Opening a listed file lost existing dirty work');
+  await page.keyboard.press('Control+z');
+  await open('foreign.md');
+  const foreign = center().getByRole('option',{name:'foreign.md',exact:true});
+  check((await foreign.innerText()).includes('Not an IeumDoc document'), 'Non-native file has no explanation');
+  check(await foreign.evaluate(n => getComputedStyle(n).color) === await folder.getByRole('treeitem',{name:'foreign.md',exact:true,includeHidden:true}).evaluate(n => getComputedStyle(n).color), 'Non-native result differs from sidebar muted treatment');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor();
+  check(await page.getByTestId('current-file').textContent() === 'technical-1.md', 'Non-native selection replaced the document');
+  await page.keyboard.press('Escape'); await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor({state:'detached'});
+  result.sidebarListedDocuments = true;
+
   await editor().evaluate(n => {
     window.commandCenterEditor = n.editor;
     n.editor.commands.setTextSelection({from:2,to:5});
@@ -202,6 +274,10 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     check(await center().getByRole('option',{name:'technical-2.md',exact:true}).getAttribute('aria-disabled')==='true', 'Tab switch was available while saving');
     await page.keyboard.press('Enter');
     check(await page.getByTestId('current-file').textContent()==='technical-1.md', 'Busy command switched the active tab');
+    await input().fill('technical-6');
+    check(await center().getByRole('option',{name:'technical-6.md',exact:true}).getAttribute('aria-disabled')==='true', 'Unopened file was available while saving');
+    await page.keyboard.press('Enter');
+    check(await page.getByTestId('current-file').textContent()==='technical-1.md', 'Busy command opened another file');
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   } finally {
     releaseSave();

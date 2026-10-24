@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
+- Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
 - Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
 - Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
 - Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
@@ -117,8 +118,9 @@ semantics, so it has no CLI counterpart.
 The current document's location/name is a searchable command-center button centered in the TopBar.
 The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+P opens a
 search dialog near the top center; Ctrl/Cmd+Shift+P starts with `>` to list commands only.
-The input searches already-open document names/paths and existing shell command names, including
-their Korean/English aliases. It does not list unopened files or search document contents.
+The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
+existing shell command names, including their Korean/English aliases. It does not search document
+contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
 
 Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
 and Settings handlers and their current availability. Switching to an opened document reuses tab
@@ -145,6 +147,39 @@ No-match feedback and controls are translated with the existing UI language.
 This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
 existing file/session handlers remain authoritative. The first version has no command plugin system,
 recent-command persistence, filesystem index or new document-content actions.
+
+### Listed document search (#384)
+
+The source is the in-memory `nodes` listing cache of **all currently opened sidebar folders**
+([ADR-0009](../adr/0009-multiple-opened-folders.md)). Every cached listing contributes its
+`document` entries, even while its folder is collapsed or the sidebar is hidden. A subfolder
+whose contents have never been listed contributes no files. Closing a root removes its listings
+from this source; opening/relisting/expanding retains the existing sidebar cache lifecycle.
+Search itself neither requests Host listings/document reads nor expands folders, recursively lists
+the filesystem, builds an index or stores the search source in preferences.
+
+Results use the Host-resolved path as identity: an opened tab replaces that file's listing result,
+and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
+with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
+its full path. Existing commands follow in their existing order. Name/path word matching and the
+`>` commands-only mode are unchanged. There is no result-count truncation: the existing height-bounded,
+scrolling Combobox list keeps every match reachable by pointer and keyboard. There is no new ranking
+or document-content command.
+
+As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
+the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
+same admission explanation available through either navigation entry. The existing Host/Core
+admission check remains authoritative even for a listing marked native. Images, other regular files
+and folders are omitted: they are preview/navigation entries rather than editable documents and
+retain their existing sidebar entry points.
+
+Selecting an unopened file closes the center before calling the same `openFolderDocument` handler
+as the sidebar, including existing operation/continuation restrictions, retained dirty tabs and
+property drafts, admission refusal and recovery flows. A successful open focuses the mounted Visual
+editor; an admission/recovery dialog owns its focus. Opening a file may relist/reveal its folders
+through the existing open path; those requests are not search-time discovery. Opened-tab selection
+keeps #386's synchronous tab activation and Dialog final-focus behavior, including Source tabs.
+This is Editor navigation, so no Core operation or CLI command is added.
 
 ### Command center verification (#363)
 
@@ -190,6 +225,24 @@ state/history/property drafts, cancellation, panel hiding and command/modal focu
 covered. A repeat of the unthrottled typing probe passed all 12 attempts after the fix. Related
 `editor-shell`, `document-tabs`, `ui-language`, `layout-rules` and `quiet-document` checks also passed.
 No Core operation or CLI command is needed for these Editor-only focus interactions.
+
+### Listed document search verification (#384)
+
+The extended `command-center` scenario failed against base `144e34af8ec75c1d14fad045f76440d8da72aead`
+before product edits: `Sidebar-listed unopened document missing from search`. Actual Windows Chrome
+[before](assets/command-center-384/before.png) / [after](assets/command-center-384/after.png) captures
+show the same `technical` query, opened `technical-1.md`, listed scratch folder and 1280×720 viewport
+(default DPR/100% zoom, bundled Pretendard). Both came from this same worktree and its existing
+persistent browser profile; no extra checkout or temporary Chrome profile was used.
+
+The scenario now checks tab/file distinction and ordering without result truncation, no Host request
+while searching, unloaded-child exclusion, collapsed-child inclusion, overlapping-root and tab-path
+deduplication, image/other-file exclusion, immediate typing/Undo after opening a file, retained dirty
+work, busy restrictions and the real non-native refusal with unchanged active document. The existing
+#386 immediate search/tab-focus and Source/IME/modal/history/draft checks remain. New-editor focus
+runs after Tiptap's Strict Mode DOM reattachment in a cancellable microtask; the browser check adds
+no focus polling or reload before typing. The visual change reuses the existing result layout,
+selected surface and sidebar subtle-text/crossed-file treatment; no adjustable value is introduced.
 
 ## Writing interactions
 
@@ -247,7 +300,7 @@ final writes still require real definitions. The literal `/` code probe in
 
 ## Boundaries
 
-No workspace, recursive filesystem scan, folder watch, filesystem/content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
+No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
 

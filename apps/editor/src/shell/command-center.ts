@@ -3,13 +3,15 @@ import type { LucideIcon } from "lucide-react";
 /** A view of existing shell actions, rebuilt from the current tab and operation state. */
 export type CommandCenterItem = {
   id: string;
-  kind: "document" | "command";
+  kind: "document" | "file" | "command";
   label: string;
   keywords?: string[];
   detail?: string;
   shortcut?: string;
   icon: LucideIcon;
   disabled?: boolean;
+  /** A listed Markdown file without IeumDoc's native marker, as in the sidebar. */
+  foreign?: boolean;
   /** A command opening another surface owns its focus after the center has closed. */
   takesFocus?: boolean;
   run(): void;
