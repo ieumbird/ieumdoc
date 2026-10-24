@@ -149,7 +149,7 @@ async (page, { openDocument, screenshots = false }) => {
     const longFile = {...clone(fileA), path:longPath};
     longFile.document.blocks = longFile.document.blocks.filter(block => block.block !== 'figure');
     files.set(longPath, longFile);
-    await openDocument(page, longPath);
+    await openPath(page, longPath);
     await editParagraph(page, ' Long name dirty');
     await page.getByRole('button', {name:`Close ${longName}`,exact:true}).click();
     await measureLongDialog('unsaved', page.getByRole('dialog', {name:'Save changes?',exact:true}));
