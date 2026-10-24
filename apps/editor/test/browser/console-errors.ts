@@ -10,6 +10,9 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "command-center": [
+    { status: 400, pathname: "/api/document", queryPath: path.join(REPOSITORY_ROOT, "tmp", "document-tabs", "foreign.md"), minimum: 1, description: "listed non-native Markdown uses the existing admission refusal" },
+  ],
   "ui-language": [
     {status: 409, pathname: "/api/document", minimum: 1, description: "conflict guidance follows language changes while preserving edits"},
   ],
