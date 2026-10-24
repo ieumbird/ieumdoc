@@ -324,6 +324,15 @@ async (page, { openDocument, screenshots }) => {
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
 
+  // This reload checks platform labels, so finish the earlier scratch edits first.
+  // Otherwise a recorded deletion can offer recovery and cover Settings after reload.
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  await page.waitForFunction(async path => {
+    const { recoveryStorage } = await import('/src/recovery-storage.ts');
+    return !(await recoveryStorage.list()).some(record => record.path === path);
+  }, [root, 'tmp', 'cross-reference', 'delete.md'].join(separator));
+
   // Emulate Apple's platform branch before module initialization, using this same profile.
   // This checks displayed shortcuts, not a native macOS keyboard run.
   await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));

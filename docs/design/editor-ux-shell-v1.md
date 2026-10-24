@@ -200,7 +200,11 @@ Tiptap `focus()` could blur the next form. A regression holds only frames queued
 releases them after opening the next form; it failed before the fix and passes with synchronous
 ProseMirror focus return on Apply/Remove/Escape. The exploratory headed layout scenario also
 observed a 15px native-scrollbar difference; the standard runner passes unchanged assertions.
-No browser-runner or command-center focus-policy change is introduced by #381.
+No browser-runner or command-center focus-policy change is introduced by #381. The full CI also
+exposed a platform-label test isolation race: a recorded deletion offered recovery after Reload and
+covered Settings. Waiting for an actual deletion record reproduced it locally. The cross-reference
+scenario now Saves its scratch edits and observes removal of that path's recovery record before the
+platform-only Reload; product recovery behavior and existing assertions are unchanged.
 
 Same-path `quiet-document --screenshots` product comparison at base `c587663` and #381 implementation,
 Windows Chrome, DPR 1 / 100% zoom, bundled Pretendard, scroll top, equivalent rest state:
