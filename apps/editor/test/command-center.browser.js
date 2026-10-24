@@ -79,6 +79,98 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await center().waitFor({state:'detached'});
 
   await openDocument(page, file('technical-1.md')); await ready();
+  // Search only listings already held by the sidebar, including collapsed cached children.
+  const openFolder = async path => {
+    await run('open folder');
+    await page.getByTestId('folder-path').fill(path + sep);
+    await page.getByTestId('folder-open').click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.locator(`[data-testid="folder"][data-root="${path.replaceAll('\\','\\\\')}"]`).waitFor({state:'attached'});
+  };
+  const folderPath = file('').slice(0,-1);
+  await openFolder(folderPath);
+  const folder = page.getByTestId('folder').first();
+  await folder.getByRole('treeitem',{name:'technical-8.md',exact:true}).waitFor();
+  let searchRequests = 0;
+  const countSearchRequests = request => { if (/\/api\/(folder|document)(\?|$)/.test(request.url())) searchRequests++; };
+  page.on('request', countSearchRequests);
+  await open('technical');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/sidebar-search-384.png'});
+  const matches = await center().getByRole('option').allTextContents();
+  check(matches.some(text => text.includes('technical-8.md')), 'Sidebar-listed unopened document missing from search');
+  check(await center().getByRole('option',{name:'technical-1.md',exact:true}).count() === 1, 'Opened tab duplicated by sidebar listing');
+  check((await center().getByRole('option',{name:'technical-1.md',exact:true}).innerText()).includes('Opened tab'), 'Opened tab not distinguished');
+  check((await center().getByRole('option',{name:'technical-8.md',exact:true}).innerText()).includes('Files'), 'Unopened file not distinguished');
+  check(JSON.stringify(await center().getByRole('option').evaluateAll(nodes => nodes.map(n => n.getAttribute('aria-label')))) ===
+    JSON.stringify(Array.from({length:8}, (_,i) => `technical-${i+1}.md`)), 'Results did not keep tabs first and unopened files in path order');
+  await input().fill('guide.md');
+  check(await center().getByRole('option').count() === 0, 'Unlisted subfolder document appeared in search');
+  for (const excluded of ['diagram.svg','notes.txt']) {
+    await input().fill(excluded);
+    check(await center().getByRole('option').count() === 0, `Non-document ${excluded} appeared in document search`);
+  }
+  check(searchRequests === 0, 'Searching made a Host listing or document request');
+  page.off('request', countSearchRequests);
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+
+  await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
+  await folder.getByRole('treeitem',{name:'guide.md',exact:true}).waitFor();
+  await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Collapsed loaded folder omitted or unlisted sibling included');
+  check((await center().getByRole('option',{name:'guide.md',exact:true}).innerText()).includes([folderPath,'alpha','guide.md'].join(sep)), 'Collapsed result has no path');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  // Relisting a parent can disconnect a preserved child cache. Collapsed, reachable caches
+  // remain searchable, but a removed child must not leak results from its old listing.
+  const removeAlpha = async route => {
+    const response = await route.fetch();
+    const listing = await response.json();
+    if (listing.path === folderPath) listing.entries = listing.entries.filter(entry => entry.name !== 'alpha');
+    await route.fulfill({response,json:listing});
+  };
+  await page.route('**/api/folder?**', removeAlpha);
+  try {
+    await openFolder(folderPath);
+    check(await folder.getByRole('treeitem',{name:'alpha',exact:true}).count() === 0, 'Parent relisting still displays the removed folder');
+    await open('guide.md');
+    check(await center().getByRole('option').count() === 0, 'Disconnected child cache remained searchable after parent relisting');
+    await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  } finally { await page.unroute('**/api/folder?**', removeAlpha); }
+  await openFolder(folderPath);
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Restoring the parent entry lost its collapsed child cache');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  // Overlapping opened roots must not duplicate the same cached file.
+  await openFolder([folderPath,'alpha'].join(sep));
+  await open('guide.md');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Overlapping roots duplicated a document');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+
+  // Existing dirty content is retained; opening a file must hand focus to its mounted editor.
+  await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
+  await page.keyboard.type('retained384');
+  const retained = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
+  await open('technical-8.md');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'technical-8.md');
+  await ready();
+  await page.keyboard.type('opened384');
+  check((await editor().innerText()).includes('opened384'), 'Unopened file did not focus its editor');
+  await page.keyboard.press('Control+z');
+  await open('technical-1.md');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  check(await editor().evaluate(n => JSON.stringify(n.editor.getJSON())) === retained, 'Opening a listed file lost existing dirty work');
+  await page.keyboard.press('Control+z');
+  await open('foreign.md');
+  const foreign = center().getByRole('option',{name:'foreign.md',exact:true});
+  check((await foreign.innerText()).includes('Not an IeumDoc document'), 'Non-native file has no explanation');
+  check(await foreign.evaluate(n => getComputedStyle(n).color) === await folder.getByRole('treeitem',{name:'foreign.md',exact:true,includeHidden:true}).evaluate(n => getComputedStyle(n).color), 'Non-native result differs from sidebar muted treatment');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor();
+  check(await page.getByTestId('current-file').textContent() === 'technical-1.md', 'Non-native selection replaced the document');
+  await page.keyboard.press('Escape'); await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor({state:'detached'});
+  result.sidebarListedDocuments = true;
+
   await editor().evaluate(n => {
     window.commandCenterEditor = n.editor;
     n.editor.commands.setTextSelection({from:2,to:5});
@@ -243,6 +335,10 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
     check(await center().getByRole('option',{name:'technical-2.md',exact:true}).getAttribute('aria-disabled')==='true', 'Tab switch was available while saving');
     await page.keyboard.press('Enter');
     check(await page.getByTestId('current-file').textContent()==='technical-1.md', 'Busy command switched the active tab');
+    await input().fill('technical-6');
+    check(await center().getByRole('option',{name:'technical-6.md',exact:true}).getAttribute('aria-disabled')==='true', 'Unopened file was available while saving');
+    await page.keyboard.press('Enter');
+    check(await page.getByTestId('current-file').textContent()==='technical-1.md', 'Busy command opened another file');
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   } finally {
     releaseSave();
@@ -318,11 +414,74 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'English alias did not find a Korean command');
   await korean.getByRole('combobox').fill('> 저장');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
+  check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
   if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-375.png'});
   await korean.getByRole('combobox').fill('> settings');
   await page.keyboard.press('Enter');
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   result.bilingualSearch = true;
+
+  // A large Host listing stays fully searchable without mounting every match. Keep timing out
+  // of regression assertions; protect bounded rows, live counts, narrowing and keyboard access.
+  await page.setViewportSize({width:1280,height:720});
+  const bulk = Array.from({length:2000},(_,i) => {
+    const name = `bulk-${String(i).padStart(4,'0')}.md`;
+    return {name,path:file(name),kind:'document',native:true};
+  });
+  const bulkListing = async route => {
+    const response = await route.fetch();
+    const listing = await response.json();
+    if (listing.path === folderPath) listing.entries = bulk;
+    await route.fulfill({response,json:listing});
+  };
+  await page.route('**/api/folder?**', bulkListing);
+  try {
+    await openFolder(folderPath);
+    await folder.getByRole('treeitem',{name:'bulk-1999.md',exact:true,includeHidden:true}).waitFor({state:'attached'});
+    const collapse = page.getByRole('button',{name:'Collapse sidebar',exact:true});
+    if (await collapse.isVisible()) await collapse.click();
+    searchRequests = 0;
+    page.on('request', countSearchRequests);
+    await open('bulk');
+    const visibleCount = await center().getByRole('option').count();
+    check(visibleCount === 50, 'Large result set did not show only the first 50 matches');
+    const count = center().getByTestId('command-center-count');
+    check(await count.innerText() === 'Showing 50 of 2000 results. Type more to narrow your search.', 'Truncated results concealed the total or narrowing guidance');
+    check(await count.getAttribute('role') === 'status' && await count.getAttribute('aria-live') === 'polite' && await count.getAttribute('aria-atomic') === 'true', 'Count is not a polite atomic live status');
+    await count.evaluate(n => { window.commandCenterCount = n; });
+    check(await center().getByRole('button',{name:/Previous results|Next results/}).count() === 0, 'Pagination controls remain');
+    check(await center().getByRole('option').first().getAttribute('aria-label') === 'bulk-0000.md' && await center().getByRole('option').last().getAttribute('aria-label') === 'bulk-0049.md', 'Truncation lost path order');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-1280.png'});
+    for (let i = 1; i < visibleCount; i++) await page.keyboard.press('ArrowDown');
+    check(await center().getByRole('option',{name:'bulk-0049.md',exact:true}).getAttribute('data-highlighted') !== null, 'Keyboard cannot reach the last visible match');
+    await page.keyboard.press('ArrowDown');
+    const highlighted = await center().locator('[role="option"][data-highlighted]').getAttribute('aria-label');
+    check(highlighted === 'bulk-0000.md' || highlighted === 'bulk-0049.md', 'ArrowDown escaped the visible matches');
+    check(await center().getByRole('option').count() === 50, 'Keyboard navigation expanded the result limit');
+    await page.setViewportSize({width:375,height:900});
+    const box = await count.boundingBox();
+    check(box && box.x >= 0 && box.x + box.width <= 375, 'Result count clipped on phone');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-375.png'});
+    await input().fill('bulk-000');
+    check(await center().getByRole('option').count() === 10 && await count.innerText() === 'Results: 10', 'Narrowing did not recompute the full result count');
+    await input().fill('bulk-no-match');
+    check(await center().getByRole('option').count() === 0 && await count.innerText() === 'Results: 0', 'Empty search lost its count');
+    await input().fill('bulk-1999');
+    check(await center().getByRole('option').count() === 1 && await count.innerText() === 'Results: 1', 'Narrowing searched only the first 50 matches');
+    check(await count.evaluate(n => n === window.commandCenterCount), 'Query changes remounted the live count status');
+    check(searchRequests === 0, 'Searching made Host requests');
+    page.off('request', countSearchRequests);
+    await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+    await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'bulk-1999.md');
+    await ready();
+    await page.keyboard.type('bulk384');
+    check((await editor().innerText()).includes('bulk384'), 'A late search result did not open with editor focus');
+    await page.keyboard.press('Control+z');
+    result.largeListing = {documents:bulk.length,visibleCount};
+  } finally {
+    page.off('request', countSearchRequests);
+    await page.unroute('**/api/folder?**', bulkListing);
+  }
   return result;
 }

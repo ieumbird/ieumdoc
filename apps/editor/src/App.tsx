@@ -7,7 +7,7 @@ import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -29,7 +29,7 @@ import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./s
 import { TopBar } from "./shell/TopBar.tsx";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Columns3, Copy, FileText, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
+import { Columns3, Copy, FileText, FileX, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -37,6 +37,7 @@ import type {
   FolderBrowseResponse,
   FolderCreateRequest,
   FolderCreateResponse,
+  FolderEntry,
   FolderPlace,
   FolderPlacesResponse,
   FolderResponse,
@@ -87,6 +88,7 @@ export function App() {
   const [folderDialog, setFolderDialog] = useState(false);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
+  const [commandFileFocus, setCommandFileFocus] = useState<string | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const recentFoldersRef = useRef(recentFolders);
   const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
@@ -199,6 +201,23 @@ export function App() {
   const setReloadDialog = (open: boolean) => session?.setReloadDialog(open);
   const closeImageChoice = () => session?.closeImageChoice();
   const selectImage = async (source: string) => session ? session.selectImage(source) : "";
+
+  useEffect(() => {
+    if (!commandFileFocus) return;
+    if (openRefusal || recoveryReview) { setCommandFileFocus(null); return; }
+    if (busy || session?.openedPath !== commandFileFocus) return;
+    // Tiptap's EditorContent reattaches its DOM during Strict Mode's mount replay. Focus after
+    // that commit, before the next input event; a later tab/modal change cancels this handoff.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const target = session.editorRef.current?.getFocusTarget();
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      setCommandFileFocus(null);
+    });
+    return () => { cancelled = true; };
+  }, [commandFileFocus, busy, session, openRefusal, recoveryReview]);
 
   function activateTab(id: string): void {
     if (operationRef.current || session?.busyRef.current || continuation) return;
@@ -461,9 +480,10 @@ export function App() {
     }
   }
 
-  async function openFolderDocument(path: string): Promise<void> {
+  async function openFolderDocument(path: string): Promise<boolean> {
     const message = await openFile(path);
     if (message) setError(message);
+    return message === "";
   }
 
   // Opening or creating a document lists its folders again; there is no watch.
@@ -578,16 +598,41 @@ export function App() {
   // The center is another entry to the same handlers and availability conditions as the shell.
   // It owns no document operation, indexing or persistent command registry.
   const commandDocumentNames = tabNames(tabs);
+  const commandOpen = commandQuery !== null;
+  const listedDocuments = useMemo(() => {
+    if (!commandOpen) return [];
+    const listed = new Map<string, FolderEntry>();
+    // Follow current parent listings, regardless of expansion. Disconnected caches stay in the
+    // sidebar for reuse but do not contribute search results. No Host discovery is involved.
+    for (const tree of folders.trees) for (const path of knownFolders(tree)) {
+      for (const entry of tree.nodes.get(path)?.entries ?? []) if (entry.kind === "document") listed.set(entry.path, entry);
+    }
+    return [...listed.values()].sort((a, b) => a.path.localeCompare(b.path));
+  }, [commandOpen, folders.trees]);
+  const openedPaths = new Set(tabs.map(tab => tab.path));
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
-      detail: tab.path, icon: FileText, disabled: busy || Boolean(continuation),
+      detail: `${i18n.t("Opened tab")} · ${tab.path}`, icon: FileText, disabled: busy || Boolean(continuation),
       run: () => {
         activateTab(tab.id);
         const owner = sessions.current.get(tab.id);
         // The retained target can still be hidden here; Dialog focuses it after activation/dismissal.
         commandReturnFocus.current = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget() ?? null
           : globalThis.document.getElementById(`tab-${tab.id}`);
+      },
+    })),
+    ...listedDocuments.filter(entry => !openedPaths.has(entry.path)).map(entry => ({
+      id: `file:${entry.path}`, kind: "file" as const, label: entry.name,
+      detail: `${i18n.t("Files")} · ${entry.native === false ? `${i18n.t("Not an IeumDoc document")} · ` : ""}${entry.path}`,
+      icon: entry.native === false ? FileX : FileText, foreign: entry.native === false,
+      disabled: busy || Boolean(continuation), takesFocus: true,
+      run: () => {
+        // Run after dismissal so an admission/recovery dialog can own focus. Keep a live return
+        // target for refusals, then focus a successful open only after its editor has mounted.
+        commandReturnFocus.current?.focus({ preventScroll: true });
+        if (sidebarOverlay) setSidebarOpen(false);
+        void openFolderDocument(entry.path).then(opened => { if (opened) setCommandFileFocus(entry.path); });
       },
     })),
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,

@@ -1,0 +1,174 @@
+{
+  "fixture": {
+    "documents": 2000,
+    "sidebar": "collapsed",
+    "cpuThrottling": false,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "trials": [
+    {
+      "openMs": 348,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 70
+        },
+        {
+          "key": "u",
+          "ms": 70
+        },
+        {
+          "key": "l",
+          "ms": 88
+        }
+      ],
+      "uniqueMs": 66,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    },
+    {
+      "openMs": 325,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 89
+        },
+        {
+          "key": "u",
+          "ms": 70
+        },
+        {
+          "key": "l",
+          "ms": 70
+        }
+      ],
+      "uniqueMs": 59,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    },
+    {
+      "openMs": 278,
+      "keys": [
+        {
+          "key": "b",
+          "ms": 52
+        },
+        {
+          "key": "u",
+          "ms": 89
+        },
+        {
+          "key": "l",
+          "ms": 71
+        }
+      ],
+      "uniqueMs": 67,
+      "renderedMany": 50,
+      "renderedUnique": 1
+    }
+  ],
+  "profile": {
+    "durationMs": 1122,
+    "categories": {
+      "other": 725.7430000000004,
+      "App": 17.328999999999997,
+      "React render/commit": 370.68000000000023,
+      "filter": 7.5329999999999995
+    },
+    "self": [
+      {
+        "fn": "(program)",
+        "url": "",
+        "ms": 567
+      },
+      {
+        "fn": "(idle)",
+        "url": "",
+        "ms": 114
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 74
+      },
+      {
+        "fn": "exports.jsxDEV",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 16
+      },
+      {
+        "fn": "(garbage collector)",
+        "url": "",
+        "ms": 15
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 12
+      },
+      {
+        "fn": "updateProperties",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 11
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 9
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 9
+      },
+      {
+        "fn": "updateProperties",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 9
+      },
+      {
+        "fn": "focus",
+        "url": "",
+        "ms": 8
+      },
+      {
+        "fn": "jsxDEVImpl",
+        "url": "react_jsx-dev-runtime.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "commitUpdate",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 6
+      },
+      {
+        "fn": "",
+        "url": "command-center.ts",
+        "ms": 6
+      },
+      {
+        "fn": "",
+        "url": "lucide-react.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "ReactElement",
+        "url": "react.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "pushHostContext",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 5
+      },
+      {
+        "fn": "stopProfilerTimerIfRunningAndRecordDuration",
+        "url": "react-dom_client.js?v=639f67f4",
+        "ms": 5
+      }
+    ]
+  }
+}
