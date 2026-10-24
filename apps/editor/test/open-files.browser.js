@@ -169,6 +169,7 @@ async (page, { openDocument, screenshots = false }) => {
     await page.getByRole('tab', {name:'ieumdoc-a.md, Unsaved changes',exact:true}).click();
     const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
     await closeA();
+    await confirmation.getByRole('button',{name:'Cancel',exact:true}).and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
     if (!await confirmation.getByRole('button',{name:'Cancel',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Confirmation did not initially focus Cancel');
     await page.keyboard.press('Shift+Tab');
     await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement));
