@@ -12,7 +12,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   const center = () => page.getByRole('dialog', { name: 'Command center', exact: true });
   const input = () => center().getByRole('combobox');
   const waitForInput = () => page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'combobox', null, {timeout:5000});
-  const open = async (query = '', shortcut = 'Control+Alt+Shift+p') => {
+  const open = async (query = '', shortcut = 'Control+Slash') => {
     await page.keyboard.press(shortcut);
     await waitForInput();
     if (query) await input().fill(query);
@@ -30,18 +30,20 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
       {key:'p',code:'KeyP',ctrlKey:true,shiftKey,bubbles:true,cancelable:true})), shiftKey);
     check(allowed && await center().count() === 0, 'Print shortcut was intercepted');
   }
+  await page.keyboard.press('Control+Alt+Shift+KeyP');
+  check(await center().count() === 0, 'Previous AltGr-prone shortcut still opens the center');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
-    {key:'ㅖ',code:'KeyP',ctrlKey:true,altKey:true,shiftKey:true,isComposing:true,bubbles:true,cancelable:true})));
+    {key:'／',code:'Slash',ctrlKey:true,isComposing:true,bubbles:true,cancelable:true})));
   check(await center().count() === 0, 'Shortcut interrupted IME composition');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
-    {key:'ㅖ',code:'KeyP',ctrlKey:true,altKey:true,shiftKey:true,bubbles:true,cancelable:true})));
+    {key:'／',code:'Slash',ctrlKey:true,bubbles:true,cancelable:true})));
   await waitForInput();
   await page.keyboard.type('settings');
   check(await input().inputValue() === 'settings', 'Typing after shortcut missed the command input');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   const trigger = page.getByRole('button',{name:'Command center',exact:true});
-  check(await trigger.getAttribute('title') === 'Command center (Ctrl+Alt+Shift+P)' &&
-    await trigger.getAttribute('aria-keyshortcuts') === 'Control+Alt+Shift+P Meta+Alt+Shift+P', 'Center shortcut label mismatch');
+  check(await trigger.getAttribute('title') === 'Command center (Ctrl+/)' &&
+    await trigger.getAttribute('aria-keyshortcuts') === 'Control+/ Meta+/', 'Center shortcut label mismatch');
   result.nonConflictingCodeShortcut = true;
 
   // The center is also available before opening a document, with document actions disabled.
@@ -87,7 +89,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.clock.pauseAt(new Date('2026-10-24T00:01:00Z'));
   try {
     for (const expected of ['technical','>technical']) {
-      await page.keyboard.press('Control+Alt+Shift+p');
+      await page.keyboard.press('Control+Slash');
       await page.keyboard.type(expected);
       await page.clock.runFor(50);
       await waitForInput();
@@ -158,9 +160,9 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await run('settings');
   await page.getByTestId('settings-dialog').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-testid="settings-dialog"]')?.contains(document.activeElement), null, {timeout:5000});
-  await page.keyboard.press('Control+Alt+Shift+p');
+  await page.keyboard.press('Control+Slash');
   check(await center().count()===0 && await page.getByRole('dialog').count()===1, 'Center opened over Settings');
-  await page.keyboard.press('Control+Alt+Shift+k');
+  await page.keyboard.press('Control+Quote');
   check(await page.getByTestId('link-form').count()===0, 'Link form opened over Settings');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});

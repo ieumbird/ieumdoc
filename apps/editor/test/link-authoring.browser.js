@@ -60,7 +60,7 @@ async (page, { openDocument }) => {
   };
   const setLink = async (text, url) => {
     await select(text, 'set invalid-save link');
-    await page.keyboard.press('Control+Alt+Shift+k');
+    await page.keyboard.press("Control+Quote");
     await page.getByTestId('link-url').fill(url);
     await page.getByTestId('link-apply').click();
     await page.getByTestId('link-form').waitFor({state:'detached'});
@@ -79,18 +79,20 @@ async (page, { openDocument }) => {
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');
   const linkButton = page.getByRole('button', {name:'Link',exact:true});
-  if (await linkButton.getAttribute('title') !== 'Link (Ctrl+Alt+Shift+K)' ||
-      await linkButton.getAttribute('aria-keyshortcuts') !== 'Control+Alt+Shift+K Meta+Alt+Shift+K') throw Error('Link shortcut label mismatch');
-  await page.keyboard.press('Control+Alt+Shift+k');
+  if (await linkButton.getAttribute('title') !== "Link (Ctrl+')" ||
+      await linkButton.getAttribute('aria-keyshortcuts') !== "Control+' Meta+'") throw Error('Link shortcut label mismatch');
+  await page.keyboard.press('Control+Alt+Shift+KeyK');
+  if (await page.getByTestId('link-form').count()) throw Error('Previous AltGr-prone shortcut still opens the link form');
+  await page.keyboard.press("Control+Quote");
   await page.getByTestId('link-url').waitFor();
   await page.getByTestId('link-url').press('Escape');
   await page.getByTestId('link-form').waitFor({state:'detached'});
   await select('OpenAI', 'Korean code shortcut');
   await editor.locator('.ProseMirror').dispatchEvent('keydown',
-    {key:'ㅏ',code:'KeyK',ctrlKey:true,altKey:true,shiftKey:true,isComposing:true,bubbles:true,cancelable:true});
+    {key:'＇',code:'Quote',ctrlKey:true,isComposing:true,bubbles:true,cancelable:true});
   if (await page.getByTestId('link-form').count()) throw Error('Link shortcut interrupted composition');
   await editor.locator('.ProseMirror').dispatchEvent('keydown',
-    {key:'ㅏ',code:'KeyK',ctrlKey:true,altKey:true,shiftKey:true,bubbles:true,cancelable:true});
+    {key:'＇',code:'Quote',ctrlKey:true,bubbles:true,cancelable:true});
   await page.getByTestId('link-url').waitFor();
   result.physicalKeyLinkShortcut = true;
 
@@ -138,7 +140,7 @@ async (page, { openDocument }) => {
 
   // Add a link to plain text; the form rejects a URL with spaces first.
   await select('linked', 'add plain-text link');
-  await page.keyboard.press('Control+Alt+Shift+k');
+  await page.keyboard.press("Control+Quote");
   await page.getByTestId('link-url').waitFor();
   await page.evaluate(() => window.previousLinkFrames.forEach(callback => callback(performance.now())));
   await page.getByTestId('link-url').fill('https://example.com/a b');

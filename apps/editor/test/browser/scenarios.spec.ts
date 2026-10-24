@@ -15,7 +15,9 @@ import { withBlockHover } from "./hover.ts";
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
 const screenshots = process.env.IEUMDOC_BROWSER_SCREENSHOTS === "true";
-const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
+const channel = process.env.IEUMDOC_BROWSER_CHANNEL ?? (process.platform === "win32" ? "chrome" : undefined);
+if (channel && channel !== "chrome" && channel !== "msedge") throw new Error("Unsupported browser channel");
+const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16) + (channel === "msedge" ? "-edge" : ""));
 
 function sourceDigest(): string {
   const hash = createHash("sha256");
@@ -32,7 +34,7 @@ const test = base.extend<{}, { session: BrowserContext }>({
   session: [async ({}, use) => {
     const before = sourceDigest();
     const context = await chromium.launchPersistentContext(profile, {
-      ...(process.platform === "win32" ? { channel: "chrome" } : {}),
+      ...(channel ? { channel } : {}),
       headless: true,
       locale: "en-US",
       viewport: { width: 1280, height: 720 },

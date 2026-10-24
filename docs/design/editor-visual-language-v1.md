@@ -162,7 +162,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 
 Shortcut labels in the existing TopBar key chip and button tooltips use the platform notation
 from the [shared definitions](../../apps/editor/src/shortcuts.ts), also used for ARIA and command
-items. The longer center label uses the existing chip and responsive layout; no new control,
+items. The two-key center label (Ctrl+/ or ⌘/) uses the existing chip and responsive layout; no new control,
 surface or adjustable dimension is introduced. The [shortcut contract](editor-ux-shell-v1.md#shortcut-contract-381)
 owns key choices and behavior.
 
