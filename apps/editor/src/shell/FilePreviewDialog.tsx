@@ -18,10 +18,10 @@ export function FilePreviewDialog({ entry, root, returnFocus, onClose }: {
     <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
       <DialogContent className="file-preview" finalFocus={returnFocus}>
         <DialogHeader>
-          <DialogTitle className="pr-8 break-words">{entry.name}</DialogTitle>
+          <DialogTitle className="pr-8 [overflow-wrap:anywhere]">{entry.name}</DialogTitle>
           <DialogDescription>{i18n.t(image ? "Read-only image preview" : "File information")}</DialogDescription>
         </DialogHeader>
-        <p className="break-words text-muted-foreground">{entry.path}</p>
+        <p className="[overflow-wrap:anywhere] text-muted-foreground">{entry.path}</p>
         {image ? <>
           {state === "loading" ? <p role="status">{i18n.t("Loading…")}</p> : null}
           {state === "error" ? <p role="alert">{i18n.t("The image could not be previewed. It may be unavailable, damaged, unsupported, or larger than 10 MiB.")}</p> : null}

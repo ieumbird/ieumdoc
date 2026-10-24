@@ -29,6 +29,7 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
   "file-preview": { files: [
+    { name: "긴파일이름" + "unbrokenfilename".repeat(8) + ".zip", create: () => "preview info" },
     { name: "document.md", create: () => nativeSource("# Preview\n\nAlpha.\n\n(section-a)=\n\n## Section\n\nBody.\n") },
     document("diagram.svg"),
     fixture("doctype.svg"),
@@ -61,6 +62,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "http-host-b/fixture": { files: [{ name: "b.md", create: () => nativeSource("# HTTP B\n\nBeta.\n") }], scenarios: ["http-host"] },
   "new-document": { files: [], scenarios: ["new-document", "recovery-structure"] },
   "open-files": { files: [
+    { name: "긴파일이름" + "unbrokendocumentname".repeat(7) + ".md", create: () => nativeSource("# Long name\n") },
     { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
     { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },
   ], scenarios: ["open-files"] },

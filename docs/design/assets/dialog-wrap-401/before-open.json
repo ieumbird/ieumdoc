@@ -1,0 +1,158 @@
+[
+  {
+    "name": "unsaved",
+    "viewport": 1440,
+    "width": 382,
+    "scroll": 1160,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Cancel",
+        "inside": true
+      },
+      {
+        "text": "Don't save",
+        "inside": true
+      },
+      {
+        "text": "Save",
+        "inside": false
+      }
+    ]
+  },
+  {
+    "name": "unsaved",
+    "viewport": 375,
+    "width": 341,
+    "scroll": 1160,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Cancel",
+        "inside": false
+      },
+      {
+        "text": "Don't save",
+        "inside": false
+      },
+      {
+        "text": "Save",
+        "inside": false
+      }
+    ]
+  },
+  {
+    "name": "refusal",
+    "viewport": 1440,
+    "width": 382,
+    "scroll": 1160,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      }
+    ],
+    "buttons": [
+      {
+        "text": "OK",
+        "inside": true
+      }
+    ]
+  },
+  {
+    "name": "refusal",
+    "viewport": 375,
+    "width": 341,
+    "scroll": 1160,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1115,
+        "scroll": 1115
+      },
+      {
+        "width": 1128,
+        "scroll": 1128
+      }
+    ],
+    "buttons": [
+      {
+        "text": "OK",
+        "inside": false
+      }
+    ]
+  }
+]

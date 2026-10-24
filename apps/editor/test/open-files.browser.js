@@ -23,6 +23,8 @@ async (page, { openDocument, screenshots = false }) => {
   setParagraph(fileB.document, 'Document B');
   const files = new Map([[pathA, fileA], [pathB, fileB]]);
   const requests = [];
+  const longDialogFailures = [];
+  const longDialogLayouts = [];
   let conflictNext = false;
   let failNext = false;
   let pendingSave;
@@ -140,6 +142,27 @@ async (page, { openDocument, screenshots = false }) => {
       await page.screenshot({path:'tmp/visual-refinement/after-folder-menu.png'});
       await page.keyboard.press('Escape');
     }
+
+    // #401: exercise long names through Open/Close, preserving existing scenarios.
+    const longName = '긴파일이름' + 'unbrokendocumentname'.repeat(7) + '.md';
+    const longPath = folder + separator + longName;
+    const longFile = {...clone(fileA), path:longPath};
+    longFile.document.blocks = longFile.document.blocks.filter(block => block.block !== 'figure');
+    files.set(longPath, longFile);
+    await openDocument(page, longPath);
+    await editParagraph(page, ' Long name dirty');
+    await page.getByRole('button', {name:`Close ${longName}`,exact:true}).click();
+    await measureLongDialog('unsaved', page.getByRole('dialog', {name:'Save changes?',exact:true}));
+    await page.getByRole('button', {name:"Don't save",exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    const rejectLong = route => route.fulfill({status:400,json:{code:'native-marker',error:'Not a native document',issue:{reason:`Missing native marker: ${longPath}`,action:'Create a new document and paste the text.'}}});
+    await page.route('**/api/document?*', rejectLong);
+    await openDocument(page, longPath);
+    await measureLongDialog('refusal', page.getByRole('dialog', {name:'Cannot open document',exact:true}));
+    await page.getByRole('button', {name:'OK',exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await page.unroute('**/api/document?*', rejectLong);
+    await page.getByRole('tab', {name:'ieumdoc-a.md',exact:true}).click();
 
     await editParagraph(page, ' FILE_A');
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
@@ -274,12 +297,32 @@ async (page, { openDocument, screenshots = false }) => {
     await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
     await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== draftWrites) throw new Error('Inactive discard changed B or wrote a draft');
+    if (longDialogFailures.length) throw Error(JSON.stringify(longDialogLayouts));
     await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
-    return {start:true, independentSaves:true, savingSwitchGuarded:true, closeCancel:true, closeSave:true, closeDiscard:true, failureRetained:true, conflictRetained:true, newerEditsRetained:true, inactiveClose:true};
+    return {longDialogLayouts, start:true, independentSaves:true, savingSwitchGuarded:true, closeCancel:true, closeSave:true, closeDiscard:true, failureRetained:true, conflictRetained:true, newerEditsRetained:true, inactiveClose:true};
   } finally {
     // The page fixture closes the page and its routes. Do not evaluate in a timed-out page:
     // that cleanup error would hide the action that originally failed.
     releaseSave?.();
+  }
+
+  async function measureLongDialog(name, dialog) {
+    await dialog.waitFor();
+    for (const width of [1440,375]) {
+      await page.setViewportSize({width,height:900});
+      await page.evaluate(async () => { await document.fonts.ready; scrollTo(0,0); });
+      const layout = await dialog.evaluate(node => {
+        const box=node.getBoundingClientRect();
+        return {width:node.clientWidth,scroll:node.scrollWidth,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(node).fontFamily,
+          text:[...node.querySelectorAll('[data-slot="dialog-title"], [data-slot="dialog-description"] p, :scope > p')].map(p=>({width:p.clientWidth,scroll:p.scrollWidth})),
+          buttons:[...node.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();return {text:b.textContent,inside:r.left>=box.left && r.right<=box.right && r.top>=box.top && r.bottom<=box.bottom};})};
+      });
+      longDialogLayouts.push({name,viewport:width,...layout});
+      if (screenshots) await page.screenshot({path:`tmp/401-${name}-${width}.png`});
+      if (layout.scroll>layout.width || layout.text.some(p=>p.scroll>p.width) || !layout.buttons.every(b=>b.inside)) longDialogFailures.push({name,viewport:width,...layout});
+      else for (const b of await dialog.getByRole('button').all()) await b.click({trial:true});
+    }
+    await page.setViewportSize({width:1440,height:900});
   }
 
   function clone(value) {

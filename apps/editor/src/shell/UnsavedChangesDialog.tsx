@@ -21,7 +21,7 @@ export function UnsavedChangesDialog({ open, pending, documentName, hasDrafts, f
       <DialogContent showCloseButton={false} finalFocus={finalFocus} aria-busy={pending}>
         <DialogHeader>
           <DialogTitle>{i18n.t("Save changes?")}</DialogTitle>
-          <DialogDescription render={<div />} className="grid gap-3 break-words">
+          <DialogDescription render={<div />} className="grid gap-3 [overflow-wrap:anywhere]">
             <p>{i18n.t("Save changes to {{name}} before closing this tab?", { name: documentName })}</p>
             {hasDrafts ? <p>{i18n.t("Unapplied property drafts will be lost with both Save and Don't save. Save includes applied content only. Cancel to keep editing.")}</p> : null}
           </DialogDescription>
