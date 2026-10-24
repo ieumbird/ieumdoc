@@ -126,12 +126,21 @@ async (page, { openDocument }) => {
   // Remove the link inside bold text; bold stays.
   await select('docs', 'remove bold link');
   await page.getByRole('button', {name:'Link', exact:true}).click();
-  await page.getByTestId('link-remove').click();
+  // Hold only frames queued by Remove so a slow old focus callback cannot escape coverage.
+  // Restore the browser scheduler immediately; release the held work after the next form opens.
+  await page.getByTestId('link-remove').evaluate(button => {
+    const schedule = window.requestAnimationFrame;
+    window.previousLinkFrames = [];
+    window.requestAnimationFrame = callback => { window.previousLinkFrames.push(callback); return 0; };
+    try { button.click(); } finally { window.requestAnimationFrame = schedule; }
+  });
   await page.getByTestId('link-form').waitFor({state:'detached'});
 
   // Add a link to plain text; the form rejects a URL with spaces first.
   await select('linked', 'add plain-text link');
   await page.keyboard.press('Control+Alt+Shift+k');
+  await page.getByTestId('link-url').waitFor();
+  await page.evaluate(() => window.previousLinkFrames.forEach(callback => callback(performance.now())));
   await page.getByTestId('link-url').fill('https://example.com/a b');
   await page.getByTestId('link-apply').click();
   result.spacesRejectedInForm = await page.getByText('A URL cannot contain spaces.').filter({visible:true}).count() === 1;

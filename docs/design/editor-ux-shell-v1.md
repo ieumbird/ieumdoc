@@ -149,7 +149,8 @@ platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save 
 consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
 The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
 selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
-validation, Apply/Remove, Escape and blur dismissal. It does nothing behind a modal or during IME
+validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return focus synchronously
+through ProseMirror, so a previous form cannot later blur a newly opened link form. It does nothing behind a modal or during IME
 composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
 
 Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378):
@@ -186,9 +187,12 @@ Native browser chrome (including the actual print window and address bar) is **n
 Computer Use stopped because it could not determine the browser URL confidently enough for policy.
 No native key was sent after that stop. Runtime integration success and official default-shortcut
 lists are separate evidence; this record does not claim a completed native browser/OS collision audit.
-An exploratory headed Chrome run also exposed an intermittent link-form focus timeout and a 15px
-native-scrollbar difference in the layout scenario; the standard headless runner passed both scenarios
-without changing the assertions. No browser-runner or focus-policy change is included here.
+Initial headed Chrome and the first CI run exposed a link-form focus timeout after Remove: a queued
+Tiptap `focus()` could blur the next form. A regression holds only frames queued by Remove and
+releases them after opening the next form; it failed before the fix and passes with synchronous
+ProseMirror focus return on Apply/Remove/Escape. The exploratory headed layout scenario also
+observed a 15px native-scrollbar difference; the standard runner passes unchanged assertions.
+No browser-runner or command-center focus-policy change is introduced by #381.
 
 Same-path `quiet-document --screenshots` product comparison at base `c587663` and #381 implementation,
 Windows Chrome, DPR 1 / 100% zoom, bundled Pretendard, scroll top, equivalent rest state:
