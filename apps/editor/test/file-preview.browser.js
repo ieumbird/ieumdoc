@@ -1,6 +1,8 @@
 // Actual folder/media Host requests; document state remains owned by the same editor instance.
 async (page, { openDocument, screenshots }) => {
   page.setDefaultTimeout(10000);
+  const longDialogFailures = [];
+  const longDialogLayouts = [];
   const check = (ok, message) => { if (!ok) throw Error(message); };
   const origin = page.url().split('/').slice(0,3).join('/');
   const initial = await (await page.request.get(origin + '/api/document')).json();
@@ -68,6 +70,13 @@ async (page, { openDocument, screenshots }) => {
     if (screenshots) await page.screenshot({path:`tmp/file-preview-capture/file-${width}.png`});
     await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   }
+  // Escape from the previous narrow preview may also close the overlay sidebar.
+  const expand = page.getByRole('button', {name:'Expand sidebar',exact:true});
+  if (await expand.isVisible()) await expand.click();
+  await clickRow('긴파일이름' + 'unbrokenfilename'.repeat(8) + '.zip');
+  await measureLongDialog('preview', dialog());
+  await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
+  check(!longDialogFailures.length, `Long preview overflow: ${JSON.stringify(longDialogLayouts)}`);
   await page.setViewportSize({width:1440,height:900});
   // A damaged/failed response stays inside the modal; closing before a late load never reopens it.
   let release, finish;
@@ -102,5 +111,24 @@ async (page, { openDocument, screenshots }) => {
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   check(JSON.stringify(await snapshot()) === JSON.stringify(before) && await draft.inputValue() === 'section-draft', 'Late/error or translated preview lost editor state');
-  return {readOnly:true, dirtyDraftSelectionUndo:true, focus:true, svgIsolation:true, errorLateResponse:true, i18n:true, widths:[1440,375]};
+  return {longDialogLayouts, readOnly:true, dirtyDraftSelectionUndo:true, focus:true, svgIsolation:true, errorLateResponse:true, i18n:true, widths:[1440,375]};
+  async function measureLongDialog(name, dialog) {
+    await dialog.waitFor();
+    for (const width of [1440,375]) {
+      await page.setViewportSize({width,height:900});
+      await page.evaluate(async () => { await document.fonts.ready; scrollTo(0,0); });
+      const layout = await dialog.evaluate(node => {
+        const box=node.getBoundingClientRect();
+        return {width:node.clientWidth,scroll:node.scrollWidth,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(node).fontFamily,
+          text:[...node.querySelectorAll('[data-slot="dialog-title"], [data-slot="dialog-description"] p, :scope > p')].map(p=>({width:p.clientWidth,scroll:p.scrollWidth})),
+          buttons:[...node.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect();return {text:b.textContent,inside:r.left>=box.left && r.right<=box.right && r.top>=box.top && r.bottom<=box.bottom};})};
+      });
+      longDialogLayouts.push({name,viewport:width,...layout});
+      if (screenshots) await page.screenshot({path:`tmp/401-${name}-${width}.png`});
+      if (layout.scroll>layout.width || layout.text.some(p=>p.scroll>p.width) || !layout.buttons.every(b=>b.inside)) longDialogFailures.push({name,viewport:width,...layout});
+      else for (const b of await dialog.getByRole('button').all()) await b.click({trial:true});
+    }
+    await page.setViewportSize({width:1440,height:900});
+  }
+
 }
