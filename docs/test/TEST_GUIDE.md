@@ -53,10 +53,23 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 - Playwright Test worker가 `launchPersistentContext`로 checkout별 재사용 프로필을 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
 - 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `IEUMDOC_BROWSER_URL`을 지정한다.
 - Windows는 설치형 Chrome을 사용한다. 다른 OS에서는 처음 한 번 `pnpm exec playwright install chromium`을 실행한다.
-- 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `IEUMDOC_BROWSER_URL` 서버는 그대로 유지한다. 실패 시 `tmp/browser-results/`에 console/pageerror와 browser-state 진단을 남긴다.
+- 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `IEUMDOC_BROWSER_URL` 서버는 그대로 유지한다.
 - `@playwright/cli`는 직접 디버깅용으로 유지하며 `open --persistent`를 사용한다. 정식 runner는 CLI 출력 형식을 파싱하지 않는다.
 
 ### CI
+
+#### 실패 진단 (#411)
+
+`scenarios.spec.ts`는 재사용 persistent context에서 시나리오마다 tracing을 시작하고, 실패 시에만 `tmp/browser-results/scenarios-<이름>/trace.zip`으로 보존한다. 성공 시 trace는 버린다. 성공 실행의 비용을 줄이기 위해 trace는 action·API 로그·console·source를 기록한다. 매 action의 DOM/network snapshot과 연속 스크린샷 filmstrip은 기록하지 않는다. 실패 시점의 접근성 snapshot·PNG·focus/selection은 아래 파일로 별도 보존한다. timeout·재시도·판정 기준은 바꾸지 않는다. Playwright 기본 context/page fixture가 아닌 이 fixture가 페이지를 닫기 전에 아래 파일을 직접 저장한다.
+
+- `browser-state.json`: 브라우저 페이지 URL, 문서 탭과 활성 탭, focus 요소, DOM/ProseMirror selection, 메뉴·dialog·status. 닫힌 페이지 등 수집 실패도 기록한다.
+- `error-context.md`, `test-failed.png`: 실패 메시지와 접근성 snapshot, 실패 시점 viewport. 캡처 중 실패는 `diagnostic-errors.json`에 기록하며 최초 테스트 오류를 대체하지 않는다.
+- `console-errors.json`: console/pageerror 원문과 예상·예상 밖·누락 분류. console 검사만 실패한 경우에도 위 진단을 저장한다.
+- `saved-source-<번호>-expected.md`, `saved-source-<번호>-actual.md`: 공통 `assertSavedSource(actual, expected, message)`를 사용하는 저장 비교가 실패했을 때의 정확한 문자열. assertion 메시지에도 diff가 표시된다. 현재 `citations`의 원문/반복 Save/Merge 비교에 적용한다.
+
+결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-1` 또는 `editor-browser-ci-logs-2` artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `ieumdoc/ieumdoc/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
+
+artifact를 내려받아 `trace.zip`을 찾은 뒤 `pnpm exec playwright show-trace <trace.zip 경로>`로 action 순서·selector·좌표·API 로그를 조사하고, 실패 시점의 UI는 `error-context.md`, `test-failed.png`, `browser-state.json`을 함께 본다. 저장 차이는 `git diff --no-index -- <expected.md> <actual.md>`로 확인한다(diff가 있으면 exit 1). 진단 저장은 실패 시에만 하며, 성공 시 기존 scenario-result 이외의 영구 파일은 추가하지 않는다.
 
 `.github/workflows/ci.yml`은 모든 pull request와 master push에서 위 검사를 실행한다. Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다. 품질 job(docs check와 checker regression, typecheck, 테스트, build), browser `--shard=1/2`·`--shard=2/2`, Windows/Linux HTTP package·browser, Windows Desktop package·자산 검증·설치/업데이트 회귀가 병렬로 돌고, aggregate 필수 check는 모두 성공했을 때만 통과한다.
 
