@@ -39,7 +39,7 @@ export function RecoveryPrompt({ record, reason, onRestore, onDelete, onClose }:
   return <Dialog open={record !== null} onOpenChange={open => { if (!open && !pending) onClose(); }}>
     <DialogContent showCloseButton={false} data-testid="recovery-prompt">
       <DialogHeader><DialogTitle>{reason ? i18n.t("Recovery cannot be restored") : i18n.t("Restore unsaved work?")}</DialogTitle>
-        <DialogDescription render={<div />} className="grid gap-3 break-words">
+        <DialogDescription render={<div />} className="grid gap-3 [overflow-wrap:anywhere]">
           <p>{typeof record?.path === "string" ? record.path : i18n.t("Unknown path")}</p>
           <p>{reason ? recoveryReasonText(reason) : i18n.t("Restore this local record as unsaved work. Your original file is unchanged; Save still checks for external changes. No automatic merge is performed.")}</p>
           <p>{i18n.t("Only the last recorded applied content is available. Unapplied property drafts and image files are not backed up.")}</p>
