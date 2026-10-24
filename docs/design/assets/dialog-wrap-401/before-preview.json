@@ -1,0 +1,60 @@
+[
+  {
+    "name": "preview",
+    "viewport": 1440,
+    "width": 766,
+    "scroll": 1161,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1129,
+        "scroll": 1129
+      },
+      {
+        "width": 1129,
+        "scroll": 1129
+      },
+      {
+        "width": 1129,
+        "scroll": 1129
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Close",
+        "inside": true
+      }
+    ]
+  },
+  {
+    "name": "preview",
+    "viewport": 375,
+    "width": 341,
+    "scroll": 1161,
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "text": [
+      {
+        "width": 1129,
+        "scroll": 1129
+      },
+      {
+        "width": 1129,
+        "scroll": 1129
+      },
+      {
+        "width": 1129,
+        "scroll": 1129
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Close",
+        "inside": true
+      }
+    ]
+  }
+]
