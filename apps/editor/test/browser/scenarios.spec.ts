@@ -76,7 +76,8 @@ const test = base.extend<{}, { session: BrowserContext }>({
   }, { scope: "worker" }],
   page: async ({ session }, use, testInfo) => {
     prepareBrowserFixtures();
-    await session.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    // Keep action history cheap; capture UI state/ARIA/PNG separately on failure.
+    await session.tracing.start({ screenshots: false, snapshots: false, sources: true });
     const page = await session.newPage();
     const errors: string[] = [];
     const consoleListener = (message: ConsoleMessage) => {
