@@ -1,5 +1,5 @@
 // Startup restoration competes with user navigation; inspect the Sidebar, preferences and Reload.
-async (page) => {
+async (page, {openPath, waitForActivePath}) => {
   const ready = (target = page) => target.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -27,8 +27,12 @@ async (page) => {
     await waitRoots(stored);
     check(same(await roots(), expected), `Reload restored ${JSON.stringify(await roots())}, expected ${JSON.stringify(expected)}`);
   };
-  const seed = async saved => {
-    await page.evaluate(saved => localStorage.setItem('ieumdoc.openFolders', JSON.stringify(saved)), saved);
+  const seed = async (saved, collapsed = []) => {
+    await page.evaluate(({saved, collapsed}) => {
+      localStorage.setItem('ieumdoc.openFolders', JSON.stringify(saved));
+      localStorage.setItem('ieumdoc.collapsedFolderSections', JSON.stringify(collapsed));
+      localStorage.removeItem('ieumdoc.openTabs');
+    }, {saved, collapsed});
     await page.reload();
     await ready();
   };
@@ -60,6 +64,97 @@ async (page) => {
       allowNewRequests:() => { holdNewRequests = false; },
       release, dispose:async () => { release(); await page.unroute('**/api/folder?*', handler); }};
   };
+
+  const toggle = (path, target = page) => section(path, target).getByRole('button', {name:/^(Collapse|Expand) folder /});
+  const collapsed = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.collapsedFolderSections') ?? '[]'));
+  const checkCollapsed = async (expected, context) => {
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    check(same(await collapsed(), expected), `${context}: collapsed preference ${JSON.stringify(await collapsed())}, expected ${JSON.stringify(expected)}`);
+  };
+  // Only root section visibility survives Reload; the initial document reveal must respect it.
+  await page.addInitScript(() => {
+    window.sectionPreferenceWrites = 0;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === 'ieumdoc.collapsedFolderSections') window.sectionPreferenceWrites++;
+      return setItem.call(this, key, value);
+    };
+  });
+  await seed([a]);
+  await waitRoots([a]);
+  await openPath(page, [a, 'index.md'].join(sep));
+  await toggle(a).click();
+  await checkCollapsed([a], 'Collapse remembers the root');
+  await reload([a]);
+  await waitForActivePath(page, [a, 'index.md'].join(sep));
+  check(await toggle(a).getAttribute('aria-expanded') === 'false', 'Reload must restore the active document section collapsed');
+  check(await page.evaluate(() => window.sectionPreferenceWrites) === 0, 'Startup folder/tab restoration must not write collapse preferences');
+  if (failures.length) throw new Error(failures.join('\n'));
+  await toggle(a).click();
+  await reload([a]);
+  check(await toggle(a).getAttribute('aria-expanded') === 'true', 'Expanded section survives Reload');
+  await toggle(a).click();
+  await startOpen(a);
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await toggle(a).getAttribute('aria-expanded') === 'false', 'Same-root Open relists without resetting remembered collapse');
+  await menu(a, 'Close folder');
+  await checkCollapsed([], 'Close removes collapse memory');
+  await startOpen(a);
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await toggle(a).getAttribute('aria-expanded') === 'true', 'Close then Open starts expanded');
+
+  // Restoration only filters applicability. Prune stale records on the next explicit write.
+  const absent = [a, 'missing-folder'].join(sep);
+  await seed([a, absent], [a, absent, c]);
+  await waitRoots([a]);
+  await ready();
+  await checkCollapsed([a, absent, c], 'Restoration alone never rewrites collapse memory');
+  check(await page.evaluate(() => window.sectionPreferenceWrites) === 0, 'Failed restoration must not write collapse preferences');
+  await toggle(a).click();
+  await checkCollapsed([], 'User change prunes missing and no-longer-open roots');
+
+  // User section changes before a later restored root answers must not lose either state.
+  for (const initiallyCollapsed of [false, true]) {
+    const pendingSection = await hold(b);
+    try {
+      const saved = initiallyCollapsed ? [a, b] : [b];
+      await seed([a, b], saved);
+      await pendingSection.requested();
+      await waitRoots([a]);
+      await toggle(a).click();
+      await checkCollapsed(saved, 'Section persistence waits for folder restoration');
+      pendingSection.release();
+      await waitRoots([a, b]);
+      await ready();
+      await checkCollapsed(initiallyCollapsed ? [b] : [a, b], 'Deferred write uses the complete restored list');
+      check(await toggle(a).getAttribute('aria-expanded') === String(initiallyCollapsed) && await toggle(b).getAttribute('aria-expanded') === 'false',
+        'Restoration preserves the user section change and the pending root collapse');
+      await reload([a, b]);
+    } finally { await pendingSection.dispose(); }
+  }
+
+  // #370: another tab overwrites a value this tab wrote before. Same-value reveal must write again.
+  await seed([a]);
+  await waitRoots([a]);
+  const otherSectionTab = await page.context().newPage();
+  try {
+    await otherSectionTab.goto(page.url());
+    await ready(otherSectionTab); await waitRoots([a], otherSectionTab);
+    await toggle(a).click(); await toggle(a).click();
+    await checkCollapsed([], 'First tab writes expanded');
+    await toggle(a, otherSectionTab).click();
+    await checkCollapsed([a], 'Second tab writes collapsed');
+    check(await toggle(a).getAttribute('aria-expanded') === 'true', 'Other tabs do not change the live section');
+    await openPath(page, [a, 'notes.md'].join(sep));
+    await waitForActivePath(page, [a, 'notes.md'].join(sep));
+    await checkCollapsed([], 'Reveal writes current expansion even when this tab last wrote the same value');
+    await reload([a]);
+    check(await toggle(a).getAttribute('aria-expanded') === 'true', 'Reveal expansion survives Reload');
+    await toggle(a, otherSectionTab).click(); // expanded in tab two
+    await toggle(a, otherSectionTab).click(); // collapsed again
+    await toggle(a).click(); await toggle(a).click();
+    await checkCollapsed([], 'Explicit expand overwrites the other tab collapse');
+  } finally { await otherSectionTab.close(); }
 
   // Explicit Opens share their starting render but must retain both successful completions.
   const startScreen = route => route.fulfill({json:{start:true}});
@@ -186,7 +281,7 @@ async (page) => {
   // The user opens and closes the same path while its older startup listing is still pending.
   const restoringA = await hold(a);
   try {
-    await seed([a]);
+    await seed([a], [a]);
     await restoringA.requested();
     restoringA.allowNewRequests();
     await startOpen(a);
@@ -200,6 +295,7 @@ async (page) => {
     restoringA.release();
     await answered;
     await checkMemory([], 'Late restoration must retain the same-path user Close');
+    await checkCollapsed([], 'Same-path Close clears remembered collapse despite the late restoration');
     check(same(await roots(), []), 'Late restoration reopened a folder the user explicitly closed');
     await reload([]);
   } finally { await restoringA.dispose(); }

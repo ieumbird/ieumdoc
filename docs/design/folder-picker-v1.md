@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-24 (#383: remembered document tabs reuse restored folder context; folder navigation/memory and tab browser regressions).
 - Previous verification: 2026-10-24 (#371: concurrent explicit Opens in both response orders retain recent folders in the UI, storage and Reload; unavailable storage retains the page list; folder-memory browser regression).
@@ -39,9 +40,16 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   Recent folders outside current roots are hidden without deleting the preferences; Host validation
   remains authoritative for every request. No roots are merged into a Workspace.
 - Open adds the folder to the sidebar's opened folders ([ADR-0009](../adr/0009-multiple-opened-folders.md));
-  one already open is listed again in place, retaining its section collapse and child expansion for
-  this page (#425). Closing that folder and reopening it starts expanded; Reload also starts expanded.
-  Section collapse is never stored. See [section visibility and reveal](editor-ux-shell-v1.md#collapsible-folder-sections-425).
+  one already open is listed again in place, retaining its section collapse and child expansion
+  (#425). Close removes that root's collapse record, so a later Open starts expanded; this differs
+  from Reload/Desktop restart, which restore remembered section collapse. Only collapsed root paths
+  are stored in origin-specific `ieumdoc.collapsedFolderSections`; child expansion/listings remain
+  page state. Startup restoration never rewrites memory, including stale records: they are ignored
+  and removed on the next user Open/Close, section toggle or navigation reveal. Writes during
+  restoration wait for all roots, and each explicit action writes its current live list even if
+  another tab changed storage since this tab's last write (#370). Startup tab reveal respects
+  remembered collapse; explicit navigation reveal expands and remembers it. See
+  [section visibility and reveal](editor-ux-shell-v1.md#collapsible-folder-sections-425).
   Recently opened folders are browser preferences, retained
   only after a successful Open. Overlapping successful Opens each update the latest recent list in
   completion order (most recently completed first), retaining up to five distinct paths. If browser

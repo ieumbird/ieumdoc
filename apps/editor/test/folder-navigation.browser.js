@@ -237,10 +237,26 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await page.reload();
   await ready();
   await section.nth(1).waitFor();
-  assert(await toggle.getAttribute('aria-expanded') === 'true' && await firstSection.getByRole('tree').isVisible(),
-    'Reload must restore the folder expanded, without persisting section collapse');
+  assert(await toggle.getAttribute('aria-expanded') === 'false' && !await firstSection.getByRole('tree').isVisible(),
+    'Reload must restore the remembered section collapse');
   assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Reload lists the opened folders again in order');
-  await toggle.click();
+  if (screenshots) {
+    for (const width of [1440, 375]) {
+      await page.setViewportSize({width, height:812});
+      if (width === 375) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+      await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
+      const environment = await page.evaluate(async () => {
+        await document.fonts.ready; document.activeElement?.blur(); window.scrollTo(0, 0);
+        return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
+          cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
+          scroll:[scrollX, scrollY], language:document.documentElement.lang};
+      });
+      await page.mouse.move(width - 2, 2);
+      await page.screenshot({path:`tmp/picker-capture/sidebar-restored-collapsed-${width}.png`});
+      captureMetadata.push({state:'restored-collapsed', ...environment});
+    }
+    await page.setViewportSize({width:1280, height:720});
+  }
   await section.nth(1).getByRole('button', {name:'More actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="folder"]').length === 1);

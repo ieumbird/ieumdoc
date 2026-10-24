@@ -92,6 +92,21 @@ export function writeOpenFolders(folders: readonly string[]): void {
   }
 }
 
+const COLLAPSED_FOLDER_SECTIONS_KEY = "ieumdoc.collapsedFolderSections";
+
+/** Collapsed opened roots only, in the same browser/origin boundary as openFolders. */
+export function readCollapsedFolderSections(): string[] {
+  try {
+    const value: unknown = JSON.parse(globalThis.localStorage?.getItem(COLLAPSED_FOLDER_SECTIONS_KEY) ?? "[]");
+    return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string" && item.length > 0))] : [];
+  } catch { return []; }
+}
+
+export function writeCollapsedFolderSections(roots: readonly string[]): void {
+  try { globalThis.localStorage?.setItem(COLLAPSED_FOLDER_SECTIONS_KEY, JSON.stringify(roots)); }
+  catch { /* Disabled storage leaves section visibility usable for this page. */ }
+}
+
 const OPEN_TABS_KEY = "ieumdoc.openTabs";
 export type OpenTabsPreference = { paths: string[]; activePath: string | null };
 

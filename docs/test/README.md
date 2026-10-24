@@ -75,6 +75,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 확인의 Save 성공 후 전환·Save 실패/충돌 보존·Don't save의 쓰기 없는 전환·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`의 같은 확인과 기존 New 흐름을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
 
+`folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
+
 `editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치와 여러 폴더 추가·새로고침 후 순서 복원·폴더별 닫기를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
 
 `visual-states`는 연 파일 행의 `aria-current="page"`를 기다린 뒤 파일·Outline의 현재 표식과 hover·keyboard focus·geometry를 측정한다. 파일 GET이 진행 중일 때 이전 문서의 Outline 표식은 남아 있을 수 있으므로 새 파일의 준비 신호가 아니다. 현재 상태를 기다린 뒤에도 비색상 표식의 실제 CSS와 너비를 별도로 검사한다.

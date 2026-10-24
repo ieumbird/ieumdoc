@@ -129,6 +129,19 @@ test("opened folders keep their order; reopening relists in place and closing re
   assert.deepEqual(trees.map(tree => tree.root), ["/s"]);
 });
 
+test("restored section collapse initializes a new root but never overwrites live section changes", () => {
+  const rootListing = listing(ROOT, [folder("/r/a")]);
+  let trees = folderTreesReducer([], { type: "openRoot", listing: rootListing, sectionExpanded: false });
+  assert.equal(trees[0].sectionExpanded, false);
+  assert.deepEqual([...trees[0].expanded], [], "Child expansion is not restored");
+  trees = folderTreesReducer(trees, { type: "setSectionExpanded", root: ROOT, expanded: true });
+  trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing, sectionExpanded: false });
+  assert.equal(trees[0].sectionExpanded, true, "A late restoration/relist cannot undo the user's expansion");
+  trees = folderTreesReducer(trees, { type: "closeRoot", root: ROOT });
+  trees = folderTreesReducer(trees, { type: "openRoot", listing: rootListing });
+  assert.equal(trees[0].sectionExpanded, true, "Explicit reopen after Close has no saved collapse");
+});
+
 test("an item's folder context is the outermost opened folder containing it", () => {
   const roots = ["/r/a", "/r", "/s"];
   assert.equal(containingRoot(roots, "/r/a/b/x.md"), "/r", "A nested opened folder does not narrow the context");

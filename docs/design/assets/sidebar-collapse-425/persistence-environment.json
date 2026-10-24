@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-25",
+  "captureHead": "7a45f2bc0f8bb40751193851d3cd093ccc422fdd",
+  "workingTree": "owner-approved persistence changes over captureHead; exact capture source hashes below",
+  "sourceSha256": {
+    "apps/editor/src/App.tsx": "117f1bfda8dadeaf9c0b8936c7adafa91deea54b7fdfa513874403c9edc9a553",
+    "apps/editor/src/preferences.ts": "da1920e5bd51b871ac5d8f5aac684cd3e5945ad4010133fd41dd81c42f38b8fa",
+    "apps/editor/src/shell/folder-tree.ts": "177c0e3e710574b84fdbd3b1ad64694c14a9b570aec171242870fa03ea423e31",
+    "apps/editor/src/shell/Sidebar.tsx": "966a621901df1fd1554ff8b16092d7aaadcf00198772f78fada1059e222d7d65",
+    "apps/editor/src/styles.css": "180ed11c28692eeb9a06e1188561d955d49d5d35c1003aa50609595dcff02f5f",
+    "apps/editor/test/folder-navigation.browser.js": "d85b71c81cbfa8b205af70cac545e6271ebe89a0cafcf864863348b3f89967b9"
+  },
+  "origin": "http://127.0.0.1:5173",
+  "worktree": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\feat-sidebar-collapse-folder-section",
+  "browser": "headless installed Windows Chrome; same checkout-owned persistent profile",
+  "captures": [
+    {
+      "state": "restored-collapsed",
+      "viewport": [
+        1440,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "restored-collapsed",
+      "viewport": [
+        375,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    }
+  ],
+  "glyphFontChecks": [
+    {
+      "selector": "[data-document-tab][data-active=true] .document-editor h1",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Bold",
+          "isCustomFont": true,
+          "glyphCount": 25
+        }
+      ]
+    },
+    {
+      "selector": "[data-document-tab][data-active=true] .document-editor .paragraph",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable",
+          "isCustomFont": true,
+          "glyphCount": 141
+        },
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Bold",
+          "isCustomFont": true,
+          "glyphCount": 15
+        }
+      ]
+    },
+    {
+      "selector": "[data-testid=\"save\"]",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Medium",
+          "isCustomFont": true,
+          "glyphCount": 4
+        }
+      ]
+    }
+  ],
+  "state": "After real page Reload with two remembered roots and the first section remembered collapsed. Files selected; sidebar expanded (phone explicitly opens its full-screen sidebar); active technical-document.md; no menu/dialog; focus blurred; pointer at right edge; scroll 0.",
+  "preference": {
+    "key": "ieumdoc.collapsedFolderSections",
+    "format": "JSON array of collapsed Host-normalized opened root paths only"
+  },
+  "review": "Reviewed 1440px and 375px captures directly. The first root stays collapsed after Reload; the second remains expanded. Existing names, actions, alignment and document layout are retained. No new visual styling."
+}

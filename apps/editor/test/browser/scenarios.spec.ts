@@ -102,6 +102,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       // scenarios. Reloads inside a scenario deliberately retain both for persistence checks.
       await page.evaluate(() => {
         localStorage.removeItem("ieumdoc.openFolders");
+        localStorage.removeItem("ieumdoc.collapsedFolderSections");
         localStorage.removeItem("ieumdoc.openTabs");
       });
       await page.evaluate(() => new Promise<void>((resolve, reject) => {
