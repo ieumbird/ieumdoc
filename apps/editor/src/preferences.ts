@@ -92,6 +92,25 @@ export function writeOpenFolders(folders: readonly string[]): void {
   }
 }
 
+const OPEN_TABS_KEY = "ieumdoc.openTabs";
+export type OpenTabsPreference = { paths: string[]; activePath: string | null };
+
+/** null means no usable preference; an empty list deliberately starts without a document. */
+export function readOpenTabs(): OpenTabsPreference | null {
+  try {
+    const value = JSON.parse(globalThis.localStorage?.getItem(OPEN_TABS_KEY) ?? "null") as OpenTabsPreference | null;
+    if (!value || !Array.isArray(value.paths)) return null;
+    const paths = [...new Set(value.paths.filter((item): item is string => typeof item === "string" && item.length > 0))];
+    return { paths, activePath: typeof value.activePath === "string" && paths.includes(value.activePath) ? value.activePath : null };
+  } catch { return null; }
+}
+
+/** Navigation only: never content, editor snapshots, or Host authorization. */
+export function writeOpenTabs(tabs: OpenTabsPreference): void {
+  try { globalThis.localStorage?.setItem(OPEN_TABS_KEY, JSON.stringify(tabs)); }
+  catch { /* Disabled storage leaves the current page's tabs usable. */ }
+}
+
 /** Puts a folder first in the recent list; returns the new list. */
 export function rememberRecentFolder(folder: string, previous = readRecentFolders()): string[] {
   const recent = [folder, ...previous.filter(item => item !== folder)].slice(0, RECENT_FOLDER_LIMIT);

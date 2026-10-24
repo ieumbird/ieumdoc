@@ -176,6 +176,8 @@ async (page, { openDocument, reloadDocument, bibliographyFixture, screenshots })
   page.on('dialog', dialog => dialog.accept());
   await page.reload(); await ready();
   // Opening via the narrower chapter picker must not replace the stored recovery context.
+  await page.getByTestId('recovery-prompt').waitFor();
+  await page.getByRole('button', { name: 'Not now', exact: true }).click();
   await openDocument(page, file); await ready();
   await page.getByTestId('recovery-prompt').waitFor();
   await page.getByRole('button', { name: 'Restore work', exact: true }).click();

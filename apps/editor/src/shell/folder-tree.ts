@@ -222,6 +222,7 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
   return {
     trees,
     roots,
+    restored,
     /** The outermost opened folder containing a path, if any. */
     rootOf: (itemPath: string) => containingRoot(roots, itemPath),
     /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
