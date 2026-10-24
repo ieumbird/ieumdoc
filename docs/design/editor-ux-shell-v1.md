@@ -3,6 +3,9 @@
 - Status: Implemented
 - Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
 - Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
+- Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
+- Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
+- Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
 - Last verified: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
 - Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
 - Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
@@ -128,8 +131,11 @@ semantics, so it has no CLI counterpart.
 ## Command center (#363)
 
 The current document's location/name is a searchable command-center button centered in the TopBar.
-The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+P opens a
-search dialog near the top center; Ctrl/Cmd+Shift+P starts with `>` to list commands only.
+The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+/
+opens a search dialog near the top center. Type `>` to list commands only.
+Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
+The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
+still block opening the center and Save behind them.
 The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
 existing shell command names, including their Korean/English aliases. It does not search document
 contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
@@ -203,6 +209,182 @@ editor; an admission/recovery dialog owns its focus. Opening a file may relist/r
 through the existing open path; those requests are not search-time discovery. Opened-tab selection
 keeps #386's synchronous tab activation and Dialog final-focus behavior, including Source tabs.
 This is Editor navigation, so no Core operation or CLI command is added.
+
+### Shortcut contract (#381)
+
+The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
+platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
+consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
+The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
+selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
+validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return focus synchronously
+through ProseMirror, so a previous form cannot later blur a newly opened link form. It does nothing behind a modal or during IME
+composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
+
+Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378). The two-key bindings are
+**Ctrl/Cmd+/** (slash character) for the center and **Ctrl/Cmd+'** (apostrophe character)
+for links. Neither uses Alt/AltGr or Shift. The old Ctrl/Cmd+Alt+Shift+P/K bindings are removed;
+Ctrl/Cmd+P and Ctrl/Cmd+Shift+P remain unhandled so browser printing is preserved.
+
+The official [Chrome](https://support.google.com/chrome/answer/157179?hl=en),
+[Edge](https://support.microsoft.com/en-us/edge/keyboard-shortcuts-in-microsoft-edge),
+[Windows](https://support.microsoft.com/en-gb/accessibility/windows/keyboard-shortcuts-in-windows) and
+[macOS](https://support.apple.com/en-us/102650) lists were checked on 2026-10-24.
+The selected bindings have no listed browser or global system default. Apple's Cmd+/ toggles the
+status bar in Finder only; it does not apply when Chrome/Edge has focus. The
+[Microsoft Korean layout](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor.html)
+includes unshifted slash (after period) and apostrophe (after semicolon, before Enter).
+Literal `event.key` must be `/` or `'`. A different character at the same position is not a shortcut;
+full-width punctuation is a different character too. Only `Process` or `Unidentified` may fall back
+to `event.code` (`Slash` / `Quote`), and active composition is still ignored.
+Left Ctrl is recommended on Korean layouts where right Ctrl is Hanja conversion. No input-source
+switching shortcut is claimed. No Core or CLI semantics change.
+
+#### Keyboard-layout safety (#381 review follow-up)
+
+Browser accelerators are also checked conservatively: `keyCode` must be the definition's unshifted
+punctuation virtual key (191 for `/`, 222 for `'`), unspecified (0), or IME Process (229).
+Other native mappings are passed through, even if an IME reports an opaque key or the visible
+character matches. This is necessary because French AZERTY apostrophe uses digit 4: character-only
+matching would compete with Ctrl+4. A German `Process`/`Unidentified` event with VK_MINUS (189)
+must likewise retain browser zoom. Chromium derives browser accelerators from the
+[Windows virtual key](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/content_accelerators/accelerator_util.cc),
+not just the DOM character. The numeric guard deliberately uses the legacy field for this supported
+Chromium boundary; [Windows virtual-key definitions](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
+identify those values. Unknown native mappings fail closed rather than claiming cross-layout support.
+
+Shift remains disallowed. We do not introduce Ctrl/Cmd+Shift+7 or any other layout-dependent alias:
+the displayed two-key bindings must not grow an unverified browser/OS accelerator. Layouts requiring
+Shift, AltGr, or a reserved virtual key use the existing Command center / Link buttons instead.
+The tooltip, ARIA and command-item definitions remain unchanged and denote characters, not universal
+physical positions. Depending on the layout, the character can be on another key; not every layout
+has a usable unshifted, unreserved keyboard combination. No automatic remapping is claimed.
+
+Official layouts: [US](https://learn.microsoft.com/en-us/globalization/keyboards/kbdus),
+[Korean](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor),
+[German](https://learn.microsoft.com/en-us/globalization/keyboards/kbdgr),
+[French legacy AZERTY](https://learn.microsoft.com/en-us/globalization/keyboards/kbdfr).
+
+| Layout / event | Center | Link | Browser behavior |
+| --- | --- | --- | --- |
+| US, Korean literal `/` / `'`, VK 191 / 222 | Opens | Opens | No listed default replaced |
+| Korean opaque `Process` / `Unidentified`, Slash / Quote, VK 229 / 0 / matching punctuation | Opens | Opens | Composition still ignored; other physical codes passed through |
+| German Slash-position `-`, VK 189; Quote-position `ä` | Does not open | Does not open | Ctrl+- zoom preserved |
+| German Shift+7 `/`; Shift+Backslash `'` | Does not open | Does not open | Shift aliases deliberately unavailable; use buttons |
+| French Slash-position `!`; Quote-position `ù` | Does not open | Does not open | Different characters passed through |
+| French Shift+Period `/`; digit-4 apostrophe | Does not open | Does not open | Ctrl+4 tab switch preserved; use buttons |
+| Opaque key masking VK_MINUS / VK_4 | Does not open | Does not open | Browser zoom / tab switch preserved |
+
+At pre-fix `e2ee863`, the revised shell test failed on German zoom, and existing browser scenarios
+failed with `German zoom shortcut was intercepted` and `Layout-specific key was intercepted by Link`.
+The current scenarios cover literal US punctuation, Korean opaque IME keys/composition, German
+minus/umlaut and shifted variants, and French characters/digit-4 apostrophe. The original immediate
+search typing, modal blocking, shared labels/ARIA and prior-link-form focus regression are retained.
+
+Headed installed Chrome 155.0.8059.85 and Edge 155.0.4283.62 were additionally sent layout-specific
+CDP key/code/virtual-key tuples. Both an ordinary input and the actual Editor retained German Ctrl+-:
+DPR 1 → 0.899999976 for `-`, `Process`, and `Unidentified` with Slash / VK 189, without opening the
+center. After Ctrl+0 reset, literal and opaque US/Korean center/link cases opened their existing UI.
+French apostrophe / digit-4 VK 52, including opaque variants, still activated browser tab 4 without
+opening Link. German/French shifted or umlaut characters did not open the forms. These are protocol
+reproductions against official layouts, not hardware/OS layout switching. No native UI was screen
+automated. The same checkout-owned Chrome and fixed Edge profiles were reused and zoom reset.
+
+#### Earlier two-key candidate audit (#381, historical physical-only implementation)
+
+The following US-key probe and its recorded results predate the layout-safety fix above. They do
+not establish safety on German/French layouts; the review follow-up supersedes that inference.
+
+Each row below was sent with Playwright to an input in a **headed installed** Windows Chrome
+155.0.8059.85 and Edge 155.0.4283.62, then to Electron 44.7.0 / Chromium 152.0.7977.130.
+`received/cancelled` means exactly one trusted, cancelable keydown arrived with the expected physical
+code, `preventDefault()` set `defaultPrevented`, input focus/value stayed unchanged and no browser
+tab was added. Electron has a null application menu, so no menu accelerator claims these keys.
+
+| Candidate (Ctrl; Cmd on macOS) | Chrome official / Windows probe | Edge official / Windows probe | Electron | Korean IME / physical key | Decision |
+| --- | --- | --- | --- | --- | --- |
+| / (Slash) | No listed default; received/cancelled | No listed default; received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | **Center**; shares the slash command cue |
+| ' (Quote) | No listed default; received/cancelled | No listed default; received/cancelled | received/cancelled; no menu | Present beside Enter, no AltGr/Shift | **Link**; easy home-row key, no existing editor binding |
+| ; (Semicolon) | No listed browser default; received/cancelled | No listed browser default; received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: macOS Cmd+; finds misspellings |
+| \ (Backslash) | No listed default; received/cancelled | PDF fit mode; received/cancelled on HTML input | received/cancelled; no menu | Present; may have won-sign keycap | Reserve PDF behavior; clearer unused alternatives exist |
+| [ (BracketLeft) | Cmd+[ is Back; Windows received/cancelled | PDF rotation, Cmd+[ Back; Windows received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: macOS browser navigation |
+| ] (BracketRight) | Cmd+] is Forward; Windows received/cancelled | PDF rotation, Cmd+] Forward; Windows received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: macOS browser navigation |
+| Grave accent (Backquote) | No listed browser default; received/cancelled | No listed browser default; received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: macOS window switching |
+| , (Comma) | Cmd+, Settings; Windows received/cancelled | No listed default; received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: browser preferences / existing Subscript |
+| . (Period) | No listed default; received/cancelled | No listed default; received/cancelled | received/cancelled; no menu | Present, no AltGr/Shift | Reject: existing Superscript |
+
+Known reserved letter combinations (print P/Shift+P, address search K/E/L, new/close tabs N/T/W,
+DevTools, Edge sidebar/Collections) are excluded using the official lists rather than opening native
+UI. Ctrl+Alt variants are excluded for AltGr; Space variants are excluded for IME switching.
+Two punctuation combinations pass, so additional Shift+letter/F-key bindings are unnecessary.
+
+Reproduce the browser delivery audit from this checkout with
+`pnpm exec tsx apps/editor/test/browser/shortcut-probe.ts chrome` and then `... msedge`.
+The script closes its context in `finally` and writes raw event results to `tmp/shortcut-probe-*.json`.
+Chrome reuses the runner's existing checkout hash profile; Edge reuses its one fixed `-edge` sibling.
+`IEUMDOC_BROWSER_CHANNEL=msedge pnpm browser:test command-center link-authoring` reuses that same
+Edge profile for product integration. Run channels sequentially, never with temporary profiles.
+
+This proves page delivery/cancellation for protocol-injected keys in these installed Windows builds,
+not hardware keyboard routing through every OS hook. No print/address/native UI was screen-automated.
+macOS is a documentation-level review only; custom global hotkeys and nonstandard compact keyboard
+layouts are outside this evidence. The full-width key/code cases are synthetic IME-state regressions,
+not a claim that Playwright toggled the OS IME. Browser defaults remain supported by official lists,
+with actual delivery/focus evidence for each punctuation candidate.
+
+Before changing the bindings at `e60ef78`, the revised shell test failed on the new physical key;
+`command-center` failed waiting for the Slash-opened input and `link-authoring` failed its shortcut
+label assertion. After the change: Editor 277/277, Desktop 40/40 and typecheck/build passed;
+Chrome `command-center`, `link-authoring`, `layout-rules`, `quiet-document` and Edge's two shortcut
+scenarios passed. Electron passed center opening/typing and existing link-form Apply. The queued
+previous-link-form focus regression and #386 immediate search/document focus assertions remain.
+
+Same-worktree `quiet-document --screenshots`, 100% zoom / DPR 1, bundled font, same rest state:
+
+| Viewport | Before (three modifiers) | After (two keys) |
+| --- | --- | --- |
+| 1440×1000 | [Before](assets/shortcuts-381/after-1440.png) | [After](assets/shortcuts-381/two-key-after-1440.png) |
+| 375×1000 | [Before](assets/shortcuts-381/after-375.png) | [After](assets/shortcuts-381/two-key-after-375.png) |
+
+The existing shortcut chip is shorter; control placement, document typography and responsive rules
+are retained. The earlier verification record below is historical and is not rewritten as new proof.
+
+#### Earlier three-modifier verification and captures (#381, historical)
+
+Windows Chrome 155.0.8059.85 passed `command-center`, `link-authoring`, `layout-rules` and
+`quiet-document`; Edge 155.0.4283.62 passed the two shortcut scenarios using the same checkout-owned
+persistent profile sequentially. These exercise actual renderer keyboard dispatch, Korean key values
+with physical codes, composition exclusion, tooltips/ARIA, modal blocking and real file Save → Reload.
+Printing is checked by uncancelled `Ctrl+P` / `Ctrl+Shift+P` events with no center opening.
+Electron 44.7.0 (Chromium 152.0.7977.130) staged-app smoke passed center opening/typing, link opening/Apply
+and a null application menu. Desktop tests passed 40/40; Editor tests passed 277/277.
+
+Native browser chrome (including the actual print window and address bar) is **not verified**:
+Computer Use stopped because it could not determine the browser URL confidently enough for policy.
+No native key was sent after that stop. Runtime integration success and official default-shortcut
+lists are separate evidence; this record does not claim a completed native browser/OS collision audit.
+Initial headed Chrome and the first CI run exposed a link-form focus timeout after Remove: a queued
+Tiptap `focus()` could blur the next form. A regression holds only frames queued by Remove and
+releases them after opening the next form; it failed before the fix and passes with synchronous
+ProseMirror focus return on Apply/Remove/Escape. The exploratory headed layout scenario also
+observed a 15px native-scrollbar difference; the standard runner passes unchanged assertions.
+No browser-runner or command-center focus-policy change is introduced by #381. The full CI also
+exposed a platform-label test isolation race: a recorded deletion offered recovery after Reload and
+covered Settings. Waiting for an actual deletion record reproduced it locally. The cross-reference
+scenario now Saves its scratch edits and observes removal of that path's recovery record before the
+platform-only Reload; product recovery behavior and existing assertions are unchanged.
+
+Same-path `quiet-document --screenshots` product comparison at base `c587663` and #381 implementation,
+Windows Chrome, DPR 1 / 100% zoom, bundled Pretendard, scroll top, equivalent rest state:
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×1000 | [Before](assets/shortcuts-381/before-1440.png) | [After](assets/shortcuts-381/after-1440.png) |
+| 375×1000 | [Before](assets/shortcuts-381/before-375.png) | [After](assets/shortcuts-381/after-375.png) |
+
+The base product files were temporarily restored and the implementation reapplied in the same
+worktree; no other checkout or Chrome profile was created. Only the existing shortcut chip/tooltip
+text changes. Document layout and control positions retain the Visual Language rules.
 
 ### Command center verification (#363)
 
@@ -349,7 +531,7 @@ paged captures, with existing footer typography/spacing and no new adjustable st
 - Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; `Fig. 2`, `Eq. 3` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
 - Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (caption and label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
-- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
+- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
 - Figure selection shows the selection outline only. Explicit Edit opens Image/Alt text/Label fields and a Caption field for plain captions; rich captions are edited in the document. Metadata Apply preserves rich caption content. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Focus restoration itself changes neither document nor history. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.

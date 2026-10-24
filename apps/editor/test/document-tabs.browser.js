@@ -41,7 +41,7 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
 
   // Restored sessions use the shared command-center dismissal/final-focus path (#392).
   for (const name of ['technical-2.md','technical-1.md']) {
-    await page.keyboard.press('Control+p');
+    await page.keyboard.press('Control+Slash');
     const center = page.getByRole('dialog',{name:'Command center',exact:true});
     await center.getByRole('combobox').fill(name);
     const match = center.getByRole('option',{name,exact:true});

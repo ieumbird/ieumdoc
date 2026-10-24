@@ -1,3 +1,4 @@
+import { LINK_SHORTCUT } from "./shortcuts.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
@@ -94,7 +95,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Code aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Link")} title={tip(i18n.t("Link"))}
+        aria-label={i18n.t("Link")} title={`${i18n.t("Link")} (${LINK_SHORTCUT.label})`} aria-keyshortcuts={LINK_SHORTCUT.aria}
         aria-pressed={editor.isActive("link")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => (editableInlineContext(editor) ? onEditLink() : onReject())}
@@ -184,21 +185,23 @@ export function LinkForm({ editor, draft, style, onClose }: {
   const [error, setError] = useMessageState("");
   const close = () => {
     onClose();
-    editor.commands.focus();
+    // Finish this form's focus return now. A queued Tiptap focus can otherwise blur a
+    // subsequent link form opened by the shortcut before the next animation frame.
+    editor.view.focus();
   };
   const apply = () => {
     const url = href.trim();
     if (url.length === 0) return setError({ key: "Enter a URL." });
     if (/\s/.test(url)) return setError({ key: "A URL cannot contain spaces." });
     // Keep an existing title; the form edits the URL only.
-    const applied = editor.chain().focus().setTextSelection({ from: draft.from, to: draft.to })
+    const applied = editor.chain().setTextSelection({ from: draft.from, to: draft.to })
       .setLink({ href: url, title: draft.title }).run();
     if (!applied) return setError({ key: "This URL cannot be used as a link." });
-    onClose();
+    close();
   };
   const remove = () => {
-    editor.chain().focus().setTextSelection({ from: draft.from, to: draft.to }).unsetLink().run();
-    onClose();
+    editor.chain().setTextSelection({ from: draft.from, to: draft.to }).unsetLink().run();
+    close();
   };
   return (
     <form

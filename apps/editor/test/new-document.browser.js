@@ -157,6 +157,7 @@ async page => {
   await create.click();
   const newName = page.getByTestId('new-file-name');
   await newName.waitFor();
+  await newName.and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
   check(await newName.evaluate(el => el === document.activeElement), 'New did not focus the filename');
   await newName.fill('second-document');
   await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();

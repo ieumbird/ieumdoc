@@ -61,6 +61,9 @@ async (page, { screenshots = false, openDocument }) => {
   const settings = page.getByRole('button', {name:'Settings', exact:true});
   const dialog = page.getByTestId('settings-dialog');
   const status = () => page.getByTestId('update-status').innerText();
+  // Bridge callbacks schedule React work; delivery is not a rendered-state acknowledgement.
+  const waitForStatus = expected => page.waitForFunction(text =>
+    document.querySelector('[data-testid="update-status"]')?.textContent === text, expected, {timeout:5000});
   const notice = page.getByTestId('update-notice');
 
   // Settings → About, by keyboard: version, the Stable default, a channel change, and focus back.
@@ -77,11 +80,13 @@ async (page, { screenshots = false, openDocument }) => {
   await page.waitForFunction(() => document.activeElement?.matches('[data-testid="ui-language"]'), undefined, {timeout:5_000});
   await stable.focus();
   await push({phase:'no-stable-release'});
+  await waitForStatus('No Stable release has been published yet.');
   check(await status() === 'No Stable release has been published yet.', 'Stable absence is not explained');
   check(await notice.count() === 0, 'Stable absence displayed an update notification');
   check(await page.getByRole('button', {name:'Check for updates'}).isEnabled(), 'Stable absence disabled checking');
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'channel'));
+  await beta.and(page.locator(':checked')).waitFor({state:'attached', timeout:5000});
   check(await beta.isChecked() && (await calls()).includes('channel:beta'), 'The channel change did not reach the Desktop app');
   await page.getByRole('button', {name:'Check for updates'}).click();
   await page.getByRole('button', {name:'Release notes'}).click();
@@ -95,16 +100,26 @@ async (page, { screenshots = false, openDocument }) => {
   check((await notice.innerText()).includes('IeumDoc 0.3.0-beta.1 (Beta) is available.'), 'The notice does not name the update');
   await notice.getByRole('button', {name:'Later'}).click();
   await notice.waitFor({state:'detached'});
+  // Observe each committed phase before checking that a postponed version stays quiet.
+  await settings.click();
+  await dialog.waitFor();
   await push({phase:'checking'});
+  await page.locator('[data-testid="update-status"][data-phase="checking"]').waitFor({state:'attached', timeout:5000});
   await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
+  await waitForStatus('IeumDoc 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
   check(await notice.count() === 0, 'A postponed version notified again');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'detached'});
   await push({phase:'available', version:'0.3.0-beta.2', prerelease:true});
   await notice.waitFor();
   await notice.getByRole('button', {name:'View'}).click();
   await dialog.waitFor();
+  await waitForStatus('IeumDoc 0.3.0-beta.2 (Beta) is available. You have 0.2.0.');
   check((await status()).includes('0.3.0-beta.2 (Beta) is available. You have 0.2.0.'), 'About does not describe the update');
   await page.getByRole('button', {name:'Download update'}).click();
   await push({phase:'downloading', version:'0.3.0-beta.2', prerelease:true, percent:42.5, transferred:425, total:1000});
+  await page.getByRole('progressbar', {name:'Update download'}).and(page.locator('[value="42.5"]')).waitFor({state:'attached', timeout:5000});
+  await beta.and(page.locator(':disabled')).waitFor({state:'attached', timeout:5000});
   check(await page.getByRole('progressbar', {name:'Update download'}).getAttribute('value') === '42.5', 'Download progress is not shown');
   check(!await beta.isEnabled(), 'The channel can change during a download');
   await push({phase:'downloaded', version:'0.3.0-beta.2', prerelease:true});

@@ -1,3 +1,4 @@
+import { LINK_SHORTCUT } from "./shortcuts.ts";
 import { BibliographyContent, useBibliographyEntries } from "./Bibliography.tsx";
 import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
@@ -140,6 +141,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   // The caret a slash Citation item left; the form inserts there.
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
   const citationEntries = useBibliographyEntries(bibliography);
+  const linkKey = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
   const [draftRevision, draftsChanged] = useReducer((count: number) => count + 1, 0);
@@ -216,7 +218,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }
       },
       editorProps: {
-        handleKeyDown: (_view, event) => slashKeys.current(event),
+        handleKeyDown: (_view, event) => linkKey.current(event) || slashKeys.current(event),
         scrollThreshold: caretRoom(host, 0),
         scrollMargin: caretRoom(host, 5),
         attributes: {
@@ -441,6 +443,17 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     ? [...(slash.blockCommands ? filterInsertCommands(slash.query) : []), ...(slash.endnote ? endnoteCommandItems(slash.query) : []), ...referenceCommandItems(editor.state.doc, slash.query), ...citationCommandItems(citationEntries, slash.query)].map(insertMenuItem)
     : [];
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
+  // Both entry points reuse the engine selection and existing link draft/form.
+  const editLink = () => {
+    setFocused(editor.view.hasFocus());
+    setLinkDraft(linkDraftOf(editor));
+  };
+  linkKey.current = (event) => {
+    if (!LINK_SHORTCUT.matches(event) || !editor.isEditable || !formattableSelection(editor.state) ||
+        globalThis.document.querySelector('[data-slot="dialog-content"]')) return false;
+    editLink();
+    return true;
+  };
   slashKeys.current = (event) => {
     if (event.key === "/") {
       // A newly typed `/` starts a fresh query.
@@ -539,10 +552,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           toolbarRef={toolbar}
           onLeave={() => setFocused(false)}
           // The form takes focus; opened from the toolbar by keyboard, the editor had none.
-          onEditLink={() => {
-            setFocused(editor.view.hasFocus());
-            setLinkDraft(linkDraftOf(editor));
-          }}
+          onEditLink={editLink}
           onEditReference={() => {
             setFocused(editor.view.hasFocus());
             const { from, to } = editor.state.selection;
