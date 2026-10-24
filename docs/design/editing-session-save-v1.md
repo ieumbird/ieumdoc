@@ -1,7 +1,9 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
+- Last verified: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
+- Previous verification: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
+- Previous verification: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
 - Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
 - Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
 - Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
@@ -354,6 +356,64 @@ window close retains the native confirmation with wording about all documents. U
 aggregate every session's pending work without adding a dialog to the timed handshake.
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
+
+## Tab navigation memory (#383)
+
+Under [ADR-0007 decision 3](../adr/0007-editing-session-lifetime.md#3-여러-문서를-탭으로-열어-두고-탭마다-독립된-세션을-가진다)
+and the owner-approved [#380 decision](https://github.com/ieumbird/ieumdoc/issues/380),
+`ieumdoc.openTabs` in origin-local `localStorage` holds only `{ paths, activePath }`:
+Host-normalized document paths in tab order and the active document path (or null).
+It stores no content, selection, cursor, undo, session snapshot, Host state or file. This is UI
+navigation, not a Core semantic operation; no CLI parity command is needed. Vite, Desktop and HTTP
+origins do not share preferences. Disabled/malformed preference storage does not block navigation.
+
+Nonempty remembered tab lists wait for opened folders to finish their existing restoration, so tab
+opens use their outermost containing folder for bibliography context. Without remembered tabs, the
+existing start/default document remains usable while folders restore independently. Tab restoration keeps the existing loading/operation guard until every
+remembered path has been attempted sequentially, then publishes one final tab list. Open/New,
+Close and switching cannot compete with pending restoration responses. Cancelled startup sends no
+further requests after the current request settles. The Host still validates every read; moved,
+missing, refused and non-native paths are quietly omitted. Equal Host-normalized paths get one tab.
+The remembered active path is selected when it survives; otherwise the first surviving tab is active.
+
+Restoration alone never writes preferences, including excluded paths and active-path fallback.
+Successful user Open/New, Close, recovery Restore and explicit tab selection remember the current
+live paths/active path. Even a selection or Open of the already-active tab writes the current list,
+so another browser tab's saved preference cannot defeat a later explicit action here. Save, editor
+reports, typing and folder-only actions never write tab preferences. There is no storage-event
+synchronization or saved-value cache. Closing all tabs remembers an empty list and retains the start
+screen on Reload rather than reopening the development sample.
+
+| Startup route | Precedence and result |
+| --- | --- |
+| Non-empty page `?path=…` | Opens only that explicit path through the Host, ahead of navigation memory. This page query is now consumed by the Editor; previously only the Host API accepted a path query. Failure shows the existing startup error, with no remembered fallback. |
+| Desktop `.md` launch argument | The existing first Host response contains that file. Opens only it ahead of memory; a matching recovery record is offered through the existing dialog. A URL path, if present, is explicit in the request and takes precedence over the Host default. |
+| HTTP/Desktop start response; Vite default response | If a valid preference exists, restores its list instead of opening a default. An empty or entirely excluded list leaves the start screen with Host sample/allowed-root information. |
+| No usable preference | Keeps the existing Host start behavior: HTTP/Desktop start screen or Vite development sample. An explicit startup/default document with a matching record keeps the existing recovery offer. |
+| Remembered path has a recovery record | Does not automatically open its disk version, even if the record is incompatible. With no clean tabs, the existing start-screen recovery list is visible. If clean tabs restore and hide that list, the newest matching record is offered in the existing review dialog. Not now retains it. Restore uses the existing explicit flow and creates one unsaved tab. Other records remain available on the start screen. |
+| Recovery storage cannot be read | Automatic remembered-tab restoration is deferred for this startup, preserving the existing recovery-unavailable message. Explicit opens remain available. This avoids treating unknown recovery state as clean work. |
+
+The pathless Host read retains sample/allowed-root metadata when supplied and identifies a Desktop
+launch document. Its failure does not prevent an explicit URL request, or browser remembered-tab
+restoration (including an intentionally empty list): the unused development default is not a
+prerequisite. Those document requests still go through the Host independently. If the default is
+actually needed because no usable preference or URL exists, its failure keeps the existing startup
+error. Without a URL, Desktop still requires its first response: a failing launch document must not
+silently fall back to remembered tabs. Metadata cannot be invented when that read fails; the
+Desktop bridge and every Host request's access validation remain unchanged.
+
+Automatic startup (including an explicit URL/launch argument) leaves navigation memory unchanged
+until the next successful user action. Neither navigation restoration nor exclusions write/delete
+recovery records. Explicit Open may still open the disk version and offer recovery as before; Restore
+replaces a clean matching tab rather than adding a duplicate and refuses to replace dirty/busy work.
+The separate record's revision and existing Save conflict checks remain authoritative.
+
+`document-tabs` checks actual Reload order/active identity, empty memory, exclusions, held startup
+responses, aliases, cross-tab preference writes, URL/Desktop launch precedence and disabled storage.
+`recovery` checks clean-tab restoration alongside an unchanged dirty record and one explicit restored
+tab; `recovery-structure` retains generated structured-record Restore/Save/Reload coverage.
+These browser Desktop checks use the bridge/first-response contract; actual Electron restart and
+packaged-platform coverage remain the required Desktop CI boundary.
 
 ## Save shortcut and work-loss protection (#56)
 

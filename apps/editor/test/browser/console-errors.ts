@@ -79,6 +79,10 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "folder-memory": [
     {status: 400, pathname: "/api/folder", minimum: 1, description: "a remembered missing folder is quietly skipped during restoration"},
   ],
+  "document-tabs": [
+    {status: 400, pathname: "/api/document", minimum: 1, description: "missing or non-native remembered documents are quietly excluded, and an open file may be removed externally"},
+    {status: 403, pathname: "/api/document", minimum: 1, description: "a remembered path denied by the Host is quietly excluded"},
+  ],
 };
 
 export function classifyConsoleErrors(scenario: string, messages: string[]) {

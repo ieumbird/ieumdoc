@@ -1,7 +1,8 @@
 # ADR-0007: 편집 세션 수명과 미저장 작업 보호
 
 - Status: Accepted
-- Last verified: 2026-10-16 (decision 1 revised: autosave deferred, #297; #204 implementation status compared with the current Editing session and Save contract).
+- Last verified: 2026-10-24 (decision 3 extended by the owner-approved #380 decision, implemented in #383: navigation-only tab memory under the ADR-0009 preference boundary; recovery remains authoritative for unsaved work).
+- Previous verification: 2026-10-16 (decision 1 revised: autosave deferred, #297; #204 implementation status compared with the current Editing session and Save contract).
 - Previous verification: 2026-10-15 (decision recorded and revised after PR #295 review: Host-specific close boundary, recovery guarantee limits; current switching/Save/unload contract compared with [Editing session and Save](../design/editing-session-save-v1.md) and `App.tsx`; #291 Open/New confirmation verified with browser regressions).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#291](https://github.com/ieumbird/ieumdoc/issues/291) · [#204](https://github.com/ieumbird/ieumdoc/issues/204) · [#272](https://github.com/ieumbird/ieumdoc/issues/272) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-15
@@ -43,6 +44,14 @@
 - 여러 문서를 동시에 열 수 있다. 각 탭은 [ADR-0001](0001-single-document-editor-architecture.md)에 따라 문서 하나에 Tiptap/ProseMirror state 하나를 가지며, 열기 snapshot, 승인된 revision, 실행 취소 기록, 초안과 미저장 상태를 독립적으로 유지한다.
 - 탭 사이의 전환은 미저장 처리를 요구하지 않는다. 이미 열린 문서를 다시 열면 그 탭으로 이동한다.
 - 문서 탭을 닫을 때 미저장 작업이 있으면 아래 4의 확인을 거친다. 창·브라우저 탭 닫기는 4의 Host별 경계를 따른다.
+
+2026-10-24 추가 결정 ([#380](https://github.com/ieumbird/ieumdoc/issues/380), 구현 #383):
+
+- 열린 문서의 경로·순서·활성 경로만 [ADR-0009](0009-multiple-opened-folders.md)의 열린 폴더와 같은 origin별 브라우저 환경설정(localStorage)에 기억한다. 내용·커서·undo·Host 상태·파일을 저장하지 않는다. 기억은 접근 권한이 아니며 Host는 매 요청을 검증한다.
+- 새로고침과 Desktop 재시작에서 그 순서로 다시 열고 마지막 활성 탭을 선택한다. 없어진 경로, Host 거부, 비네이티브 문서는 조용히 제외한다. 복원만으로 기억을 재작성하지 않고 사용자의 열기·닫기·전환이 현재 목록을 기억한다.
+- 미저장 작업은 2의 기존 복구 기록 흐름이 우선한다. 탭 기억이 복구 제안을 우회하거나 기록을 덮거나 같은 문서를 중복해서 열지 않는다. 명시적 시작 경로와 복구 제안의 구체 우선순위는 [현재 시작 계약](../design/editing-session-save-v1.md#tab-navigation-memory-383)을 따른다.
+
+기존 Accepted ADR의 3을 이 승인된 추가 결정으로 확장한다. 폴더 결정(ADR-0009)을 바꾸거나 새 Workspace/Host persistence architecture를 도입하지 않으므로 별도 ADR은 만들지 않는다. 문서 의미 변경이 아닌 UI 탐색 상태이므로 CLI parity 대상도 아니다.
 
 ### 4. 미저장 작업 처리는 하나의 확인 대화상자를 재사용한다
 
