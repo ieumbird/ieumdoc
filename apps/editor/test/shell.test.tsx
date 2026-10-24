@@ -8,7 +8,7 @@ import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { createOutlineStore } from "../src/outline.ts";
 import { createDocumentSessionLifetime } from "../src/document-session.ts";
-import { visibleRecentFolders } from "../src/preferences.ts";
+import { readOpenTabs, visibleRecentFolders, writeOpenTabs } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
@@ -23,6 +23,29 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
+
+test("tab preferences distinguish absent/empty memory and tolerate malformed or unavailable storage", () => {
+  const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  let saved: string | null = null;
+  try {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+      getItem: () => saved, setItem: (_key: string, value: string) => { saved = value; },
+    } });
+    assert.equal(readOpenTabs(), null);
+    writeOpenTabs({ paths: [], activePath: null });
+    assert.deepEqual(readOpenTabs(), { paths: [], activePath: null });
+    for (const invalid of ["{broken", "[]", "null", '{"paths":false}']) {
+      saved = invalid; assert.equal(readOpenTabs(), null);
+    }
+    saved = JSON.stringify({ paths: ["/a.md", 42, "", "/a.md", "/b.md"], activePath: "/missing.md" });
+    assert.deepEqual(readOpenTabs(), { paths: ["/a.md", "/b.md"], activePath: null });
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("blocked"); } });
+    assert.equal(readOpenTabs(), null);
+    assert.doesNotThrow(() => writeOpenTabs({ paths: ["/a.md"], activePath: "/a.md" }));
+  } finally {
+    if (storage) Object.defineProperty(globalThis, "localStorage", storage); else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
 
 test("command center searches document paths and translated commands, with an explicit command-only prefix", () => {
   const items: CommandCenterItem[] = [

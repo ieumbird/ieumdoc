@@ -15,8 +15,9 @@ export function recoveryRecords(page: Page): Promise<{ id: string; path: string;
   }));
 }
 
-/** Reset only this test origin's recovery DB, preserving the owned Chromium profile. */
+/** Reset initial recovery/tab state between tests, never between a test's crash/restarts. */
 export async function resetRecovery(page: Page): Promise<void> {
+  await page.evaluate(() => localStorage.removeItem("ieumdoc.openTabs"));
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase("ieumdoc-recovery");
     request.onsuccess = () => resolve();
