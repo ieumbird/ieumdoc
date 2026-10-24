@@ -1,6 +1,6 @@
 // Interface regression: real typing, typed clipboard, live numbering and Save → Reload.
 // Optional images are manual review evidence, never pass/fail pixel assertions.
-async (page, { openDocument, reloadDocument, screenshots }) => {
+async (page, { openDocument, reloadDocument, screenshots, assertSavedSource }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -32,7 +32,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     assert(JSON.stringify(await chips.allTextContents()) === JSON.stringify(['[1]', '[2]', '[1]', '[2], [3]', '[3], [1]', '[2], [1]', '[5]', '[4]', '[6]']), 'Displayed numbers must match the Core content order');
     assert((await chips.first().getAttribute('title')).includes('Alpha') && (await chips.first().getAttribute('title')).includes('could not be verified'), 'Exact keys and unverified status must be available');
     assert(await editor.locator('[data-citation][data-resolved]').count() === 0, 'Citation must not claim resource resolution');
-    assert((await read()).source === before, 'Open must not write');
+    await assertSavedSource((await read()).source, before, 'Open must not write');
     const original = await semantic();
 
     await editor.evaluate(element => { const e = element.editor; e.commands.setTextSelection(e.state.doc.child(0).nodeSize + 1); e.view.focus(); });
@@ -73,7 +73,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     assert(await semantic() === moved, 'Reload must retain role, exact keys, group order and marks');
     assert(await chips.first().textContent() === '[1]' && (await chips.first().getAttribute('title')).includes('Beta'), 'Reload numbers must match edited order');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
-    assert((await read()).source === written.source, 'Repeated Save must be canonical and stable');
+    await assertSavedSource((await read()).source, written.source, 'Repeated Save must be canonical and stable');
 
     // Enter leaves a citation-only paragraph; Backspace rejoins it through real Host saves.
     const citationCaret = () => editor.evaluate(element => {
@@ -94,7 +94,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     await citationCaret();
     await page.keyboard.press('Backspace');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
-    assert((await read()).source === written.source, 'Merge must restore the original canonical bytes');
+    await assertSavedSource((await read()).source, written.source, 'Merge must restore the original canonical bytes');
     await reloadDocument(page); await ready();
     assert(await semantic() === moved, 'Merge Reload must retain all citation semantics');
 
