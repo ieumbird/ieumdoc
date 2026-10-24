@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
 - Last verified: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
 - Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
 - Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
@@ -262,6 +263,45 @@ work, busy restrictions and the real non-native refusal with unchanged active do
 runs after Tiptap's Strict Mode DOM reattachment in a cancellable microtask; the browser check adds
 no focus polling or reload before typing. The visual change reuses the existing result layout,
 selected surface and sidebar subtle-text/crossed-file treatment; no adjustable value is introduced.
+
+### Listed search review follow-up (#384)
+
+The existing scenario failed on reviewed head `4fdb5bc8ffc8f91403d58a84c4ba50ab934b497f`
+with `Disconnected child cache remained searchable after parent relisting`. It now expands/collapses
+`alpha`, removes that entry from the next parent response, verifies the sidebar and search omit it,
+then restores the parent entry and verifies its preserved collapsed listing is searchable again.
+The folder-tree reducer/cache lifecycle is unchanged; search reuses `knownFolders` for reachability.
+
+Performance measurements used 2,000 synthetic native document entries in one existing scratch folder,
+one initial document tab, collapsed sidebar, 1280×720, the same worktree/persistent Windows headless
+Chrome/Vite development setup and no CPU throttling. Three trials measured Control+P and real `b`,
+`u`, `l` key presses through two subsequent animation frames; unique search used `fill('bulk-1999')`.
+These are local end-to-end observations including Playwright overhead, not production benchmarks or
+fixed timing gates. The after run includes #397 on `cda1397` (subsequent changes add tests/evidence).
+
+| Measurement | Reviewed implementation | After follow-up |
+| --- | --- | --- |
+| Open, three trials (ms) | 1387 / 1085 / 1031 | 333 / 256 / 204 |
+| Real b/u/l input, nine key presses (ms) | 395–831 | 35–72 |
+| Unique search, three trials (ms) | 204 / 171 / 168 | 64 / 53 / 55 |
+| Chrome CPU samples with React render/commit frames, extra open + b/u/l run | about 1926 ms | about 188 ms |
+| Samples within filter / App, same profile | about 6 / 12 ms | about 6 / 15 ms |
+
+The sampling profile identified result rendering/commit as the main input bottleneck, rather than
+text matching. The source also regenerated all file candidates during closed-center App renders.
+Open-only memoized collection/sorting removes that unnecessary work; the 50-row page bounds rendering
+without limiting full-scope filtering or making late results unreachable. The sampled totals are
+stack categories, not isolated component timings; idle/native/other work is not listed above.
+The [before](assets/command-center-384/profile-before.json) and
+[after](assets/command-center-384/profile-after.json) summaries retain all trial values and top samples.
+
+The existing `command-center` scenario now also supplies the synthetic 2,000-entry listing, checks
+visible range/total, real Tab/Enter previous/next access and within-page arrows, no Host requests,
+query narrowing to the final document, actual open and immediate editor typing/Undo. Only that last
+target is a real scratch file; there is no 2,000-file fixture or timing assertion. Existing restored-tab
+checks in `document-tabs` also verify one `Opened tab` result per restored path. Actual pagination at
+[1280px](assets/command-center-384/paged-1280.png) and [375px](assets/command-center-384/paged-375.png)
+uses existing footer typography/spacing, shared Button controls and tokens, with no new adjustable value.
 
 ## Writing interactions
 
