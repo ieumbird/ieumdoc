@@ -464,3 +464,42 @@ Save/Reload, as well as validation finishing after focus has moved elsewhere.
 This is still Editor interaction only, with no new Core operation or CLI command.
 
 Before the change, an actual browser Save replaced the editor, changed selection from 287 to 1, and changed `can().undo()` from true to false. `save-session.browser.js` exercises real scratch-file persistence across Save/history, transient content, delayed responses, rejection, conflict, draft preservation and reload. Its composed Endnote/Figure case retains the scattered opening source through normalization, successive saves and Undo/Redo, changes reference order and a Figure's caption, and edits a definition while a real Save response is held. It compares complete Markdown, SHA-256 revisions, the previous accepted `savedEdits`, Source previews and unchanged Editor/selection across Save; Reload retains the empty Figure and the later definition edit. Core's existing footnote source and write-refusal tests also run after Figure caption parsing: nested MyST parsing must not leave the cached source tokenizer's tail rule enabled, losing definition provenance and dropped-definition checks. Existing Figure, table, Source and delayed-save scenarios cover their distinct integration risks. Run `pnpm browser:test save-session` or the complete CI suite described in [TEST_GUIDE](../test/TEST_GUIDE.md).
+
+
+### Recovery review layout (#395)
+
+The review prompt wraps full paths with `overflow-wrap: anywhere`, consistently with the deletion
+confirmation. This lets the existing grid shrink to the popup width; the existing footer stays stacked
+at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
+recovery storage, or Core/CLI operation changes.
+
+The regression was reproduced at product HEAD `c587663d18744d8950859a1ae77fd72ddbc9cb1c`
+with only the new browser assertions present. At 375px the popup had `clientWidth=341`,
+`scrollWidth=390`, and all three footer buttons exceeded its right boundary. At 1440px it had
+`382/390` client/scroll widths. `break-word` did not reduce the path's intrinsic minimum width;
+`anywhere` supplies those opportunities during grid sizing, without clipping or a new footer layout.
+The early failure also prevented the scenario's later expected 409/400 requests; those missing-request
+reports were secondary, not additional product failures.
+
+| Recovery review, same record/state | Before | After |
+| --- | --- | --- |
+| 1440×900 | [Before](assets/recovery-395/before-1440.png) | [After](assets/recovery-395/after-1440.png) |
+| 375×900 | [Before](assets/recovery-395/before-375.png) | [After](assets/recovery-395/after-375.png) |
+
+Capture environment: Windows Chrome, same checkout-owned persistent profile, Vite at
+`http://127.0.0.1:5173`, DPR 1, 100% zoom, scroll top, English UI, fonts ready, bundled
+Pretendard Variable 1.3.9 and the unchanged product fallback stack. Actual capture HEAD is
+`c587663d18744d8950859a1ae77fd72ddbc9cb1c` for both pairs; After includes the one-line
+RecoveryPrompt `break-words` to `[overflow-wrap:anywhere]` working-tree change and the extended
+recovery scenario. No other product change was present. Historical #382 evidence above is preserved.
+
+The existing recovery scenario now checks path and popup scroll/client widths and footer-button
+rectangles at both sizes even without `--screenshots`, plus Playwright actionability trials for enabled
+review actions. Its incompatible-record case uses a long unbroken Windows path with Korean text,
+expanded plaintext and the clipboard error visible, retaining the disabled Restore assertion.
+
+After visual review: at 375px the path and popup are bounded (`309/309` and `341/341`
+client/scroll widths), and at 1440px they are `350/350` and `382/382`. All review actions
+remain inside the dialog; enabled actions pass click trials. The desktop footer remains one row.
+The [long incompatible-record capture](assets/recovery-395/incompatible-375.png) also keeps its
+expanded plaintext, standing clipboard error and all footer buttons visible at 375×900.

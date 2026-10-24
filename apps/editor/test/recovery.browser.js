@@ -39,18 +39,39 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     await dialog.waitFor({state:'hidden',timeout:5000});
   };
   const edit = (target, text) => engine(target).evaluate((node,text) => node.editor.commands.insertContentAt(1,text), text);
+  const recoveryLayouts = [];
   const capture = async name => {
-    if (!screenshots) return;
+    const reviewLayout = name === 'prompt' || name === 'incompatible';
+    if (!screenshots && !reviewLayout) return;
+    const layoutFailures = [];
     for (const width of [1440,375]) {
       await page.setViewportSize({width,height:900});
       await page.waitForFunction(narrow => document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay") === narrow, width < 640);
       await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); });
-      await page.screenshot({path:`tmp/296/${name}-${width}.png`});
+      if (screenshots) await page.screenshot({path:`tmp/296/${name}-${width}.png`});
+      const prompt = page.getByTestId('recovery-prompt');
+      if (reviewLayout) {
+        const layout = await prompt.evaluate(node => {
+          const box = node.getBoundingClientRect();
+          const path = node.querySelector('[data-slot="dialog-description"] p');
+          return {width:node.clientWidth, scroll:node.scrollWidth, pathWidth:path.clientWidth, pathScroll:path.scrollWidth,
+            wrap:getComputedStyle(path).overflowWrap, dpr:devicePixelRatio, zoom:visualViewport.scale, font:getComputedStyle(path).fontFamily,
+            buttons:[...node.querySelectorAll('[data-slot="dialog-footer"] button')].map(button => {
+              const r=button.getBoundingClientRect();
+              return {text:button.textContent,inside:r.left>=box.left && r.right<=box.right && r.top>=box.top && r.bottom<=box.bottom};
+            })};
+        });
+        recoveryLayouts.push({name,viewport:width,...layout});
+        if (layout.pathScroll>layout.pathWidth || layout.scroll>layout.width) layoutFailures.push(`${name} recovery path/content overflows at ${width}: ${JSON.stringify(layout)}`);
+        if (!layout.buttons.every(button=>button.inside)) layoutFailures.push(`${name} recovery buttons leave dialog at ${width}: ${JSON.stringify(layout)}`);
+        if (!layoutFailures.length) for (const button of await prompt.locator('[data-slot="dialog-footer"] button:enabled').all()) await button.click({trial:true});
+      }
       for (const dialog of await page.getByRole('dialog', {name:/^(Delete recovery record\?|복구 기록을 삭제할까요\?|Delete all recovery records\?)$/}).all()) {
         if (await dialog.isVisible()) check(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth), `${name} dialog content overflows at ${width}`);
       }
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} overflows at ${width}`);
     }
+    check(!layoutFailures.length, layoutFailures.join("\n"));
     await page.setViewportSize({width:1440,height:900});
     await page.waitForFunction(() => !document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay"));
   };
@@ -310,7 +331,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
     const id = 'incompatible'; const ticket = await store.ticket(id);
-    await store.write(id,ticket,() => ({...record,id,version:99,recordedAt:Date.now(),snapshot:null,recoveryText:'Plaintext survives incompatible schema.'}));
+    await store.write(id,ticket,() => ({...record,id,path:'C:\\Users\\한글 사용자\\' + 'very-long-unbroken-folder-name'.repeat(12) + '\\document.md',version:99,recordedAt:Date.now(),snapshot:null,recoveryText:'Plaintext survives incompatible schema.'}));
   },unsaveable);
   await page.reload(); await ready(page);
   await page.getByRole('button',{name:'Review recovery'}).click();
@@ -353,5 +374,5 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('Storage unavailable but Save works.'), 'Unavailable recovery blocked original Save');
   return { malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
     failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true, pendingConcurrentWrites:true,
-    quotaFailureVisible:true, incompatiblePlaintext:true, screenshots };
+    recoveryLayouts, quotaFailureVisible:true, incompatiblePlaintext:true, screenshots };
 }
