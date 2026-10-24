@@ -49,7 +49,11 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     for (const width of [1440, 1024, 375]) {
       await page.setViewportSize({width, height:812});
       const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+      // Crossing to phone width asynchronously starts collapsed. Wait for that observable
+      // transition before expanding; then inspect the header directly after expansion completes.
+      if (width === 375) await expand.waitFor({state:'visible'});
       if (await expand.isVisible()) await expand.click();
+      await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
       assert(await openFolder.count() === 1 && await openFolder.isVisible() &&
         await sidebar.locator('.sidebar-header').getByRole('button', {name:'Open folder…', exact:true}).count() === 1,
         `Sidebar header must always expose one Open folder entry: ${state}, ${width}px`);
