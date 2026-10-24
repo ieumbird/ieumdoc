@@ -107,8 +107,23 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
     const response = await route.fetch(); arrived(); await gate; await route.fulfill({response});
   });
   await page.getByTestId('save').click(); await received;
-  await paragraph().click(); await page.keyboard.press('End'); await page.keyboard.press('Enter');
+  const paragraphCaret = atEnd => page.waitForFunction(atEnd => {
+    const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    const selection = e.state.selection, dom = window.getSelection();
+    return e.view.hasFocus() && selection.empty && dom?.isCollapsed && dom.anchorNode &&
+      selection.$from.parent === e.state.doc.child(1) &&
+      e.view.posAtDOM(dom.anchorNode, dom.anchorOffset) === selection.from &&
+      (!atEnd || selection.$from.parentOffset === selection.$from.parent.content.size);
+  }, atEnd);
+  await paragraph().click();
+  // Click completes before Chrome's selectionchange necessarily reaches ProseMirror.
+  await paragraphCaret(false);
+  await page.keyboard.press('End');
+  await paragraphCaret(true);
+  await page.keyboard.press('Enter');
   await page.keyboard.type('DuringSave');
+  const pendingParagraphs = await page.locator('[data-document-tab][data-active=true] .document-editor > p[data-block="paragraph"]').allTextContents();
+  check('pendingEditFollowsParagraph', pendingParagraphs[0] === 'Alpha. Saved' && pendingParagraphs[1] === 'DuringSave');
   const pendingDocument = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => JSON.stringify(element.editor.getJSON()));
   release();
   await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor({state:'attached'});
@@ -118,6 +133,15 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await page.unrouteAll(); await save();
   check('pendingStructureSavedNext', (await read(file)).source.includes('DuringSave'));
 
+  // Exercise the real Host's split-part refusal, independently of the earlier click timing.
+  // A single emptied opening paragraph is rejected locally (covered by editor.test.ts).
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
+    const e = element.editor;
+    e.commands.setTextSelection(e.state.doc.firstChild.nodeSize + 3);
+    e.view.focus();
+  });
+  await page.keyboard.press('Enter');
+  await save();
   const beforeInvalid = (await read(file)).source;
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
     const e = element.editor, from = e.state.doc.firstChild.nodeSize + 1;
@@ -125,7 +149,10 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   });
   await page.keyboard.press('Backspace');
   await page.getByRole('button', {name:'Close session.md',exact:true}).click();
+  const rejectedSave = page.waitForResponse(response => response.url() === `${origin}/api/document` && response.request().method() === 'POST');
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Save',exact:true}).click();
+  const rejected = await rejectedSave;
+  check('invalidContentRejectedByHost', rejected.status() === 400 && await rejected.finished() === null);
   await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   await page.getByRole('dialog').waitFor({state:'detached'});
   check('invalidContentStopsClose', await page.getByTestId('current-file').getAttribute('title') === file && await page.getByTestId('new-file-name').count() === 0);
