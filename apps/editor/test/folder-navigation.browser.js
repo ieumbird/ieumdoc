@@ -41,6 +41,74 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     return part === undefined ? null : decodeURIComponent(part.slice('path='.length).replace(/\+/g, ' '));
   };
 
+  const sidebar = page.getByTestId('sidebar');
+  const openFolder = sidebar.getByRole('button', {name:'Open folder…', exact:true});
+  const headerPositions = new Map();
+  const captureMetadata = [];
+  const checkSidebarEntry = async state => {
+    for (const width of [1440, 1024, 375]) {
+      await page.setViewportSize({width, height:812});
+      const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+      if (await expand.isVisible()) await expand.click();
+      assert(await openFolder.count() === 1 && await openFolder.isVisible() &&
+        await sidebar.locator('.sidebar-header').getByRole('button', {name:'Open folder…', exact:true}).count() === 1,
+        `Sidebar header must always expose one Open folder entry: ${state}, ${width}px`);
+      const geometry = await openFolder.evaluate(button => {
+        const rect = button.getBoundingClientRect();
+        const header = button.closest('.sidebar-header').getBoundingClientRect();
+        const style = getComputedStyle(document.documentElement);
+        const rem = parseFloat(style.fontSize);
+        return {x:rect.x - header.x, y:rect.y - header.y, width:rect.width, height:rect.height,
+          target:parseFloat(style.getPropertyValue('--size-control-compact')) * rem,
+          icon:button.querySelector('svg').getBoundingClientRect().width,
+          iconTarget:parseFloat(style.getPropertyValue('--size-icon-slot')) * rem,
+          reachable:button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+          overflow:document.documentElement.scrollWidth > innerWidth};
+      });
+      assert(geometry.reachable && !geometry.overflow && geometry.width === geometry.target && geometry.height === geometry.target && geometry.icon === geometry.iconTarget,
+        `Header control must fit and remain reachable: ${JSON.stringify(geometry)}`);
+      const previous = headerPositions.get(width);
+      assert(!previous || JSON.stringify(previous) === JSON.stringify(geometry), `Folder count moved the header entry at ${width}px`);
+      headerPositions.set(width, geometry);
+      if (screenshots && width !== 1024) {
+        const environment = await page.evaluate(async () => {
+          await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur();
+          return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
+            cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
+            scroll:[scrollX, scrollY], language:document.documentElement.lang};
+        });
+        await page.mouse.move(width - 2, 2);
+        await page.screenshot({path:`tmp/picker-capture/sidebar-after-${state}-${width}.png`});
+        captureMetadata.push({state, ...environment});
+      }
+      assert(await openFolder.getAttribute('title') === 'Open folder…', 'Header name and tooltip must match');
+      await openFolder.focus();
+      await page.keyboard.press('Enter');
+      await field.waitFor();
+      if (state === 'one' && width === 375) {
+        await field.fill(folder);
+        await open.click();
+      } else if (width === 1024) {
+        await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+      } else {
+        await field.press('Escape');
+      }
+      await dialog.waitFor({state:'detached'});
+      assert(await openFolder.evaluate(node => node === document.activeElement), `Header picker must restore focus at ${width}px`);
+    }
+    await page.setViewportSize({width:1280, height:720});
+    // Each menu acts only on its own folder, and Escape returns to its surviving trigger.
+    for (const more of await section.getByRole('button', {name:'More actions', exact:true}).all()) {
+      await more.click();
+      await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
+      assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['Close folder']), 'Folder menu must contain only Close folder');
+      await page.keyboard.press('Escape');
+      await page.getByRole('menu').waitFor({state:'detached'});
+      assert(await more.evaluate(node => node === document.activeElement), 'Folder menu Escape must restore focus');
+    }
+  };
+  await checkSidebarEntry('empty');
+
   // Folder browsing never changes the sidebar or the open document until Open.
   await page.getByRole('button', {name:'Open folder…'}).click();
   const home = dialog.getByRole('button', {name:'Home', exact:true});
@@ -110,10 +178,12 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await field.press('Enter');
   await dialog.waitFor({state:'detached'});
   await section.waitFor();
+  assert(await openFolder.evaluate(node => node === document.activeElement), 'Successful folder Open returns focus to header');
+  await checkSidebarEntry('one');
   result.enterOpensTypedFolder = await section.getByTitle(folder, {exact:true}).count() === 1;
   const refreshed = page.waitForResponse(response => response.url().includes('/api/folder-browse?') &&
     requestedFolder(response.url()) === folder + sep);
-  await folderMenu('Open folder…');
+  await openFolder.click();
   await refreshed;
   await option('guides').waitFor();
   await field.press('Escape');
@@ -124,12 +194,13 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   // Close folder removes only its own section.
   const guides = [folder, 'guides'].join(sep);
   const roots = () => section.evaluateAll(sections => sections.map(element => element.dataset.root));
-  await folderMenu('Open folder…');
+  await openFolder.click();
   await enterFolder(guides);
   await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
   await open.click();
   await dialog.waitFor({state:'detached'});
   await section.nth(1).waitFor();
+  await checkSidebarEntry('several');
   assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Open adds a folder after the opened ones');
   await page.reload();
   await ready();
@@ -447,7 +518,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
 
   // A folder created while choosing appears in the sidebar folder already listed; the second
   // Escape closes the picker without opening anything.
-  await folderMenu('Open folder…');
+  await openFolder.click();
   await option('guides').waitFor();
   await newFolder.click();
   await newFolderName.fill('later');
@@ -459,16 +530,13 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   result.pickerFolderListedInSidebar = await row('later').getAttribute('aria-level') === '1' && await current() === '추가.md' &&
     await section.getByTitle(folder, {exact:true}).count() === 1;
 
-  // Only folder navigation remains in the menu; its dialog returns focus to `⋯`.
-  await section.getByRole('button', {name:'More actions', exact:true}).click();
-  result.noOpenFileEntry = await page.getByRole('menuitem', {name:'Open file…', exact:true}).count() === 0;
-  await page.getByRole('menuitem', {name:'Open folder…', exact:true}).click();
+  // The general picker returns focus to the stable header entry, including Cancel.
+  await openFolder.click();
   await field.waitFor();
   await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
   await dialog.waitFor({state:'detached'});
+  result.opensFolderFromHeader = await current() === '추가.md' && await openFolder.evaluate(node => node === document.activeElement);
   const more = section.getByRole('button', {name:'More actions', exact:true});
-  // The menu item is gone; the dialog returns focus to `⋯`.
-  result.opensFolderFromMenu = await current() === '추가.md' && await more.evaluate(node => node === document.activeElement);
   await more.focus();
   await page.keyboard.press('Enter');
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
@@ -559,5 +627,5 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   }
   result.folderNamesReadable = true;
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
-  return result;
+  return {...result, captureMetadata};
 }

@@ -1,7 +1,8 @@
 # ADR-0009: 사이드바에 여러 폴더 열기
 
 - Status: Accepted
-- Last verified: 2026-10-23 (implemented with this decision; [Editor UX shell](../design/editor-ux-shell-v1.md), [Folder listing](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112) and [Folder picker](../design/folder-picker-v1.md) contracts updated in the same change).
+- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Previous verification: 2026-10-23 (implemented with this decision; [Editor UX shell](../design/editor-ux-shell-v1.md), [Folder listing](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112) and [Folder picker](../design/folder-picker-v1.md) contracts updated in the same change).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#235](https://github.com/ieumbird/ieumdoc/issues/235), [ADR-0005](0005-http-host.md) (#186).
 - Decision date: 2026-10-23
 
@@ -14,6 +15,8 @@
 사이드바 폴더 목록은 Host가 기억하지 않는다. Editor가 매 요청에 `root`를 보내고 Host가 매번 검증한다. 따라서 여러 폴더를 동시에 여는 것은 Host 상태나 문서 의미 없이 Editor 상태만으로 표현할 수 있다. 바뀌는 것은 "폴더 하나"를 전제로 한 Editor의 문서별 폴더 맥락과 기존 문서의 non-goal 경계다.
 
 ## Decision
+
+The original 2026-10-23 decision below is retained. The folder-menu Open folder entry in section 1 is superseded by the [2026-10-24 amendment](#amendment-2026-10-24-open-folder-entry-385).
 
 ### 1. 사이드바는 열어 둔 폴더의 순서 있는 목록을 보여 준다
 
@@ -44,3 +47,11 @@
 - 여러 위치의 문서를 폴더를 다시 열지 않고 탐색·편집할 수 있고, 새로고침이나 재실행 뒤에도 같은 폴더가 다시 보인다.
 - 폴더마다 같은 이름의 문서가 있을 수 있으므로 tree 항목은 섹션 안에서만 구분된다. 탭과 TopBar의 기존 경로 표시는 그대로다.
 - 외부 경로 변경으로 사라진 폴더는 알림 없이 빠진다. 폴더 이동·검색·폴더 간 drag, Workspace 파일 공유, 다중 창은 이 결정의 범위가 아니며 필요하면 별도로 결정한다.
+
+## Amendment 2026-10-24: Open folder entry (#385)
+
+- Status: Accepted. Repository owner approved [#380 decision 3](https://github.com/ieumbird/ieumdoc/issues/380); implemented by [#385](https://github.com/ieumbird/ieumdoc/issues/385).
+- The expanded Sidebar header has one always-visible `Open folder…` entry in the same position with zero, one or several opened folders, including while Display is selected. The collapsed rail retains its existing expand/tool controls.
+- Each folder's `⋯` contains only actions on that folder (`Close folder`). Remove the repeated `Open folder…` and the duplicate empty-Files entry. Keep the start-screen entry and command-center command.
+- This supersedes only section 1's folder-menu entry placement. Existing picker/handler, append/relist behavior, opened/recent folder preferences, Host authorization and all other decisions remain unchanged.
+- This is a refinement of this ADR's existing interface composition, with explicit owner approval, rather than a new architecture decision. Under [documentation governance](../contributing/documentation-governance.md#update-rules), retain the original decision/date and add this dated amendment; update the current [shell](../design/editor-ux-shell-v1.md) and [picker](../design/folder-picker-v1.md) contracts in the same PR. Previous verification records are historical evidence and are not rewritten. This interface-only navigation has no Core operation or CLI parity command.

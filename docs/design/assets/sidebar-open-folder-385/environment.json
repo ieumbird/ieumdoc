@@ -1,0 +1,173 @@
+{
+  "date": "2026-10-24",
+  "baseHead": "359b7121e2b910998c89808b3c112c2d16490b06",
+  "afterHead": "359b7121e2b910998c89808b3c112c2d16490b06",
+  "afterWorkingTree": true,
+  "afterSourceSha256": {
+    "apps/editor/src/shell/Sidebar.tsx": "8dfcde525d4808800d4662108cb34081127d09745f919ff037c63724317f9374",
+    "apps/editor/src/styles.css": "24de090d48d1a981577465d4b310a46f6eab27aa36cff0e7ca36e1e011b9586f",
+    "apps/editor/src/styles/tokens.css": "9b7ed89aa59f831ef5a5375c5954c9de9be3076093af6fd613d70e5af0c21929"
+  },
+  "before": "Product source at baseHead, with capture-only additions to the existing folder-navigation scenario. Same worktree; no product edits.",
+  "after": "baseHead plus the implementation identified by afterSourceSha256. Source hashes, rather than a future documentation commit, identify the actual captured product.",
+  "host": "worktree-owned Vite http://127.0.0.1:5173, runner started and stopped it",
+  "browser": "Windows installed Chrome, headless; same checkout-owned persistent profile for every run",
+  "beforeEnvironment": "Unmodified runner defaults: 1280x720 resized to the recorded capture viewport, default DPR 1, no zoom override. After measurements below use the same runner/profile. Before DPR/scale were not separately measured.",
+  "state": {
+    "tool": "Files",
+    "sidebar": "expanded; full screen at 375px",
+    "dialog": "none",
+    "menu": "none",
+    "scroll": [
+      0,
+      0
+    ],
+    "focus": "blurred",
+    "pointer": "viewport width minus 2, y=2"
+  },
+  "font": "App-bundled Pretendard 1.3.9; await document.fonts.ready. quiet-document checks actual glyph fonts via CSS.getPlatformFontsForNode.",
+  "afterMeasurements": [
+    {
+      "state": "empty",
+      "viewport": [
+        1440,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "empty",
+      "viewport": [
+        375,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "one",
+      "viewport": [
+        1440,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "one",
+      "viewport": [
+        375,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "several",
+      "viewport": [
+        1440,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    },
+    {
+      "state": "several",
+      "viewport": [
+        375,
+        812
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "cssZoom": "1",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "scroll": [
+        0,
+        0
+      ],
+      "language": "en"
+    }
+  ],
+  "commands": [
+    "pnpm browser:test folder-navigation --screenshots",
+    "pnpm browser:test quiet-document --screenshots"
+  ],
+  "review": "Directly compared all zero/one/several desktop and phone Before/After images; header entry aligned beside Collapse, product and folder names readable, tree alignment retained, phone controls inside viewport.",
+  "actualGlyphFonts": [
+    {
+      "selector": "[data-document-tab][data-active=true] .document-editor h1",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Bold",
+          "isCustomFont": true,
+          "glyphCount": 25
+        }
+      ]
+    },
+    {
+      "selector": "[data-document-tab][data-active=true] .document-editor .paragraph",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable",
+          "isCustomFont": true,
+          "glyphCount": 141
+        },
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Bold",
+          "isCustomFont": true,
+          "glyphCount": 15
+        }
+      ]
+    },
+    {
+      "selector": "[data-testid=\"save\"]",
+      "fonts": [
+        {
+          "familyName": "Pretendard Variable",
+          "postScriptName": "PretendardVariable-Medium",
+          "isCustomFont": true,
+          "glyphCount": 4
+        }
+      ]
+    }
+  ]
+}

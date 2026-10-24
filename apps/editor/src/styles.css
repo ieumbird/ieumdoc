@@ -85,6 +85,11 @@ button {
   min-height: var(--layout-header-row);
 }
 
+.sidebar-header-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
 .sidebar--collapsed .sidebar-header {
   justify-content: center;
 }
@@ -2642,19 +2647,6 @@ ol.list { list-style: decimal; }
 /* An open menu's ghost trigger keeps a quiet pressed face, without a border box. */
 [data-slot="button"][aria-expanded="true"] {
   border-color: transparent;
-}
-
-/* The sidebar's Open folder… is a soft tinted action, not an outlined web button. */
-.sidebar-empty [data-slot="button"] {
-  border-color: transparent;
-  background: var(--id-color-surface-hover);
-  box-shadow: none;
-}
-.sidebar-empty [data-slot="button"]:hover {
-  background: var(--id-color-surface-pressed);
-}
-.sidebar-empty [data-slot="button"]:focus-visible {
-  box-shadow: var(--focus-ring-inset);
 }
 
 /* Shared list rows (tree, outline, recent folders, menus): one radius, a hover tint and a

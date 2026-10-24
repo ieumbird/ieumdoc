@@ -4,7 +4,7 @@ import { i18n } from "../i18n.ts";
 import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 import { DisplaySettings, type DisplaySettingsProps } from "./DisplaySettings.tsx";
@@ -59,16 +59,23 @@ export function Sidebar({
       }}>
       <div className="sidebar-header">
         {open ? <span className="product">IeumDoc</span> : null}
-        <Button
-          ref={toggleRef}
-          variant="ghost"
-          size="icon-sm"
-          aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
-          aria-expanded={open}
-          onClick={onToggle}
-        >
-          {open ? <PanelLeftClose /> : <PanelLeftOpen />}
-        </Button>
+        <div className="sidebar-header-actions">
+          {open ? <Button type="button" variant="ghost" size="icon-sm"
+            aria-label={i18n.t("Open folder…")} title={i18n.t("Open folder…")}
+            onClick={event => onOpenFolder(event.currentTarget)}>
+            <FolderOpen aria-hidden="true" />
+          </Button> : null}
+          <Button
+            ref={toggleRef}
+            variant="ghost"
+            size="icon-sm"
+            aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
+            aria-expanded={open}
+            onClick={onToggle}
+          >
+            {open ? <PanelLeftClose /> : <PanelLeftOpen />}
+          </Button>
+        </div>
       </div>
       <div className="sidebar-tools" role="group" aria-label={i18n.t("Sidebar tools")}>
         <Button type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
@@ -93,14 +100,11 @@ export function Sidebar({
             onOpenDocument={path => onOpenDocument?.(path)}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
-            onOpenFolder={onOpenFolder}
             onClose={() => onCloseFolder?.(tree.root)}
           />
         )) : (
           <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
             <p className="sidebar-empty-text">{i18n.t("Open a folder to browse its files and create documents.")}</p>
-            <Button className="min-w-0 justify-start" size="sm" variant="outline" onClick={event => onOpenFolder(event.currentTarget)}>
-              <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
             {recent.length > 0 && onOpenRecent ? (
               <section className="sidebar-recent" aria-labelledby="sidebar-recent-label">
                 <p className="sidebar-recent-label" id="sidebar-recent-label">{i18n.t("Recent")}</p>
@@ -150,12 +154,11 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
-  onOpenFolder(returnFocus: HTMLElement | null): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onNewFolder, onOpenFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew, onNewFolder, onClose }: FolderTreeProps) {
   useTranslation();
   const labelId = useId();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
@@ -167,8 +170,6 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
   const [focused, setFocused] = useState<string>();
   const [preview, setPreview] = useState<TreeItem>();
   const previewReturn = useRef<HTMLElement | null>(null);
-  // The menu item that opens a dialog goes away; the dialog returns focus to `⋯`.
-  const more = useRef<HTMLButtonElement>(null);
   // One tab stop: the item last focused, else the open document, else the first item.
   const tabStop = [focused, documentPath].find(path => items.some(item => item.entry.path === path)) ?? items[0]?.entry.path;
 
@@ -202,13 +203,10 @@ function FolderTree({ tree, documentPath, onToggleFolder, onOpenDocument, onNew,
             <FolderPlus />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger ref={more} render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onOpenFolder(more.current)}>
-                <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onClose}>
                 <X aria-hidden="true" />{i18n.t("Close folder")}</DropdownMenuItem>
             </DropdownMenuContent>
