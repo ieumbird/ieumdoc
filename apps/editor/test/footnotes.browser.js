@@ -5,7 +5,7 @@
 // their definitions and numbers return to the invoking reference; definitions are edited in place
 // or as source; `/` Endnote inserts one; endnotes cannot be dragged and sections hold none;
 // reference order changes move them in one Undo step; a draft holds placement until it closes.
-async (page, { screenshots = false, openPath }) => {
+async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRecords }) => {
   page.setDefaultTimeout(15_000);
   await page.unrouteAll();
   await page.reload();
@@ -149,6 +149,18 @@ async (page, { screenshots = false, openPath }) => {
   assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing: ' + await page.getByTestId('error').innerText());
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
+
+  // The rejected edit is real unsaved work, including its unreferenced definition. Finish it
+  // explicitly before the next fixture; a page reload alone legitimately offers its recovery.
+  const rejectedDocument = await editor.evaluate(element => element.editor.getJSON());
+  await expect.poll(async () => (await recoveryRecords(page)).filter(record => record.path === file)
+    .map(record => record.snapshot.editor.editorDocument.content)).toContainEqual(rejectedDocument.content);
+  await reloadDocument(page);
+  await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+  await ready();
+  assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["b","a","1"]', 'Discard did not restore saved references');
+  assert(await read() === inserted, 'Discard and reload wrote the file');
+  await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === file)).toBe(false);
 
   // One trailing region, from definitions written in three places.
   await page.reload();

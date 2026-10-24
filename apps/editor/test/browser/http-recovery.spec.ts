@@ -21,7 +21,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
   const original = readFileSync(file, "utf8");
   let context: BrowserContext | undefined;
   const processes: number[] = [];
-  const launch = async () => {
+  const launch = async (startupPath?: string) => {
     context = await chromium.launchPersistentContext(profile, {
       ...(process.platform === "win32" ? { channel: "chrome" } : {}), headless: true,
     });
@@ -33,7 +33,9 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     processes.push(pid);
     await cdp.detach();
     const page = await context.newPage();
-    await page.goto(origin); await ready(page);
+    const url = new URL(origin);
+    if (startupPath) url.searchParams.set("path", startupPath);
+    await page.goto(url.href); await ready(page);
     expect(new URL(page.url()).origin).toBe(new URL(origin).origin);
     return page;
   };
@@ -79,11 +81,12 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     const recorded = await recoveryRecords(page);
     expect(readFileSync(file, "utf8")).toBe(original);
     await crash();
-    page = await launch();
+    // Navigation preferences may revert to older clean tabs after a process kill. An explicit
+    // startup path offers this record in the review dialog regardless of that separate memory.
+    page = await launch(file);
     expect(await recoveryRecords(page)).toEqual(recorded);
-    await expect(page.getByRole("button", { name: "Review recovery", exact: true })).toBeVisible();
-    await openPath(page, file);
-    await page.getByTestId("recovery-prompt").waitFor();
+    await expect(page.getByTestId("recovery-prompt")).toBeVisible();
+    await expect(page.getByTestId("recovery-prompt")).toContainText(file);
     await page.getByRole("button", { name: "Restore work", exact: true }).click();
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
@@ -108,9 +111,10 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     await crash();
     const outside = saved + "\nChanged outside before restore.\n";
     writeFileSync(file, outside);
-    page = await launch();
+    page = await launch(file);
     expect(await recoveryRecords(page)).toEqual(conflictRecord);
-    await page.getByRole("button", { name: "Review recovery", exact: true }).click();
+    await expect(page.getByTestId("recovery-prompt")).toBeVisible();
+    await expect(page.getByTestId("recovery-prompt")).toContainText(file);
     await page.getByRole("button", { name: "Restore work", exact: true }).click();
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();
     expect(readFileSync(file, "utf8")).toBe(outside);

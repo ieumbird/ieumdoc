@@ -85,6 +85,8 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
 
+거부된 Save의 미저장 편집도 복구 대상이다. `footnotes`는 참조 삭제로 저장할 수 없는 실제 snapshot이 기록된 것을 확인한 뒤, 다음 fixture로 넘어가기 전에 **Discard and reload**로 명시적으로 버린다. 저장된 참조 복원·원본 불변·복구 기록 제거를 확인하고 페이지 Reload를 진행한다(#417). Undo 직후 기록 제거 전 Reload의 제품 문제(#409)는 이 시나리오에서 다루지 않는다.
+
 `citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
 
 `desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. 키보드로 Settings를 열면 첫 언어 컨트롤의 실제 포커스를 기다린다. 대화상자 표시만으로 Base UI의 비동기 초기 포커스 완료를 가정하지 않으며, 검사에서 포커스를 강제로 이동하지 않는다. 포커스가 오지 않으면 5초 안에 실패한다(#342). `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
@@ -134,6 +136,11 @@ running. New title/Enter, Equation/Table/Figure and caption content are recorded
 Two crashes cover Restore → Save/Reload and external disk modification before Restore
 → Save 409 without overwrite. Use the runner-owned local Host for this scratch-file test; do not
 point it at a remote/user server. Windows uses Chrome; Linux uses Playwright Chromium in CI.
+
+Both HTTP crash restarts explicitly request `?path=…` and expect that file's recovery review
+dialog under the [startup precedence contract](../design/editing-session-save-v1.md#tab-navigation-memory-383).
+The durability assertion concerns the committed IndexedDB record, not navigation preferences:
+after a forced process kill, older clean-tab memory can return and hide the start-screen list (#417).
 
 Desktop's cohesive recovery test kills only its owned packaged app tree, restarts at
 `ieumdoc://app` with the same `userData`/`sessionData`, restores applied text and a pending Figure,
