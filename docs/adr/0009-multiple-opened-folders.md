@@ -1,7 +1,9 @@
 # ADR-0009: 사이드바에 여러 폴더 열기
 
 - Status: Accepted
-- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](../design/editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](../design/editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-23 (implemented with this decision; [Editor UX shell](../design/editor-ux-shell-v1.md), [Folder listing](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112) and [Folder picker](../design/folder-picker-v1.md) contracts updated in the same change).
 - Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#235](https://github.com/ieumbird/ieumdoc/issues/235), [ADR-0005](0005-http-host.md) (#186).
 - Decision date: 2026-10-23
@@ -17,6 +19,9 @@
 ## Decision
 
 The original 2026-10-23 decision below is retained. The folder-menu Open folder entry in section 1 is superseded by the [2026-10-24 amendment](#amendment-2026-10-24-open-folder-entry-385).
+Section 2's no-expansion-persistence rule is narrowed only for opened-root section collapse by the
+[2026-10-25 persistence amendment](#amendment-2026-10-25-remember-collapsed-folder-sections-425);
+child-folder expansion and listings remain unremembered. The original decisions below are retained.
 
 ### 1. 사이드바는 열어 둔 폴더의 순서 있는 목록을 보여 준다
 
@@ -55,3 +60,49 @@ The original 2026-10-23 decision below is retained. The folder-menu Open folder 
 - Each folder's `⋯` contains only actions on that folder (`Close folder`). Remove the repeated `Open folder…` and the duplicate empty-Files entry. Keep the start-screen entry and command-center command.
 - This supersedes only section 1's folder-menu entry placement. Existing picker/handler, append/relist behavior, opened/recent folder preferences, Host authorization and all other decisions remain unchanged.
 - This is a refinement of this ADR's existing interface composition, with explicit owner approval, rather than a new architecture decision. Under [documentation governance](../contributing/documentation-governance.md#update-rules), retain the original decision/date and add this dated amendment; update the current [shell](../design/editor-ux-shell-v1.md) and [picker](../design/folder-picker-v1.md) contracts in the same PR. Previous verification records are historical evidence and are not rewritten. This interface-only navigation has no Core operation or CLI parity command.
+
+## Amendment 2026-10-25: Collapsible folder sections (#425)
+
+- Status: Accepted. Repository owner requested collapsible opened-folder sections in
+  [#425](https://github.com/ieumbird/ieumdoc/issues/425).
+- The no-section-persistence portion of this initial implementation decision is superseded by
+  the owner's later same-day [persistence decision](#amendment-2026-10-25-remember-collapsed-folder-sections-425).
+- Each opened folder's heading has a disclosure button hiding/showing its entire tree; its
+  New file, New folder and Close folder actions remain available. New sections start expanded.
+- Section expansion, like child-folder expansion, is page state only and is never stored.
+  Relisting an existing root or opening/closing other roots retains its section state; closing
+  that root discards it. Reload and reopening a closed root start expanded. Cached listings and
+  child expansion survive section collapse. Existing document/folder reveal also expands the
+  containing sections; manual collapse of the active document is allowed until that reveal runs.
+- This adds section disclosure to section 1's existing interface composition and clarifies
+  section 2's unchanged no-expansion-persistence boundary. It does not supersede the 2026-10-24
+  entry-placement amendment or change Host/Core/CLI/Workspace boundaries. Under
+  [documentation governance](../contributing/documentation-governance.md#update-rules), retain
+  the original decision/date and verification records, and update the current
+  [shell contract](../design/editor-ux-shell-v1.md#collapsible-folder-sections-425) in the same PR;
+  this interface refinement does not require a separate architecture ADR.
+
+## Amendment 2026-10-25: Remember collapsed folder sections (#425)
+
+- Status: Accepted. The repository owner explicitly changed the decision on 2026-10-25 for
+  [#425](https://github.com/ieumbird/ieumdoc/issues/425): remember collapsed opened-folder sections
+  across page Reload and Desktop restart, within the same origin/browser preference boundary as
+  the opened-folder list. This narrows section 2's original prohibition and supersedes only the
+  initial section-disclosure amendment's no-section-persistence rule. Keep both earlier decisions,
+  dates and verification records under [documentation governance](../contributing/documentation-governance.md#update-rules).
+- Store only collapsed section root paths (`ieumdoc.collapsedFolderSections`, JSON string array).
+  Never store child-folder expansion/listings, grant access, change Host state or write documents.
+  Restore roots through Host authorization/listing, then initialize their section visibility from
+  remembered collapse. Startup document restoration respects it; explicit document/folder reveal
+  expands containing sections and remembers that expansion so navigation survives restart.
+- Relisting an already-open root preserves its section state. Close removes its collapse record;
+  Open after Close starts expanded. The general Open folder entry and 2026-10-24 amendment remain.
+- Restoration alone never writes preferences (#370). Ignore missing/refused/unopened collapse
+  records and remove them at the next explicit write. User Open/Close, section toggle and explicit
+  navigation reveal write the current reduced list, deferring until pending restoration settles.
+  Never suppress an action by comparing a cached last-written value: another tab may have changed
+  storage. Tabs retain independent live views; the latest action remembers its current roots.
+- This changes interface navigation memory only. Core/CLI operations, subfolder expansion,
+  Host authorization and the no-Workspace boundary remain unchanged. The current
+  [shell contract](../design/editor-ux-shell-v1.md#collapsible-folder-sections-425) records the
+  detailed reveal/startup distinction, write boundary and regression evidence.

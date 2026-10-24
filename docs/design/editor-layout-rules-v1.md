@@ -1,7 +1,8 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Last verified: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
 - Previous verification: 2026-10-23 (#235: several opened folder sections, separated by `--space-3`; several scroll together as one list while one keeps its own tree scroll; folder-navigation and stable browser suite).
 - Previous verification: 2026-10-19 (#321: phone-width sidebar closed without a rail or covering the whole screen; layout-rules, folder-navigation, quiet-document and the stable suite; same-state 375px captures against `6c03188`: closed [before](assets/phone-sidebar-321/before-375-closed.png)/[after](assets/phone-sidebar-321/after-375-closed.png), open [before](assets/phone-sidebar-321/before-375-open.png)/[after](assets/phone-sidebar-321/after-375-open.png)).
@@ -11,6 +12,14 @@
 - [Visual Language (current v4.7)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 ## Alignment and ownership
+
+- Folder sections have a 28px compact chevron button in the heading's former icon slot (#425),
+  with a 16px icon and the existing 8px name gap. The target is centered on the first text line;
+  it moves with the first word on wrapping names, keeps clear of the top-right actions and uses
+  existing tokens. It rotates like subfolder chevrons. The name/title and wrapping rules below
+  are retained. Collapsing hides only the tree/empty help; heading controls remain reachable at
+  desktop, 200px narrow-sidebar and phone full-screen widths. See the
+  [section contract](editor-ux-shell-v1.md#collapsible-folder-sections-425).
 
 - The expanded Sidebar header places a single Open folder… icon button before Collapse sidebar, grouped by `--space-1` (4px), with the existing `--size-control-compact` (28px) target and `--size-icon-slot` (16px) icon. The header keeps its 48px height. The entry stays in place with zero/one/several folders and while Display is selected; no duplicate empty-panel or per-folder Open entry. It fits the 200px narrow sidebar and the phone full-screen sidebar. The collapsed rail retains its existing controls. See [#385 evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385).
 

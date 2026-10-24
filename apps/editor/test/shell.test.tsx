@@ -8,7 +8,7 @@ import { CommandMenu } from "../src/CommandMenu.tsx";
 import { TooltipProvider } from "../src/components/ui/tooltip.tsx";
 import { createOutlineStore } from "../src/outline.ts";
 import { createDocumentSessionLifetime } from "../src/document-session.ts";
-import { readOpenTabs, visibleRecentFolders, writeOpenTabs } from "../src/preferences.ts";
+import { readCollapsedFolderSections, readOpenTabs, visibleRecentFolders, writeCollapsedFolderSections, writeOpenTabs } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
@@ -78,6 +78,32 @@ test("tab preferences distinguish absent/empty memory and tolerate malformed or 
     Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("blocked"); } });
     assert.equal(readOpenTabs(), null);
     assert.doesNotThrow(() => writeOpenTabs({ paths: ["/a.md"], activePath: "/a.md" }));
+  } finally {
+    if (storage) Object.defineProperty(globalThis, "localStorage", storage); else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
+
+test("collapsed section preferences contain only root paths and tolerate malformed or unavailable storage", () => {
+  const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  let saved: string | null = null;
+  try {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+      getItem: () => saved, setItem: (key: string, value: string) => {
+        assert.equal(key, "ieumdoc.collapsedFolderSections"); saved = value;
+      },
+    } });
+    assert.deepEqual(readCollapsedFolderSections(), []);
+    writeCollapsedFolderSections(["/r", "C:\\docs"]);
+    assert.deepEqual(JSON.parse(saved!), ["/r", "C:\\docs"]);
+    assert.deepEqual(readCollapsedFolderSections(), ["/r", "C:\\docs"]);
+    for (const invalid of ["{broken", "{}", "null"]) {
+      saved = invalid; assert.deepEqual(readCollapsedFolderSections(), []);
+    }
+    saved = JSON.stringify(["/r", 42, "", "/r"]);
+    assert.deepEqual(readCollapsedFolderSections(), ["/r"]);
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("blocked"); } });
+    assert.deepEqual(readCollapsedFolderSections(), []);
+    assert.doesNotThrow(() => writeCollapsedFolderSections(["/r"]));
   } finally {
     if (storage) Object.defineProperty(globalThis, "localStorage", storage); else Reflect.deleteProperty(globalThis, "localStorage");
   }
@@ -284,6 +310,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   ]);
   const folder = {
     root: String.raw`C:\docs`,
+    sectionExpanded: true,
     nodes: new Map([[root.path, root], [guides.path, guides]]),
     expanded: new Set([guides.path]),
     pending: new Map(),
@@ -294,6 +321,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
   assert.match(html, /role="tree"/);
+  assert.match(html, /<button\b(?=[^>]*aria-label="Collapse folder docs")(?=[^>]*aria-expanded="true")(?=[^>]*aria-controls="[^"]+")/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="1")(?=[^>]*aria-expanded="true")[^>]*title="C:\\docs\\guides"/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="2")(?=[^>]*aria-current="page")[^>]*title="C:\\docs\\guides\\guide.md"/);
   assert.match(html, /<li\b(?=[^>]*aria-expanded="false")[^>]*title="C:\\docs\\specs"/);
@@ -313,6 +341,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No files or folders/);
+  const collapsed = renderToStaticMarkup(
+    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, sectionExpanded: false }]}
+      onToggle={noop} onOpenFolder={noop} />,
+  );
+  assert.match(collapsed, /<ul\b(?=[^>]*role="tree")(?=[^>]*hidden)/);
+  assert.match(collapsed, /aria-label="Expand folder docs"/);
 
   // A file without the native marker stays listed but says it is not an IeumDoc document.
   const mixed = listing(String.raw`C:\docs`, [
@@ -333,6 +367,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     );
     assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);
     assert.match(localized, /aria-description="이음독 문서가 아님"/);
+    assert.match(localized, /aria-label="docs 폴더 접기"/);
   } finally { void i18n.changeLanguage("en"); }
 });
 

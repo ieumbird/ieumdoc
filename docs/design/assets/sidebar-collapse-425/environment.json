@@ -1,0 +1,220 @@
+{
+  "date": "2026-10-25",
+  "before": {
+    "head": "108d134a04228001ada41944e41dec8ac2a227b9",
+    "productSources": "clean base",
+    "dpr": 1,
+    "zoom": "runner defaults, no override; separate Before scale measurement not retained",
+    "glyphFontChecks": [
+      {
+        "selector": "[data-document-tab][data-active=true] .document-editor h1",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Bold",
+            "isCustomFont": true,
+            "glyphCount": 25
+          }
+        ]
+      },
+      {
+        "selector": "[data-document-tab][data-active=true] .document-editor .paragraph",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable",
+            "isCustomFont": true,
+            "glyphCount": 141
+          },
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Bold",
+            "isCustomFont": true,
+            "glyphCount": 15
+          }
+        ]
+      },
+      {
+        "selector": "[data-testid=\"save\"]",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Medium",
+            "isCustomFont": true,
+            "glyphCount": 4
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "head": "108d134a04228001ada41944e41dec8ac2a227b9",
+    "productSources": "working tree implementation over the above HEAD",
+    "sha256": {
+      "apps/editor/src/App.tsx": "336dd27ded1fed33c84fe2b4b97bb8bbc25d850f704d2ae193fb3f5234fb5c72",
+      "apps/editor/src/locales.ts": "fd8c235e54ee9f080ba50d0589f15d59576beb96e732941e86148e4c35e9ca69",
+      "apps/editor/src/shell/Sidebar.tsx": "966a621901df1fd1554ff8b16092d7aaadcf00198772f78fada1059e222d7d65",
+      "apps/editor/src/shell/folder-tree.ts": "b4fda950e588621f1a2c4551767c6ef2971fc36298758625d4feb2094d81291c",
+      "apps/editor/src/styles.css": "180ed11c28692eeb9a06e1188561d955d49d5d35c1003aa50609595dcff02f5f"
+    },
+    "captures": [
+      {
+        "state": "empty",
+        "viewport": [
+          1440,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      },
+      {
+        "state": "empty",
+        "viewport": [
+          375,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      },
+      {
+        "state": "one",
+        "viewport": [
+          1440,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      },
+      {
+        "state": "one",
+        "viewport": [
+          375,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      },
+      {
+        "state": "several",
+        "viewport": [
+          1440,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      },
+      {
+        "state": "several",
+        "viewport": [
+          375,
+          812
+        ],
+        "dpr": 1,
+        "zoom": 1,
+        "cssZoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "scroll": [
+          0,
+          0
+        ],
+        "language": "en"
+      }
+    ],
+    "glyphFontChecks": [
+      {
+        "selector": "[data-document-tab][data-active=true] .document-editor h1",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Bold",
+            "isCustomFont": true,
+            "glyphCount": 25
+          }
+        ]
+      },
+      {
+        "selector": "[data-document-tab][data-active=true] .document-editor .paragraph",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable",
+            "isCustomFont": true,
+            "glyphCount": 141
+          },
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Bold",
+            "isCustomFont": true,
+            "glyphCount": 15
+          }
+        ]
+      },
+      {
+        "selector": "[data-testid=\"save\"]",
+        "fonts": [
+          {
+            "familyName": "Pretendard Variable",
+            "postScriptName": "PretendardVariable-Medium",
+            "isCustomFont": true,
+            "glyphCount": 4
+          }
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "os": "Windows",
+    "browser": "headless installed Chrome",
+    "origin": "http://127.0.0.1:5173",
+    "worktree": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\feat-sidebar-collapse-folder-section",
+    "profile": "checkout-owned persistent profile reused by pnpm browser:test",
+    "viewport": [
+      [
+        1440,
+        812
+      ],
+      [
+        375,
+        812
+      ]
+    ],
+    "state": "Files selected; sidebar expanded; two opened roots; both child trees initially collapsed; technical-document.md active; window scroll 0; focus blurred; pointer at right edge; no dialog/menu",
+    "collapsed": "same state with first root section collapsed"
+  },
+  "review": "Before/After desktop and phone reviewed directly. Root folder icon replaced with chevron; names/actions/content remain aligned. Collapsed first section retains all three actions and the other section moves up. Long Korean/unbroken names and 200px sidebar verified by folder-navigation geometry checks."
+}

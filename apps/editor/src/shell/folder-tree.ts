@@ -1,14 +1,16 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { FolderEntry, FolderResponse } from "../../shared/document-protocol.ts";
-import { readOpenFolders, writeOpenFolders } from "../preferences.ts";
+import { readCollapsedFolderSections, readOpenFolders, writeCollapsedFolderSections, writeOpenFolders } from "../preferences.ts";
 
 // The sidebar's view of the folders the user opened: one tree of one-level Host listings per
-// folder, loaded when a folder is expanded. Only the opened folders' paths are remembered (see
-// preferences.ts); listings and expansion are page state, never stored, watched or scanned.
+// folder, loaded when a folder is expanded. Opened roots and collapsed sections are remembered
+// (preferences.ts); listings and subfolder expansion are never stored, watched or scanned.
 
 export type FolderTreeState = {
   /** The chosen folder; every listed folder is inside it. */
   root: string;
+  /** Remembered independently of the subfolders' page-only expansion. */
+  sectionExpanded: boolean;
   /** Loaded listings by folder path. A collapsed folder keeps its listing. */
   nodes: ReadonlyMap<string, FolderResponse>;
   expanded: ReadonlySet<string>;
@@ -17,8 +19,9 @@ export type FolderTreeState = {
 };
 
 export type FolderTreeAction =
-  | { type: "openRoot"; listing: FolderResponse }
+  | { type: "openRoot"; listing: FolderResponse; sectionExpanded?: boolean }
   | { type: "closeRoot" }
+  | { type: "setSectionExpanded"; expanded: boolean }
   | { type: "expand"; path: string }
   | { type: "collapse"; path: string }
   | { type: "loadStart"; root: string; path: string; request: number }
@@ -27,10 +30,12 @@ export type FolderTreeAction =
 
 export function folderTreeReducer(state: FolderTreeState | null, action: FolderTreeAction): FolderTreeState | null {
   if (action.type === "openRoot") {
-    return { root: action.listing.root, nodes: new Map([[action.listing.path, action.listing]]), expanded: new Set(), pending: new Map() };
+    return { root: action.listing.root, sectionExpanded: action.sectionExpanded ?? true, nodes: new Map([[action.listing.path, action.listing]]), expanded: new Set(), pending: new Map() };
   }
   if (!state || action.type === "closeRoot") return null;
   switch (action.type) {
+    case "setSectionExpanded":
+      return state.sectionExpanded === action.expanded ? state : { ...state, sectionExpanded: action.expanded };
     case "expand":
       return state.expanded.has(action.path) ? state : { ...state, expanded: new Set(state.expanded).add(action.path) };
     case "collapse": {
@@ -58,7 +63,7 @@ export function folderTreeReducer(state: FolderTreeState | null, action: FolderT
 
 /** Every tree action except opening and closing names the opened folder it belongs to. */
 export type FolderTreesAction =
-  | { type: "openRoot"; listing: FolderResponse }
+  | { type: "openRoot"; listing: FolderResponse; sectionExpanded?: boolean }
   | { type: "closeRoot"; root: string }
   | (Exclude<FolderTreeAction, { type: "openRoot" | "closeRoot" }> & { root: string });
 
@@ -169,8 +174,10 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
   const roots = trees.map(tree => tree.root);
   // Compare path values in the effect dependencies, independently of tree listing/expansion state.
   const serializedRoots = JSON.stringify(roots);
+  const serializedCollapsed = JSON.stringify(trees.filter(tree => !tree.sectionExpanded).map(tree => tree.root));
   const [restored, setRestored] = useState(false);
   const [rememberVersion, rememberFolders] = useReducer(version => version + 1, 0);
+  const [sectionVersion, rememberSections] = useReducer(version => version + 1, 0);
   const userChangedRoots = useRef(new Set<string>());
 
   // Restoration alone never rewrites preferences, including paths the Host no longer lists.
@@ -178,12 +185,15 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     let cancelled = false;
     void (async () => {
       const saved = readOpenFolders();
+      const collapsed = new Set(readCollapsedFolderSections());
       for (const root of saved) {
         if (cancelled) return;
         try {
           const listing = await request(root);
           // A user's Open/Close of this Host path takes precedence over its older restoration.
-          if (!cancelled && !userChangedRoots.current.has(listing.root)) dispatch({ type: "openRoot", listing });
+          if (!cancelled && !userChangedRoots.current.has(listing.root)) {
+            dispatch({ type: "openRoot", listing, sectionExpanded: !collapsed.has(listing.root) });
+          }
         } catch { /* Moved, removed or refused folders are left out quietly. */ }
       }
       if (!cancelled) setRestored(true);
@@ -197,6 +207,14 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     if (!restored || rememberVersion === 0) return;
     writeOpenFolders(JSON.parse(serializedRoots) as string[]);
   }, [serializedRoots, restored, rememberVersion]);
+
+  // Like #370, every explicit action writes the current reduced state, even if this tab wrote
+  // the same value before another tab changed storage. No last-written-value cache. Defer user
+  // writes until every restored root has settled; restoration/child listing alone never writes.
+  useEffect(() => {
+    if (!restored || sectionVersion === 0) return;
+    writeCollapsedFolderSections(JSON.parse(serializedCollapsed) as string[]);
+  }, [serializedCollapsed, restored, sectionVersion]);
 
   const load = (root: string, path: string) => {
     const id = ++requests.current;
@@ -230,12 +248,22 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
       if (!restored) userChangedRoots.current.add(listing.root);
       dispatch({ type: "openRoot", listing });
       rememberFolders();
+      rememberSections();
       show(listing.root, documentPath, false);
     },
     close(root: string) {
       if (!restored) userChangedRoots.current.add(root);
       dispatch({ type: "closeRoot", root });
       rememberFolders();
+      rememberSections();
+    },
+    /** Hiding a section keeps its listings and subfolder expansion, without Host requests. */
+    toggleSection(root: string) {
+      const tree = trees.find(item => item.root === root);
+      if (tree) {
+        dispatch({ type: "setSectionExpanded", root, expanded: !tree.sectionExpanded });
+        rememberSections();
+      }
     },
     /** Expanding lists the folder again; collapsing keeps what was listed. */
     toggle(root: string, path: string) {
@@ -248,9 +276,18 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     /**
      * Shows the document just opened or created, or a folder just created, in every opened folder
      * containing it; the folders above it are expanded and listed again, so a new item appears.
+     * Startup tab restoration passes false to retain remembered section visibility without writing it.
      */
-    reveal(itemPath: string) {
-      for (const root of roots) show(root, itemPath, true);
+    reveal(itemPath: string, expandSections = true) {
+      let contained = false;
+      for (const root of roots) {
+        if (expandSections && folderChain(root, itemPath).length > 0) {
+          dispatch({ type: "setSectionExpanded", root, expanded: true });
+          contained = true;
+        }
+        show(root, itemPath, true);
+      }
+      if (contained) rememberSections();
     },
     /** Lists a folder the trees already know again, without expanding anything. */
     refresh(path: string) {

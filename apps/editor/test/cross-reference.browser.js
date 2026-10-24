@@ -93,7 +93,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
 
   // B. Selected text becomes an Equation reference through the selection toolbar.
   await selectText('control law');
-  await page.getByRole('button', {name:'Cross-reference'}).click();
+  await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
   await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();
   result.insertedFromSelection = await chip(paragraph(0), 'Eq. eq-b').count() === 1 &&

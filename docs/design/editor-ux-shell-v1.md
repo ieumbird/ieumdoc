@@ -6,7 +6,9 @@
 - Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
 - Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
 - Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
-- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
 - Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
 - Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
@@ -52,7 +54,7 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; then Files / Display tool buttons. Files is initially selected. Each tool opens the same panel space; choosing it from the collapsed rail also expands the sidebar. Collapse/expand retains the selected tool. Both buttons remain keyboard reachable and report selected/expanded state. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (icon and name, full path in `title`) with `+` (New file in folder), New folder and a `⋯` menu containing only Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders, including while Display is selected; the empty Files panel has no duplicate button (#385). Below each heading the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). The folders above the open document expand by themselves in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Expanded folders and tool choice are page state only and are not restored on page reload. Switching tools or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text and a vertical current marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
+| Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; then Files / Display tool buttons. Files is initially selected. Each tool opens the same panel space; choosing it from the collapsed rail also expands the sidebar. Collapse/expand retains the selected tool. Both buttons remain keyboard reachable and report selected/expanded state. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New file in folder), New folder and a `⋯` menu containing only Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders, including while Display is selected; the empty Files panel has no duplicate button (#385). Below each heading the folder is a tree (sub-folders, then `.md` files, at each level): a folder expands and collapses in place, and expanding lists that one folder again; a document opens. A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion and tool choice are page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Switching tools or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text and a vertical current marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Display | Identifies the current document by filename (full path in title). Saved in document contains Number headings: the existing H2–H6 setting, engine Undo/Redo and Save behavior. It is disabled without a document, during pending work and in Source, with a reason shown. Local view contains Wide document, remembered here and never written to Markdown or included in document history/dirty state. It remains available without a document and in Source. Tab enters the selected content; Escape in Display returns focus to its opening tool button. Tool changes do not remount the editor or discard its selection, history or drafts. This is separate from Desktop Settings/About. |
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read and keeps that mark inside the list's visible area. The list scrolls by itself and is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
 | TopBar | At phone widths with the sidebar closed, Expand sidebar first; actual status on the left; the centered command-center button contains the document's location and filename (full path in title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
@@ -108,6 +110,154 @@ file path in any existing directory, is removed rather than moved: a document is
 opening its folder and using the folder's `+`. The separate full-file-path Open file entry is also
 removed (#190); the shared document loader, Host file APIs and Desktop `.md` arguments remain.
 Folder navigation changes no document meaning, so this removal adds no Core operation or CLI command.
+
+## Collapsible folder sections (#425)
+
+An opened folder without remembered section collapse starts expanded. The chevron beside its name is a native compact ghost button,
+with localized `Collapse folder <name>` / `Expand folder <name>` labels and tooltips, `aria-expanded`
+and `aria-controls` naming that section's tree. The name remains the section/tree title and its
+full path remains in `title`. The chevron points right when collapsed and down when expanded,
+like subfolder chevrons. New file (`+`), New folder and More actions (`⋯`, Close folder only)
+remain visible and usable when the section is collapsed. Empty-folder help is hidden with the tree.
+Tab order within a section follows its existing actions, then the new toggle, then the tree's single
+retained keyboard stop when expanded. Enter/Space toggle; collapsed tree items are outside Tab and
+the accessibility tree. Tree arrow/Home/End behavior is unchanged.
+
+Section visibility belongs to the existing folder-tree state. Collapsing neither lists
+folders nor clears cached entries, child expansion, tree scroll or keyboard position. Relisting
+the same root, switching tools/sidebar layout, and opening/closing other roots retain it. Closing
+that root clears its collapse record, so a later Open starts expanded. Open of a root still in the
+live list is a relist and preserves its section state. Reload and Desktop restart instead restore
+remembered section collapse under the owner-approved
+[ADR-0009 persistence amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-25-remember-collapsed-folder-sections-425).
+
+The origin-specific localStorage key `ieumdoc.collapsedFolderSections` contains a JSON array of
+Host-normalized root paths, in opened-folder order; for example `["/work/docs"]`. Only collapsed,
+currently opened roots are written. Expanded roots, child-folder expansion and listings are not
+stored. Vite, Desktop and HTTP origins do not share the preference. It grants no filesystem access:
+the Host authorizes and lists every restored root before its remembered collapse is applied.
+
+Restoration alone never writes either navigation preference. Missing/refused/unopened roots have
+no live collapse state; stale stored records are pruned on the next explicit write, matching
+#370's restoration-only boundary. User Open/Close, section toggle and navigation reveal write the
+current reduced collapsed-root list. During startup those writes wait for all remembered roots
+to settle, retaining pending roots and user changes. There is no last-written-value cache: each
+explicit action writes even if this tab previously saved that same array and another tab has since
+overwritten it. Tabs retain independent live views; the latest action writes its own current list,
+without a storage-event synchronization service. Child listing/expansion alone never writes.
+Unavailable storage leaves the live page usable without persistence.
+
+Manual collapse is allowed even for the active document: its tree current marker is hidden with
+the tree, while the document tab and TopBar still identify it. Expanding restores the marker.
+The existing reveal trigger is unchanged: changing the active document path (including selecting
+an inactive tab/search result), creating a document, or creating a folder reveals it in every
+containing opened root. Reveal now also expands those sections. Relisting an already-open root
+may reveal child folders as before but respects the section's manual collapse. Selecting the
+already-active document does not change its path and therefore does not undo manual collapse.
+This follows the existing active-path reveal, rather than continuously forcing the current tree
+visible on each render or listing response.
+
+Reveal expansion is remembered, including when a containing section was already expanded locally:
+the user's document navigation should survive restart and supersede another tab's older collapse.
+Startup document/tab restoration is distinguished from explicit navigation: it may list/expand
+the current document's child ancestors as before, but never expands a remembered collapsed section
+or writes section preferences. Otherwise restoring the active document would erase the very
+collapse being restored. Selecting the already-active document still changes no active path.
+
+Command-center search still collects all reachable cached document listings regardless of section
+or subfolder visibility (#400 / #384); searching never expands a section or makes Host requests.
+Opening a different result uses the same reveal described above. No new search source, Core
+semantic operation or CLI command is needed: this is interface navigation state.
+
+### Section persistence decision and verification (2026-10-25)
+
+The repository owner changed #425 after the initial implementation: remember only root section
+collapse across Reload/Desktop restart. The earlier no-section-persistence decision and the
+verification records below describe that earlier implementation and remain intact.
+
+The extended folder-memory failed on unmodified head `7a45f2bc0f8bb40751193851d3cd093ccc422fdd`:
+`Collapse remembers the root: collapsed preference [], expected [...]` and
+`Reload must restore the active document section collapsed`. This test now covers stored root
+format, active-document Reload, expand/Reload, Close/reopen, missing/unopened record pruning on
+the next action, restoration-only zero writes, delayed-root collapse/expand/Close races, and
+the #370 two-tab order including reveal of an already-expanded local section after another tab's
+collapse. Original opened-folder memory regressions remain in the same scenario.
+
+After the change, Editor tests pass 280/280 and typecheck/build pass. The final related run covers
+folder-memory, command-center, document-tabs and editor-shell (4/4); folder-navigation with
+screenshots and quiet-document with actual glyph-font assertions each pass separately (1/1).
+The persistence scenarios include both user collapse and user expansion while a later root is
+pending, and same-path Close winning over an older restoration. Existing source fixture guards
+and expected-error classification are unchanged. Build warnings remain the existing externalized
+punycode/large bundle warnings. No platform installer or live Desktop restart is claimed by these
+local browser checks; Desktop uses the same origin-specific preference path and required CI.
+
+Real Reload captures: [1440px](assets/sidebar-collapse-425/restored-collapsed-1440.png) and
+[375px](assets/sidebar-collapse-425/restored-collapsed-375.png), with
+[capture metadata](assets/sidebar-collapse-425/persistence-environment.json). These use capture
+HEAD `7a45f2bc0f8bb40751193851d3cd093ccc422fdd` plus this persistence change; source SHA-256
+identifies the exact implementation. Same worktree-owned Vite/persistent Windows Chrome, measured
+DPR/viewport scale/CSS zoom 1, bundled Pretendard, scroll 0, blurred focus and no dialog/menu.
+Direct review confirms the first section remains collapsed after Reload, the other section's
+tree remains visible, and names/actions/document geometry match the existing collapsed view.
+The earlier disclosure captures and their metadata below remain historical evidence.
+
+The first persistence CI at `e9d58bbdb0626f1c6e481685e6687970dfaa7ed9`
+([run 40136117318](https://github.com/ieumbird/ieumdoc/actions/runs/40136117318)) passed quality,
+Desktop/HTTP and browser shard 1/2, including folder-memory; shard 2/2 passed folder-navigation
+but failed file-preview's phone archive-row click. Its input-events artifact shows Escape targeting
+the still-focused tree row, then focus moving to Expand sidebar: the preview image was visible
+before the modal's initial focus, and the sidebar closed too. The unchanged local file-preview
+passes. The viewport preview case now explicitly asserts modal focus ownership (within 5 seconds)
+before its Escape. This adds a readiness assertion without forcing focus, reopening the sidebar,
+changing product behavior or weakening the existing preview/content checks. Capture sources are
+unchanged; the new test-only head needs its own final checks and CI, recorded in the PR.
+
+### Section disclosure verification and captures
+
+The clean base's existing folder-navigation and quiet-document checks passed. Before product
+edits, the extended folder-navigation failed with `Opened folder section must expose an expanded
+toggle button`; command-center stopped at the absent toggle as well. Later expected HTTP failures
+were not reached in those early exits. An initial implementation run also exposed a test locator
+mistake: modal background controls are excluded from default role queries. Its inspection locator
+now includes hidden controls while the center is open; no product assertion/timeout was weakened.
+
+The final folder-navigation checks Enter/Space and Tab/reverse Tab, whole-tree/empty-help hiding,
+retained child expansion/current marker/scroll/keyboard stop without Host listing, collapsed New
+file/New folder/Close, relisting including the active document, unrelated-root Open/Close, Reload,
+and 28px target/long-name geometry at 1440/1024/375px. Folder-memory verifies no preference write
+on collapse and preservation through relist; command-center verifies cached-file search without
+expansion/Host requests, active-result preservation and different-result reveal. Existing
+editor-shell/layout-rules/ui-language also pass. Editor tests: 278/278; typecheck, Editor build,
+docs/diff checks pass. The build retains its existing punycode externalization/bundle-size warnings.
+
+Same-state product captures below use base HEAD `108d134a04228001ada41944e41dec8ac2a227b9`.
+After is that HEAD plus the implementation, identified by source SHA-256 in
+[capture metadata](assets/sidebar-collapse-425/environment.json). All use this worktree's own
+Vite and persistent headless Windows Chrome profile. Before uses the runner's default DPR 1 with
+no zoom override; After measures DPR/viewport scale/CSS zoom 1. Both wait for fonts; quiet-document
+checks actual bundled Pretendard glyph fonts. Files is selected, the sidebar expanded, scroll 0,
+focus blurred, pointer at the right edge and no dialog/menu present.
+
+| Width | Before | After, expanded | After, first section collapsed |
+| --- | --- | --- | --- |
+| 1440×812 | [Before](assets/sidebar-collapse-425/before-1440.png) | [Expanded](assets/sidebar-collapse-425/after-1440.png) | [Collapsed](assets/sidebar-collapse-425/collapsed-1440.png) |
+| 375×812 | [Before](assets/sidebar-collapse-425/before-375.png) | [Expanded](assets/sidebar-collapse-425/after-375.png) | [Collapsed](assets/sidebar-collapse-425/collapsed-375.png) |
+
+Direct review: heading/name/action positions and document layout remain aligned. The root icon
+becomes a quiet chevron; only the selected section's contents disappear. Other sections move up
+naturally, and all three folder actions remain reachable in the full-screen phone sidebar.
+The 200px sidebar and wrapped Korean/unbroken names retain their geometry and reachable targets.
+These are visual/navigation checks, not new document semantics or platform packaging evidence.
+
+The first full CI at implementation head `6e5bf3f1df5689088efaeb7e635640a20277c092`
+([run 40133576414](https://github.com/ieumbird/ieumdoc/actions/runs/40133576414)) passed quality,
+Desktop/HTTP and browser shard 2/2, but shard 1/2 failed in cross-reference: its partial button-name
+query also matched the new `Collapse folder cross-reference` control. The unchanged scenario
+reproduced that strict-mode ambiguity locally. Scope its existing selection-toolbar action to
+that toolbar with the exact accessible name; the same scenario then passes. No product code,
+assertion/timeout or capture source changed. The failure remains historical evidence; the new
+head requires its own full CI result, recorded in the PR.
 
 ## Sidebar Open folder entry (#385)
 

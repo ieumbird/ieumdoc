@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Last verified: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-24 (#401: long-name/path dialogs at 1440/375px; [measurements and captures](#long-dialog-names-and-paths-401)).
 - Previous verification: 2026-10-24 (#395: recovery review path wrapping and footer bounds at 1440/375px; [same-state evidence](editing-session-save-v1.md#recovery-review-layout-395)).
 - Previous verification: 2026-10-24 (#382 / #391 review: recovery deletion confirmations, nested backdrop outside dismissal/pending guards; refreshed 1440/375px English/Korean [captures and environment](editing-session-save-v1.md#local-recovery-records-296-pr2)).
@@ -112,6 +113,12 @@ The centered TopBar command-center button shows where the open document is: its 
 ## Shell and control rules — v3 (2026-10-08), v4 and v4.1 (2026-10-10)
 
 The shell distinguishes current location, hovered alternatives, pressed/open controls and keyboard focus with static states. Save alone adds a reduced-motion-aware progress spinner.
+
+Folder-section disclosure (#425) uses the same right/down ChevronRight as child folders in the
+heading's icon slot, inside the existing compact ghost Button. It remains visible at rest so
+collapsed content is discoverable; neutral hover and the shared keyboard focus ring follow the
+control rules. It adds no new color, size or adjustable value. Name typography, wrapping and
+New/More actions stay in place. See [section behavior and evidence](editor-ux-shell-v1.md#collapsible-folder-sections-425).
 
 | Area | Rule |
 | --- | --- |

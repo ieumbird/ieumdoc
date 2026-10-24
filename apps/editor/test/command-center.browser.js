@@ -91,6 +91,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await openFolder(folderPath);
   const folder = page.getByTestId('folder').first();
   await folder.getByRole('treeitem',{name:'technical-8.md',exact:true}).waitFor();
+  const sectionToggle = folder.getByRole('button', {name:/^(Collapse|Expand) folder /, includeHidden:true});
+  await sectionToggle.click();
   let searchRequests = 0;
   const countSearchRequests = request => { if (/\/api\/(folder|document)(\?|$)/.test(request.url())) searchRequests++; };
   page.on('request', countSearchRequests);
@@ -110,9 +112,14 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check(await center().getByRole('option').count() === 0, `Non-document ${excluded} appeared in document search`);
   }
   check(searchRequests === 0, 'Searching made a Host listing or document request');
+  check(await sectionToggle.getAttribute('aria-expanded') === 'false', 'Search expanded a collapsed section');
   page.off('request', countSearchRequests);
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  await open('technical-1.md');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  check(await sectionToggle.getAttribute('aria-expanded') === 'false', 'Selecting the already-active document must preserve manual collapse');
 
+  await sectionToggle.click();
   await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
   await folder.getByRole('treeitem',{name:'guide.md',exact:true}).waitFor();
   await folder.getByRole('treeitem',{name:'alpha',exact:true}).click();
@@ -150,10 +157,14 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
   await page.keyboard.type('retained384');
   const retained = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
+  await sectionToggle.click();
   await open('technical-8.md');
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'technical-8.md');
   await ready();
+  check(await sectionToggle.getAttribute('aria-expanded') === 'true' &&
+    await folder.getByRole('treeitem',{name:'technical-8.md',exact:true}).getAttribute('aria-current') === 'page',
+    'Opening a search result must reveal its section and current document');
   await page.keyboard.type('opened384');
   check((await editor().innerText()).includes('opened384'), 'Unopened file did not focus its editor');
   await page.keyboard.press('Control+z');

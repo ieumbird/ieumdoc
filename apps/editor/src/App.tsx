@@ -486,9 +486,10 @@ export function App() {
     return message === "";
   }
 
-  // Opening or creating a document lists its folders again; there is no watch.
+  // Startup tab restoration lists/reveals child folders but respects remembered section collapse.
+  // Only an explicit navigation (rememberVersion) expands and remembers containing sections.
   useEffect(() => {
-    if (openedPath) folders.reveal(openedPath);
+    if (openedPath) folders.reveal(openedPath, rememberVersion > 0);
   }, [openedPath]);
 
   // Ctrl/Cmd+S is the Save button: same path, same messages. The browser's own page save
@@ -695,6 +696,7 @@ export function App() {
         }}
         folders={folders.trees}
         onToggleFolder={folders.toggle}
+        onToggleSection={folders.toggleSection}
         onOpenDocument={(path) => {
           // An overlaid sidebar steps aside for the document it opens.
           if (sidebarOverlay) setSidebarOpen(false);

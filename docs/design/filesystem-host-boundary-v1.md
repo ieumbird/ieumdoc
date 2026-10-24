@@ -1,7 +1,8 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
-- Last verified: 2026-10-24 (#367 cross-tab follow-up: explicit Open/Close remembers the current tab's list, tree-only updates leave preferences intact; folder-memory browser regression; Host handlers unchanged).
+- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open/Close remembers the current tab's list, tree-only updates leave preferences intact; folder-memory browser regression; Host handlers unchanged).
 - Previous verification: 2026-10-24 (#367 review follow-up: user Open/Close wins over same-path restoration, unchanged path preferences are not rewritten; folder-memory browser regression; Host handlers unchanged).
 - Previous verification: 2026-10-24 (#367: browser preference restoration/Open/Close race and Reload regression; tab Non-goal compared with [ADR-0007](../adr/0007-editing-session-lifetime.md) and the [editing-session contract](editing-session-save-v1.md#switching-and-recovery); Host handlers unchanged).
 - Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders in the Sidebar, paths restored from browser preferences, outermost-folder context; Host handlers unchanged; Editor unit tests and stable browser suite).
@@ -207,7 +208,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 ### Folder listing v1 (#112)
 
-사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 Sidebar는 열어 둔 folder 여러 개를 순서대로 각자의 tree로 보여 주며, Open folder…는 목록에 추가한다. Workspace가 아니다. 열어 둔 folder의 경로 목록과 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억하고 Host나 파일에 저장하지 않는다. 펼친 상태와 listing은 페이지 상태다.
+사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 Sidebar는 열어 둔 folder 여러 개를 순서대로 각자의 tree로 보여 주며, Open folder…는 목록에 추가한다. Workspace가 아니다. 열어 둔 folder의 경로 목록과 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억하고 Host나 파일에 저장하지 않는다. 폴더 섹션 접힘은 같은 origin의 Browser preference로 root 경로만 기억한다(#425). 하위 폴더 펼침과 listing은 페이지 상태다.
 
 - `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document" | "image" | "file", path, native? }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `native`는 문서 항목에만 있으며, 파일 앞부분(최대 4KB)의 leading frontmatter에 native 표식 `ieumdoc: 1`이 있는지를 Core의 `hasNativeMarker`로 판정한 값이다. 파일을 읽을 수 없으면 생략한다. 이는 Sidebar가 열 수 없는 파일을 미리 구분해 보여 주기 위한 표시일 뿐 admission이 아니다. 표식이 있어도 열 때 Core가 metadata와 내용을 검증해 거부할 수 있다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
 
@@ -217,7 +218,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | Lazy one-level Host listing | 지원. folder를 펼칠 때 그 folder 하나만 위 API로 list한다. |
 | Recursive scan | 지원하지 않음. Host도 Editor도 하위 folder를 미리 읽지 않는다. |
 | Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때만 반영된다. |
-| Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 복원 자체는 preference를 다시 쓰지 않는다. 성공한 명시적 사용자 Open/Close는 같은 목록이거나 다른 브라우저 탭이 preference를 바꿨어도 현재 탭의 열린 목록을 기억한다. 복원 중이면 모든 경로의 시도가 끝날 때까지 저장을 미룬다. 같은 Host 정규화 경로의 사용자 Open/Close는 늦은 복원 응답보다 우선한다. 펼치기·접기·listing 갱신은 preference를 쓰지 않는다. 펼친 상태와 Workspace 파일은 없다. |
+| Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 복원 자체는 preference를 다시 쓰지 않는다. 성공한 명시적 사용자 Open/Close는 같은 목록이거나 다른 브라우저 탭이 preference를 바꿨어도 현재 탭의 열린 목록을 기억한다. 복원 중이면 모든 경로의 시도가 끝날 때까지 저장을 미룬다. 같은 Host 정규화 경로의 사용자 Open/Close는 늦은 복원 응답보다 우선한다. 하위 폴더 펼치기·접기·listing 갱신은 preference를 쓰지 않는다. 별도의 섹션 접힘 기억은 origin별 collapsed root 경로만 저장하며, 사용자 Open/Close·섹션 토글·명시적 reveal에서 현재 상태로 쓰고 복원만으로는 쓰지 않는다. Close로 지우며, 유효하지 않은 기록은 다음 사용자 쓰기에서 정리한다. 하위 펼침 상태와 Workspace 파일은 저장하지 않는다. |
 - 일반 directory와 모든 확장자의 일반 파일(확장자 없는 파일 포함)을 넣는다. `.md`는 document, 기존 MEDIA_TYPES의 PNG/JPEG/GIF/WebP/SVG는 image, 나머지는 file이다. 확장자는 대소문자를 구분하지 않는다. 폴더 먼저, 파일 종류와 무관하게 숫자를 인식한 이름순으로 정렬한다. `.`으로 시작하는 항목과 symlink(Windows junction 포함), 비정규 파일은 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
 - Host가 반환한 정규화 경로로 열린 탭을 식별한다. 요청 경로가 이미 열린 탭 경로와 정확히 같으면 Host GET 없이 그 세션을 활성화하므로, 디스크에서 파일이 사라지거나 읽을 수 없게 되어도 열린 세션을 유지한다. 일치하지 않는 경로·별칭은 기존 `GET /api/document`로 읽고 반환된 정규화 경로를 다시 비교한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 그 문서를 담은 각 열린 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.

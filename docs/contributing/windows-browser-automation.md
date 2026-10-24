@@ -16,7 +16,7 @@
 
 ## Profile reuse and test isolation
 
-[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 각 시나리오 시작 시 열린 폴더·탭 환경설정을 지우고 복구 IndexedDB도 삭제한 뒤 다시 로드하여 이전 시나리오의 탐색 상태·복구 제안을 격리한다. HTTP/packaged Desktop 복구 검사도 최초 초기화에서만 탭 환경설정과 복구 DB를 정리하고, 같은 검사의 crash/restart에서는 보존한다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
+[현재 browser fixture](../../apps/editor/test/browser/scenarios.spec.ts)는 worker 시작 시 cookie와 해당 origin의 `localStorage`/`sessionStorage`를 정리한다. Chrome의 profile 자체는 유지하면서 이전 실행의 문서 폭·최근 folder 같은 browser preference가 다음 실행의 초기 조건에 섞이지 않게 하기 위해서다. 각 시나리오 시작 시 열린 폴더·섹션 접힘·탭 환경설정을 지우고 복구 IndexedDB도 삭제한 뒤 다시 로드하여 이전 시나리오의 탐색 상태·복구 제안을 격리한다. HTTP/packaged Desktop 복구 검사도 최초 초기화에서만 탭 환경설정과 복구 DB를 정리하고, 같은 검사의 crash/restart에서는 보존한다. 개별 시나리오 안의 Reload와 storage persistence 검증은 유지한다. 테스트 격리를 이유로 매번 profile을 삭제해서는 안 된다.
 
 시나리오 간 초기화는 같은 origin의 일회성 빈 페이지에서 수행한 뒤 실제 Editor를 로드한다. 이전 시나리오의 scratch 파일이 이미 지워졌어도 App이 이전 탭 경로를 읽기 전에 환경설정을 비울 수 있다. 실제 Editor 시작과 시나리오 내부 Reload의 콘솔·Host 응답 검사는 그대로 수행한다.
 
