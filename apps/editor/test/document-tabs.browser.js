@@ -1,5 +1,5 @@
 // Real independent sessions, explicit per-file Save/Reload, and optional visual/memory review.
-async (page, { openPath, reloadDocument, activeDocument, removeTabFixture, screenshots = false }) => {
+async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect, removeTabFixture, screenshots = false }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -38,6 +38,61 @@ async (page, { openPath, reloadDocument, activeDocument, removeTabFixture, scree
   check(JSON.stringify(await memory()) === JSON.stringify({paths:[a,b],activePath:a}), 'Navigation memory contains more than paths, order and active identity');
   await flush();
   check(await page.evaluate(() => window.tabMemoryWrites) === 0, 'Restoration rewrote tab memory');
+
+  // Undo to the acknowledged snapshot and Reload in the same browser turn. Waiting for
+  // record deletion here would hide #409 rather than verify navigation/recovery integration.
+  await editor().evaluate(n => n.editor.commands.insertContentAt(1,'Undo before immediate Reload. '));
+  await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === a &&
+    record.recoveryText.includes('Undo before immediate Reload.'))).toBe(true);
+  const navigated = page.waitForEvent('framenavigated',frame => frame === page.mainFrame());
+  await editor().evaluate(n => { n.editor.commands.undo(); location.reload(); });
+  await navigated; await ready();
+  check(!await page.getByTestId('recovery-prompt').count(), 'Undo to saved content proposed obsolete recovery after immediate Reload');
+  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']),
+    'Undo to saved content prevented remembered tab restoration');
+  check(!(await editor().innerText()).includes('Undo before immediate Reload.'), 'Reload brought back the undone edit');
+
+  // Browser-tab close uses the same clean transition; keep this profile/origin and reopen.
+  let closing = await page.context().newPage();
+  try {
+    await closing.goto(origin);
+    await closing.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await activeDocument(closing).locator('.document-editor').evaluate(n => n.editor.commands.insertContentAt(1,'Undo before browser close. '));
+    await expect.poll(async () => (await recoveryRecords(closing)).some(record => record.path === a &&
+      record.recoveryText.includes('Undo before browser close.'))).toBe(true);
+    await activeDocument(closing).locator('.document-editor').evaluate(n => n.editor.commands.undo());
+    await closing.close();
+    closing = await page.context().newPage();
+    await closing.goto(origin);
+    await closing.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(!await closing.getByTestId('recovery-prompt').count() && await closing.getByRole('tab').count() === 2,
+      'Clean Undo followed by browser-tab close proposed obsolete recovery');
+
+    // Undo that leaves real applied work must retain the record and its disk checkpoint.
+    const diskBefore = await read(a);
+    await activeDocument(closing).locator('.document-editor').evaluate(n => {
+      n.editor.commands.insertContentAt(1,'Remaining unsaved work. ');
+      n.editor.commands.insertContentAt(n.editor.state.doc.content.size,{type:'paragraph',content:[{type:'text',text:'Undo only this last block.'}]});
+    });
+    await expect.poll(async () => (await recoveryRecords(closing)).some(record => record.path === a &&
+      record.recoveryText.includes('Undo only this last block.'))).toBe(true);
+    const partialNavigation = closing.waitForEvent('framenavigated',frame => frame === closing.mainFrame());
+    const partial = await activeDocument(closing).locator('.document-editor').evaluate(n => {
+      n.editor.commands.undo();
+      const partial = n.editor.getText().includes('Remaining unsaved work.') && !n.editor.getText().includes('Undo only this last block.');
+      location.reload(); return partial;
+    });
+    await partialNavigation;
+    await closing.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    check(partial, 'The partial Undo fixture did not leave unsaved content');
+    check(await closing.getByTestId('recovery-prompt').isVisible(), 'Partial Undo suppressed real unsaved recovery');
+    check((await recoveryRecords(closing)).some(record => record.path === a && record.recoveryText.includes('Remaining unsaved work.')),
+      'Partial Undo deleted the unsaved record');
+    check((await read(a)).revision === diskBefore.revision, 'Undo/recovery rewrote the disk file');
+    await closing.getByRole('button',{name:'Delete record',exact:true}).click();
+    await closing.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click();
+    await closing.getByTestId('recovery-prompt').waitFor({state:'hidden'});
+  } finally { await closing.close(); }
 
   // Restored sessions use the shared command-center dismissal/final-focus path (#392).
   for (const name of ['technical-2.md','technical-1.md']) {

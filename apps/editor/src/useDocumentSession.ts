@@ -98,7 +98,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
-      onAppliedEdit: () => { if (isCurrent()) recorder?.edit(); },
+      onAppliedEdit: (dirty: boolean) => { if (isCurrent()) recorder?.edit(dirty); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
       onHeadingNumberingChange: (enabled: boolean) => { if (isCurrent()) setHeadingNumbering(enabled); },
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },

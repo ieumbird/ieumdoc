@@ -93,7 +93,7 @@ type DocumentEditorProps = {
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
   /** Applied-content changes only, excluding draft forms and filtered placeholders. */
-  onAppliedEdit?: () => void;
+  onAppliedEdit?: (dirty: boolean) => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
@@ -331,8 +331,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     onDirtyChangeRef.current?.(hasDocumentChanges(previousApplied));
     const updated = () => {
       const applied = JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)));
-      onDirtyChangeRef.current?.(hasDocumentChanges(applied));
-      if (applied !== previousApplied) { previousApplied = applied; onAppliedEditRef.current?.(); }
+      const dirty = hasDocumentChanges(applied);
+      onDirtyChangeRef.current?.(dirty);
+      if (applied !== previousApplied) { previousApplied = applied; onAppliedEditRef.current?.(dirty); }
     };
     editor.on("update", updated);
     return () => { editor.off("update", updated); };
