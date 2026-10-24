@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
+- Documentation verification: 2026-10-24 (#417 review: current production HTTP explicit-path recovery coverage and Vite start-list coverage compared with test code; no new browser execution).
 - Previous verification: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
 - Previous verification: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
 - Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
@@ -260,10 +261,15 @@ before runs intentionally stopped at the confirmed refusal or internal-attribute
 On Windows x64, `pnpm browser:test http-host` now also kills the owned Chrome browser process
 tree and relaunches a new PID with the same checkout-owned persistent profile and exact HTTP
 origin. The production server stays running: this is a client crash, not a server restart or
-page reload. The test compares committed IndexedDB records before/after restart, then exercises
-the start list, matching-file prompt, user Restore, dirty state, unchanged disk until explicit
-Save, actual Save/Reload, and a second crash followed by an external disk change and a 409 with
-both external bytes and recovered work preserved.
+page reload. Both restarts explicitly request `?path=…` under the
+[startup precedence contract](#tab-navigation-memory-383). The test compares committed IndexedDB
+records before/after restart, then exercises the matching-file recovery review dialog, user
+Restore, dirty state, unchanged disk until explicit Save, actual Save/Reload, and a second crash
+followed by an external disk change and a 409 with both external bytes and recovered work preserved.
+
+The Vite [`recovery` scenario](../../apps/editor/test/recovery.browser.js) covers the start-screen
+**Review recovery → Restore work** entry point after a page reload. The production HTTP scenario
+does not check that start-list entry point.
 
 The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
 that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
