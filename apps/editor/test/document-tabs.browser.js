@@ -39,6 +39,17 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   await flush();
   check(await page.evaluate(() => window.tabMemoryWrites) === 0, 'Restoration rewrote tab memory');
 
+  // Restored sessions use the shared command-center dismissal/final-focus path (#392).
+  for (const name of ['technical-2.md','technical-1.md']) {
+    await page.keyboard.press('Control+p');
+    const center = page.getByRole('dialog',{name:'Command center',exact:true});
+    await center.getByRole('combobox').fill(name);
+    await page.keyboard.press('Enter');
+    await center.waitFor({state:'detached'});
+    await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent === name &&
+      document.querySelector('[data-document-tab][data-active="true"] .document-editor')?.editor.view.hasFocus(),name);
+  }
+
   // A default document that will not be used must not block either startup route.
   const startupFailures = [];
   let targetReads = 0;
