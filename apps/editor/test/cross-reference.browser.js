@@ -330,6 +330,9 @@ async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   // Undo updates the editor immediately; its recovery cleanup is asynchronous. Reloading first
   // can legitimately offer the older recorded deletion and make the sidebar modal-inaccessible.
   await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === deletionPath)).toBe(false);
+  // Keep the explicit disk checkpoint for the platform-label reload, after proving Undo cleanup.
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
 
   // Emulate Apple's platform branch before module initialization, using this same profile.
   // This checks displayed shortcuts, not a native macOS keyboard run.

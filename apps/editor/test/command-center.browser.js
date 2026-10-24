@@ -12,7 +12,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   const center = () => page.getByRole('dialog', { name: 'Command center', exact: true });
   const input = () => center().getByRole('combobox');
   const waitForInput = () => page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'combobox', null, {timeout:5000});
-  const open = async (query = '', shortcut = 'Control+p') => {
+  const open = async (query = '', shortcut = 'Control+Slash') => {
     await page.keyboard.press(shortcut);
     await waitForInput();
     if (query) await input().fill(query);
@@ -25,12 +25,51 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const result = {};
 
+  for (const shiftKey of [false, true]) {
+    const allowed = await page.evaluate(shiftKey => window.dispatchEvent(new KeyboardEvent('keydown',
+      {key:'p',code:'KeyP',ctrlKey:true,shiftKey,bubbles:true,cancelable:true})), shiftKey);
+    check(allowed && await center().count() === 0, 'Print shortcut was intercepted');
+  }
+  // German Slash-position '-' must retain browser zoom; opaque IME keys cannot hide its VK.
+  for (const key of ['-', 'Process', 'Unidentified']) {
+    const allowed = await page.evaluate(key => window.dispatchEvent(new KeyboardEvent('keydown',
+      {key,code:'Slash',keyCode:189,ctrlKey:true,bubbles:true,cancelable:true})), key);
+    check(allowed && await center().count() === 0, 'German zoom shortcut was intercepted');
+  }
+  for (const event of [{key:'/',code:'Digit7',keyCode:55,shiftKey:true},
+    {key:'/',code:'Period',keyCode:190,shiftKey:true}, {key:'!',code:'Slash',keyCode:223},
+    {key:'／',code:'Slash',keyCode:191}]) {
+    const allowed = await page.evaluate(event => window.dispatchEvent(new KeyboardEvent('keydown',
+      {...event,ctrlKey:true,bubbles:true,cancelable:true})), event);
+    check(allowed && await center().count() === 0, 'A shifted or different character opened the center');
+  }
+  await page.keyboard.press('Control+Alt+Shift+KeyP');
+  check(await center().count() === 0, 'Previous AltGr-prone shortcut still opens the center');
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
+    {key:'Process',code:'Slash',keyCode:229,ctrlKey:true,isComposing:true,bubbles:true,cancelable:true})));
+  check(await center().count() === 0, 'Shortcut interrupted IME composition');
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
+    {key:'Process',code:'Slash',keyCode:229,ctrlKey:true,bubbles:true,cancelable:true})));
+  await waitForInput();
+  await page.keyboard.type('settings');
+  check(await input().inputValue() === 'settings', 'Typing after shortcut missed the command input');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown',
+    {key:'Unidentified',code:'Slash',keyCode:0,ctrlKey:true,bubbles:true,cancelable:true})));
+  await waitForInput();
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  const trigger = page.getByRole('button',{name:'Command center',exact:true});
+  check(await trigger.getAttribute('title') === 'Command center (Ctrl+/)' &&
+    await trigger.getAttribute('aria-keyshortcuts') === 'Control+/ Meta+/', 'Center shortcut label mismatch');
+  result.nonConflictingCodeShortcut = true;
+
   // The center is also available before opening a document, with document actions disabled.
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
   await page.getByRole('button', {name:'Command center',exact:true}).click();
   await waitForInput();
   await input().fill('> save');
+  check(await center().getByRole('option', {name:'Save',exact:true}).locator('kbd').textContent() === 'Ctrl+S', 'Save shortcut label mismatch');
   check(await center().getByRole('option', {name:'Save',exact:true}).getAttribute('aria-disabled') === 'true', 'Save available without a document');
   await page.keyboard.press('Enter');
   check(await center().isVisible(), 'Disabled command dismissed the center');
@@ -66,14 +105,14 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   // install starts a running clock; pause in its future even when the runner is under load.
   await page.clock.pauseAt(new Date('2026-10-24T00:01:00Z'));
   try {
-    for (const [shortcut,expected] of [['Control+p','technical'],['Control+Shift+p','>technical']]) {
-      await page.keyboard.press(shortcut);
-      await page.keyboard.type('technical');
+    for (const expected of ['technical','>technical']) {
+      await page.keyboard.press('Control+Slash');
+      await page.keyboard.type(expected);
       await page.clock.runFor(50);
       await waitForInput();
       if (await input().inputValue() !== expected ||
         await editor().evaluate(n => JSON.stringify(n.editor.getJSON())) !== JSON.stringify(before.json)) {
-        failures.push(`Immediate ${shortcut} typing lost search characters or edited the document`);
+        failures.push(`Immediate ${expected} typing lost search characters or edited the document`);
       }
       await page.keyboard.press('Escape');
       await page.clock.runFor(50);
@@ -117,7 +156,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   check(failures.length === 0, failures.join('; '));
   result.immediateSearchAndDocumentTyping = true;
 
-  await open('', 'Control+Shift+p');
+  await open('>');
   check(await input().inputValue() === '>', 'Command shortcut did not select command-only mode');
   check(await center().getByRole('option', {name:'technical-1.md',exact:true}).count() === 0, 'Command-only mode lists documents');
   await input().fill('> save');
@@ -138,8 +177,10 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await run('settings');
   await page.getByTestId('settings-dialog').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-testid="settings-dialog"]')?.contains(document.activeElement), null, {timeout:5000});
-  await page.keyboard.press('Control+p');
+  await page.keyboard.press('Control+Slash');
   check(await center().count()===0 && await page.getByRole('dialog').count()===1, 'Center opened over Settings');
+  await page.keyboard.press('Control+Quote');
+  check(await page.getByTestId('link-form').count()===0, 'Link form opened over Settings');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   await run('open folder');
