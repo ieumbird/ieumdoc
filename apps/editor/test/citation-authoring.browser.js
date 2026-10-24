@@ -1,6 +1,6 @@
 // Citation authoring: slash search and insertion, the citation form's key group and role,
 // Cancel/Apply/Remove, Undo/Redo and Save → Reload. The external BibTeX file is never written.
-async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
+async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -12,7 +12,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
   const readSource = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
   const bibHash = bibliographyFixture.hash();
   // Reopen from the common folder so the tab may read ../refs.bib (the chapter folder alone may not).
-  await openDocument(page, file); await ready();
+  await openPath(page, file);
   const sidebar = page.getByTestId('sidebar');
   const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
   if (await expand.isVisible()) await expand.click();
@@ -27,7 +27,8 @@ async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
   const common = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(root)}]`);
   const chapters = common.getByRole('treeitem', { name: 'chapters', exact: true });
   if (await chapters.getAttribute('aria-expanded') !== 'true') await chapters.click();
-  await common.getByRole('treeitem', { name: 'authoring.md', exact: true }).click(); await ready();
+  await common.getByRole('treeitem', { name: 'authoring.md', exact: true }).click();
+  await waitForActivePath(page, file); await ready();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const form = page.getByTestId('citation-form');
   const citations = () => editor.evaluate(element => {
@@ -111,7 +112,7 @@ async (page, { openDocument, reloadDocument, bibliographyFixture }) => {
   assert(await citations() === removed, 'Save → Reload keeps roles and key groups');
   // Exercise the same insertion paths on every supported inline surface, then persist them.
   const nestedFile = [root, 'chapters', 'nested.md'].join(sep);
-  await openDocument(page, nestedFile); await ready();
+  await openPath(page, nestedFile);
   const caret = async (text, replace = false) => editor.evaluate((element, { text, replace }) => {
     const instance = element.editor;
     let range;

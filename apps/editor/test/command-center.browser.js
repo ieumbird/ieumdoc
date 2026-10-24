@@ -1,6 +1,6 @@
 // The command center only dispatches existing shell actions. These checks protect its focus,
 // keyboard/modal handoff, active-tab targeting and real file Save/Reload integration.
-async (page, { openDocument, activeDocument, screenshots = false }) => {
+async (page, { openPath, waitForActivePath, activeDocument, screenshots = false }) => {
   page.setDefaultTimeout(10000);
   const check = (ok, message) => { if (!ok) throw Error(message); };
   const origin = page.url().split('/').slice(0,3).join('/');
@@ -78,7 +78,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.keyboard.press('Escape');
   await center().waitFor({state:'detached'});
 
-  await openDocument(page, file('technical-1.md')); await ready();
+  await openPath(page, file('technical-1.md'));
   // Search only listings already held by the sidebar, including collapsed cached children.
   const openFolder = async path => {
     await run('open folder');
@@ -159,6 +159,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await page.keyboard.press('Control+z');
   await open('technical-1.md');
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await waitForActivePath(page, file('technical-1.md'));
   check(await editor().evaluate(n => JSON.stringify(n.editor.getJSON())) === retained, 'Opening a listed file lost existing dirty work');
   await page.keyboard.press('Control+z');
   await open('foreign.md');
@@ -235,7 +236,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   result.searchArrowsAndHover = true;
 
   // Both a newly opened tab and a retained tab must accept typing without an editor click.
-  await openDocument(page, file('technical-2.md')); await ready();
+  await openPath(page, file('technical-2.md'));
   for (const [index,name] of ['technical-1','technical-2','technical-2','technical-1'].entries()) {
     await open(name);
     await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
@@ -307,7 +308,7 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await equation.hover(); await equation.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill('command center draft');
   const dirty = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
-  await openDocument(page, file('technical-2.md')); await ready();
+  await openPath(page, file('technical-2.md'));
   await open('technical-1');
   await page.keyboard.press('Enter');
   await center().waitFor({state:'detached'});
@@ -371,8 +372,8 @@ async (page, { openDocument, activeDocument, screenshots = false }) => {
   await editor().waitFor();
   check(await page.getByTestId('view-visual').evaluate(n => n===document.activeElement), 'View command left focus in hidden content');
 
-  await openDocument(page, file('alpha'+sep+'guide.md')); await ready();
-  await openDocument(page, file('beta'+sep+'guide.md')); await ready();
+  await openPath(page, file('alpha'+sep+'guide.md'));
+  await openPath(page, file('beta'+sep+'guide.md'));
   await open('guide.md');
   check(await center().getByRole('option',{name:'guide.md — alpha',exact:true}).count()===1 &&
     await center().getByRole('option',{name:'guide.md — beta',exact:true}).count()===1, 'Same-named documents are not distinguishable');

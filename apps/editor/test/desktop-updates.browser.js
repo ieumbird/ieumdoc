@@ -2,7 +2,7 @@
 // update notifications and the restart check the Desktop app asks before installing. The browser
 // Editor without the bridge shows common recovery Settings only. Updater behavior itself is tested in apps/desktop.
 // pnpm browser:test desktop-updates
-async (page, { screenshots = false, openDocument }) => {
+async (page, { screenshots = false, openPath }) => {
   page.setDefaultTimeout(15000);
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -52,8 +52,7 @@ async (page, { screenshots = false, openDocument }) => {
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const sep = defaultPath.includes('\\') ? '\\' : '/';
   const file = [...defaultPath.split(sep).slice(0, -4), 'tmp', 'desktop-updates', 'updates.md'].join(sep);
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
 
   const calls = () => page.evaluate(() => window.__desktop.calls.map(call => call[0] === 'install' ? `install:${call[1].ok}` : call.join(':')));

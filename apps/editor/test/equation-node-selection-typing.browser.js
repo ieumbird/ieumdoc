@@ -1,7 +1,7 @@
 // Run with pnpm browser:test equation-node-selection-typing.
 // CDP sends the initial IME keydown and Chromium composition/DOM updates;
 // this is not a real Windows Korean OS IME or a keydown-less input method.
-async (page, { openDocument, reloadDocument }) => {
+async (page, { openPath, reloadDocument }) => {
   await page.unrouteAll();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.reload();
@@ -10,8 +10,7 @@ async (page, { openDocument, reloadDocument }) => {
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = loaded.path.includes('\\') ? '\\' : '/';
   const file = [...loaded.path.split(sep).slice(0, -4), 'tmp', 'equation-node-selection-typing', 'power.md'].join(sep);
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');

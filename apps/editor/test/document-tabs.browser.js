@@ -1,5 +1,5 @@
 // Real independent sessions, explicit per-file Save/Reload, and optional visual/memory review.
-async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, screenshots = false }) => {
+async (page, { openPath, reloadDocument, activeDocument, removeTabFixture, screenshots = false }) => {
   const check = (value, message) => { if (!value) throw new Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -28,8 +28,8 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
   // Navigation memory restores order and active identity, without restoring editor state.
-  await openDocument(page, a); await ready();
-  await openDocument(page, b); await ready();
+  await openPath(page, a);
+  await openPath(page, b);
   await activate('technical-1.md');
   await page.reload(); await ready();
   check(await page.getByRole('tab').count() === 2, 'Reload did not restore both open document tabs');
@@ -177,11 +177,11 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
       return write.call(this,key,value);
     };
   });
-  await openDocument(page,a); await ready();
+  await openPath(page,a);
   await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
   check(await page.getByTestId('document-start').isVisible(), 'Disabled storage blocked tab navigation');
   await page.reload(); await ready();
-  await openDocument(page, a); await ready();
+  await openPath(page, a);
   await editor().evaluate(n => {
     window.tabEditorA = n.editor;
     n.editor.commands.insertContentAt(1, 'A independent ');
@@ -195,7 +195,7 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:3,to:10}));
   await page.evaluate(() => window.scrollTo(0, 420));
   const beforeA = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
-  await openDocument(page, b); await ready();
+  await openPath(page, b);
   check(!await page.getByTestId('equation-editor').count(), 'A hidden property portal is still mounted');
   await editor().evaluate(n => {
     window.tabEditorB = n.editor;
@@ -233,7 +233,7 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   await page.keyboard.press('Control+Shift+z');
 
   // An exact already-normalized path keeps the existing instance and edits.
-  await openDocument(page, b); await activate('technical-1.md');
+  await openPath(page, b); await activate('technical-1.md');
   check(await page.getByRole('tab').count() === 2, 'Reopening B made a duplicate tab');
   check(await editor().evaluate(n => n.editor === window.tabEditorA), 'Reopening replaced the existing editor');
   await page.getByRole('button',{name:'Source',exact:true}).click();
@@ -284,8 +284,8 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
   } finally { page.off('request', countRequest); }
 
   // Same-name labels and narrow overflow are observable product contracts.
-  await openDocument(page, file(['alpha','guide.md'].join(sep))); await ready();
-  await openDocument(page, file(['beta','guide.md'].join(sep))); await ready();
+  await openPath(page, file(['alpha','guide.md'].join(sep)));
+  await openPath(page, file(['beta','guide.md'].join(sep)));
   check(await page.getByRole('tab',{name:'guide.md — alpha',exact:true}).count() === 1 &&
     await page.getByRole('tab',{name:'guide.md — beta',exact:true}).count() === 1, 'Same-name files are ambiguous');
   await page.setViewportSize({width:375,height:900});
@@ -344,7 +344,7 @@ async (page, { openDocument, reloadDocument, activeDocument, removeTabFixture, s
     };
     try {
       const oneMiB = await heap();
-      for (let i=2;i<=8;i++) { await openDocument(page,file(`technical-${i}.md`)); await ready(); }
+      for (let i=2;i<=8;i++) { await openPath(page,file(`technical-${i}.md`)); }
       const eightMiB = await heap();
       const latency = await page.evaluate(async () => {
         const tabs = [...document.querySelectorAll('[role="tab"]')];

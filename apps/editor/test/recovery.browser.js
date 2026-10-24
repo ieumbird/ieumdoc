@@ -1,4 +1,4 @@
-async (page, { openDocument, reloadDocument, activeDocument, screenshots = false }) => {
+async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) => {
   page.setDefaultTimeout(15000);
   const check = (ok, why) => { if (!ok) throw new Error(why); };
   const origin = page.url().split('/').slice(0,3).join('/');
@@ -84,7 +84,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByText('No local recovery records.',{exact:true}).waitFor();
   await capture('empty');
   for (let i = 0; i < 8; i++) {
-    await openDocument(page,file); await ready(page);
+    await openPath(page,file);
     await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
     await page.getByTestId('document-start').waitFor();
   }
@@ -94,14 +94,14 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
     const keys=await new Promise(resolve=>{const r=db.transaction('barriers').objectStore('barriers').getAllKeys();r.onsuccess=()=>resolve(r.result);});
     db.close(); return !keys.some(Array.isArray);
   }), 'Repeated clean Open/Close leaves per-session metadata');
-  await openDocument(page,file); await ready(page);
+  await openPath(page,file);
   await edit(page,'Recovered applied text. '); await count(1);
   const first = (await records())[0];
   check(first.snapshot.editor.savedDocument && first.snapshot.file.source && first.snapshot.file.revision, 'Opening/checkpoint absent');
 
   // Tab memory restores clean documents, but leaves unsaved work to the existing review.
   const cleanFile = [root, 'tmp', 'document-tabs', 'technical-2.md'].join(sep);
-  await openDocument(page,cleanFile); await ready(page);
+  await openPath(page,cleanFile);
   await page.getByRole('tab',{name:'technical-1.md, Unsaved changes',exact:true}).click();
   const navigation = await page.evaluate(() => localStorage.getItem('ieumdoc.openTabs'));
   page.on('dialog', dialog => dialog.accept());
@@ -122,7 +122,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
   await page.getByRole('button',{name:'Review recovery'}).waitFor();
   await capture('list');
-  await openDocument(page,file); await ready(page);
+  await openPath(page,file);
   await page.getByTestId('recovery-prompt').waitFor(); await capture('prompt');
   const beforeDelete = await records();
   const deleteButton = page.getByRole('button',{name:'Delete record',exact:true});
@@ -203,7 +203,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   const other = await page.context().newPage();
   try {
     await other.goto(origin); await ready(other);
-    await openDocument(other,file); await ready(other);
+    await openPath(other,file);
     await edit(page,'Window A. '); await edit(other,'Window B. '); await count(2);
     const before = await records();
     check(new Set(before.map(r => r.id)).size === 2, 'Windows share a session id');
@@ -248,7 +248,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:"Don't save",exact:true}).click(); await count(0);
 
   // Common Settings, clear with a scheduled write, and resuming only after another applied edit.
-  await openDocument(page,file); await ready(page);
+  await openPath(page,file);
   await edit(page,'Before clear. '); await count(1);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await capture('settings');
@@ -273,7 +273,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   const laterWindow = await page.context().newPage();
   try {
     await laterWindow.goto(origin); await ready(laterWindow);
-    await openDocument(laterWindow,file); await ready(laterWindow);
+    await openPath(laterWindow,file);
     await laterWindow.getByRole('button',{name:'Not now',exact:true}).click();
     await confirmPendingDeletion(clearConfirm, 'Delete all records', async before => {
       // Commit an existing record update and a new other-window record while deletion is gated.
@@ -367,7 +367,7 @@ async (page, { openDocument, reloadDocument, activeDocument, screenshots = false
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('heading',{name:'Local recovery',exact:true}).waitFor();
   await page.keyboard.press('Escape');
-  await openDocument(page,file); await ready(page);
+  await openPath(page,file);
   await edit(page,'Storage unavailable but Save works. ');
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();

@@ -1,5 +1,5 @@
 // Reference a heading: the slash menu labels it, the chip shows and goes to the heading, Save → Reload.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -11,8 +11,7 @@ async (page, { openDocument }) => {
   const file = [root, 'tmp', 'section-reference', 'sections.md'].join(sep);
   const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
   const opened = await read();
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');

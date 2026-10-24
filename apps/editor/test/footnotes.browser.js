@@ -5,7 +5,7 @@
 // their definitions and numbers return to the invoking reference; definitions are edited in place
 // or as source; `/` Endnote inserts one; endnotes cannot be dragged and sections hold none;
 // reference order changes move them in one Undo step; a draft holds placement until it closes.
-async (page, { screenshots = false, openDocument }) => {
+async (page, { screenshots = false, openPath }) => {
   page.setDefaultTimeout(15_000);
   await page.unrouteAll();
   await page.reload();
@@ -22,8 +22,7 @@ async (page, { screenshots = false, openDocument }) => {
   const read = reader(file);
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const open = async path => {
-    await openDocument(page, path);
-    await ready();
+    await openPath(page, path);
     await page.getByRole('dialog').waitFor({state:'detached'});
   };
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');

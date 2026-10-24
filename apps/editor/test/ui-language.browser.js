@@ -1,5 +1,5 @@
 // Runtime language changes preserve the existing editor, drafts, selection and real Save path.
-async (page, { openDocument, screenshots }) => {
+async (page, { openPath, screenshots }) => {
   page.setDefaultTimeout(15000);
   const check = (ok, reason) => { if (!ok) throw Error(reason); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -8,8 +8,7 @@ async (page, { openDocument, screenshots }) => {
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const file = [...initial.path.split(sep).slice(0, -4), 'tmp', 'reference-save-reload', 'technical-document.md'].join(sep);
-  await openDocument(page, file);
-  await ready();
+  await openPath(page, file);
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const original = await editor.evaluateHandle(node => node.editor);
   const snapshot = () => editor.evaluate(node => ({ json: JSON.stringify(node.editor.getJSON()), selection: node.editor.state.selection.toJSON() }));

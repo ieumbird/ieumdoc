@@ -1,5 +1,5 @@
 // Deferred grammars are display-only; delayed/failed loading must preserve input and engine history.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -8,8 +8,7 @@ async (page, { openDocument }) => {
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const open = async () => {
     await page.reload(); await ready();
-    await openDocument(page, file);
-    await ready(); await page.getByRole('dialog').waitFor({state:'detached'});
+    await openPath(page, file); await page.getByRole('dialog').waitFor({state:'detached'});
   };
   const check = (ok,reason) => { if(!ok) throw Error(reason); };
   const code = page.locator('[data-document-tab][data-active=true] [data-block="code"]');

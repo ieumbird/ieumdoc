@@ -1,6 +1,6 @@
 // Run with pnpm browser:test open-files.
 // Mocks two selected Markdown files while exercising the real Editor state flow.
-async (page, { openDocument, screenshots = false }) => {
+async (page, { openDocument, openPath, screenshots = false }) => {
   page.setDefaultTimeout(15000);
   await page.unroute('**/api/document');
   await page.unrouteAll();
@@ -235,7 +235,6 @@ async (page, { openDocument, screenshots = false }) => {
     await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
     if (requests.at(-1).path !== pathB || !JSON.stringify(requests.at(-1).paragraphs).includes('FILE_B')) throw new Error('B Save used another session');
     await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await snapshot()).includes('FILE_A_PENDING') || (await snapshot()).includes('FILE_B')) throw new Error('Save mixed document sessions');
 
     await editParagraph(page, ' STALE');
@@ -253,7 +252,6 @@ async (page, { openDocument, screenshots = false }) => {
     await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== writesBeforeDiscard) throw new Error('Discard wrote or chose the wrong neighbour');
     await openPath(page, pathA);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if ((await snapshot()).includes('STALE')) throw new Error('Discard wrote rejected content');
 
     const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
@@ -363,14 +361,6 @@ async (page, { openDocument, screenshots = false }) => {
     const query = url.split('?')[1] || '';
     const value = query.split('&').find(part => part.startsWith('path='));
     return value ? decodeURIComponent(value.slice('path='.length)) : '';
-  }
-
-  async function openPath(page, path) {
-    await openDocument(page, path);
-    // A click completes before the Host response activates A. Otherwise a locator action
-    // can retain B's mounted element and wait forever once that tab becomes hidden.
-    await page.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, path);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   }
 
   async function editParagraph(page, suffix) {

@@ -1,6 +1,6 @@
 // External (web, Notion, Word) HTML clipboard normalized to supported blocks: the OS clipboard
 // with notice, one Undo/Redo, Save/Reload and canonical Markdown; representative sources; refusals.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -10,8 +10,7 @@ async (page, { openDocument }) => {
   const separator = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'external-html-paste', 'external.md'].join(separator);
-  await openDocument(page, file);
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, file);
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const state = () => editor.evaluate(el => ({

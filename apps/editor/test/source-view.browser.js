@@ -4,7 +4,7 @@
 // Save, that Equation/Figure drafts survive Source.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -25,8 +25,7 @@ async (page, { openDocument }) => {
   const open = async file => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, file);
   };
   const visual = page.getByTestId('view-visual');
   const source = page.getByTestId('view-source');

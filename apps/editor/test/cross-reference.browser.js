@@ -4,7 +4,7 @@
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
-async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
+async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -25,8 +25,7 @@ async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, filePath);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, filePath);
   };
   const sourceText = async () => {
     await page.getByTestId('view-source').click();
@@ -198,8 +197,7 @@ async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   const openCaption = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, captionPath);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, captionPath);
   };
   const caption = page.locator('[data-document-tab][data-active=true]').getByTestId('table-caption');
   // A missing chip fails at once instead of waiting for it.
@@ -243,7 +241,7 @@ async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const deletionPath = [root, 'tmp', 'cross-reference', 'delete.md'].join(separator);
-  await openDocument(page, deletionPath);
+  await openPath(page, deletionPath);
   const active = page.locator('[data-document-tab][data-active=true]');
   for (const [kind, label, normal] of [['equation', 'eq-a', 'Eq. (1)'], ['figure', 'fig-a', 'Fig. 1'], ['table', 'tbl-a', 'Table 1']]) {
     const reference = active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
@@ -339,7 +337,7 @@ async (page, { openDocument, screenshots, expect, recoveryRecords }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  try { await openDocument(page, deletionPath); }
+  try { await openPath(page, deletionPath); }
   catch (cause) {
     const state = await page.evaluate(() => ({
       language:document.documentElement.lang, viewport:[innerWidth,innerHeight],

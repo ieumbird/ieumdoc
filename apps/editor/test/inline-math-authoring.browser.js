@@ -3,7 +3,7 @@
 // and checks that display equations and cross-references are unchanged and that an unpreservable
 // source fails closed. The file is a scratch copy under the repository's ignored tmp/ directory;
 // prepare it first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument }) => {
+async (page, { openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -23,8 +23,7 @@ async (page, { openDocument }) => {
   const open = async () => {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    await openDocument(page, file);
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(page, file);
   };
   const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   // The inline math sources in document order, read from the editor state.
