@@ -58,14 +58,14 @@ pnpm --filter @ieumdoc/desktop test
 pnpm --filter @ieumdoc/desktop typecheck
 pnpm --filter @ieumdoc/desktop test:update
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.1-beta.4
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0-beta.1
 pnpm --filter @ieumdoc/desktop test:packaged
 pnpm browser:test desktop-updates
 ```
 
 `test:update`는 기존 IeumDoc 설치/user data/updater cache가 있으면 거부한다. 테스트 전용 NSIS 두 버전을 로컬 feed로 설치·업데이트하고, 미저장 재시작 거부, Save 후 설치/재실행과 문서 보존, uninstall을 검증한다. 실패 시에도 자신이 설치한 프로세스와 data를 정리한다. 사용자 설치를 지워서 실행하지 않는다. 생성 경로는 `tmp/desktop-update/`와 앱의 기존 generated build/release 폴더다. 테스트 후 normal `package`를 실행해야 테스트 버전/HTTP feed가 산출물에 남지 않는다.
 
-기본 설치·업데이트 검증은 Stable `0.0.1 → 0.0.2`다. Beta 릴리즈 회귀에서는 아래 PowerShell 명령으로 `0.0.1-beta.3 → 0.0.1-beta.4`도 검증한다. Beta feed에는 Stable Release가 없으며 최초 기본 채널, `beta.yml` 검색과 Beta 설치/재실행, 저장된 preferences·채널·사용자 데이터·Markdown 보존을 확인한다. 이후 환경 변수를 제거하고 normal `package`를 실행한다.
+기본 설치·업데이트 검증은 Stable `0.0.1 → 0.0.2`다. Beta 릴리즈 회귀에서는 아래 PowerShell 명령으로 `0.0.1-beta.4 → 0.1.0-beta.1`도 검증한다. Beta feed에는 Stable Release가 없으며 최초 기본 채널, `beta.yml` 검색과 Beta 설치/재실행, 저장된 preferences·채널·사용자 데이터·Markdown 보존을 확인한다. 이후 환경 변수를 제거하고 normal `package`를 실행한다.
 
 ```powershell
 $env:IEUMDOC_TEST_UPDATE_CHANNEL = 'beta'
@@ -101,7 +101,9 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 ## Real GitHub Beta update
 
-2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 아래 명령의 현재 대상은 beta.3→beta.4이다. 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, 이 경로에서만 표식 없는 Markdown으로 저장·보존을 확인한다.
+아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다. 후보의 게시·검증 체크리스트는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+
+2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 당시 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, beta.3에서 출발하는 실제 공개 업데이트 경로만 표식 없는 Markdown을 사용했다. 이 beta.3 전용 fixture 예외는 현재 대상에는 적용되지 않는다.
 
 2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다([beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)).
 
@@ -111,7 +113,7 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 pnpm --filter @ieumdoc/desktop test:update:github
 ```
 
-이 opt-in 경로는 두 버전이 이미 public Prerelease인지 확인한 다음 공식 beta.3 installer를 HTTPS로 내려받아 GitHub SHA-256·metadata SHA-512·크기를 대조하고 설치한다. 테스트용 빌드나 HTTP Feed를 사용하지 않는다. 설치된 beta.3의 실제 GitHub Provider로 Beta 업데이트 확인 → 정확히 beta.4 알림 → 사용자 요청 다운로드/검증 → 일반 종료가 설치하지 않음 → IPC 실패/미저장 문서가 재시작 거부 → Save → 설치/재실행 → PE FileVersion·실행 로그·저장된 채널/preferences·user-data canary·Markdown 보존을 확인한다. 더 최신 Beta가 제공되면 beta.4 대신 설치하지 않고 실패한다. 테스트는 Release/tag/asset을 변경하는 API를 호출하지 않는다.
+이 opt-in 경로는 두 버전이 이미 public Prerelease인지 확인한 다음 공식 0.0.1-beta.4 installer를 HTTPS로 내려받아 GitHub SHA-256·metadata SHA-512·크기를 대조하고 설치한다. 테스트용 빌드나 HTTP Feed를 사용하지 않는다. 설치된 0.0.1-beta.4의 실제 GitHub Provider로 Beta 업데이트 확인 → 정확히 0.1.0-beta.1 알림 → 사용자 요청 다운로드/검증 → 일반 종료가 설치하지 않음 → IPC 실패/미저장 문서가 재시작 거부 → Save → 설치/재실행 → PE FileVersion·실행 로그·저장된 채널/preferences·user-data canary·Markdown 보존을 확인한다. 더 최신 Beta가 제공되면 0.1.0-beta.1 대신 설치하지 않고 실패한다. 테스트는 Release/tag/asset을 변경하는 API를 호출하지 않는다.
 
 공개 버전 안내는 실제 게시 결과를 확인한 뒤 갱신한다. 서명 인증·SmartScreen reputation 검증은 이 unsigned 경로의 판정 범위가 아니다.
 

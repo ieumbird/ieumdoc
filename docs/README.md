@@ -86,6 +86,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 
 ## Verification
 
+- [v0.1.0-beta.1 release and verification record](releases/v0.1.0-beta.1.md) — Draft; unsigned Windows Beta 후보, 변경 요약·호환성·알려진 제한과 게시 전 검증 체크리스트.
 - [v0.0.1-beta.4 release and verification record](releases/v0.0.1-beta.4.md) — Historical; 네이티브 문서 전환 호환성 안내, 공개 자산, CI, 실제 GitHub beta.3→beta.4 업데이트와 알려진 제한.
 - [v0.0.1-beta.3 release and verification record](releases/v0.0.1-beta.3.md) — Historical; 공개 자산, CI, 실제 GitHub beta.2→beta.3 업데이트와 알려진 제한.
 - [v0.0.1-beta.2 release and verification record](releases/v0.0.1-beta.2.md) — Historical; 공개 자산, CI와 실제 GitHub 업데이트 검증 근거.
