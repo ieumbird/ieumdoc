@@ -30,7 +30,7 @@
 
 - `docs/README.md` — central documentation index, including each document's status and authority.
 - `docs/adr/` — accepted architectural decisions and their rationale.
-- `docs/design/` — current implemented behavior contracts; the explicitly Historical visual review is evidence only.
+- `docs/design/` — Implemented behavior contracts alongside Historical and Superseded documents; check each document's Status and current authority in the docs index.
 - `docs/reviews/` — historical reviews and spike evidence, not current requirements.
 - `docs/contributing/` — contributor guidance and documentation governance.
 - `.github/` — CI and contribution templates.
@@ -51,7 +51,7 @@
 ## Documentation authority and lifecycle
 
 - 적용 순서는 이 문서의 repository-wide 제약 → Accepted ADR → Implemented design contract → 코드·테스트의 실행 근거 → historical review/spike → README 개요다. 충돌 시 실제 동작과 Accepted decision을 대조해 버그인지 문서 drift인지 판정한다. 코드를 무조건 정답으로 삼지 않는다.
-- current behavior를 변경하면 관련 design document도 같은 PR에서 갱신한다.
+- 변경 전에 [docs index](docs/README.md)에서 관련 Accepted ADR과 Implemented design contract를 확인하고, current behavior를 변경하면 관련 design document도 같은 PR에서 갱신한다.
 - review/spike를 current contract처럼 사용하지 않는다. 당시 근거는 보존하고 현재 authority로 연결한다.
 - stale link와 conflicting contract를 발견하면 숨기지 않고 수정한다.
 - 모든 유지되는 `docs/**/*.md` 문서는 [docs index](docs/README.md)에 직접 연결되어야 한다.
@@ -63,7 +63,7 @@
 
 ## Verification
 
-- 로컬에서는 변경 영역의 대상 검사를 우선하고, PR의 필수 CI 검사는 모두 통과해야 한다. 전체 suite와 패키징·플랫폼별 검증의 로컬 실행 기준은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따른다. 무관한 테스트 확장·리팩터링은 하지 않으며, 문서만 바꾸면 `pnpm docs:check`와 `git diff --check`를 실행한다.
+- 로컬에서는 변경 영역의 대상 검사를 우선하고, PR의 필수 CI 검사는 모두 통과해야 한다. 문서 전용 변경, 전체 suite와 패키징·플랫폼별 검증의 로컬 실행 기준은 [CONTRIBUTING matrix](CONTRIBUTING.md#verification-matrix)를 따른다. 무관한 테스트 확장·리팩터링은 하지 않는다.
 - 테스트 추가 전 기존 보호 범위와 새로 잡을 결함을 확인한다. 기존 테스트 보완을 우선하며, 고유한 보호 가치가 없으면 추가하지 않는다.
 - 사용자 동작·공개 계약을 검증하고, 변수명·우연한 마크업 형태·임의의 개수를 고정하지 않는다. 명시적인 의존성 경계는 검증한다.
 - 의미 규칙은 Core에서, CLI·브라우저는 각 인터페이스의 고유한 위험과 통합 동작을 검증한다. 같은 결함을 잡는 사례를 계층마다 반복하지 않는다.
@@ -72,20 +72,15 @@
 ## Browser automation
 
 - 브라우저 검증은 `pnpm browser:test`를 사용한다.
-- Windows에서는 재사용 persistent browser profile을 사용한다. `playwright-cli` 직접 실행도 `open --persistent`를 사용하고 디버깅은 기존 session을 재사용한다.
+- Windows에서는 재사용 persistent browser profile을 사용하고 디버깅은 기존 session을 재사용한다.
 - 설치형 Chrome을 임시 profile, 임시 `--user-data-dir`, 반복 `launch()`로 짧은 간격에 새로 실행하지 않는다.
 - 원인, 실행 간 storage 정리와 상세 규칙은 [Windows browser automation](docs/contributing/windows-browser-automation.md)을 따른다.
 
 ## Process cleanup
 
-작업 완료를 보고하기 전에 이번 작업에서 직접 시작한 임시 프로세스와 세션을 종료한다.
-대상은 dev server(Vite 등), browser automation session(Playwright 등), watcher, 임시 local/test server, 기타 검증용 background process다.
-
-- 이번 작업에서 직접 시작한 프로세스만 종료한다. 사용자가 원래 실행 중이던 프로세스는 종료하지 않는다.
-- 프로세스 이름이나 포트 번호가 같다는 이유만으로 다른 프로세스를 광범위하게 종료하지 않는다.
-- 가능하면 PID, session name 등으로 자신이 시작한 것인지 확인한 뒤 정리한다.
-- 완료 보고 전에 자신이 시작한 background process가 남아 있지 않은지 확인한다.
-- 정리에 실패하면 완료된 것처럼 보고하지 않고, 남아 있는 process/session/port와 그 이유를 명시한다.
+- 작업 완료를 보고하기 전에 이번 작업에서 직접 시작한 임시 프로세스와 세션을 종료하고, background process가 남아 있지 않은지 확인한다. dev server, browser automation session, watcher, 임시 local/test server 등 모든 검증용 프로세스가 대상이다.
+- 가능하면 PID, session name 등으로 자신이 시작한 것인지 확인한다. 사용자가 원래 실행 중이던 프로세스는 종료하지 않으며, 이름이나 포트가 같다는 이유로 다른 프로세스를 광범위하게 종료하지 않는다.
+- 정리에 실패하면 완료된 것처럼 보고하지 않고, 남아 있는 process/session/port와 이유를 명시한다. 브라우저 runner의 소유권·종료 절차는 [Process and session cleanup](docs/contributing/windows-browser-automation.md#process-and-session-cleanup)을 따른다.
 
 ## AI Commit Provenance
 
@@ -120,44 +115,8 @@ Rules:
 
 `AI-Agent` / `AI-Model` name the agent and model that performed the
 implementation. A model that only reviewed the work is not the
-implementation model. If review provenance is needed later, use a
-separate trailer, for example:
+implementation model. Review provenance uses a separate, optional
+`AI-Reviewed-By` trailer; it is not required by this policy.
 
-```
-AI-Reviewed-By: openai/gpt-5.6-sol
-```
-
-Review trailers are optional and are not required by this policy.
-
-### Canonical model identifiers
-
-Use a single analyzable identifier, not a display name:
-
-```
-<provider>/<model>
-```
-
-Examples:
-
-```
-xai/grok-4.6
-openai/gpt-5.6-luna
-openai/gpt-5.6-terra
-openai/gpt-6-astra
-```
-
-If a vendor's official identifier differs from this repository's
-identifier, use the repository canonical form above and keep it stable.
-
-This repository's canonical identifier for Grok 4.6 is `xai/grok-4.6`.
-
-### Commit-msg hook
-
-`.githooks/commit-msg` detects incomplete or duplicate AI provenance
-trailers. It does not insert a model name. Human commits that omit
-both trailers are allowed. Enable the shared hooks in a local clone
-with:
-
-```
-git config core.hooksPath .githooks
-```
+Canonical model identifiers, review trailer examples and commit-msg hook
+setup are in [CONTRIBUTING](CONTRIBUTING.md#ai-commit-provenance).
