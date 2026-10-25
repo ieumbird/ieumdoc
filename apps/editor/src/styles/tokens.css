@@ -12,8 +12,8 @@
   /* Pointer-hovered top-level block extent: neutral stroke with breathing room around content. */
   --id-color-block-hover-outline: var(--id-color-border-strong);
   --size-block-hover-outline: 1px;
-  /* Match the painted selected/editing outline, including its existing offset. */
-  --id-radius-block-hover: calc(var(--id-radius-sm) + var(--space-1));
+  /* Match the selected/editing outline's outer edge, including its offset and width. */
+  --id-radius-block-hover: calc(var(--id-radius-sm) + var(--space-1) + var(--border-width));
   /* Expand only the overlay; keep the gutter handles and neighboring blocks clear. */
   --space-block-hover-inline: var(--space-2);
   --space-block-hover-block: var(--space-1);

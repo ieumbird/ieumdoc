@@ -95,10 +95,12 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   const outlineRadii = async block => {
     const selected = await block.evaluate(n => {
       const s = getComputedStyle(n);
-      return {radius:parseFloat(s.borderTopLeftRadius), offset:parseFloat(s.outlineOffset)};
+      return {radius:parseFloat(s.borderTopLeftRadius), offset:parseFloat(s.outlineOffset), width:parseFloat(s.outlineWidth)};
     });
     const hover = await extent.evaluate(n => parseFloat(getComputedStyle(n).borderTopLeftRadius));
-    return {...selected, hover, matches:Math.abs(selected.radius + selected.offset - hover) < 0.1};
+    const selectedOuter = selected.radius + selected.offset + selected.width;
+    // The hover stroke is inset, so its outer edge follows the overlay's border radius.
+    return {...selected, selectedOuter, hoverOuter:hover, matches:Math.abs(selectedOuter - hover) < 0.1};
   };
   const hoverStyle = await withBlockHover(page, async () => {
     await rest();

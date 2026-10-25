@@ -2223,8 +2223,8 @@ ol.list { list-style: decimal; }
 }
 
 :is(.figure, .equation):is([data-selected="true"], [data-editing="true"]) {
-  /* CSS adds outline-offset to the element radius when painting the outer corners. */
-  border-radius: max(0px, calc(var(--id-radius-block-hover) - var(--space-1)));
+  /* The outline's outer edge adds both offset and stroke width to the element radius. */
+  border-radius: max(0px, calc(var(--id-radius-block-hover) - var(--space-1) - var(--border-width)));
 }
 
 @media (hover: none) {
