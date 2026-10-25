@@ -1,55 +1,16 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Documentation verification: 2026-10-26 (start-screen conditions and Open/New protection compared with App.tsx and the session contract; no new browser execution).
-- Outline input verification: 2026-10-25 (#362: retain heading-row identity while preceding text shifts engine positions; navigation, current-section geometry and document semantics unchanged. [Windows measurements and preservation evidence](../reviews/editor-input-performance-2026-10-25.md)).
-- Reference dismissal verification: 2026-10-25 (#427: no-target selection form and unresolved-reference form, Escape/outside pointer dismissal and subsequent slash insertion in cross-reference; Editor 280/280, typecheck/build).
-- Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
-- Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
-- Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
-- Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
-- Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
-- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
-- Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
-- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
-- Previous verification: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
-- Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
-- Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
-- Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
-- Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
-- Previous verification: 2026-10-24 (#383: Reload restores document tab paths/order/active identity; recovery priority and explicit startup routing; document-tabs/recovery/recovery-structure browser regressions).
-- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
-- Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
-- Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
-- Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
-- Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders as separate Sidebar sections, Open adds, per-folder Close, restored paths and outermost-folder location/New; Editor unit tests and stable browser suite).
-- Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
-- Previous verification: 2026-10-20 (#256: bundled Korean/English settings, live language changes and editing preservation; `ui-language` browser scenario and Editor tests).
-- Previous verification: 2026-10-19 (#255: document title area, Add a title, fixed title handle and Enter below the title; `document-title` browser scenario).
-- Previous verification: 2026-10-19 (#298: the start without a document sits on the canvas with the product mark, apart from the paper; open-files, recovery, document-tabs and the stable suite; same-state captures against `e265e1c`: 1440px [before](assets/start-screen-298/before-1440.png)/[after](assets/start-screen-298/after-1440.png), 375px [before](assets/start-screen-298/before-375.png)/[after](assets/start-screen-298/after-375.png)).
-- Previous verification: 2026-10-19 (#321: phone-width sidebar closed without a rail or covering the whole screen, opened from the TopBar; browser checks).
-- Previous verification: 2026-10-17 (UX review: location identity, recent folders and unsupported files in Files, overlay sidebar below 640px, Copy path, tooltips, table Edit placement and Source lines; stable browser suite and captures in the [review](../reviews/editor-ux-review-2026-10-17.md)).
-- Previous verification: 2026-10-16 (#296 PR2: shared recovery Settings, start list, matching-document prompt and standing failure surface; real Vite recovery UI checks).
-- Previous verification: 2026-10-16 (#204: tab row, active shell and retained sessions; browser checks and user-approved 1440/375px captures in the [review](../reviews/document-tabs-204-2026-10-16.md)). Previous verification: 2026-10-15 (#281: cross-reference, section-reference, table-authoring, pending-figure, layout-rules and quiet-document browser checks; actual 1440px slash-menu Before/After). Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label property-close caret, Apply/typing and insertion/Cancel/Escape browser regressions; ADR-0006 native admission wording compared with code/tests). Previous verification: 2026-10-13 (#176: Files/Display switching, tree/selection/history/draft preservation, File actions and Reload focus, unavailable settings; browser results and actual captures in the [#176 review](../reviews/editor-shell-176-2026-10-13.md)).
+
+- Last verified: 2026-10-26 (documentation structure and incoming heading links checked; no Editor/browser/Desktop re-execution).
+
 - Scope: existing Editor interactions. [Visual Language (current v4.7)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
+
+Historical verification records: [Verification record](#verification-record).
 
 ## Structure
 
 Every Host has a Sidebar footer Settings entry (also in the collapsed rail) for Local recovery explanations and confirmed Clear all. The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. About reuses Base UI dialog focus/dismiss behavior; update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
-
-## UI display language (#256)
-
-Settings in Web, HTTP Host and Desktop offers `한국어` and `English`, always written in their own languages. An explicit `ieumdoc.uiLanguage` preference wins; without a valid choice, a Korean first preferred browser/app language selects Korean and other languages select English. Both translations are bundled using i18next/react-i18next; there is no translation network request. If local preference storage fails, the current choice still applies and Settings explains that it may not persist.
-
-Changes apply immediately to UI text, accessible names and the page `lang`. Menus support Korean and English search aliases regardless of display language. Operation IDs such as `saving` and `saved-pending` (also exposed by `data-operation`) are independent of translated status text. Translation cannot enable Save, switch documents or bypass work-loss protection.
-
-Existing Admonition labels also update without a document edit. Block-handle accessible names translate the displayed block kind while preserving engine type IDs, and foreign-document tooltips translate their explanation while retaining the literal path.
-
-The mounted editor, document, tabs, selection, history and unapplied property drafts survive language changes. Decorations are refreshed without a document transaction; NodeViews update their UI independently. Document text, labels, computed reference/caption notation and canonical Markdown do not change. No Core operation or CLI command is added: UI language is a local display preference, not a document semantic operation.
-
-Application messages retain translation keys and parameters when stored. Save failures retain their submitted snapshot and are formatted at display time, so their location still refers to the failed submission. Core/Host/library diagnostic details retain their original text; the UI translates the surrounding context and phase-specific guidance without interpreting English reasons or duplicating validation rules. CLI diagnostics and OS-owned dialogs are outside this UI translation boundary.
-
-Verification and implementation scope are recorded in the [#256 plan](ui-language-256-plan.md).
 
 The document is the primary surface. Each document tab keeps one Tiptap/ProseMirror document state owning selection, history and editing; typed blocks use NodeViews and overlays.
 
@@ -114,6 +75,26 @@ opening its folder and using the folder's `+`. The separate full-file-path Open 
 removed (#190); the shared document loader, Host file APIs and Desktop `.md` arguments remain.
 Folder navigation changes no document meaning, so this removal adds no Core operation or CLI command.
 
+## Boundaries
+
+No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
+
+Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
+
+## UI display language (#256)
+
+Settings in Web, HTTP Host and Desktop offers `한국어` and `English`, always written in their own languages. An explicit `ieumdoc.uiLanguage` preference wins; without a valid choice, a Korean first preferred browser/app language selects Korean and other languages select English. Both translations are bundled using i18next/react-i18next; there is no translation network request. If local preference storage fails, the current choice still applies and Settings explains that it may not persist.
+
+Changes apply immediately to UI text, accessible names and the page `lang`. Menus support Korean and English search aliases regardless of display language. Operation IDs such as `saving` and `saved-pending` (also exposed by `data-operation`) are independent of translated status text. Translation cannot enable Save, switch documents or bypass work-loss protection.
+
+Existing Admonition labels also update without a document edit. Block-handle accessible names translate the displayed block kind while preserving engine type IDs, and foreign-document tooltips translate their explanation while retaining the literal path.
+
+The mounted editor, document, tabs, selection, history and unapplied property drafts survive language changes. Decorations are refreshed without a document transaction; NodeViews update their UI independently. Document text, labels, computed reference/caption notation and canonical Markdown do not change. No Core operation or CLI command is added: UI language is a local display preference, not a document semantic operation.
+
+Application messages retain translation keys and parameters when stored. Save failures retain their submitted snapshot and are formatted at display time, so their location still refers to the failed submission. Core/Host/library diagnostic details retain their original text; the UI translates the surrounding context and phase-specific guidance without interpreting English reasons or duplicating validation rules. CLI diagnostics and OS-owned dialogs are outside this UI translation boundary.
+
+Verification and implementation scope are recorded in the [#256 plan](ui-language-256-plan.md).
+
 ## Collapsible folder sections (#425)
 
 An opened folder without remembered section collapse starts expanded. The chevron beside its name is a native compact ghost button,
@@ -171,6 +152,320 @@ Command-center search still collects all reachable cached document listings rega
 or subfolder visibility (#400 / #384); searching never expands a section or makes Host requests.
 Opening a different result uses the same reveal described above. No new search source, Core
 semantic operation or CLI command is needed: this is interface navigation state.
+
+Historical section decisions and captures: [Section persistence decision and verification](#section-persistence-decision-and-verification-2026-10-25) and [Section disclosure verification and captures](#section-disclosure-verification-and-captures).
+
+## Sidebar Open folder entry (#385)
+
+The [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385) records the owner-approved #380 decision 3. This changes entry placement only: the existing picker, handler, add/relist behavior, recent/opened preferences, start-screen entry and command-center command remain. The expanded header entry uses the existing English/Korean Open folder… name as both accessible label and tooltip. Tab order is Open folder → Collapse sidebar → Files → Display → selected panel content; Shift+Tab reverses it. Picker Open, Cancel and Escape return focus to the header opener. Phone sidebar dismissal retains its TopBar focus behavior. The collapsed rail remains the existing expand/Files/Display navigation.
+
+Historical sidebar captures and verification: [Sidebar entry capture evidence](#sidebar-entry-capture-evidence-385).
+
+## Start without a document (#174)
+
+When startup leaves no open document tabs, the document column shows the start instead of an
+editor. A Host response without a default document does not prevent the Editor from restoring tabs.
+Explicit paths, tab memory, recovery and the Vite fallback follow the
+[session startup contract](editing-session-save-v1.md#tab-navigation-memory-383).
+It is the app's start, not a document (#298): it sits on the
+canvas without the document paper, under the product mark and name. It offers Open folder… (primary), the
+recent folders from the folder picker (name, then full path) and, when the Host offers one, the
+sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
+a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
+choosing another file or New preserves existing sessions under the
+[session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
+opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
+copy in the app's data. The sample is opened only on request. Without a document the TopBar shows `No file opened`; Save, File actions and the views
+stay unavailable. Display remains reachable, with document numbering/reference style disabled and local width available. No error is shown. With nothing to lose, the Desktop app's
+update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
+information is retained; a Host that supplied an initial document instead of start information returns
+to the folder/recent-folder actions without inventing a sample. HTTP offers allowed server folders, filters recent folders to
+those roots and has no sample fallback. The start writes nothing and changes no document
+semantics, so it has no CLI counterpart.
+
+## Folder files and image preview (#217)
+
+Files lists every regular non-hidden file, including extensionless files; symlinks/junctions stay excluded.
+Markdown retains existing document/native admission and tab behavior. Images use the image icon and
+read-only preview description; other files use the generic file icon and explicit editing-unavailable
+description. Mouse and Enter/Space share the same dispatch. Image/file selection opens a transient
+shared Dialog, preserving the existing editor, selection, Undo, dirty work and property drafts.
+Other files show name/path and an editing-unavailable explanation only. Image loading/failure stays
+inside the dialog; closing or Escape returns focus to its tree row. The modal blocks Save shortcuts.
+The image picker remains independent. See the [Host preview contract](filesystem-host-boundary-v1.md#read-only-folder-preview-217).
+
+## Command center (#363)
+
+The current document's location/name is a searchable command-center button centered in the TopBar.
+The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+/
+opens a search dialog near the top center. Type `>` to list commands only.
+Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
+The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
+still block opening the center and Save behind them.
+The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
+existing shell command names, including their Korean/English aliases. It does not search document
+contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
+
+Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
+and Settings handlers and their current availability. Switching to an opened document reuses tab
+activation: no document read/write, new editor state or implicit save. Pending operations retain the
+same switching and document-action restrictions; unavailable results remain visibly disabled.
+Without an open document, the center still offers folder/settings/view-layout commands.
+
+Base UI Combobox owns keyboard/pointer highlighting, selection and IME handling inside the shared
+Dialog. Filtering highlights the first match; the first Down moves to the next available result.
+Hover moves the same active highlight, using the existing selected surface; arrows continue from
+that item. Enter runs the chosen item. The search input autofocuses on mount so typing immediately
+after the opening shortcut goes to search, including before the Dialog's deferred initial focus.
+Selecting a Visual document focuses its editor after tab activation and modal dismissal, preserving
+its selection and allowing immediate typing; this applies to a newly opened or retained tab and
+reselecting the active tab. A tab retained in read-only Source keeps that view and tab-button focus.
+Escape/outside dismissal returns to the invoking control or editor without changing its
+selection/history/property drafts.
+A selected command closes the center before opening its target dialog; that dialog owns focus.
+Outline and sidebar commands hand focus to their surviving toggle, including when the invoking
+control was inside the panel being hidden. On a phone, closing the sidebar focuses its TopBar opener.
+Other dialogs retain their shortcuts, and Ctrl/Cmd+S cannot save behind the center.
+No-match feedback and controls are translated with the existing UI language.
+
+This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
+existing file/session handlers remain authoritative. The first version has no command plugin system,
+recent-command persistence, filesystem index or new document-content actions.
+
+Historical command-center captures and keyboard probes: [Command center verification](#command-center-verification-363) and [Command center keyboard verification](#command-center-keyboard-verification-386).
+
+### Caret insertion commands (part of #439)
+
+`Insert citation…` / `인용 삽입…` and `Insert cross-reference…` / `상호 참조 삽입…`
+open the existing Citation and Reference forms at the retained Visual editor caret. They need
+no slash or preceding whitespace, including directly after Korean text. Availability reuses
+the slash menu's schema-backed inline caret eligibility and the existing session busy/view
+restrictions. The center must be opened while editor content itself has focus; forms,
+property controls (including their buttons), popovers, node-view controls and other shell
+controls cannot use a retained body selection to insert. Code, Source and non-caret
+selections cannot insert.
+Known limitation ([#416](https://github.com/ieumbird/ieumdoc/issues/416)): the engine may not yet have read a selection made within a few tens of milliseconds of the shortcut.
+The center releases modal focus before opening the form. Escape returns to the same editor
+caret without a document/history change; Apply uses the existing insertion function, returns
+editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
+
+Scope: reuse forms, semantic operations and inline eligibility; no new Core/CLI operation is
+needed for this interface entry point. No shortcut or slash-trigger change is included.
+Shortcut combinations remain an owner decision, so #439 stays open. Completion requires the
+extended `citation-authoring` browser regression (Korean caret, Escape, Undo/Redo and actual
+Save → Reload), Editor tests, typecheck/build, docs and diff checks.
+
+Historical insertion regressions and focus-origin evidence: [Caret insertion verification](#caret-insertion-verification-439).
+
+### Listed document search (#384)
+
+The source is the in-memory listing cache reachable from the roots of **all currently opened sidebar
+folders** ([ADR-0009](../adr/0009-multiple-opened-folders.md)). Starting at each root, follow folder
+entries in the current parent listings and collect each reached listing's `document` entries,
+regardless of expansion or sidebar visibility. A subfolder whose contents have never been listed
+contributes no files. If a parent is relisted without a child folder, that disconnected child's
+retained cache stops contributing immediately. Restoring the child entry makes its retained listing
+reachable again, including while collapsed. Search does not change the sidebar's cache preservation
+or expansion behavior. Closing a root removes its contribution. Candidate collection and path sorting
+run only while the center is open and are memoized until the opened-folder trees change.
+Search itself neither requests Host listings/document reads nor expands folders, recursively lists
+the filesystem, builds an index or stores the search source in preferences.
+
+Results use the Host-resolved path as identity: an opened tab replaces that file's listing result,
+and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
+with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
+its full path. Existing commands follow in their existing order. Name/path word matching and the
+`>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
+The existing height-bounded, scrolling Combobox renders only the first 50 matches in that order.
+A persistent count status shows the full match count, including zero. Above 50 it shows the visible
+and total counts with guidance to type more to narrow the search, in Korean or English. Base UI's
+always-mounted `Combobox.Status` supplies a polite, atomic live region, including its initial text
+announcement handling. Base UI still owns highlight, arrows and Enter within the displayed matches;
+there are no page controls. To reach a match outside the first 50, narrow the query: filtering still
+searches the entire source. This explicit presentation limit replaces the earlier pagination decision
+without changing source scope, ordering, matching or shell action handlers. No ranking, search index,
+virtualization library or document-content command is introduced.
+
+As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
+the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
+same admission explanation available through either navigation entry. The existing Host/Core
+admission check remains authoritative even for a listing marked native. Images, other regular files
+and folders are omitted: they are preview/navigation entries rather than editable documents and
+retain their existing sidebar entry points.
+
+Selecting an unopened file closes the center before calling the same `openFolderDocument` handler
+as the sidebar, including existing operation/continuation restrictions, retained dirty tabs and
+property drafts, admission refusal and recovery flows. A successful open focuses the mounted Visual
+editor; an admission/recovery dialog owns its focus. Opening a file may relist/reveal its folders
+through the existing open path; those requests are not search-time discovery. Opened-tab selection
+keeps #386's synchronous tab activation and Dialog final-focus behavior, including Source tabs.
+This is Editor navigation, so no Core operation or CLI command is added.
+
+Historical listed-search verification, measurements and result-limit decisions: [Listed document search verification](#listed-document-search-verification-384), [Listed search review follow-up](#listed-search-review-follow-up-384) and [Listed search result-limit follow-up](#listed-search-result-limit-follow-up-384).
+
+### Shortcut contract (#381)
+
+The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
+platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
+consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
+The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
+selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
+validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return focus synchronously
+through ProseMirror, so a previous form cannot later blur a newly opened link form. It does nothing behind a modal or during IME
+composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
+
+Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378). The two-key bindings are
+**Ctrl/Cmd+/** (slash character) for the center and **Ctrl/Cmd+'** (apostrophe character)
+for links. Neither uses Alt/AltGr or Shift. The old Ctrl/Cmd+Alt+Shift+P/K bindings are removed;
+Ctrl/Cmd+P and Ctrl/Cmd+Shift+P remain unhandled so browser printing is preserved.
+
+The official [Chrome](https://support.google.com/chrome/answer/157179?hl=en),
+[Edge](https://support.microsoft.com/en-us/edge/keyboard-shortcuts-in-microsoft-edge),
+[Windows](https://support.microsoft.com/en-gb/accessibility/windows/keyboard-shortcuts-in-windows) and
+[macOS](https://support.apple.com/en-us/102650) lists were checked on 2026-10-24.
+The selected bindings have no listed browser or global system default. Apple's Cmd+/ toggles the
+status bar in Finder only; it does not apply when Chrome/Edge has focus. The
+[Microsoft Korean layout](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor.html)
+includes unshifted slash (after period) and apostrophe (after semicolon, before Enter).
+Literal `event.key` must be `/` or `'`. A different character at the same position is not a shortcut;
+full-width punctuation is a different character too. Only `Process` or `Unidentified` may fall back
+to `event.code` (`Slash` / `Quote`), and active composition is still ignored.
+Left Ctrl is recommended on Korean layouts where right Ctrl is Hanja conversion. No input-source
+switching shortcut is claimed. No Core or CLI semantics change.
+
+Historical shortcut candidates, delivery probes and captures: [Earlier two-key candidate audit](#earlier-two-key-candidate-audit-381-historical-physical-only-implementation) and [Earlier three-modifier verification and captures](#earlier-three-modifier-verification-and-captures-381-historical).
+
+#### Keyboard-layout safety (#381 review follow-up)
+
+Browser accelerators are also checked conservatively: `keyCode` must be the definition's unshifted
+punctuation virtual key (191 for `/`, 222 for `'`), unspecified (0), or IME Process (229).
+Other native mappings are passed through, even if an IME reports an opaque key or the visible
+character matches. This is necessary because French AZERTY apostrophe uses digit 4: character-only
+matching would compete with Ctrl+4. A German `Process`/`Unidentified` event with VK_MINUS (189)
+must likewise retain browser zoom. Chromium derives browser accelerators from the
+[Windows virtual key](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/content_accelerators/accelerator_util.cc),
+not just the DOM character. The numeric guard deliberately uses the legacy field for this supported
+Chromium boundary; [Windows virtual-key definitions](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
+identify those values. Unknown native mappings fail closed rather than claiming cross-layout support.
+
+Shift remains disallowed. We do not introduce Ctrl/Cmd+Shift+7 or any other layout-dependent alias:
+the displayed two-key bindings must not grow an unverified browser/OS accelerator. Layouts requiring
+Shift, AltGr, or a reserved virtual key use the existing Command center / Link buttons instead.
+The tooltip, ARIA and command-item definitions remain unchanged and denote characters, not universal
+physical positions. Depending on the layout, the character can be on another key; not every layout
+has a usable unshifted, unreserved keyboard combination. No automatic remapping is claimed.
+
+Official layouts: [US](https://learn.microsoft.com/en-us/globalization/keyboards/kbdus),
+[Korean](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor),
+[German](https://learn.microsoft.com/en-us/globalization/keyboards/kbdgr),
+[French legacy AZERTY](https://learn.microsoft.com/en-us/globalization/keyboards/kbdfr).
+
+| Layout / event | Center | Link | Browser behavior |
+| --- | --- | --- | --- |
+| US, Korean literal `/` / `'`, VK 191 / 222 | Opens | Opens | No listed default replaced |
+| Korean opaque `Process` / `Unidentified`, Slash / Quote, VK 229 / 0 / matching punctuation | Opens | Opens | Composition still ignored; other physical codes passed through |
+| German Slash-position `-`, VK 189; Quote-position `ä` | Does not open | Does not open | Ctrl+- zoom preserved |
+| German Shift+7 `/`; Shift+Backslash `'` | Does not open | Does not open | Shift aliases deliberately unavailable; use buttons |
+| French Slash-position `!`; Quote-position `ù` | Does not open | Does not open | Different characters passed through |
+| French Shift+Period `/`; digit-4 apostrophe | Does not open | Does not open | Ctrl+4 tab switch preserved; use buttons |
+| Opaque key masking VK_MINUS / VK_4 | Does not open | Does not open | Browser zoom / tab switch preserved |
+
+Historical layout-specific failures and browser probes: [Shortcut layout verification](#shortcut-layout-verification-381).
+
+## Writing interactions
+
+- The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
+- Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible. A single empty editable paragraph is the starting-state exception: its `+` is always visible, its drag handle hidden, and a non-persistent hint says `Start writing, or type / to add a block.` Typing hides the hint; undo restores it. Clicking the paper below the content continues writing through the existing editor operation.
+- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 1–3; Heading 4–6 only when the query matches), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item.
+- Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; template-based forms such as `Figure 2`, `식 (3)` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
+- Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
+- Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (caption and label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
+- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
+- Figure selection shows the selection outline only. Explicit Edit opens Image/Alt text/Label fields and a Caption field for plain captions; rich captions are edited in the document. Metadata Apply preserves rich caption content. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
+- `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
+- Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Focus restoration itself changes neither document nor history. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
+- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Display optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
+
+### Nested inline slash menu (#377)
+
+The reference target form closes on Escape and outside pointer interaction, including when
+the document has no labeled targets and the form has no autofocus control. Outside dismissal
+preserves the clicked destination's focus; Escape returns focus to the editor. This applies
+to both selection-toolbar insertion and an unresolved reference's editor, without changing
+document content, and leaves slash insertion available without Reload (#427).
+
+Implementation scope: expose existing inline insertion paths on Core-backed editable inline
+surfaces. Preserve top-level paragraph order/search/keys; omit block commands everywhere else.
+No new Core semantic operation, CLI command, search ranking or gutter `+` change is needed.
+Completion requires menu/insertion regressions and actual Save → Reload, including a citation-only
+list item (#366), plus Editor tests, typecheck/build and documentation checks.
+
+| Caret location | Citation / document reference | Endnote | Existing Core save contract |
+| --- | --- | --- | --- |
+| Top-level paragraph | Yes; existing full menu | Yes | Paragraph inline content |
+| List item, including nested lists | Yes; inline menu only | Yes | `updateList` with typed item content; [native List contract](document-support-v1.md#supported-meaning) |
+| Quote / simple admonition | Yes; inline menu only | Yes | `updateQuoteInlineContent` / `updateAdmonitionInlineContent` |
+| Endnote definition | Yes; inline menu only | No | `updateFootnoteDefinition` permits citations/references and refuses footnote references |
+| Table header/body cell | Yes; inline menu only | Yes | `updateTableCell` |
+| Figure caption | Yes; inline menu only | Yes | `updateFigure` with inline caption content |
+| Heading, including document title | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
+| Table caption / code / property fields | No menu | No menu | Table caption is not a caret surface in the editor document; code and fields keep literal input |
+
+The Editor schema mirrors these existing Core inline contracts (in particular, a definition
+excludes `footnoteReference`). Menu eligibility and the existing endnote insertion guard use
+that schema; the Editor introduces no new semantic rule. Figure/list Save uses the existing
+typed content operations even though the dedicated Core `insertFootnote`/`insertCitation`
+addressing surface does not include those locations. The same `insertCitation`, `insertReference`
+and `insertEndnote` paths serve all locations. Arrows, Enter and Escape keep the shared menu's
+existing behavior. See [citations](citations-v1.md), [references](section-references-v1.md) and
+[endnotes](footnotes-v1.md) for their persistent contracts.
+
+List and Figure round-trip validation compares the completed intermediate footnote snapshot that
+`serializeFor` already verifies. This lets the existing Save replay edit a list before adding
+its new definitions, just as other inline operations do. It still compares block count,
+list structure, exact inline content and canonical stability; final writes still reject
+missing definitions. No new persistent document combination is introduced.
+
+Code block edits can be saved together with new endnote references (#393). Core compares
+the code block round-trip count with the same completed footnote snapshot used for
+serialization, matching the list and Figure checks. Save replay order is unchanged;
+final writes still require real definitions. The literal `/` code probe in
+`citation-authoring` remains separate from this Core/replay regression coverage.
+
+## Evidence and history
+
+### Verification record
+
+- Documentation verification: 2026-10-26 (start-screen conditions and Open/New protection compared with App.tsx and the session contract; no new browser execution).
+- Outline input verification: 2026-10-25 (#362: retain heading-row identity while preceding text shifts engine positions; navigation, current-section geometry and document semantics unchanged. [Windows measurements and preservation evidence](../reviews/editor-input-performance-2026-10-25.md)).
+- Reference dismissal verification: 2026-10-25 (#427: no-target selection form and unresolved-reference form, Escape/outside pointer dismissal and subsequent slash insertion in cross-reference; Editor 280/280, typecheck/build).
+- Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
+- Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
+- Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
+- Two-key shortcut verification: 2026-10-24 (#381 follow-up: headed Chrome/Edge candidate delivery and cancellation; Chrome/Edge product regressions, Electron candidate/action smoke, Editor/Desktop tests and typecheck/build; macOS documentation review only).
+- Shortcut verification: 2026-10-24 (#381: Editor tests, Chrome/Edge command-center and link-authoring integration, Electron shortcut smoke, typecheck/build and docs; native browser-chrome verification remains unconfirmed as detailed below).
+- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
+- Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
+- Previous verification: 2026-10-24 (#383 review integration: command-center focus on restored tabs and recovery-dialog modality with #391/#392; document-tabs/recovery/command-center browser regressions).
+- Listed-document search verification: 2026-10-24 (#384: cached sidebar listings, native admission, path deduplication and new-editor focus; command-center and related browser regressions, Editor tests and typecheck/build; [evidence](#listed-document-search-verification-384)).
+- Previous verification: 2026-10-24 (#386: immediate command-center search typing and document focus; command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser regressions, Editor tests and typecheck/build).
+- Code/endnote save verification: 2026-10-24 (#393: Core intermediate-snapshot regressions and Editor Save replay with a new endnote, code edit and existing definition edit; no UI change).
+- Nested inline verification: 2026-10-24 (#377: Editor slash eligibility tests, Core list/Figure intermediate-footnote regressions, and actual citation-authoring menu/insertion/Save → Reload on all locations below, including a citation-only list item).
+- Previous verification: 2026-10-24 (#383: Reload restores document tab paths/order/active identity; recovery priority and explicit startup routing; document-tabs/recovery/recovery-structure browser regressions).
+- Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit same-path Open remembers the active tab's list after another tab writes; tree-only no-write and Reload checks; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367 review follow-up: same-path Close survives late restoration/Reload, tree-only updates do not rewrite paths; folder-memory browser regression).
+- Previous verification: 2026-10-24 (#367: folder restoration/Open/Close response-order and Reload checks, unique nested New file/folder destinations; folder-memory browser regression).
+- Previous verification: 2026-10-23 (#363 command center; Editor tests, typecheck/build, command-center/editor-shell/document-tabs/ui-language/layout-rules/quiet-document browser checks; [actual captures](editor-ux-shell-v1.md#command-center-verification-363)).
+- Previous verification: 2026-10-23 (#235 [ADR-0009](../adr/0009-multiple-opened-folders.md): several opened folders as separate Sidebar sections, Open adds, per-folder Close, restored paths and outermost-folder location/New; Editor unit tests and stable browser suite).
+- Previous verification: 2026-10-22 (#217: all-file Sidebar listing, bounded read-only image preview; Host/Editor/Desktop protocol tests and actual Vite/production HTTP browser regressions).
+- Previous verification: 2026-10-20 (#256: bundled Korean/English settings, live language changes and editing preservation; `ui-language` browser scenario and Editor tests).
+- Previous verification: 2026-10-19 (#255: document title area, Add a title, fixed title handle and Enter below the title; `document-title` browser scenario).
+- Previous verification: 2026-10-19 (#298: the start without a document sits on the canvas with the product mark, apart from the paper; open-files, recovery, document-tabs and the stable suite; same-state captures against `e265e1c`: 1440px [before](assets/start-screen-298/before-1440.png)/[after](assets/start-screen-298/after-1440.png), 375px [before](assets/start-screen-298/before-375.png)/[after](assets/start-screen-298/after-375.png)).
+- Previous verification: 2026-10-19 (#321: phone-width sidebar closed without a rail or covering the whole screen, opened from the TopBar; browser checks).
+- Previous verification: 2026-10-17 (UX review: location identity, recent folders and unsupported files in Files, overlay sidebar below 640px, Copy path, tooltips, table Edit placement and Source lines; stable browser suite and captures in the [review](../reviews/editor-ux-review-2026-10-17.md)).
+- Previous verification: 2026-10-16 (#296 PR2: shared recovery Settings, start list, matching-document prompt and standing failure surface; real Vite recovery UI checks).
+- Previous verification: 2026-10-16 (#204: tab row, active shell and retained sessions; browser checks and user-approved 1440/375px captures in the [review](../reviews/document-tabs-204-2026-10-16.md)). Previous verification: 2026-10-15 (#281: cross-reference, section-reference, table-authoring, pending-figure, layout-rules and quiet-document browser checks; actual 1440px slash-menu Before/After). Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label property-close caret, Apply/typing and insertion/Cancel/Escape browser regressions; ADR-0006 native admission wording compared with code/tests). Previous verification: 2026-10-13 (#176: Files/Display switching, tree/selection/history/draft preservation, File actions and Reload focus, unavailable settings; browser results and actual captures in the [#176 review](../reviews/editor-shell-176-2026-10-13.md)).
 
 ### Section persistence decision and verification (2026-10-25)
 
@@ -262,9 +557,7 @@ that toolbar with the exact accessible name; the same scenario then passes. No p
 assertion/timeout or capture source changed. The failure remains historical evidence; the new
 head requires its own full CI result, recorded in the PR.
 
-## Sidebar Open folder entry (#385)
-
-The [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385) records the owner-approved #380 decision 3. This changes entry placement only: the existing picker, handler, add/relist behavior, recent/opened preferences, start-screen entry and command-center command remain. The expanded header entry uses the existing English/Korean Open folder… name as both accessible label and tooltip. Tab order is Open folder → Collapse sidebar → Files → Display → selected panel content; Shift+Tab reverses it. Picker Open, Cancel and Escape return focus to the header opener. Phone sidebar dismissal retains its TopBar focus behavior. The collapsed rail remains the existing expand/Files/Display navigation.
+### Sidebar entry capture evidence (#385)
 
 Same-worktree real browser Before/After captures, with the sidebar expanded, Files selected and no menu/dialog open:
 
@@ -280,86 +573,7 @@ Direct visual review: the header opener stays beside Collapse, the product name 
 
 Before implementation, the added folder-navigation check failed with `Sidebar header must always expose one Open folder entry with zero opened folders`. Its early exit also left later expected HTTP-error checks unreached. After implementation the zero/one/several header-position, per-folder Close-only menu, Open and focus checks pass. Related regressions and required CI are recorded in the PR; previous verification entries elsewhere in this document remain unchanged.
 
-## Start without a document (#174)
-
-When startup leaves no open document tabs, the document column shows the start instead of an
-editor. A Host response without a default document does not prevent the Editor from restoring tabs.
-Explicit paths, tab memory, recovery and the Vite fallback follow the
-[session startup contract](editing-session-save-v1.md#tab-navigation-memory-383).
-It is the app's start, not a document (#298): it sits on the
-canvas without the document paper, under the product mark and name. It offers Open folder… (primary), the
-recent folders from the folder picker (name, then full path) and, when the Host offers one, the
-sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
-a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
-choosing another file or New preserves existing sessions under the
-[session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
-opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
-copy in the app's data. The sample is opened only on request. Without a document the TopBar shows `No file opened`; Save, File actions and the views
-stay unavailable. Display remains reachable, with document numbering/reference style disabled and local width available. No error is shown. With nothing to lose, the Desktop app's
-update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
-information is retained; a Host that supplied an initial document instead of start information returns
-to the folder/recent-folder actions without inventing a sample. HTTP offers allowed server folders, filters recent folders to
-those roots and has no sample fallback. The start writes nothing and changes no document
-semantics, so it has no CLI counterpart.
-
-## Command center (#363)
-
-The current document's location/name is a searchable command-center button centered in the TopBar.
-The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+/
-opens a search dialog near the top center. Type `>` to list commands only.
-Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
-The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
-still block opening the center and Save behind them.
-The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
-existing shell command names, including their Korean/English aliases. It does not search document
-contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
-
-Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
-and Settings handlers and their current availability. Switching to an opened document reuses tab
-activation: no document read/write, new editor state or implicit save. Pending operations retain the
-same switching and document-action restrictions; unavailable results remain visibly disabled.
-Without an open document, the center still offers folder/settings/view-layout commands.
-
-Base UI Combobox owns keyboard/pointer highlighting, selection and IME handling inside the shared
-Dialog. Filtering highlights the first match; the first Down moves to the next available result.
-Hover moves the same active highlight, using the existing selected surface; arrows continue from
-that item. Enter runs the chosen item. The search input autofocuses on mount so typing immediately
-after the opening shortcut goes to search, including before the Dialog's deferred initial focus.
-Selecting a Visual document focuses its editor after tab activation and modal dismissal, preserving
-its selection and allowing immediate typing; this applies to a newly opened or retained tab and
-reselecting the active tab. A tab retained in read-only Source keeps that view and tab-button focus.
-Escape/outside dismissal returns to the invoking control or editor without changing its
-selection/history/property drafts.
-A selected command closes the center before opening its target dialog; that dialog owns focus.
-Outline and sidebar commands hand focus to their surviving toggle, including when the invoking
-control was inside the panel being hidden. On a phone, closing the sidebar focuses its TopBar opener.
-Other dialogs retain their shortcuts, and Ctrl/Cmd+S cannot save behind the center.
-No-match feedback and controls are translated with the existing UI language.
-
-This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
-existing file/session handlers remain authoritative. The first version has no command plugin system,
-recent-command persistence, filesystem index or new document-content actions.
-
-### Caret insertion commands (part of #439)
-
-`Insert citation…` / `인용 삽입…` and `Insert cross-reference…` / `상호 참조 삽입…`
-open the existing Citation and Reference forms at the retained Visual editor caret. They need
-no slash or preceding whitespace, including directly after Korean text. Availability reuses
-the slash menu's schema-backed inline caret eligibility and the existing session busy/view
-restrictions. The center must be opened while editor content itself has focus; forms,
-property controls (including their buttons), popovers, node-view controls and other shell
-controls cannot use a retained body selection to insert. Code, Source and non-caret
-selections cannot insert.
-Known limitation ([#416](https://github.com/ieumbird/ieumdoc/issues/416)): the engine may not yet have read a selection made within a few tens of milliseconds of the shortcut.
-The center releases modal focus before opening the form. Escape returns to the same editor
-caret without a document/history change; Apply uses the existing insertion function, returns
-editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
-
-Scope: reuse forms, semantic operations and inline eligibility; no new Core/CLI operation is
-needed for this interface entry point. No shortcut or slash-trigger change is included.
-Shortcut combinations remain an owner decision, so #439 stays open. Completion requires the
-extended `citation-authoring` browser regression (Korean caret, Escape, Undo/Redo and actual
-Save → Reload), Editor tests, typecheck/build, docs and diff checks.
+### Caret insertion verification (#439)
 
 Verification: the extended browser scenario failed before implementation because `Insert citation…`
 was absent. After implementation it checks Korean text in the middle of a sentence, literal slash
@@ -376,114 +590,7 @@ scenario now compares an allowed ordinary paragraph caret with a selected range 
 paragraph, independently of code restrictions. Allowed-surface checks also open and Escape
 the real Citation form before continuing the existing slash insertion.
 
-### Listed document search (#384)
-
-The source is the in-memory listing cache reachable from the roots of **all currently opened sidebar
-folders** ([ADR-0009](../adr/0009-multiple-opened-folders.md)). Starting at each root, follow folder
-entries in the current parent listings and collect each reached listing's `document` entries,
-regardless of expansion or sidebar visibility. A subfolder whose contents have never been listed
-contributes no files. If a parent is relisted without a child folder, that disconnected child's
-retained cache stops contributing immediately. Restoring the child entry makes its retained listing
-reachable again, including while collapsed. Search does not change the sidebar's cache preservation
-or expansion behavior. Closing a root removes its contribution. Candidate collection and path sorting
-run only while the center is open and are memoized until the opened-folder trees change.
-Search itself neither requests Host listings/document reads nor expands folders, recursively lists
-the filesystem, builds an index or stores the search source in preferences.
-
-Results use the Host-resolved path as identity: an opened tab replaces that file's listing result,
-and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
-with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
-its full path. Existing commands follow in their existing order. Name/path word matching and the
-`>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
-The existing height-bounded, scrolling Combobox renders only the first 50 matches in that order.
-A persistent count status shows the full match count, including zero. Above 50 it shows the visible
-and total counts with guidance to type more to narrow the search, in Korean or English. Base UI's
-always-mounted `Combobox.Status` supplies a polite, atomic live region, including its initial text
-announcement handling. Base UI still owns highlight, arrows and Enter within the displayed matches;
-there are no page controls. To reach a match outside the first 50, narrow the query: filtering still
-searches the entire source. This explicit presentation limit replaces the earlier pagination decision
-without changing source scope, ordering, matching or shell action handlers. No ranking, search index,
-virtualization library or document-content command is introduced.
-
-As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
-the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
-same admission explanation available through either navigation entry. The existing Host/Core
-admission check remains authoritative even for a listing marked native. Images, other regular files
-and folders are omitted: they are preview/navigation entries rather than editable documents and
-retain their existing sidebar entry points.
-
-Selecting an unopened file closes the center before calling the same `openFolderDocument` handler
-as the sidebar, including existing operation/continuation restrictions, retained dirty tabs and
-property drafts, admission refusal and recovery flows. A successful open focuses the mounted Visual
-editor; an admission/recovery dialog owns its focus. Opening a file may relist/reveal its folders
-through the existing open path; those requests are not search-time discovery. Opened-tab selection
-keeps #386's synchronous tab activation and Dialog final-focus behavior, including Source tabs.
-This is Editor navigation, so no Core operation or CLI command is added.
-
-### Shortcut contract (#381)
-
-The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
-platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
-consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
-The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
-selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
-validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return focus synchronously
-through ProseMirror, so a previous form cannot later blur a newly opened link form. It does nothing behind a modal or during IME
-composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
-
-Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378). The two-key bindings are
-**Ctrl/Cmd+/** (slash character) for the center and **Ctrl/Cmd+'** (apostrophe character)
-for links. Neither uses Alt/AltGr or Shift. The old Ctrl/Cmd+Alt+Shift+P/K bindings are removed;
-Ctrl/Cmd+P and Ctrl/Cmd+Shift+P remain unhandled so browser printing is preserved.
-
-The official [Chrome](https://support.google.com/chrome/answer/157179?hl=en),
-[Edge](https://support.microsoft.com/en-us/edge/keyboard-shortcuts-in-microsoft-edge),
-[Windows](https://support.microsoft.com/en-gb/accessibility/windows/keyboard-shortcuts-in-windows) and
-[macOS](https://support.apple.com/en-us/102650) lists were checked on 2026-10-24.
-The selected bindings have no listed browser or global system default. Apple's Cmd+/ toggles the
-status bar in Finder only; it does not apply when Chrome/Edge has focus. The
-[Microsoft Korean layout](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor.html)
-includes unshifted slash (after period) and apostrophe (after semicolon, before Enter).
-Literal `event.key` must be `/` or `'`. A different character at the same position is not a shortcut;
-full-width punctuation is a different character too. Only `Process` or `Unidentified` may fall back
-to `event.code` (`Slash` / `Quote`), and active composition is still ignored.
-Left Ctrl is recommended on Korean layouts where right Ctrl is Hanja conversion. No input-source
-switching shortcut is claimed. No Core or CLI semantics change.
-
-#### Keyboard-layout safety (#381 review follow-up)
-
-Browser accelerators are also checked conservatively: `keyCode` must be the definition's unshifted
-punctuation virtual key (191 for `/`, 222 for `'`), unspecified (0), or IME Process (229).
-Other native mappings are passed through, even if an IME reports an opaque key or the visible
-character matches. This is necessary because French AZERTY apostrophe uses digit 4: character-only
-matching would compete with Ctrl+4. A German `Process`/`Unidentified` event with VK_MINUS (189)
-must likewise retain browser zoom. Chromium derives browser accelerators from the
-[Windows virtual key](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/content_accelerators/accelerator_util.cc),
-not just the DOM character. The numeric guard deliberately uses the legacy field for this supported
-Chromium boundary; [Windows virtual-key definitions](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes)
-identify those values. Unknown native mappings fail closed rather than claiming cross-layout support.
-
-Shift remains disallowed. We do not introduce Ctrl/Cmd+Shift+7 or any other layout-dependent alias:
-the displayed two-key bindings must not grow an unverified browser/OS accelerator. Layouts requiring
-Shift, AltGr, or a reserved virtual key use the existing Command center / Link buttons instead.
-The tooltip, ARIA and command-item definitions remain unchanged and denote characters, not universal
-physical positions. Depending on the layout, the character can be on another key; not every layout
-has a usable unshifted, unreserved keyboard combination. No automatic remapping is claimed.
-
-Official layouts: [US](https://learn.microsoft.com/en-us/globalization/keyboards/kbdus),
-[Korean](https://learn.microsoft.com/en-us/globalization/keyboards/kbdkor),
-[German](https://learn.microsoft.com/en-us/globalization/keyboards/kbdgr),
-[French legacy AZERTY](https://learn.microsoft.com/en-us/globalization/keyboards/kbdfr).
-
-| Layout / event | Center | Link | Browser behavior |
-| --- | --- | --- | --- |
-| US, Korean literal `/` / `'`, VK 191 / 222 | Opens | Opens | No listed default replaced |
-| Korean opaque `Process` / `Unidentified`, Slash / Quote, VK 229 / 0 / matching punctuation | Opens | Opens | Composition still ignored; other physical codes passed through |
-| German Slash-position `-`, VK 189; Quote-position `ä` | Does not open | Does not open | Ctrl+- zoom preserved |
-| German Shift+7 `/`; Shift+Backslash `'` | Does not open | Does not open | Shift aliases deliberately unavailable; use buttons |
-| French Slash-position `!`; Quote-position `ù` | Does not open | Does not open | Different characters passed through |
-| French Shift+Period `/`; digit-4 apostrophe | Does not open | Does not open | Ctrl+4 tab switch preserved; use buttons |
-| Opaque key masking VK_MINUS / VK_4 | Does not open | Does not open | Browser zoom / tab switch preserved |
+### Shortcut layout verification (#381)
 
 At pre-fix `e2ee863`, the revised shell test failed on German zoom, and existing browser scenarios
 failed with `German zoom shortcut was intercepted` and `Layout-specific key was intercepted by Link`.
@@ -732,81 +839,3 @@ it does not claim a speed improvement over the earlier bounded pagination run. A
 captures at [1280px](assets/command-center-384/limited-1280.png) and
 [375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
 paged captures, with existing footer typography/spacing and no new adjustable style value.
-
-## Writing interactions
-
-- The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
-- Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible. A single empty editable paragraph is the starting-state exception: its `+` is always visible, its drag handle hidden, and a non-persistent hint says `Start writing, or type / to add a block.` Typing hides the hint; undo restores it. Clicking the paper below the content continues writing through the existing editor operation.
-- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 1–3; Heading 4–6 only when the query matches), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item.
-- Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; template-based forms such as `Figure 2`, `식 (3)` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
-- Paragraph/Heading block menus convert between prose and H1–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Admonition menus change among the standard kinds.
-- Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (caption and label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
-- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
-- Figure selection shows the selection outline only. Explicit Edit opens Image/Alt text/Label fields and a Caption field for plain captions; rich captions are edited in the document. Metadata Apply preserves rich caption content. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
-- `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
-- Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Focus restoration itself changes neither document nor history. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
-- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Display optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
-
-### Nested inline slash menu (#377)
-
-The reference target form closes on Escape and outside pointer interaction, including when
-the document has no labeled targets and the form has no autofocus control. Outside dismissal
-preserves the clicked destination's focus; Escape returns focus to the editor. This applies
-to both selection-toolbar insertion and an unresolved reference's editor, without changing
-document content, and leaves slash insertion available without Reload (#427).
-
-Implementation scope: expose existing inline insertion paths on Core-backed editable inline
-surfaces. Preserve top-level paragraph order/search/keys; omit block commands everywhere else.
-No new Core semantic operation, CLI command, search ranking or gutter `+` change is needed.
-Completion requires menu/insertion regressions and actual Save → Reload, including a citation-only
-list item (#366), plus Editor tests, typecheck/build and documentation checks.
-
-| Caret location | Citation / document reference | Endnote | Existing Core save contract |
-| --- | --- | --- | --- |
-| Top-level paragraph | Yes; existing full menu | Yes | Paragraph inline content |
-| List item, including nested lists | Yes; inline menu only | Yes | `updateList` with typed item content; [native List contract](document-support-v1.md#supported-meaning) |
-| Quote / simple admonition | Yes; inline menu only | Yes | `updateQuoteInlineContent` / `updateAdmonitionInlineContent` |
-| Endnote definition | Yes; inline menu only | No | `updateFootnoteDefinition` permits citations/references and refuses footnote references |
-| Table header/body cell | Yes; inline menu only | Yes | `updateTableCell` |
-| Figure caption | Yes; inline menu only | Yes | `updateFigure` with inline caption content |
-| Heading, including document title | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
-| Table caption / code / property fields | No menu | No menu | Table caption is not a caret surface in the editor document; code and fields keep literal input |
-
-The Editor schema mirrors these existing Core inline contracts (in particular, a definition
-excludes `footnoteReference`). Menu eligibility and the existing endnote insertion guard use
-that schema; the Editor introduces no new semantic rule. Figure/list Save uses the existing
-typed content operations even though the dedicated Core `insertFootnote`/`insertCitation`
-addressing surface does not include those locations. The same `insertCitation`, `insertReference`
-and `insertEndnote` paths serve all locations. Arrows, Enter and Escape keep the shared menu's
-existing behavior. See [citations](citations-v1.md), [references](section-references-v1.md) and
-[endnotes](footnotes-v1.md) for their persistent contracts.
-
-List and Figure round-trip validation compares the completed intermediate footnote snapshot that
-`serializeFor` already verifies. This lets the existing Save replay edit a list before adding
-its new definitions, just as other inline operations do. It still compares block count,
-list structure, exact inline content and canonical stability; final writes still reject
-missing definitions. No new persistent document combination is introduced.
-
-Code block edits can be saved together with new endnote references (#393). Core compares
-the code block round-trip count with the same completed footnote snapshot used for
-serialization, matching the list and Figure checks. Save replay order is unchanged;
-final writes still require real definitions. The literal `/` code probe in
-`citation-authoring` remains separate from this Core/replay regression coverage.
-
-## Boundaries
-
-No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
-
-Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
-
-
-## Folder files and image preview (#217)
-
-Files lists every regular non-hidden file, including extensionless files; symlinks/junctions stay excluded.
-Markdown retains existing document/native admission and tab behavior. Images use the image icon and
-read-only preview description; other files use the generic file icon and explicit editing-unavailable
-description. Mouse and Enter/Space share the same dispatch. Image/file selection opens a transient
-shared Dialog, preserving the existing editor, selection, Undo, dirty work and property drafts.
-Other files show name/path and an editing-unavailable explanation only. Image loading/failure stays
-inside the dialog; closing or Escape returns focus to its tree row. The modal blocks Save shortcuts.
-The image picker remains independent. See the [Host preview contract](filesystem-host-boundary-v1.md#read-only-folder-preview-217).
