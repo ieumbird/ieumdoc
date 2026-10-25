@@ -35,8 +35,8 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   await tab.getByText('연결한 참고문헌 파일을 불러오려면 문서를 저장하세요.', { exact: true }).waitFor();
   assert(await tab.getByText('다른 앱에서 .bib 파일을 수정했다면 문서를 저장한 뒤 다시 불러오기를 선택해 참고문헌을 갱신하세요.', { exact: true }).count() === 1, 'Korean notices explain both Save and external changes');
   await page.setViewportSize({ width: 375, height: 812 });
-  const collapse = page.getByRole('button', { name: '사이드바 접기', exact: true });
-  if (await collapse.isVisible()) await collapse.click();
+  // As in layout-rules, wait for React's matchMedia update to commit the closed phone sidebar.
+  await page.getByRole('button', { name: '사이드바 펼치기', exact: true }).waitFor();
   await tab.getByRole('button', { name: '참고문헌 파일 연결…', exact: true }).scrollIntoViewIfNeeded();
   assert(await page.locator('html').evaluate(el => el.scrollWidth <= innerWidth), 'Bibliography actions fit phone width');
   assert(await tab.getByRole('button', { name: 'refs.bib 연결 해제', exact: true }).isVisible(), 'Korean disconnect stays actionable');
