@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#438: bibliography connection controls, bilingual notices, 1280/375px captures and unchanged quiet-document rest pairs; [verification](citations-v1.md#bibliography-connection-verification-438)).
+- Last verified: 2026-10-26 (#469: typing/IME hover suppression, offset-aware Figure/Equation corners, targeted browser regressions and [1440px comparison](#typing-and-outline-verification-469)).
+- Previous verification: 2026-10-25 (#438: bibliography connection controls, bilingual notices, 1280/375px captures and unchanged quiet-document rest pairs; [verification](citations-v1.md#bibliography-connection-verification-438)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-24 (#401: long-name/path dialogs at 1440/375px; [measurements and captures](#long-dialog-names-and-paths-401)).
@@ -74,9 +75,9 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | Axis | Expression |
 | --- | --- |
 | Rest | No paragraph input box, persistent Edit button or block extent outline. Gutter tools are hidden except the first `+` in an empty editable document; its drag handle stays hidden. No invisible pointer targets. Figure/Equation/Table authoring metadata is hidden, inert text positioned in the gap above its block, so it takes no space at rest and showing it moves nothing; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
-| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. It disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
+| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) hides only this neutral outline until the next real pointer movement; selection, transactions, scrolling and resizing alone do not restore it. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
-| Selected | Block selection outline and visible Edit access; selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain their blue role and existing offset alongside the expanded neutral hover outline. |
+| Selected | Block selection outline and visible Edit access; selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain their blue role and existing offset alongside the expanded neutral hover outline. Their outer corner radius matches the hover outline: the element radius is the shared hover radius minus the existing outline offset. Typing hides no selection/editing outline. |
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
 | Read-only | Source view stays read-only: monospace lines without soft wrapping, numbered in subtle text in the gutter (generated content, never copied), scrolling sideways. Unsupported documents are rejected at admission; in the Files tree a document without the native marker keeps its row in subtle text with a crossed-file icon and says so in its tooltip and accessible description. |
@@ -146,6 +147,37 @@ A change to the Editor's look or a new visible control states which rule above (
 
 IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
+### Typing and outline verification #469
+
+Only the neutral pointer-hover outline is suppressed on document `beforeinput` and IME
+composition start. Gutter controls keep their active/menu rules; typed-block Edit and authoring
+metadata retain their CSS hover/focus/selection rules. Selection and editing outlines, drag
+feedback and `(hover: none)` keep their existing behavior. This is Editor interaction only;
+Core/CLI semantics and document layout are unchanged.
+
+`quiet-document` first failed against base `c2329159016cdae6183885bd24de2bd8a8046e1e`:
+`hiddenAfterTyping=false`, `hiddenAfterLayout=false`; both Figure and Equation measured an
+element radius of 4px plus a 4px outline offset, against a 4px hover radius. After this change,
+the shared hover radius is 8px and equals the painted selection radius (4px + 4px). The blue
+outline's offset, width and color stay unchanged. The test reads computed styles rather than
+pinning these measurements. It also checks immediate input/IME suppression, restoration on
+pointer movement, transaction/resize suppression, unchanged metadata/Edit access and 0px
+block movement while typing; existing no-hover and drag checks remain.
+
+Manual comparison: same scratch document, selected block and pointer hovering it, 1440 × 1000,
+DPR 1, 100% zoom, scroll (0, 0), Windows Chrome 155.0.8059.85 headless, bundled Pretendard
+Variable (verified with the existing CDP glyph-font check). Before uses the base above;
+After uses this change. Both were captured by this worktree's `pnpm browser:test quiet-document
+--screenshots` and persistent profile. Only the neutral corners become rounder to follow the
+blue outline's outer curves; text, captions, tools and block positions stay aligned. The existing
+horizontal/vertical overlay offsets remain. These images are manual review evidence, not
+pixel-diff assertions or a substitute for user visual approval.
+
+| Selected + hovered at 1440px | Before | After |
+| --- | --- | --- |
+| Figure | [Before](assets/hover-outline-469/before-1440-figure-selected-hover.png) | [After](assets/hover-outline-469/after-1440-figure-selected-hover.png) |
+| Equation | [Before](assets/hover-outline-469/before-1440-equation-selected-hover.png) | [After](assets/hover-outline-469/after-1440-equation-selected-hover.png) |
+
 ## Adjustable values and preferences
 
 Values meant to be tuned by hand, or that change with a user's taste, are shared variables, never numbers repeated in rules or scripts.
@@ -154,7 +186,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The Wide document checkbox in Sidebar Display chooses between them.
 - Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. These are hand-tuned values, without a new preference control or theme.
-- Block hover entries (#225): `--id-color-block-hover-outline` aliases the neutral `border-strong` role (`#bbc2cd`), `--size-block-hover-outline` is 1px, and `--id-radius-block-hover` aliases the small radius (4px). `--space-block-hover-inline` aliases `space-2` (8px per side) and `--space-block-hover-block` aliases `space-1` (4px above/below), expanding only the overlay for breathing room around text. The expansion keeps gutter controls clear and fits within block gaps; one hovered extent is shown at a time. These hand-tuned values have no preference control; CSS and browser checks read the variables. Selection/editing keeps its blue role and text moves 0px.
+- Block hover entries (#225): `--id-color-block-hover-outline` aliases the neutral `border-strong` role (`#bbc2cd`), `--size-block-hover-outline` is 1px, and `--id-radius-block-hover` is the small radius plus the existing selection outline offset (`space-1`), currently 8px; Figure/Equation use this shared value minus their offset for their element radius, so the painted outlines have matching curves. `--space-block-hover-inline` aliases `space-2` (8px per side) and `--space-block-hover-block` aliases `space-1` (4px above/below), expanding only the overlay for breathing room around text. The expansion keeps gutter controls clear and fits within block gaps; one hovered extent is shown at a time. These hand-tuned values have no preference control; CSS and browser checks read the variables. Selection/editing keeps its blue role and text moves 0px.
 - Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px) at the top, and `--layout-document-end-space` (35% of the viewport height) at the bottom, which also sets how far above the window bottom writing keeps the caret. The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 200px). The collapsed rail is fixed.
 - Command-center entries: `--layout-command-center-width`, `--layout-command-center-popup-width` and `--layout-command-center-list-height` control preferred widths and list height. The 56rem/27rem container breakpoints are layout transitions, not preferences.

@@ -85,6 +85,21 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   check(Math.abs(inlineMath.actual-inlineMath.expected)<0.1,`Inline math size must follow its token: ${JSON.stringify(inlineMath)}`);
   const initial=await json();
   const extent = page.getByTestId('block-hover-outline');
+  const selectBlock = block => block.evaluate(n => {
+    const editor = n.closest('.document-editor').editor;
+    editor.state.doc.forEach((_node, pos) => {
+      const dom = editor.view.nodeDOM(pos);
+      if (dom === n || dom?.contains(n)) editor.commands.setNodeSelection(pos);
+    });
+  });
+  const outlineRadii = async block => {
+    const selected = await block.evaluate(n => {
+      const s = getComputedStyle(n);
+      return {radius:parseFloat(s.borderTopLeftRadius), offset:parseFloat(s.outlineOffset)};
+    });
+    const hover = await extent.evaluate(n => parseFloat(getComputedStyle(n).borderTopLeftRadius));
+    return {...selected, hover, matches:Math.abs(selected.radius + selected.offset - hover) < 0.1};
+  };
   const hoverStyle = await withBlockHover(page, async () => {
     await rest();
     // Keyboard selection alone reveals no extent; pointer and selection are independent axes.
@@ -162,6 +177,41 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       await hoverParagraph.hover(); await extent.waitFor(); await page.mouse.move(x,y);
       await extent.waitFor({state:'hidden'});
     }
+    const radii = [];
+    for (const kind of ['figure','equation']) {
+      const block = page.locator(`[data-document-tab][data-active=true] .${kind}`);
+      await selectBlock(block);
+      check(await block.getAttribute('data-selected') === 'true', `${kind}: selection missing`);
+      await block.hover(); await extent.waitFor();
+      radii.push({kind,...await outlineRadii(block)});
+    }
+    // Type with the pointer still on a different block. Do not poll for the disappearance.
+    await hoverParagraph.click();
+    await page.keyboard.press('End');
+    const equation = page.locator('[data-document-tab][data-active=true] .equation');
+    await equation.hover(); await extent.waitFor();
+    const beforeTyping = await hoverParagraph.boundingBox();
+    const viewport = page.viewportSize();
+    await page.keyboard.type('x');
+    const hiddenAfterTyping = !await extent.isVisible();
+    check(await equation.locator('.block-metadata').evaluate(n => getComputedStyle(n).visibility === 'visible') &&
+      await equation.locator('.equation-edit').evaluate(n => getComputedStyle(n).opacity === '1'),
+      'Typing changed the independent metadata/Edit hover rules');
+    check(JSON.stringify(await hoverParagraph.boundingBox()) === JSON.stringify(beforeTyping),
+      'Hiding the hover outline while typing moved content');
+    // A transaction and resize without pointer input must not bring the outline back.
+    await page.keyboard.press('ArrowLeft');
+    await page.setViewportSize({...viewport,height:viewport.height + 1});
+    const hiddenAfterLayout = !await extent.isVisible();
+    await page.setViewportSize(viewport);
+    const box = await equation.boundingBox();
+    await page.mouse.move(box.x + box.width / 2 + 1, box.y + box.height / 2);
+    check(await extent.isVisible(), 'Real pointer movement did not restore the hover outline');
+    await page.keyboard.press('Control+z');
+    check(await json() === initial, 'Typing probe did not undo to the original document');
+    results.push({typingHover:{hiddenAfterTyping,hiddenAfterLayout},radii});
+    check(hiddenAfterTyping && hiddenAfterLayout && radii.every(r => r.matches),
+      `Typing/outline regression: ${JSON.stringify({hiddenAfterTyping,hiddenAfterLayout,radii})}`);
     results.push({hoverStyle, hoverTextShift:0, gutterHoverRetainsExtent:true, adjacentGaps,
       pointerIndependentOfSelection:true, topLevelCellExtent:true});
     return hoverStyle;
@@ -217,6 +267,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   }
   // These states only produce review images; layout-rules asserts responsive boundaries.
   if (screenshots) {
+    await page.setViewportSize({width:1440,height:1000});
+    for (const kind of ['figure','equation']) {
+      await rest();
+      const block = page.locator(`[data-document-tab][data-active=true] .${kind}`);
+      await selectBlock(block);
+      check(await block.getAttribute('data-selected') === 'true', `${kind}: visual-review selection missing`);
+      await withBlockHover(page, async () => {
+        await block.hover(); await extent.waitFor();
+        await shot(`1440-${kind}-selected-hover`);
+      });
+    }
     for(const width of [1440,1024,768,705,704,414,375]) {
       await page.setViewportSize({width,height:1000});
       await rest();
@@ -275,6 +336,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       await page.locator('[data-document-tab][data-active=true] .figure').hover(); await extent.waitFor();
       check(await page.locator('[data-document-tab][data-active=true] .figure').evaluate((n, color) => getComputedStyle(n).outlineColor === color, colors.color),
         'Hover obscured the editing Figure outline');
+      check((await outlineRadii(page.locator('[data-document-tab][data-active=true] .figure'))).matches,
+        'Editing Figure and hover outline corner radii differ');
     });
     await page.mouse.move(0,0);
     await shot(`${width}-figure-editing`);
@@ -353,9 +416,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   await page.keyboard.press('End');
   const originalText=await paragraph.textContent();
   const cdp=await page.context().newCDPSession(page);
-  await cdp.send('Input.imeSetComposition',{text:'한글입력',selectionStart:4,selectionEnd:4});
-  await cdp.send('Input.insertText',{text:'한글입력'});
-  await cdp.detach();
+  try {
+    await withBlockHover(page, async () => {
+      await paragraph.hover(); await extent.waitFor();
+      await cdp.send('Input.imeSetComposition',{text:'한글입력',selectionStart:4,selectionEnd:4});
+      check(!await extent.isVisible(), 'IME composition left the hover outline visible');
+      await cdp.send('Input.insertText',{text:'한글입력'});
+      check(!await extent.isVisible(), 'IME commit restored the hover outline without pointer movement');
+    });
+  } finally {
+    await cdp.detach();
+  }
   check((await paragraph.textContent()).includes('한글입력'),'Korean composition failed');
   check(await page.getByTestId('status').textContent()==='Unsaved changes','Typing did not expose unsaved state');
   await page.keyboard.press('Control+z');
