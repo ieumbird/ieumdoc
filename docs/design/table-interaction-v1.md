@@ -1,7 +1,7 @@
 # Table interaction v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#430 last-cell Tab: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 280/280, typecheck/build).
+- Last verified: 2026-10-25 (#430 last-cell Tab, including integration with #431/#433: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 281/281, typecheck/build).
 - Previous verification: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
 - Previous verification: 2026-10-08 (contract compared with table commands and regression coverage).
 - Related: [Continuous editing](document-editing-v1.md), [Table caption and label](table-caption-v1.md).

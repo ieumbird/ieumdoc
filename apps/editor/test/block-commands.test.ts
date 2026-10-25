@@ -32,12 +32,45 @@ import {
 import { commitDocumentSave, documentRevision } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
+import { citationCommandItems, CITATION_COMMAND } from "../src/citation.tsx";
+import { endnoteCommandItems } from "../src/endnotes.ts";
+import { referenceCommandItems } from "../src/cross-reference.tsx";
+import { i18n } from "../src/i18n.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));
 const schema = getSchema(editorExtensions());
 const DELETE_COMMAND = BLOCK_COMMANDS.find(command => command.id === "delete")!;
 const noop = () => {};
 const text = (value: string): TiptapJSON[] => [{ type: "text", text: value }];
+
+test("Citation slash aliases select the citation form before block commands in either UI language", async () => {
+  const language = i18n.language;
+  try {
+    for (const locale of ["en", "ko"]) {
+      await i18n.changeLanguage(locale);
+      for (const query of ["Citation", "cite", "인용"]) {
+        const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(`/${query}`)));
+        const state = EditorState.create({ schema, doc, selection: TextSelection.create(doc, query.length + 2) });
+        const slash = slashQueryAt(state);
+        assert.ok(slash);
+        // DocumentEditor's menu preserves this group order; Enter selects the first item.
+        const items = [
+          ...(slash.blockCommands ? filterInsertCommands(slash.query) : []),
+          ...(slash.endnote ? endnoteCommandItems(slash.query) : []),
+          ...referenceCommandItems(doc, slash.query),
+          ...citationCommandItems(undefined, slash.query),
+        ];
+        assert.equal(items[0]?.id, CITATION_COMMAND, `${locale}: /${query}`);
+        assert.ok(!items.some(item => item.id === "quote"), `${locale}: /${query} must not offer Quote`);
+      }
+      for (const query of ["quote", "blockquote", "인용문"]) {
+        assert.equal(filterInsertCommands(query)[0]?.id, "quote", `${locale}: /${query}`);
+      }
+    }
+  } finally {
+    await i18n.changeLanguage(language);
+  }
+});
 
 function docOf(markdown: string): ProseMirrorNode {
   return schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(markdown)));

@@ -3,8 +3,9 @@ import { inlineContentText } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
+import { closeHistory } from "@tiptap/pm/history";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { AllSelection, NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS } from "../shared/asset-policy.ts";
 import { addTableRowBelow, changeHeadingLevel } from "./block-commands.ts";
@@ -144,6 +145,12 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       };
       const join = (backward: boolean) => {
         const { state, commands } = this.editor;
+        // Whole-document deletion must not merge with a just-applied property edit or insertion.
+        // Use the engine's deletion and history boundary so one Undo restores the exact document.
+        if (state.selection instanceof AllSelection) {
+          this.editor.view.dispatch(closeHistory(state.tr).deleteSelection().scrollIntoView());
+          return true;
+        }
         const { $from } = state.selection;
         // Before the engine join can delete an adjacent atom, show its normal node
         // selection. Keep empty-block removal, list lifting and isolating boundaries.

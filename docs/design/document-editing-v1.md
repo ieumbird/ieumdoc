@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#430 last-cell Tab row addition: Editor 280/280, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
+- Last verified: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
+- Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
 - Previous verification: 2026-10-24 (#387 atom boundary selection: Editor 273/273, typecheck/build, six browser scenarios including the 48-case keyboard matrix, visible selection, deletion, Undo/Redo and disk Save/Reload).
 - Previous verification: 2026-10-23 (source 7a214dcb lookup/handle/display-numbering changes: Editor 271/271, typecheck/build, eight browser regressions and actual 2000/5000-block input plus complete canonical Save/Reload; mixed 2000 input p95 111.7ms remains above 100ms; [evidence and limits](../reviews/editor-guard-performance-2026-10-23.md)).
 - Previous verification: 2026-10-23 (citation scope reconciled with the implemented units A–C [Citations contract](citations-v1.md); documentation comparison only).
@@ -18,6 +19,13 @@ Highlighting is display-only and keeps the existing lowlight common language set
 
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
+
+Whole-document selection followed by Backspace/Delete starts a separate ProseMirror history
+event, even immediately after a property Apply or insertion. One Undo restores the exact
+pre-delete document, including Figure image path, alt text, caption, labels and references;
+it does not also undo the preceding Apply. Asset files are retained through deletion/Undo.
+This is an Editor keyboard/history boundary using the engine's deletion and `closeHistory`,
+not a new semantic operation, so no Core or CLI command is added (#427).
 
 The structure guard uses one path lookup for its fixed opening snapshot; document-local
 groups preserve first appearance and split-part order. Every document-changing transaction
