@@ -105,6 +105,71 @@ async (page, { openDocument, expect }) => {
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     result.editFocusesImage = await imageFocused();
+    // #461: a clicked image is selected without hiding its siblings; editing resumes filtering.
+    const picker = page.getByRole('dialog', {name:'Choose image'});
+    const pathField = picker.getByRole('combobox', {name:'Image path'});
+    const imageNames = ['diagram-v2.svg', 'diagram.svg'];
+    const listedImages = async () => (await picker.getByRole('option').allTextContents()).filter(name => imageNames.includes(name)).sort();
+    await page.getByRole('button', {name:'Choose…', exact:true}).click();
+    await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).waitFor();
+    expect(await listedImages()).toEqual(imageNames);
+    await picker.getByRole('option', {name:'diagram.svg', exact:true}).click();
+    expect(await listedImages(), 'Selecting an image keeps sibling images listed (#461)').toEqual(imageNames);
+    expect(await picker.getByRole('option', {name:'diagram.svg', exact:true}).getAttribute('aria-selected')).toBe('true');
+    expect(await pathField.inputValue()).toBe(filePath.replace('technical-document.md', 'diagram.svg'));
+    await pathField.press('End');
+    await pathField.press('Backspace');
+    expect(await listedImages(), 'Editing the clicked path resumes filtering').toEqual(['diagram.svg']);
+    expect(await picker.getByRole('option', {selected:true}).count()).toBe(0);
+    await pathField.fill(filePath.replace('technical-document.md', 'diagram-v'));
+    expect(await listedImages(), 'Typed path prefixes still filter').toEqual(['diagram-v2.svg']);
+    await pathField.press('Tab');
+    expect(await pathField.inputValue()).toBe(filePath.replace('technical-document.md', 'diagram-v2.svg'));
+    expect(await listedImages(), 'Keyboard completion keeps path filtering').toEqual(['diagram-v2.svg']);
+    await pathField.fill(filePath.slice(0, -'technical-document.md'.length));
+    expect(await listedImages()).toEqual(imageNames);
+    await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).click();
+    expect(await listedImages()).toEqual(imageNames);
+    expect(await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).getAttribute('aria-selected')).toBe('true');
+    await picker.getByRole('button', {name:'Use “diagram-v2.svg”', exact:true}).click();
+    await picker.waitFor({state:'hidden'});
+    expect(await page.getByTestId('figure-image-url').inputValue()).toBe('./diagram-v2.svg');
+    await page.getByRole('button', {name:'Choose…', exact:true}).click();
+    await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).waitFor();
+    expect(await listedImages()).toEqual(imageNames);
+    expect(await picker.getByRole('option', {selected:true}).count()).toBe(0);
+    await picker.getByRole('button', {name:'Cancel', exact:true}).click();
+    await picker.waitFor({state:'hidden'});
+    // A case-sensitive Host can list both names, even when this test runs on Windows.
+    const caseSensitiveListing = async route => {
+      const response = await route.fetch();
+      const listing = await response.json();
+      const original = listing.entries.find(entry => entry.name === 'diagram.svg');
+      if (!original) return route.fulfill({response});
+      const other = {...original, name:'Diagram.svg', path:original.path.replace(/diagram\.svg$/, 'Diagram.svg')};
+      await route.fulfill({response, json:{...listing, entries:[other, ...listing.entries]}});
+    };
+    await page.route('**/api/folder-browse?*', caseSensitiveListing);
+    try {
+      await page.getByRole('button', {name:'Choose…', exact:true}).click();
+      const upper = picker.getByRole('option', {name:'Diagram.svg', exact:true});
+      const lower = picker.getByRole('option', {name:'diagram.svg', exact:true});
+      await upper.waitFor();
+      for (const key of ['Tab', 'ArrowRight']) {
+        await pathField.fill(filePath.slice(0, -'technical-document.md'.length));
+        await lower.click();
+        expect(await lower.getAttribute('aria-selected'), 'Click selects the exact Host path, including case').toBe('true');
+        expect(await upper.getAttribute('aria-selected')).toBe('false');
+        expect(await pathField.getAttribute('aria-activedescendant')).toBe(await lower.getAttribute('id'));
+        await pathField.press('End');
+        await pathField.press(key);
+        expect(await pathField.inputValue(), `${key} preserves the clicked file's exact path`).toBe(filePath.replace('technical-document.md', 'diagram.svg'));
+      }
+      await picker.getByRole('button', {name:'Cancel', exact:true}).click();
+      await picker.waitFor({state:'hidden'});
+    } finally {
+      await page.unroute('**/api/folder-browse?*', caseSensitiveListing);
+    }
     result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
       await editor.locator('input').count() === 4;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
