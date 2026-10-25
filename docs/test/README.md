@@ -2,7 +2,7 @@
 
 변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
-Last verified: 2026-10-26 (documentation structure and incoming heading links checked; no test/browser/Desktop re-execution).
+Last verified: 2026-10-26 (current procedures and historical records checked against source documentation and history; incoming heading links checked; no product test/browser/Desktop re-execution).
 
 ## 자동 검증
 
@@ -109,7 +109,7 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다.
 
-2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다. 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
+이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
 ```powershell
 pnpm --filter @ieumdoc/desktop test:update:github
@@ -133,7 +133,7 @@ Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/su
 
 `pnpm browser:test recovery-storage recovery recovery-structure` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `recovery-structure` adds New/title/Enter, Equation/Table/Figure content and captions, dirty Restore → Save → Reload, readable fallback and live Korean/English refusal reasons. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`; `pnpm browser:test recovery-structure --screenshots` captures the structured recovery/fallback in `tmp/331-*.png`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
 
-For #296 PR3, after the builds described above:
+To verify recovery across production HTTP browser and packaged Desktop process restarts ([#296](https://github.com/ieumbird/ieumdoc/issues/296)), run after the builds described above:
 
 ```bash
 pnpm browser:test http-host
@@ -164,8 +164,7 @@ the next run with a recovery prompt.
 
 Both flows inspect the expected committed record before terminating; a 500ms sleep would not
 establish recording. Only the last successful record is protected. Later input, OS/power loss,
-profile removal and another origin/device are outside that proof. The prior final-v3 two-page
-ticket p95 around 2.4s remains a limitation, not a recording deadline.
+profile removal and another origin/device are outside that proof. The 500ms interval is scheduling, not a recording deadline.
 
 Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
 
@@ -183,6 +182,8 @@ Past local execution, required CI and proof artifacts: [Host recovery execution 
 
 2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다([beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)).
 
+2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다.
+
 ### Host recovery execution history (#296 PR3)
 
 2026-10-16 local execution established Windows x64 packaged Desktop and production HTTP/Chrome.
@@ -190,3 +191,7 @@ Required CI (including Linux HTTP) remains necessary before issue closure; no in
 publication or other-platform completion is implied. Compact machine-readable evidence records
 process IDs/profile/origin and assertions in `tmp/desktop-e2e/recovery-proof.json` and the HTTP
 test's `tmp/browser-results/http-recovery-*/host-recovery-proof.json` (also attached to the test).
+
+The prior final-v3 two-page
+ticket p95 around 2.4s remains a limitation, not a recording deadline.
+This prior measurement was documented on 2026-10-16 in [the Host recovery verification commit](https://github.com/ieumbird/ieumdoc/commit/ef1c09a63002827a38f2ea230e134c973cdb9344); the [recovery contract](../design/editing-session-save-v1.md#local-recovery-records-296-pr2) identifies it as a known limitation, not a guarantee or a new PR3 measurement.
