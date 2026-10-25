@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Documentation verification: 2026-10-26 (start-screen conditions and Open/New protection compared with App.tsx and the session contract; no new browser execution).
 - Outline input verification: 2026-10-25 (#362: retain heading-row identity while preceding text shifts engine positions; navigation, current-section geometry and document semantics unchanged. [Windows measurements and preservation evidence](../reviews/editor-input-performance-2026-10-25.md)).
 - Reference dismissal verification: 2026-10-25 (#427: no-target selection form and unresolved-reference form, Escape/outside pointer dismissal and subsequent slash insertion in cross-reference; Editor 280/280, typecheck/build).
 - Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
@@ -281,21 +282,23 @@ Before implementation, the added folder-navigation check failed with `Sidebar he
 
 ## Start without a document (#174)
 
-When the Host's answer to the first request opens no document (Desktop without a `.md` argument,
-or the [HTTP Host](http-host-v1.md)), the document column
-shows the start instead of an editor. It is the app's start, not a document (#298): it sits on the
+When startup leaves no open document tabs, the document column shows the start instead of an
+editor. A Host response without a default document does not prevent the Editor from restoring tabs.
+Explicit paths, tab memory, recovery and the Vite fallback follow the
+[session startup contract](editing-session-save-v1.md#tab-navigation-memory-383).
+It is the app's start, not a document (#298): it sits on the
 canvas without the document paper, under the product mark and name. It offers Open folder… (primary), the
 recent folders from the folder picker (name, then full path) and, when the Host offers one, the
 sample. Choosing a recent folder lists it in the sidebar like Open folder; the start stays until
 a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
-choosing another file uses the existing document-switch guards. Open sample document opens the Host's writable sample through Open and its
-checks, with a temporary notice that it is a copy in the app's data. Nothing is opened for the
-user. Without a document the TopBar shows `No file opened`; Save, File actions and the views
+choosing another file or New preserves existing sessions under the
+[session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
+opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
+copy in the app's data. The sample is opened only on request. Without a document the TopBar shows `No file opened`; Save, File actions and the views
 stay unavailable. Display remains reachable, with document numbering/reference style disabled and local width available. No error is shown. With nothing to lose, the Desktop app's
 update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
 information is retained; a Host that supplied an initial document instead of start information returns
-to the folder/recent-folder actions without inventing a sample. The browser development server still
-opens its default document on a fresh page load. HTTP offers allowed server folders, filters recent folders to
+to the folder/recent-folder actions without inventing a sample. HTTP offers allowed server folders, filters recent folders to
 those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 

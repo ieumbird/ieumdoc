@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
 - Last verified: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
 - Previous verification: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards).
 - Previous verification: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
@@ -27,7 +28,7 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [IeumDoc wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The first `.md` command-line argument opens as the first independent document tab. Otherwise no document opens: the Host answers the Editor's first request with a start without a document, and the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). A writable sample is copied into user data once and offered there; it opens as a tab only when the user chooses it, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with a writable sample copied into user data once. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 
@@ -50,11 +51,9 @@ Before the first public release, local development versions can be reset. A prev
 
 ## Window close
 
-The renderer's `beforeunload` checks all open document tabs and pending Open/New. Electron retains
-its native **Close without saving / Keep editing** dialog when any session would lose work. Its wording identifies
-unsaved or pending work across open documents and the limits of the last local recovery record.
-Keep editing leaves every session intact. This is separate from the app's single-tab
-**Save / Don't save / Cancel** dialog; native close does not add Save all or delete recovery records.
+Electron retains its native **Close without saving / Keep editing** dialog. All-tab protection,
+the distinction from single-tab Close and recovery retention follow the
+[session protection contract](editing-session-save-v1.md#switching-and-recovery).
 
 Client recovery uses IndexedDB at the stable `ieumdoc://app` origin in Electron's persistent
 default session, under the app profile. The packaged regression checks identical `userData` and
@@ -69,10 +68,10 @@ for the last-successful-record and platform limits.
 
 - Check 15 seconds after launch, then every 6 hours; retry a failed check after 30 minutes. Manual Check for updates is immediate. Only one check is in flight; errors never block editing.
 - Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
-- Restart to update disables window input and asks the live Editor whether all tabs are safe. The renderer aggregates pending work across every session, including hidden tabs. Dirty content, unapplied property drafts, Save, asset handling, Source generation and Open/New/Reload refuse. No user-input dialog is added inside the existing timed handshake. Save failures/conflicts retain the unsaved content and therefore refuse too. Source is read-only and keeps the same editor state.
+- Restart to update disables window input and asks the live Editor whether all tabs are safe, using the [session work-protection contract](editing-session-save-v1.md#save-shortcut-and-work-loss-protection-56). No user-input dialog is added inside the timed handshake.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
 
-The native close confirmation says **Close without saving**, retaining the last successful client recovery record. It explains that unapplied drafts and changes after that record may be lost. This copy does not change the existing close/restart guards; the [client recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns recording/deletion. Windows Desktop crash/profile persistence checks and remaining limits are recorded in [Host persistence verification](editing-session-save-v1.md#host-persistence-verification-296-pr3).
+The [client recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns recording/deletion. Windows Desktop crash/profile persistence checks and remaining limits are recorded in [Host persistence verification](editing-session-save-v1.md#host-persistence-verification-296-pr3).
 
 ## Verification and signing
 

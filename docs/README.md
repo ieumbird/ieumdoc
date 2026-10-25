@@ -33,7 +33,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Desktop distribution and updates](design/desktop-distribution-v1.md) | Implemented | Windows Host, NSIS, Stable/Beta, signing 및 manual release 계약. 공개 beta.4와 실제 GitHub 업데이트 검증. |
 | [Desktop app icon](design/app-icon-v1.md) | Implemented | #170 B안의 SVG/ICO, 출처, 재생성 및 Windows 패키징·표시 검증. |
 | [Folder picker](design/folder-picker-v1.md) | Implemented | 현재 계약. folder 선택, browser preference와 표시 folder에 New file·New folder. |
-| [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약(v4). 모든 쓰기에서 미주 정의를 본문 뒤 첫 참조 순서로 배치, 단일 미주 구역, Section과 분리, 실제 참조로 복귀와 기존 삽입·편집·유실 방지. |
+| [Endnotes (MyST footnotes)](design/footnotes-v1.md) | Implemented | 현재 계약. 모든 쓰기에서 미주 정의를 본문 뒤 첫 참조 순서로 배치, 단일 미주 구역, Section과 분리, 실제 참조로 복귀와 기존 삽입·편집·유실 방지. |
 | [Citations](design/citations-v1.md) | Implemented | ADR-0008 단위 A·B·C. role·선언 보존, Core 번호·제한 IEEE·readiness, CLI/Host 자료 읽기와 파생 References. 슬래시 검색·인용 폼 저작 UI. |
 | [Heading numbering](design/heading-numbering-v1.md) | Implemented | 현재 계약. Core heading/reference-template settings, H2–H6 표시와 CLI. |
 | [Section references](design/section-references-v1.md) | Implemented | 현재 계약. 문서 안의 MyST heading label과 reference. |
@@ -42,7 +42,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Figure authoring](design/figure-authoring-v1.md) | Implemented | 현재 계약. pending/image Figure, Apply 상태, canonical Save와 CLI readiness 경고. |
 | [Editor UX Shell](design/editor-ux-shell-v1.md) | Implemented | 현재 계약. Sidebar, TopBar, 작성 interaction과 상태 표시. |
 | [Editor Layout Rules](design/editor-layout-rules-v1.md) | Implemented | 현재 geometry 규범. 정렬·간격·control 치수와 검증. |
-| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract는 v4.7. 링크 안정성을 위해 v1 파일명 유지. |
+| [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 visual contract. 버전과 세부 규범은 링크한 문서를 따른다. 링크 안정성을 위해 v1 파일명 유지. |
 
 ## Contribution and documentation governance
 
@@ -78,7 +78,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Desktop shell spike](reviews/desktop-shell-spike-v1.md) | Historical | 실행 가능성과 비용의 실험 근거. 제품 Host·배포 결정이 아님. |
 | [VS Code host spike](reviews/vscode-host-spike-v1.md) | Historical | provider와 저장 모델의 실험 근거. 제품 Host 결정이 아님. |
 | [Quiet Document v1 visual review](design/editor-visual-refinement-v1-review.md) | Historical | 당시 실제 capture·측정 근거. 현재 규범은 Visual Language와 Layout Rules. |
-| [Static UI v3 visual verification](reviews/static-ui-v3-2026-10-08.md) | Historical | 2026-10-08 실제 제품 Before/After, 상태·대비·폰트·회귀 검증 근거. 현재 규범은 Visual Language v3. |
+| [Static UI v3 visual verification](reviews/static-ui-v3-2026-10-08.md) | Historical | 2026-10-08 실제 제품 Before/After, 상태·대비·폰트·회귀 검증 근거. 현재 규범은 [Visual Language](design/editor-visual-language-v1.md). |
 | [Pretendard self-hosting verification](reviews/pretendard-2026-10-09.md) | Historical | 자체 호스팅 폰트의 실제 사용, production 자산과 본문·UI 줄바꿈 비교. 현재 규범은 Visual Language. |
 | [Inline math size verification](reviews/inline-math-size-2026-10-09.md) | Historical | 인라인 수식 크기 후보 비교, 실제 Before/After와 테스트 클릭 지점. 현재 규범은 Visual Language. |
 | [ProseMirror focus restore and caret keys](reviews/prosemirror-focus-caret-2026-10-09.md) | Historical | 포커스 직후 caret 키가 되돌려지던 원인, `prosemirror-view@1.42.4` 패치의 적용 버전·전후 검증·제거 조건. 현재 계약은 Continuous editing. |
