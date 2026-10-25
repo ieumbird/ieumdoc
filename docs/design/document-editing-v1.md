@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
 - Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
 - Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
@@ -85,8 +86,13 @@ A changed document recomputes numbering; source semantics and canonical output a
   the empty area below the document puts the caret at the end of a final
   paragraph. After any other final block, both create an empty paragraph there.
 - Selecting an existing Equation leaves keyboard focus in the document; Edit
-  opens its source form. A newly inserted empty Equation still opens its form
+  or double-clicking its rendered formula opens its source form through the same
+  path, with LaTeX-field focus and the same closing focus behavior (#470).
+  Opening changes neither document nor history; double-click while already editing
+  leaves the current form and draft unchanged. A newly inserted empty Equation still opens its form
   automatically. NodeView selection alone must not steal navigation focus.
+- Inline math retains its existing single-click source editor; the display-Equation
+  double-click shortcut does not change inline math interaction.
 - Applying or escaping an inline math source form returns DOM focus immediately
   to the editor and collapses its caret just after that formula, using the same
   engine selection/focus helper as block properties. Typing can continue without

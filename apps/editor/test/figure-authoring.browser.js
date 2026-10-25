@@ -78,8 +78,59 @@ async (page, { openDocument, expect }) => {
     await openScratch();
     const baselineParagraphs = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count();
 
-    // #427: real keyboard deletion/Undo must restore the entire engine document and Figure DOM.
     const snapshot = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.getJSON());
+    // #470: native caption word selection remains text editing, not a properties shortcut.
+    const shortcutCaption = figures.first().getByTestId('figure-caption-content');
+    await shortcutCaption.scrollIntoViewIfNeeded();
+    const word = await shortcutCaption.evaluate(element => {
+      const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode();
+      const range = document.createRange();
+      range.setStart(text, 0);
+      range.setEnd(text, 'Control'.length);
+      const rect = range.getBoundingClientRect();
+      return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
+    });
+    await page.mouse.dblclick(word.x, word.y);
+    expect(await page.evaluate(() => window.getSelection().toString().trim())).toBe('Control');
+    expect(await editor.count(), 'Caption double-click must not open properties').toBe(0);
+
+    const beforeShortcut = await snapshot();
+    await shortcutCaption.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' History probe.');
+    const withProbe = await snapshot();
+    const image = figures.first().getByTestId('figure-image');
+    for (const close of ['cancel', 'escape']) {
+      let editFocus;
+      for (const entry of ['Edit', 'double-click']) {
+        if (entry === 'Edit') {
+          await image.click({position:{x:80,y:140}, timeout:5000});
+          await figures.first().getByRole('button', {name:'Edit figure'}).click();
+        } else await image.dblclick({position:{x:80,y:140}, timeout:5000});
+        await expect(page.getByTestId('figure-image-url'), `${entry} focuses Image`).toBeFocused();
+        expect(await snapshot(), `${entry} leaves document unchanged`).toEqual(withProbe);
+        if (entry === 'double-click') {
+          await page.getByTestId('figure-image-url').fill('./unapplied.svg');
+          await image.dblclick({position:{x:80,y:140}, timeout:5000});
+          expect(await page.getByTestId('figure-image-url').inputValue(), 'Already editing keeps the draft').toBe('./unapplied.svg');
+        }
+        if (close === 'cancel') await page.getByTestId('figure-cancel').click();
+        else await page.getByTestId('figure-image-url').press('Escape');
+        await editor.waitFor({state:'detached'});
+        const focus = await editorFocus();
+        expect(Boolean(focus), `${entry} returns editor focus on ${close}`).toBe(true);
+        if (entry === 'Edit') editFocus = focus;
+        else expect(focus, `${close} restores the same caret as Edit`).toEqual(editFocus);
+        expect(await snapshot()).toEqual(withProbe);
+      }
+    }
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Opening/closing properties adds no Undo step').toEqual(beforeShortcut);
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    expect(await snapshot(), 'Opening properties preserves Redo').toEqual(withProbe);
+    await page.keyboard.press('ControlOrMeta+z');
+
+    // #427: real keyboard deletion/Undo must restore the entire engine document and Figure DOM.
     const beforeDelete = await snapshot();
     for (const key of ['Backspace', 'Delete']) {
       await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
@@ -210,6 +261,9 @@ async (page, { openDocument, expect }) => {
     result.invalidApplyShowsCoreError = await coreError.isVisible();
     result.invalidApplyKeepsAppliedValue = await figures.first().locator('figcaption').innerText() === appliedCaption;
     result.invalidApplyAllowsAppliedSave = await saveEnabled.count() === 1;
+    await figures.first().getByTestId('figure-image').dblclick({position:{x:80,y:140}, timeout:5000});
+    expect(await coreError.isVisible(), 'Double-click while invalid preserves validation and draft').toBe(true);
+    expect(await page.getByTestId('figure-caption').inputValue()).toBe('% comment');
     await page.getByTestId('figure-caption').fill('Cost is 5 units.');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
@@ -228,6 +282,10 @@ async (page, { openDocument, expect }) => {
     const inserted = await editorFocus();
     result.newFigureCaretInCaption = inserted !== false && inserted.block === 'figure' && inserted.empty && inserted.text === '';
     result.newFigureIsUnsaved = await saveEnabled.count() === 1;
+    await figures.nth(1).getByTestId('figure-no-content').dblclick({position:{x:80,y:20}, timeout:5000});
+    await expect(page.getByTestId('figure-image-url'), 'Pending Figure double-click uses Edit').toBeFocused();
+    await page.getByTestId('figure-cancel').click();
+    await editor.waitFor({state:'detached'});
     await page.keyboard.press('ControlOrMeta+z');
     result.newFigureUndoRemoves = await figures.count() === 1;
 
