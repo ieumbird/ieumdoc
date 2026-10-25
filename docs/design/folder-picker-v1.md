@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
+- Last verified: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
+- Previous verification: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-24 (#383: remembered document tabs reuse restored folder context; folder navigation/memory and tab browser regressions).
@@ -28,6 +29,9 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   and [same-state visual evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385).
 
 - The path field determines the folder to open. Typing filters its parent's sub-folders;
+  only user edits of the field set the filter. Selecting an image fills the path without
+  filtering out sibling entries; editing that path resumes filtering (owner decision,
+  2026-10-26, #461).
   Tab or Right completes into a match, Up/Down moves through matches, and Enter opens the
   typed path. Backspace at a trailing separator, Up and breadcrumbs navigate upward.
 - Clicking a folder, a recent folder or a starting place navigates there. Opening requires
@@ -86,7 +90,9 @@ A Figure's Choose… reuses this picker to choose an image file instead of a fol
 ([Figure authoring](figure-authoring-v1.md)). It starts in the open document's folder and lists
 sub-folders and PNG, JPEG, GIF, WebP and SVG files instead of Markdown files; navigation, Recent,
 starting places and the HTTP root limits are unchanged, and there is no New folder. Clicking an image
-makes it the typed path; Use, or Enter, chooses it. Use is available only for an image the listing
+makes it the selected path and marks it selected in the list, keeping sibling images visible
+until the user edits the field (#461). Tab/Right completion retains path filtering.
+Use, or Enter, chooses it. Use is available only for an image the listing
 shows; a typed folder path, with or without a trailing separator, only navigates, and Enter enters it. The Host then links
 or copies the image as the [Asset Host Contract](filesystem-host-boundary-v1.md#image-choice-v1-208)
 describes. An error, such as an unsupported or missing file, keeps the picker open with the path.

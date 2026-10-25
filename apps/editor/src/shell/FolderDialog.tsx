@@ -40,12 +40,13 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
 
 /**
  * Choose a folder, or an image, on the Host without leaving IeumDoc. The path field is the single
- * source: the list shows the folder up to its last separator, filtered by what follows it; Open
+ * source: the list shows the folder up to its last separator, filtered by typed text after it; Open
  * opens exactly the typed path. Moving into a folder never opens it.
  */
 export function FolderDialog({ open, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
   useTranslation();
   const [input, setInput] = useState("");
+  const [pathFromClick, setPathFromClick] = useState(false);
   const [listing, setListing] = useState<Listing>({ directory: "" });
   const [highlight, setHighlight] = useState(-1);
   const [placeList, setPlaceList] = useState<FolderPlace[]>([]);
@@ -69,7 +70,8 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   // Choosing an image needs an image the listing shows; a typed folder is a place to look.
   const named = partial ? result?.entries.find(entry => entry.name.toLowerCase() === partial) : undefined;
   const ready = image ? named?.kind === "image" : Boolean(path);
-  const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && entry.name.toLowerCase().startsWith(partial)) ?? [];
+  const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
+  const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry === named) : highlight;
   const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
@@ -78,6 +80,7 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
     if (!open) return;
     let active = true;
     setInput(initialPath ? inside(initialPath) : "");
+    setPathFromClick(false);
     setError("");
     setHighlight(-1);
     setCreating(false);
@@ -112,16 +115,18 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   const go = (folder: string) => {
     if (pending) return;
     setInput(inside(folder));
+    setPathFromClick(false);
     setHighlight(-1);
     setError("");
     field.current?.focus();
   };
 
-  // An image becomes the typed path, ready to choose; a folder is entered.
-  const enter = (entry: FolderEntry) => {
+  // A clicked image fills the path without filtering its siblings; a folder is entered.
+  const enter = (entry: FolderEntry, fromClick = false) => {
     if (entry.kind === "folder") return go(entry.path);
     if (pending) return;
     setInput(entry.path);
+    setPathFromClick(fromClick);
     setHighlight(-1);
     setError("");
     field.current?.focus();
@@ -168,10 +173,10 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
       if (options.length === 0) return;
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setHighlight(index => (index < 0 ? (step > 0 ? 0 : options.length - 1) : (index + step + options.length) % options.length));
+      setHighlight(activeIndex < 0 ? (step > 0 ? 0 : options.length - 1) : (activeIndex + step + options.length) % options.length);
     } else if ((event.key === "Tab" && !event.shiftKey) || (event.key === "ArrowRight" && atEnd)) {
       // Complete into the highlighted (or only, or first) match.
-      const match = options[Math.max(highlight, 0)];
+      const match = options[Math.max(activeIndex, 0)];
       if (!match || (event.key === "Tab" && !partial && highlight < 0)) return;
       event.preventDefault();
       enter(match);
@@ -221,10 +226,10 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
               aria-describedby={error ? "open-folder-error" : undefined}
               aria-expanded={options.length > 0}
               aria-controls="folder-picker-list"
-              aria-activedescendant={highlight >= 0 ? `folder-option-${highlight}` : undefined}
+              aria-activedescendant={activeIndex >= 0 ? `folder-option-${activeIndex}` : undefined}
               aria-autocomplete="list"
               value={input}
-              onChange={event => { setInput(event.target.value); setHighlight(-1); setError(""); }}
+              onChange={event => { setInput(event.target.value); setPathFromClick(false); setHighlight(-1); setError(""); }}
               onKeyDown={keyDown}
               placeholder={pathLabel}
               spellCheck={false}
@@ -283,11 +288,11 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
               key={entry.path}
               id={`folder-option-${index}`}
               role="option"
-              aria-selected={index === highlight}
+              aria-selected={index === activeIndex}
               className="folder-picker-option"
               title={entry.path}
               onMouseDown={event => event.preventDefault()}
-              onClick={() => enter(entry)}
+              onClick={() => enter(entry, true)}
             >
               {entry.kind === "folder" ? <Folder aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
               <span>{entry.name}</span>
