@@ -2507,6 +2507,29 @@ ol.list { list-style: decimal; }
   display: none;
 }
 
+.folder-picker-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: var(--layout-folder-picker-preview-height);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface-subtle);
+}
+
+.folder-picker-preview .file-preview-image {
+  min-width: 0;
+  max-height: 100%;
+}
+
+.folder-picker-preview p {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--id-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .folder-picker-option {
   display: grid;
   grid-template-columns: var(--size-icon-slot) minmax(0, 1fr) var(--size-icon-slot);

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input.tsx";
 import type { FolderBrowseResponse, FolderEntry, FolderPlace } from "../../shared/document-protocol.ts";
 import { childPath, splitDocumentPath, unquotePath } from "./document-path.ts";
+import { FileImagePreview } from "./FilePreviewDialog.tsx";
 
 type FolderDialogProps = {
   open: boolean;
@@ -72,6 +73,7 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   const ready = image ? named?.kind === "image" : Boolean(path);
   const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
   const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry.path === path) : highlight;
+  const activeImage = image && options[activeIndex]?.kind === "image" ? options[activeIndex] : undefined;
   const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
@@ -300,6 +302,11 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
             </li>
           ))}
         </ul>
+        {open && activeImage && result ? (
+          <section className="folder-picker-preview" aria-label={i18n.t("Read-only image preview")}>
+            <FileImagePreview key={activeImage.path} entry={activeImage} root={result.path} quiet />
+          </section>
+        ) : null}
         <p className="folder-picker-meta" data-testid="folder-picker-meta">{meta}</p>
         {recent.length > 0 ? (
           <section className="folder-picker-section" aria-label={i18n.t("Recent folders")}>

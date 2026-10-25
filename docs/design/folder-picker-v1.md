@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
+- Last verified: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
+- Previous verification: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
 - Previous verification: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
@@ -96,6 +97,44 @@ Use, or Enter, chooses it. Use is available only for an image the listing
 shows; a typed folder path, with or without a trailing separator, only navigates, and Enter enters it. The Host then links
 or copies the image as the [Asset Host Contract](filesystem-host-boundary-v1.md#image-choice-v1-208)
 describes. An error, such as an unsupported or missing file, keeps the picker open with the path.
+
+### Active image preview (#480)
+
+Owner decision (2026-10-26): preview the currently keyboard-active or clicked image before Use.
+Only that entry loads, through the existing read-only `/api/file-preview` Host capability,
+using the listed folder as root. No thumbnails, new Host endpoint, persistence or document
+semantic operation is added; this interface-only preview needs no Core/CLI operation.
+
+The preview sits below the list at both desktop and phone widths, with a bounded height and
+aspect ratio preserved. It has the accessible label `Read-only image preview` and no focusable
+controls. A folder or no active image shows no preview. Loading and failure use quiet text;
+unavailable, damaged or unsupported images do not block choosing a path. Changing the active
+entry replaces the preview and its load state, so an older response cannot appear for the new
+entry. Previewing never changes the typed/chosen path, focus, filtering, completion or active
+descendant behavior.
+
+The existing Figure browser scenario checks active-entry changes, out-of-order responses,
+non-image and broken-image states, unchanged path/focus/active descendant and 375px overflow.
+Its new clicked-preview assertion first failed on base `c232915` because no preview existed.
+The extended scenario then passed with the implementation, including its original Apply/Save/Reload
+and #461/#466 filtering, sibling selection and Tab/Right checks. The controlled delayed requests
+use an equivalent trailing-separator root spelling so previously decoded images cannot bypass
+the response-order test. Editor tests (286), typecheck, build and the folder-navigation,
+image-assets, file-preview, layout-rules and quiet-document browser regressions passed. The
+1440px/375px Quiet Document rest captures are byte-identical before and after.
+
+Manual visual comparison uses this worktree's Vite Host on port 5380 and persistent Chrome
+profile, English UI, Pretendard loaded, DPR/zoom 1, 1440×1000 and 375×1000 viewports. Both
+states have `diagram.svg` clicked, siblings visible, path input focused, pointer outside the
+dialog and dialog scroll at the top. Before captures are from base `c232915`; after captures
+use the same fixture and state. The only added region is the bounded preview below the list;
+the full image fits without distortion, and Cancel/Use remain visible at both widths. These
+dialog captures are manual presentation evidence, separate from automated overflow assertions.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440px | ![Picker before at 1440px](assets/image-picker-preview-480/before-1440.png) | ![Active image preview at 1440px](assets/image-picker-preview-480/after-1440.png) |
+| 375px | ![Picker before at 375px](assets/image-picker-preview-480/before-375.png) | ![Active image preview at 375px](assets/image-picker-preview-480/after-375.png) |
 
 ## Exclusions
 
