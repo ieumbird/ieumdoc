@@ -85,5 +85,5 @@ approval and independent review are not claimed here.
 Local checks for #445: `pnpm test` (Core 257, file-commit 4 passed/2 platform skips,
 CLI 68, Editor 284, Desktop 40), `pnpm typecheck`, Editor build, `pnpm docs:check`,
 `git diff --check`, plus cross-reference, outline, pending-figure, editor-shell,
-layout-rules and quiet-document browser scenarios. Browser runs used this worktree's
+layout-rules, quiet-document and section-reference browser scenarios. Browser runs used this worktree's
 persistent profile, sequentially; their servers and sessions were closed after each run.

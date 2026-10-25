@@ -376,7 +376,8 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
       { type: "text", text: label, marks: node.marks.map((mark) => mark.toJSON()) }).run();
   };
-  const status = resolved ? `${text} · ${label}. Click to go to it.` : unresolvedStatus(role, label);
+  const accessibleText = role === "ref" ? `${kindName} ${label}` : `${text} · ${label}`;
+  const status = resolved ? `${accessibleText}. Click to go to it.` : unresolvedStatus(role, label);
   return (
     <NodeViewWrapper
       as="span"
@@ -500,7 +501,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
               const missing = !isResolved(targets, target.role, target.label);
               return (
                 <option key={referenceCommandId(target)} value={referenceCommandId(target)}>
-                  {referenceDisplay(targets, target.role, target.label).text} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? i18n.t(" (unresolved)") : ""}
+                  {target.role === "ref" ? KIND.ref : referenceDisplay(targets, target.role, target.label).text} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? i18n.t(" (unresolved)") : ""}
                 </option>
               );
             })}

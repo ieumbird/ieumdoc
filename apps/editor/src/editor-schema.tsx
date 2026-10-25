@@ -542,7 +542,7 @@ function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: Ref
     const { text, resolved, kindName } = referenceDisplay(targets, role, label);
     const chip = document.createElement("span");
     chip.className = "cross-reference-chip";
-    chip.title = resolved ? `${text} · ${label}` : unresolvedStatus(role, label);
+    chip.title = resolved ? role === "ref" ? `${kindName} ${label}` : `${text} · ${label}` : unresolvedStatus(role, label);
     chip.setAttribute("aria-label", chip.title);
     chip.textContent = text;
     reference.classList.add("cross-reference");
