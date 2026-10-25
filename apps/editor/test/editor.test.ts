@@ -2183,6 +2183,34 @@ test("restored deletion metadata survives engine initialization and acknowledged
   assert.doesNotMatch(disk, /Delete/);
 });
 
+test("bibliography declarations survive recovery and acknowledged Save replay without source rewriting in the editor", () => {
+  const source = nativeSource("# Recovery\n\nBody.\n");
+  const model = loadEditableDocument(source);
+  const opening = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  const initial = EditorState.create({ schema, doc: schema.nodeFromJSON(opening) });
+  const savedDocument = editorDocumentJSON(initial);
+  const changed = initial.apply(initial.tr.setDocAttribute("bibliography", ["refs.bib"]));
+  const current = editorDocumentJSON(changed);
+  const snapshot = prepareEditorSnapshot(schema, opening, { editorDocument: current, savedDocument });
+  const restored = EditorState.create({ schema, doc: schema.nodeFromJSON(snapshot.editorDocument) });
+  const prior = collectSupportedEdits(model, editorDocumentJSON(restored));
+  assert.deepEqual(prior.bibliography, ["refs.bib"]);
+  let disk = saveEdits(source, prior).markdown;
+  const disconnected = restored.apply(restored.tr.setDocAttribute("bibliography", []));
+  commitDocumentSave(() => disk, value => { disk = value; }, {
+    revision: documentRevision(disk), base: { source, savedEdits: prior },
+    ...collectSupportedEdits(model, editorDocumentJSON(disconnected)),
+  });
+  assert.doesNotMatch(disk, /bibliography:/);
+  assert.match(disk, /Body\./);
+  for (const invalid of ["refs.bib", [1], {}]) {
+    const malformed = structuredClone(snapshot);
+    malformed.editorDocument.attrs!.bibliography = invalid as never;
+    assert.throws(() => prepareEditorSnapshot(schema, opening, malformed), /Invalid editor attribute bibliography/);
+  }
+});
+
 test("restore reserves command and engine locators from current and saved snapshots", () => {
   const opening = toTiptapDocument(loadEditableDocument(nativeSource("Start")));
   const schema = getSchema(editorExtensions());

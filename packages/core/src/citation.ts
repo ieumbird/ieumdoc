@@ -39,3 +39,27 @@ export type CitationReport = {
   references?: BibliographyEvaluation["references"];
   entries?: BibliographyEvaluation["entries"];
 };
+
+/** Pure declaration-shape validation. No filesystem or Host access policy belongs here. */
+export function bibliographyError(value: unknown): string | undefined {
+  if (!Array.isArray(value) || value.length === 0) return "bibliography must be a non-empty list of relative .bib paths";
+  const seen = new Set<string>();
+  for (const source of value) {
+    if (typeof source !== "string" || source !== source.trim() || !source.endsWith(".bib") ||
+      source.startsWith("/") || source.startsWith("~") || /[\\:\u0000-\u001f\u007f*?\[\]{}!]/u.test(source) ||
+      /[+@]\(/u.test(source) ||
+      source.split("/").some(part => !part)) {
+      return "bibliography paths must be relative .bib files using /; URLs, absolute/drive/UNC paths and globs are not supported";
+    }
+    const parts: string[] = [];
+    for (const part of source.split("/")) {
+      if (part === ".") continue;
+      if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
+      else parts.push(part);
+    }
+    const key = parts.join("/");
+    if (seen.has(key)) return `duplicate bibliography declaration: ${source}`;
+    seen.add(key);
+  }
+  return undefined;
+}

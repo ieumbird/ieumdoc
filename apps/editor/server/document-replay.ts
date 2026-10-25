@@ -46,6 +46,7 @@ import {
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateBibliography,
   updateParagraphInlineContent,
   sectionMarker,
   titleHeading,
@@ -518,6 +519,9 @@ export function saveEdits(
   }
   assertTitleKept(editable, document, locators);
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
+  if (edits.bibliography !== undefined && JSON.stringify(edits.bibliography) !== JSON.stringify(citationReport(document).bibliography)) {
+    document = updateBibliography(document, edits.bibliography);
+  }
   let markdown: string;
   try {
     validateStructure(document);

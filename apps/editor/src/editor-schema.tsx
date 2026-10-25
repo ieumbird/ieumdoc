@@ -1579,7 +1579,7 @@ function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
 
 const DocumentNumbering = Extension.create({
   name: "documentNumbering",
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false } } }]; },
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
       const blocks: { block: string; level?: number }[] = [];

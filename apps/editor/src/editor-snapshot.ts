@@ -49,6 +49,10 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
       }
     };
     checkAttrs(node.attrs, node.type.spec.attrs);
+    const bibliography = node.attrs.bibliography;
+    if (bibliography !== null && (!Array.isArray(bibliography) || !bibliography.every((value: unknown) => typeof value === "string"))) {
+      throw new Error("Invalid editor attribute bibliography");
+    }
     const numbering = node.attrs.headingNumbering;
     if (numbering !== null && (typeof numbering !== "object" ||
         !Array.isArray(numbering.enabled) || !numbering.enabled.every((value: unknown) => typeof value === "boolean") ||

@@ -117,6 +117,8 @@ export type InsertEdit =
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
+  /** Staged document-relative declarations; [] removes the optional field through Core. */
+  bibliography?: string[];
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
   order?: OrderItem[];

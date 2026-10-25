@@ -260,6 +260,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   }
   return {
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
+    ...(next.attrs?.bibliography !== null && next.attrs?.bibliography !== undefined ? { bibliography: next.attrs.bibliography as string[] } : {}),
     ...(reordered ? { order } : {}),
     headings,
     ...(headingLevels.length ? { headingLevels } : {}),
@@ -302,6 +303,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
   const attrs = {
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
+    ...(document.attrs?.bibliography !== null && document.attrs?.bibliography !== undefined ? { bibliography: document.attrs.bibliography } : {}),
   };
   return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
 }

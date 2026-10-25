@@ -25,7 +25,7 @@ export type { WriteIssue } from "./write-error.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export type { InlineContent, ReferenceRole } from "./inline.ts";
 export type { CitationContent, CitationRole, CitationReport } from "./citation.ts";
-export { citationContentError, citationText } from "./citation.ts";
+export { bibliographyError, citationContentError, citationText } from "./citation.ts";
 export type { AdmonitionVariant } from "./myst/admonition.ts";
 export { ADMONITION_VARIANTS, isAdmonitionVariant } from "./myst/admonition.ts";
 /** Paragraph offset length of inline content, as used by split and hard break offsets. */

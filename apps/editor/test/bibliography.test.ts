@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { BIBLIOGRAPHY_LIMITS } from "@ieumdoc/core";
+import { requestBibliography } from "../src/document-session.ts";
 import { readBibliographySources } from "../server/bibliography.ts";
 import { RootAccess } from "../server/file-access.ts";
 
@@ -83,4 +84,21 @@ test("bibliography detects mutation and path replacement during the bounded desc
     return count;
   });
   assert.deepEqual(readBibliographySources(document, ["../refs.bib"], null, root)[0], { source: "../refs.bib", status: "error", code: "bibliography-changed" });
+});
+
+// The browser covers successful Save refresh. Guard failed/stale reads without undoing a Save.
+test("bibliography refresh uses only the saved document revision and degrades failed reads to unverified sources", async t => {
+  const failed = [{ source: "refs.bib", status: "error", code: "bibliography-unreadable" }];
+  const fetch = t.mock.method(globalThis, "fetch", async (url: string) => {
+    const query = new URL(url, "http://localhost");
+    assert.equal(query.pathname, "/api/bibliography");
+    assert.deepEqual([...query.searchParams], [["path", "paper.md"], ["revision", "saved-revision"], ["root", "allowed-folder"]]);
+    return Response.json({ revision: "different-revision", sources: [{ source: "refs.bib", status: "ok", text: "stale" }] });
+  });
+  assert.deepEqual(await requestBibliography("paper.md", "saved-revision", ["refs.bib"], "allowed-folder"), failed);
+  fetch.mock.mockImplementation(async () => { throw new Error("connection lost"); });
+  assert.deepEqual(await requestBibliography("paper.md", "saved-revision", ["refs.bib"]), failed);
+  const calls = fetch.mock.calls.length;
+  assert.deepEqual(await requestBibliography("paper.md", "saved-revision", []), []);
+  assert.equal(fetch.mock.calls.length, calls, "disconnecting the last file clears the snapshot without a read");
 });

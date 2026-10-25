@@ -15,7 +15,7 @@ import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { SaveDisplayError } from "./save-error.ts";
 import type { DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
-import { createDocumentSessionLifetime, messageOf, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
+import { createDocumentSessionLifetime, messageOf, requestBibliography, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
 
 /** Shown until the first Save of a source whose endnote definitions canonical write moves. */
 const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after the body, in the order of their first reference, keeping each label and text. Source shows the Markdown Save writes.";
@@ -180,6 +180,12 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setEndnotesMove(false);
       base.savedEdits = payload;
       editor.finishSave(true);
+      if (payload.bibliography !== undefined && JSON.stringify(payload.bibliography) !== JSON.stringify(bibliography?.declarations ?? [])) {
+        const declarations = payload.bibliography;
+        const sources = await requestBibliography(openedPath, next.revision, declarations, bibliographyRoot);
+        if (!isCurrent()) return false;
+        setBibliography({ declarations, sources });
+      }
       if (editor.hasDocumentChanges()) recorder?.checkpoint();
       else recorder?.discard();
       const hasPendingUserState = editor.hasUnsavedChanges();
