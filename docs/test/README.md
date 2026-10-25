@@ -103,7 +103,9 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 ## Real GitHub Beta update
 
-아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다. 후보의 게시·검증 체크리스트는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+2026-10-25 게시된 `0.1.0-beta.1`의 실제 공개 `0.0.1-beta.4 → 0.1.0-beta.1` 업데이트가 통과했다(검증 확인: 2026-10-25/26). 정확한 버전 감지·다운로드 검증, 일반 종료 시 설치 없음, IPC 실패·renderer 오류·dirty 상태의 재시작 거부, Save → 설치 → 재실행, FileVersion과 preferences·Beta 채널·user-data canary·네이티브 Markdown 보존을 확인했다. 첫 시도는 공개 beta.4의 `Ready`를 lowercase `ready`로 기다려 업데이트 전에 실패했고, 한국어 Windows에서 갱신 앱의 한국어 UI도 하네스에 영향을 주었다(#449). #450의 영어 UI 고정·대소문자 무시 대기 후 재실행은 통과했다. 같은 수정으로 한국어 Windows의 로컬 `test:packaged`도 9/9 통과했으며, 테스트 소유 설치·registry·app data·cache·process는 정리했다. 공개 자산과 상세 결과는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+
+아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다.
 
 2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 당시 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, beta.3에서 출발하는 실제 공개 업데이트 경로만 표식 없는 Markdown을 사용했다. 이 beta.3 전용 fixture 예외는 현재 대상에는 적용되지 않는다.
 

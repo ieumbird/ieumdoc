@@ -2,7 +2,7 @@
 
 > Document first. Semantics in Core. Interfaces replaceable.
 >
-> **Status: Beta** — [v0.0.1-beta.4](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.4)가 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
+> **Status: Beta** — [v0.1.0-beta.1](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)가 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
 
 IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사용하는 구조화 기술문서 시스템입니다.
 
@@ -176,11 +176,11 @@ node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\
 
 ### Windows Desktop
 
-일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.1-beta.4)의 **Assets**에서 `IeumDoc-Setup-0.0.1-beta.4.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 이 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
+일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.1.0-beta.1.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 이 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 
 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. `.md` 실행 인자가 없으면 문서를 열지 않고 시작 화면에서 폴더·최근 폴더·sample을 고릅니다. 일반 문서는 Open folder로 폴더를 열고 Sidebar의 `.md` 파일을 선택하며, New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 편집이나 Draft가 있으면 재시작을 거부하며, 일반 종료는 다운로드한 업데이트를 설치하지 않습니다.
 
-현재 공개 버전은 `0.0.1-beta.4`입니다. Stable 미출시는 **No Stable release has been published yet.**로 안내하며 Beta로 전환해 업데이트를 검색할 수 있습니다. 기존 beta.3에서 공개 beta.4로 다운로드·저장·설치·재실행과 데이터 보존을 검증했습니다. beta.4부터 이전 버전 문서는 열리지 않습니다(아래 네이티브 문서 안내 참고). 개발자용 로컬 패키징은 아래 Contributing 절차를 따릅니다.
+현재 공개 버전은 `0.1.0-beta.1`입니다. Stable 미출시는 **No Stable release has been published yet.**로 안내하며 Beta로 전환해 업데이트를 검색할 수 있습니다. 기존 `0.0.1-beta.4`에서 공개 `0.1.0-beta.1`로 다운로드·저장·설치·재실행과 네이티브 문서·설정·Beta 채널·사용자 데이터 보존을 검증했습니다. beta.4부터 표식 없는 이전 버전 문서는 열리지 않습니다(아래 네이티브 문서 안내 참고). 개발자용 로컬 패키징은 아래 Contributing 절차를 따릅니다.
 
 빌드·서명·수동 릴리즈 절차는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases), 정확한 동작과 미검증 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다.
 
