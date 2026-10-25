@@ -29,6 +29,8 @@ pnpm browser:test save-session       # 관련 시나리오만 선택
 
 runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
+The shared `reloadDocument` helper waits for the File actions menu to detach and the loading dialog to close with focus returned to File actions before callers focus the editor (#422). For a dirty tab it instead waits for the interactive discard confirmation to receive focus; the caller still chooses the answer. Tests that hold a Reload response must release it before awaiting the helper's completion.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ## Production HTTP regression
