@@ -337,6 +337,31 @@ This is Editor shell navigation only. It adds no semantic operation or CLI comma
 existing file/session handlers remain authoritative. The first version has no command plugin system,
 recent-command persistence, filesystem index or new document-content actions.
 
+### Caret insertion commands (part of #439)
+
+`Insert citation…` / `인용 삽입…` and `Insert cross-reference…` / `상호 참조 삽입…`
+open the existing Citation and Reference forms at the retained Visual editor caret. They need
+no slash or preceding whitespace, including directly after Korean text. Availability reuses
+the slash menu's schema-backed inline caret eligibility and the existing session busy/view
+restrictions; code, property fields, Source and non-caret selections cannot insert.
+The center releases modal focus before opening the form. Escape returns to the same editor
+caret without a document/history change; Apply uses the existing insertion function, returns
+editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
+
+Scope: reuse forms, semantic operations and inline eligibility; no new Core/CLI operation is
+needed for this interface entry point. No shortcut or slash-trigger change is included.
+Shortcut combinations remain an owner decision, so #439 stays open. Completion requires the
+extended `citation-authoring` browser regression (Korean caret, Escape, Undo/Redo and actual
+Save → Reload), Editor tests, typecheck/build, docs and diff checks.
+
+Verification: the extended browser scenario failed before implementation because `Insert citation…`
+was absent. After implementation it checks Korean text in the middle of a sentence, literal slash
+behavior, both forms' Escape/content/caret/focus restoration, single-step Undo/Redo and exact
+Save → Reload content, Korean command search, availability on every listed inline surface and
+refusal in code/non-caret selections. The existing command-center, layout-rules and quiet-document
+scenarios also pass. Editor tests pass 281/281; repository typecheck, Editor build, docs and diff
+checks pass. Build retains the existing externalized `punycode` and bundle-size warnings.
+
 ### Listed document search (#384)
 
 The source is the in-memory listing cache reachable from the roots of **all currently opened sidebar

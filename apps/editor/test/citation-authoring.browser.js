@@ -140,9 +140,24 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
     return found;
   });
   assert(await citationOnly(), 'A list item may contain only a citation');
+  const checkInsertionAvailability = async (allowed, location) => {
+    const caretBefore = await editor.evaluate(element => element.editor.state.selection.from);
+    await page.keyboard.press('ControlOrMeta+/');
+    const center = page.getByRole('dialog', { name: 'Command center', exact: true });
+    await center.getByRole('combobox').fill('> insert');
+    for (const name of ['Insert citation…', 'Insert cross-reference…']) {
+      assert((await center.getByRole('option', { name, exact: true }).getAttribute('aria-disabled') !== 'true') === allowed,
+        `${location}: ${name} follows inline caret eligibility`);
+    }
+    await page.keyboard.press('Escape');
+    await center.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
+    assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
+  };
   const surfaces = ['Item.', 'Nested item.', 'Quote.', 'Callout.', 'Header', 'Cell.', 'Caption.', 'Heading.', 'Nested inline', 'Definition.'];
   for (const text of surfaces) {
     await caret(text);
+    await checkInsertionAvailability(true, text);
     await page.keyboard.type(' /');
     await menu.waitFor();
     const names = await menu.getByRole('menuitem').allTextContents();
@@ -158,7 +173,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
       await page.keyboard.type(`Note for ${text}`);
     }
   }
+  await caret('Code.', true);
+  await checkInsertionAvailability(false, 'Text selection');
   await caret('Code.');
+  await checkInsertionAvailability(false, 'Code');
   await page.keyboard.type(' /');
   assert(await menu.count() === 0, 'Code keeps literal slash input');
   // Code edits with newly added endnotes hit a pre-existing, separate Core count check.
@@ -213,5 +231,73 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   assert(await referencesFollow() && await inlineContent() === renamedContent,
     'Save → Reload retains the renamed title, caption and other nested references');
   assert(bibliographyFixture.hash() === bibHash, 'Nested authoring never writes the BibTeX file');
-  return { slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
+  // #439: no slash or whitespace is needed after Korean text.
+  const center = page.getByRole('dialog', { name: 'Command center', exact: true });
+  const openInsert = async label => {
+    await page.keyboard.press('ControlOrMeta+/');
+    await center.getByRole('combobox').fill(label);
+    await center.getByRole('option', { name: label, exact: true }).click();
+    await center.waitFor({ state: 'detached' });
+  };
+  const snapshot = () => editor.evaluate(element => JSON.stringify(element.editor.state.doc.toJSON()));
+  const position = () => editor.evaluate(element => element.editor.state.selection.from);
+  const hasFocus = () => editor.evaluate(element => element.editor.view.hasFocus());
+  await editor.evaluate(element => {
+    const instance = element.editor;
+    instance.commands.setTextSelection(instance.state.doc.content.size - 1);
+    instance.view.focus();
+  });
+  await page.keyboard.insertText('한글문장계속');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.type('/');
+  assert(await menu.count() === 0, 'Slash after Korean text keeps its existing literal trigger rule');
+  await page.keyboard.press('Backspace');
+  const beforeInsert = await snapshot();
+  const insertionCaret = await position();
+  for (const [label, testId] of [['Insert citation…', 'citation-form'], ['Insert cross-reference…', 'reference-form']]) {
+    await openInsert(label);
+    await page.getByTestId(testId).waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByTestId(testId).waitFor({ state: 'detached' });
+    assert(await hasFocus() && await position() === insertionCaret && await snapshot() === beforeInsert,
+      `${label}: Escape preserves content, caret and editor focus`);
+    await openInsert(label);
+    await page.getByTestId(testId).waitFor();
+    if (testId === 'citation-form') await page.getByTestId('citation-key').fill('article');
+    await page.getByTestId(testId === 'citation-form' ? 'citation-apply' : 'reference-apply').click();
+    assert(await hasFocus() && await position() === insertionCaret + 1, `${label}: insert at retained caret and return focus`);
+    const applied = await snapshot();
+    await page.keyboard.press('ControlOrMeta+z');
+    assert(await snapshot() === beforeInsert, `${label}: one Undo removes only the insertion`);
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    assert(await snapshot() === applied, `${label}: Redo restores insertion`);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({ state: 'attached' });
+    await reloadDocument(page); await ready();
+    assert(await snapshot() === applied, `${label}: Save → Reload retains exact content`);
+    await editor.evaluate((element, pos) => {
+      element.editor.commands.setTextSelection({ from: pos, to: pos + 1 });
+      element.editor.commands.deleteSelection();
+      element.editor.view.focus();
+    }, insertionCaret);
+    assert(await snapshot() === beforeInsert, 'Remove only the persisted probe atom');
+  }
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
+  await editor.evaluate((element, pos) => {
+    element.editor.commands.setTextSelection(pos);
+    element.editor.view.focus();
+  }, insertionCaret);
+  await page.keyboard.press('ControlOrMeta+/');
+  const koreanCenter = page.getByRole('dialog', { name: '커맨드 센터', exact: true });
+  await koreanCenter.getByRole('combobox').fill('삽입');
+  for (const name of ['인용 삽입…', '상호 참조 삽입…']) {
+    assert(await koreanCenter.getByRole('option', { name, exact: true }).isVisible(), `${name}: Korean insertion command is searchable`);
+  }
+  await page.keyboard.press('Escape');
+  await koreanCenter.waitFor({ state: 'detached' });
+  return { commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }

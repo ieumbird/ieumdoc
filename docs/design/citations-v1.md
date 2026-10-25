@@ -101,7 +101,8 @@ through the existing inline adapter, and Save replays existing Core content oper
 it, moving content, Undo/Redo and supported clipboard operations preserve its meaning. Table captions
 use the same Core numeric display as the rest of the document.
 
-Authoring uses the slash menu on supported inline surfaces: paragraphs, list items (including
+Authoring uses the command center’s `Insert citation…` at a retained caret without requiring
+whitespace, or the slash menu on supported inline surfaces: paragraphs, list items (including
 nested lists), quotes, simple admonitions, endnote definitions, table cells, Figure captions and
 headings. Only top-level paragraphs also offer block commands; the [location matrix](editor-ux-shell-v1.md#nested-inline-slash-menu-377)
 records the existing Core save paths. **Citation…** opens a form at the caret. `/Citation`,
