@@ -205,7 +205,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["footnotes", "save-session"],
   },
   "focus-caret": {
-    files: [{ name: "focus.md", create: () => nativeSource("# Focus\n\nFirst paragraph.\n\nLast paragraph.\n") }],
+    files: [{ name: "focus.md", create: () => nativeSource("# Focus\n\nFirst paragraph.\n\nLast paragraph.\n") },
+      { name: "final-figure.md", create: () => nativeSource("# Figure end\n\nFirst paragraph.\n\n:::{figure}\n\nFinal caption.\n:::\n") },
+      { name: "final-table.md", create: () => nativeSource("# Table end\n\nFirst paragraph.\n\n| Head |\n| --- |\n| Final cell. |\n") }],
     scenarios: ["focus-caret"],
   },
   "desktop-updates": {

@@ -1,7 +1,7 @@
 import type { UiMessage } from "./ui-message.ts";
 import { inlineContentText } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
-import { Extension } from "@tiptap/core";
+import { Extension, isMacOS } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
 import { closeHistory } from "@tiptap/pm/history";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
@@ -130,6 +130,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
     name: "documentInteraction",
     priority: 120,
     addKeyboardShortcuts() {
+      const end = () => {
+        const { view } = this.editor;
+        view.dispatch(documentEnd(view.state)); return true;
+      };
       const tab = (backward: boolean) => {
         const { state, view } = this.editor;
         if (view.composing) return false;
@@ -179,6 +183,8 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         },
         Tab: () => tab(false),
         "Shift-Tab": () => tab(true),
+        "Mod-End": end,
+        ...(isMacOS() ? { "Mod-ArrowDown": end } : {}),
         // A final table, list, quote or caption has no line below it to move to.
         ArrowDown: () => {
           const { view } = this.editor;

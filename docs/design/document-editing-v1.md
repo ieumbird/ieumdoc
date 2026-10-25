@@ -1,7 +1,8 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
+- Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
+- Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
 - Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
 - Previous verification: 2026-10-24 (#387 atom boundary selection: Editor 273/273, typecheck/build, six browser scenarios including the 48-case keyboard matrix, visible selection, deletion, Undo/Redo and disk Save/Reload).
 - Previous verification: 2026-10-23 (source 7a214dcb lookup/handle/display-numbering changes: Editor 271/271, typecheck/build, eight browser regressions and actual 2000/5000-block input plus complete canonical Save/Reload; mixed 2000 input p95 111.7ms remains above 100ms; [evidence and limits](../reviews/editor-guard-performance-2026-10-23.md)).
@@ -71,7 +72,11 @@ A changed document recomputes numbering; source semantics and canonical output a
   preceding prose (creating a paragraph at a document edge). Read-only tables
   retain the existing navigation without adding a row; Tab does not act during
   IME composition. Enter leaves a table, a Figure caption or a simple admonition.
-- The document end stays reachable. ArrowDown on the last line of a final table
+- The document end stays reachable. Control+End (Command+End or Command+ArrowDown
+  on macOS) uses the same destination as the click below the document: the end of
+  a final paragraph, or a new empty paragraph after any other final block.
+  Shift-modified document-end shortcuts retain the engine/browser's selection behavior.
+  ArrowDown on the last line of a final table
   row, list, quote, admonition or caption moves to a paragraph after it. A click in
   the empty area below the document puts the caret at the end of a final
   paragraph. After any other final block, both create an empty paragraph there.

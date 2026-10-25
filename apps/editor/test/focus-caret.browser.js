@@ -6,9 +6,11 @@
 // held and run at the key's keyup, the order recorded on CI, so that race happens every time.
 // Focus without a key, or with a modifier alone, must still restore the editor's caret.
 async (page, { openPath }) => {
+  page.setDefaultTimeout(10000);
+  page.setDefaultNavigationTimeout(10000);
   await page.unrouteAll();
   await page.reload();
-  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached', timeout:10000});
   await ready();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -133,5 +135,74 @@ async (page, { openPath }) => {
     assert(restored.dom.endsWith('@3') && restored.dom.startsWith('Fir'), `The focus check restores the editor caret${modifier ? ' after a modifier' : ''}: ${JSON.stringify(restored)}`);
     await typed(modifier ? 'W' : 'Z', expected, 'Typing after the focus check');
   }
-  return {controlEndAfterFocusCheck: true, controlHomeAfterFocus: true, tabFocusRestores: true, modifierKeepsRestore: true, focusCheckRestores: true};
+  // #429: native document-end navigation stops inside a final caption/cell. Reuse the
+  // delayed focus check above to cover the first shortcut immediately after refocus too.
+  // Save the earlier focus probes so the later platform reload has no recovery prompt.
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  const failures = [];
+  for (const kind of ['figure', 'table']) {
+    await openPath(page, file.replace('focus.md', `final-${kind}.md`));
+    const original = await editor.evaluate(el => el.editor.state.doc.toJSON());
+    await caret('First paragraph.', 0);
+    const anchor = (await state()).from;
+    await page.keyboard.press('Control+Shift+End');
+    // Native selectionchange is asynchronous; wait for ProseMirror to read it.
+    await page.waitForFunction(anchor => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.from === anchor && selection.to > anchor;
+    }, anchor, {timeout: 5000});
+    const selected = await state();
+    assert(selected.from === anchor && selected.to > anchor, `Control+Shift+End keeps native selection for ${kind}: ${JSON.stringify(selected)}`);
+    assert(JSON.stringify(await editor.evaluate(el => el.editor.state.doc.toJSON())) === JSON.stringify(original), `Selection must not append prose after ${kind}`);
+    await caret('First paragraph.', 0);
+    await refocus(true);
+    await page.evaluate(() => window.__focusCheck.onKeyup(false));
+    await page.keyboard.press('Control+End');
+    await settled();
+    const reached = await editor.evaluate(el => {
+      const {doc, selection} = el.editor.state;
+      return {parent: selection.$from.parent.type.name, depth: selection.$from.depth,
+        from: selection.from, to: selection.to, end: doc.content.size - 1};
+    });
+    if (reached.parent !== 'paragraph' || reached.depth !== 1 || reached.from !== reached.end || reached.to !== reached.end) {
+      failures.push(`${kind}: ${JSON.stringify(reached)}`);
+      continue;
+    }
+    await page.keyboard.press('Control+End');
+    assert(await editor.evaluate(el => el.editor.state.doc.childCount) === original.content.length + 1, `Repeated Control+End reuses the final paragraph after ${kind}`);
+    await page.keyboard.type('After block.');
+    const changed = await editor.evaluate(el => el.editor.state.doc.toJSON());
+    assert(JSON.stringify(changed.content.slice(0, -1)) === JSON.stringify(original.content), `Typing after ${kind} preserves the original blocks`);
+    assert(changed.content.at(-1).type === 'paragraph' && changed.content.at(-1).content[0].text === 'After block.', `Typing lands after ${kind}`);
+    await page.getByRole('button', {name:'Save', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached', timeout:10000});
+  }
+  assert(!failures.length, `Control+End must leave final blocks after focus: ${failures.join('; ')}`);
+
+  // Exercise the Apple keymap in the same persistent browser. This is platform
+  // emulation on Chromium, not a native macOS keyboard/OS verification.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
+  await page.reload();
+  await ready();
+  for (const kind of ['figure', 'table']) {
+    await openPath(page, file.replace('focus.md', `final-${kind}.md`));
+    for (const key of ['Meta+End', 'Meta+ArrowDown']) {
+      // Remove the test's trailing prose to make the original block final again.
+      await editor.evaluate(el => {
+        const {doc} = el.editor.state;
+        if (doc.lastChild.type.name !== 'paragraph') throw new Error('Missing test prose');
+        el.editor.commands.deleteRange({from: doc.content.size - doc.lastChild.nodeSize, to: doc.content.size});
+      });
+      await caret('First paragraph.', 0);
+      await page.keyboard.press(key);
+      const reached = await editor.evaluate(el => {
+        const {doc, selection} = el.editor.state;
+        return selection.empty && selection.$from.depth === 1 &&
+          selection.$from.parent.type.name === 'paragraph' && selection.to === doc.content.size - 1;
+      });
+      assert(reached, `${key} reaches prose after the final ${kind} on the Apple keymap`);
+    }
+  }
+  return {controlEndAfterFocusCheck: true, controlHomeAfterFocus: true, tabFocusRestores: true, modifierKeepsRestore: true, focusCheckRestores: true, finalBlockDocumentEnd: true, nativeShiftEnd: true, appleDocumentEndKeymap: true};
 }
