@@ -135,7 +135,36 @@ Unsigned Beta의 SHA-512/SHA-256은 무결성 검증이다. 악의적인 게시�
 
 ## AI commit provenance
 
-AI가 주로 구현한 commit은 실제 구현 agent와 실제 model의 canonical identifier를 `AI-Agent`, `AI-Model` trailer에 각각 기록한다. 모델 이름을 추측하거나 이전 commit에서 복사하지 않는다. `Co-authored-by`는 대체물이 아니며, 검토 모델은 구현 모델로 기록하지 않는다. 선택적인 `AI-Reviewed-By`를 포함한 전체 계약은 [AGENTS.md](AGENTS.md#ai-commit-provenance)를 따른다.
+필수 trailer 형식과 구현자 기록 의무는 [AGENTS.md](AGENTS.md#ai-commit-provenance)를 따른다. 아래는 모델 식별자와 선택적인 검토 기록, hook 설치 안내다.
+
+Use a single analyzable identifier, not a display name: `<provider>/<model>`.
+
+Examples:
+
+```
+xai/grok-4.6
+openai/gpt-5.6-luna
+openai/gpt-5.6-terra
+openai/gpt-6-astra
+```
+
+If a vendor's official identifier differs from this repository's
+identifier, use the repository canonical form above and keep it stable.
+This repository's canonical identifier for Grok 4.6 is `xai/grok-4.6`.
+
+If review provenance is needed, use a separate, optional trailer, for example:
+
+```
+AI-Reviewed-By: openai/gpt-5.6-sol
+```
+
+`.githooks/commit-msg` detects incomplete or duplicate AI provenance
+trailers. It does not insert a model name. Human commits that omit
+both trailers are allowed. Enable the shared hooks in a local clone with:
+
+```
+git config core.hooksPath .githooks
+```
 
 ## License of contributions
 
