@@ -18,6 +18,13 @@ const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider",
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
+/** Use the real keymap order (including input-rule Undo), with full native transactions. */
+export function runHistoryShortcut(view: EditorView, shortcut: typeof UNDO_SHORTCUT): boolean {
+  const mac = isMacOS();
+  const event = new KeyboardEvent("keydown", { key: shortcut.key, ctrlKey: !mac, metaKey: mac });
+  return Boolean(view.someProp("handleKeyDown", handler => handler(view, event)));
+}
+
 export function isInternalClipboard(html: string): boolean {
   return /\bdata-ieumdoc-type\s*=/.test(html);
 }
@@ -295,12 +302,12 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         handleDOMEvents: {
           keydown: (view, event) => {
             if (!isMacOS() && this.editor.isEditable && !view.composing && event.ctrlKey && !event.metaKey) {
-              const key = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? "z"
-                : REDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? "y" : undefined;
-              if (key) {
+              const shortcut = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? UNDO_SHORTCUT
+                : REDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? REDO_SHORTCUT : undefined;
+              if (shortcut) {
                 // IME Process/229 has no character for the engine keymap to resolve.
                 // Reuse that keymap, including Markdown input-rule Undo, with a visible key.
-                view.someProp("handleKeyDown", handler => handler(view, new KeyboardEvent("keydown", { key, ctrlKey: true })));
+                runHistoryShortcut(view, shortcut);
                 event.preventDefault();
                 return true;
               }

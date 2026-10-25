@@ -18,6 +18,7 @@ function editorShortcut(binding: string) {
 function shortcut(code: string, key: string, virtualKey: number) {
   return {
     ...editorShortcut(`Mod-${key}`),
+    key: key.toLowerCase(),
     matches: (event: KeyboardEvent, { opaqueOnly = false }: { opaqueOnly?: boolean } = {}) => {
       if (event.isComposing || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
       const opaque = event.key === "Process" || event.key === "Unidentified";

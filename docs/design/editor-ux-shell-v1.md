@@ -236,7 +236,12 @@ recent-command persistence, filesystem index or independent document-content imp
 ### History commands and keyboard shortcut guide (#471)
 
 `Undo` / `실행 취소` and `Redo` / `다시 실행` act on the active Visual document's
-existing Tiptap history, one step per invocation. They remain visible but disabled without
+existing Tiptap keyboard path, one invocation at a time. Undo gives Markdown input-rule reversal
+precedence just like Ctrl/Cmd+Z: after `## ` converts a paragraph to a heading, it restores the
+typed `## ` including the space and its caret. Otherwise Undo/Redo use the existing native history.
+The command center and opaque-IME fallback share the same visible-key dispatch through the engine
+keymaps; no second matcher, input-rule implementation or captured/replayed transaction is added.
+They remain visible but disabled without
 an active Visual document, while busy, or when that history has no corresponding step.
 They do not require an editor-origin opener: clicking the TopBar center can dispatch history.
 After the center releases its modal focus, the command runs and synchronously focuses the
@@ -907,3 +912,13 @@ that reused another worktree's server on 5173 are excluded from this evidence.
 
 Visual inspection confirms grouped, readable entries and accessible Close controls inside the viewport.
 The existing modal surface, spacing, type and key-label treatment are retained, with no new CSS token.
+
+#### Review follow-up: history parity
+
+After merging master `d3cfd58` (#481), the new command-center comparison failed with
+`command Undo lost the input-rule space: ##The converter…`. It compares keyboard and command
+Undo on identical file state after a real `## ` input-rule conversion, then compares Redo after
+a native history Undo, including document, selection, availability and immediate editor focus.
+The corrected `command-center` and existing `markdown-input` (opaque-IME input-rule Undo) scenarios
+pass. `continuous-editing` initially stopped at an unrelated ambiguous Equation Apply locator,
+before reaching its history probes; integration verification is recorded below when complete.

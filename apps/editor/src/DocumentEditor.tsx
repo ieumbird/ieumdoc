@@ -44,7 +44,7 @@ import {
 import { appliedDocument, freshBlockPath, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline, type OutlineItem } from "./outline.ts";
-import { documentEnd } from "./document-interaction.ts";
+import { documentEnd, runHistoryShortcut } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
@@ -292,8 +292,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       canUndo() { return Boolean(editor?.isEditable && editor.can().undo()); },
       canRedo() { return Boolean(editor?.isEditable && editor.can().redo()); },
       // The center releases modal focus before dispatch, just like inline insertion below.
-      undo() { if (editor?.isEditable) { editor.commands.undo(); editor.view.focus(); } },
-      redo() { if (editor?.isEditable) { editor.commands.redo(); editor.view.focus(); } },
+      undo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.undo); editor.view.focus(); } },
+      redo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.redo); editor.view.focus(); } },
       canInsertInline() { return Boolean(editor?.isEditable && inlineInsertionAt(editor.state)); },
       openInlineInsertion(kind) {
         if (!editor?.isEditable) return;

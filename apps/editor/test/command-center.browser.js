@@ -25,6 +25,38 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const result = {};
 
+  // Compare the two entry points on identical file state, including input-rule Undo precedence.
+  const inputRuleResults = [];
+  for (const route of ['keyboard', 'command']) {
+    await editor().evaluate(n => {
+      let start;
+      n.editor.state.doc.forEach((node, pos) => { if (start === undefined && node.type.name === 'paragraph') start = pos + 1; });
+      if (start === undefined) throw Error('Missing paragraph for input-rule regression');
+      n.editor.commands.setTextSelection(start); n.editor.view.focus();
+    });
+    await page.keyboard.type('## ');
+    check(await editor().evaluate(n => n.editor.state.selection.$from.parent.type.name === 'heading'), 'Heading input rule did not apply');
+    if (route === 'keyboard') await page.keyboard.press('Control+z');
+    else await run('undo');
+    const undone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON(),
+      text:n.editor.state.selection.$from.parent.textContent, canRedo:n.editor.can().redo() }));
+    check(undone.text.startsWith('## '), `${route} Undo lost the input-rule space: ${undone.text}`);
+    check(await editor().evaluate(n => n === document.activeElement), `${route} input-rule Undo lost editor focus`);
+    // Input-rule Undo is not native history Undo. Undo its transaction before comparing Redo too.
+    await page.keyboard.press('Control+z');
+    check(await editor().evaluate(n => n.editor.can().redo()), 'Missing history step for Redo comparison');
+    if (route === 'keyboard') await page.keyboard.press('Control+y');
+    else await run('redo');
+    const redone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON() }));
+    check(await editor().evaluate(n => n === document.activeElement), `${route} Redo lost editor focus`);
+    inputRuleResults.push({undone, redone});
+    await run('reload');
+    await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
+  }
+  check(JSON.stringify(inputRuleResults[0]) === JSON.stringify(inputRuleResults[1]), 'Keyboard and command history differ after input-rule conversion');
+  result.inputRuleHistoryParity = true;
+
   // #471: use the active editor's native history; each dispatch is exactly one step.
   const snapshot = () => editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
   const baseline471 = await snapshot();
