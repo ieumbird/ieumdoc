@@ -104,7 +104,10 @@ use the same Core numeric display as the rest of the document.
 Authoring uses the slash menu on supported inline surfaces: paragraphs, list items (including
 nested lists), quotes, simple admonitions, endnote definitions, table cells, Figure captions and
 headings. Only top-level paragraphs also offer block commands; the [location matrix](editor-ux-shell-v1.md#nested-inline-slash-menu-377)
-records the existing Core save paths. **Citation…** opens a form at the caret; a query
+records the existing Core save paths. **Citation…** opens a form at the caret. `/Citation`,
+`/cite` and `/인용` select this item first in either UI language, including in an empty paragraph;
+applying the form inserts an inline citation and keeps the paragraph. These queries do not offer
+Quote; use `/quote`, `/blockquote` or `/인용문` for that block. A query
 also lists up to 20 readable entries whose key or display words start with it, inserted directly as
 `cite:p`. A citation chip's edit button opens the same form with its stored role and keys. The form
 chooses `cite:p` (default), `cite:t` or `cite`, keeps an ordered key group, and searches every readable
