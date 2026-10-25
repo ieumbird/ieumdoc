@@ -25,7 +25,7 @@ const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
 const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
-const [OLD, NEW] = BETA ? ["0.0.1-beta.3", "0.0.1-beta.4"] : ["0.0.1", "0.0.2"];
+const [OLD, NEW] = BETA ? ["0.0.1-beta.4", "0.1.0-beta.1"] : ["0.0.1", "0.0.2"];
 // The public beta.3 predates native documents (#232) and edits leading frontmatter as a body block.
 const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nieumdoc: 1\n---\n\n";
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
