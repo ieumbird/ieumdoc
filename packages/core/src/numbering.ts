@@ -134,7 +134,7 @@ export function nextFootnoteLabel(labels: Iterable<string>): string {
 export type ReferenceTemplates = Partial<Record<NumberedKind, string>>;
 export type ReferenceTemplateUpdate = Partial<Record<NumberedKind, string | null>>;
 export const DEFAULT_REFERENCE_TEMPLATES: Readonly<Record<NumberedKind, string>> = {
-  figure: "Figure %s", table: "Table %s", equation: "(%s)",
+  figure: "Figure\u00a0%s", table: "Table\u00a0%s", equation: "(%s)",
 };
 
 export function referenceTemplatesError(value: unknown, allowReset = false): string | undefined {

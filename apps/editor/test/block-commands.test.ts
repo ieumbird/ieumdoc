@@ -313,6 +313,16 @@ test("slash keeps display prefix and number together, while ordinary queries sti
     const state = EditorState.create({schema, doc, selection: TextSelection.create(doc, text.length + 1)});
     assert.equal(slashQueryAt(state)?.query, query);
   }
+  for (const template of ["Illustration %s of %s", "Illustration {number} of {subEnumerator}"]) {
+    // Keep the menu open at every intermediate keystroke, including the repeated number.
+    for (let length = 1; length <= "Illustration 1 of 1".length; length++) {
+      const query = "Illustration 1 of 1".slice(0, length);
+      const text = `See /${query}`;
+      const doc = schema.nodes.doc.create({referenceTemplates: {figure: template}}, schema.nodes.paragraph.create(null, schema.text(text)));
+      const state = EditorState.create({schema, doc, selection: TextSelection.create(doc, text.length + 1)});
+      assert.equal(slashQueryAt(state)?.query, query, query);
+    }
+  }
   for (const text of ["/paragraph ", "/Fig. 2 more", "/Table data", "a/Fig. 2"]) {
     const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(text)));
     assert.equal(slashQueryAt(EditorState.create({ schema, doc, selection: TextSelection.create(doc, text.length + 1) })), null, text);

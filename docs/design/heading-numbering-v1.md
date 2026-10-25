@@ -18,7 +18,7 @@ Verification covers Core default-policy equivalence to MyST, native metadata wri
 ## Reference templates (#445)
 
 Core owns document reference text through `referenceNumberText(kind, number, templates)`.
-Absent settings use MyST defaults: `Figure %s`, `Table %s`, `(%s)`. Only in-text
+Absent settings use MyST defaults: `Figure %s`, `Table %s`, `(%s)`. Figure/Table defaults use U+00A0 (no-break space) exactly as MyST; defaults are display-only and are never written. Only in-text
 references use these templates; the equation number on the right remains `(N)`.
 Section references and target identities are unchanged.
 
@@ -32,9 +32,9 @@ rejected; this does not admit arbitrary MyST numbering metadata.
 
 `updateReferenceTemplates(document, { figure?, table?, equation? })` leaves omitted keys
 unchanged and removes keys given `null`, restoring their defaults. Writes use the object
-form `{ template: "…" }`, preserve other admitted frontmatter and YAML comments, and pass
-the existing canonical round-trip guard. An empty numbering map is removed. Heading and
-reference edits preserve one another.
+form `{ template: "…" }`, edit existing template scalars in place to retain mapping/value comments, preserve other admitted frontmatter, and pass
+the existing canonical round-trip guard. A numbering map emptied by removal is removed. Heading and
+reference edits preserve one another. Setting an existing object-form template to the same value leaves source metadata untouched; shorthand is converted to object form with its comments retained.
 
 Display's Saved in document section offers **Reference style** beside Number headings,
 with the same unavailable states. Each choice is one undoable document attribute change;
@@ -44,7 +44,7 @@ values show **Custom**, preserved until the user chooses another style.
 
 | Choice (English / Korean) | Figure | Table | In-text equation |
 | --- | --- | --- | --- |
-| Default / 기본 | Figure %s | Table %s | (%s) |
+| Default / 기본 | Figure %s | Table %s | (%s) |
 | Concise / 간결형 | Fig. %s | Table %s | (%s) |
 | Formal / 정석형 | Figure %s | Table %s | Equation (%s) |
 | Korean / 한국형 | 그림 %s | 표 %s | 식 (%s) |
@@ -52,7 +52,9 @@ values show **Custom**, preserved until the user chooses another style.
 Default removes all three settings. Other choices write the three templates. Choice labels
 follow UI language; authored reference text follows the document regardless of UI language.
 Reference chips (including table captions), their accessible names, target picker labels and
-slash-menu labels/search share Core display text. Existing Korean kind keywords remain.
+slash-menu labels/search share Core display text. Search treats normal spaces and no-break spaces equally; slash recognition follows prefixes of Core-rendered numeric templates, including repeated placeholders such as `/Illustration 1 of 1`. Existing Korean kind keywords remain.
+
+Only Default uses MyST no-break spaces. The authored Concise/Formal/Korean values above retain their normal U+0020 spaces. Choice matching compares actual template values; explicitly authored `Figure %s` with a normal space is not the MyST default.
 
 CLI: `ieumdoc update-reference-templates <file> --figure "그림 %s" --table "표 %s" --equation "식 (%s)"`.
 Omitted kinds are unchanged. `--reset figure|table|equation|all` removes settings; setting
@@ -87,3 +89,20 @@ CLI 68, Editor 284, Desktop 40), `pnpm typecheck`, Editor build, `pnpm docs:chec
 `git diff --check`, plus cross-reference, outline, pending-figure, editor-shell,
 layout-rules, quiet-document and section-reference browser scenarios. Browser runs used this worktree's
 persistent profile, sequentially; their servers and sessions were closed after each run.
+
+### PR #446 review regressions
+
+Each review defect was reproduced before its fix: same-value object updates removed YAML
+comments, `/Illustration 1 of 1` returned no slash query at its final character, and default
+Figure/Table reference text used U+0020 instead of U+00A0. A normal-space query also failed
+to find a reference rendered with an explicitly authored no-break space.
+
+Core now preserves mapping/value/shorthand comments and leaves unchanged object-form metadata
+untouched; tests verify changed values, same values, source immutability and native reopen.
+The existing slash scenario tests every keystroke of repeated `%s` and numeric alias templates.
+Core and CLI assert exact no-break-space defaults, while Editor tests and the cross-reference
+browser scenario keep typed normal spaces and assert the actual U+00A0 display text.
+
+Post-review local validation: `pnpm test` (Core 259, file-commit 4 passed/2 platform skips,
+CLI 68, Editor 284, Desktop 40), typecheck, Editor build, docs check and diff check;
+cross-reference, pending-figure, layout-rules and quiet-document browser regressions.

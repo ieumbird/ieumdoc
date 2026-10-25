@@ -30,15 +30,30 @@ export function updateReferenceTemplates(document: MystDocument, templates: Refe
   if (error) throw new Error(error);
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);
+  let changed = false;
   for (const kind of NUMBERED_KINDS) {
     if (!Object.hasOwn(templates, kind)) continue;
-    if (templates[kind] === null) {
-      if (yaml.hasIn(["numbering", kind])) yaml.deleteIn(["numbering", kind]);
-    } else yaml.setIn(["numbering", kind], yaml.createNode({ template: templates[kind] }));
+    const path = ["numbering", kind];
+    const current = yaml.getIn(path, true);
+    const template = templates[kind];
+    if (template === null) {
+      if (yaml.hasIn(path)) { yaml.deleteIn(path); changed = true; }
+    } else if (isMap(current)) {
+      if (referenceTemplateValue(current) === template) continue;
+      yaml.setIn([...path, "template"], template);
+      changed = true;
+    } else {
+      // Reuse the shorthand scalar so its quoting, anchor and comments survive conversion.
+      if (isScalar(current)) current.value = template;
+      yaml.setIn(path, yaml.createNode({ template: isScalar(current) ? current : template }));
+      changed = true;
+    }
   }
-  const numbering = yaml.get("numbering", true);
-  if (isMap(numbering) && numbering.items.length === 0) yaml.delete("numbering");
-  node.value = String(yaml).trimEnd();
+  if (changed) {
+    const numbering = yaml.get("numbering", true);
+    if (isMap(numbering) && numbering.items.length === 0) yaml.delete("numbering");
+    node.value = String(yaml).trimEnd();
+  }
   serializeFor(next, "reference templates cannot be preserved through canonical round-trip");
   return next;
 }

@@ -2476,14 +2476,14 @@ test("CLI reference templates set partial values, inspect computed text, and res
     return JSON.parse(result.stdout).nodes.filter((node: {referenceText?: string}) => node.referenceText).map((node: {referenceText: string}) => node.referenceText);
   };
   try {
-    assert.deepEqual(display(), ["(1)", "Figure 1", "Table 1"]);
+    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
     const changed = run(["update-reference-templates", file, "--figure", "그림 %s", "--table", "표 %s", "--equation", "식 (%s)"]);
     assert.equal(changed.status, 0, changed.stderr);
     assert.deepEqual(display(), ["식 (1)", "그림 1", "표 1"]);
     assert.match(readFileSync(file, "utf8"), /template: 그림 %s/);
     const partial = run(["update-reference-templates", file, "--reset", "figure"]);
     assert.equal(partial.status, 0, partial.stderr);
-    assert.deepEqual(display(), ["식 (1)", "Figure 1", "표 1"]);
+    assert.deepEqual(display(), ["식 (1)", "Figure\u00a01", "표 1"]);
     const saved = readFileSync(file, "utf8");
     for (const args of [["--figure", "no number"], ["--equation", ""], ["--reset", "other"], ["--reset", "all", "--table", "%s"], []]) {
       assert.notEqual(run(["update-reference-templates", file, ...args]).status, 0);
@@ -2491,7 +2491,7 @@ test("CLI reference templates set partial values, inspect computed text, and res
     }
     const reset = run(["update-reference-templates", file, "--reset", "all"]);
     assert.equal(reset.status, 0, reset.stderr);
-    assert.deepEqual(display(), ["(1)", "Figure 1", "Table 1"]);
+    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
     assert.doesNotMatch(readFileSync(file, "utf8"), /numbering:/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

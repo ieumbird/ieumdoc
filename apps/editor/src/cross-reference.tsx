@@ -238,7 +238,7 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
  * unlabeled heading the query searches for (which inserting the reference labels). */
 export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id: string; label: string; group: string }[] {
   const needle = query.toLowerCase().replace(/\s+/g, " ").trim();
-  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().startsWith(needle));
+  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().replace(/\s+/g, " ").startsWith(needle));
   const titleWords = (title: string) => [title, ...title.split(/\s+/)];
   // Captions are needed only by this menu, never by the per-chip resolution selectors.
   // Figure captions are live inline children; table captions use the existing inline projection.

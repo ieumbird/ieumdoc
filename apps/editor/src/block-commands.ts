@@ -6,7 +6,7 @@ import { NodeSelection, Selection, TextSelection, type EditorState, type Transac
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath } from "./tiptap-document.ts";
-import { DEFAULT_REFERENCE_TEMPLATES, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
+import { referenceNumberText, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
@@ -911,15 +911,12 @@ export function slashQueryAt(state: EditorState): SlashQuery | null {
   if (!match) return null;
   if (/\s/.test(match[1])) {
     const templates = state.doc.attrs.referenceTemplates as ReferenceTemplates | null;
-    const query = match[1].toLowerCase();
-    const numbered = NUMBERED_KINDS.some(kind => {
-      const [prefix, ...rest] = (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).toLowerCase().split(/%s|\{number\}|\{subEnumerator\}/);
-      if (prefix.startsWith(query)) return true;
-      if (!query.startsWith(prefix)) return false;
-      const tail = query.slice(prefix.length);
-      const digits = /^\d+/.exec(tail)?.[0];
-      return digits !== undefined && rest.join("").startsWith(tail.slice(digits.length));
-    });
+    const query = match[1].toLowerCase().replace(/\s+/g, " ");
+    // Try the numbers being typed (and 1 for a prefix before any number). Core fills every
+    // placeholder, so repeated placeholders, aliases and literal suffixes use its display rule.
+    const numbers = [1, ...(query.match(/\d+/g) ?? []).map(Number)];
+    const numbered = NUMBERED_KINDS.some(kind => numbers.some(number =>
+      referenceNumberText(kind, number, templates).toLowerCase().replace(/\s+/g, " ").startsWith(query)));
     if (!numbered) return null;
   }
   return {

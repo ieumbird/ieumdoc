@@ -60,7 +60,7 @@ test("reference templates use MyST defaults, accept shorthand, and coexist lossl
   const original = core.serialize(document);
   const templates = core.getEditableDocument(document).referenceTemplates;
   assert.deepEqual(templates, { figure: "Illustration %s", equation: "Formula {number}" });
-  assert.deepEqual(["figure", "table", "equation"].map(kind => core.referenceNumberText(kind as "figure" | "table" | "equation", 1)), ["Figure 1", "Table 1", "(1)"]);
+  assert.deepEqual(["figure", "table", "equation"].map(kind => core.referenceNumberText(kind as "figure" | "table" | "equation", 1)), ["Figure\u00a01", "Table\u00a01", "(1)"]);
   assert.equal(core.referenceNumberText("equation", 2, templates), "Formula 2");
   const korean = { figure: "그림 %s", table: "표 %s", equation: "식 (%s)" };
   const next = core.updateReferenceTemplates(document, korean);
@@ -68,7 +68,7 @@ test("reference templates use MyST defaults, accept shorthand, and coexist lossl
   const saved = core.serialize(core.updateHeadingNumbering(next, false));
   for (const retained of ["# marker", "# resources", "# sections", "title: false", "headings: false"]) assert.ok(saved.includes(retained), retained);
   assert.deepEqual(parseDocument(saved.split("---")[1]).toJS().bibliography, ["refs.bib"]);
-  assert.match(saved, /figure:\n\s+template: 그림 %s/);
+  assert.equal(parseDocument(saved.split("---")[1]).getIn(["numbering", "figure", "template"]), korean.figure);
   assert.deepEqual(core.getEditableDocument(core.parse(saved)).referenceTemplates, korean);
   assert.equal(core.serialize(core.parse(saved)), saved);
   const partial = core.updateReferenceTemplates(next, { figure: null });
@@ -94,4 +94,34 @@ test("reference templates refuse invalid values and unknown numbering settings w
   for (const numbering of ["other: '%s'", "figure: { template: '%s', start: 2 }", "figure: { template: '' }", "figure: true", "table: { template: 'Table' }", "headings: true\n  start: 2", "title: true"]) {
     assert.throws(() => core.parse(`---\nieumdoc: 1\nnumbering:\n  ${numbering}\n---\n`), /Numbering/);
   }
+});
+
+
+test("reference template updates retain comments on mappings, scalars and shorthand", async () => {
+  const core = await import("../src/index.ts");
+  for (const figure of [
+    "figure: { template: 'Figure %s' } # keep this explanation",
+    "figure: # kind explanation\n    # template explanation\n    template: 'Figure %s' # value explanation",
+  ]) {
+    const source = `---\nieumdoc: 1\nnumbering:\n  ${figure}\n---\n\nText.\n`;
+    const document = core.parse(source);
+    const original = core.serialize(document);
+    assert.equal(core.serialize(core.updateReferenceTemplates(document, {figure: "Figure %s"})), original);
+    const changed = core.serialize(core.updateReferenceTemplates(document, {figure: "Illustration %s"}));
+    const comments = source.match(/#[^\n]*/g) ?? [];
+    for (const comment of comments) assert.ok(changed.includes(comment), comment);
+    assert.equal(core.getEditableDocument(core.parse(changed)).referenceTemplates?.figure, "Illustration %s");
+    assert.equal(core.serialize(document), original);
+  }
+  const shorthand = core.parse("---\nieumdoc: 1\nnumbering:\n  figure: 'Figure %s' # shorthand explanation\n---\n");
+  const changed = core.serialize(core.updateReferenceTemplates(shorthand, {figure: "Illustration %s"}));
+  assert.ok(changed.includes("# shorthand explanation"));
+  assert.ok(parseDocument(changed.split("---")[1]).hasIn(["numbering", "figure", "template"]));
+});
+
+test("default reference text matches MyST no-break spaces exactly without authoring settings", async () => {
+  const core = await import("../src/index.ts");
+  assert.equal(core.referenceNumberText("figure", 1), "Figure\u00a01");
+  assert.equal(core.referenceNumberText("table", 1), "Table\u00a01");
+  assert.doesNotMatch(core.serialize(core.createDocument()), /numbering:/);
 });
