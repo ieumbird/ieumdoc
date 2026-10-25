@@ -1472,7 +1472,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   };
   const close = () => {
     setEditing(false);
-    editor.commands.focus();
+    focusBlock(editor.view, getPos);
   };
   const apply = () => {
     // Core validates the source on Save; only an empty or multi-line source is refused here.
