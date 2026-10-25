@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
 - Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
 - Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
@@ -65,7 +66,8 @@ A changed document recomputes numbering; source semantics and canonical output a
 - With a caret in an editable top-level heading, Tab changes H2 to H3 (one level
   deeper), and Shift+Tab changes H3 to H2 (one level higher). Each change is one
   Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
-  H1 keep the heading and focus unchanged. A text selection still uses Tab to
+  H2 keep the heading and focus unchanged; Shift+Tab at an existing H1 also leaves
+  it unchanged. Body headings cannot be promoted to H1. A text selection still uses Tab to
   reach its formatting toolbar; table, list and code Tab behavior is unchanged.
 - Tab/Shift+Tab move between table cells. Tab in the last cell of an editable
   table adds a row below it and moves the caret to the new row's first cell,
@@ -195,6 +197,17 @@ through the same Core operations. Unsupported cells reject native admission.
 Cell merge has no GFM form and is not supported.
 
 ## Document title (#255)
+
+Owner decision (2026-10-26, #472): body sections start at H2. Editor slash/insert
+menus offer H2–H6 (H4–H6 only for a matching search), and body Paragraph/Heading
+block menus offer H2–H6, plus Paragraph for headings. They never offer H1,
+including for an existing body H1 or an untitled document. The title's own block
+menu and explicit title changes below remain unchanged, as do Add a title and
+the empty `Title` flow. Existing body H1 blocks still open, edit and survive
+Save → Reload at H1; no migration or rewriting is applied. The existing Markdown
+input rule still turns `# ` in a body paragraph into H1; its policy is outside #472.
+This is an Editor authoring choice, not a format or semantic change: Core and CLI
+continue to admit and author H1, so no Core operation or CLI change is needed.
 
 A level-1 heading that opens the body, preceded only by its own label targets, is the document
 title. It is stored as that ordinary leading `# Title`, so the format and other Markdown/MyST

@@ -81,14 +81,16 @@ async page => {
   check(await insert.evaluate(element => getComputedStyle(element.parentElement).opacity === '1' &&
     getComputedStyle(element).pointerEvents !== 'none'), 'The first insert action is hidden at rest');
   await insert.click();
-  await page.getByRole('menuitem', {name:'Heading 1', exact:true}).waitFor();
+  await page.getByRole('menuitem', {name:'Heading 2', exact:true}).waitFor();
+  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 0, 'Body insert menu offers H1');
   await page.keyboard.press('Escape');
   // Clicking well below the one-line editor must still put the caret in the document.
   const paper = await page.locator('[data-document-tab][data-active=true] .document').boundingBox();
   await page.mouse.click(paper.x + paper.width/2, paper.y + paper.height - 40);
   check(await focused(), 'The empty paper below the text did not focus the editor');
   await page.keyboard.type('/');
-  await page.getByRole('menuitem', {name:'Heading 1', exact:true}).waitFor();
+  await page.getByRole('menuitem', {name:'Heading 2', exact:true}).waitFor();
+  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 0, 'Body slash menu offers H1');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Backspace');
   check(await hint(), 'Dismissing and deleting the slash did not restore the hint');
