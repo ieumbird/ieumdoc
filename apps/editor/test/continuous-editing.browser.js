@@ -242,6 +242,7 @@ async (page, { openDocument }) => {
     const {selection} = state;
     return {focus: view.hasFocus(),
       selection: selection.toJSON(), parent: selection.$from.parent.type.name, end: state.doc.content.size,
+      selected: selection.node?.toJSON(),
       tail: state.doc.content.content.slice(-2).map(node => node.toJSON())};
   });
   for (const mode of ['Enter', 'ArrowDown', 'Control+End', 'typing', 'composition', 'selected Enter', 'selected ArrowDown', 'selected Control+End']) {
@@ -254,11 +255,17 @@ async (page, { openDocument }) => {
     await page.getByTestId('equation-latex').fill(latex);
     await page.getByTestId('equation-apply').click();
     const applied = await continuationState();
-    if (mode.startsWith('selected ')) await page.locator('[data-document-tab][data-active=true] [data-testid="equation-preview"]').last().click();
+    // Navigate back from Apply's end gap to select the final Equation through the engine keymap.
+    if (mode.startsWith('selected ')) await page.keyboard.press('ArrowLeft');
     const beforeKey = await continuationState();
+    if (mode.startsWith('selected ')) assert(beforeKey.focus && beforeKey.selection.type === 'node' &&
+      beforeKey.selected?.type === 'equation' && beforeKey.selected.attrs.latex === latex,
+      `Select the final Equation before ${mode}: ${JSON.stringify(beforeKey)}`);
     const key = mode.replace('selected ', '');
     if (!['typing', 'composition'].includes(key)) await page.keyboard.press(key);
     const navigated = await continuationState();
+    if (!['typing', 'composition'].includes(key)) assert(navigated.focus && navigated.parent === 'paragraph' && navigated.selection.type === 'text',
+      `Reach following prose immediately after ${mode}: ${JSON.stringify(navigated)}`);
     const text = key === 'composition' ? '한글' : `Continue ${mode}`;
     if (key === 'composition') {
       const input = await page.context().newCDPSession(page);
@@ -274,8 +281,6 @@ async (page, { openDocument }) => {
     continuation.push({mode, latex, text, applied, beforeKey, navigated, typed,
       passed: applied.focus && applied.tail.at(-1)?.type === 'equation' &&
         applied.selection.type === 'gapcursor' && applied.selection.pos === applied.end &&
-        (!mode.startsWith('selected ') || beforeKey.selection.type === 'node') &&
-        (['typing', 'composition'].includes(key) || (navigated.focus && navigated.parent === 'paragraph' && navigated.selection.type === 'text')) &&
         typed.focus && typed.parent === 'paragraph' && typed.tail[0]?.type === 'equation' &&
         typed.tail[0]?.attrs.latex === latex && typed.tail[1]?.type === 'paragraph' &&
         typed.tail[1]?.content?.map(node => node.text ?? '').join('') === text});
