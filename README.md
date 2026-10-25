@@ -4,13 +4,44 @@
 >
 > **Status: Beta** — [v0.1.0-beta.1](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)가 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
 
-IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사용하는 구조화 기술문서 시스템입니다.
+IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사용하는 구조화 기술문서 에디터입니다.
 
 사람은 WYSIWYG Visual Editor로 작성하고 CLI는 동일한 headless semantic Core로 문서를 읽고 수정합니다. AI·automation도 같은 Core를 사용하도록 설계되어 있지만, 전용 AI/MCP interface는 아직 제공하지 않습니다.
+
+먼저 원하는 경로를 선택하세요.
+
+- **설치해서 사용하기**: [Windows Desktop](#windows-desktop)
+- **기존 문서를 열기 전 확인하기**: [문서 호환성과 저장](#document-compatibility-and-preservation)
+- **현재 master 개발 실행하기**: [Getting started](#getting-started)
+- **CLI로 문서 확인·수정하기**: [Core and CLI](#core-and-cli)
 
 ![실제 IeumDoc Visual Editor에서 한영 기술문서의 Outline, heading 번호, 수식과 Figure를 표시한 화면](docs/design/assets/visual-v2-after-numbering.png)
 
 2026-10-06 Visual Language v2의 실제 Editor capture입니다. 이후 추가된 Open folder와 Wide document control은 이 이미지에 포함되지 않습니다.
+
+## Windows Desktop
+
+일반 사용자용 공개 버전은 **v0.1.0-beta.1** Windows x64 Beta입니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
+
+1. [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.1.0-beta.1.exe`를 다운로드하고 실행합니다. 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다.
+2. 설치 파일은 unsigned이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
+3. 시작 화면에서 폴더 또는 sample을 선택합니다. **Open folder**로 폴더를 열고 Sidebar의 네이티브 `.md` 파일을 선택하거나 **New file**로 새 문서를 만듭니다. 편집 후 **Save**로 저장합니다. 기억한 탭이 있으면 시작 시 복원합니다.
+
+이 공개 버전에는 표·그림·수식·참조와 인용/BibTeX 참고문헌 저작, 한국어·영어 UI, 여러 폴더·문서 탭, 미저장 작업의 로컬 복구가 포함됩니다. **복구는 원본 파일의 자동 저장이 아닙니다.** 변경 사항과 알려진 제한은 [v0.1.0-beta.1 릴리스 기록](docs/releases/v0.1.0-beta.1.md)을 확인하세요. 아래 [Current capabilities](#current-capabilities)와 설계 계약은 현재 master 기준이며 공개 버전의 기능 목록을 대신하지 않습니다.
+
+Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널과 업데이트를 확인합니다. Beta 설치본은 첫 실행에 Beta 채널을 선택하며 저장된 선택은 유지합니다. 업데이트 확인은 자동이고, **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 작업이 있으면 업데이트 재시작을 거부합니다. 상세 동작은 [Desktop contract](docs/design/desktop-distribution-v1.md), 개발자 빌드·릴리즈는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases)을 따릅니다.
+
+## Document compatibility and preservation
+
+IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한 Markdown/MyST를 semantic document로 읽고 공식 write path에서 canonical Markdown을 생성합니다. 파일 출력은 UTF-8이며, CRLF와 mixed EOL은 LF로 정규화합니다. formatting과 원래 bytes를 그대로 유지하는 계약은 아닙니다.
+
+[ADR-0006](docs/adr/0006-native-document-boundary.md)에 따라 `ieumdoc: 1` 표식과 지원되는 본문을 가진 네이티브 문서만 엽니다. 미지원 내용·메타데이터가 있으면 문서 전체를 거부하며, 기존 편집 내용은 유지합니다. New file 또는 `ieumdoc create <file>`로 새 문서를 만듭니다.
+
+**이전 버전 문서라도 표식이 없으면 거부하며 Migration은 제공하지 않습니다.** 부분 편집·미지원 문서의 read-only 화면·block source editing은 제거되었습니다. 문서 전체 Source는 적용된 내용을 Core로 직렬화한 읽기 전용 preview입니다. [v0.0.1-beta.4 릴리스 기록](docs/releases/v0.0.1-beta.4.md)를 참고하세요.
+
+외부 앱의 rich HTML clipboard에는 별도 import 정책이 적용됩니다. 지원되는 구조로 붙여넣고, 보존하지 못하는 formatting은 안내하며, 표현할 수 없는 구조는 이유와 함께 거부합니다. 자세한 범위는 [Document support](docs/design/document-support-v1.md), [Continuous editing](docs/design/document-editing-v1.md)을 참고합니다.
+
+원본 `.md` 파일이 저장의 기준이며 이미지 붙여넣기·drop은 문서 옆 `assets/`에 저장합니다. 함께 옮겨야 상대 경로가 유지됩니다([파일·asset 계약](docs/design/filesystem-host-boundary-v1.md)). 명시적 Save와 원본에서 분리된 로컬 복구의 범위·한계는 [Editing session and Save](docs/design/editing-session-save-v1.md#local-recovery-records-296-pr2)를 따릅니다.
 
 ## Why IeumDoc
 
@@ -24,15 +55,81 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 
 ## Current capabilities
 
-현재 master에 구현된 범위입니다. 블록 종류별 세부 지원 조건은 [문서 색인](docs/README.md#current-implemented-contracts)의 current contract를 따릅니다.
+**현재 master에 구현된 범위**입니다. 공개 설치본의 변경 사항은 위 릴리스 기록, 블록별 세부 지원 조건은 [문서 지원 계약](docs/design/document-support-v1.md)을 따릅니다.
 
-- **Headless Core / CLI**: parse, semantic operation, validation, canonical MyST Markdown. 공식 파일 write는 UTF-8 / LF이며 의미를 보존할 수 없으면 fail-closed로 거부합니다.
-- **Visual Editor**: 하나의 Tiptap/ProseMirror 문서 상태에서 H1–H6, paragraph, nested list, quote, code, divider, standard admonition과 지원되는 inline formatting을 편집합니다. split/join, hard break, selection/clipboard, Undo/Redo, Markdown input shortcut과 block/section 이동을 지원합니다.
-- **Table / Figure / Equation**: table cell·행·열·정렬, caption·label·reference, Figure 속성과 수식 편집. Figure·Equation·caption/label이 있는 Table의 번호는 계산해 표시합니다. PNG·JPEG·GIF·WebP 이미지 붙여넣기·drop은 문서 옆 `assets/`에 저장합니다([Asset Host contract](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)).
-- **Pending Figure**: 이미지 없이 caption 또는 label을 Apply해 저장·참조하고, Reload 후 기존 Edit Figure에서 이미지를 연결합니다. CLI 생성·수정·readiness 경고는 [Figure authoring](docs/design/figure-authoring-v1.md)을 참고합니다.
-- **Heading / footnote**: heading reference와 선택 가능한 H2–H6 numbering(H1은 제목), footnote 삽입(`/` Endnote, CLI `insert-footnote`)과 한 문단 definition의 문서 내 편집. MyST footnote는 미주로 표시되고, 모든 저장은 정의를 본문 뒤 첫 참조 순서로 씁니다. 정의는 미주 참조를 포함하지 않는 비어 있지 않은 지원 문단 하나만 허용하며, 여러 문단 등 미지원 정의가 있으면 문서 전체의 열기를 거부합니다([지원 계약](docs/design/document-support-v1.md)).
-- **Preservation / Save**: 네이티브 문서 검증, canonical Source preview, 외부 변경의 Save conflict와 미저장 작업 이탈 보호. Save 뒤에도 selection과 Undo/Redo history를 유지합니다.
-- **Local file navigation**: Markdown 열기·새 파일 생성, 선택한 folder의 한 단계 목록과 하위 folder 이동, 현재 문서 Outline. workspace나 Git UI는 아닙니다.
+- **공유 Core / CLI**: 문서 읽기, 의미 기반 수정, 검증과 canonical MyST Markdown 저장. Editor와 CLI가 같은 headless Core를 사용합니다.
+- **Visual Editor**: H1–H6, 문단, 중첩 목록, 인용문, 코드, 구분선, standard admonition과 지원되는 inline formatting. 연속 편집, hard break, selection/clipboard, Undo/Redo, Markdown shortcut과 block/section 이동을 제공합니다([편집 계약](docs/design/document-editing-v1.md)).
+- **기술문서 저작**: 표·그림·수식의 편집, caption·label·reference와 표시 번호, H2–H6 번호, 미주, 인용과 BibTeX 기반 참고문헌. 이미지 없는 Pending Figure도 저장·참조한 뒤 이미지를 연결할 수 있습니다. 각 지원 조건은 [현재 계약 색인](docs/README.md#current-implemented-contracts)에서 확인합니다.
+- **로컬 파일 작업**: 여러 폴더와 문서 탭, 현재 문서 Outline, Source preview, 외부 변경의 Save conflict와 미저장 작업 보호. Save 뒤에도 selection과 Undo/Redo history를 유지합니다([세션·저장 계약](docs/design/editing-session-save-v1.md)).
+
+## Getting started
+
+아래는 **현재 master를 clone해 개발 실행하는 절차**입니다. 공개 설치본과 시점이 다를 수 있습니다. 일반 사용자용 설치는 위 [Windows Desktop](#windows-desktop)을 따릅니다.
+
+### Requirements
+
+Node.js `>=24.21.0 <25`, pnpm `12.5.1`이 필요합니다. 기준은 루트 `package.json`입니다.
+
+### Install
+
+```bash
+git clone https://github.com/ieumbird/ieumdoc.git
+cd ieumdoc
+pnpm install --frozen-lockfile
+```
+
+### Visual Editor
+
+```bash
+pnpm editor
+```
+
+`http://127.0.0.1:5173`을 엽니다. 명시적 시작 경로와 유효한 탭 탐색 기억이 없는 첫 실행에는 기본 문서 `apps/editor/document/technical-document.md`를 엽니다. 이후 시작·탭 복원은 [세션 계약](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)을 따릅니다. 검증에는 원본 문서 대신 [scratch fixture 절차](docs/test/TEST_GUIDE.md#browser-regression)를 사용합니다.
+
+검증 명령과 작업별 필수 범위는 [Contributing의 verification matrix](CONTRIBUTING.md#verification-matrix), browser·수동 확인은 [검증 안내](docs/test/README.md)에 있습니다.
+
+### Core and CLI
+
+개발 checkout에서 같은 Core로 문서를 검사합니다. 파일을 수정하는 명령은 fixture 대신 저장소 밖의 문서 사본에서 실행하세요.
+
+```bash
+pnpm ieumdoc help
+pnpm ieumdoc check apps/editor/document/technical-document.md
+pnpm ieumdoc inspect apps/editor/document/technical-document.md
+pnpm ieumdoc help apply-batch
+```
+
+단건 수정은 `pnpm ieumdoc help <command>`, 여러 수정은 `apply-batch`를 사용합니다. 편집 전 `inspect --format json`으로 현재 경로와 revision을 확인하고, `--if-revision`으로 변경을 보호하며 `--dry-run`으로 미리 확인할 수 있습니다. 옵션·출력·오류의 상세는 CLI help와 [revision 계약](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214), [배치 계약](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215), [미리보기 계약](docs/design/filesystem-host-boundary-v1.md#cli-dry-run-292)을 참고하세요.
+
+여러 변경은 `apply-batch`로 한 번에 적용합니다. 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
+
+```bash
+pnpm ieumdoc create "<임시 폴더>/document.md"
+pnpm ieumdoc insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
+pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
+```
+
+이 상태의 Core snapshot은 metadata가 인덱스 0, H1 제목이 경로 `[1]`이며 다른 본문은 없습니다. 다음 두 작업은 H2를 끝(인덱스 2)에 삽입한 뒤 그 heading을 수정합니다. 제목은 첫 본문 위치에 유지합니다. 같은 임시 폴더의 `operations.json`에 저장합니다.
+
+```json
+[
+  { "command": "insert-heading", "at": "end", "level": 2, "text": "Method" },
+  { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] }
+]
+```
+
+```bash
+pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
+pnpm ieumdoc check "<임시 폴더>/document.md"
+```
+
+배치의 경로·인덱스는 직전 단계 결과 기준이며 자동 추적되지 않습니다. 후속 변경 전에는 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻습니다.
+
+### Standalone HTTP Editor
+
+현재 master에서 Node 기반 production Editor와 파일 API를 함께 실행하는 배포물을 만들 수 있습니다. [HTTP Host의 빌드·설치·실행](docs/design/http-host-v1.md#build-and-run)과 [Contributing](CONTRIBUTING.md#http-host-builds)을 따릅니다. 이것은 CI/local 산출물이며 공개 npm 패키지나 NAS 자동 배포가 아닙니다.
+
+HTTP Host는 서버의 허용된 폴더에 접근하며 내장 인증이 없습니다. 원격 접속에는 접근 제어된 프록시/사설망과 명시적 `--public-origin`이 필요합니다([접근 경계](docs/design/http-host-v1.md#http-and-remote-access)).
 
 ## Architecture
 
@@ -82,133 +179,13 @@ Architecture decisions:
 - [ADR-0004: Desktop Host and distribution](docs/adr/0004-desktop-host-distribution.md)
 - [ADR-0005: Standalone HTTP Host](docs/adr/0005-http-host.md)
 
-## Getting started
-
-아래는 저장소를 clone한 뒤 사용하는 **개발 실행 절차**입니다. 일반 사용자용 설치나 배포 패키지가 아닙니다.
-
-### Requirements
-
-Node.js `>=24.21.0 <25`, pnpm `12.5.1`이 필요합니다. 기준은 루트 `package.json`입니다.
-
-### Install
-
-```bash
-git clone https://github.com/ieumbird/ieumdoc.git
-cd ieumdoc
-pnpm install --frozen-lockfile
-```
-
-### Core and CLI
-
-Headless document Core는 `packages/core`, 파일 명령은 `packages/cli`에 있습니다.
-
-```bash
-pnpm ieumdoc help
-pnpm ieumdoc check packages/core/test/fixtures/document.md
-pnpm ieumdoc inspect packages/core/test/fixtures/technical-document.md
-pnpm ieumdoc help split-paragraph
-```
-
-`help`는 모든 명령을 생성·조회, 검사, 편집(배치·블록 삽입·텍스트/콘텐츠·구조·표·라벨/미주/번호), 포맷, 서버 실행으로 묶어 보여줍니다. 목록 앞의 Start here 안내에 따라 편집 전 `inspect <file> --format json`으로 현재 경로와 revision을 확인하고, 단건은 개별 명령, 여러 수정은 `apply-batch`를 선택합니다. `--if-revision`으로 변경을 보호하고 `--dry-run`으로 미리 확인합니다. 배치 경로는 앞 단계 결과 기준이며 자동 추적되지 않습니다.
-
-`help <command>`에서 옵션을 확인합니다. paragraph offset은 UTF-16이고 NodePath는 snapshot locator입니다. `check`는 대상이 없는 `{eq}`/`{numref}`/`{ref}` reference를 warning으로 알립니다. 이 warning만으로 check가 실패하지는 않습니다. 파일을 바꾸는 명령은 fixture가 아닌 문서 사본에서 실행합니다. 명령이 파일을 읽은 뒤 다른 곳에서 바뀌었거나 쓰기 도중 실패하면 원본을 그대로 두고 실패합니다([File commit](docs/design/filesystem-host-boundary-v1.md#file-commit-v1)).
-
-AI·자동화 호출자는 `inspect <file> --format json`의 `revision`과 `nodes`의 경로를 함께 사용합니다. `revision`은 inspect가 읽은 원본 UTF-8 text의 SHA-256(64자리 소문자 hex)입니다. 모든 문서 변경 명령(`format` 포함, `create` 제외)은 선택적 `--if-revision <revision>`을 받으며, 현재 원본과 다르면 Core operation 전에 거부합니다. 생략하면 기존 동작을 유지합니다.
-
-```bash
-pnpm ieumdoc inspect document.md --format json
-pnpm ieumdoc update-heading document.md --path <inspect에서 얻은 경로> --text "New heading" --if-revision <inspect에서 얻은 revision>
-```
-
-단건 변경 명령은 성공 후 새 revision을 출력하지 않습니다. 후속 변경 전에는 `inspect`를 다시 실행해 새 revision과 경로를 함께 얻습니다. 오래된 NodePath를 영속 ID로 사용하거나 새 위치로 추측해 재지정하지 않습니다. 잘못된 revision 인자는 `--if-revision must be 64 lowercase hexadecimal characters`, revision 불일치는 `revision mismatch; run inspect again; nothing was written`을 stderr에 출력하고 exit 1로 종료하며 파일을 변경하지 않습니다. 전체 사전조건 계약은 [CLI revision precondition](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214)에 있습니다.
-
-수식은 `insert-equation <file> --at end --latex "x^2" --label eq-result`, 표는 `insert-table <file> --at end --cells '[["A"],["1"]]' --caption "Values" --label tab-values`로 삽입과 속성 설정을 한 번의 파일 교체로 완료합니다. 표의 `--caption-content <InlineContent JSON>`은 `--caption`과 상호 배타이며, 캡션 없이 라벨만 지정할 수도 있습니다. 라벨 검증·중복 거부는 Core `updateLabel`과 같고 실패하면 파일을 바꾸지 않습니다.
-
-최상위 본문 삽입 명령(`insert-block`, `insert-heading`, `insert-admonition`, `insert-quote`, `insert-divider`, `insert-equation`, `insert-figure`, `insert-table`, `insert-list`, `insert-code-block`, `insert-target`)의 `--at`은 숫자 인덱스 또는 `end`를 받습니다. `end`는 Core가 계산한 본문 끝, 즉 미주 정의 앞입니다. 미주가 없으면 마지막 본문 뒤, 빈 새 문서에서는 1입니다. 표 행·열의 `--at`, 삭제 위치와 이동 명령의 `--to`는 숫자만 받습니다.
-
-여러 변경은 `apply-batch`로 한 번에 적용합니다. 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
-
-```bash
-pnpm ieumdoc create "<임시 폴더>/document.md"
-pnpm ieumdoc insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
-pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
-```
-
-이 상태의 Core snapshot은 metadata가 인덱스 0, H1 제목이 경로 `[1]`이며 다른 본문은 없습니다. 다음 두 작업은 H2를 끝(인덱스 2)에 삽입한 뒤 그 heading을 수정합니다. 제목은 첫 본문 위치에 유지합니다. 같은 임시 폴더의 `operations.json`에 저장합니다.
-
-```json
-[
-  { "command": "insert-heading", "at": "end", "level": 2, "text": "Method" },
-  { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] }
-]
-```
-
-배치에서도 수식·표의 새 옵션을 그대로 사용하며, `"at": "end"`는 각 단계의 직전 canonical snapshot을 기준으로 계산합니다.
-
-```bash
-pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
-pnpm ieumdoc check "<임시 폴더>/document.md"
-```
-
-옵션 키는 기존 플래그에서 `--`를 뺀 이름입니다. 스칼라 옵션은 string/number/boolean만, JSON 옵션은 객체/배열/문자열만 허용하며 모든 옵션의 `null` 값은 거부합니다. 모든 단건 변경 명령(`format` 포함)을 사용할 수 있고, 중첩 배치·operation별 `if-revision`·비변경 명령은 거부합니다. 각 경로·인덱스는 직전 단계의 canonical 재파싱 결과를 기준으로 하며 자동 추적하지 않습니다. 최초 원본의 revision을 한 번 확인하고 최종 결과만 한 번 커밋합니다. 실패하면 부분 결과를 쓰지 않고 exit 1을 반환합니다. 각 원소의 입력·옵션·Core 처리·검증·직렬화·재파싱 실패에만 `operation N (command): <오류>; nothing was written`을 출력합니다. 원본 read/parse·revision·최종 커밋 오류는 prefix 없이 단건과 같은 메시지를 출력합니다(예: `revision mismatch; run inspect again; nothing was written`, 커밋 충돌은 `... changed after it was read; nothing was written`). 위 두 작업의 JSON 성공 출력은 `{"ok":true,"command":"apply-batch","applied":2,"revision":"<결과 revision>"}` 한 줄이며 text 모드는 출력이 없습니다. 입력은 비어 있지 않은 JSON 배열 파일이어야 하며 stdin은 지원하지 않습니다. 상세 계약은 [CLI batch application](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)에 있습니다.
-
-### Visual Editor
-
-```bash
-pnpm editor
-```
-
-`pnpm --filter @ieumdoc/editor dev`와 같습니다. `http://127.0.0.1:5173`의 첫 실행처럼 명시적 시작 경로와 유효한 탭 탐색 기억이 없을 때 기본 문서 `apps/editor/document/technical-document.md`를 엽니다. 이후에는 [세션 계약의 시작 우선순위](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)를 따르며, 마지막 탭을 닫아 빈 목록을 기억한 경우에는 시작 화면을 유지합니다. 검증 시에는 [scratch fixture 절차](docs/test/TEST_GUIDE.md#browser-regression)를 사용합니다.
-
-```bash
-pnpm docs:check
-pnpm typecheck
-pnpm test
-pnpm --filter @ieumdoc/editor build
-```
-
-관련 browser regression과 수동 확인은 [검증 안내](docs/test/README.md)에 있습니다.
-
-### Standalone HTTP Editor
-
-서버에서 production Editor와 파일 API를 함께 실행할 수 있습니다. 배포물을 만든 뒤에는 Node.js `>=24.21.0 <25`만 필요하며, Vite나 Electron을 띄우지 않습니다.
-
-```powershell
-pnpm --filter @ieumdoc/cli package
-node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\document"
-```
-
-기본 주소는 `http://127.0.0.1:5180`입니다. `--root`는 서버가 접근을 허용하는 기존 폴더 목록이며, **Open Folder에서 그중 하나 또는 하위 폴더를 선택**합니다. HTTP Host는 기본 문서를 제공하지 않지만 Editor는 [세션 계약](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)에 따라 명시적 경로나 기억한 탭을 열 수 있습니다. Linux에서도 서버 경로로 같은 명령을 사용합니다.
-
-`packages/cli/dist/*.tgz`를 다른 PC에 복사해 offline 설치할 수 있습니다. 내장 인증은 없으므로 원격 접속에는 접근 제어된 프록시/사설망과 명시적 `--public-origin`이 필요합니다. 설치·프록시 설정·파일 경계·지원 범위는 [HTTP Host contract](docs/design/http-host-v1.md)를 따릅니다. CI/local 산출물이며 npm registry 게시나 NAS 자동 배포는 제공하지 않습니다.
-
-### Windows Desktop
-
-일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.1.0-beta.1.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 이 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
-
-설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. `.md` 실행 인자가 없으면 Desktop Host는 기본 문서를 제공하지 않습니다. Editor의 탭 복원 뒤에도 열린 문서가 없으면 시작 화면에서 폴더·최근 폴더·sample을 고릅니다([시작·복구 우선순위](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)). 일반 문서는 Open folder로 폴더를 열고 Sidebar의 `.md` 파일을 선택하며, New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 편집이나 Draft가 있으면 재시작을 거부하며, 일반 종료는 다운로드한 업데이트를 설치하지 않습니다.
-
-현재 공개 버전은 `0.1.0-beta.1`입니다. Stable 미출시는 **No Stable release has been published yet.**로 안내하며 Beta로 전환해 업데이트를 검색할 수 있습니다. 기존 `0.0.1-beta.4`에서 공개 `0.1.0-beta.1`로 다운로드·저장·설치·재실행과 네이티브 문서·설정·Beta 채널·사용자 데이터 보존을 검증했습니다. beta.4부터 표식 없는 이전 버전 문서는 열리지 않습니다(아래 네이티브 문서 안내 참고). 개발자용 로컬 패키징은 아래 Contributing 절차를 따릅니다.
-
-빌드·서명·수동 릴리즈 절차는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases), 정확한 동작과 미검증 범위는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다.
-
-## Document compatibility and preservation
-
-IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한 Markdown/MyST를 semantic document로 읽고 공식 write path에서 canonical Markdown을 생성합니다. 파일 출력은 UTF-8이며, CRLF와 mixed EOL은 LF로 정규화합니다. formatting과 원래 bytes를 그대로 유지하는 계약은 아닙니다.
-
-[ADR-0006](docs/adr/0006-native-document-boundary.md)에 따라 `ieumdoc: 1` 표식과 지원되는 본문을 가진 네이티브 문서만 엽니다. 미지원 내용·메타데이터가 있으면 문서 전체를 거부하며, 기존 편집 내용은 유지합니다. New file 또는 `ieumdoc create <file>`로 새 문서를 만듭니다.
-
-**이전 버전 문서라도 표식이 없으면 거부하며 Migration은 제공하지 않습니다.** 부분 편집·미지원 문서의 read-only 화면·block source editing은 제거되었습니다. 문서 전체 Source는 적용된 내용을 Core로 직렬화한 읽기 전용 preview입니다. [v0.0.1-beta.4 릴리스 기록](docs/releases/v0.0.1-beta.4.md)를 참고하세요.
-
-외부 앱의 rich HTML clipboard에는 별도 import 정책이 적용됩니다. 지원되는 구조로 붙여넣고, 보존하지 못하는 formatting은 안내하며, 표현할 수 없는 구조는 이유와 함께 거부합니다. 자세한 범위는 [Document support](docs/design/document-support-v1.md), [Continuous editing](docs/design/document-editing-v1.md)을 참고합니다.
-
 ## Project status and non-goals
 
-초기 Beta의 설치·공개 버전은 [Windows Desktop](#windows-desktop), 패키징·업데이트와 검증 경계는 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고합니다. `apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 재사용하며 장기 backend 결정이 아닙니다.
+`apps/editor/server`의 stateless 파일 handler는 Vite, Desktop, HTTP Host가 재사용하며 장기 backend 결정이 아닙니다.
 
 **Planned direction:** AI/MCP integration과 broader automation, cross-document identity, transclusion·requirement semantics는 후속 설계 대상입니다. 다음 milestone 후보인 [두 문서의 Requirement·TestCase 연결 → CLI 누락 조회 → Editor 관계 탐색](https://github.com/ieumbird/ieumdoc/issues/347)은 범위와 identity 선행 결정이 필요한 Proposed 상태이며 구현 승인이 아닙니다. [Desktop/VS Code spikes](docs/README.md#historical-reviews-and-spikes)는 당시 실험 근거이며, Desktop 제품 채택의 현재 authority는 [ADR-0004](docs/adr/0004-desktop-host-distribution.md)입니다.
 
-명시적 Save와 원본에서 분리된 적용된 편집 내용의 로컬 복구를 제공합니다. 복구 대상·Host 검증·보장 한계는 [Editing session and Save](docs/design/editing-session-save-v1.md#local-recovery-records-296-pr2)를 따릅니다. 자동 저장은 [보류](docs/adr/0007-editing-session-lifetime.md#1-저장은-명시적-동작이며-자동-저장은-보류한다)되어 있으며 collaboration, workspace/Git 관리 UI는 제공하지 않습니다. 문서의 의미는 Core가 소유하고 인터페이스는 이를 연결한다는 원칙을 유지합니다.
+자동 저장은 [보류](docs/adr/0007-editing-session-lifetime.md#1-저장은-명시적-동작이며-자동-저장은-보류한다)되어 있으며 collaboration, workspace/Git 관리 UI는 제공하지 않습니다. 문서의 의미는 Core가 소유하고 인터페이스는 이를 연결한다는 원칙을 유지합니다.
 
 ## Documentation
 
