@@ -58,7 +58,7 @@ IeumDoc은 **byte-preserving Markdown editor가 아닙니다**. 지원 가능한
 **현재 master에 구현된 범위**입니다. 공개 설치본의 변경 사항은 위 릴리스 기록, 블록별 세부 지원 조건은 [문서 지원 계약](docs/design/document-support-v1.md)을 따릅니다.
 
 - **공유 Core / CLI**: 문서 읽기, 의미 기반 수정, 검증과 canonical MyST Markdown 저장. Editor와 CLI가 같은 headless Core를 사용합니다.
-- **Visual Editor**: H1–H6, 문단, 중첩 목록, 인용문, 코드, 구분선, standard admonition과 지원되는 inline formatting. 연속 편집, selection/clipboard, Undo/Redo, Markdown shortcut과 block/section 이동을 제공합니다([편집 계약](docs/design/document-editing-v1.md)).
+- **Visual Editor**: H1–H6, 문단, 중첩 목록, 인용문, 코드, 구분선, standard admonition과 지원되는 inline formatting. 연속 편집, hard break, selection/clipboard, Undo/Redo, Markdown shortcut과 block/section 이동을 제공합니다([편집 계약](docs/design/document-editing-v1.md)).
 - **기술문서 저작**: 표·그림·수식의 편집, caption·label·reference와 표시 번호, H2–H6 번호, 미주, 인용과 BibTeX 기반 참고문헌. 이미지 없는 Pending Figure도 저장·참조한 뒤 이미지를 연결할 수 있습니다. 각 지원 조건은 [현재 계약 색인](docs/README.md#current-implemented-contracts)에서 확인합니다.
 - **로컬 파일 작업**: 여러 폴더와 문서 탭, 현재 문서 Outline, Source preview, 외부 변경의 Save conflict와 미저장 작업 보호. Save 뒤에도 selection과 Undo/Redo history를 유지합니다([세션·저장 계약](docs/design/editing-session-save-v1.md)).
 
