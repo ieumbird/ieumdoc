@@ -16,10 +16,21 @@ export async function openDocument(page: Page, file: string): Promise<void> {
   await folder.getByRole("treeitem", { name: path.basename(file), exact: true }).click();
 }
 
-/** Explicit disk read, including its work-loss confirmation when the target tab is dirty. */
+/** Wait for Reload's modal/menu focus handoff; callers still answer dirty-tab confirmation. */
 export async function reloadDocument(page: Page): Promise<void> {
   await page.getByRole("button", { name: "File actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "Reload", exact: true }).click();
+  await page.getByRole("menu").waitFor({ state: "detached" });
+  await page.waitForFunction(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    if (dialog) {
+      // A loading modal must finish, but an interactive discard prompt belongs to the caller.
+      const keepEditing = Array.from(dialog.querySelectorAll("button"))
+        .find(button => button.textContent === "Keep editing");
+      return keepEditing && !keepEditing.disabled && dialog.contains(document.activeElement);
+    }
+    return document.activeElement?.matches('button[aria-label="File actions"]');
+  });
 }
 
 export const activeDocument = (page: Page) => page.locator('[data-document-tab][data-active="true"]');

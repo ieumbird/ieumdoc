@@ -121,13 +121,14 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
     try { const response = await route.fetch(); seen(); await gate; await route.fulfill({ response }); } catch (error) { failed(error); }
   };
   await page.route('**/api/bibliography?**', delay);
+  const reloading = reloadDocument(page);
   try {
-    await reloadDocument(page);
     await Promise.race([requested, page.waitForTimeout(15000).then(() => { throw Error('Reload must request the bibliography within 15 seconds'); })]);
     assert(await page.getByRole('tab', { name: 'other.md', exact: true, includeHidden: true }).getAttribute('aria-disabled') === 'true', 'Tabs must be disabled during dependency loading');
     assert((await page.getByTestId('current-file').getAttribute('title')).endsWith('paper.md'), 'Opening remains busy while dependency response is pending');
   } finally {
     release();
+    await reloading;
   }
   await ready(); await page.unroute('**/api/bibliography?**', delay);
   assert((await references.innerText()).includes('Updated Study'), 'Reload must fetch external bibliography changes');
