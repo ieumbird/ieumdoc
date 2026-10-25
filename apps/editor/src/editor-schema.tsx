@@ -542,7 +542,8 @@ function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: Ref
     const { text, resolved, kindName } = referenceDisplay(targets, role, label);
     const chip = document.createElement("span");
     chip.className = "cross-reference-chip";
-    chip.title = resolved ? `${kindName} ${label}` : unresolvedStatus(role, label);
+    chip.title = resolved ? `${text} · ${label}` : unresolvedStatus(role, label);
+    chip.setAttribute("aria-label", chip.title);
     chip.textContent = text;
     reference.classList.add("cross-reference");
     reference.dataset.resolved = String(resolved);
@@ -553,6 +554,7 @@ function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: Ref
     const text = citationText(keys, citations);
     const chip = document.createElement("span");
     chip.className = "cross-reference-chip";
+    chip.setAttribute("aria-label", chip.title);
     chip.textContent = text;
     chip.title = citationStatus(keys, text, bibliography);
     chip.setAttribute("aria-label", chip.title);
@@ -1579,7 +1581,7 @@ function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
 
 const DocumentNumbering = Extension.create({
   name: "documentNumbering",
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false }, referenceTemplates: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
       const blocks: { block: string; level?: number }[] = [];

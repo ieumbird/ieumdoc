@@ -54,8 +54,8 @@ test("missing reference chips identify the broken reference without guessing its
     await i18n.changeLanguage("en");
   }
   assert.equal(referenceDisplay([{ role: "numref", label: "table", kind: "table", number: 1 }], "numref", "table").text, "Table 1");
-  assert.equal(referenceDisplay([{ role: "numref", label: "figure", number: 1 }], "numref", "figure").text, "Fig. 1");
-  assert.equal(referenceDisplay([{ role: "eq", label: "equation", number: 1 }], "eq", "equation").text, "Eq. (1)");
+  assert.equal(referenceDisplay([{ role: "numref", label: "figure", number: 1 }], "numref", "figure").text, "Figure 1");
+  assert.equal(referenceDisplay([{ role: "eq", label: "equation", number: 1 }], "eq", "equation").text, "(1)");
 });
 
 test("citation atoms round-trip through the engine and Save, including groups, captions and metadata", () => {
@@ -199,7 +199,7 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   blockAt(relabeled, "4").attrs!.label = "eq-b";
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
   // Slash items insert a reference to each matching target, then label and reference a heading.
-  assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Fig. 1 · fig-a"]);
+  assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Figure 1 · fig-a"]);
   // "ref" also matches the heading "Refs".
   assert.deepEqual(referenceCommandItems(doc, "ref").map((item) => referenceOfCommand(item.id)),
     [...targets.map(({ role, label }) => ({ role, label })), { heading: 0, title: "" }]);
@@ -224,16 +224,16 @@ test("reference menu searches captions, displayed numbers and labels without cha
   const figure = "reference:numref:fig-control";
   const table = "reference:numref:tbl-data";
   assert.deepEqual(ids("SuMmArY"), [figure, table]);
-  assert.deepEqual(items("동작"), [{ id: figure, label: "Fig. 2 · Control summary 동작 요약.", group: "References" }]);
+  assert.deepEqual(items("동작"), [{ id: figure, label: "Figure 2 · Control summary 동작 요약.", group: "References" }]);
   assert.deepEqual(items("측정"), [{ id: table, label: "Table 1 · Port summary 측정 요약", group: "References" }]);
-  for (const query of ["Fig. 2", "fIG.", "2", "fig-c"]) assert.ok(ids(query).includes(figure), query);
-  for (const query of ["Eq. 1", "Eq. (1)", "(1)", "eq-b", "Equation"]) {
+  for (const query of ["Figure 2", "fIGure", "2", "fig-c"]) assert.ok(ids(query).includes(figure), query);
+  for (const query of ["(1)", "eq-b", "Equation"]) {
     assert.deepEqual(items(query).filter(item => item.id.startsWith("reference:eq:")),
-      [{ id: "reference:eq:eq-buck", label: "Eq. (1) · eq-buck", group: "References" }]);
+      [{ id: "reference:eq:eq-buck", label: "(1) · eq-buck", group: "References" }]);
   }
   assert.deepEqual(ids("Table 1"), [table]);
   assert.deepEqual(ids("1"), ["reference:eq:eq-buck", "reference:numref:fig-first", table]);
-  assert.equal(items("fig-first")[0]?.label, "Fig. 1 · fig-first");
+  assert.equal(items("fig-first")[0]?.label, "Figure 1 · fig-first");
   assert.deepEqual(referenceOfCommand(items("summary")[0]!.id), { role: "numref", label: "fig-control" });
   assert.deepEqual(ids("guide"), ["reference:ref:sec-guide"]);
   assert.equal(items("guide")[0]?.label, "Section reference: Installation guide");
@@ -247,7 +247,7 @@ test("reference menu searches captions, displayed numbers and labels without cha
   const caption = `${"😀".repeat(81)} searchable`;
   const updated = live.copy(live.content.replaceChild(index, schema.nodes.figure.create(
     live.child(index).attrs, schema.text(caption))));
-  assert.equal(referenceCommandItems(updated, "searchable")[0]?.label, `Fig. 2 · ${"😀".repeat(80)}…`);
+  assert.equal(referenceCommandItems(updated, "searchable")[0]?.label, `Figure 2 · ${"😀".repeat(80)}…`);
 });
 
 test("reference chip selector stays unchanged by caption edits while menus read the live captions", () => {
@@ -266,7 +266,7 @@ test("reference chip selector stays unchanged by caption edits while menus read 
     else block.attrs!.caption = [{ kind: "text", text: "Updated table" }];
     assert.equal(selectorValue(edited), before, `${kind} caption changed the chip selector`);
     assert.equal(referenceCommandItems(schema.nodeFromJSON(edited), "Updated")[0]?.label,
-      kind === "figure" ? "Fig. 1 · Updated figure." : "Table 1 · Updated table");
+      kind === "figure" ? "Figure 1 · Updated figure." : "Table 1 · Updated table");
   }
 });
 
@@ -278,8 +278,8 @@ test("caption words after Unicode punctuation match without changing menu names"
     ":::{table} 전압(측정) 결과\n:name: tbl-voltage\n\n| Value |\n| --- |\n| 1 |\n:::",
   ].join("\n\n")))));
   for (const [query, prefix, id, label] of [
-    ["summary", "Port-", "reference:numref:fig-ports", "Fig. 1 · Port-summary"],
-    ["cllc", "PFC", "reference:numref:fig-interface", "Fig. 2 · PFC/CLLC interface"],
+    ["summary", "Port-", "reference:numref:fig-ports", "Figure 1 · Port-summary"],
+    ["cllc", "PFC", "reference:numref:fig-interface", "Figure 2 · PFC/CLLC interface"],
     ["측정", "전압(", "reference:numref:tbl-voltage", "Table 1 · 전압(측정) 결과"],
   ] as const) {
     const expected = [{ id, label, group: "References" }];
@@ -381,4 +381,26 @@ test("section insertion preserves the same-heading exception and reports generat
       assert.match(saveEdits(markdown, edits).markdown, /\(intro\)=\n\n## Intro/);
     }
   }
+});
+
+
+test("reference styles derive from template values and editor Save replays authored settings through Core", async () => {
+  const { referenceStyle, REFERENCE_STYLES } = await import("../src/reference-style.ts");
+  for (const [key, style] of Object.entries(REFERENCE_STYLES)) assert.equal(referenceStyle(style.templates), key);
+  assert.equal(referenceStyle({figure: "Figure %s"}), "default");
+  assert.equal(referenceStyle({figure: "Illustration %s"}), "custom");
+  const opening = loadEditableDocument(source);
+  const json = toTiptapDocument(opening);
+  json.attrs = { referenceTemplates: REFERENCE_STYLES.korean.templates };
+  const doc = getSchema(editorExtensions()).nodeFromJSON(json);
+  assert.equal(referenceDisplay(referenceTargets(doc), "eq", "eq-a").text, "식 (1)");
+  assert.ok(referenceCommandItems(doc, "식 (1)").some(item => item.label.startsWith("식 (1)")));
+  assert.ok(referenceCommandItems(doc, "그림").some(item => item.label.startsWith("그림 1")));
+  assert.ok(referenceCommandItems(doc, "수식").some(item => item.label.startsWith("식 (1)")));
+  const saved = saveEdits(source, collectSupportedEdits(opening, doc.toJSON() as TiptapJSON));
+  const reopened = loadEditableDocument(saved.markdown);
+  assert.equal(referenceStyle(reopened.referenceTemplates), "korean");
+  const reset = toTiptapDocument(reopened);
+  reset.attrs!.referenceTemplates = null;
+  assert.equal(loadEditableDocument(saveEdits(saved.markdown, collectSupportedEdits(reopened, reset)).markdown).referenceTemplates, undefined);
 });

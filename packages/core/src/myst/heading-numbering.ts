@@ -16,7 +16,8 @@ export function updateHeadingNumbering(document: MystDocument, enabled: boolean)
   if (typeof enabled !== "boolean") throw new Error("heading numbering must be true or false");
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);
-  yaml.set("numbering", yaml.createNode({ headings: enabled, title: false }));
+  yaml.setIn(["numbering", "headings"], enabled);
+  yaml.setIn(["numbering", "title"], false);
   node.value = String(yaml).trimEnd();
   serializeFor(next, "heading numbering cannot be preserved through canonical round-trip");
   return next;

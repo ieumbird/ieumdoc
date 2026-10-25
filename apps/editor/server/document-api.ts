@@ -357,7 +357,7 @@ function supportedEditsOf(value: unknown): SupportedEdits {
   const arrayFields = ["headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
     "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order", "bibliography"] as const;
   for (const key of Object.keys(value)) {
-    if (key !== "headingNumbering" && !arrayFields.some(field => field === key)) throw new Error(`invalid ${key} edits`);
+    if (key !== "headingNumbering" && key !== "referenceTemplates" && !arrayFields.some(field => field === key)) throw new Error(`invalid ${key} edits`);
   }
   for (const key of arrayFields) {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);

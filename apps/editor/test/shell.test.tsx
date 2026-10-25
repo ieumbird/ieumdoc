@@ -407,11 +407,16 @@ test("Display distinguishes document numbering from local width and respects una
   const html = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} headingNumbering wide />);
   assert.match(html, /guide\.md/);
   assert.match(html, /Saved in document/);
+  assert.match(html, /Reference style/);
+  assert.match(html, /<option value="default" selected="">Default<\/option>/);
   assert.match(html, /Local view/);
   assert.match(html, /aria-describedby="display-numbering-hint"[^>]*checked/);
   assert.match(html, /aria-describedby="display-width-hint"[^>]*checked/);
+  const custom = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} referenceTemplates={{figure: "Illustration %s"}} />);
+  assert.match(custom, /<option value="custom" disabled="" selected="">Custom<\/option>/);
   const blocked = renderToStaticMarkup(<DisplaySettings {...display} documentPath="" numberingDisabled numberingHint="Open a document to change numbering." />);
   assert.match(blocked, /No document open/);
+  assert.match(blocked, /<select\b[^>]*disabled/);
   assert.match(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>/);
   assert.doesNotMatch(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-width-hint")[^>]*>/);
 });

@@ -51,3 +51,47 @@ test("native heading policy matches MyST without writing numbers into heading te
   assert.equal(getHeadingNumbering(updateHeadingNumbering(next, false)), undefined);
   assert.equal(serialize(parse(markdown)), markdown);
 });
+
+
+test("reference templates use MyST defaults, accept shorthand, and coexist losslessly with heading settings", async () => {
+  const core = await import("../src/index.ts");
+  const source = "---\nieumdoc: 1 # marker\nbibliography: [refs.bib] # resources\nnumbering:\n  headings: true # sections\n  title: false\n  figure: 'Illustration %s' # shorthand\n  equation: { template: 'Formula {number}' }\n---\n\n## Section\n\nText.\n";
+  const document = core.parse(source);
+  const original = core.serialize(document);
+  const templates = core.getEditableDocument(document).referenceTemplates;
+  assert.deepEqual(templates, { figure: "Illustration %s", equation: "Formula {number}" });
+  assert.deepEqual(["figure", "table", "equation"].map(kind => core.referenceNumberText(kind as "figure" | "table" | "equation", 1)), ["Figure 1", "Table 1", "(1)"]);
+  assert.equal(core.referenceNumberText("equation", 2, templates), "Formula 2");
+  const korean = { figure: "그림 %s", table: "표 %s", equation: "식 (%s)" };
+  const next = core.updateReferenceTemplates(document, korean);
+  assert.equal(core.serialize(document), original);
+  const saved = core.serialize(core.updateHeadingNumbering(next, false));
+  for (const retained of ["# marker", "# resources", "# sections", "title: false", "headings: false"]) assert.ok(saved.includes(retained), retained);
+  assert.deepEqual(parseDocument(saved.split("---")[1]).toJS().bibliography, ["refs.bib"]);
+  assert.match(saved, /figure:\n\s+template: 그림 %s/);
+  assert.deepEqual(core.getEditableDocument(core.parse(saved)).referenceTemplates, korean);
+  assert.equal(core.serialize(core.parse(saved)), saved);
+  const partial = core.updateReferenceTemplates(next, { figure: null });
+  assert.deepEqual(core.getEditableDocument(partial).referenceTemplates, { table: korean.table, equation: korean.equation });
+  const reset = core.updateReferenceTemplates(partial, { table: null, equation: null });
+  assert.equal(core.getEditableDocument(reset).referenceTemplates, undefined);
+  assert.ok(core.getEditableDocument(reset).headingNumbering);
+  const empty = core.updateReferenceTemplates(core.createDocument(), { figure: null });
+  assert.doesNotMatch(core.serialize(empty), /numbering:/);
+  const only = core.updateReferenceTemplates(core.createDocument(), { figure: "Fig. %s" });
+  assert.doesNotMatch(core.serialize(core.updateReferenceTemplates(only, { figure: null })), /numbering:/);
+  assert.equal(core.referenceNumberText("figure", 3, { figure: "%s / {number} / {subEnumerator}" }), "3 / 3 / 3");
+});
+
+test("reference templates refuse invalid values and unknown numbering settings without changing the source", async () => {
+  const core = await import("../src/index.ts");
+  const document = core.createDocument();
+  const original = core.serialize(document);
+  for (const templates of [{ figure: "" }, { table: " \t" }, { equation: "Equation" }, { equation: 1 }, { figure: true }, { figure: undefined }, { heading: "%s" }, { figure: "%s {name}" }, [], null]) {
+    assert.throws(() => core.updateReferenceTemplates(document, templates as never), /template/);
+    assert.equal(core.serialize(document), original);
+  }
+  for (const numbering of ["other: '%s'", "figure: { template: '%s', start: 2 }", "figure: { template: '' }", "figure: true", "table: { template: 'Table' }", "headings: true\n  start: 2", "title: true"]) {
+    assert.throws(() => core.parse(`---\nieumdoc: 1\nnumbering:\n  ${numbering}\n---\n`), /Numbering/);
+  }
+});

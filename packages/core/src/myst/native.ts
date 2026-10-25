@@ -14,6 +14,8 @@ import { supportedTargetLabel } from "./reference.ts";
 import { serialize as serializeTree } from "./serialize.ts";
 import { tableCellContent, tableOf, tableCaptionParagraph } from "./table.ts";
 import type { MystDocument, MystNode } from "./tree.ts";
+import { NUMBERED_KINDS, referenceTemplatesError, type NumberedKind } from "../numbering.ts";
+import { referenceTemplateValue } from "./reference-templates.ts";
 import { declaredBibliography } from "./citation.ts";
 
 export type NativeDocumentErrorCode = "native-marker" | "native-metadata" | "native-content";
@@ -64,9 +66,16 @@ function metadata(document: MystDocument): void {
   catch (error) { throw new NativeDocumentError("native-metadata", (error as Error).message, [0], 1); }
   if (yaml.has("numbering")) {
     const numbering = yaml.get("numbering", true);
-    if (!isMap(numbering) || numbering.items.some(pair => !isScalar(pair.key) || !isScalar(pair.value) ||
-      !(pair.key.value === "headings" && typeof pair.value.value === "boolean" || pair.key.value === "title" && pair.value.value === false))) {
-      throw new NativeDocumentError("native-metadata", "Numbering supports only headings: boolean and title: false", [0], 1);
+    if (!isMap(numbering) || numbering.items.some(pair => {
+      if (!isScalar(pair.key)) return true;
+      const key = pair.key.value;
+      if (key === "headings") return !isScalar(pair.value) || typeof pair.value.value !== "boolean";
+      if (key === "title") return !isScalar(pair.value) || pair.value.value !== false;
+      if (!NUMBERED_KINDS.includes(key as NumberedKind)) return true;
+      const template = referenceTemplateValue(pair.value);
+      return template === undefined || referenceTemplatesError({ [String(key)]: template }) !== undefined;
+    })) {
+      throw new NativeDocumentError("native-metadata", "Numbering supports only headings: boolean, title: false and figure/table/equation templates", [0], 1);
     }
   }
 }

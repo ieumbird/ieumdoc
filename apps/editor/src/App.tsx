@@ -185,7 +185,7 @@ export function App() {
   const emptyImageRef = useRef<HTMLElement | null>(null);
   const session = activeId ? sessions.current.get(activeId) : undefined;
   const {
-    editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, outlineStore,
+    editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, referenceTemplates, outlineStore,
     view = "visual", status: sessionStatus = "ready", error: sessionError = "", notice: sessionNotice = "",
     draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
@@ -674,6 +674,8 @@ export function App() {
         documentPath={openedPath}
         display={{
           headingNumbering,
+          referenceTemplates,
+          onReferenceStyleChange: (style) => editorRef.current?.setReferenceStyle(style),
           onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
           numberingDisabled: !document || busy || view !== "visual",
           numberingHint: !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")

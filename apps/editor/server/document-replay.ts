@@ -46,6 +46,7 @@ import {
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateReferenceTemplates,
   updateBibliography,
   updateParagraphInlineContent,
   sectionMarker,
@@ -519,6 +520,7 @@ export function saveEdits(
   }
   assertTitleKept(editable, document, locators);
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
+  if (edits.referenceTemplates !== undefined) document = updateReferenceTemplates(document, edits.referenceTemplates);
   if (edits.bibliography !== undefined && JSON.stringify(edits.bibliography) !== JSON.stringify(citationReport(document).bibliography)) {
     document = updateBibliography(document, edits.bibliography);
   }

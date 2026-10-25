@@ -298,7 +298,7 @@ test("slash opens on supported inline surfaces with only valid command kinds", (
 });
 
 test("slash keeps display prefix and number together, while ordinary queries still end at whitespace", () => {
-  for (const query of ["Fig. ", "Fig. 2", "eq. 3", "Eq. (3)", "Table 12"]) {
+  for (const query of ["Figure ", "Figure 2", "(3)", "Table 12"]) {
     const text = `See /${query}`;
     const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(text)));
     const state = EditorState.create({ schema, doc, selection: TextSelection.create(doc, text.length + 1) });
@@ -306,6 +306,12 @@ test("slash keeps display prefix and number together, while ordinary queries sti
     assert.ok(slash, query);
     assert.equal(slash.query, query);
     assert.equal(doc.textBetween(slash.from, slash.to), `/${query}`);
+  }
+  for (const query of ["그림 ", "그림 2", "식 (3)", "식 (", "식 (3"]) {
+    const text = `See /${query}`;
+    const doc = schema.nodes.doc.create({referenceTemplates: {figure: "그림 %s", equation: "식 (%s)"}}, schema.nodes.paragraph.create(null, schema.text(text)));
+    const state = EditorState.create({schema, doc, selection: TextSelection.create(doc, text.length + 1)});
+    assert.equal(slashQueryAt(state)?.query, query);
   }
   for (const text of ["/paragraph ", "/Fig. 2 more", "/Table data", "a/Fig. 2"]) {
     const doc = schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, schema.text(text)));

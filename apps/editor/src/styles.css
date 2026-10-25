@@ -2735,3 +2735,5 @@ ol.list { list-style: decimal; }
 .bibliography-choices > p { flex-basis: 100%; }
 .bibliography-choices > button { max-width: 100%; min-width: 0; flex-shrink: 1; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.display-template-choice { display: grid; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--font-size-sm); }

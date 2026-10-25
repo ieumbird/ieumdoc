@@ -6,6 +6,7 @@ import { NodeSelection, Selection, TextSelection, type EditorState, type Transac
 import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath } from "./tiptap-document.ts";
+import { DEFAULT_REFERENCE_TEMPLATES, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
@@ -906,8 +907,21 @@ export function slashQueryAt(state: EditorState): SlashQuery | null {
   const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\n");
   // Keep a display prefix and its number in one query, including the intermediate space.
   // Other slash commands still end at whitespace rather than consuming subsequent prose.
-  const match = /(?:^|\s)\/([^\s/]*|(?:Fig\.|Eq\.|Table)[ \t]+\(?\d*\)?)$/i.exec(before);
+  const match = /(?:^|\s)\/([^/]*)$/.exec(before);
   if (!match) return null;
+  if (/\s/.test(match[1])) {
+    const templates = state.doc.attrs.referenceTemplates as ReferenceTemplates | null;
+    const query = match[1].toLowerCase();
+    const numbered = NUMBERED_KINDS.some(kind => {
+      const [prefix, ...rest] = (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).toLowerCase().split(/%s|\{number\}|\{subEnumerator\}/);
+      if (prefix.startsWith(query)) return true;
+      if (!query.startsWith(prefix)) return false;
+      const tail = query.slice(prefix.length);
+      const digits = /^\d+/.exec(tail)?.[0];
+      return digits !== undefined && rest.join("").startsWith(tail.slice(digits.length));
+    });
+    if (!numbered) return null;
+  }
   return {
     from: $from.pos - match[1].length - 1,
     to: $from.pos,

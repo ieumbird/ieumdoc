@@ -1,3 +1,4 @@
+import { referenceTemplatesError } from "@ieumdoc/core/numbering";
 import type { Schema } from "@tiptap/pm/model";
 import { reserveBlockPaths } from "./block-locators.ts";
 import { DELETED_PATHS_ATTR, type TiptapJSON } from "./tiptap-document.ts";
@@ -53,6 +54,8 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
     if (bibliography !== null && (!Array.isArray(bibliography) || !bibliography.every((value: unknown) => typeof value === "string"))) {
       throw new Error("Invalid editor attribute bibliography");
     }
+    const templateError = referenceTemplatesError(node.attrs.referenceTemplates ?? {});
+    if (templateError) throw new Error(templateError);
     const numbering = node.attrs.headingNumbering;
     if (numbering !== null && (typeof numbering !== "object" ||
         !Array.isArray(numbering.enabled) || !numbering.enabled.every((value: unknown) => typeof value === "boolean") ||

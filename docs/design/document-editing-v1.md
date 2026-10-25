@@ -152,6 +152,15 @@ italic or deletion marks. Core supplies their number policy and text. Supported 
 normal editing and Save preserve those attributes and the bibliography declaration. Citation
 authoring UI and bibliography resource reads follow the [Citations contract](citations-v1.md#editor).
 
+## Reference display settings
+
+In-text Figure/Table/Equation references use Core's per-document [reference templates](heading-numbering-v1.md#reference-templates-445).
+Without settings they read `Figure 1`, `Table 1`, `(1)`. Display's Reference style choice changes
+one document attribute through the existing Undo/Redo history; Save applies Core
+`updateReferenceTemplates` alongside heading settings. Target identities, reference roles,
+caption text and the equation's own right-hand `(N)` number stay unchanged. Chips in table
+captions, target choices, accessible names and menu search follow the same template values.
+
 ## Table cells and Figure captions
 
 Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
