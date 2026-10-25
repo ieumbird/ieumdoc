@@ -4,7 +4,7 @@
 // Save, that Equation/Figure drafts survive Source.
 // Files are scratch copies under the repository's ignored tmp/ directory; prepare them first
 // (see docs/test/TEST_GUIDE.md). The scenario writes technical-document.md only.
-async (page, { openPath }) => {
+async (page, { openPath, screenshots }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -119,9 +119,68 @@ async (page, { openPath }) => {
   await page.getByTestId('figure-cancel').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
 
+  // G. Soft wrapping is visual: source lines, indentation, selection and native Copy stay exact.
+  const wrappingPath = [dir, 'wrapping.md'].join(separator);
+  const wrappingSource = await markdown(wrappingPath, 'wrapping.md');
+  await open(wrappingPath);
+  await showSource();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const wrapping = [];
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({width, height:900});
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      document.activeElement?.blur();
+      window.getSelection()?.removeAllRanges();
+      window.scrollTo(0, 0);
+    });
+    await page.mouse.move(width - 2, 2);
+    const geometry = await sourceView.locator('pre').evaluate(pre => {
+      const lines = [...pre.querySelectorAll('.source-line')];
+      const longLines = lines.filter(line => line.textContent.startsWith('A long paragraph') || line.textContent.startsWith('<https://'));
+      return {
+        clientWidth:pre.clientWidth, scrollWidth:pre.scrollWidth,
+        pageWidth:document.documentElement.clientWidth, pageScrollWidth:document.documentElement.scrollWidth,
+        lineCount:lines.length,
+        longLines:longLines.map(line => {
+          const range = document.createRange(); range.selectNodeContents(line);
+          // pre-wrap can return a separate rectangle for a row's hanging trailing space.
+          const rows = new Map();
+          for (const rect of range.getClientRects()) {
+            const top = Math.round(rect.top);
+            rows.set(top, Math.min(rows.get(top) ?? Infinity, rect.left));
+          }
+          const starts = [...rows.values()];
+          return {rows:rows.size, aligned:starts.every(left => Math.abs(left - starts[0]) <= 1),
+            numbered:getComputedStyle(line, '::before').content !== 'none'};
+        }),
+        dpr:devicePixelRatio, scale:visualViewport.scale, zoom:getComputedStyle(document.documentElement).zoom,
+      };
+    });
+    wrapping.push({width, ...geometry});
+    result[`sourceFits${width}`] = geometry.scrollWidth <= geometry.clientWidth && geometry.pageScrollWidth <= geometry.pageWidth;
+    result[`wrappedLinesKeepNumberAndTextAxis${width}`] = geometry.lineCount === wrappingSource.trimEnd().split('\n').length &&
+      geometry.longLines.length === 2 && geometry.longLines.every(line => line.rows > 1 && line.aligned && line.numbered);
+    result[`wrappingPreservesSource${width}`] = await sourceText() === wrappingSource;
+    if (screenshots) await page.screenshot({path:`tmp/source-wrap-captures/wrapping-${width}.png`});
+    const selected = await sourceView.locator('pre').evaluate(pre => {
+      const range = document.createRange(); range.selectNodeContents(pre);
+      const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+      return selection.toString();
+    });
+    // Chromium's native preformatted selection omits the terminal newline (as in footnotes).
+    result[`selectedSourceExact${width}`] = selected === wrappingSource.replace(/\n$/, '');
+    await page.keyboard.press('ControlOrMeta+c');
+    const copied = (await page.evaluate(() => navigator.clipboard.readText())).replaceAll('\r\n', '\n');
+    result[`copiedSourceExact${width}`] = copied === selected;
+  }
+  result.wrappingDoesNotWrite = await markdown(wrappingPath, 'wrapping.md') === wrappingSource &&
+    await page.getByTestId('status').innerText() === '';
+  await page.evaluate(() => window.getSelection()?.removeAllRanges());
+
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0 || problems.length > 0) {
-    throw new Error(`Source view failed: ${JSON.stringify({result, consoleErrors: problems})}`);
+    throw new Error(`Source view failed: ${JSON.stringify({result, wrapping, consoleErrors: problems})}`);
   }
-  return {...result, consoleErrors: problems};
+  return {...result, wrapping, consoleErrors: problems};
 }

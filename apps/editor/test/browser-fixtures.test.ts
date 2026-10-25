@@ -75,6 +75,8 @@ test("unsharded browser selection retains the full suite, named runs and visual 
     { scenarios: ["open-files"], screenshots: true });
   assert.deepEqual(selectBrowserScenarios(["footnotes", "--screenshots"]),
     { scenarios: ["footnotes"], screenshots: true });
+  assert.deepEqual(selectBrowserScenarios(["source-view", "--screenshots"]),
+    { scenarios: ["source-view"], screenshots: true });
   assert.throws(() => selectBrowserScenarios(["--screenshots"]), /Use:/);
 });
 

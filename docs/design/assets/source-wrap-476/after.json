@@ -1,0 +1,89 @@
+{
+  "toggleLeftOfStatusAndSave": true,
+  "visualInitiallyPressed": true,
+  "sourcePressed": true,
+  "sourceMatchesCanonical": true,
+  "sourceReadOnly": true,
+  "sourceSameColumn": true,
+  "unsavedEditsInSource": true,
+  "fileNotWrittenByPreview": true,
+  "statusUnchangedByPreview": true,
+  "visualKeepsEdits": true,
+  "singleEditor": true,
+  "undoHistoryKept": true,
+  "redoRestores": true,
+  "saveFromSourceWritesPreview": true,
+  "staysInSourceAfterSave": true,
+  "reloadOpensVisual": true,
+  "reloadedSourceMatchesFile": true,
+  "sourceExcludesEquationDraft": true,
+  "equationDraftRetained": true,
+  "sourceExcludesFigureDraft": true,
+  "figureDraftRetained": true,
+  "sourceFits1440": true,
+  "wrappedLinesKeepNumberAndTextAxis1440": true,
+  "wrappingPreservesSource1440": true,
+  "selectedSourceExact1440": true,
+  "copiedSourceExact1440": true,
+  "sourceFits375": true,
+  "wrappedLinesKeepNumberAndTextAxis375": true,
+  "wrappingPreservesSource375": true,
+  "selectedSourceExact375": true,
+  "copiedSourceExact375": true,
+  "wrappingDoesNotWrite": true,
+  "wrapping": [
+    {
+      "width": 1440,
+      "clientWidth": 800,
+      "scrollWidth": 800,
+      "pageWidth": 1440,
+      "pageScrollWidth": 1440,
+      "lineCount": 13,
+      "longLines": [
+        {
+          "rows": 6,
+          "aligned": true,
+          "numbered": true
+        },
+        {
+          "rows": 7,
+          "aligned": true,
+          "numbered": true
+        }
+      ],
+      "dpr": 1,
+      "scale": 1,
+      "zoom": "1"
+    },
+    {
+      "width": 375,
+      "clientWidth": 311,
+      "scrollWidth": 311,
+      "pageWidth": 375,
+      "pageScrollWidth": 375,
+      "lineCount": 13,
+      "longLines": [
+        {
+          "rows": 16,
+          "aligned": true,
+          "numbered": true
+        },
+        {
+          "rows": 19,
+          "aligned": true,
+          "numbered": true
+        }
+      ],
+      "dpr": 1,
+      "scale": 1,
+      "zoom": "1"
+    }
+  ],
+  "consoleErrors": [],
+  "source": {
+    "baseHead": "c2329159016cdae6183885bd24de2bd8a8046e1e",
+    "stylesSha256": "51ca0e4cf035e970cb8c3f871dab13f2a17ae29be6ac25da251c52a5554b1475",
+    "sourceScenarioSha256": "9b5762a3e81c9a4d11e2bb6c9f955c16ca359d53d471d1cc415ecbd3b647255b",
+    "sourceLinesSha256": "c65ac3d3af84a07d058caf19e87b9fe9e3f0621dbe38498f710a199706939cd1"
+  }
+}

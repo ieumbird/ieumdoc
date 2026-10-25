@@ -2351,32 +2351,36 @@ ol.list { list-style: decimal; }
   box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
 }
 
-/* Source keeps each Markdown line on one row (a wrapped table row would read as two) and scrolls
- * sideways instead. Line numbers fill the gutter, so the text keeps the Visual text axis. */
+/* Source wraps visually, keeping one number per Markdown line and the Visual text axis. */
 .source-view {
   padding-left: var(--space-4);
 }
 
 .source-view-text {
+  --source-line-gutter: max(3ch, calc(var(--layout-document-inline-padding) - var(--space-4) - var(--space-3)));
   margin: 0;
-  overflow-x: auto;
+  padding-left: calc(var(--source-line-gutter) + var(--space-3));
   counter-reset: source-line;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
-  white-space: pre;
-  scrollbar-width: thin;
-  scrollbar-color: var(--id-color-border-strong) transparent;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.source-line {
+  position: relative;
 }
 
 .source-line::before {
   counter-increment: source-line;
   content: counter(source-line);
-  display: inline-block;
-  width: max(3ch, calc(var(--layout-document-inline-padding) - var(--space-4) - var(--space-3)));
-  margin-right: var(--space-3);
+  position: absolute;
+  left: calc(0px - var(--source-line-gutter) - var(--space-3));
+  width: var(--source-line-gutter);
   color: var(--id-color-text-subtle);
   text-align: right;
+  white-space: pre;
   user-select: none;
 }
 

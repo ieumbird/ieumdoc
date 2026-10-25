@@ -182,6 +182,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       // Source View must equal the canonical Markdown `ieumdoc format` writes, i.e. Core serialize.
       { name: "expected.md", create: () => serialize(parse(readFileSync(path.join(DOCUMENT_DIR, "technical-document.md"), "utf8"))) },
       fixture("writable.md"),
+      { name: "wrapping.md", create: () => serialize(parse(nativeSource("# Source wrapping\n\n" +
+        "A long paragraph stays on one source line. ".repeat(12) + "\n\n" +
+        "<https://example.com/" + "unbroken".repeat(80) + ">\n\n```text\n    indented source stays exact\n```\n"))) },
     ],
     scenarios: ["source-view", "source-view-pending", "document-session"],
   },
