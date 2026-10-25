@@ -29,7 +29,7 @@ import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./s
 import { TopBar } from "./shell/TopBar.tsx";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Columns3, Copy, FileText, FileX, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -611,6 +611,8 @@ export function App() {
     return [...listed.values()].sort((a, b) => a.path.localeCompare(b.path));
   }, [commandOpen, folders.trees]);
   const openedPaths = new Set(tabs.map(tab => tab.path));
+  const inlineInsertionDisabled = !document || busy || view !== "visual" ||
+    !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
@@ -657,6 +659,12 @@ export function App() {
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsOpen(true); void refreshRecovery(); } },
+    { id: "insert-citation", kind: "command", label: i18n.t("Insert citation…"), icon: Quote,
+      disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert citation", "인용 삽입"],
+      run: () => editorRef.current?.openInlineInsertion("citation") },
+    { id: "insert-reference", kind: "command", label: i18n.t("Insert cross-reference…"), icon: Bookmark,
+      disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert cross-reference", "상호 참조 삽입"],
+      run: () => editorRef.current?.openInlineInsertion("reference") },
   ];
 
   return (
