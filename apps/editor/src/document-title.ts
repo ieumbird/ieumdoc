@@ -4,6 +4,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { titleHeading, type SectionMarker } from "@ieumdoc/core/section";
+import { isNewBlockPath } from "./tiptap-document.ts";
 
 /** Shown where a title change is refused and as the title's handle hint. */
 export const TITLE_FIXED = "The title stays at the top of the document.";
@@ -46,7 +47,13 @@ const titleKey = new PluginKey("documentTitle");
 export function addTitle(view: EditorView): void {
   const { state } = view;
   const heading = state.schema.nodes.heading.create({ level: 1 });
-  const tr = state.tr.insert(0, heading);
+  const first = state.doc.firstChild;
+  // The empty new-document writing space is not a second block to keep below the title.
+  const reuse = state.doc.childCount === 1 && first?.type.name === "paragraph" &&
+    first.content.size === 0 && isNewBlockPath(String(first.attrs.sourcePath ?? ""));
+  const tr = reuse
+    ? state.tr.setNodeMarkup(0, heading.type, { ...heading.attrs, sourcePath: first.attrs.sourcePath })
+    : state.tr.insert(0, heading);
   view.dispatch(tr.setSelection(TextSelection.create(tr.doc, 1)).scrollIntoView());
   view.focus();
 }

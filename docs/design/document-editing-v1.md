@@ -203,6 +203,9 @@ tools are unchanged; there is no frontmatter title. The title stays first. One C
 - A document without a title shows an Add a title place above its first block (not document
   content). It starts an empty title with the caret in it and the `Title` placeholder; a title left
   empty is removed once the caret leaves it, because an empty heading is not saved.
+  In an empty new document it reuses the single transient starting paragraph, so Enter at the
+  end of the typed title leaves exactly one empty paragraph below it with the caret there (#437).
+  Existing document content is retained when a title is inserted above it.
 - Save replays a final block order through intermediate orders no one sees, so it moves blocks
   with Core's `checkTitle: false` and instead checks the rule once, against the opening snapshot:
   if that snapshot opened with a title still saved as a level-1 heading, it must still be the title.
