@@ -149,8 +149,16 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
       assert((await center.getByRole('option', { name, exact: true }).getAttribute('aria-disabled') !== 'true') === allowed,
         `${location}: ${name} follows inline caret eligibility`);
     }
-    await page.keyboard.press('Escape');
-    await center.waitFor({ state: 'detached' });
+    if (allowed) {
+      await center.getByRole('option', { name: 'Insert citation…', exact: true }).click();
+      await center.waitFor({ state: 'detached' });
+      await form.waitFor();
+      await page.keyboard.press('Escape');
+      await form.waitFor({ state: 'detached' });
+    } else {
+      await page.keyboard.press('Escape');
+      await center.waitFor({ state: 'detached' });
+    }
     await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
     assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
   };
@@ -173,8 +181,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
       await page.keyboard.type(`Note for ${text}`);
     }
   }
-  await caret('Code.', true);
-  await checkInsertionAvailability(false, 'Text selection');
+  await caret('Body.');
+  await checkInsertionAvailability(true, 'Ordinary paragraph caret');
+  await caret('Body.', true);
+  await checkInsertionAvailability(false, 'Ordinary paragraph text selection');
   await caret('Code.');
   await checkInsertionAvailability(false, 'Code');
   await page.keyboard.type(' /');
@@ -255,6 +265,22 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   await page.keyboard.press('Backspace');
   const beforeInsert = await snapshot();
   const insertionCaret = await position();
+  // A form button must not expose the retained body caret as an insertion destination.
+  await openInsert('Insert citation…');
+  await page.getByTestId('citation-key').press('Tab');
+  assert(await page.getByTestId('citation-add').evaluate(button => button === document.activeElement),
+    'Tab moves from the citation key to its Add button');
+  await page.keyboard.press('ControlOrMeta+/');
+  await center.getByRole('combobox').fill('> insert');
+  for (const name of ['Insert citation…', 'Insert cross-reference…']) {
+    assert(await center.getByRole('option', { name, exact: true }).getAttribute('aria-disabled') === 'true',
+      `${name}: citation form button focus cannot insert at the leftover body caret`);
+  }
+  await page.keyboard.press('Enter');
+  assert(await center.isVisible() && await snapshot() === beforeInsert, 'Disabled form-origin commands cannot change the document');
+  await page.keyboard.press('Escape');
+  await center.waitFor({ state: 'detached' });
+  await editor.evaluate(element => element.editor.view.focus());
   for (const [label, testId] of [['Insert citation…', 'citation-form'], ['Insert cross-reference…', 'reference-form']]) {
     await openInsert(label);
     await page.getByTestId(testId).waitFor();

@@ -612,7 +612,7 @@ export function App() {
   }, [commandOpen, folders.trees]);
   const openedPaths = new Set(tabs.map(tab => tab.path));
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
-    !editorRef.current?.canInsertInline() || Boolean(commandReturnFocus.current?.matches("input, textarea, select"));
+    !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,

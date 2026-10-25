@@ -343,7 +343,10 @@ recent-command persistence, filesystem index or new document-content actions.
 open the existing Citation and Reference forms at the retained Visual editor caret. They need
 no slash or preceding whitespace, including directly after Korean text. Availability reuses
 the slash menu's schema-backed inline caret eligibility and the existing session busy/view
-restrictions; code, property fields, Source and non-caret selections cannot insert.
+restrictions. The center must be opened while editor content itself has focus; forms,
+property controls (including their buttons), popovers, node-view controls and other shell
+controls cannot use a retained body selection to insert. Code, Source and non-caret
+selections cannot insert.
 The center releases modal focus before opening the form. Escape returns to the same editor
 caret without a document/history change; Apply uses the existing insertion function, returns
 editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
@@ -361,6 +364,13 @@ Save → Reload content, Korean command search, availability on every listed inl
 refusal in code/non-caret selections. The existing command-center, layout-rules and quiet-document
 scenarios also pass. Editor tests pass 281/281; repository typecheck, Editor build, docs and diff
 checks pass. Build retains the existing externalized `punycode` and bundle-size warnings.
+
+The review follow-up reproduces the form-button gap on head `9d8893b`: Tab from the
+Citation key to Add, open the center, and assert both insert commands are disabled. Before
+the focus-origin guard this fails because Insert citation remains enabled. The same browser
+scenario now compares an allowed ordinary paragraph caret with a selected range in that
+paragraph, independently of code restrictions. Allowed-surface checks also open and Escape
+the real Citation form before continuing the existing slash insertion.
 
 ### Listed document search (#384)
 
