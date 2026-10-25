@@ -23,7 +23,7 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
-import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, UNDO_SHORTCUT, REDO_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
 import { KeyboardShortcutGroups } from "../src/shell/KeyboardShortcutsDialog.tsx";
 import { SelectionToolbar } from "../src/SelectionToolbar.tsx";
 import { flattenExtensions, getExtensionField, type Editor } from "@tiptap/core";
@@ -107,6 +107,20 @@ test("shell shortcuts follow characters and preserve layout-specific browser acc
       }
       assert.equal(shortcut.matches(key({ code: "KeyL", key: opaque, keyCode: 229 })), false);
     }
+  }
+  for (const [shortcut, code, character, virtualKey] of [
+    [REDO_SHORTCUT, "KeyY", "y", 89], [UNDO_SHORTCUT, "KeyZ", "z", 90],
+  ] as const) {
+    const matches = (overrides: Partial<KeyboardEvent>) => shortcut.matches(
+      key({ code, key: "Process", keyCode: 229, ...overrides }), { opaqueOnly: true });
+    for (const opaque of ["Process", "Unidentified"]) {
+      for (const keyCode of [0, 229]) assert.equal(matches({ key: opaque, keyCode }), true);
+    }
+    for (const guard of [
+      { key: character }, { key: "q" }, { keyCode: virtualKey }, { keyCode: 81 },
+      { code: "KeyQ" }, { isComposing: true }, { altKey: true }, { shiftKey: true },
+      { ctrlKey: false },
+    ]) assert.equal(matches(guard), false, JSON.stringify(guard));
   }
 });
 

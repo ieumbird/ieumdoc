@@ -18,14 +18,16 @@ function editorShortcut(binding: string) {
 function shortcut(code: string, key: string, virtualKey: number) {
   return {
     ...editorShortcut(`Mod-${key}`),
-    matches: (event: KeyboardEvent) => {
+    matches: (event: KeyboardEvent, { opaqueOnly = false }: { opaqueOnly?: boolean } = {}) => {
       if (event.isComposing || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
+      const opaque = event.key === "Process" || event.key === "Unidentified";
+      if (opaqueOnly && (!opaque || (event.keyCode !== 0 && event.keyCode !== 229))) return false;
       // Chromium browser accelerators use the virtual key, even when an IME hides the character.
-      // Accept this punctuation's VK, unspecified (0), or IME processing (229), never e.g. Zoom Out
+      // Accept this shortcut's VK, unspecified (0), or IME processing (229), never e.g. Zoom Out
       // (189) or French AZERTY apostrophe's digit 4 (52). Unknown native mappings fail closed.
       if (event.keyCode !== virtualKey && event.keyCode !== 0 && event.keyCode !== 229) return false;
       return event.key.toLowerCase() === key.toLowerCase() ||
-        ((event.key === "Process" || event.key === "Unidentified") && event.code === code);
+        (opaque && event.code === code);
     },
   };
 }
@@ -33,12 +35,14 @@ function shortcut(code: string, key: string, virtualKey: number) {
 export const COMMAND_CENTER_SHORTCUT = shortcut("Slash", "/", 191);
 export const LINK_SHORTCUT = shortcut("Quote", "'", 222);
 export const SAVE_SHORTCUT = shortcut("KeyS", "S", 83);
+export const UNDO_SHORTCUT = shortcut("KeyZ", "Z", 90);
+export const REDO_SHORTCUT = shortcut("KeyY", "Y", 89);
 
 // Existing Tiptap bindings (UndoRedo, StarterKit marks, Code, Subscript/Superscript).
 // The shell, formatting tooltips and guide share these labels; Tiptap still owns the keymaps.
 export const EDITOR_SHORTCUTS = {
-  undo: editorShortcut("Mod-z"),
-  redo: editorShortcut("Mod-y"),
+  undo: UNDO_SHORTCUT,
+  redo: REDO_SHORTCUT,
   redoAlternative: editorShortcut("Mod-Shift-z"),
   bold: editorShortcut("Mod-b"),
   italic: editorShortcut("Mod-i"),
