@@ -263,7 +263,12 @@ async (page, { openDocument, expect, screenshots }) => {
       expect(await pathField.getAttribute('aria-activedescendant')).toBe(await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).getAttribute('id'));
       for (const width of [1440, 375]) {
         await page.setViewportSize({width, height:1000});
-        expect(await picker.evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), `${width}px dialog has no horizontal overflow`).toBe(true);
+        const layout = await picker.evaluate(dialog => ({
+          client:dialog.clientWidth, scroll:dialog.scrollWidth,
+          children:[...dialog.children].map(element => ({tag:element.tagName, class:element.className,
+            width:element.getBoundingClientRect().width, client:element.clientWidth, scroll:element.scrollWidth})),
+        }));
+        expect(layout.scroll, `${width}px dialog has no horizontal overflow: ${JSON.stringify(layout)}`).toBeLessThanOrEqual(layout.client);
         expect(await picker.evaluate(dialog => { const box = dialog.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; })).toBe(true);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const fits = await current.evaluate(image => {
@@ -286,8 +291,8 @@ async (page, { openDocument, expect, screenshots }) => {
       releasePreview();
       await page.unroute('**/api/file-preview?*', previewRoute);
       await page.unroute('**/api/folder-browse?*', imageListing);
-      await page.setViewportSize({width:1280, height:720});
     }
+    await page.setViewportSize({width:1280, height:720});
     result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
       await editor.locator('input').count() === 4;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
