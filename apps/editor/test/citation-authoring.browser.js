@@ -283,21 +283,25 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
     }, insertionCaret);
     assert(await snapshot() === beforeInsert, 'Remove only the persisted probe atom');
   }
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByTestId('ui-language').selectOption('ko');
-  await page.keyboard.press('Escape');
-  await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
-  await editor.evaluate((element, pos) => {
-    element.editor.commands.setTextSelection(pos);
-    element.editor.view.focus();
-  }, insertionCaret);
-  await page.keyboard.press('ControlOrMeta+/');
-  const koreanCenter = page.getByRole('dialog', { name: '커맨드 센터', exact: true });
-  await koreanCenter.getByRole('combobox').fill('삽입');
-  for (const name of ['인용 삽입…', '상호 참조 삽입…']) {
-    assert(await koreanCenter.getByRole('option', { name, exact: true }).isVisible(), `${name}: Korean insertion command is searchable`);
+  try {
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByTestId('ui-language').selectOption('ko');
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
+    await editor.evaluate((element, pos) => {
+      element.editor.commands.setTextSelection(pos);
+      element.editor.view.focus();
+    }, insertionCaret);
+    await page.keyboard.press('ControlOrMeta+/');
+    const koreanCenter = page.getByRole('dialog', { name: '커맨드 센터', exact: true });
+    await koreanCenter.getByRole('combobox').fill('삽입');
+    for (const name of ['인용 삽입…', '상호 참조 삽입…']) {
+      assert(await koreanCenter.getByRole('option', { name, exact: true }).isVisible(), `${name}: Korean insertion command is searchable`);
+    }
+    await page.keyboard.press('Escape');
+    await koreanCenter.waitFor({ state: 'detached' });
+  } finally {
+    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
   }
-  await page.keyboard.press('Escape');
-  await koreanCenter.waitFor({ state: 'detached' });
   return { commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }
