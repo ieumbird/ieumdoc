@@ -107,7 +107,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
       {outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t("No headings")}</p> : (
         <ol ref={list} className="document-outline-list" onKeyDown={move}>
           {outline.items.map((item, index) => (
-            <li key={`${item.index}:${item.pos}`}>
+            <li key={item.index}>
               <button
                 type="button"
                 className="document-outline-item"

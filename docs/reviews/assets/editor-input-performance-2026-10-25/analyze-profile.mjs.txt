@@ -1,0 +1,118 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
+
+const [input, output] = process.argv.slice(2);
+if (!input || !output) throw new Error('Usage: node analyze-profile.mjs input.json[.gz] output.json');
+const bytes = readFileSync(input);
+const captures = JSON.parse(input.endsWith('.gz') ? gunzipSync(bytes) : bytes.toString());
+const round = value => Number(value.toFixed(3));
+const label = frame => `${frame.functionName || '(anonymous)'} ${frame.url}:${frame.lineNumber + 1}:${frame.columnNumber + 1}`;
+const includes = (frame, file, fn) => frame.url.includes(file) && (!fn || fn.test(frame.functionName));
+
+// Each named path is an inclusive stack predicate, not an independent budget category.
+const paths = {
+  engineDispatch: frame => /^(dispatchTransaction|EditorView\.dispatch)$/.test(frame.functionName),
+  applyTransaction: frame => frame.functionName === 'applyTransaction',
+  structureGuardFilter: frame => includes(frame, '/editor-schema.tsx', /^filterTransaction$/),
+  structureGuardAppend: frame => includes(frame, '/editor-schema.tsx', /^appendTransaction$/),
+  structuralValidation: frame => /^(assertSupportedDocumentChange|normalizeEngineDocument)$/.test(frame.functionName),
+  onTransaction: frame => includes(frame, '/DocumentEditor.tsx', /^onTransaction$/),
+  referencesBrokenByDeletion: frame => frame.functionName === 'referencesBrokenByDeletion',
+  referenceTargets: frame => frame.functionName === 'referenceTargets',
+  reactRoot: frame => frame.functionName === 'performWorkOnRoot',
+  reactCommitBeforeMutation: frame => frame.functionName === 'commitBeforeMutationEffects',
+  reactNodeViews: frame => /^(?:ReactNodeView|ReactRenderer|TableView|TableTools|CodeBlockView|EquationView|EquationDraftNodeView|FigureView|FigureAssetNodeView|InlineMathView|AdmonitionView|FootnoteDefinitionView|CrossReferenceView|CitationView)/.test(frame.functionName),
+  outlineRender: frame => includes(frame, '/DocumentPanel.tsx', /^Outline$/),
+  outlineReport: frame => includes(frame, '/DocumentEditor.tsx', /^report$/),
+  outlineRevealInList: frame => includes(frame, '/DocumentPanel.tsx', /^revealInList$/),
+  blockHandlesRender: frame => includes(frame, '/BlockHandles.tsx', /^BlockHandles$/),
+  blockRectangles: frame => includes(frame, '/BlockHandles.tsx', /^rectangles$/),
+  blockRectanglesNodeDOM: (frame, stack) => /^(nodeDOM|descAt)$/.test(frame.functionName) && stack.some(parent => includes(parent, '/BlockHandles.tsx', /^rectangles$/)),
+  blockNumbers: frame => /^(blockNumbers|blockNumberAt)$/.test(frame.functionName),
+  headingNumbers: frame => frame.functionName === 'headingNumbers',
+  citationNumbers: frame => frame.functionName === 'citationNumbers',
+  decorations: frame => /^(decorations|computeDocDeco|viewDecorations|buildTree|mapChildren|mapInner|localsInner)$/.test(frame.functionName),
+  dirtyNotification: frame => includes(frame, '/DocumentEditor.tsx', /^(updated|hasDocumentChanges)$/),
+  boundingClientRect: frame => frame.functionName === 'getBoundingClientRect',
+};
+
+function analyze(capture) {
+  const { profile, trace } = capture;
+  const events = trace.traceEvents;
+  const starts = events.filter(event => /^perf362-start-\d+$/.test(event.name)).sort((a, b) => a.ts - b.ts);
+  const windows = starts.map(start => {
+    const key = Number(start.name.match(/\d+$/)[0]);
+    const end = events.find(event => event.name === `perf362-end-${key}` && event.ts >= start.ts);
+    if (!end) throw new Error(`Missing end mark ${key}`);
+    return { key, start: start.ts, end: end.ts };
+  });
+  if (!windows.length) throw new Error('No perf362 native key windows');
+  const nodes = new Map(profile.nodes.map(node => [node.id, node]));
+  const parents = new Map();
+  for (const node of profile.nodes) for (const child of node.children ?? []) parents.set(child, node.id);
+  const stacks = new Map(profile.nodes.map(node => {
+    const stack = [];
+    let id = node.id;
+    while (id !== undefined) {
+      stack.push(nodes.get(id).callFrame);
+      id = parents.get(id);
+    }
+    return [node.id, stack];
+  }));
+  let stamp = profile.startTime;
+  const samples = profile.samples.map((id, index) => ({ id, ts: stamp += profile.timeDeltas[index] })).sort((a, b) => a.ts - b.ts);
+  const rendererThreads = new Set(events.filter(event => event.name === 'thread_name' && event.args?.name === 'CrRendererMain').map(event => `${event.pid}:${event.tid}`));
+  const mainTrace = events.filter(event => event.ph === 'X' && rendererThreads.has(`${event.pid}:${event.tid}`));
+
+  function summarize(selectedWindows) {
+    const self = new Map();
+    const inclusive = new Map();
+    const named = new Map(Object.keys(paths).map(name => [name, 0]));
+    const traceMs = new Map();
+    let sampleMs = 0;
+    const windowMs = selectedWindows.reduce((sum, window) => sum + (window.end - window.start) / 1000, 0);
+    const overlap = (start, end) => selectedWindows.reduce((sum, window) => sum + Math.max(0, Math.min(end, window.end) - Math.max(start, window.start)) / 1000, 0);
+    for (let index = 0; index < samples.length; index++) {
+      const sample = samples[index];
+      const next = samples[index + 1]?.ts ?? profile.endTime;
+      const ms = overlap(sample.ts, next);
+      if (!ms) continue;
+      sampleMs += ms;
+      const stack = stacks.get(sample.id);
+      const leaf = label(stack[0]);
+      self.set(leaf, (self.get(leaf) ?? 0) + ms);
+      for (const name of new Set(stack.map(label))) inclusive.set(name, (inclusive.get(name) ?? 0) + ms);
+      for (const [name, predicate] of Object.entries(paths)) if (stack.some(frame => predicate(frame, stack))) named.set(name, named.get(name) + ms);
+    }
+    for (const event of mainTrace) {
+      const ms = overlap(event.ts, event.ts + (event.dur ?? 0));
+      if (ms) traceMs.set(event.name, (traceMs.get(event.name) ?? 0) + ms);
+    }
+    const rows = map => [...map].sort((a, b) => b[1] - a[1]).map(([name, ms]) => ({ name, ms: round(ms), percent: round(ms / windowMs * 100) }));
+    return {
+      windowMs: round(windowMs), sampleMs: round(sampleMs), uncoveredMs: round(windowMs - sampleMs),
+      namedInclusive: rows(named), self: rows(self).slice(0, 20), inclusive: rows(inclusive).slice(0, 40),
+      mainThreadTraceMs: Object.fromEntries(['Layout', 'UpdateLayoutTree', 'PrePaint', 'Paint', 'HitTest'].map(name => [name, round(traceMs.get(name) ?? 0)])),
+      mainThreadTraceTop: rows(traceMs).slice(0, 15),
+      reactMountMarkers: events.filter(event => event.name === 'Mount' && event.ph === 'b' && selectedWindows.some(window => event.ts >= window.start && event.ts < window.end)).length,
+    };
+  }
+  return {
+    kind: capture.kind, n: capture.n, file: capture.file, keyFrameMs: capture.keyFrameMs,
+    negativeTimeDeltas: profile.timeDeltas.filter(delta => delta < 0).length,
+    windows, aggregate: summarize(windows), perKey: windows.map(window => {
+      const { self, inclusive, mainThreadTraceTop, ...summary } = summarize([window]);
+      return { key: window.key, ...summary };
+    }),
+  };
+}
+
+const result = {
+  method: 'CPU timestamps = startTime + cumulative timeDeltas, then sorted. Each sample owns until next chronological sample, clipped to perf362-start/end native key windows. Inclusive paths overlap and must not be summed. Trace event durations are separate, may nest, and must not be added to CPU attribution. React Mount markers are diagnostic markers, not a complete DOM row count.',
+  input,
+  captures: (Array.isArray(captures) ? captures : [captures]).map(analyze),
+};
+writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
+for (const capture of result.captures) {
+  console.log(JSON.stringify({ kind: capture.kind, keyFrameMs: capture.keyFrameMs, windowMs: capture.aggregate.windowMs, sampleMs: capture.aggregate.sampleMs, namedInclusive: capture.aggregate.namedInclusive, mainThreadTraceMs: capture.aggregate.mainThreadTraceMs, reactMountMarkers: capture.aggregate.reactMountMarkers }, null, 2));
+}

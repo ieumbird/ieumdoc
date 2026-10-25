@@ -1,0 +1,21 @@
+import { parse, serialize, getEditableDocument } from '../../packages/core/src/index.ts';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const paragraph = 'Fixed length ordinary paragraph text.';
+const cycle = [paragraph, '## Fixed length heading', '> Fixed length quote text.', '```text\nfixed code text\n```', '$$\nx = 1\n$$', '| A | B |\n| --- | --- |\n| C | D |', '- Fixed list item\n- Other list item', '---'];
+mkdirSync('tmp/perf-362/documents', { recursive: true });
+const targets = [];
+for (const kind of ['plain', 'mixed']) for (const n of [2000, 5000]) {
+  const body = Array.from({length:n}, (_, i) => kind === 'plain' ? paragraph : cycle[i % cycle.length]).join('\n\n');
+  const source = '---\nieumdoc: 1\n---\n\n' + body + '\n';
+  const file = `tmp/perf-362/documents/${kind}-${n}.md`;
+  if (process.argv[2] !== 'check') writeFileSync(file, source);
+  else {
+    const saved = readFileSync(file, 'utf8');
+    const expected = serialize(parse(source.replace(paragraph, 'F' + 'x'.repeat(25) + paragraph.slice(1))));
+    if (saved !== expected) throw new Error(`Full canonical mismatch: ${file}`);
+    const projected = getEditableDocument(parse(saved));
+    targets.push({file, kind, n, blockCount:projected.blocks.length, blockTypes:projected.blocks.reduce((m:any,b:any)=>(m[b.block]=(m[b.block]??0)+1,m),{}), exactCanonicalMatch:true, insertedCharacters:25, sha256:createHash('sha256').update(saved).digest('hex')});
+  }
+}
+if (process.argv[2] === 'check') writeFileSync(process.argv[3], JSON.stringify(targets, null, 2));

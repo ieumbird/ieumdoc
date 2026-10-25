@@ -1,0 +1,2148 @@
+{
+  "method": "CPU timestamps = startTime + cumulative timeDeltas, then sorted. Each sample owns until next chronological sample, clipped to perf362-start/end native key windows. Inclusive paths overlap and must not be summed. Trace event durations are separate, may nest, and must not be added to CPU attribution. React Mount markers are diagnostic markers, not a complete DOM row count.",
+  "input": "docs/reviews/assets/editor-input-performance-2026-10-25/before-profile.json.gz",
+  "captures": [
+    {
+      "kind": "plain",
+      "n": 2000,
+      "file": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\perf-mixed-2000-input-latency\\tmp\\perf-362\\documents\\plain-2000.md",
+      "keyFrameMs": [
+        32.10000002384186,
+        27.09999990463257,
+        23.600000023841858,
+        29.399999976158142
+      ],
+      "negativeTimeDeltas": 1,
+      "windows": [
+        {
+          "key": 0,
+          "start": 914833358244,
+          "end": 914833390499
+        },
+        {
+          "key": 1,
+          "start": 914833407647,
+          "end": 914833434701
+        },
+        {
+          "key": 2,
+          "start": 914833448949,
+          "end": 914833472496
+        },
+        {
+          "key": 3,
+          "start": 914833485639,
+          "end": 914833515002
+        }
+      ],
+      "aggregate": {
+        "windowMs": 112.219,
+        "sampleMs": 112.219,
+        "uncoveredMs": 0,
+        "namedInclusive": [
+          {
+            "name": "engineDispatch",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "blockRectangles",
+            "ms": 36.136,
+            "percent": 32.201
+          },
+          {
+            "name": "blockRectanglesNodeDOM",
+            "ms": 22.018,
+            "percent": 19.621
+          },
+          {
+            "name": "applyTransaction",
+            "ms": 14.442,
+            "percent": 12.869
+          },
+          {
+            "name": "boundingClientRect",
+            "ms": 14.118,
+            "percent": 12.581
+          },
+          {
+            "name": "structureGuardFilter",
+            "ms": 9.689,
+            "percent": 8.634
+          },
+          {
+            "name": "reactRoot",
+            "ms": 6.997,
+            "percent": 6.235
+          },
+          {
+            "name": "structuralValidation",
+            "ms": 6.445,
+            "percent": 5.743
+          },
+          {
+            "name": "dirtyNotification",
+            "ms": 6.105,
+            "percent": 5.44
+          },
+          {
+            "name": "structureGuardAppend",
+            "ms": 1.581,
+            "percent": 1.409
+          },
+          {
+            "name": "reactCommitBeforeMutation",
+            "ms": 1.115,
+            "percent": 0.994
+          },
+          {
+            "name": "onTransaction",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "referencesBrokenByDeletion",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "referenceTargets",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "reactNodeViews",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "outlineRender",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "outlineReport",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "outlineRevealInList",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "blockHandlesRender",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "blockNumbers",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "headingNumbers",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "citationNumbers",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "decorations",
+            "ms": 0,
+            "percent": 0
+          }
+        ],
+        "self": [
+          {
+            "name": "(program) :0:0",
+            "ms": 36.59,
+            "percent": 32.606
+          },
+          {
+            "name": "descAt http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:701:8",
+            "ms": 22.018,
+            "percent": 19.621
+          },
+          {
+            "name": "getBoundingClientRect :0:0",
+            "ms": 14.118,
+            "percent": 12.581
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:144:27",
+            "ms": 4.682,
+            "percent": 4.172
+          },
+          {
+            "name": "updated http://127.0.0.1:5193/src/DocumentEditor.tsx:292:19",
+            "ms": 2.949,
+            "percent": 2.628
+          },
+          {
+            "name": "measure :0:0",
+            "ms": 2.863,
+            "percent": 2.551
+          },
+          {
+            "name": "run :0:0",
+            "ms": 2.1,
+            "percent": 1.871
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/tiptap-edits.ts:435:18",
+            "ms": 1.675,
+            "percent": 1.493
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/document-title.ts:10:14",
+            "ms": 1.673,
+            "percent": 1.491
+          },
+          {
+            "name": "sourcePathOf http://127.0.0.1:5193/src/tiptap-projection.ts:161:29",
+            "ms": 1.615,
+            "percent": 1.439
+          },
+          {
+            "name": "descendants http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:1152:13",
+            "ms": 1.594,
+            "percent": 1.42
+          },
+          {
+            "name": "getClientRects :0:0",
+            "ms": 1.59,
+            "percent": 1.417
+          },
+          {
+            "name": "setEnd :0:0",
+            "ms": 1.583,
+            "percent": 1.411
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/editor-schema.tsx:1278:22",
+            "ms": 1.581,
+            "percent": 1.409
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/editor-schema.tsx:1234:14",
+            "ms": 1.578,
+            "percent": 1.406
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:322:9",
+            "ms": 1.571,
+            "percent": 1.4
+          },
+          {
+            "name": "fromTiptapInline http://127.0.0.1:5193/src/tiptap-inline.ts:153:26",
+            "ms": 1.57,
+            "percent": 1.399
+          },
+          {
+            "name": "setSelection http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:817:14",
+            "ms": 1.566,
+            "percent": 1.395
+          },
+          {
+            "name": "(garbage collector) :0:0",
+            "ms": 1.564,
+            "percent": 1.394
+          },
+          {
+            "name": "toJSON http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:378:8",
+            "ms": 1.508,
+            "percent": 1.344
+          }
+        ],
+        "inclusive": [
+          {
+            "name": "(root) :0:0",
+            "ms": 112.219,
+            "percent": 100
+          },
+          {
+            "name": "dispatchTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=ebc4395b:6416:21",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "EditorView.dispatch http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4626:41",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "readDOMChange http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3985:23",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4263:44",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "flush http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3742:7",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "DOMObserver.observer http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3648:74",
+            "ms": 66.104,
+            "percent": 58.906
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=ebc4395b:3226:36",
+            "ms": 46.923,
+            "percent": 41.814
+          },
+          {
+            "name": "emit http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=ebc4395b:3224:6",
+            "ms": 46.923,
+            "percent": 41.814
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:322:9",
+            "ms": 42.539,
+            "percent": 37.907
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:1131:9",
+            "ms": 42.539,
+            "percent": 37.907
+          },
+          {
+            "name": "update http://127.0.0.1:5193/src/BlockHandles.tsx:140:18",
+            "ms": 40.818,
+            "percent": 36.374
+          },
+          {
+            "name": "transaction http://127.0.0.1:5193/src/BlockHandles.tsx:162:23",
+            "ms": 40.818,
+            "percent": 36.374
+          },
+          {
+            "name": "(program) :0:0",
+            "ms": 36.59,
+            "percent": 32.606
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:95:29",
+            "ms": 36.136,
+            "percent": 32.201
+          },
+          {
+            "name": "rectangles http://127.0.0.1:5193/src/BlockHandles.tsx:93:22",
+            "ms": 36.136,
+            "percent": 32.201
+          },
+          {
+            "name": "descAt http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:701:8",
+            "ms": 22.018,
+            "percent": 19.621
+          },
+          {
+            "name": "nodeDOM http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4521:9",
+            "ms": 22.018,
+            "percent": 19.621
+          },
+          {
+            "name": "applyTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-oD5Kx5mv.js?v=ebc4395b:2615:18",
+            "ms": 14.442,
+            "percent": 12.869
+          },
+          {
+            "name": "getBoundingClientRect :0:0",
+            "ms": 14.118,
+            "percent": 12.581
+          },
+          {
+            "name": "filterTransaction http://127.0.0.1:5193/src/editor-schema.tsx:1257:20",
+            "ms": 9.689,
+            "percent": 8.634
+          },
+          {
+            "name": "filterTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-oD5Kx5mv.js?v=ebc4395b:2601:19",
+            "ms": 9.689,
+            "percent": 8.634
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9852:30",
+            "ms": 7.036,
+            "percent": 6.27
+          },
+          {
+            "name": "performWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8661:29",
+            "ms": 6.997,
+            "percent": 6.235
+          },
+          {
+            "name": "performSyncWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9838:33",
+            "ms": 6.997,
+            "percent": 6.235
+          },
+          {
+            "name": "flushSyncWorkAcrossRoots_impl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9743:41",
+            "ms": 6.997,
+            "percent": 6.235
+          },
+          {
+            "name": "processRootScheduleInMicrotask http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9770:42",
+            "ms": 6.997,
+            "percent": 6.235
+          },
+          {
+            "name": "updated http://127.0.0.1:5193/src/DocumentEditor.tsx:292:19",
+            "ms": 6.105,
+            "percent": 5.44
+          },
+          {
+            "name": "run :0:0",
+            "ms": 5.795,
+            "percent": 5.164
+          },
+          {
+            "name": "updateStateInner http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4321:18",
+            "ms": 4.739,
+            "percent": 4.223
+          },
+          {
+            "name": "updateState http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4318:13",
+            "ms": 4.739,
+            "percent": 4.223
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/BlockHandles.tsx:144:27",
+            "ms": 4.682,
+            "percent": 4.172
+          },
+          {
+            "name": "assertSupportedDocumentChange http://127.0.0.1:5193/src/tiptap-edits.ts:401:46",
+            "ms": 4.127,
+            "percent": 3.678
+          },
+          {
+            "name": "isSupportedDocumentChange http://127.0.0.1:5193/src/tiptap-edits.ts:351:42",
+            "ms": 4.127,
+            "percent": 3.678
+          },
+          {
+            "name": "renderRootSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8987:26",
+            "ms": 3.633,
+            "percent": 3.237
+          },
+          {
+            "name": "completeRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9254:24",
+            "ms": 3.364,
+            "percent": 2.998
+          },
+          {
+            "name": "completeRootWhenReady http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8780:33",
+            "ms": 3.364,
+            "percent": 2.998
+          },
+          {
+            "name": "coordsAtPos http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:433:21",
+            "ms": 3.173,
+            "percent": 2.828
+          },
+          {
+            "name": "coordsAtPos http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4495:13",
+            "ms": 3.173,
+            "percent": 2.828
+          },
+          {
+            "name": "scrollToSelection http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4375:19",
+            "ms": 3.173,
+            "percent": 2.828
+          }
+        ],
+        "mainThreadTraceMs": {
+          "Layout": 7.564,
+          "UpdateLayoutTree": 0,
+          "PrePaint": 2.998,
+          "Paint": 3.277,
+          "HitTest": 5.075
+        },
+        "mainThreadTraceTop": [
+          {
+            "name": "EventDispatch",
+            "ms": 270.108,
+            "percent": 240.697
+          },
+          {
+            "name": "RunTask",
+            "ms": 112.15,
+            "percent": 99.939
+          },
+          {
+            "name": "FunctionCall",
+            "ms": 84.234,
+            "percent": 75.062
+          },
+          {
+            "name": "RunMicrotasks",
+            "ms": 79.493,
+            "percent": 70.837
+          },
+          {
+            "name": "Layout",
+            "ms": 7.564,
+            "percent": 6.74
+          },
+          {
+            "name": "HitTest",
+            "ms": 5.075,
+            "percent": 4.522
+          },
+          {
+            "name": "V8.HandleInterrupts",
+            "ms": 3.467,
+            "percent": 3.089
+          },
+          {
+            "name": "V8.StackGuard",
+            "ms": 3.446,
+            "percent": 3.071
+          },
+          {
+            "name": "Paint",
+            "ms": 3.277,
+            "percent": 2.92
+          },
+          {
+            "name": "PrePaint",
+            "ms": 2.998,
+            "percent": 2.672
+          },
+          {
+            "name": "Commit",
+            "ms": 1.855,
+            "percent": 1.653
+          },
+          {
+            "name": "FireAnimationFrame",
+            "ms": 1.474,
+            "percent": 1.314
+          },
+          {
+            "name": "Layerize",
+            "ms": 0.693,
+            "percent": 0.618
+          },
+          {
+            "name": "V8.BytecodeBudgetInterrupt",
+            "ms": 0.343,
+            "percent": 0.306
+          },
+          {
+            "name": "V8.BytecodeBudgetInterruptWithStackCheck",
+            "ms": 0.174,
+            "percent": 0.155
+          }
+        ],
+        "reactMountMarkers": 0
+      },
+      "perKey": [
+        {
+          "key": 0,
+          "windowMs": 32.255,
+          "sampleMs": 32.255,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 17.47,
+              "percent": 54.162
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 9.438,
+              "percent": 29.261
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 7.859,
+              "percent": 24.365
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 4.76,
+              "percent": 14.757
+            },
+            {
+              "name": "reactRoot",
+              "ms": 2.616,
+              "percent": 8.11
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 1.709,
+              "percent": 5.298
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 1.585,
+              "percent": 4.914
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.585,
+              "percent": 4.914
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 1.581,
+              "percent": 4.902
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 1.579,
+              "percent": 4.895
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 0.831,
+              "percent": 2.576
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineReport",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 1.625,
+            "UpdateLayoutTree": 0,
+            "PrePaint": 0.915,
+            "Paint": 1.317,
+            "HitTest": 2.732
+          },
+          "reactMountMarkers": 0
+        },
+        {
+          "key": 1,
+          "windowMs": 27.054,
+          "sampleMs": 27.054,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 16.431,
+              "percent": 60.734
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 9.415,
+              "percent": 34.801
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 4.725,
+              "percent": 17.465
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 4.69,
+              "percent": 17.336
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 3.193,
+              "percent": 11.802
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 2.233,
+              "percent": 8.254
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 1.615,
+              "percent": 5.97
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.615,
+              "percent": 5.97
+            },
+            {
+              "name": "reactRoot",
+              "ms": 1.313,
+              "percent": 4.853
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 0.284,
+              "percent": 1.05
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineReport",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 2.345,
+            "UpdateLayoutTree": 0,
+            "PrePaint": 0.708,
+            "Paint": 0.645,
+            "HitTest": 0.678
+          },
+          "reactMountMarkers": 0
+        },
+        {
+          "key": 2,
+          "windowMs": 23.547,
+          "sampleMs": 23.547,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 14.975,
+              "percent": 63.596
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 7.806,
+              "percent": 33.151
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 4.687,
+              "percent": 19.905
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 3.246,
+              "percent": 13.785
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 3.246,
+              "percent": 13.785
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 3.119,
+              "percent": 13.246
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.675,
+              "percent": 7.113
+            },
+            {
+              "name": "reactRoot",
+              "ms": 1.352,
+              "percent": 5.742
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 0.78,
+              "percent": 3.313
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineReport",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 1.593,
+            "UpdateLayoutTree": 0,
+            "PrePaint": 0.549,
+            "Paint": 0.677,
+            "HitTest": 0.71
+          },
+          "reactMountMarkers": 0
+        },
+        {
+          "key": 3,
+          "windowMs": 29.363,
+          "sampleMs": 29.363,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 17.228,
+              "percent": 58.672
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 9.477,
+              "percent": 32.275
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 6.315,
+              "percent": 21.507
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 3.243,
+              "percent": 11.045
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 3.243,
+              "percent": 11.045
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 3.162,
+              "percent": 10.769
+            },
+            {
+              "name": "reactRoot",
+              "ms": 1.716,
+              "percent": 5.844
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.57,
+              "percent": 5.347
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 1.383,
+              "percent": 4.71
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineReport",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 2.001,
+            "UpdateLayoutTree": 0,
+            "PrePaint": 0.826,
+            "Paint": 0.638,
+            "HitTest": 0.955
+          },
+          "reactMountMarkers": 0
+        }
+      ]
+    },
+    {
+      "kind": "mixed",
+      "n": 2000,
+      "file": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\perf-mixed-2000-input-latency\\tmp\\perf-362\\documents\\mixed-2000.md",
+      "keyFrameMs": [
+        133.20000004768372,
+        128,
+        124.59999990463257,
+        135.80000007152557
+      ],
+      "negativeTimeDeltas": 1,
+      "windows": [
+        {
+          "key": 0,
+          "start": 914842090915,
+          "end": 914842223997
+        },
+        {
+          "key": 1,
+          "start": 914842255993,
+          "end": 914842383948
+        },
+        {
+          "key": 2,
+          "start": 914842405229,
+          "end": 914842529735
+        },
+        {
+          "key": 3,
+          "start": 914842550832,
+          "end": 914842686648
+        }
+      ],
+      "aggregate": {
+        "windowMs": 521.359,
+        "sampleMs": 521.359,
+        "uncoveredMs": 0,
+        "namedInclusive": [
+          {
+            "name": "engineDispatch",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "reactRoot",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "blockRectangles",
+            "ms": 98.658,
+            "percent": 18.923
+          },
+          {
+            "name": "boundingClientRect",
+            "ms": 72.502,
+            "percent": 13.906
+          },
+          {
+            "name": "reactCommitBeforeMutation",
+            "ms": 40.872,
+            "percent": 7.84
+          },
+          {
+            "name": "outlineRender",
+            "ms": 36.159,
+            "percent": 6.936
+          },
+          {
+            "name": "applyTransaction",
+            "ms": 23.756,
+            "percent": 4.557
+          },
+          {
+            "name": "outlineRevealInList",
+            "ms": 20.844,
+            "percent": 3.998
+          },
+          {
+            "name": "structureGuardFilter",
+            "ms": 15.881,
+            "percent": 3.046
+          },
+          {
+            "name": "dirtyNotification",
+            "ms": 14.968,
+            "percent": 2.871
+          },
+          {
+            "name": "outlineReport",
+            "ms": 11.993,
+            "percent": 2.3
+          },
+          {
+            "name": "structuralValidation",
+            "ms": 9.513,
+            "percent": 1.825
+          },
+          {
+            "name": "structureGuardAppend",
+            "ms": 4.738,
+            "percent": 0.909
+          },
+          {
+            "name": "headingNumbers",
+            "ms": 1.592,
+            "percent": 0.305
+          },
+          {
+            "name": "citationNumbers",
+            "ms": 1.58,
+            "percent": 0.303
+          },
+          {
+            "name": "onTransaction",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "referencesBrokenByDeletion",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "referenceTargets",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "reactNodeViews",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "blockHandlesRender",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "blockRectanglesNodeDOM",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "blockNumbers",
+            "ms": 0,
+            "percent": 0
+          },
+          {
+            "name": "decorations",
+            "ms": 0,
+            "percent": 0
+          }
+        ],
+        "self": [
+          {
+            "name": "(program) :0:0",
+            "ms": 202.822,
+            "percent": 38.903
+          },
+          {
+            "name": "getBoundingClientRect :0:0",
+            "ms": 72.502,
+            "percent": 13.906
+          },
+          {
+            "name": "commitBeforeMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:7361:39",
+            "ms": 40.872,
+            "percent": 7.84
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:322:9",
+            "ms": 37.862,
+            "percent": 7.262
+          },
+          {
+            "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5df3d4af:192:28",
+            "ms": 29.857,
+            "percent": 5.727
+          },
+          {
+            "name": "revealInList http://127.0.0.1:5193/src/shell/DocumentPanel.tsx:71:22",
+            "ms": 20.844,
+            "percent": 3.998
+          },
+          {
+            "name": "toJSON http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:1445:8",
+            "ms": 11.092,
+            "percent": 2.128
+          },
+          {
+            "name": "get posAtStart http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:629:16",
+            "ms": 10.935,
+            "percent": 2.097
+          },
+          {
+            "name": "run :0:0",
+            "ms": 10.149,
+            "percent": 1.947
+          },
+          {
+            "name": "resolve http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:982:16",
+            "ms": 9.401,
+            "percent": 1.803
+          },
+          {
+            "name": "updated http://127.0.0.1:5193/src/DocumentEditor.tsx:292:19",
+            "ms": 7.881,
+            "percent": 1.512
+          },
+          {
+            "name": "(garbage collector) :0:0",
+            "ms": 6.311,
+            "percent": 1.21
+          },
+          {
+            "name": "measure :0:0",
+            "ms": 5.998,
+            "percent": 1.15
+          },
+          {
+            "name": "removeChild :0:0",
+            "ms": 4.802,
+            "percent": 0.921
+          },
+          {
+            "name": "fn http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_react.js?v=20d5d31a:654:15",
+            "ms": 4.71,
+            "percent": 0.903
+          },
+          {
+            "name": "jsxDEVImpl http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5df3d4af:149:22",
+            "ms": 4.708,
+            "percent": 0.903
+          },
+          {
+            "name": "hasDocumentChanges http://127.0.0.1:5193/src/DocumentEditor.tsx:227:29",
+            "ms": 3.947,
+            "percent": 0.757
+          },
+          {
+            "name": "tableShape http://127.0.0.1:5193/src/tiptap-edits.ts:781:20",
+            "ms": 3.225,
+            "percent": 0.619
+          },
+          {
+            "name": "group http://127.0.0.1:5193/src/tiptap-inline.ts:272:15",
+            "ms": 3,
+            "percent": 0.575
+          },
+          {
+            "name": "runWithFiberInDEV http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:940:29",
+            "ms": 2.746,
+            "percent": 0.527
+          }
+        ],
+        "inclusive": [
+          {
+            "name": "(root) :0:0",
+            "ms": 521.359,
+            "percent": 100
+          },
+          {
+            "name": "(program) :0:0",
+            "ms": 202.822,
+            "percent": 38.903
+          },
+          {
+            "name": "dispatchTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=ebc4395b:6416:21",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "EditorView.dispatch http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4626:41",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "readDOMChange http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3985:23",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:4263:44",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "flush http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3742:7",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "DOMObserver.observer http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_pm_view.js?v=114f9b04:3648:74",
+            "ms": 171.886,
+            "percent": 32.969
+          },
+          {
+            "name": "emit http://127.0.0.1:5193/node_modules/.vite/deps/dist-DIIIS2Gj.js?v=ebc4395b:3224:6",
+            "ms": 144.971,
+            "percent": 27.806
+          },
+          {
+            "name": "performWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8661:29",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "performSyncWorkOnRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9838:33",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "flushSyncWorkAcrossRoots_impl http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9743:41",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "processRootScheduleInMicrotask http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9770:42",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9852:30",
+            "ms": 127.944,
+            "percent": 24.54
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:322:9",
+            "ms": 102.076,
+            "percent": 19.579
+          },
+          {
+            "name": "forEach http://127.0.0.1:5193/node_modules/.vite/deps/dist-Duqa7F0Z.js?v=ebc4395b:1131:9",
+            "ms": 102.076,
+            "percent": 19.579
+          },
+          {
+            "name": "rectangles http://127.0.0.1:5193/src/BlockHandles.tsx:93:22",
+            "ms": 98.658,
+            "percent": 18.923
+          },
+          {
+            "name": "update http://127.0.0.1:5193/src/BlockHandles.tsx:140:18",
+            "ms": 98.658,
+            "percent": 18.923
+          },
+          {
+            "name": "transaction http://127.0.0.1:5193/src/BlockHandles.tsx:162:23",
+            "ms": 98.658,
+            "percent": 18.923
+          },
+          {
+            "name": "run :0:0",
+            "ms": 81.466,
+            "percent": 15.626
+          },
+          {
+            "name": "completeRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9254:24",
+            "ms": 78.253,
+            "percent": 15.009
+          },
+          {
+            "name": "completeRootWhenReady http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8780:33",
+            "ms": 78.253,
+            "percent": 15.009
+          },
+          {
+            "name": "getBoundingClientRect :0:0",
+            "ms": 72.502,
+            "percent": 13.906
+          },
+          {
+            "name": "commitRoot http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9302:22",
+            "ms": 71.684,
+            "percent": 13.749
+          },
+          {
+            "name": "renderRootSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:8987:26",
+            "ms": 49.691,
+            "percent": 9.531
+          },
+          {
+            "name": "runWithFiberInDEV http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:940:29",
+            "ms": 48.774,
+            "percent": 9.355
+          },
+          {
+            "name": "performUnitOfWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9146:29",
+            "ms": 43.972,
+            "percent": 8.434
+          },
+          {
+            "name": "workLoopSync http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:9043:24",
+            "ms": 43.972,
+            "percent": 8.434
+          },
+          {
+            "name": "commitBeforeMutationEffects http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:7361:39",
+            "ms": 40.872,
+            "percent": 7.84
+          },
+          {
+            "name": "beginWork http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:6328:21",
+            "ms": 37.044,
+            "percent": 7.105
+          },
+          {
+            "name": "renderWithHooks http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:4388:27",
+            "ms": 36.416,
+            "percent": 6.985
+          },
+          {
+            "name": "Outline http://127.0.0.1:5193/src/shell/DocumentPanel.tsx:81:17",
+            "ms": 36.159,
+            "percent": 6.936
+          },
+          {
+            "name": "updateFunctionComponent http://127.0.0.1:5193/node_modules/.vite/deps/react-dom_client.js?v=bbcb6e49:5767:35",
+            "ms": 36.159,
+            "percent": 6.936
+          },
+          {
+            "name": "exports.jsxDEV http://127.0.0.1:5193/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5df3d4af:192:28",
+            "ms": 34.565,
+            "percent": 6.63
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/src/shell/DocumentPanel.tsx:144:32",
+            "ms": 33.01,
+            "percent": 6.332
+          },
+          {
+            "name": "fn http://127.0.0.1:5193/node_modules/.vite/deps/@tiptap_react.js?v=20d5d31a:654:15",
+            "ms": 31.345,
+            "percent": 6.012
+          },
+          {
+            "name": "(anonymous) http://127.0.0.1:5193/node_modules/.vite/deps/with-selector-C4IGxsPc.js?v=ebc4395b:50:21",
+            "ms": 26.635,
+            "percent": 5.109
+          },
+          {
+            "name": "memoizedSelector http://127.0.0.1:5193/node_modules/.vite/deps/with-selector-C4IGxsPc.js?v=ebc4395b:31:30",
+            "ms": 25.072,
+            "percent": 4.809
+          },
+          {
+            "name": "applyTransaction http://127.0.0.1:5193/node_modules/.vite/deps/dist-oD5Kx5mv.js?v=ebc4395b:2615:18",
+            "ms": 23.756,
+            "percent": 4.557
+          },
+          {
+            "name": "selector http://127.0.0.1:5193/src/cross-reference.tsx:63:13",
+            "ms": 21.923,
+            "percent": 4.205
+          }
+        ],
+        "mainThreadTraceMs": {
+          "Layout": 34.507,
+          "UpdateLayoutTree": 4.47,
+          "PrePaint": 19.221,
+          "Paint": 25.731,
+          "HitTest": 46.053
+        },
+        "mainThreadTraceTop": [
+          {
+            "name": "EventDispatch",
+            "ms": 728.825,
+            "percent": 139.793
+          },
+          {
+            "name": "RunTask",
+            "ms": 521.238,
+            "percent": 99.977
+          },
+          {
+            "name": "FunctionCall",
+            "ms": 329.68,
+            "percent": 63.235
+          },
+          {
+            "name": "RunMicrotasks",
+            "ms": 311.149,
+            "percent": 59.68
+          },
+          {
+            "name": "FireAnimationFrame",
+            "ms": 117.621,
+            "percent": 22.56
+          },
+          {
+            "name": "HitTest",
+            "ms": 46.053,
+            "percent": 8.833
+          },
+          {
+            "name": "Commit",
+            "ms": 42.919,
+            "percent": 8.232
+          },
+          {
+            "name": "Layout",
+            "ms": 34.507,
+            "percent": 6.619
+          },
+          {
+            "name": "Paint",
+            "ms": 25.731,
+            "percent": 4.935
+          },
+          {
+            "name": "PrePaint",
+            "ms": 19.221,
+            "percent": 3.687
+          },
+          {
+            "name": "MinorGC",
+            "ms": 5.378,
+            "percent": 1.032
+          },
+          {
+            "name": "V8.GC_SCAVENGER",
+            "ms": 5.331,
+            "percent": 1.023
+          },
+          {
+            "name": "V8.GC_SCAVENGER_SCAVENGE",
+            "ms": 5.313,
+            "percent": 1.019
+          },
+          {
+            "name": "UpdateLayoutTree",
+            "ms": 4.47,
+            "percent": 0.857
+          },
+          {
+            "name": "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS",
+            "ms": 3.518,
+            "percent": 0.675
+          }
+        ],
+        "reactMountMarkers": 99
+      },
+      "perKey": [
+        {
+          "key": 0,
+          "windowMs": 133.082,
+          "sampleMs": 133.082,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 43.243,
+              "percent": 32.494
+            },
+            {
+              "name": "reactRoot",
+              "ms": 29.437,
+              "percent": 22.119
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 25.073,
+              "percent": 18.84
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 18.853,
+              "percent": 14.166
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 11.598,
+              "percent": 8.715
+            },
+            {
+              "name": "outlineRender",
+              "ms": 7.882,
+              "percent": 5.923
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 6.354,
+              "percent": 4.774
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 4.968,
+              "percent": 3.733
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 4.77,
+              "percent": 3.584
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 3.957,
+              "percent": 2.973
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 3.145,
+              "percent": 2.363
+            },
+            {
+              "name": "outlineReport",
+              "ms": 2.776,
+              "percent": 2.086
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 1.592,
+              "percent": 1.196
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 1.584,
+              "percent": 1.19
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 8.004,
+            "UpdateLayoutTree": 1.051,
+            "PrePaint": 4.951,
+            "Paint": 6.235,
+            "HitTest": 17.766
+          },
+          "reactMountMarkers": 23
+        },
+        {
+          "key": 1,
+          "windowMs": 127.955,
+          "sampleMs": 127.955,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 46.466,
+              "percent": 36.314
+            },
+            {
+              "name": "reactRoot",
+              "ms": 30.604,
+              "percent": 23.918
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 26.547,
+              "percent": 20.747
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 17.118,
+              "percent": 13.378
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 9.392,
+              "percent": 7.34
+            },
+            {
+              "name": "outlineRender",
+              "ms": 7.85,
+              "percent": 6.135
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 4.793,
+              "percent": 3.746
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 4.671,
+              "percent": 3.651
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 4.132,
+              "percent": 3.229
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 3.234,
+              "percent": 2.527
+            },
+            {
+              "name": "outlineReport",
+              "ms": 2.239,
+              "percent": 1.75
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.65,
+              "percent": 1.29
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 1.58,
+              "percent": 1.235
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 1.559,
+              "percent": 1.218
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 8.224,
+            "UpdateLayoutTree": 1.093,
+            "PrePaint": 5.346,
+            "Paint": 5.048,
+            "HitTest": 9.498
+          },
+          "reactMountMarkers": 28
+        },
+        {
+          "key": 2,
+          "windowMs": 124.506,
+          "sampleMs": 124.506,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 41.645,
+              "percent": 33.448
+            },
+            {
+              "name": "reactRoot",
+              "ms": 33.552,
+              "percent": 26.948
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 23.601,
+              "percent": 18.956
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 18.894,
+              "percent": 15.175
+            },
+            {
+              "name": "outlineRender",
+              "ms": 9.333,
+              "percent": 7.496
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 8.694,
+              "percent": 6.983
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 6.316,
+              "percent": 5.073
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 6.111,
+              "percent": 4.908
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 3.903,
+              "percent": 3.135
+            },
+            {
+              "name": "outlineReport",
+              "ms": 3.449,
+              "percent": 2.77
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 3.155,
+              "percent": 2.534
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 1.595,
+              "percent": 1.281
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 1.567,
+              "percent": 1.259
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 9.626,
+            "UpdateLayoutTree": 1.073,
+            "PrePaint": 4.043,
+            "Paint": 7.44,
+            "HitTest": 8.762
+          },
+          "reactMountMarkers": 24
+        },
+        {
+          "key": 3,
+          "windowMs": 135.816,
+          "sampleMs": 135.816,
+          "uncoveredMs": 0,
+          "namedInclusive": [
+            {
+              "name": "engineDispatch",
+              "ms": 40.532,
+              "percent": 29.843
+            },
+            {
+              "name": "reactRoot",
+              "ms": 34.351,
+              "percent": 25.292
+            },
+            {
+              "name": "blockRectangles",
+              "ms": 23.437,
+              "percent": 17.256
+            },
+            {
+              "name": "boundingClientRect",
+              "ms": 17.637,
+              "percent": 12.986
+            },
+            {
+              "name": "reactCommitBeforeMutation",
+              "ms": 11.188,
+              "percent": 8.238
+            },
+            {
+              "name": "outlineRender",
+              "ms": 11.094,
+              "percent": 8.168
+            },
+            {
+              "name": "applyTransaction",
+              "ms": 6.293,
+              "percent": 4.633
+            },
+            {
+              "name": "outlineRevealInList",
+              "ms": 5.094,
+              "percent": 3.751
+            },
+            {
+              "name": "structureGuardFilter",
+              "ms": 4.722,
+              "percent": 3.477
+            },
+            {
+              "name": "outlineReport",
+              "ms": 3.529,
+              "percent": 2.598
+            },
+            {
+              "name": "structuralValidation",
+              "ms": 3.151,
+              "percent": 2.32
+            },
+            {
+              "name": "dirtyNotification",
+              "ms": 2.976,
+              "percent": 2.191
+            },
+            {
+              "name": "structureGuardAppend",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "onTransaction",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referencesBrokenByDeletion",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "referenceTargets",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "reactNodeViews",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockHandlesRender",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockRectanglesNodeDOM",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "blockNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "headingNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "citationNumbers",
+              "ms": 0,
+              "percent": 0
+            },
+            {
+              "name": "decorations",
+              "ms": 0,
+              "percent": 0
+            }
+          ],
+          "mainThreadTraceMs": {
+            "Layout": 8.653,
+            "UpdateLayoutTree": 1.253,
+            "PrePaint": 4.881,
+            "Paint": 7.008,
+            "HitTest": 10.027
+          },
+          "reactMountMarkers": 24
+        }
+      ]
+    }
+  ]
+}
