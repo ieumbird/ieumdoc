@@ -76,6 +76,49 @@ async (page, { openPath }) => {
   // {eq} reference paragraphs are editable since cross-reference authoring.
   result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
 
+  // Closing inline math must restore a caret at that formula, even if the engine previously
+  // selected its atom or text elsewhere. Check immediately, then type without a focus helper.
+  for (const start of ['selected math', 'other text']) for (const action of ['escape', 'apply']) {
+    await editor.locator('.ProseMirror').evaluate((el, start) => {
+      el.editor.state.doc.descendants((node, pos) => {
+        if (start === 'selected math' && node.type.name === 'inlineMath' && node.attrs.value === 'i_d') el.editor.commands.setNodeSelection(pos);
+        if (start === 'other text' && node.isText && node.text.includes('v_q')) el.editor.commands.setTextSelection(pos);
+      });
+      el.editor.view.focus();
+    }, start);
+    await (await mathNamed('i_d')).click({timeout:5000});
+    await page.getByTestId('inline-math-source').fill('i_d');
+    if (action === 'apply') await page.getByTestId('inline-math-apply').click();
+    else await page.getByTestId('inline-math-source').press('Escape');
+    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+    const restored = await editor.locator('.ProseMirror').evaluate(el => {
+      const e = el.editor;
+      let after;
+      e.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'inlineMath' && node.attrs.value === 'i_d') after = pos + node.nodeSize;
+      });
+      return {focused:document.activeElement === el && e.view.hasFocus(),
+        selection:e.state.selection.toJSON(), after};
+    });
+    if (!restored.focused || restored.selection.type !== 'text' || restored.selection.anchor !== restored.after ||
+      restored.selection.head !== restored.after) throw new Error(`Inline math ${start}/${action} did not restore its caret: ${JSON.stringify(restored)}`);
+    const before = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+    await page.keyboard.type('Focus460');
+    const adjacent = await editor.locator('.ProseMirror').evaluate(el => {
+      let text;
+      el.editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'inlineMath' && node.attrs.value === 'i_d') text = el.editor.state.doc.nodeAt(pos + node.nodeSize)?.text;
+      });
+      return text;
+    });
+    if (adjacent !== 'Focus460 and the voltage is ') throw new Error(`Inline math ${start}/${action}: typing lost its formula or adjacent text: ${adjacent}`);
+    await page.keyboard.press('Control+z');
+    if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== before) {
+      throw new Error(`Inline math ${start}/${action}: Undo did not restore content`);
+    }
+  }
+  result.closeRestoresCaretAndTyping = true;
+
   // Match ordinary same-document blur: returning to a tab does not restore transient input.
   const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
   for (const destination of ['same document', 'another tab']) {
