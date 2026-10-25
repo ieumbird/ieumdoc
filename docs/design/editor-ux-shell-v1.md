@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Reference dismissal verification: 2026-10-25 (#427: no-target selection form and unresolved-reference form, Escape/outside pointer dismissal and subsequent slash insertion in cross-reference; Editor 280/280, typecheck/build).
 - Result-limit verification: 2026-10-24 (#384 integration decision: first 50 matches, persistent bilingual live counts and query narrowing instead of pages; [new evidence](#listed-search-result-limit-follow-up-384)).
 - Search review verification: 2026-10-24 (#384: reachable cached listings after parent relisting, bounded/paged 2,000-document search and #397 restored-tab integration; [measurements and regression scope](#listed-search-review-follow-up-384)).
 - Layout-safe shortcut verification: 2026-10-24 (#381 review follow-up: character matching, guarded opaque-IME fallback, German zoom and French tab-switch preservation; supersedes physical-only matching).
@@ -707,6 +708,12 @@ paged captures, with existing footer typography/spacing and no new adjustable st
 - Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Display optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
 
 ### Nested inline slash menu (#377)
+
+The reference target form closes on Escape and outside pointer interaction, including when
+the document has no labeled targets and the form has no autofocus control. Outside dismissal
+preserves the clicked destination's focus; Escape returns focus to the editor. This applies
+to both selection-toolbar insertion and an unresolved reference's editor, without changing
+document content, and leaves slash insertion available without Reload (#427).
 
 Implementation scope: expose existing inline insertion paths on Core-backed editable inline
 surfaces. Preserve top-level paragraph order/search/keys; omit block commands everywhere else.

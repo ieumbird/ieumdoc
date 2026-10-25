@@ -183,6 +183,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "label-authoring": { files: technical, scenarios: ["label-authoring"] },
   "cross-reference": { files: [fixture("refs.md"), document("diagram.svg"),
+    { name: "no-targets.md", create: () => nativeSource("# No targets\n\nReference text.\n") },
     { name: "delete.md", create: () => nativeSource("# Delete targets\n\nSee {eq}`eq-a`, {numref}`fig-a` and {numref}`tbl-a`.\n\n" +
       "```{math}\n:label: eq-a\na=b\n```\n\n:::{figure} ./diagram.svg\n:name: fig-a\n:::\n\n" +
       ":::{table} Ports\n:name: tbl-a\n\n| a | b |\n| - | - |\n| 1 | 2 |\n:::\n\n```{math}\nx=y\n```\n") },

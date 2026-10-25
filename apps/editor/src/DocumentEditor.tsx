@@ -528,6 +528,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
             setReferenceDraft(null);
             editor.commands.focus();
           }}
+          onDismiss={() => setReferenceDraft(null)}
         />
       ) : citationDraft !== null && citationStyle ? (
         <CitationForm

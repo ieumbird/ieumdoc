@@ -57,6 +57,17 @@ async (page, { openPath, openDocument }) => {
   await page.keyboard.press('Control+Shift+z'); await figures.first().waitFor();
   result.nativePasteAndUndo = true;
 
+  // #427: an unsaved local asset stays in the engine document and on disk across whole-document deletion.
+  const beforeDelete = JSON.stringify(await documentJSON());
+  await select('typed Alpha.');
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('Backspace');
+  assert(await figures.count() === 0, 'Select all removes the pasted Figure');
+  await page.keyboard.press('ControlOrMeta+z');
+  assert(JSON.stringify(await documentJSON()) === beforeDelete, 'One Undo restores the entire document including the unsaved PNG Figure');
+  await loaded();
+  assert((await page.request.get(media(pasted))).status() === 200, 'Deletion/Undo retains the local asset');
+
   // Real File drop uses the pointer's block rather than the unrelated current selection.
   // A dropped photo is a JPEG; the Host keeps its format and serves it as one.
   await select('typed Alpha.');
