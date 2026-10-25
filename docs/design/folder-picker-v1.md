@@ -113,6 +113,11 @@ entry replaces the preview and its load state, so an older response cannot appea
 entry. Previewing never changes the typed/chosen path, focus, filtering, completion or active
 descendant behavior.
 
+The dialog uses one `minmax(0, 1fr)` grid column and a shrinkable path-input row. A Linux CI
+375px run exposed an intrinsic column wider than the dialog's padded content area (17px of
+horizontal overflow); these bounds keep every section inside the available column without
+clipping the dialog or weakening the overflow assertion.
+
 The existing Figure browser scenario checks active-entry changes, out-of-order responses,
 non-image and broken-image states, unchanged path/focus/active descendant and 375px overflow.
 Its new clicked-preview assertion first failed on base `c232915` because no preview existed.
