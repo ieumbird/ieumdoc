@@ -109,8 +109,8 @@ Rules:
 - Keep AI attribution out of the commit subject.
 - Do not use `Co-authored-by` as a substitute for AI provenance.
 - Never invent the model name.
-- Never copy the previous commit's model metadata without verifying
-  which model actually performed the current work.
+- Never copy model metadata from previous commits. Verify the actual
+  model used for the current implementation.
 - Do not add duplicate provenance trailers.
 
 `AI-Agent` / `AI-Model` name the agent and model that performed the
