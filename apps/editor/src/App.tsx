@@ -184,6 +184,8 @@ export function App() {
   const emptyEditorRef = useRef<DocumentEditorHandle>(null);
   const emptyImageRef = useRef<HTMLElement | null>(null);
   const session = activeId ? sessions.current.get(activeId) : undefined;
+  // A fresh editor action replaces an older shell notice such as Copy path.
+  useLayoutEffect(() => { if (session?.noticeAction) setNotice(""); }, [session?.noticeAction]);
   const {
     editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, referenceTemplates, outlineStore,
     view = "visual", status: sessionStatus = "ready", error: sessionError = "", notice: sessionNotice = "",
@@ -749,6 +751,7 @@ export function App() {
             warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
             error={error || sessionError}
             notice={notice || sessionNotice}
+            noticeAction={notice ? null : session?.noticeAction}
             draftNotice={draftNotice}
             documentNotice={documentNotice}
             update={updateNotice}

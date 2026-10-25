@@ -6,6 +6,7 @@
 // leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
 async (page, { openPath, reloadDocument }) => {
+  page.setDefaultTimeout(15000);
   // Rendering a caption must not rebuild a schema with duplicated extensions (Tiptap warns).
   const tiptapWarnings = [];
   const onConsole = message => { if (message.text().startsWith('[tiptap warn]')) tiptapWarnings.push(message.text()); };
@@ -269,10 +270,89 @@ async (page, { openPath, reloadDocument }) => {
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
   result.columnUndoKeepsCaption = (await grid(finalTable))[0].length === 3 && await finalTable.getByTestId('table-caption').innerText() === 'Port values';
+  const beforeDelete = await grid(finalTable);
+  const editorFocused = () => page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
+  const notice = page.getByTestId('notice');
+  const assertDeletionNotice = async () => {
+    if (await notice.count() !== 1 || !(await notice.innerText()).includes('Table deleted') ||
+        await notice.getByRole('button', {name:'Undo', exact:true}).count() !== 1 || !await editorFocused()) {
+      throw new Error('Table deletion must show Table deleted / Undo without taking editor focus');
+    }
+    result.deleteNoticePolite = await notice.getAttribute('role') === 'status';
+  };
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Copy path', exact:true}).click();
+  await notice.filter({hasText:'Copied the file path.'}).waitFor();
+  await finalTable.locator('td').first().click();
   await finalTable.getByRole('button', {name:'Delete table', exact:true}).click();
   result.deleteTable = await tables.count() === 1;
+  await assertDeletionNotice();
+  await notice.getByRole('button', {name:'Undo', exact:true}).click();
+  result.undoTableDeletion = await tables.count() === 2 && JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete) &&
+    await tables.last().getByTestId('table-caption').innerText() === 'Port values' && await editorFocused() && await notice.count() === 0;
+  result.deleteUndoSave = await save();
+  await reloadDocument(page);
+  result.deleteUndoReload = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete) &&
+    await tables.last().getByTestId('table-caption').innerText() === 'Port values';
+
+  // The gutter menu and table menu share the explicit deletion command.
+  await tables.last().locator('td').first().click();
+  await blockMenu(4, 'Delete');
+  await assertDeletionNotice();
+  await notice.getByRole('button', {name:'Undo', exact:true}).click();
+  result.blockDeleteUndo = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete);
+  await tables.last().hover();
+  await tables.last().getByRole('button', {name:'Table actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Delete table', exact:true}).click();
+  await assertDeletionNotice();
+  await page.keyboard.type('x');
+  result.typingClosesDeleteNotice = await notice.count() === 0 && await tables.count() === 1;
   await page.keyboard.press('Control+z');
-  result.undoTableDeletion = await tables.count() === 2 && await tables.last().getByTestId('table-caption').innerText() === 'Port values';
+  result.typingUndoKeepsDeletion = await tables.count() === 1;
+  await page.keyboard.press('Control+z');
+  result.deletionRemainsOneStep = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete);
+
+  // Reference navigation selects the whole table; both native deletion keys offer the same Undo.
+  for (const key of ['Delete', 'Backspace']) {
+    await ref.locator('.cross-reference-chip').click();
+    await page.keyboard.press(key);
+    await assertDeletionNotice();
+    await notice.getByRole('button', {name:'Undo', exact:true}).click();
+    result[`selectedTable${key}Undo`] = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete) && await editorFocused();
+  }
+
+  // Saving, even a cancelled Reload, switching tabs and expiry revoke the action.
+  const deleteLastTable = async () => {
+    await tables.last().locator('td').first().click();
+    await tables.last().getByRole('button', {name:'Delete table', exact:true}).click();
+    await assertDeletionNotice();
+  };
+  const restoreWithKeyboard = async () => {
+    await page.locator('[data-document-tab][data-active=true] .document-editor').click({position:{x:5,y:5}});
+    await page.keyboard.press('Control+z');
+    if (JSON.stringify(await grid(tables.last())) !== JSON.stringify(beforeDelete)) throw new Error('Keyboard Undo must restore the deleted table');
+  };
+  await deleteLastTable();
+  await reloadDocument(page);
+  result.reloadClosesDeleteNotice = await notice.count() === 0;
+  await page.getByRole('button', {name:'Keep editing', exact:true}).click();
+  await restoreWithKeyboard();
+  await deleteLastTable();
+  result.saveDeletedTable = await save();
+  result.saveClosesDeleteNotice = await notice.count() === 0;
+  await restoreWithKeyboard();
+  result.saveRestoredTable = await save();
+  await deleteLastTable();
+  const tableTab = page.getByRole('tab', {name:/^tables\.md/});
+  await page.getByRole('tab').first().click();
+  result.tabSwitchClosesDeleteNotice = await notice.count() === 0;
+  await tableTab.click();
+  result.returnDoesNotReviveDeleteNotice = await notice.count() === 0 && await tables.count() === 1;
+  await restoreWithKeyboard();
+  await deleteLastTable();
+  await notice.waitFor({state:'detached', timeout:6500});
+  result.deleteNoticeExpires = await tables.count() === 1;
+  await restoreWithKeyboard();
 
   // The document still ends with this table, which has no line below it. ArrowDown from its last row and
   // a click below the document both reach one empty paragraph after it; empty, it changes nothing to save.

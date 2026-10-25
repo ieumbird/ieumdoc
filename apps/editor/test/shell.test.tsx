@@ -479,13 +479,14 @@ test("top bar exposes the active document view and disables both views during un
 test("message area separates dismissible errors from expiring notices", () => {
   assert.equal(renderToStaticMarkup(<MessageArea error="" notice="" onDismissError={noop} onNoticeExpired={noop} />), "");
   const html = renderToStaticMarkup(
-    <MessageArea error="Save failed" notice="Discarded" onDismissError={noop} onNoticeExpired={noop} />,
+    <MessageArea error="Save failed" notice="Table deleted" noticeAction={noop} onDismissError={noop} onNoticeExpired={noop} />,
   );
   assert.match(html, /<[^>]+\b(?=[^>]*data-testid="error")(?=[^>]*role="alert")[^>]*>/);
   assert.match(html, />Save failed</);
   assert.match(html, /aria-label="Dismiss error"/);
   assert.match(html, /<[^>]+\b(?=[^>]*data-testid="notice")(?=[^>]*role="status")[^>]*>/);
-  assert.match(html, />Discarded</);
+  assert.match(html, />Table deleted</);
+  assert.match(html, /<button[^>]*>Undo<\/button>/);
 });
 
 test("message area keeps the writeability warning without a dismiss control", () => {

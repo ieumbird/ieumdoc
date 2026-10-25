@@ -1,5 +1,7 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Table deleted": "Table deleted",
+  "Undo": "Undo",
   "Unresolved reference: {{label}}": "Unresolved reference: {{label}}",
   "Unresolved reference: no target labeled “{{label}}” in this document": "Unresolved reference: no target labeled “{{label}}” in this document",
   "Deleting this target broke a reference. Press {{shortcut}} to undo.": "Deleting this target broke a reference. Press {{shortcut}} to undo.",
@@ -746,6 +748,8 @@ export const ko: Record<keyof typeof en, string> = {
   "Link": "링크",
   "Link URL": "링크 URL",
   "Delete table": "표 삭제",
+  "Table deleted": "표를 삭제했습니다",
+  "Undo": "되돌리기",
   "Edit caption and label": "캡션과 레이블 편집",
   "Append column": "끝에 열 추가",
   "Append row": "끝에 행 추가",

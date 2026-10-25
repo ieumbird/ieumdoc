@@ -51,7 +51,19 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState<Operation>("ready");
   const [error, setError] = useMessageState("");
-  const [notice, setNotice] = useMessageState("");
+  const [notice, setNoticeMessage] = useMessageState("");
+  const [noticeAction, setNoticeAction] = useState<(() => void) | null>(null);
+  const noticeActionRef = useRef<(() => void) | null>(null);
+  function setNotice(message: UiMessage, action?: () => void): void {
+    const guarded = action ? () => {
+      if (noticeActionRef.current !== guarded) return;
+      setNotice("");
+      action();
+    } : null;
+    noticeActionRef.current = guarded;
+    setNoticeAction(() => guarded);
+    setNoticeMessage(message);
+  }
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [draftActive, setDraftActive] = useState(false);
   const [assetPending, setAssetPending] = useState(false);
@@ -95,7 +107,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setImageChoice(imageChoiceRef.current);
     });
     return {
-      onNotice: (message: UiMessage) => { if (isCurrent()) setNotice(message); },
+      onNotice: (message: UiMessage, action?: () => void) => { if (isCurrent()) setNotice(message, action); },
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
@@ -252,6 +264,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
 
   async function reload(): Promise<void> {
     if (!isCurrent() || busy || !openedPath) return;
+    setNotice("");
     if (editorRef.current?.hasUnsavedChanges()) {
       setReloadDialog(true);
       return;
@@ -309,7 +322,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   return {
     recoveryError, discardRecovery: () => recorder?.discard(),
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
-    view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
+    view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",
     load, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
