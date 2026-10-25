@@ -333,6 +333,31 @@ async (page, { openPath, reloadDocument }) => {
     if (JSON.stringify(await grid(tables.last())) !== JSON.stringify(beforeDelete)) throw new Error('Keyboard Undo must restore the deleted table');
   };
   await deleteLastTable();
+  let releaseSource, sourceRequested;
+  const sourceGate = new Promise(resolve => { releaseSource = resolve; });
+  const sourceStarted = new Promise(resolve => { sourceRequested = resolve; });
+  await page.route('**/api/document-source', async route => {
+    sourceRequested();
+    await sourceGate;
+    await route.continue();
+  });
+  try {
+    await page.getByTestId('view-source').click();
+    await sourceStarted;
+    result.sourcePendingClosesDeleteNotice = await notice.count() === 0;
+  } finally {
+    releaseSource();
+    await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
+    await page.unroute('**/api/document-source');
+  }
+  result.sourceClosesDeleteNotice = await notice.count() === 0;
+  await page.getByTestId('view-visual').click();
+  result.visualDoesNotReviveDeleteNotice = await notice.count() === 0 && await tables.count() === 1;
+  if (!result.sourcePendingClosesDeleteNotice || !result.sourceClosesDeleteNotice || !result.visualDoesNotReviveDeleteNotice) {
+    throw new Error(`Source must revoke table deletion Undo, including pending requests: ${JSON.stringify(result)}`);
+  }
+  await restoreWithKeyboard();
+  await deleteLastTable();
   await reloadDocument(page);
   result.reloadClosesDeleteNotice = await notice.count() === 0;
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
