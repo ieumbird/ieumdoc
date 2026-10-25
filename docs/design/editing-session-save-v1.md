@@ -1,25 +1,10 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Documentation verification: 2026-10-26 (startup priority and Open/New/close protection compared with ADR-0007/0009, App.tsx, Host handlers and existing regression code; no new Editor/browser/Desktop execution).
-- Last verified: 2026-10-24 (#409: synchronous clean acknowledgement on return to the saved snapshot; same-turn Undo/Reload, browser-tab close, partial Undo and queued-cleanup/new-input regressions; staged Electron close/restart observation).
-- Previous verification: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
-- Documentation verification: 2026-10-24 (#417 review: current production HTTP explicit-path recovery coverage and Vite start-list coverage compared with test code; no new browser execution).
-- Previous verification: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
-- Previous verification: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
-- Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
-- Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
-- Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
-- Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
-- Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
-- Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
-- Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
-- Previous verification: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
-- Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
+
+- Last verified: 2026-10-26 (documentation structure and incoming heading links checked; no Editor/browser/Desktop re-execution).
+
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
-- Switching verification: 2026-10-15 (#291: Open/New confirmation, Save failure/conflict, draft retention/loss, pending work and focus browser regressions; real Vite New and production HTTP Save/reopen; 1440/375px dialog captures reviewed, final visual approval remains with the user).
-- PR #301 review verification: 2026-10-15 (delayed Save with programmatically injected applied edits stops Open/New, retains the session and drafts, shows the existing Unsaved changes status, and allows an explicit retry; original `c8aecd9` failed this regression).
-- Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
 ## Editor ownership
 
@@ -63,6 +48,8 @@ Malformed UTF-8 document files/request bodies and unpaired Unicode surrogates in
 Save requests include the opening Markdown and the last accepted Core edit payload (`base.source`, `base.savedEdits`). The local Host first compares the requested revision with the actual disk. If the opening source differs from disk, replaying the previous edits through Core must reproduce the disk bytes exactly. Only then does it apply the new payload to the opening source through the existing Core operations and canonical writer. This permits saving Undo/Redo of insertions, deletions, splits, merges and table changes without turning snapshot paths into persistent identities. An arbitrary replacement source or stale checkpoint is rejected.
 
 The Host stores no sessions. This request contract is a local adapter detail, not a backend architecture. Session acknowledgement itself introduces no semantic operation or CLI command. The extra replay costs another Core save evaluation on subsequent saves; it is performed on explicit Save/Source, never per keystroke.
+
+Historical Save replay and nested-parser verification: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Recovery snapshot initialization
 
@@ -203,28 +190,7 @@ Cancel receives initial focus; pending deletion disables actions and dismissal. 
 Reload, expiry and the tab-close deletion-retry notice retain their existing behavior. These are
 Editor-local interactions, with no Core semantic operation or CLI parity requirement (#382, #379).
 
-#382 visual evidence uses the same recorded document and viewport before requesting deletion and
-with the new confirmation open (the former immediate-delete behavior had no confirmation surface):
-[review at 1440px](assets/recovery-382/prompt-1440.png),
-[confirmation at 1440px](assets/recovery-382/delete-confirm-1440.png),
-[review at 375px](assets/recovery-382/prompt-375.png),
-[confirmation at 375px](assets/recovery-382/delete-confirm-375.png),
-[Korean confirmation at 375px](assets/recovery-382/delete-confirm-ko-375.png),
-[Clear all at 375px](assets/recovery-382/clear-confirm-375.png).
-Capture refresh for the #391 review: product/test HEAD
-`b46c13d0f85ca4cddc9e4afe361eabc1b7ce61b1` (latest master merged), Windows Chrome,
-checkout-owned persistent profile, Vite `http://127.0.0.1:5173`, 1440×900 and 375×900,
-DPR 1 / 100% zoom, scroll top, the same recovery record before deletion and with the
-confirmation open. Korean capture changes only the UI language while that dialog stays open.
-Bundled Pretendard Variable 1.3.9 and the existing product font stack are unchanged;
-each capture waits for `document.fonts.ready`. The nested confirmation now has its own
-Base UI backdrop, dimming/blurring the parent while keeping only the top dialog interactive.
-The pre-existing narrow parent recovery-review clipping is outside this change.
-
-The recovery scenario checks confirmed deletion, Cancel/Escape preservation and focus return,
-all-record cancellation, outside-click dismissal of only the top confirmation at both entry points,
-pending outside-click refusal at both entry points, live Korean/English target and warning text,
-and popup content bounds.
+Historical deletion captures and nested-dialog evidence: [Recovery deletion evidence](#recovery-deletion-evidence-382).
 
 The start screen lists records newest first, with document name/path/time and **Review recovery**.
 Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**
@@ -251,6 +217,17 @@ they never enter the official Save path automatically. Previously stored plainte
 no heuristic strips bracketed strings from an old copy, since those may be user text. The snapshot
 compatibility exception above can restore affected structured records independently of that old copy.
 
+### Recovery review layout contract
+
+The review prompt wraps full paths with `overflow-wrap: anywhere`, consistently with the deletion
+confirmation. This lets the existing grid shrink to the popup width; the existing footer stays stacked
+at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
+recovery storage, or Core/CLI operation changes.
+
+Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
+
+### Recovery regression coverage
+
 `recovery-storage` tests real IndexedDB write ordering/barriers, expiry, stale restore and quota
 failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
 isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
@@ -263,60 +240,13 @@ Windows reproduction establishes the current producer defect and an equivalent r
 cause of every historical Save-disabled report or a repair of previously flattened disk text.
 Those Vite checks are distinct from the Host process-lifetime checks below.
 
-Visual evidence re-captured on 2026-10-22 after review found that the earlier temporary prompt
-images preceded the dialog and did **not** prove its state. The following replacements were
-inspected with the dialog visible and Restore's enabled/disabled state checked before capture:
-
-- [Prompt before](assets/recovery-331/prompt-before.png): the real New/title/Enter flow generated
-  the empty deletion sentinel; Restore is disabled with the deletion-metadata reason.
-- [Prompt after](assets/recovery-331/prompt-after.png): the same writing/reopen flow with fixed
-  production code offers enabled Restore.
-- [Fallback before](assets/recovery-331/fallback-before-en.png) and
-  [fallback after](assets/recovery-331/fallback-after-en.png): a test-owned record with unknown
-  deletion path `999` is refused in both. The copy shows the old attribute dump versus readable
-  math, table cells/caption and Figure caption.
-- [Korean fallback](assets/recovery-331/fallback-after-ko.png): the same open refusal dialog after
-  switching language, retaining the disabled Restore action and readable copy.
-
-Comparison conditions: Windows Chrome, checkout-owned persistent profile, Vite origin
-`http://127.0.0.1:5191`, 1280×1000 viewport, DPR 1, bundled fonts loaded. Product HEAD was
-`7e62ee22aba6477a067bef4f42f16309eb0afa73`; the capture-only scenario changes are included with
-these images. For prompt-before, only `editor-schema.tsx` and `editor-snapshot.ts` were temporarily
-replaced with `811a5662a2c69d804b0d0f419f2d84a4b4df054d` versions; the temporary scenario asserted
-disabled Restore and stopped after capture. For fallback-before, only `recovery-storage.ts` used
-that older version: **it shows the new guidance with the old producer, not the complete baseline
-UI**. Each temporary replacement was restored and `git diff --exit-code -- apps/editor/src`
-passed before final regression. Test-created filenames differ between runs; content and steps match.
-All fallback images enlarge the textarea to 420px and scroll it to the top **for capture only**;
-this is not the product's default control height or a stylesheet change. The after images expose
-the complete sample copy; the longer old dump still continues below its viewport. No user records
-or user browser profile were accessed. Final `recovery-structure --screenshots` passed; the two
-before runs intentionally stopped at the confirmed refusal or internal-attribute regression.
+Historical structured-recovery captures: [Structured recovery evidence](#structured-recovery-evidence-331).
 
 ### Host persistence verification (#296 PR3)
-
-On Windows x64, `pnpm browser:test http-host` now also kills the owned Chrome browser process
-tree and relaunches a new PID with the same checkout-owned persistent profile and exact HTTP
-origin. The production server stays running: this is a client crash, not a server restart or
-page reload. Both restarts explicitly request `?path=…` under the
-[startup precedence contract](#tab-navigation-memory-383). The test compares committed IndexedDB
-records before/after restart, then exercises the matching-file recovery review dialog, user
-Restore, dirty state, unchanged disk until explicit Save, actual Save/Reload, and a second crash
-followed by an external disk change and a 409 with both external bytes and recovered work preserved.
 
 The Vite [`recovery` scenario](../../apps/editor/test/recovery.browser.js) covers the start-screen
 **Review recovery → Restore work** entry point after a page reload. The production HTTP scenario
 does not check that start-list entry point.
-
-The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
-that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
-Forced app-tree termination preserves the committed record including an inserted pending Figure;
-Restore and Save/Reload use the real packaged Editor and file Host. A subsequent normal window
-close exercises the real `beforeunload`/main-process guard with the native dialog's response stubbed
-to **Close without saving** (the offered buttons are asserted). Restart retains that record;
-external modification before Restore produces 409 on Save without overwriting either side.
-The OS-native dialog click itself is not automated. No file API, IndexedDB implementation or
-recovery UI is mocked in these Host flows.
 
 Tests wait for the actual expected committed record before forced termination; they establish
 last-successful-record recovery, not survival of unrecorded input, power loss or OS cache loss.
@@ -324,6 +254,8 @@ Changing HTTP scheme/host/port or browser profile selects different storage; Des
 origin alone does not share records with HTTP or another profile. Windows observations do not
 establish Linux/macOS execution, installed-app upgrade behavior or cross-device recovery.
 Required CI must pass before #296 is considered complete. See the [test guide](../test/README.md#local-recovery-regression).
+
+HTTP/Desktop execution details and native-dialog automation limits: [Host persistence evidence](#host-persistence-evidence-296-pr3).
 
 ## Applied content and drafts
 
@@ -334,6 +266,8 @@ Required CI must pass before #296 is considered complete. See the [test guide](.
 - A pending Figure, with or without caption or label, is included in Save/Source and restored on Reload. Apply → Undo → Redo restores both the Figure and collected payload. Insertion, Apply and subsequent image connection follow [Figure authoring](figure-authoring-v1.md). Save acknowledgement still covers only the submitted applied snapshot, including when an image is connected while a Save is in flight.
 - Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
+
+Historical property-close and caret evidence: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Save failure guidance (#220, phase 1)
 
@@ -406,6 +340,8 @@ and its explicit record deletion. Update restart checks aggregate every session'
 without adding a dialog to the timed handshake.
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
+
+Historical switching, dismissal and retained-error evidence: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Tab navigation memory (#383)
 
@@ -483,6 +419,108 @@ The unload guard reads every registered session's latest rendered state and live
 
 ## Evidence
 
+### Verification record
+
+- Documentation verification: 2026-10-26 (startup priority and Open/New/close protection compared with ADR-0007/0009, App.tsx, Host handlers and existing regression code; no new Editor/browser/Desktop execution).
+- Last verified: 2026-10-24 (#409: synchronous clean acknowledgement on return to the saved snapshot; same-turn Undo/Reload, browser-tab close, partial Undo and queued-cleanup/new-input regressions; staged Electron close/restart observation).
+- Previous verification: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
+- Documentation verification: 2026-10-24 (#417 review: current production HTTP explicit-path recovery coverage and Vite start-list coverage compared with test code; no new browser execution).
+- Previous verification: 2026-10-24 (#383: tab navigation memory, startup precedence, missing/refused/non-native exclusions and recovery priority; document-tabs/recovery/recovery-structure browser regressions and Editor checks).
+- Previous verification: 2026-10-24 (#391 review: nested outside-click dismissal and pending guards, refreshed captures with environment metadata; final validation recorded in the PR).
+- Previous verification: 2026-10-24 (#382: explicit record/all-record deletion confirmations; Editor tests, typecheck/build and recovery browser checks including cancellation/focus and Korean/English 1440/375px captures).
+- Previous verification: 2026-10-23 (Save shortcut recovery summary reconciled with the Host persistence verification below; documentation comparison only).
+- Previous verification: 2026-10-22 (#331: actual engine-created deletion sentinel, structured Vite New/Reload/Restore/Save and Windows production HTTP crash/Restore/Save/Reload/conflict; readable fallback and open-dialog Korean/English reason changes).
+- Previous verification: 2026-10-16 (#296 PR3: actual Windows packaged Desktop and production HTTP/Chrome process termination, same-profile restart, restore, Save/Reload and external-conflict preservation; Desktop normal close and pending Figure. Linux HTTP remains a required CI check).
+- Previous verification: 2026-10-16 (#296 PR2: client IndexedDB and recovery UI; actual Vite persistence/restore/Save/Reload, multiwindow conflict and failure checks).
+- Previous verification: 2026-10-16 (#296 PR1: recovery-capable initialization, Editor snapshot tests and initialization/Save replay browser regression).
+- Previous verification: 2026-10-16 (#204: independent tabs, Close and all-tabs guards; see the [review](../reviews/document-tabs-204-2026-10-16.md) for exact validation and approved visuals).
+- Previous verification: 2026-10-16 (#204 PR 1: session ownership, stale-completion unit checks, Editor/Desktop tests, typecheck/build and 16 existing browser scenarios for Open/New, Save/Reload, Source, drafts/assets, outline and Desktop guards).
+- Previous verification: 2026-10-15 (#275 Equation/Figure/Table/section-label Apply/typing, retained caption/cell caret, history/Source and real Save/Reload browser regressions; ADR-0006 draft contract cleanup by code/test comparison). Previous verification: 2026-10-14 (#220 1차 저장 실패 위치·조치, split 문단·표 셀·저장 불가 문서·응답 확인 불가 안내와 기존 Save 보호 회귀).
+
+- Switching verification: 2026-10-15 (#291: Open/New confirmation, Save failure/conflict, draft retention/loss, pending work and focus browser regressions; real Vite New and production HTTP Save/reopen; 1440/375px dialog captures reviewed, final visual approval remains with the user).
+- PR #301 review verification: 2026-10-15 (delayed Save with programmatically injected applied edits stops Open/New, retains the session and drafts, shows the existing Unsaved changes status, and allows an explicit retry; original `c8aecd9` failed this regression).
+- Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
+
+### Recovery deletion evidence (#382)
+
+#382 visual evidence uses the same recorded document and viewport before requesting deletion and
+with the new confirmation open (the former immediate-delete behavior had no confirmation surface):
+[review at 1440px](assets/recovery-382/prompt-1440.png),
+[confirmation at 1440px](assets/recovery-382/delete-confirm-1440.png),
+[review at 375px](assets/recovery-382/prompt-375.png),
+[confirmation at 375px](assets/recovery-382/delete-confirm-375.png),
+[Korean confirmation at 375px](assets/recovery-382/delete-confirm-ko-375.png),
+[Clear all at 375px](assets/recovery-382/clear-confirm-375.png).
+Capture refresh for the #391 review: product/test HEAD
+`b46c13d0f85ca4cddc9e4afe361eabc1b7ce61b1` (latest master merged), Windows Chrome,
+checkout-owned persistent profile, Vite `http://127.0.0.1:5173`, 1440×900 and 375×900,
+DPR 1 / 100% zoom, scroll top, the same recovery record before deletion and with the
+confirmation open. Korean capture changes only the UI language while that dialog stays open.
+Bundled Pretendard Variable 1.3.9 and the existing product font stack are unchanged;
+each capture waits for `document.fonts.ready`. The nested confirmation now has its own
+Base UI backdrop, dimming/blurring the parent while keeping only the top dialog interactive.
+The pre-existing narrow parent recovery-review clipping is outside this change.
+
+The recovery scenario checks confirmed deletion, Cancel/Escape preservation and focus return,
+all-record cancellation, outside-click dismissal of only the top confirmation at both entry points,
+pending outside-click refusal at both entry points, live Korean/English target and warning text,
+and popup content bounds.
+
+### Structured recovery evidence (#331)
+
+Visual evidence re-captured on 2026-10-22 after review found that the earlier temporary prompt
+images preceded the dialog and did **not** prove its state. The following replacements were
+inspected with the dialog visible and Restore's enabled/disabled state checked before capture:
+
+- [Prompt before](assets/recovery-331/prompt-before.png): the real New/title/Enter flow generated
+  the empty deletion sentinel; Restore is disabled with the deletion-metadata reason.
+- [Prompt after](assets/recovery-331/prompt-after.png): the same writing/reopen flow with fixed
+  production code offers enabled Restore.
+- [Fallback before](assets/recovery-331/fallback-before-en.png) and
+  [fallback after](assets/recovery-331/fallback-after-en.png): a test-owned record with unknown
+  deletion path `999` is refused in both. The copy shows the old attribute dump versus readable
+  math, table cells/caption and Figure caption.
+- [Korean fallback](assets/recovery-331/fallback-after-ko.png): the same open refusal dialog after
+  switching language, retaining the disabled Restore action and readable copy.
+
+Comparison conditions: Windows Chrome, checkout-owned persistent profile, Vite origin
+`http://127.0.0.1:5191`, 1280×1000 viewport, DPR 1, bundled fonts loaded. Product HEAD was
+`7e62ee22aba6477a067bef4f42f16309eb0afa73`; the capture-only scenario changes are included with
+these images. For prompt-before, only `editor-schema.tsx` and `editor-snapshot.ts` were temporarily
+replaced with `811a5662a2c69d804b0d0f419f2d84a4b4df054d` versions; the temporary scenario asserted
+disabled Restore and stopped after capture. For fallback-before, only `recovery-storage.ts` used
+that older version: **it shows the new guidance with the old producer, not the complete baseline
+UI**. Each temporary replacement was restored and `git diff --exit-code -- apps/editor/src`
+passed before final regression. Test-created filenames differ between runs; content and steps match.
+All fallback images enlarge the textarea to 420px and scroll it to the top **for capture only**;
+this is not the product's default control height or a stylesheet change. The after images expose
+the complete sample copy; the longer old dump still continues below its viewport. No user records
+or user browser profile were accessed. Final `recovery-structure --screenshots` passed; the two
+before runs intentionally stopped at the confirmed refusal or internal-attribute regression.
+
+### Host persistence evidence (#296 PR3)
+
+On Windows x64, `pnpm browser:test http-host` now also kills the owned Chrome browser process
+tree and relaunches a new PID with the same checkout-owned persistent profile and exact HTTP
+origin. The production server stays running: this is a client crash, not a server restart or
+page reload. Both restarts explicitly request `?path=…` under the
+[startup precedence contract](#tab-navigation-memory-383). The test compares committed IndexedDB
+records before/after restart, then exercises the matching-file recovery review dialog, user
+Restore, dirty state, unchanged disk until explicit Save, actual Save/Reload, and a second crash
+followed by an external disk change and a 409 with both external bytes and recovered work preserved.
+
+The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
+that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
+Forced app-tree termination preserves the committed record including an inserted pending Figure;
+Restore and Save/Reload use the real packaged Editor and file Host. A subsequent normal window
+close exercises the real `beforeunload`/main-process guard with the native dialog's response stubbed
+to **Close without saving** (the offered buttons are asserted). Restart retains that record;
+external modification before Restore produces 409 on Save without overwriting either side.
+The OS-native dialog click itself is not automated. No file API, IndexedDB implementation or
+recovery UI is mocked in these Host flows.
+
+### Save, switching and property interaction evidence
+
 Historical #291 evidence (the confirmation now belongs to Close): the unmodified `ae464b7` Editor reproduced the draft information bar plus the red Open refusal, with that refusal still present after cancelling the property draft. At 1440×800 and 375×800 the two header bars were stacked without geometric overlap. The new confirmation does not create this refusal error; Cancel/Escape preserve content, selection, undo availability and drafts. Existing unrelated errors remain until dismissed or resolved. `open-files` covers these transitions, pending Save/Open, Save failure/conflict and the draft-only case; `writeability-preflight` checks that a failed target Open also keeps the old work. `new-document`, `save-session` and `http-host` exercise real creation, content rejection and persisted Save/reopen. Baseline images are `tmp/291-before-*-draft-refusal.png` and `tmp/291-before-*-after-draft-cancel.png`; `pnpm browser:test open-files --screenshots` captures the new dialog in `tmp/291-dialog-{1440,375}-{no-drafts,drafts}.png` (100% zoom, DPR 1, bundled Pretendard, Windows Chrome).
 
 For #275, the unmodified `5594143` Editor was reproduced with `math.md`: Edit the
@@ -521,13 +559,7 @@ This is still Editor interaction only, with no new Core operation or CLI command
 
 Before the change, an actual browser Save replaced the editor, changed selection from 287 to 1, and changed `can().undo()` from true to false. `save-session.browser.js` exercises real scratch-file persistence across Save/history, transient content, delayed responses, rejection, conflict, draft preservation and reload. Its composed Endnote/Figure case retains the scattered opening source through normalization, successive saves and Undo/Redo, changes reference order and a Figure's caption, and edits a definition while a real Save response is held. It compares complete Markdown, SHA-256 revisions, the previous accepted `savedEdits`, Source previews and unchanged Editor/selection across Save; Reload retains the empty Figure and the later definition edit. Core's existing footnote source and write-refusal tests also run after Figure caption parsing: nested MyST parsing must not leave the cached source tokenizer's tail rule enabled, losing definition provenance and dropped-definition checks. Existing Figure, table, Source and delayed-save scenarios cover their distinct integration risks. Run `pnpm browser:test save-session` or the complete CI suite described in [TEST_GUIDE](../test/TEST_GUIDE.md).
 
-
 ### Recovery review layout (#395)
-
-The review prompt wraps full paths with `overflow-wrap: anywhere`, consistently with the deletion
-confirmation. This lets the existing grid shrink to the popup width; the existing footer stays stacked
-at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
-recovery storage, or Core/CLI operation changes.
 
 The regression was reproduced at product HEAD `c587663d18744d8950859a1ae77fd72ddbc9cb1c`
 with only the new browser assertions present. At 375px the popup had `clientWidth=341`,

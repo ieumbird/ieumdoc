@@ -2,7 +2,7 @@
 
 변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
-`command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+/·명령 전용 모드와 Ctrl/Cmd+P 인쇄 통과, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `link-authoring`은 Ctrl/Cmd+'로 기존 링크 폼 열기·적용, 실제 Save → Reload와 이전 폼의 지연 포커스 회귀도 검사한다. 단축키·표시·ARIA와 후보별 Chrome/Edge 자동 검사 방법은 [shortcut contract](../design/editor-ux-shell-v1.md#shortcut-contract-381)에 있다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. 기존 `layout-rules`는 사용 가능한 header 너비에 따른 한 줄/두 줄 배치와 가운데 정렬을 함께 검사한다.
+Last verified: 2026-10-26 (documentation structure and incoming heading links checked; no test/browser/Desktop re-execution).
 
 ## 자동 검증
 
@@ -32,6 +32,32 @@ runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 
 The shared `reloadDocument` helper waits for the File actions menu to detach and the loading dialog to close with focus returned to File actions before callers focus the editor (#422). For a dirty tab it instead waits for the interactive discard confirmation to receive focus; the caller still chooses the answer. Tests that hold a Reload response must release it before awaiting the helper's completion.
 
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
+
+### Scenario coverage
+
+`command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+/·명령 전용 모드와 Ctrl/Cmd+P 인쇄 통과, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `link-authoring`은 Ctrl/Cmd+'로 기존 링크 폼 열기·적용, 실제 Save → Reload와 이전 폼의 지연 포커스 회귀도 검사한다. 단축키·표시·ARIA와 후보별 Chrome/Edge 자동 검사 방법은 [shortcut contract](../design/editor-ux-shell-v1.md#shortcut-contract-381)에 있다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. 기존 `layout-rules`는 사용 가능한 header 너비에 따른 한 줄/두 줄 배치와 가운데 정렬을 함께 검사한다.
+
+`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 상태의 Open에 확인창 없이 기존 세션 보존, 탭 닫기 미저장 확인의 Save 성공 후 탭 닫기·Save 실패/충돌 보존·Don't save의 쓰기 없는 탭 닫기·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`에서 미저장 확인 없이 New 폼을 열고 기존 세션을 보존하는 흐름을 검증한다. 상세 보호 규칙은 [편집 세션 계약](../design/editing-session-save-v1.md#switching-and-recovery)을 따른다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 탭 닫기 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
+
+`folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
+
+`editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치와 여러 폴더 추가·새로고침 후 순서 복원·폴더별 닫기를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
+
+`visual-states`는 연 파일 행의 `aria-current="page"`를 기다린 뒤 파일·Outline의 현재 표식과 hover·keyboard focus·geometry를 측정한다. 파일 GET이 진행 중일 때 이전 문서의 Outline 표식은 남아 있을 수 있으므로 새 파일의 준비 신호가 아니다. 현재 상태를 기다린 뒤에도 비색상 표식의 실제 CSS와 너비를 별도로 검사한다.
+
+`ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
+
+The `cross-reference` record-removal wait and #407 observation are retained in [Cross-reference regression history](#cross-reference-regression-history-407).
+
+#409에서 clean 전환은 동기식 세션·세대 표식을 남기고, 복구 목록 읽기가 500ms 기록 턴보다 먼저여도 그 세대의 오래된 기록을 정리한다. 위 `cross-reference`의 제거 대기는 실제 IndexedDB 기록 부재를 확인하는 가치가 있어 유지한다. 즉시 Reload의 제품 회귀는 `document-tabs`가 **같은 browser turn의 Undo → Reload**로 검사하며, 그 사이 삭제 대기·Save를 넣지 않는다. 브라우저 탭 닫기 뒤 재열기에서도 제안이 없어야 하고, 일부 편집만 Undo해 실제 미저장 내용이 남으면 제안과 기록이 유지되어야 한다. `recovery-storage`는 clean 표식 후 disposal, 다른 세션과 기존 v1 기록 보존, IndexedDB가 밀린 사이 새 입력이 온 경우의 live snapshot 보존, 표식 접근 실패 시 기존 기록과 경고를 검사한다. 또한 더 최신 dirty 기록을 커밋한 뒤 이전 clean 표식만 되살려, 두 저장소의 비원자적 crash flush가 새 작업을 지우지 않는지 검사한다. 기존 `recovery`의 다른 창 Save/외부 revision 충돌 검사는 그대로 유지한다.
+
+`footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
+
+거부된 Save의 미저장 편집도 복구 대상이다. `footnotes`는 참조 삭제로 저장할 수 없는 실제 snapshot이 기록된 것을 확인한 뒤, 다음 fixture로 넘어가기 전에 **Discard and reload**로 명시적으로 버린다. 저장된 참조 복원·원본 불변·복구 기록 제거를 확인하고 페이지 Reload를 진행한다(#417). Undo 직후 기록 제거 전 Reload의 제품 문제(#409)는 이 시나리오에서 다루지 않는다.
+
+`citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
+
+`desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. 키보드로 Settings를 열면 첫 언어 컨트롤의 실제 포커스를 기다린다. 대화상자 표시만으로 Base UI의 비동기 초기 포커스 완료를 가정하지 않으며, 검사에서 포커스를 강제로 이동하지 않는다. 포커스가 오지 않으면 5초 안에 실패한다(#342). `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
 
 ## Production HTTP regression
 
@@ -77,39 +103,11 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
-`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 상태의 Open에 확인창 없이 기존 세션 보존, 탭 닫기 미저장 확인의 Save 성공 후 탭 닫기·Save 실패/충돌 보존·Don't save의 쓰기 없는 탭 닫기·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`에서 미저장 확인 없이 New 폼을 열고 기존 세션을 보존하는 흐름을 검증한다. 상세 보호 규칙은 [편집 세션 계약](../design/editing-session-save-v1.md#switching-and-recovery)을 따른다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 탭 닫기 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
-
-`folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
-
-`editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치와 여러 폴더 추가·새로고침 후 순서 복원·폴더별 닫기를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
-
-`visual-states`는 연 파일 행의 `aria-current="page"`를 기다린 뒤 파일·Outline의 현재 표식과 hover·keyboard focus·geometry를 측정한다. 파일 GET이 진행 중일 때 이전 문서의 Outline 표식은 남아 있을 수 있으므로 새 파일의 준비 신호가 아니다. 현재 상태를 기다린 뒤에도 비색상 표식의 실제 CSS와 너비를 별도로 검사한다.
-
-`ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
-
-`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. #407은 Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에 그 문서의 복구 기록 제거를 기다리도록 했다. 당시에는 Undo 완료 뒤에도 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있었다(#405).
-
-#409에서 clean 전환은 동기식 세션·세대 표식을 남기고, 복구 목록 읽기가 500ms 기록 턴보다 먼저여도 그 세대의 오래된 기록을 정리한다. 위 `cross-reference`의 제거 대기는 실제 IndexedDB 기록 부재를 확인하는 가치가 있어 유지한다. 즉시 Reload의 제품 회귀는 `document-tabs`가 **같은 browser turn의 Undo → Reload**로 검사하며, 그 사이 삭제 대기·Save를 넣지 않는다. 브라우저 탭 닫기 뒤 재열기에서도 제안이 없어야 하고, 일부 편집만 Undo해 실제 미저장 내용이 남으면 제안과 기록이 유지되어야 한다. `recovery-storage`는 clean 표식 후 disposal, 다른 세션과 기존 v1 기록 보존, IndexedDB가 밀린 사이 새 입력이 온 경우의 live snapshot 보존, 표식 접근 실패 시 기존 기록과 경고를 검사한다. 또한 더 최신 dirty 기록을 커밋한 뒤 이전 clean 표식만 되살려, 두 저장소의 비원자적 crash flush가 새 작업을 지우지 않는지 검사한다. 기존 `recovery`의 다른 창 Save/외부 revision 충돌 검사는 그대로 유지한다.
-
-`footnotes`는 본문 중간에 정의를 쓴 파일을 열어도 디스크·dirty 상태가 바뀌지 않고 안내가 표시되는지, Source와 첫 Save·반복 Save·Reload가 같은 정규화 결과(본문 뒤 첫 참조 순서)를 쓰는지, 단일 미주 구역과 번호, 실제 사용한 참조로 복귀, 미주 핸들(드래그·삽입 없음)과 본문 드롭, 참조 순서 변경의 Undo/Redo, Section 삭제·이동, 원문 초안 보존, Enter/Undo와 Source 복사를 검증한다. `footnotes --screenshots`는 1440/768/375px의 수동 비교용 캡처를 `tmp/visual-refinement/footnotes-*.png`에 저장한다. 저장 문법은 MyST footnote를 유지한다.
-
-거부된 Save의 미저장 편집도 복구 대상이다. `footnotes`는 참조 삭제로 저장할 수 없는 실제 snapshot이 기록된 것을 확인한 뒤, 다음 fixture로 넘어가기 전에 **Discard and reload**로 명시적으로 버린다. 저장된 참조 복원·원본 불변·복구 기록 제거를 확인하고 페이지 Reload를 진행한다(#417). Undo 직후 기록 제거 전 Reload의 제품 문제(#409)는 이 시나리오에서 다루지 않는다.
-
-`citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
-
-`desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. 키보드로 Settings를 열면 첫 언어 컨트롤의 실제 포커스를 기다린다. 대화상자 표시만으로 Base UI의 비동기 초기 포커스 완료를 가정하지 않으며, 검사에서 포커스를 강제로 이동하지 않는다. 포커스가 오지 않으면 5초 안에 실패한다(#342). `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
-
 CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·packaged regressions는 항상 실행하고 install/update 단계만 경로 규칙의 `update` 출력에 따라 실행한다. PR에서는 경로별로 job을 선택하며, master push와 미분류 경로 변경은 전체 검증한다. aggregate required job의 성공·skipped·취소 판정과 경로 요약은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix), 실제 규칙은 [ci.yml](../../.github/workflows/ci.yml)을 따른다. 수동 release workflow는 기존 tag를 검증하고 최종 artifact를 검증/업로드한다. 서명/승인 절차는 [Contributing](../../CONTRIBUTING.md#windows-desktop-builds-and-releases), 현재 계약과 검증 결과는 [Desktop distribution](../design/desktop-distribution-v1.md)에 있다.
 
 ## Real GitHub Beta update
 
-2026-10-25 게시된 `0.1.0-beta.1`의 실제 공개 `0.0.1-beta.4 → 0.1.0-beta.1` 업데이트가 통과했다(검증 확인: 2026-10-25/26). 정확한 버전 감지·다운로드 검증, 일반 종료 시 설치 없음, IPC 실패·renderer 오류·dirty 상태의 재시작 거부, Save → 설치 → 재실행, FileVersion과 preferences·Beta 채널·user-data canary·네이티브 Markdown 보존을 확인했다. 첫 시도는 공개 beta.4의 `Ready`를 lowercase `ready`로 기다려 업데이트 전에 실패했고, 한국어 Windows에서 갱신 앱의 한국어 UI도 하네스에 영향을 주었다(#449). #450의 영어 UI 고정·대소문자 무시 대기 후 재실행은 통과했다. 같은 수정으로 한국어 Windows의 로컬 `test:packaged`도 9/9 통과했으며, 테스트 소유 설치·registry·app data·cache·process는 정리했다. 공개 자산과 상세 결과는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
-
 아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다.
-
-2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 당시 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, beta.3에서 출발하는 실제 공개 업데이트 경로만 표식 없는 Markdown을 사용했다. 이 beta.3 전용 fixture 예외는 현재 대상에는 적용되지 않는다.
-
-2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다([beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)).
 
 2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다. 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
@@ -168,6 +166,24 @@ Both flows inspect the expected committed record before terminating; a 500ms sle
 establish recording. Only the last successful record is protected. Later input, OS/power loss,
 profile removal and another origin/device are outside that proof. The prior final-v3 two-page
 ticket p95 around 2.4s remains a limitation, not a recording deadline.
+
+Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
+
+## Evidence and history
+
+### Cross-reference regression history (#407)
+
+`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. #407은 Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에 그 문서의 복구 기록 제거를 기다리도록 했다. 당시에는 Undo 완료 뒤에도 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있었다(#405).
+
+### Real GitHub Beta update history
+
+2026-10-25 게시된 `0.1.0-beta.1`의 실제 공개 `0.0.1-beta.4 → 0.1.0-beta.1` 업데이트가 통과했다(검증 확인: 2026-10-25/26). 정확한 버전 감지·다운로드 검증, 일반 종료 시 설치 없음, IPC 실패·renderer 오류·dirty 상태의 재시작 거부, Save → 설치 → 재실행, FileVersion과 preferences·Beta 채널·user-data canary·네이티브 Markdown 보존을 확인했다. 첫 시도는 공개 beta.4의 `Ready`를 lowercase `ready`로 기다려 업데이트 전에 실패했고, 한국어 Windows에서 갱신 앱의 한국어 UI도 하네스에 영향을 주었다(#449). #450의 영어 UI 고정·대소문자 무시 대기 후 재실행은 통과했다. 같은 수정으로 한국어 Windows의 로컬 `test:packaged`도 9/9 통과했으며, 테스트 소유 설치·registry·app data·cache·process는 정리했다. 공개 자산과 상세 결과는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+
+2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 당시 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, beta.3에서 출발하는 실제 공개 업데이트 경로만 표식 없는 Markdown을 사용했다. 이 beta.3 전용 fixture 예외는 현재 대상에는 적용되지 않는다.
+
+2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다([beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)).
+
+### Host recovery execution history (#296 PR3)
 
 2026-10-16 local execution established Windows x64 packaged Desktop and production HTTP/Chrome.
 Required CI (including Linux HTTP) remains necessary before issue closure; no installer/update,
