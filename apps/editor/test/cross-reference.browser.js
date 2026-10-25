@@ -67,6 +67,24 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     throw new Error('Scratch document is not a fresh refs.md copy');
   }
   const result = {};
+  await openPath(page, [root, 'tmp', 'cross-reference', 'no-targets.md'].join(separator));
+  await selectText('Reference text');
+  await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
+  await page.getByTestId('reference-form').waitFor();
+  await page.keyboard.press('Escape');
+  expect(await page.getByTestId('reference-form').count(), 'Escape dismisses a reference form with no targets').toBe(0);
+  await selectText('Reference text');
+  await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
+  await page.getByTestId('reference-form').waitFor();
+  await page.locator('.app-header').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count(), 'Outside click dismisses a reference form with no targets').toBe(0);
+  await paragraph(0).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' /');
+  await page.getByRole('menu', {name:'Insert block', exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
   await open();
 
   // A. Reference paragraphs are editable; resolved and unresolved references look different.
@@ -76,6 +94,14 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   const broken = chip(paragraph(2), 'Fig. missing-fig');
   result.unresolvedShown = await broken.getAttribute('data-resolved') === 'false' &&
     (await broken.locator('.cross-reference-chip').getAttribute('title')).startsWith('Unresolved');
+  await broken.locator('.cross-reference-chip').click();
+  await page.getByTestId('reference-form').waitFor();
+  await page.keyboard.press('Escape');
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
+  await broken.locator('.cross-reference-chip').click();
+  await page.getByTestId('reference-form').waitFor();
+  await page.locator('.app-header').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
 
   // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.

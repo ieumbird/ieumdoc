@@ -2,7 +2,7 @@
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument }) => {
+async (page, { openDocument, expect }) => {
   const problems = [];
   const onConsole = message => {
     if (message.type() === 'error' || message.type() === 'warning') problems.push(`${message.type()}: ${message.text()}`);
@@ -78,6 +78,25 @@ async (page, { openDocument }) => {
     await openScratch();
     const baselineParagraphs = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count();
 
+    // #427: real keyboard deletion/Undo must restore the entire engine document and Figure DOM.
+    const snapshot = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.getJSON());
+    const beforeDelete = await snapshot();
+    for (const key of ['Backspace', 'Delete']) {
+      await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+      await page.keyboard.press('ControlOrMeta+a');
+      await page.keyboard.press(key);
+      expect(await figures.count(), 'Select all deletes the Figure').toBe(0);
+      await page.keyboard.press('ControlOrMeta+z');
+      expect(await snapshot(), 'One Undo restores the exact document').toEqual(beforeDelete);
+      await page.keyboard.press('ControlOrMeta+Shift+z');
+      expect(await figures.count(), 'Redo deletes the document again').toBe(0);
+      await page.keyboard.press('ControlOrMeta+z');
+      expect(await snapshot()).toEqual(beforeDelete);
+    }
+    expect(await figures.first().locator('img').getAttribute('alt')).toBe(initial[0].imageAlt);
+    expect(await figures.first().locator('figcaption').innerText()).toBe(initial[0].caption);
+    expect(Boolean(await imageLoaded(figures.first()))).toBe(true);
+
     // A. Existing Figure: selection opens no properties; explicit Edit, Apply, Save, Reload.
     await figures.first().locator('img').click();
     result.selectionOnly = await page.getByTestId('figure-properties').count() === 0 && await editor.count() === 0 &&
@@ -95,6 +114,13 @@ async (page, { openDocument }) => {
     result.existingDraftMarkedUnsaved = await figures.first().getByTestId('figure-draft-status').isVisible();
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
+    const appliedBeforeDelete = await snapshot();
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Backspace');
+    expect(await figures.count()).toBe(0);
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Undo after Apply restores applied Figure properties').toEqual(appliedBeforeDelete);
     result.existingPreviewAfterApply = String(await imageLoaded(figures.first())).startsWith('/document/diagram-v2.svg?path=');
     await save();
     await openScratch();
@@ -157,6 +183,13 @@ async (page, { openDocument }) => {
     await page.getByTestId('figure-alt').fill('New figure alt');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
+    const newBeforeDelete = await snapshot();
+    await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Backspace');
+    expect(await figures.count()).toBe(0);
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Undo keeps the newly filled Figure image, alt text and caption').toEqual(newBeforeDelete);
     result.newPreviewAfterApply = String(await imageLoaded(created)).startsWith('/document/diagram.svg?path=');
 
     // C2. Apply, Edit, change, Cancel keeps the block and restores the applied value.
