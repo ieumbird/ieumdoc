@@ -200,15 +200,15 @@ test("targets come from applied Equation and Figure labels; resolution follows M
   assert.equal(isResolved(referenceTargets(schema.nodeFromJSON(relabeled)), "eq", "eq-a"), false);
   // Slash items insert a reference to each matching target, then label and reference a heading.
   assert.deepEqual(referenceCommandItems(doc, "fig").map((item) => item.label), ["Figure\u00a01 · fig-a"]);
-  // "ref" also matches the heading "Refs".
+  // Generic reference searches include unlabeled headings too.
   assert.deepEqual(referenceCommandItems(doc, "ref").map((item) => referenceOfCommand(item.id)),
     [...targets.map(({ role, label }) => ({ role, label })), { heading: 0, title: "" }]);
-  // Unlabeled headings are listed only for a search that names sections or their words.
+  // Empty queries still omit unlabeled headings; heading searches still find them.
   assert.equal(referenceCommandItems(doc, "").length, targets.length);
   assert.deepEqual(referenceCommandItems(doc, "heading").map((item) => item.label), ["Section reference: Refs"]);
 });
 
-test("reference menu searches captions, displayed numbers and labels without changing target identity or order", () => {
+test("reference menu searches captions, displayed numbers and labels without changing target identity or order", async (t) => {
   const schema = getSchema(editorExtensions());
   const projection = toTiptapDocument(loadEditableDocument(nativeSource([
     "(sec-guide)=\n\n## Installation guide",
@@ -223,6 +223,20 @@ test("reference menu searches captions, displayed numbers and labels without cha
   const ids = (query: string) => items(query).map(item => item.id);
   const figure = "reference:numref:fig-control";
   const table = "reference:numref:tbl-data";
+  await t.test("kind keywords distinguish figures and tables", () => {
+    for (const query of ["table", "표"]) assert.deepEqual(ids(query), [table], query);
+    for (const query of ["figure", "그림"]) {
+      assert.deepEqual(ids(query), ["reference:numref:fig-first", figure], query);
+    }
+  });
+  const labeledTargets = ["reference:ref:sec-guide", "reference:eq:eq-buck", "reference:numref:fig-first", figure, table];
+  await t.test("generic reference keywords include every kind and unlabeled headings", () => {
+    for (const query of ["ref", "reference", "참조"]) {
+      assert.deepEqual(ids(query), [...labeledTargets, "reference:heading:2"], query);
+    }
+  });
+  assert.deepEqual(ids(""), labeledTargets); // Empty slash query still omits unlabeled headings.
+  assert.deepEqual(ids("unrelated"), []);
   assert.deepEqual(ids("SuMmArY"), [figure, table]);
   assert.deepEqual(items("동작"), [{ id: figure, label: "Figure\u00a02 · Control summary 동작 요약.", group: "References" }]);
   assert.deepEqual(items("측정"), [{ id: table, label: "Table\u00a01 · Port summary 측정 요약", group: "References" }]);

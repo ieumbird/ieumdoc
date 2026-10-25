@@ -238,7 +238,7 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
  * unlabeled heading the query searches for (which inserting the reference labels). */
 export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id: string; label: string; group: string }[] {
   const needle = query.toLowerCase().replace(/\s+/g, " ").trim();
-  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().replace(/\s+/g, " ").startsWith(needle));
+  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", "참조", ...words].some((word) => word.toLowerCase().replace(/\s+/g, " ").startsWith(needle));
   const titleWords = (title: string) => [title, ...title.split(/\s+/)];
   // Captions are needed only by this menu, never by the per-chip resolution selectors.
   // Figure captions are live inline children; table captions use the existing inline projection.
@@ -265,16 +265,16 @@ export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id
       .filter((target) => {
         const caption = captions.get(target.label);
         return matches([kindName(target), target.kind ?? target.role, target.label, display(target),
-          ...({eq: ["equation", "수식"], numref: ["figure", "그림", "table", "표"], ref: ["section", "절", "제목"]}[target.role]),
+          ...({eq: ["equation", "수식"], numref: target.kind === "table" ? ["table", "표"] : ["figure", "그림"], ref: ["section", "절", "제목"]}[target.role]),
           ...(target.number === undefined ? [] : [String(target.number)]),
           ...(target.role === "eq" && target.number !== undefined ? [numberText("equation", target.number)] : []),
           ...(caption ? [caption, ...caption.split(/[\s\p{P}]+/u)] : []),
           ...(target.title ? ["heading", ...titleWords(target.title)] : [])]);
       })
       .map((target) => ({ id: referenceCommandId(target), label: menuLabel(target, captions.get(target.label)), group: i18n.t("References") })),
-    // Every heading can be referenced; only a search for sections or a heading's words lists them.
+    // Generic reference, section and heading-word searches include unlabeled headings; empty queries do not.
     ...unlabeledHeadings(doc)
-      .filter((choice) => needle.length > 0 && ["section", "heading", "절", "제목", ...titleWords(choice.title)].some((word) => word.toLowerCase().startsWith(needle)))
+      .filter((choice) => needle.length > 0 && matches(["section", "heading", "절", "제목", ...titleWords(choice.title)]))
       .map((choice) => ({ id: `reference:heading:${choice.heading}`, label: i18n.t("Section reference: {{title}}", { title: choice.title }), group: i18n.t("References") })),
   ];
 }
