@@ -133,7 +133,12 @@ ask it to read arbitrary resource targets. No Host read capability or persistenc
 
 The trailing References area offers **Connect bibliography…**, including when the document has
 no declaration or citations. The existing folder listing offers `.bib` files in the document's
-own folder. Existing declarations, including parent/subfolder paths, remain visible and can be
+own folder. Candidates use the same browser-safe Core `bibliographyError` validation and lexical
+normalization as admission and `updateBibliography`: adding the candidate must leave the full
+staged declaration valid. Equivalent existing paths (including `./` and cancellable `..` segments)
+and filenames Core rejects are hidden. No declaration/path rules are duplicated in the Editor.
+Long candidate names ellipsize inside compact buttons, keeping the full name in their title and
+accessible name. Existing declarations, including parent/subfolder paths, remain visible and can be
 disconnected. Paths remain document-relative; the existing pinned local folder context or HTTP
 Root union and real-path checks still govern reads. Files outside the reading boundary remain
 unverified. IeumDoc never writes `.bib` files.
@@ -428,3 +433,29 @@ English at 1280×720 and Korean at 375×812, full-page capture, sidebar closed o
 | Quiet document, 375px | [Before](assets/bibliography-438/before-375-rest.png) | [After](assets/bibliography-438/after-375-rest.png) |
 | Staged connection, 1280px | Connection unavailable | [Save notice](assets/bibliography-438/pending-1280.png) |
 | Korean connection, 375px | Connection unavailable | [Wrapped notices and controls](assets/bibliography-438/pending-ko-375.png) |
+
+
+Review corrections (#444, 2026-10-25): the extended `bibliography-connection` scenario first
+failed on `50979d58dccb5b16bf35defecc81913b6cf28920` for both findings in the same run:
+`./refs.bib` and `sub/../refs.bib` offered `refs.bib` again, `References [2024].bib` was offered
+despite Core refusal, and the open candidate list at 375px had document `scrollWidth` 1306px.
+The existing pure `bibliographyError` implementation moved unchanged to Core's browser-safe
+citation surface; admission, `updateBibliography` and Editor candidates now call that same
+validator and lexical duplicate check. There is no new declaration rule or Editor path parser.
+Invalid/equivalent candidates are hidden. Candidate buttons keep their compact height, constrain
+their width to the choices panel and ellipsize a child text span; full filenames remain in `title`
+and their localized accessible name. The document itself does not clip overflow.
+
+The extended browser scenario passes both exclusions, open-list panel/button and page-width
+bounds at 375px, the full-name tooltip and accessible name, and connecting a long valid filename
+through Save → Reload. Core tests (255), Editor tests (283), repository typecheck and Editor build
+passed. Existing Core metadata/duplicate-path tests protect the unchanged declaration rules.
+The `layout-rules` and `quiet-document --screenshots` regressions, documentation and diff checks
+also passed; 1440px/375px quiet rest captures remain byte-identical to the original implementation.
+The following full-page captures were directly inspected, on Chrome/Windows, DPR 1, 100% zoom,
+375×812 viewport, Pretendard loaded, the same saved body and open choices, sidebar closed,
+no text selection/hover/focus. The Before image extends horizontally because of the reproduced bug.
+
+| Open candidate list, 375px | Before | After |
+| --- | --- | --- |
+| Valid long name and Core-rejected name | [Overflow and invalid choice](assets/bibliography-438/candidates-before-375.png) | [Contained choices](assets/bibliography-438/candidates-after-375.png) |

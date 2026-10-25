@@ -1,6 +1,6 @@
 import { evaluateBibliography, type BibliographySource } from "../bibliography.ts";
 import { isScalar, isSeq, parseDocument } from "yaml";
-import { canonicalCitation, citationContentError, citationText, type CitationContent, type CitationReport } from "../citation.ts";
+import { bibliographyError, canonicalCitation, citationContentError, citationText, type CitationContent, type CitationReport } from "../citation.ts";
 import { endnoteOrder, firstReferenceNumbers } from "../numbering.ts";
 import { endnoteBlocks } from "./footnote.ts";
 import { labelIdentifier } from "./label.ts";
@@ -32,30 +32,6 @@ export function citationToNode(input: CitationContent): MystNode {
   const kind = content.role === "cite:p" ? "parenthetical" : "narrative";
   const children = content.keys.map(label => ({ type: "cite", kind, label, identifier: labelIdentifier(label) }));
   return content.role === "cite" ? children[0] : { type: "citeGroup", kind, children };
-}
-
-/** Pure declaration-shape validation. No filesystem or Host access policy belongs here. */
-export function bibliographyError(value: unknown): string | undefined {
-  if (!Array.isArray(value) || value.length === 0) return "bibliography must be a non-empty list of relative .bib paths";
-  const seen = new Set<string>();
-  for (const source of value) {
-    if (typeof source !== "string" || source !== source.trim() || !source.endsWith(".bib") ||
-      source.startsWith("/") || source.startsWith("~") || /[\\:\u0000-\u001f\u007f*?\[\]{}!]/u.test(source) ||
-      /[+@]\(/u.test(source) ||
-      source.split("/").some(part => !part)) {
-      return "bibliography paths must be relative .bib files using /; URLs, absolute/drive/UNC paths and globs are not supported";
-    }
-    const parts: string[] = [];
-    for (const part of source.split("/")) {
-      if (part === ".") continue;
-      if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
-      else parts.push(part);
-    }
-    const key = parts.join("/");
-    if (seen.has(key)) return `duplicate bibliography declaration: ${source}`;
-    seen.add(key);
-  }
-  return undefined;
 }
 
 export function declaredBibliography(document: MystDocument): string[] {

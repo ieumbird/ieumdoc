@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button.tsx";
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
+import { bibliographyError } from "@ieumdoc/core/citation";
 import { evaluateBibliography } from "@ieumdoc/core/bibliography";
 import type { DocumentFileResponse, FolderResponse } from "../shared/document-protocol.ts";
 import { citationNumbers, BibliographyContext, bibliographyState } from "./citation.tsx";
@@ -46,6 +47,7 @@ export function BibliographyContent({ editor, bibliography, documentPath, childr
     } catch { setError(true); }
     finally { setLoading(false); }
   };
+  const available = candidates?.filter(source => !bibliographyError([...declared, source])) ?? [];
   const numbering = useEditorState({ editor, selector: ({ editor: current }) => JSON.stringify([...citationNumbers(current.state.doc)]) });
   const evaluation = useMemo(() => {
     if (!bibliography) return undefined;
@@ -65,8 +67,8 @@ export function BibliographyContent({ editor, bibliography, documentPath, childr
       </li>)}</ul> : null}
       {candidates !== null ? <div className="bibliography-choices" role="group" aria-label={i18n.t("Bibliography files in this folder")}>
         <p className="bibliography-status">{i18n.t("Bibliography files in this folder")}</p>
-        {candidates.filter(source => !declared.includes(source)).map(source => <Button key={source} variant="outline" size="sm" aria-label={i18n.t("Connect {{file}}", { file: source })} onClick={() => { change([...declared, source]); setCandidates(null); }}>{source}</Button>)}
-        {!candidates.some(source => !declared.includes(source)) ? <p className="bibliography-status">{i18n.t("No more .bib files in this folder.")}</p> : null}
+        {available.map(source => <Button key={source} variant="outline" size="sm" title={source} aria-label={i18n.t("Connect {{file}}", { file: source })} onClick={() => { change([...declared, source]); setCandidates(null); }}><span>{source}</span></Button>)}
+        {!available.length ? <p className="bibliography-status">{i18n.t("No more .bib files in this folder.")}</p> : null}
       </div> : null}
       {error ? <p className="bibliography-status" role="alert">{i18n.t("The bibliography files could not be listed. Try again.")}</p> : null}
       {pending ? <p className="bibliography-status" role="status">{i18n.t("Save this document to load the connected bibliography files.")}</p> : null}

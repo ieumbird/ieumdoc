@@ -90,5 +90,45 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   assert(await editor.locator('[data-citation][data-readiness="complete"]').count() === 0, 'Disconnected entries no longer resolve');
   await reloadDocument(page); await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
   assert(await tab.getByRole('button', { name: 'Disconnect refs.bib', exact: true }).count() === 0, 'Disconnect persists after Reload');
+  // Review regressions: collect both findings so each is proved on the same pre-fix run.
+  const failures = [];
+  for (const index of [0, 1]) {
+    const connected = file.replace('connect.md', `connected-${index}.md`);
+    await openPath(page, connected);
+    await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
+    const choices = tab.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
+    await choices.waitFor();
+    if (await choices.getByRole('button', { name: 'Connect refs.bib', exact: true }).count()) failures.push(`P1: connected-${index} offers an equivalent refs.bib declaration`);
+    if (await choices.getByRole('button', { name: 'Connect References [2024].bib', exact: true }).count()) failures.push(`P1: connected-${index} offers a Core-invalid filename`);
+  }
+  await openPath(page, file);
+  await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
+  const choices = tab.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
+  const longName = 'References-' + 'unbroken'.repeat(18) + '.bib';
+  const longCandidate = choices.getByRole('button', { name: `Connect ${longName}`, exact: true });
+  await longCandidate.waitFor();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole('button', { name: 'Expand sidebar', exact: true }).waitFor();
+  await choices.scrollIntoViewIfNeeded();
+  const geometry = await choices.evaluate(el => {
+    const panel = el.getBoundingClientRect();
+    return { width: innerWidth, scrollWidth: document.documentElement.scrollWidth, buttons: [...el.querySelectorAll('button')].map(button => {
+      const bounds = button.getBoundingClientRect();
+      return { left: bounds.left, right: bounds.right, inside: bounds.left >= panel.left && bounds.right <= panel.right };
+    }) };
+  });
+  if (geometry.scrollWidth > geometry.width || geometry.buttons.some(button => !button.inside)) failures.push(`P2: candidate list overflows at 375px: ${JSON.stringify(geometry)}`);
+  if (screenshots) {
+    await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); }); await page.mouse.move(0, 0);
+    await page.screenshot({ path: 'tmp/visual-refinement/bibliography-candidates-375.png', fullPage: true });
+  }
+  assert(failures.length === 0, failures.join('\n'));
+  assert(await longCandidate.getAttribute('title') === longName, 'Ellipsized candidate keeps its full filename in title and accessible name');
+  await longCandidate.click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  assert((await source()).includes(longName), 'The long valid candidate remains connectable and saves');
+  await reloadDocument(page); await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
+  assert(await tab.getByRole('button', { name: `Disconnect ${longName}`, exact: true }).count() === 1, 'Saved long filename survives Reload');
   assert(bibliographyFixture.hash() === hash, 'BibTeX bytes are never written');
 }

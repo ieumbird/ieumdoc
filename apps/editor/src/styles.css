@@ -2733,3 +2733,5 @@ ol.list { list-style: decimal; }
 .bibliography-files > li > span { min-width: 0; overflow-wrap: anywhere; }
 .bibliography-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
 .bibliography-choices > p { flex-basis: 100%; }
+.bibliography-choices > button { max-width: 100%; min-width: 0; flex-shrink: 1; }
+.bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
