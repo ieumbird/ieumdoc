@@ -29,6 +29,8 @@ import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./Selec
 import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
+import { REFERENCE_STYLES, type ReferenceStyle } from "./reference-style.ts";
+import type { ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { labelKey } from "@ieumdoc/core/label";
 import type { EditableDocument } from "@ieumdoc/core";
@@ -61,6 +63,7 @@ export type DocumentEditorHandle = {
   canInsertInline(): boolean;
   openInlineInsertion(kind: "citation" | "reference"): void;
   toggleHeadingNumbering(): void;
+  setReferenceStyle(style: ReferenceStyle): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
@@ -98,6 +101,7 @@ type DocumentEditorProps = {
   /** Applied-content changes only, excluding draft forms and filtered placeholders. */
   onAppliedEdit?: (dirty: boolean) => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
+  onReferenceTemplatesChange?: (templates: ReferenceTemplates | null) => void;
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
   chooseImage?: ImageChooser;
@@ -106,7 +110,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, validateFigure, chooseImage, onOutlineChange },
+  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -263,11 +267,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 
   useEffect(() => {
     if (!editor) return;
-    const notify = () => onHeadingNumberingChange?.(Boolean(editor.state.doc.attrs.headingNumbering));
+    const notify = () => {
+      onHeadingNumberingChange?.(Boolean(editor.state.doc.attrs.headingNumbering));
+      onReferenceTemplatesChange?.(editor.state.doc.attrs.referenceTemplates);
+    };
     notify();
     editor.on("update", notify);
     return () => { editor.off("update", notify); };
-  }, [editor, onHeadingNumberingChange]);
+  }, [editor, onHeadingNumberingChange, onReferenceTemplatesChange]);
 
   // Keep the opening snapshot and its locators for the lifetime of the editor. Save
   // acknowledges a submitted snapshot; it never rewrites nodes, selection or engine history.
@@ -290,6 +297,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         commandInsertion.current = true;
         if (kind === "citation") setCitationDraft(caret.from);
         else setReferenceDraft({ from: caret.from, to: caret.to, text: "" });
+      },
+      setReferenceStyle(style) {
+        if (!editor?.isEditable) return;
+        editor.view.dispatch(closeHistory(editor.state.tr).setDocAttribute("referenceTemplates", REFERENCE_STYLES[style].templates));
+        editor.view.dispatch(closeHistory(editor.state.tr));
       },
       toggleHeadingNumbering() {
         if (!editor || !editor.isEditable) return;

@@ -121,6 +121,7 @@ export type SupportedEdits = {
   bibliography?: string[];
   /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
   headingNumbering?: boolean;
+  referenceTemplates?: import("@ieumdoc/core").ReferenceTemplateUpdate;
   order?: OrderItem[];
   headings?: HeadingEdit[];
   headingLevels?: HeadingLevelEdit[];

@@ -58,6 +58,10 @@ import {
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateReferenceTemplates,
+  referenceNumberText,
+  type NumberedKind,
+  type ReferenceTemplateUpdate,
   updateBibliography,
   insertCitation,
   updateCitation,
@@ -676,6 +680,13 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "update-reference-templates",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set document reference templates through Core",
+    usage: "ieumdoc update-reference-templates <file> [--figure <template>] [--table <template>] [--equation <template>] [--reset <figure|table|equation|all>]",
+    details: ["Templates contain %s (or {number}). Omitted kinds are unchanged. --reset restores MyST defaults; it cannot also set the same kind."],
+  },
+  {
     name: "update-heading-numbering",
     group: "Edit — labels, footnotes and numbering",
     summary: "Enable or disable document heading numbers through Core",
@@ -1099,6 +1110,20 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateTableColumnAlignment(document, pathFlag(flags), intFlag(flags, "--column"),
         align === "none" ? null : align as "left" | "center" | "right");
     }
+    case "update-reference-templates": {
+      const templates: ReferenceTemplateUpdate = {};
+      const reset = optionalFlag(flags, "--reset");
+      if (reset !== undefined && !["figure", "table", "equation", "all"].includes(reset)) throw new Error("--reset must be figure, table, equation or all");
+      for (const kind of ["figure", "table", "equation"] as const) {
+        const template = optionalFlag(flags, `--${kind}`);
+        if (reset === kind || reset === "all") {
+          if (template !== undefined) throw new Error(`cannot set and reset ${kind} together`);
+          templates[kind] = null;
+        } else if (template !== undefined) templates[kind] = template;
+      }
+      if (!Object.keys(templates).length) throw new Error("provide a template or --reset");
+      return document => updateReferenceTemplates(document, templates);
+    }
     case "update-heading-numbering": {
       const enabled = flag(flags, "--enabled");
       if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
@@ -1336,6 +1361,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
   "update-heading-numbering": ["--enabled"],
+  "update-reference-templates": ["--figure", "--table", "--equation", "--reset"],
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
   "remove-block": ["--at"],
@@ -1464,6 +1490,8 @@ function machineNodes(document: EditableDocument): MachineNode[] {
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
+      ...("label" in block && block.label && numbers[index][block.block as NumberedKind] !== undefined
+        ? { referenceText: referenceNumberText(block.block as NumberedKind, numbers[index][block.block as NumberedKind]!, document.referenceTemplates) } : {}),
 
     }, ...rest];
   });

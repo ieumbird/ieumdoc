@@ -463,7 +463,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -2462,5 +2462,36 @@ test("CLI bibliography roots are explicit and warnings preserve actual Markdown 
     assert.equal(run(["insert-block", file, "--at", "end", "--text", "Editable despite unavailable resources."]).status, 0);
     assert.deepEqual(readFileSync(bibFile), afterExternal);
     assert.match(readFileSync(file, "utf8"), /Editable despite unavailable resources/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test("CLI reference templates set partial values, inspect computed text, and reset without rewriting rejected input", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-reference-templates-"));
+  const file = path.join(dir, "refs.md");
+  writeFileSync(file, nativeSource("```{math}\n:label: eq-a\na\n```\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n\n:::{table} Data\n:label: tbl-a\n| a |\n| - |\n| 1 |\n:::\n"));
+  const display = () => {
+    const result = run(["inspect", file, "--format", "json"]);
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout).nodes.filter((node: {referenceText?: string}) => node.referenceText).map((node: {referenceText: string}) => node.referenceText);
+  };
+  try {
+    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
+    const changed = run(["update-reference-templates", file, "--figure", "그림 %s", "--table", "표 %s", "--equation", "식 (%s)"]);
+    assert.equal(changed.status, 0, changed.stderr);
+    assert.deepEqual(display(), ["식 (1)", "그림 1", "표 1"]);
+    assert.match(readFileSync(file, "utf8"), /template: 그림 %s/);
+    const partial = run(["update-reference-templates", file, "--reset", "figure"]);
+    assert.equal(partial.status, 0, partial.stderr);
+    assert.deepEqual(display(), ["식 (1)", "Figure\u00a01", "표 1"]);
+    const saved = readFileSync(file, "utf8");
+    for (const args of [["--figure", "no number"], ["--equation", ""], ["--reset", "other"], ["--reset", "all", "--table", "%s"], []]) {
+      assert.notEqual(run(["update-reference-templates", file, ...args]).status, 0);
+      assert.equal(readFileSync(file, "utf8"), saved);
+    }
+    const reset = run(["update-reference-templates", file, "--reset", "all"]);
+    assert.equal(reset.status, 0, reset.stderr);
+    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
+    assert.doesNotMatch(readFileSync(file, "utf8"), /numbering:/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

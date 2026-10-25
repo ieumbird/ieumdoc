@@ -47,6 +47,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const sessionBase = useRef(initialBase);
   const [openedPath, setOpenedPath] = useState(initial.path);
   const [headingNumbering, setHeadingNumbering] = useState(false);
+  const [referenceTemplates, setReferenceTemplates] = useState<import("@ieumdoc/core").ReferenceTemplates | null>(null);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState<Operation>("ready");
   const [error, setError] = useMessageState("");
@@ -100,6 +101,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
       onAppliedEdit: (dirty: boolean) => { if (isCurrent()) recorder?.edit(dirty); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
+      onReferenceTemplatesChange: (templates: import("@ieumdoc/core").ReferenceTemplates | null) => { if (isCurrent()) setReferenceTemplates(templates); },
       onHeadingNumberingChange: (enabled: boolean) => { if (isCurrent()) setHeadingNumbering(enabled); },
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },
       validateFigure,
@@ -306,7 +308,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
 
   return {
     recoveryError, discardRecovery: () => recorder?.discard(),
-    getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, outlineStore, editorGeneration, isCurrent,
+    getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",

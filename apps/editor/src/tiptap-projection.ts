@@ -26,7 +26,10 @@ export function pathKey(path: NodePath): string {
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
-    ...(document.headingNumbering ? { attrs: { headingNumbering: document.headingNumbering } } : {}),
+    ...(document.headingNumbering || document.referenceTemplates ? { attrs: {
+      ...(document.headingNumbering ? { headingNumbering: document.headingNumbering } : {}),
+      ...(document.referenceTemplates ? { referenceTemplates: document.referenceTemplates } : {}),
+    } } : {}),
     content: document.blocks.length > 0
       ? document.blocks.map(toTiptapBlockNode)
       : [{ type: "paragraph", attrs: { sourcePath: EMPTY_DOCUMENT_BLOCK_PATH } }],

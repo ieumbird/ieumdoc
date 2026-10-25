@@ -14,6 +14,7 @@ import * as operations from "./operations.ts";
 import { unresolvedReferences as unresolvedReferencesTree } from "./references.ts";
 import { validateStructure as validateTree } from "./validation.ts";
 import { updateHeadingNumbering as updateHeadingNumberingTree } from "./myst/heading-numbering.ts";
+import { updateReferenceTemplates as updateReferenceTemplatesTree } from "./myst/reference-templates.ts";
 import { bodyEndIndex as bodyEndIndexTree, endnotesInPlace as endnotesInPlaceTree } from "./myst/footnote.ts";
 import { citationReport as citationReportTree, updateBibliography as updateBibliographyTree } from "./myst/citation.ts";
 
@@ -43,6 +44,8 @@ export { blockTargets, NUMBERED_KINDS, targetNumbers, type NumberedKind, type Nu
 export { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, headingNumbers, defaultHeadingNumbering, type EndnoteBlock, type HeadingNumbering } from "./numbering.ts";
 export { firstReferenceNumbers } from "./numbering.ts";
 export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
+export const updateReferenceTemplates = fence(updateReferenceTemplatesTree);
+export { referenceNumberText, referenceTemplatesError, DEFAULT_REFERENCE_TEMPLATES, type ReferenceTemplates, type ReferenceTemplateUpdate } from "./numbering.ts";
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R

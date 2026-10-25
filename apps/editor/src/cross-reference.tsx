@@ -9,20 +9,19 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
-import { blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
+import { referenceNumberText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { toTiptapContent } from "./tiptap-inline.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
-export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number; kind?: NumberedKind; title?: string };
+export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number; template?: string; kind?: NumberedKind; title?: string };
 
 /** A reference to an unlabeled heading: inserting it labels the heading too. */
 type HeadingChoice = { heading: number; title: string };
 
 const KIND: Record<ReferenceRole, string> = { get eq() { return i18n.t("Equation"); }, get numref() { return i18n.t("Figure"); }, get ref() { return i18n.t("Section"); } };
-const PREFIX: Record<ReferenceRole, string> = { eq: "Eq.", numref: "Fig.", ref: "§" };
 const HEADINGS = new Set(["heading"]);
 
 // Each immutable engine document shares the same display numbers across its NodeViews.
@@ -95,7 +94,8 @@ export function referenceTargets(doc: ProseMirrorNode): ReferenceTarget[] {
     if (label.length === 0 || !role) return;
     const kind = node.type.name as NumberedKind;
     const number = numbers[index][kind];
-    targets.push({ role, label, ...(kind === "table" ? { kind } : {}), ...(number === undefined ? {} : { number }) });
+    const template = (doc.attrs.referenceTemplates as ReferenceTemplates | null)?.[kind];
+    targets.push({ role, label, ...(template === undefined ? {} : { template }), ...(kind === "table" ? { kind } : {}), ...(number === undefined ? {} : { number }) });
   });
   return targets;
 }
@@ -193,8 +193,10 @@ export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole
   if (!target) return { text: i18n.t("Unresolved reference: {{label}}", { label }), resolved: false, kindName: "" };
   const kindName = target?.kind === "table" ? i18n.t("Table") : KIND[role];
   // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
-  const shown = target?.number !== undefined ? numberText(target.kind ?? (role === "eq" ? "equation" : "figure"), target.number) : target?.title ?? label;
-  return { text: `${target?.kind === "table" ? "Table" : PREFIX[role]} ${shown}`, resolved: target !== undefined, kindName };
+  const kind = target.kind ?? (role === "eq" ? "equation" : "figure");
+  const text = role === "ref" ? `§ ${target.title ?? label}` : target.number !== undefined
+    ? referenceNumberText(kind, target.number, target.template === undefined ? undefined : { [kind]: target.template }) : label;
+  return { text, resolved: true, kindName };
 }
 
 /** What an unresolved reference tells the reader. */
@@ -236,7 +238,7 @@ export function revealReferenceTarget(editor: Editor, role: ReferenceRole, label
  * unlabeled heading the query searches for (which inserting the reference labels). */
 export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id: string; label: string; group: string }[] {
   const needle = query.toLowerCase().replace(/\s+/g, " ").trim();
-  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().startsWith(needle));
+  const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", ...words].some((word) => word.toLowerCase().replace(/\s+/g, " ").startsWith(needle));
   const titleWords = (title: string) => [title, ...title.split(/\s+/)];
   // Captions are needed only by this menu, never by the per-chip resolution selectors.
   // Figure captions are live inline children; table captions use the existing inline projection.
@@ -264,7 +266,7 @@ export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id
         const caption = captions.get(target.label);
         return matches([kindName(target), target.kind ?? target.role, target.label, display(target),
           ...({eq: ["equation", "수식"], numref: ["figure", "그림", "table", "표"], ref: ["section", "절", "제목"]}[target.role]),
-          ...(target.number === undefined ? [] : [String(target.number), `${target.kind === "table" ? i18n.t("Table") : PREFIX[target.role]} ${target.number}`]),
+          ...(target.number === undefined ? [] : [String(target.number)]),
           ...(target.role === "eq" && target.number !== undefined ? [numberText("equation", target.number)] : []),
           ...(caption ? [caption, ...caption.split(/[\s\p{P}]+/u)] : []),
           ...(target.title ? ["heading", ...titleWords(target.title)] : [])]);
@@ -374,7 +376,8 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     editor.chain().focus().insertContentAt({ from: position, to: position + node.nodeSize },
       { type: "text", text: label, marks: node.marks.map((mark) => mark.toJSON()) }).run();
   };
-  const status = resolved ? `${kindName} ${label}. Click to go to it.` : unresolvedStatus(role, label);
+  const accessibleText = role === "ref" ? `${kindName} ${label}` : `${text} · ${label}`;
+  const status = resolved ? `${accessibleText}. Click to go to it.` : unresolvedStatus(role, label);
   return (
     <NodeViewWrapper
       as="span"
@@ -498,7 +501,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
               const missing = !isResolved(targets, target.role, target.label);
               return (
                 <option key={referenceCommandId(target)} value={referenceCommandId(target)}>
-                  {target.kind === "table" ? i18n.t("Table") : KIND[target.role]} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? i18n.t(" (unresolved)") : ""}
+                  {target.role === "ref" ? KIND.ref : referenceDisplay(targets, target.role, target.label).text} · {target.title ? `${target.title} (${target.label})` : target.label}{missing ? i18n.t(" (unresolved)") : ""}
                 </option>
               );
             })}

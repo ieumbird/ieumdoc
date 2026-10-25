@@ -1,7 +1,7 @@
 import { allocateBlockPath } from "./block-locators.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { inlineContentText as inlineText, sameInlineContent as sameInline, isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
-import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
+import { defaultHeadingNumbering, referenceTemplatesError, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 import {
@@ -253,6 +253,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const reordered = inserts.length > 0 || deletes.length > 0 ||
     positions.some((position, index) => index > 0 && position < positions[index - 1]) ||
     merges.some(merge => merge.paths.some((path, index) => index > 0 && path[0] !== merge.paths[index - 1][0] + 1));
+  const templates = next.attrs?.referenceTemplates as ReferenceTemplates | null | undefined;
+  const templateError = referenceTemplatesError(templates ?? {});
+  if (templateError) throw new Error(templateError);
+  const changedTemplates = NUMBERED_KINDS.some(kind => templates?.[kind] !== document.referenceTemplates?.[kind]);
   const settings = next.attrs?.headingNumbering ?? null;
   const changedSettings = JSON.stringify(settings) !== JSON.stringify(document.headingNumbering ?? null);
   if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(defaultHeadingNumbering(true))) {
@@ -260,6 +264,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   }
   return {
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
+    ...(changedTemplates ? { referenceTemplates: Object.fromEntries(NUMBERED_KINDS.map(kind => [kind, templates?.[kind] ?? null])) } : {}),
     ...(next.attrs?.bibliography !== null && next.attrs?.bibliography !== undefined ? { bibliography: next.attrs.bibliography as string[] } : {}),
     ...(reordered ? { order } : {}),
     headings,
@@ -303,6 +308,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
   const attrs = {
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
+    ...(document.attrs?.referenceTemplates && Object.keys(document.attrs.referenceTemplates).length ? { referenceTemplates: document.attrs.referenceTemplates } : {}),
     ...(document.attrs?.bibliography !== null && document.attrs?.bibliography !== undefined ? { bibliography: document.attrs.bibliography } : {}),
   };
   return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };

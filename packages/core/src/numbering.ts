@@ -129,3 +129,28 @@ export function nextFootnoteLabel(labels: Iterable<string>): string {
   while (used.has(String(number))) number++;
   return String(number);
 }
+
+/** Authored templates only; absent keys use MyST defaults. */
+export type ReferenceTemplates = Partial<Record<NumberedKind, string>>;
+export type ReferenceTemplateUpdate = Partial<Record<NumberedKind, string | null>>;
+export const DEFAULT_REFERENCE_TEMPLATES: Readonly<Record<NumberedKind, string>> = {
+  figure: "Figure\u00a0%s", table: "Table\u00a0%s", equation: "(%s)",
+};
+
+export function referenceTemplatesError(value: unknown, allowReset = false): string | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "reference templates must be an object";
+  for (const [kind, template] of Object.entries(value)) {
+    if (!NUMBERED_KINDS.includes(kind as NumberedKind)) return `unsupported reference template kind: ${kind}`;
+    if (allowReset && template === null) continue;
+    if (typeof template !== "string" || !template.trim() || !/%s|\{number\}|\{subEnumerator\}/.test(template)) {
+      return `${kind} template must be a non-empty string containing %s or {number}`;
+    }
+    if (template.includes("{name}")) return "reference captions in templates are not supported";
+  }
+  return undefined;
+}
+
+/** MyST's numeric substitutions; native numbers have no chapter/subfigure hierarchy. */
+export function referenceNumberText(kind: NumberedKind, number: number, templates?: ReferenceTemplates | null): string {
+  return (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).replace(/%s|\{number\}|\{subEnumerator\}/g, String(number));
+}

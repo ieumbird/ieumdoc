@@ -87,6 +87,22 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('Backspace');
   await open();
 
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  if (screenshots) {
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({width, height:720});
+      if (width < 640) {
+        await page.getByRole('button', {name:'Expand sidebar', exact:true}).waitFor();
+        await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+      }
+      await page.getByRole('button', {name:'Display', exact:true}).click();
+      await page.screenshot({path:`tmp/reference-templates-${width}.png`});
+    }
+    await page.setViewportSize({width:1280, height:720});
+  }
+  expect(await page.getByRole('combobox', {name:'Reference style', exact:true}).count()).toBe(1);
+  await page.getByRole('button', {name:'Files', exact:true}).click();
+
   // A. Reference paragraphs are editable; resolved and unresolved references look different.
   result.referenceParagraphsEditable = await page.locator('[data-readonly-paragraph]').count() === 0 &&
     await chip(paragraph(1), 'Eq. eq-a').count() === 1;
@@ -105,7 +121,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
 
   // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.
-  result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === 'Eq. (1)' &&
+  result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === '(1)' &&
     await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-number').first().innerText() === '(1)' &&
     await page.locator('[data-document-tab][data-active=true] [data-block="figure"] figcaption').first().getAttribute('data-number') === 'Figure 1';
   await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').click();
@@ -142,15 +158,15 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     if (!editor.view.hasFocus()) throw Error('Editor did not take focus');
   });
   await page.keyboard.type(' /summary');
-  const figureChoice = page.getByRole('menuitem', {name:'Fig. 1 · Converter control summary.', exact:true});
+  const figureChoice = page.getByRole('menuitem', {name:'Figure\u00a01 · Converter control summary.', exact:true});
   await figureChoice.waitFor();
   result.captionSearchKeepsEditorFocus = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.hasFocus());
   // Exercise the multiword query through real typing, then insert by the shared keyboard path.
   for (let i = 0; i < 'summary'.length; i++) await page.keyboard.press('Backspace');
-  await page.keyboard.type('Fig. 1');
+  await page.keyboard.type('Figure 1');
   await figureChoice.waitFor();
   await page.keyboard.press('Enter');
-  result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/Fig. 1');
+  result.insertedAtCaret = await chip(paragraph(0), 'Fig. fig-a').count() === 1 && !(await paragraph(0).innerText()).includes('/Figure 1');
 
   // D. Retarget an existing reference; E. remove one back to plain text.
   await editReference(chip(paragraph(1), 'Eq. eq-a'));
@@ -232,7 +248,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     return await chip.count() === 1 ? chip.getAttribute('data-resolved') : 'missing';
   };
   const captionReads = async () => await caption.locator('.inline-math .katex').count() === 1 && !(await caption.innerText()).includes('$') &&
-    await captionChip('Fig. 1') === 'true' && await captionChip('Unresolved reference: eq-gone') === 'false';
+    await captionChip('Figure\u00a01') === 'true' && await captionChip('Unresolved reference: eq-gone') === 'false';
   await openCaption();
   result.captionShowsMathAndReferences = await captionReads();
   const captionFigure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
@@ -242,9 +258,9 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   result.relabelDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
-  result.captionFollowsRelabeledTarget = await captionChip('Fig. 1') === 'true';
+  result.captionFollowsRelabeledTarget = await captionChip('Figure\u00a01') === 'true';
   await page.keyboard.press('ControlOrMeta+z');
-  result.captionUndoResolvesAgain = await captionChip('Fig. 1') === 'true';
+  result.captionUndoResolvesAgain = await captionChip('Figure\u00a01') === 'true';
   result.captionSourceUnchanged = await sourceText() === captionFresh;
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
@@ -261,7 +277,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('Delete');
   result.captionOnlyReferenceDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference'));
   await page.keyboard.press('ControlOrMeta+z');
-  result.captionDeletionUndo = await captionChip('Fig. 1') === 'true' && await page.getByTestId('notice').count() === 0;
+  result.captionDeletionUndo = await captionChip('Figure\u00a01') === 'true' && await page.getByTestId('notice').count() === 0;
 
   // J. Deleting a referenced target warns at the time of deletion; Undo restores resolution.
   await page.reload();
@@ -269,7 +285,33 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   const deletionPath = [root, 'tmp', 'cross-reference', 'delete.md'].join(separator);
   await openPath(page, deletionPath);
   const active = page.locator('[data-document-tab][data-active=true]');
-  for (const [kind, label, normal] of [['equation', 'eq-a', 'Eq. (1)'], ['figure', 'fig-a', 'Fig. 1'], ['table', 'tbl-a', 'Table 1']]) {
+  const referenceText = label => active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
+  const readReferences = async () => Promise.all(['fig-a', 'tbl-a', 'eq-a'].map(label => referenceText(label).innerText()));
+  expect(await readReferences()).toEqual(['Figure\u00a01', 'Table\u00a01', '(1)']);
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  if (screenshots) await page.screenshot({path:'tmp/reference-templates-display.png'});
+  const templates = page.getByRole('combobox', {name:'Reference style', exact:true});
+  await templates.selectOption('korean');
+  expect(await readReferences()).toEqual(['그림 1', '표 1', '식 (1)']);
+  expect(await active.getByTestId('equation-number').first().innerText()).toBe('(1)');
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.commands.undo());
+  expect(await readReferences()).toEqual(['Figure\u00a01', 'Table\u00a01', '(1)']);
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.commands.redo());
+  expect(await readReferences()).toEqual(['그림 1', '표 1', '식 (1)']);
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  const koreanDisk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(deletionPath)}`)).json();
+  for (const value of ['그림 %s', '표 %s', '식 (%s)']) expect(koreanDisk.source).toContain(`template: ${value}`);
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  expect(await readReferences()).toEqual(['그림 1', '표 1', '식 (1)']);
+  await page.getByRole('button', {name:'Display', exact:true}).click();
+  expect(await templates.inputValue()).toBe('korean');
+  await templates.selectOption('default');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  await page.getByRole('button', {name:'Files', exact:true}).click();
+  for (const [kind, label, normal] of [['equation', 'eq-a', '(1)'], ['figure', 'fig-a', 'Figure\u00a01'], ['table', 'tbl-a', 'Table\u00a01']]) {
     const reference = active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
     if (await reference.innerText() !== normal) throw new Error(`Normal ${kind} reference changed`);
     await page.evaluate(label => {
@@ -310,11 +352,11 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     if (label === 'eq-a') await page.waitForTimeout(650); // engine history's 500ms grouping delay
   }
   await page.keyboard.press('ControlOrMeta+z');
-  result.partialUndoRestoresOnlyLastTarget = await active.locator('[data-label="fig-a"] .cross-reference-chip').innerText() === 'Fig. 1' &&
+  result.partialUndoRestoresOnlyLastTarget = await active.locator('[data-label="fig-a"] .cross-reference-chip').innerText() === 'Figure\u00a01' &&
     await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === 'Unresolved reference: eq-a';
   result.partialUndoKeepsEarlierDeletionNotice = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference'));
   await page.keyboard.press('ControlOrMeta+z');
-  result.completeUndoClearsDeletionNotice = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === 'Eq. (1)' &&
+  result.completeUndoClearsDeletionNotice = await active.locator('[data-label="eq-a"] .cross-reference-chip').innerText() === '(1)' &&
     await page.getByTestId('notice').count() === 0;
 
   // A target with no reference keeps its existing deletion flow and shows no new notice.
