@@ -123,7 +123,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   });
   const pending = useRef<TiptapJSON | null>(null);
   const brokenReferences = useRef(new Map<string, ReferenceTarget>());
-  const tableDeletionPending = useRef(false);
+  const tableDeletionDocument = useRef<Editor["state"]["doc"] | null>(null);
   const saved = useRef<TiptapJSON | null>(null);
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
@@ -205,12 +205,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
       enableInputRules: [MARKDOWN_INPUT_RULES],
       onTransaction({ editor, transaction }) {
+        // The final state includes appended transactions even when the root changed no content.
+        if (tableDeletionDocument.current && tableDeletionDocument.current !== editor.state.doc) {
+          tableDeletionDocument.current = null;
+          onNotice?.("");
+        }
         // Block indexes are snapshot positions; a document change invalidates an open menu.
         if (transaction.docChanged) {
-          if (tableDeletionPending.current) {
-            tableDeletionPending.current = false;
-            onNotice?.("");
-          }
           setBlockMenu(null);
           const broken = referencesBrokenByDeletion(transaction.before, transaction.doc);
           if (broken.length) {
@@ -234,7 +235,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           }
           if (transaction.getMeta(TABLE_DELETE_META)) {
             const deletedDocument = editor.state.doc;
-            tableDeletionPending.current = true;
+            tableDeletionDocument.current = deletedDocument;
             // Subsequent typing must be a different history step, even at the deletion caret.
             editor.view.dispatch(closeHistory(editor.state.tr));
             onNotice?.({ key: "Table deleted" }, () => {

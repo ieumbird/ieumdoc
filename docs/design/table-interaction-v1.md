@@ -1,7 +1,7 @@
 # Table interaction v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#474 / PR #486 review: table-authoring and source-view-pending browser regressions for explicit deletion notices, guarded one-step Undo, focus, typing, Save/Reload, Source request start, tab switching and expiry; bilingual cross-reference browser regression and captures, typecheck/build).
+- Last verified: 2026-10-26 (#474 / PR #486 review: table-authoring and source-view-pending browser regressions for explicit deletion notices, guarded one-step Undo, focus, typing, Save/Reload, Source request start, tab switching and expiry; appended endnote placement in the document-session harness; footnotes and bilingual cross-reference browser regressions, typecheck/build).
 - Previous verification: 2026-10-25 (#430 last-cell Tab, including integration with #431/#433: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 281/281, typecheck/build).
 - Previous verification: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
 - Previous verification: 2026-10-08 (contract compared with table commands and regression coverage).
@@ -12,7 +12,7 @@
 - Row/column handles address a specific row/column independently of caret focus. The first row remains the header; the last column cannot be deleted.
 - Menus offer existing add, move, delete and column alignment commands. Table actions include caption/label editing and explicitly named table deletion.
 - Explicit table deletion (block-menu Delete, table-tools Delete table, and Delete/Backspace on a selected table node) takes effect without confirmation. The existing MessageArea shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, politely announced without taking editor focus. Its action runs the same editor Undo as Ctrl+Z, restoring the complete table, caption and label in one history step and returning editor focus.
-- The deletion notice and action expire on the next document change (including typing or keyboard Undo/Redo), Save, Reload, Source preview request start, tab switch or the existing five-second temporary-notice timeout. Source revokes the action before its request is pending, so it cannot change a hidden Visual document or outlive the Markdown snapshot; returning to Visual does not revive it. A stale action cannot undo a newer edit or another tab. Further typing starts a separate history step. Deleting a referenced table uses this deletion notice; the existing unresolved reference display remains until Undo restores the table. Other block deletion notices are unchanged.
+- The deletion notice and action expire on the next document change (including typing, keyboard Undo/Redo or an appended transaction such as deferred endnote placement), Save, Reload, Source preview request start, tab switch or the existing five-second temporary-notice timeout. Source revokes the action before its request is pending, so it cannot change a hidden Visual document or outlive the Markdown snapshot; returning to Visual does not revive it. A stale action cannot undo a newer edit or another tab. Further typing starts a separate history step. Deleting a referenced table uses this deletion notice; the existing unresolved reference display remains until Undo restores the table. Other block deletion notices are unchanged.
 - Keep the native engine caret, history and Tab navigation. One structural action is one undo step; after adding, focus moves into the new cell.
 - Tab in the last cell of an editable table appends a row and focuses its first cell using the same Add row below command and Core Save path. Shift+Tab in the first cell still enters preceding prose; Enter and final-row ArrowDown still leave the table. Tab does not act during IME composition or add rows in read-only tables.
 - Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices.
@@ -36,6 +36,13 @@ their previous behavior. Core/CLI are unchanged: this adds only Editor interacti
 PR #486 review added a Source regression: hold the preview request after deleting a table, check
 that the notice/action are absent while pending and in Source, then return to Visual and check
 that neither revives. All three checks failed on `40671f6` before the request-start invalidation fix.
+
+The existing `document-session` hook/editor harness covers appended changes without the shell:
+an unapplied Equation draft postpones endnote placement, a table is deleted, then cancelling the
+draft releases placement. On `40671f6` the root transaction had `docChanged=false`, the final doc
+changed, but `Table deleted` and its action remained. The regression now checks actual placement
+and immediate notice/action revocation after that transaction, using the final editor doc identity.
+These review fixes change invalidation only; the captures below retain their original #474 provenance.
 
 The existing `cross-reference --screenshots` and `quiet-document --screenshots` runs captured the
 real product on Windows/installed headless Chrome using this worktree's persistent profile,
