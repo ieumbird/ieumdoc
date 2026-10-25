@@ -15,6 +15,7 @@ import {
   filterInsertCommands,
   formattableSelection,
   INSERT_COMMANDS,
+  inlineInsertionAt,
   slashQueryAt,
   type SlashRange,
 } from "./block-commands.ts";
@@ -57,6 +58,8 @@ export type DocumentEditorHandle = {
   getSnapshot(): EditorSnapshot;
   /** Let the New dialog hand focus to the newly mounted editor through Base UI. */
   getFocusTarget(): HTMLElement | null;
+  canInsertInline(): boolean;
+  openInlineInsertion(kind: "citation" | "reference"): void;
   toggleHeadingNumbering(): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
@@ -138,8 +141,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   // The selected paragraph text a new cross-reference will replace.
   const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
-  // The caret a slash Citation item left; the form inserts there.
+  // The retained caret for the Citation form.
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
+  const commandInsertion = useRef(false);
   const citationEntries = useBibliographyEntries(bibliography);
   const linkKey = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
@@ -272,6 +276,18 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     ref,
     () => ({
       getFocusTarget() { return editor?.isEditable ? editor.view.dom : null; },
+      canInsertInline() { return Boolean(editor?.isEditable && inlineInsertionAt(editor.state)); },
+      openInlineInsertion(kind) {
+        if (!editor?.isEditable) return;
+        const caret = inlineInsertionAt(editor.state);
+        if (!caret) return;
+        // CommandCenter calls this after releasing its modal focus/inertness.
+        editor.view.focus();
+        setBlockMenu(null);
+        commandInsertion.current = true;
+        if (kind === "citation") setCitationDraft(caret.from);
+        else setReferenceDraft({ from: caret.from, to: caret.to, text: "" });
+      },
       toggleHeadingNumbering() {
         if (!editor || !editor.isEditable) return;
         const settings = editor.state.doc.attrs.headingNumbering ? null : defaultHeadingNumbering(true);
@@ -404,6 +420,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     if (id === CITATION_COMMAND && slash) {
       setBlockMenu(null);
       editor.view.dispatch(editor.state.tr.delete(slash.from, slash.to));
+      commandInsertion.current = false;
       setCitationDraft(slash.from);
       return;
     }
@@ -521,12 +538,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           style={referenceStyle}
           preferredLabel={referenceDraft.text.trim()}
           onApply={(target) => {
+            if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
             insertReference(editor, referenceDraft, target);
+            if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
+            commandInsertion.current = false;
             setReferenceDraft(null);
           }}
           onClose={() => {
             setReferenceDraft(null);
-            editor.commands.focus();
+            editor.view.focus();
           }}
           onDismiss={() => setReferenceDraft(null)}
         />
@@ -535,12 +555,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           entries={citationEntries}
           style={citationStyle}
           onApply={(citation) => {
+            if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
             insertCitation(editor, { from: citationDraft, to: citationDraft }, citation);
+            if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
+            commandInsertion.current = false;
             setCitationDraft(null);
           }}
           onClose={() => {
             setCitationDraft(null);
-            editor.commands.focus();
+            editor.view.focus();
           }}
           onDismiss={() => setCitationDraft(null)}
         />
@@ -558,6 +581,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           onEditReference={() => {
             setFocused(editor.view.hasFocus());
             const { from, to } = editor.state.selection;
+            commandInsertion.current = false;
             setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n") });
           }}
         />
