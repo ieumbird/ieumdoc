@@ -49,17 +49,7 @@ export async function requestDocument(
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
   }
   const declarations = payload.bibliography?.declarations ?? [];
-  let sources: import("@ieumdoc/core").BibliographySource[] = [];
-  if (declarations.length) {
-    try {
-      const resourceQuery = new URLSearchParams({ path: payload.path, revision: payload.revision });
-      if (bibliographyRoot) resourceQuery.set("root", bibliographyRoot);
-      const resourceResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/bibliography?${resourceQuery}`);
-      const resources = await resourceResponse.json();
-      if (!resourceResponse.ok || resources.revision !== payload.revision || !Array.isArray(resources.sources)) throw new Error();
-      sources = resources.sources;
-    } catch { sources = declarations.map(source => ({ source, status: "error", code: "bibliography-unreadable" })); }
-  }
+  const sources = await requestBibliography(payload.path, payload.revision, declarations, bibliographyRoot);
   return {
     bibliographyRoot,
     bibliography: { declarations, sources },
@@ -69,6 +59,21 @@ export async function requestDocument(
     source: payload.source,
     endnotesInPlace: payload.endnotesInPlace !== false,
   };
+}
+
+/** Only the saved document's declarations can be read by the existing Host endpoint. */
+export async function requestBibliography(path: string, revision: string, declarations: string[], root?: string) {
+  if (declarations.length) {
+    try {
+      const resourceQuery = new URLSearchParams({ path, revision });
+      if (root) resourceQuery.set("root", root);
+      const resourceResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/bibliography?${resourceQuery}`);
+      const resources = await resourceResponse.json();
+      if (!resourceResponse.ok || resources.revision !== revision || !Array.isArray(resources.sources)) throw new Error();
+      return resources.sources as import("@ieumdoc/core").BibliographySource[];
+    } catch { return declarations.map(source => ({ source, status: "error" as const, code: "bibliography-unreadable" as const })); }
+  }
+  return [];
 }
 
 export async function requestSave(body: SaveRequest): Promise<SaveResponse> {

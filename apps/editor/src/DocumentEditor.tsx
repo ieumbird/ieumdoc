@@ -109,7 +109,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useTranslation();
   const visible = useEditorVisible();
   // Each tab keeps its editor; only Reload remounts it. Save keeps its opening projection.
-  const [projection] = useState(() => toTiptapDocument(document));
+  const [projection] = useState(() => {
+    const projected = toTiptapDocument(document);
+    return { ...projected, attrs: { ...projected.attrs, bibliography: bibliography?.declarations ?? [] } };
+  });
   const pending = useRef<TiptapJSON | null>(null);
   const brokenReferences = useRef(new Map<string, ReferenceTarget>());
   const saved = useRef<TiptapJSON | null>(null);
@@ -507,7 +510,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
-      <BibliographyContent editor={editor} bibliography={bibliography}><EditorContent editor={editor} /></BibliographyContent>
+      <BibliographyContent editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent>
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}

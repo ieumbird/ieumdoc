@@ -2725,3 +2725,11 @@ ol.list { list-style: decimal; }
 .file-preview[data-slot="dialog-content"] { width: min(var(--layout-file-preview-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
 .file-preview-image { display: block; max-width: 100%; max-height: var(--layout-file-preview-image-max-height); object-fit: contain; margin-inline: auto; }
 .file-preview-image[hidden] { display: none; }
+
+/* Bibliography actions reuse compact controls and document metadata spacing. */
+.bibliography-connect { margin-top: var(--space-6); }
+.bibliography-files { list-style: none; padding: 0; margin: var(--space-2) 0; }
+.bibliography-files > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); }
+.bibliography-files > li > span { min-width: 0; overflow-wrap: anywhere; }
+.bibliography-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.bibliography-choices > p { flex-basis: 100%; }

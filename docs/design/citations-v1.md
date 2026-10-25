@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Nested authoring verification: 2026-10-24 (#377: Editor slash tests and `citation-authoring` menu/insertion/Save → Reload on lists, quotes, simple admonitions, endnote definitions, cells, Figure captions and headings, including a citation-only list item).
-- Last verified: 2026-10-23 (units A, B and C; execution results recorded below).
+- Last verified: 2026-10-25 (#438: Editor bibliography connections apply on Save; verification below).
+- Previous verification: 2026-10-23 (units A, B and C; execution results recorded below).
 - Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A, B and C, under [Native document support](document-support-v1.md). Unit D extensions remain separate decisions.
 
 ## Native meaning and canonical writing
@@ -40,7 +41,7 @@ are refused. Duplicate lexical paths, including equivalent `.`/`..` spellings, a
 Core does not case-fold paths or inspect filesystem identities. Metadata errors retain the stable
 `native-metadata` code, and unsupported citation meaning retains `native-content`.
 
-Only declared `.bib` files are read on Open/Reload. They are never created or modified. A permitted
+Only saved, declared `.bib` files are read on Open/Reload and after saving a changed declaration. They are never created or modified. A permitted
 declaration can name a missing resource or traverse above the document directory; admission alone
 does not grant permission to read it. The read boundary is specified below.
 
@@ -114,7 +115,7 @@ chooses `cite:p` (default), `cite:t` or `cite`, keeps an ordered key group, and 
 entry through the browser's own list suggestion. Typed keys absent from the bibliography remain citable
 and show as unresolved; keys Core refuses are rejected in the form. Apply uses Core's canonical
 citation (multi-key `cite` becomes `cite:t`); Escape or leaving the form cancels; Remove deletes the
-atom and keeps the surrounding text. Entries follow the tab's Open/Reload snapshot, so a tab whose
+atom and keeps the surrounding text. Entries follow the tab's last loaded resource snapshot (Open/Reload or Save of a changed declaration), so a tab whose
 folder cannot read the declared file offers typed keys only. The Editor never writes `.bib` files.
 
 The chip uses shared reference typography and selection tokens. It shows Core numbers and the
@@ -123,6 +124,38 @@ identify keys and status. Incomplete states retain dashed text; no active biblio
 A single derived References section follows canonical endnotes, outside the ProseMirror document.
 It contains only cited keys in current number order, including missing/duplicate/unverified keys.
 Moving citations and Undo/Redo recompute numbers; Save never inserts this section into `.md`.
+
+### Connect and disconnect bibliography files (#438)
+
+Owner decision (2026-10-25): connections apply on Save. The existing Host read contract
+continues to accept only declarations from an admitted, saved document; the Editor cannot
+ask it to read arbitrary resource targets. No Host read capability or persistence is added.
+
+The trailing References area offers **Connect bibliography…**, including when the document has
+no declaration or citations. The existing folder listing offers `.bib` files in the document's
+own folder. Existing declarations, including parent/subfolder paths, remain visible and can be
+disconnected. Paths remain document-relative; the existing pinned local folder context or HTTP
+Root union and real-path checks still govern reads. Files outside the reading boundary remain
+unverified. IeumDoc never writes `.bib` files.
+
+Connect/Disconnect changes one ProseMirror document attribute in one isolated Undo step, using
+the same dirty, recovery, Source and Save pipeline as other document edits. Save replay calls
+Core `updateBibliography(document, paths)`; the Editor does not edit frontmatter. CLI parity
+already exists as `update-bibliography` and is unchanged. Until Save, existing references and
+search choices retain their last loaded data, and the UI says “Save this document to load the
+connected bibliography files.” The declaration list reflects staged changes immediately.
+
+After a successful Save whose submitted declaration differs from the loaded snapshot, the
+session requests only `/api/bibliography` for that Save's revision and pinned folder context.
+It replaces only `DocumentFileResponse.bibliography`; the editor body, history, selection,
+property drafts and edits made after the submitted snapshot are retained. Save remains busy
+until this bounded read settles. A read failure yields existing unverified resource states
+without turning the successful document write into a failed Save. Failed Save never refreshes.
+Undo/Redo after Save can stage a different declaration again and require another Save.
+
+External `.bib` edits still require Reload; no watcher or automatic refresh on ordinary Save
+is added. The notice reads: “If you edit a .bib file in another app, save your document, then
+choose Reload to update its references.” English and Korean explain both lifecycles.
 
 ## Bibliography snapshots and limited formatting (unit B)
 
@@ -179,9 +212,11 @@ reads are bounded and compare descriptor/path identity, size and timestamps befo
 UTF-8, changed/replaced files and limit errors become resource warnings. Core independently applies
 snapshot limits. No read-in-progress check guarantees observation of every future external change.
 
-Each tab owns its Open/Reload snapshot and displays an external-change notice. Save retains it;
-Reload replaces it only in that tab. Recovery stores declarations/context, never bibliography text:
-restored sources are unverified until Reload. Old recovery records without resource context retain
+Each tab owns its loaded resource snapshot and displays an external-change notice. Ordinary Save
+retains it; Save of a changed declaration refreshes only that snapshot, and Reload replaces it only
+in that tab. Removing the last declaration clears the snapshot without a resource read. Recovery
+stores declarations/context, never bibliography text: restored sources are unverified until Reload
+or Save of a changed declaration. Old recovery records without resource context retain
 unchecked chips. The References section reuses document spacing, color and type tokens, wraps at
 375px, and renders strings with typed React nodes rather than HTML injection.
 
@@ -361,3 +396,35 @@ taken once by temporary local instrumentation for manual review, not by an autom
 | Slash search for a bibliography word | [Slash search](assets/citation-authoring-265/slash-search-1280.png) |
 | Insert form with a typed missing key and a pending key | [Insert form](assets/citation-authoring-265/insert-form-1280.png) |
 | Edit form opened from an existing citation | [Edit form](assets/citation-authoring-265/edit-form-1280.png) |
+
+### Bibliography connection verification (#438)
+
+On Windows, 2026-10-25, the new `bibliography-connection` browser scenario failed on base
+`33cef1d22f1e1a075d1703230d400a258eea6dd1` because **Connect bibliography…** did not exist.
+It now passes: same-folder `refs.bib` discovery, staged notice without an early file write,
+isolated Undo/Redo preserving earlier typing, English/Korean notices and phone controls,
+Source preview, successful Save resolving an existing citation, slash and form key discovery,
+insertion, Save → Reload, and disconnect → Save → Reload. The first Save response is held
+after disk commit while typing more body text; only the submitted declaration's resource
+snapshot refreshes and the later text stays dirty. The BibTeX SHA-256 remains unchanged.
+
+Editor tests passed (283), including recovery/checkpoint replay and failed/stale resource
+read guards. Repository typecheck, Editor production build, documentation checks and
+`git diff --check` passed. Existing `citations`, `bibliography`, `citation-authoring`,
+`save-during-edit`, `document-session`, `source-view`, `recovery-structure`, `layout-rules`,
+`focus-caret` and `quiet-document --screenshots` passed. Core semantic tests were reused;
+no new Core rule or CLI command was needed. Packaged Desktop and other OS checks remain CI work.
+
+The real product captures below were inspected directly. Quiet-document Before is base
+`33cef1d22f1e1a075d1703230d400a258eea6dd1`, After is this implementation. Chrome on Windows,
+checkout-owned persistent profile, DPR 1, 100% zoom, bundled Pretendard loaded, scroll top,
+no selection/hover/focus; the rest pairs at 1440×1000 and 375×1000 are byte-identical.
+The new connection captures use the verified staged declaration and preserved unsaved text:
+English at 1280×720 and Korean at 375×812, full-page capture, sidebar closed on phone.
+
+| State | Before | After |
+| --- | --- | --- |
+| Quiet document, 1440px | [Before](assets/bibliography-438/before-1440-rest.png) | [After](assets/bibliography-438/after-1440-rest.png) |
+| Quiet document, 375px | [Before](assets/bibliography-438/before-375-rest.png) | [After](assets/bibliography-438/after-375-rest.png) |
+| Staged connection, 1280px | Connection unavailable | [Save notice](assets/bibliography-438/pending-1280.png) |
+| Korean connection, 375px | Connection unavailable | [Wrapped notices and controls](assets/bibliography-438/pending-ko-375.png) |
