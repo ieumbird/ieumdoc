@@ -47,7 +47,7 @@ The shared `reloadDocument` helper waits for the File actions menu to detach and
 
 `ui-language`는 한국어·영어 전환 시 같은 편집기·탭·selection·미저장 내용·속성 초안 보존, Undo/Redo, 표시 중인 오류의 언어 전환, 한국어 UI에서 실제 Save → Reload 및 페이지 재실행 후 언어 설정 유지를 검사한다. `pnpm browser:test ui-language --screenshots`는 동일한 Settings의 영어/한국어 및 375px 한국어 화면을 `tmp/256/`에 저장한다. 기존 영어 시나리오는 재사용 profile의 브라우저 locale을 `en-US`로 고정하며, 언어 시나리오는 종료 시 영어 preference를 복원한다. 초기 언어 정책·저장 실패·번역 키/매개변수·복수형·양 언어 명령 검색은 Editor 테스트에서 검증한다.
 
-`cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. #407은 Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에 그 문서의 복구 기록 제거를 기다리도록 했다.
+The `cross-reference` record-removal wait and #407 observation are retained in [Cross-reference regression history](#cross-reference-regression-history-407).
 
 #409에서 clean 전환은 동기식 세션·세대 표식을 남기고, 복구 목록 읽기가 500ms 기록 턴보다 먼저여도 그 세대의 오래된 기록을 정리한다. 위 `cross-reference`의 제거 대기는 실제 IndexedDB 기록 부재를 확인하는 가치가 있어 유지한다. 즉시 Reload의 제품 회귀는 `document-tabs`가 **같은 browser turn의 Undo → Reload**로 검사하며, 그 사이 삭제 대기·Save를 넣지 않는다. 브라우저 탭 닫기 뒤 재열기에서도 제안이 없어야 하고, 일부 편집만 Undo해 실제 미저장 내용이 남으면 제안과 기록이 유지되어야 한다. `recovery-storage`는 clean 표식 후 disposal, 다른 세션과 기존 v1 기록 보존, IndexedDB가 밀린 사이 새 입력이 온 경우의 live snapshot 보존, 표식 접근 실패 시 기존 기록과 경고를 검사한다. 또한 더 최신 dirty 기록을 커밋한 뒤 이전 clean 표식만 되살려, 두 저장소의 비원자적 crash flush가 새 작업을 지우지 않는지 검사한다. 기존 `recovery`의 다른 창 Save/외부 revision 충돌 검사는 그대로 유지한다.
 
@@ -58,8 +58,6 @@ The shared `reloadDocument` helper waits for the File actions menu to detach and
 `citations`는 세 명시적 role과 bibliography 선언이 있는 문서에서 실제 타이핑·인용 잘라내기/붙여넣기·Undo/Redo·번호 갱신·Save/Reload·반복 Save와 한국어/영어 상태 표시를 검증한다. `.bib` 요청이 없는지도 확인한다. 의미·경로 거부 규칙은 Core 테스트가 담당한다. `citations --screenshots`는 1440/375px 수동 검토 자료를 추가하며, 현재 계약과 대표 캡처는 [Citations](../design/citations-v1.md)에 있다. `citation-authoring`은 공통 폴더에서 연 문서에서 슬래시 검색 삽입, 인용 폼의 role·키 그룹·잘못된 키 거부·목록에 없는 키, Escape 취소·Apply·Remove, Undo/Redo, Save → Reload와 `.bib` 바이트 불변을 검증한다.
 
 `desktop-updates`는 mock bridge와 실제 Editor 상태로 Settings, notification, Draft/dirty/Save/Source/asset restart refusal을 검증한다. 키보드로 Settings를 열면 첫 언어 컨트롤의 실제 포커스를 기다린다. 대화상자 표시만으로 Base UI의 비동기 초기 포커스 완료를 가정하지 않으며, 검사에서 포커스를 강제로 이동하지 않는다. 포커스가 오지 않으면 5초 안에 실패한다(#342). `--screenshots`로 UI 비교를 저장할 수 있다. 업데이트 버전/feed/checksum은 Desktop의 real `NsisUpdater` + mock GitHub integration에서 검증하며 동일 의미 사례를 브라우저에 반복하지 않는다.
-
-The earlier #407 Reload observation is retained in [Cross-reference regression history](#cross-reference-regression-history-407).
 
 ## Production HTTP regression
 
@@ -111,7 +109,7 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다.
 
-이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
+2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다. 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
 ```powershell
 pnpm --filter @ieumdoc/desktop test:update:github
@@ -135,7 +133,7 @@ Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/su
 
 `pnpm browser:test recovery-storage recovery recovery-structure` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `recovery-structure` adds New/title/Enter, Equation/Table/Figure content and captions, dirty Restore → Save → Reload, readable fallback and live Korean/English refusal reasons. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`; `pnpm browser:test recovery-structure --screenshots` captures the structured recovery/fallback in `tmp/331-*.png`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
 
-### Host recovery commands
+For #296 PR3, after the builds described above:
 
 ```bash
 pnpm browser:test http-host
@@ -166,12 +164,10 @@ the next run with a recovery prompt.
 
 Both flows inspect the expected committed record before terminating; a 500ms sleep would not
 establish recording. Only the last successful record is protected. Later input, OS/power loss,
-profile removal and another origin/device are outside that proof.
+profile removal and another origin/device are outside that proof. The prior final-v3 two-page
+ticket p95 around 2.4s remains a limitation, not a recording deadline.
 
-Required CI (including Linux HTTP) remains necessary before issue closure; no installer/update,
-publication or other-platform completion is implied.
-
-Past local execution and measurements are retained in [Host recovery execution history](#host-recovery-execution-history-296-pr3).
+Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
 
 ## Evidence and history
 
@@ -187,21 +183,7 @@ Past local execution and measurements are retained in [Host recovery execution h
 
 2026-10-14 beta.3 게시 후 실제 `beta.2 → beta.3` 공개 업데이트도 통과했다([beta.3 릴리즈 기록](../releases/v0.0.1-beta.3.md)).
 
-2026-10-12 승인된 beta.2 게시 후 실제 `beta.1 → beta.2` 공개 업데이트 검증이 통과했다. 공개 바이너리와 GitHub Provider를 사용한 결과는 [릴리즈 기록](../releases/v0.0.1-beta.2.md)에 있다. 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
-
 ### Host recovery execution history (#296 PR3)
-
-For #296 PR3, after the builds described above:
-
-```bash
-pnpm browser:test http-host
-pnpm --filter @ieumdoc/desktop test:packaged
-```
-
-Both flows inspect the expected committed record before terminating; a 500ms sleep would not
-establish recording. Only the last successful record is protected. Later input, OS/power loss,
-profile removal and another origin/device are outside that proof. The prior final-v3 two-page
-ticket p95 around 2.4s remains a limitation, not a recording deadline.
 
 2026-10-16 local execution established Windows x64 packaged Desktop and production HTTP/Chrome.
 Required CI (including Linux HTTP) remains necessary before issue closure; no installer/update,

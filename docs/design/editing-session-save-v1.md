@@ -35,10 +35,6 @@ Replay assigns labels without another reference rewrite, preserving manual retar
 Apply and avoiding a second rename based on the opening snapshot. Save acknowledgement retains
 this history, so Undo/Redo across Save restores the coupled label/reference change.
 
-Current non-empty property renames
-[update references atomically](section-references-v1.md#editor); they do not trigger #375's
-deletion notice.
-
 Open/New starts a session with the original Markdown, its Core read model and one Tiptap editor. Opening projection is initialized lazily once per keyed editor lifetime (StrictMode may verify the initializer twice); Open/New/Reload mount a new editor, while renders and Save retain it. `sourcePath` addresses that **opening snapshot**, not the latest disk positions. A successful Save updates the acknowledged revision and submitted editor snapshot; it does not remount the editor, rewrite its nodes or remap its history. ProseMirror owns selection and Undo/Redo, including edits that predate Save. Save closes the current history group so input typed while the request runs remains a subsequent undo event.
 
 Extension and view option identities also remain stable for this keyed lifetime, preserving NodeViews that hold drafts across React rerenders. [Endnotes](footnotes-v1.md#editor) need no session state of their own: Core's snapshot already places them after the body, the displayed order is the saved order, and canonical write places them again.
@@ -53,7 +49,7 @@ Save requests include the opening Markdown and the last accepted Core edit paylo
 
 The Host stores no sessions. This request contract is a local adapter detail, not a backend architecture. Session acknowledgement itself introduces no semantic operation or CLI command. The extra replay costs another Core save evaluation on subsequent saves; it is performed on explicit Save/Source, never per keystroke.
 
-Core's existing footnote source and write-refusal tests also run after Figure caption parsing: nested MyST parsing must not leave the cached source tokenizer's tail rule enabled, losing definition provenance and dropped-definition checks.
+Historical Save replay and nested-parser verification: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Recovery snapshot initialization
 
@@ -109,8 +105,8 @@ edits schedules recording against the newly acknowledged revision and saved base
 deletes only that session's record. Recording failures never block input, Save or closing; a standing
 message identifies the failure. Recovery and original Save are separate operations with no atomicity
 claim. Input after the last successful record can be lost, including on normal close.
-
-The 500ms interval is scheduling, **not a durability deadline**.
+The 500ms interval is scheduling, **not a durability deadline**. The prior final-v3 two-page ticket
+measurement (p95 about 2.4s) remains a known limitation, not a guarantee or a new PR3 measurement.
 
 An applied update that returns to the acknowledged saved snapshot, including Undo, synchronously
 acknowledges that session as clean in origin-local `localStorage` (#409). It reuses the editor's
@@ -181,8 +177,8 @@ IndexedDB protocol version 3 preserves record payloads and removes obsolete v1/v
 Existing older connections close on version change; their version-pinned reopen is refused, so unsafe
 readonly-protocol writers cannot coexist after upgrade. They need a reload to record again.
 This is a storage-protocol upgrade, not document snapshot migration.
-
-Current-document serialization sharing remains unchanged.
+The prior readwrite-count reduction claim (60 to 10) is withdrawn: every applied edit again uses a
+write transaction, limited to barriers. Current-document serialization sharing remains unchanged.
 
 Explicit **Delete record** opens the shared Editor Dialog confirmation, identifying the record's
 full document path (or Unknown document for malformed metadata) and warning that deletion cannot
@@ -194,8 +190,7 @@ Cancel receives initial focus; pending deletion disables actions and dismissal. 
 Reload, expiry and the tab-close deletion-retry notice retain their existing behavior. These are
 Editor-local interactions, with no Core semantic operation or CLI parity requirement (#382, #379).
 
-The nested confirmation now has its own
-Base UI backdrop, dimming/blurring the parent while keeping only the top dialog interactive.
+Historical deletion captures and nested-dialog evidence: [Recovery deletion evidence](#recovery-deletion-evidence-382).
 
 The start screen lists records newest first, with document name/path/time and **Review recovery**.
 Opening a matching document proposes the latest record. **Not now** keeps it. **Restore work**
@@ -229,16 +224,29 @@ confirmation. This lets the existing grid shrink to the popup width; the existin
 at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
 recovery storage, or Core/CLI operation changes.
 
-Historical recovery captures and comparisons: [#382](#recovery-deletion-evidence-382), [#331](#structured-recovery-evidence-331) and [#395](#recovery-review-layout-395).
+Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
+
+### Recovery regression coverage
+
+`recovery-storage` tests real IndexedDB write ordering/barriers, expiry, stale restore and quota
+failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
+isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
+`pnpm browser:test recovery --screenshots` for review captures in `tmp/296/` at 1440×900 and 375×900.
+`recovery-structure` starts with New and title/Enter input, inserts Equation/Table/Figure through
+production editor commands, then checks recorded structure, Restore/dirty/Save/Reload, refusal of
+unknown deletions, readable fallback and live reason-language changes. `--screenshots` captures its
+recovery dialog/fallback in `tmp/331-*.png`. The original Linux #331 record was not obtained;
+Windows reproduction establishes the current producer defect and an equivalent record, not the
+cause of every historical Save-disabled report or a repair of previously flattened disk text.
+Those Vite checks are distinct from the Host process-lifetime checks below.
+
+Historical structured-recovery captures: [Structured recovery evidence](#structured-recovery-evidence-331).
 
 ### Host persistence verification (#296 PR3)
 
 The Vite [`recovery` scenario](../../apps/editor/test/recovery.browser.js) covers the start-screen
 **Review recovery → Restore work** entry point after a page reload. The production HTTP scenario
 does not check that start-list entry point.
-
-The OS-native dialog click itself is not automated. No file API, IndexedDB implementation or
-recovery UI is mocked in these Host flows.
 
 Tests wait for the actual expected committed record before forced termination; they establish
 last-successful-record recovery, not survival of unrecorded input, power loss or OS cache loss.
@@ -247,7 +255,7 @@ origin alone does not share records with HTTP or another profile. Windows observ
 establish Linux/macOS execution, installed-app upgrade behavior or cross-device recovery.
 Required CI must pass before #296 is considered complete. See the [test guide](../test/README.md#local-recovery-regression).
 
-Execution details and scope: [Host persistence evidence](#host-persistence-evidence-296-pr3).
+HTTP/Desktop execution details and native-dialog automation limits: [Host persistence evidence](#host-persistence-evidence-296-pr3).
 
 ## Applied content and drafts
 
@@ -259,11 +267,7 @@ Execution details and scope: [Host persistence evidence](#host-persistence-evide
 - Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
 
-The shared close rule now retains only an internal
-text selection, otherwise returning a text/gap caret after the block. Figure
-Apply uses the existing attribute-only transaction when its caption is unchanged.
-
-This is still Editor interaction only, with no new Core operation or CLI command.
+Historical property-close and caret evidence: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Save failure guidance (#220, phase 1)
 
@@ -337,7 +341,7 @@ without adding a dialog to the timed handshake.
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
 
-Cancel/Escape preserve content, selection, undo availability and drafts. Existing unrelated errors remain until dismissed or resolved.
+Historical switching, dismissal and retained-error evidence: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
 ## Tab navigation memory (#383)
 
@@ -437,14 +441,6 @@ The unload guard reads every registered session's latest rendered state and live
 - PR #301 review verification: 2026-10-15 (delayed Save with programmatically injected applied edits stops Open/New, retains the session and drafts, shows the existing Unsaved changes status, and allows an explicit retry; original `c8aecd9` failed this regression).
 - Encoding verification: 2026-10-15 (#271 Source/Save invalid-Unicode and request UTF-8 refusal; Vite/production HTTP repeated valid Unicode Save → Reload and external-conflict regressions).
 
-### Recovery recording measurements and protocol history
-
-The 500ms interval is scheduling, **not a durability deadline**. The prior final-v3 two-page ticket
-measurement (p95 about 2.4s) remains a known limitation, not a guarantee or a new PR3 measurement.
-
-The prior readwrite-count reduction claim (60 to 10) is withdrawn: every applied edit again uses a
-write transaction, limited to barriers. Current-document serialization sharing remains unchanged.
-
 ### Recovery deletion evidence (#382)
 
 #382 visual evidence uses the same recorded document and viewport before requesting deletion and
@@ -471,18 +467,6 @@ pending outside-click refusal at both entry points, live Korean/English target a
 and popup content bounds.
 
 ### Structured recovery evidence (#331)
-
-`recovery-storage` tests real IndexedDB write ordering/barriers, expiry, stale restore and quota
-failure; `recovery` exercises the actual UI and real files, normal page/window lifetime, multiwindow
-isolation, conflict, failed Reload, unsaveable content, clearing and plaintext fallback. Run
-`pnpm browser:test recovery --screenshots` for review captures in `tmp/296/` at 1440×900 and 375×900.
-`recovery-structure` starts with New and title/Enter input, inserts Equation/Table/Figure through
-production editor commands, then checks recorded structure, Restore/dirty/Save/Reload, refusal of
-unknown deletions, readable fallback and live reason-language changes. `--screenshots` captures its
-recovery dialog/fallback in `tmp/331-*.png`. The original Linux #331 record was not obtained;
-Windows reproduction establishes the current producer defect and an equivalent record, not the
-cause of every historical Save-disabled report or a repair of previously flattened disk text.
-Those Vite checks are distinct from the Host process-lifetime checks below.
 
 Visual evidence re-captured on 2026-10-22 after review found that the earlier temporary prompt
 images preceded the dialog and did **not** prove its state. The following replacements were
@@ -524,10 +508,6 @@ page reload. Both restarts explicitly request `?path=…` under the
 records before/after restart, then exercises the matching-file recovery review dialog, user
 Restore, dirty state, unchanged disk until explicit Save, actual Save/Reload, and a second crash
 followed by an external disk change and a 409 with both external bytes and recovered work preserved.
-
-The Vite [`recovery` scenario](../../apps/editor/test/recovery.browser.js) covers the start-screen
-**Review recovery → Restore work** entry point after a page reload. The production HTTP scenario
-does not check that start-list entry point.
 
 The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
 that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
