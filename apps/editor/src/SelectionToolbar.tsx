@@ -1,4 +1,4 @@
-import { LINK_SHORTCUT } from "./shortcuts.ts";
+import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
-const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 /** Icon buttons name their action, and its shortcut when one exists, in a tooltip. */
-const tip = (label: string, keys?: string) => (keys ? `${label} (${MOD}${keys})` : label);
+const tip = (label: string, shortcut?: { label: string }) => (shortcut ? `${label} (${shortcut.label})` : label);
 
 /**
  * Inline marks for selections in paragraphs, headings, quotes and simple admonition bodies.
@@ -45,7 +44,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
       }}
     >
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Bold")} title={tip(i18n.t("Bold"), "B")} aria-keyshortcuts="Control+B Meta+B"
+        aria-label={i18n.t("Bold")} title={tip(i18n.t("Bold"), EDITOR_SHORTCUTS.bold)} aria-keyshortcuts={EDITOR_SHORTCUTS.bold.aria}
         aria-pressed={editor.isActive("bold")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "bold", onReject)}
@@ -53,7 +52,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <strong aria-hidden="true">B</strong>
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Italic")} title={tip(i18n.t("Italic"), "I")} aria-keyshortcuts="Control+I Meta+I"
+        aria-label={i18n.t("Italic")} title={tip(i18n.t("Italic"), EDITOR_SHORTCUTS.italic)} aria-keyshortcuts={EDITOR_SHORTCUTS.italic.aria}
         aria-pressed={editor.isActive("italic")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "italic", onReject)}
@@ -61,7 +60,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <em aria-hidden="true">I</em>
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Strikethrough")} title={tip(i18n.t("Strikethrough"), "Shift+S")} aria-keyshortcuts="Control+Shift+S Meta+Shift+S"
+        aria-label={i18n.t("Strikethrough")} title={tip(i18n.t("Strikethrough"), EDITOR_SHORTCUTS.strike)} aria-keyshortcuts={EDITOR_SHORTCUTS.strike.aria}
         aria-pressed={editor.isActive("strike")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "strike", onReject)}
@@ -69,25 +68,25 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         <Strikethrough aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Subscript")} title={tip(i18n.t("Subscript"), ",")}
+        aria-label={i18n.t("Subscript")} title={tip(i18n.t("Subscript"), EDITOR_SHORTCUTS.subscript)}
         aria-pressed={editor.isActive("subscript")}
-        aria-keyshortcuts="Control+Comma Meta+Comma"
+        aria-keyshortcuts={EDITOR_SHORTCUTS.subscript.aria}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "subscript", onReject)}
       >
         <Subscript aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Superscript")} title={tip(i18n.t("Superscript"), ".")}
+        aria-label={i18n.t("Superscript")} title={tip(i18n.t("Superscript"), EDITOR_SHORTCUTS.superscript)}
         aria-pressed={editor.isActive("superscript")}
-        aria-keyshortcuts="Control+Period Meta+Period"
+        aria-keyshortcuts={EDITOR_SHORTCUTS.superscript.aria}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "superscript", onReject)}
       >
         <Superscript aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
-        aria-label={i18n.t("Inline code")} title={tip(i18n.t("Inline code"), "E")} aria-keyshortcuts="Control+E Meta+E"
+        aria-label={i18n.t("Inline code")} title={tip(i18n.t("Inline code"), EDITOR_SHORTCUTS.code)} aria-keyshortcuts={EDITOR_SHORTCUTS.code.aria}
         aria-pressed={editor.isActive("code")}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "code", onReject)}

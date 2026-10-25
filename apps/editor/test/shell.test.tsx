@@ -23,7 +23,57 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
-import { COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT } from "../src/shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
+import { KeyboardShortcutGroups } from "../src/shell/KeyboardShortcutsDialog.tsx";
+import { SelectionToolbar } from "../src/SelectionToolbar.tsx";
+import { flattenExtensions, getExtensionField, type Editor } from "@tiptap/core";
+import { editorExtensions } from "../src/editor-schema.tsx";
+
+test("shortcut guide and formatting tooltips display shared labels for existing bindings", async () => {
+  const escape = (text: string) => text.replaceAll("&", "&amp;").replaceAll("'", "&#x27;").replaceAll('"', "&quot;");
+  const toolbar = renderToStaticMarkup(<SelectionToolbar editor={{ isActive: () => false } as unknown as Editor}
+    style={{}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
+  const bindings = new Set(flattenExtensions(editorExtensions()).flatMap(extension => {
+    const keymap = getExtensionField<() => Record<string, unknown>>(extension, "addKeyboardShortcuts", {
+      name: extension.name, options: extension.options, storage: extension.storage,
+    });
+    return keymap ? Object.keys(keymap()).map(key => key.toLowerCase().split("-").sort().join("-")) : [];
+  }));
+  for (const shortcut of Object.values(EDITOR_SHORTCUTS)) {
+    assert.ok(bindings.has(shortcut.binding.toLowerCase().split("-").sort().join("-")), `${shortcut.binding} must exist in the installed editor keymaps`);
+    assert.equal(shortcut.label, shortcutLabel(shortcut.binding));
+  }
+  for (const key of ["bold", "italic", "strike", "code", "subscript", "superscript"] as const) {
+    assert.ok(toolbar.includes(escape(`(${EDITOR_SHORTCUTS[key].label})`)));
+    assert.ok(toolbar.includes(EDITOR_SHORTCUTS[key].aria));
+  }
+  try {
+    for (const language of ["en", "ko"]) {
+      await i18n.changeLanguage(language);
+      const guide = renderToStaticMarkup(<KeyboardShortcutGroups />);
+      for (const shortcut of [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT, ...Object.values(EDITOR_SHORTCUTS)]) {
+        assert.ok(guide.includes(escape(shortcut.label)), `${language}: missing ${shortcut.label}`);
+      }
+      assert.ok(guide.includes(i18n.t("Line break inside a block (paragraph, quote, endnote or admonition)")));
+    }
+  } finally { await i18n.changeLanguage("en"); }
+  // A changed shared label must reach both surfaces; equal hand-written strings would fail.
+  const shortcuts = [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT, ...Object.values(EDITOR_SHORTCUTS)];
+  const descriptors = shortcuts.map(shortcut => Object.getOwnPropertyDescriptor(shortcut, "label")!);
+  try {
+    shortcuts.forEach((shortcut, index) => Object.defineProperty(shortcut, "label", { configurable: true, value: `shared label ${index}` }));
+    const guide = renderToStaticMarkup(<KeyboardShortcutGroups />);
+    const sharedToolbar = renderToStaticMarkup(<SelectionToolbar editor={{ isActive: () => false } as unknown as Editor}
+      style={{}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
+    for (const shortcut of shortcuts) assert.ok(guide.includes(shortcut.label));
+    for (const key of ["bold", "italic", "strike", "code", "subscript", "superscript"] as const) {
+      assert.ok(sharedToolbar.includes(EDITOR_SHORTCUTS[key].label), `${key} tooltip must read the shared label`);
+    }
+  } finally { shortcuts.forEach((shortcut, index) => Object.defineProperty(shortcut, "label", descriptors[index]!)); }
+  assert.equal(shortcutLabel(EDITOR_SHORTCUTS.undo.binding, false), "Ctrl+Z");
+  assert.equal(shortcutLabel(EDITOR_SHORTCUTS.redoAlternative.binding, true), "⌘Shift+Z");
+  assert.equal(shortcutLabel("Mod-'", true), "⌘'");
+});
 
 test("shell shortcuts follow characters and preserve layout-specific browser accelerators", () => {
   const key = (overrides: Partial<KeyboardEvent>) => ({ code: "Slash", key: "/", keyCode: 191, ctrlKey: true,

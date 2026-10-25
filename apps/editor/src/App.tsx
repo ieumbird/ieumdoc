@@ -1,4 +1,4 @@
-import { COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT } from "./shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT } from "./shortcuts.ts";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -28,8 +28,9 @@ import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from 
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
+import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, PanelLeft, PanelRight, RotateCcw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -88,6 +89,8 @@ export function App() {
   const [folderDialog, setFolderDialog] = useState(false);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const shortcutsReturnFocus = useRef<HTMLElement | null>(null);
   const [commandFileFocus, setCommandFileFocus] = useState<string | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const recentFoldersRef = useRef(recentFolders);
@@ -613,6 +616,7 @@ export function App() {
   const openedPaths = new Set(tabs.map(tab => tab.path));
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
     !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
+  const historyDisabled = !document || busy || view !== "visual";
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
@@ -665,6 +669,15 @@ export function App() {
     { id: "insert-reference", kind: "command", label: i18n.t("Insert cross-reference…"), icon: Bookmark,
       disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert cross-reference", "상호 참조 삽입"],
       run: () => editorRef.current?.openInlineInsertion("reference") },
+    { id: "undo", kind: "command", label: i18n.t("Undo"), icon: RotateCcw,
+      disabled: historyDisabled || !editorRef.current?.canUndo(), takesFocus: true,
+      keywords: ["undo", "실행 취소"], shortcut: EDITOR_SHORTCUTS.undo.label, run: () => editorRef.current?.undo() },
+    { id: "redo", kind: "command", label: i18n.t("Redo"), icon: RotateCw,
+      disabled: historyDisabled || !editorRef.current?.canRedo(), takesFocus: true,
+      keywords: ["redo", "다시 실행"], shortcut: EDITOR_SHORTCUTS.redo.label, run: () => editorRef.current?.redo() },
+    { id: "keyboard-shortcuts", kind: "command", label: i18n.t("Keyboard shortcuts"), icon: Keyboard, takesFocus: true,
+      keywords: ["keyboard shortcuts", "키보드 단축키"],
+      run: () => { shortcutsReturnFocus.current = commandReturnFocus.current; setShortcutsOpen(true); } },
   ];
 
   return (
@@ -807,6 +820,7 @@ export function App() {
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />
+      <KeyboardShortcutsDialog open={shortcutsOpen} returnFocus={shortcutsReturnFocus} onClose={() => setShortcutsOpen(false)} />
       <RecoveryPrompt key={recoveryReview?.record.id ?? "closed"} record={recoveryReview?.record ?? null} reason={recoveryReview?.reason ?? ""}
         onRestore={restoreRecovery} onDelete={async () => { if (recoveryReview) await deleteRecovery(recoveryReview.record.id); setRecoveryReview(null); }}
         onClose={() => setRecoveryReview(null)} />

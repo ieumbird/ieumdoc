@@ -1,4 +1,4 @@
-import { LINK_SHORTCUT } from "./shortcuts.ts";
+import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
 import { BibliographyContent, useBibliographyEntries } from "./Bibliography.tsx";
 import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
@@ -48,7 +48,6 @@ import { documentEnd } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
-const UNDO_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z";
 
 /** An insert command or reference item as the insert menu shows it: grouped, with its icon. */
 function insertMenuItem(item: { id: string; label: string; group: string; hint?: string }): CommandMenuItem {
@@ -60,6 +59,10 @@ export type DocumentEditorHandle = {
   getSnapshot(): EditorSnapshot;
   /** Let the New dialog hand focus to the newly mounted editor through Base UI. */
   getFocusTarget(): HTMLElement | null;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  undo(): void;
+  redo(): void;
   canInsertInline(): boolean;
   openInlineInsertion(kind: "citation" | "reference"): void;
   toggleHeadingNumbering(): void;
@@ -209,7 +212,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           const broken = referencesBrokenByDeletion(transaction.before, transaction.doc);
           if (broken.length) {
             for (const reference of broken) brokenReferences.current.set(`${reference.role}:${labelKey(reference.label)}`, reference);
-            onNotice?.({ key: "Deleting this target broke a reference. Press {{shortcut}} to undo.", values: { shortcut: UNDO_SHORTCUT_LABEL } });
+            onNotice?.({ key: "Deleting this target broke a reference. Press {{shortcut}} to undo.", values: { shortcut: EDITOR_SHORTCUTS.undo.label } });
           } else if (brokenReferences.current.size) {
             // Ordinary text input cannot restore a target. Keep this check to cheap block
             // type/label comparisons; enumerate targets only after their shape changes.
@@ -286,6 +289,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     ref,
     () => ({
       getFocusTarget() { return editor?.isEditable ? editor.view.dom : null; },
+      canUndo() { return Boolean(editor?.isEditable && editor.can().undo()); },
+      canRedo() { return Boolean(editor?.isEditable && editor.can().redo()); },
+      // The center releases modal focus before dispatch, just like inline insertion below.
+      undo() { if (editor?.isEditable) { editor.commands.undo(); editor.view.focus(); } },
+      redo() { if (editor?.isEditable) { editor.commands.redo(); editor.view.focus(); } },
       canInsertInline() { return Boolean(editor?.isEditable && inlineInsertionAt(editor.state)); },
       openInlineInsertion(kind) {
         if (!editor?.isEditable) return;

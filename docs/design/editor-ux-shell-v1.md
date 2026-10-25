@@ -2,7 +2,7 @@
 
 - Status: Implemented
 
-- Last verified: 2026-10-26 (Sidebar summary checked against the file-listing contract and implementation; incoming heading links checked; no Editor/browser/Desktop re-execution).
+- Last verified: 2026-10-26 (#471: Editor tests, workspace typecheck, Editor build, command-center/layout-rules/quiet-document browser regressions, shared-label failure proof and desktop/phone captures; [verification](#shortcut-guide-verification-471)).
 
 - Scope: existing Editor interactions. [Visual Language (current v4.7)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
@@ -207,7 +207,7 @@ existing shell command names, including their Korean/English aliases. It does no
 contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
 
 Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
-and Settings handlers and their current availability. Switching to an opened document reuses tab
+and Settings handlers and their current availability, plus the history and read-only shortcut guide below (#471). Switching to an opened document reuses tab
 activation: no document read/write, new editor state or implicit save. Pending operations retain the
 same switching and document-action restrictions; unavailable results remain visibly disabled.
 Without an open document, the center still offers folder/settings/view-layout commands.
@@ -228,9 +228,42 @@ control was inside the panel being hidden. On a phone, closing the sidebar focus
 Other dialogs retain their shortcuts, and Ctrl/Cmd+S cannot save behind the center.
 No-match feedback and controls are translated with the existing UI language.
 
-This is Editor shell navigation only. It adds no semantic operation or CLI command; Core and the
-existing file/session handlers remain authoritative. The first version has no command plugin system,
-recent-command persistence, filesystem index or new document-content actions.
+This is Editor shell navigation and existing-history dispatch. It adds no semantic operation or CLI command;
+Core and the existing file/session handlers remain authoritative. There is no command plugin system,
+recent-command persistence, filesystem index or independent document-content implementation.
+
+### History commands and keyboard shortcut guide (#471)
+
+`Undo` / `실행 취소` and `Redo` / `다시 실행` act on the active Visual document's
+existing Tiptap history, one step per invocation. They remain visible but disabled without
+an active Visual document, while busy, or when that history has no corresponding step.
+They do not require an editor-origin opener: clicking the TopBar center can dispatch history.
+After the center releases its modal focus, the command runs and synchronously focuses the
+same editor. Other tabs' history and unapplied property forms are not separate history targets.
+The Save, Undo and Redo rows show their shared platform labels (Ctrl+S/Z/Y, or ⌘S/Z/Y).
+The guide also shows the existing Ctrl/Cmd+Shift+Z redo alternative.
+
+`Keyboard shortcuts` / `키보드 단축키` opens a read-only shared Dialog after the center
+closes. General, Editing, Formatting and Tables groups list existing bindings only:
+
+- General: command center Ctrl/Cmd+/, Save Ctrl/Cmd+S.
+- Editing: Undo/Redo above; Enter starts a new block; Shift+Enter or Ctrl/Cmd+Enter inserts
+  a line break in a paragraph, quote, endnote or admonition body (headings cannot hold breaks);
+  Tab/Shift+Tab increases/decreases heading level at a caret or indents/outdents a list item.
+- Formatting: bold Ctrl/Cmd+B, italic Ctrl/Cmd+I, strikethrough Ctrl/Cmd+Shift+S,
+  inline code Ctrl/Cmd+E, link Ctrl/Cmd+', subscript Ctrl/Cmd+, and superscript Ctrl/Cmd+.
+- Tables: Tab/Shift+Tab moves to the next/previous cell; Tab at the last cell adds a row;
+  Enter leaves the table for a new block.
+
+Labels use `shortcuts.ts`, also consumed by the existing shell matchers and formatting tooltips;
+Tiptap retains ownership of its keymaps. Editor unit coverage compares the listed engine bindings
+with installed extension keymaps. English/Korean descriptions explain context without changing
+the bindings. Escape, outside dismissal or Close returns focus to the center's original opener
+(editor when opened there, otherwise the invoking control). The shared dialog surface, compact
+Close control, spacing, typography and viewport-bounded scroll are reused; no new visual token.
+It creates no document/history change and has no opening shortcut. These are Editor history,
+focus and help interactions, so they introduce no Core operation or CLI command. Desktop Hangul
+IME delivery of Ctrl+Y is tracked separately in [#468](https://github.com/ieumbird/ieumdoc/issues/468).
 
 Historical command-center captures and keyboard probes: [Command center verification](#command-center-verification-363) and [Command center keyboard verification](#command-center-keyboard-verification-386).
 
@@ -306,8 +339,8 @@ Historical listed-search verification, measurements and result-limit decisions: 
 ### Shortcut contract (#381)
 
 The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
-platform labels and `aria-keyshortcuts`. TopBar, selection toolbar and the Save command-center item
-consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
+platform labels and `aria-keyshortcuts`. TopBar, selection toolbar, shortcut guide and command-center
+items consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.
 The link shortcut runs in ProseMirror's existing `handleKeyDown` path only for a supported text
 selection, uses the same link draft/form as the toolbar, and retains link-range expansion, URL
 validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return focus synchronously
@@ -840,3 +873,36 @@ it does not claim a speed improvement over the earlier bounded pagination run. A
 captures at [1280px](assets/command-center-384/limited-1280.png) and
 [375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
 paged captures, with existing footer typography/spacing and no new adjustable style value.
+
+### Shortcut guide verification (#471)
+
+The extended `command-center` scenario failed against the baseline with `Undo command and
+Keyboard shortcuts entry are missing`. The shared-label unit assertion also failed with
+`bold tooltip must read the shared label` when run against the baseline toolbar. Both pass
+with this change. The browser scenario verifies exact one-step Undo/Redo, active-tab targeting,
+disabled empty/busy/Source history, shortcut hints, read-only guide content (including Shift+Enter),
+Escape/Close/outside dismissal and focus restoration to the editor or original focused control.
+It also measures English and Korean guide overflow at phone width without depending on screenshots.
+
+Local checks: Editor suite (287 tests), workspace typecheck, Editor build, documentation/whitespace
+checks, and `pnpm browser:test command-center --screenshots`, `layout-rules quiet-document`,
+and `quiet-document --screenshots` passed. Build retains the existing punycode externalization and
+large-chunk warnings. Desktop packaging and other-platform coverage are left to required CI;
+macOS labels are unit-checked, without claiming a native macOS keyboard run.
+
+Captures use this worktree's server at `http://127.0.0.1:5199`, Windows installed Chrome and its
+checkout-owned persistent profile, DPR 1, 100% zoom and bundled Pretendard. The baseline is
+`c2329159016cdae6183885bd24de2bd8a8046e1e`; After uses the same base with this PR's changes.
+Quiet Document is at rest after fonts/images load, with the same scroll position. History uses
+the same original document, text/formatting history and `> Undo` query at 1280×720. Initial runs
+that reused another worktree's server on 5173 are excluded from this evidence.
+
+| State | Before | After / new guide | Viewport |
+| --- | --- | --- | --- |
+| History command | [Before](assets/shortcut-guide-471/history-before.png) | [After](assets/shortcut-guide-471/history-after.png) | 1280×720 |
+| Quiet Document at rest | [Before](assets/shortcut-guide-471/quiet-before.png) | [After](assets/shortcut-guide-471/quiet-after.png) | 1440×1000 |
+| Shortcut guide, English | — | [Desktop](assets/shortcut-guide-471/guide-1440.png) / [Phone](assets/shortcut-guide-471/guide-375.png) | 1440×900 / 375×900 |
+| Shortcut guide, Korean | — | [Phone](assets/shortcut-guide-471/guide-ko-375.png) | 375×900 |
+
+Visual inspection confirms grouped, readable entries and accessible Close controls inside the viewport.
+The existing modal surface, spacing, type and key-label treatment are retained, with no new CSS token.
