@@ -7,7 +7,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS } from "../shared/asset-policy.ts";
-import { changeHeadingLevel } from "./block-commands.ts";
+import { addTableRowBelow, changeHeadingLevel } from "./block-commands.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 
@@ -93,7 +93,7 @@ function atNestedDocumentEnd(view: EditorView): boolean {
   return lastLine && view.endOfTextblock("down");
 }
 
-function tableTab(state: EditorState, backward: boolean): Transaction | null {
+function tableTab(state: EditorState, backward: boolean, editable: boolean): Transaction | null {
   const { $from } = state.selection;
   if ($from.depth < 3 || $from.node(1).type.name !== "table") return null;
   const cells: number[] = [];
@@ -102,6 +102,7 @@ function tableTab(state: EditorState, backward: boolean): Transaction | null {
   const index = cells.indexOf($from.start());
   const target = cells[index + (backward ? -1 : 1)];
   if (target !== undefined) return state.tr.setSelection(TextSelection.create(state.doc, target)).scrollIntoView();
+  if (!backward && editable) return addTableRowBelow(state, $from.index(0), { row: $from.index(1), column: 0 });
   const edge = backward ? $from.before(1) : $from.after(1);
   const selection = TextSelection.findFrom(state.doc.resolve(edge), backward ? -1 : 1, true);
   return selection ? state.tr.setSelection(selection).scrollIntoView() : paragraphBeside(state, !backward);
@@ -130,11 +131,12 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
     addKeyboardShortcuts() {
       const tab = (backward: boolean) => {
         const { state, view } = this.editor;
-        const tr = tableTab(state, backward);
+        if (view.composing) return false;
+        const tr = tableTab(state, backward, this.editor.isEditable);
         if (tr) { view.dispatch(tr); return true; }
         const { selection } = state, { $from } = selection;
         // Selected text keeps its toolbar Tab; only an editable top-level heading caret changes level.
-        if (!this.editor.isEditable || view.composing || !selection.empty || $from.depth !== 1 || $from.parent.type.name !== "heading") return false;
+        if (!this.editor.isEditable || !selection.empty || $from.depth !== 1 || $from.parent.type.name !== "heading") return false;
         const level = Number($from.parent.attrs.level) + (backward ? -1 : 1);
         if (level >= 1 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
         // At H1/H6, retain focus rather than falling through to browser Tab navigation.
