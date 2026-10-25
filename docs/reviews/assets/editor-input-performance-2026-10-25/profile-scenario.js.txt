@@ -1,0 +1,52 @@
+async (page, {openPath}) => {
+  const origin=page.url().split('/').slice(0,3).join('/');
+  const defaultPath=(await (await page.request.get(`${origin}/api/document`)).json()).path;
+  const sep=defaultPath.includes('\\')?'\\':'/';
+  const root=defaultPath.split(sep).slice(0,-4).join(sep);
+  const results=[];
+  for(const kind of ['plain','mixed']) {
+    const n=2000;
+    const file=[root,'tmp','perf-362','documents',`${kind}-${n}.md`].join(sep);
+    await openPath(page,file);
+    const editor=page.locator('[data-document-tab][data-active=true] .document-editor');
+    const initial=await editor.evaluate(el=>({text:el.editor.state.doc.textContent,blocks:el.editor.state.doc.childCount,second:el.editor.state.doc.child(1).type.name}));
+    if(initial.blocks!==n||initial.second!==(kind==='plain'?'paragraph':'heading')) throw new Error('Wrong profile fixture');
+    await editor.evaluate(el=>{el.editor.commands.setTextSelection(2);el.editor.commands.focus();});
+    await page.waitForTimeout(1000);
+    for(let i=0;i<5;i++) {await page.keyboard.press('x');await page.waitForTimeout(80);}
+    await editor.evaluate(el=>{
+      window.__perf362=[];
+      el.addEventListener('keydown',e=>{
+        if(e.key!=='x')return;
+        const index=window.__perf362.length;
+        performance.mark('perf362-start-'+index);
+        const start=performance.now();
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          performance.mark('perf362-end-'+index);
+          window.__perf362.push(performance.now()-start);
+        }));
+      },true);
+    });
+    const cdp=await page.context().newCDPSession(page);
+    await cdp.send('Profiler.enable');
+    await cdp.send('Profiler.setSamplingInterval',{interval:1000});
+    await cdp.send('Tracing.start',{categories:'devtools.timeline,blink.user_timing,v8.execute,disabled-by-default-devtools.timeline',transferMode:'ReturnAsStream'});
+    await cdp.send('Profiler.start');
+    for(let i=0;i<4;i++) {
+      await page.keyboard.press('x');
+      await page.waitForFunction(count=>window.__perf362.length===count,i+1);
+      if((await editor.evaluate(el=>el.editor.state.doc.textContent.length))!==initial.text.length+6+i)throw new Error('Profile input length');
+    }
+    await page.waitForTimeout(1000);
+    const {profile}=await cdp.send('Profiler.stop');
+    const complete=new Promise(resolve=>cdp.once('Tracing.tracingComplete',resolve));
+    await cdp.send('Tracing.end');
+    const {stream}=await complete;
+    let raw='';
+    while(true) {const chunk=await cdp.send('IO.read',{handle:stream});raw+=chunk.data;if(chunk.eof)break;}
+    await cdp.send('IO.close',{handle:stream});
+    await cdp.detach();
+    results.push({kind,n,file,keyFrameMs:await page.evaluate(()=>window.__perf362),profile,trace:JSON.parse(raw)});
+  }
+  return results;
+}

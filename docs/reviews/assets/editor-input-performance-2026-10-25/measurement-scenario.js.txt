@@ -1,0 +1,43 @@
+async (page, { openPath, reloadDocument }) => {
+  const origin = page.url().split('/').slice(0,3).join('/');
+  const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
+  const sep = defaultPath.includes('\\') ? '\\' : '/';
+  const root = defaultPath.split(sep).slice(0, -4).join(sep);
+  const results = [];
+  for (const kind of ['plain', 'mixed']) for (const n of [2000, 5000]) {
+    const file = [root, 'tmp', 'perf-362', 'documents', `${kind}-${n}.md`].join(sep);
+    await openPath(page, file);
+    const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
+    const initial = await editor.evaluate(el => ({text:el.editor.state.doc.textContent, blocks:el.editor.state.doc.childCount, second:el.editor.state.doc.child(1).type.name}));
+    if (initial.blocks !== n || initial.second !== (kind === 'plain' ? 'paragraph' : 'heading')) throw new Error('Wrong fixture identity');
+    await editor.evaluate(el => { el.editor.commands.setTextSelection(2); el.editor.commands.focus(); });
+    await page.waitForTimeout(1000);
+    await editor.evaluate(el => {
+      window.__perf362 = [];
+      el.addEventListener('keydown', event => {
+        if (event.key !== 'x') return;
+        const start = performance.now();
+        requestAnimationFrame(() => requestAnimationFrame(() => window.__perf362.push(performance.now() - start)));
+      }, true);
+    });
+    for (let i=0; i<25; i++) {
+      await page.keyboard.press('x');
+      await page.waitForFunction(count => window.__perf362.length === count, i+1);
+      const length = await editor.evaluate(el => el.editor.state.doc.textContent.length);
+      if (length !== initial.text.length + i + 1) throw new Error('Input did not insert exactly one character');
+    }
+    const all = await page.evaluate(() => window.__perf362);
+    const text = await editor.evaluate(el => el.editor.state.doc.textContent);
+    const saveStart = Date.now();
+    await page.getByRole('button', {name:'Save',exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+    const saveMs = Date.now()-saveStart;
+    await reloadDocument(page);
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    if ((await editor.evaluate(el => el.editor.state.doc.textContent)) !== text) throw new Error('Reload text mismatch');
+    const chronologicalSamplesMs = all.slice(5);
+    const inputSamplesMs = [...chronologicalSamplesMs].sort((a,b)=>a-b);
+    results.push({kind,n,file,warmupsMs:all.slice(0,5),chronologicalSamplesMs,inputSamplesMs,inputP50:inputSamplesMs[9],inputP95:inputSamplesMs[18],saveMs,reload:true});
+  }
+  return {userAgent: await page.evaluate(()=>navigator.userAgent), viewport:page.viewportSize(),results};
+}
