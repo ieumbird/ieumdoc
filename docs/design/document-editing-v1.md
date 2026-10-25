@@ -24,6 +24,14 @@ Highlighting is display-only and keeps the existing lowlight common language set
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
 
+Undo uses Ctrl+Z; Redo uses Ctrl+Y or Ctrl+Shift+Z on Windows (Cmd+Z and
+Cmd+Shift+Z on macOS). In the editor, a Hangul IME's opaque Ctrl+Y/Z keydown
+(`Process`/`Unidentified`, keyCode 229/0) uses physical `KeyY`/`KeyZ` only as
+a fallback into the same engine keymap, retaining one-step history and Markdown
+input-rule Undo. Real composition, Alt/AltGr and Shift combinations are excluded;
+visible characters keep their layout's normal bindings. These keyboard interactions
+add no Core operation or CLI command (#468).
+
 Whole-document selection followed by Backspace/Delete starts a separate ProseMirror history
 event, even immediately after a property Apply or insertion. One Undo restores the exact
 pre-delete document, including Figure image path, alt text, caption, labels and references;
