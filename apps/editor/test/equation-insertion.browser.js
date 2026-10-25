@@ -1,6 +1,6 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/equation-insertion.browser.js.
+// Run with pnpm browser:test equation-insertion.
 // Exercises new Equation insertion, draft guard, Cancel, Apply, Save, and reload.
-async page => {
+async (page, { expect }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -48,6 +48,47 @@ async page => {
   try {
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+    // #470: rendered display math shares Edit's form, focus, dismissal and history.
+    const documentEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+    const snapshot = () => documentEditor.evaluate(element => element.editor.getJSON());
+    const beforeShortcut = await snapshot();
+    await documentEditor.locator('p.paragraph').first().click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' History probe.');
+    const withProbe = await snapshot();
+    const existingEquation = documentEditor.locator('[data-block="equation"]').first();
+    const existingPath = await existingEquation.getAttribute('data-source-path');
+    const preview = existingEquation.getByTestId('equation-preview');
+    for (const close of ['cancel', 'escape']) {
+      let editFocus;
+      for (const entry of ['Edit', 'double-click']) {
+        if (entry === 'Edit') {
+          await preview.click({position:{x:8,y:8}});
+          await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+        } else await preview.dblclick({position:{x:8,y:8}});
+        await expect(page.getByTestId('equation-latex'), `${entry} focuses LaTeX`).toBeFocused();
+        expect(await snapshot(), `${entry} leaves document unchanged`).toEqual(withProbe);
+        if (entry === 'double-click') {
+          await page.getByTestId('equation-latex').fill('Unapplied double-click');
+          await preview.dblclick({position:{x:8,y:8}});
+          expect(await page.getByTestId('equation-latex').inputValue(), 'Already editing keeps the draft').toBe('Unapplied double-click');
+        }
+        if (close === 'cancel') await page.getByTestId('equation-cancel').click();
+        else await page.getByTestId('equation-latex').press('Escape');
+        await page.getByTestId('equation-editor').waitFor({state:'detached'});
+        expect(await page.evaluate(caretAfterEquation, existingPath), `${entry} restores caret after Equation`).toBe(true);
+        const focus = await editorFocus();
+        if (entry === 'Edit') editFocus = focus;
+        else expect(focus, `${close} restores the same caret as Edit`).toEqual(editFocus);
+        expect(await snapshot()).toEqual(withProbe);
+      }
+    }
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Opening/closing properties adds no Undo step').toEqual(beforeShortcut);
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    expect(await snapshot(), 'Opening properties preserves Redo').toEqual(withProbe);
+    await page.keyboard.press('ControlOrMeta+z');
+
     // Create an empty transient paragraph with `+`, then use `/equation`.
     const insertButton = page.locator('button[aria-label^="Insert block after"]').first();
     await page.locator('[data-document-tab][data-active=true] .document-editor > .heading').first().hover();
