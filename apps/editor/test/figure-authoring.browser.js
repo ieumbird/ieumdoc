@@ -140,6 +140,36 @@ async (page, { openDocument, expect }) => {
     expect(await picker.getByRole('option', {selected:true}).count()).toBe(0);
     await picker.getByRole('button', {name:'Cancel', exact:true}).click();
     await picker.waitFor({state:'hidden'});
+    // A case-sensitive Host can list both names, even when this test runs on Windows.
+    const caseSensitiveListing = async route => {
+      const response = await route.fetch();
+      const listing = await response.json();
+      const original = listing.entries.find(entry => entry.name === 'diagram.svg');
+      if (!original) return route.fulfill({response});
+      const other = {...original, name:'Diagram.svg', path:original.path.replace(/diagram\.svg$/, 'Diagram.svg')};
+      await route.fulfill({response, json:{...listing, entries:[other, ...listing.entries]}});
+    };
+    await page.route('**/api/folder-browse?*', caseSensitiveListing);
+    try {
+      await page.getByRole('button', {name:'Choose…', exact:true}).click();
+      const upper = picker.getByRole('option', {name:'Diagram.svg', exact:true});
+      const lower = picker.getByRole('option', {name:'diagram.svg', exact:true});
+      await upper.waitFor();
+      for (const key of ['Tab', 'ArrowRight']) {
+        await pathField.fill(filePath.slice(0, -'technical-document.md'.length));
+        await lower.click();
+        expect(await lower.getAttribute('aria-selected'), 'Click selects the exact Host path, including case').toBe('true');
+        expect(await upper.getAttribute('aria-selected')).toBe('false');
+        expect(await pathField.getAttribute('aria-activedescendant')).toBe(await lower.getAttribute('id'));
+        await pathField.press('End');
+        await pathField.press(key);
+        expect(await pathField.inputValue(), `${key} preserves the clicked file's exact path`).toBe(filePath.replace('technical-document.md', 'diagram.svg'));
+      }
+      await picker.getByRole('button', {name:'Cancel', exact:true}).click();
+      await picker.waitFor({state:'hidden'});
+    } finally {
+      await page.unroute('**/api/folder-browse?*', caseSensitiveListing);
+    }
     result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
       await editor.locator('input').count() === 4;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');

@@ -71,7 +71,7 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   const named = partial ? result?.entries.find(entry => entry.name.toLowerCase() === partial) : undefined;
   const ready = image ? named?.kind === "image" : Boolean(path);
   const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
-  const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry === named) : highlight;
+  const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry.path === path) : highlight;
   const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
