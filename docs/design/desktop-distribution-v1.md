@@ -1,7 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Last verified: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
+- Last verified: 2026-10-26 (public 0.1.0-beta.1, release CI, anonymous assets, real GitHub 0.0.1-beta.4→0.1.0-beta.1 update and Korean Windows packaged regression with #450; see the release record).
+- Previous verification: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
 - Previous verification: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards).
 - Previous verification: 2026-10-16 (#204: all-tabs close/restart aggregation and native close wording; 39 Desktop tests and desktop-updates browser regression; no installer/updater boundary change).
 - Previous verification: 2026-10-15 (public beta.4, release CI, anonymous assets and actual GitHub beta.3→beta.4 update; see the release record).
@@ -33,9 +34,9 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 
 ## Channels and versions
 
-The public distribution version is `0.0.1-beta.4`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About shows installed version, channel, update status/actions and a Release notes link.
+The public distribution version is `0.1.0-beta.1`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About shows installed version, channel, update status/actions and a Release notes link.
 
-The [beta.4 release record](../releases/v0.0.1-beta.4.md) contains publication, verified public assets, required CI and actual GitHub beta.3→beta.4 update evidence. Earlier verification below remains historical.
+The [0.1.0-beta.1 release record](../releases/v0.1.0-beta.1.md) contains publication, verified public assets, master CI and actual GitHub 0.0.1-beta.4→0.1.0-beta.1 update evidence. Earlier verification below remains historical.
 
 | Channel | Feed and offer | Release assets |
 | --- | --- | --- |
