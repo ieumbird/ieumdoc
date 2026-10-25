@@ -163,10 +163,31 @@ async page => {
   await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
   check((await page.getByTestId('current-file').getAttribute('title')).endsWith('second-document.md') && await focused(), 'New did not create/focus its tab');
+  // Add a title must reuse the empty starting block, so Enter leaves only one writing paragraph (#437).
+  await page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title',exact:true}).click();
+  await page.keyboard.type('Field notes');
+  await page.keyboard.press('Enter');
+  const titleEnter = await editor.evaluate(el => {
+    const {doc, selection} = el.editor.state;
+    return {blocks:doc.content.content.map(node => [node.type.name, node.textContent]),
+      dom:[...el.children].map(node => node.tagName),
+      caret:selection.$from.index(0), offset:selection.$from.parentOffset,
+      focused:el.editor.view.hasFocus()};
+  });
+  check(JSON.stringify(titleEnter.blocks) === JSON.stringify([['heading','Field notes'],['paragraph','']]) &&
+    titleEnter.dom.join('|') === 'H1|P' && titleEnter.caret === 1 && titleEnter.offset === 0 && titleEnter.focused,
+    `Title Enter must leave one empty paragraph and its caret: ${JSON.stringify(titleEnter)}`);
+  await page.keyboard.type('First paragraph');
+  await page.keyboard.press('Control+s');
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  const secondFile = [folder, 'second-document.md'].join(sep);
+  const titleSaved = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(secondFile)}`)).json();
+  check(titleSaved.source === '---\nieumdoc: 1\n---\n\n# Field notes\n\nFirst paragraph\n',
+    'Title Enter did not save the title and the paragraph entered at its caret');
   check((await read()).source === diskBeforeNew, 'New silently saved the first document');
   await page.getByRole('tab', {name:'new-document.md, Unsaved changes',exact:true}).click();
   check((await editor.innerText()).includes('Kept across New.'), 'New lost the first session');
   return {immediateTyping:true, hintUndo:true, emptySaveAndSource:true, emptySurface:true, insertAndSlash:true,
     blankPaperClick:true, newPreservesUnsavedWork:true, savedAndReloadedRealFile:true, cancelFocus:true,
-    writingEndSpace:true};
+    writingEndSpace:true, titleEnterSingleParagraph:true};
 }
