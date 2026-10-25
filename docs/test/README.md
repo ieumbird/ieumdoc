@@ -77,7 +77,7 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
-`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 확인의 Save 성공 후 전환·Save 실패/충돌 보존·Don't save의 쓰기 없는 전환·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`의 같은 확인과 기존 New 흐름을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
+`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 상태의 Open에 확인창 없이 기존 세션 보존, 탭 닫기 미저장 확인의 Save 성공 후 탭 닫기·Save 실패/충돌 보존·Don't save의 쓰기 없는 탭 닫기·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`에서 미저장 확인 없이 New 폼을 열고 기존 세션을 보존하는 흐름을 검증한다. 상세 보호 규칙은 [편집 세션 계약](../design/editing-session-save-v1.md#switching-and-recovery)을 따른다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 탭 닫기 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
 
 `folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
 

@@ -1,6 +1,7 @@
 # HTTP Host v1
 
 - Status: Implemented
+- Documentation verification: 2026-10-26 (pathless Host response versus Editor startup/restoration compared with document-api.ts, App.tsx and the session contract; no new HTTP/browser execution).
 - Last verified: 2026-10-16 (#296 PR3: Windows production Host with actual Chrome process crashes, same-profile/origin restart, local Restore, real Save/Reload and external 409 preservation; HTTP boundary tests. Linux execution remains required CI).
 - Previous verification: 2026-10-15 (ADR-0006 route/validation cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
 - Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
@@ -47,9 +48,9 @@ Unknown options, positional arguments and repeated single-value options fail. In
 
 Roots are the server's access boundary, fixed until restart. They are neither initial folder selections nor a merged Workspace. Paths refer to the server filesystem, even when a browser runs on another PC.
 
-HTTP starts without a document or development sample. Open Folder offers each allowed root and its descendants. Breadcrumbs start at the most specific containing root; Up cannot leave it. The path field still accepts another allowed root. Recent folders are browser preferences: locations outside current roots are hidden without deleting stored preferences, and every actual request is revalidated by the Host. A root name is compact in breadcrumbs; starting places and the path field retain the full locator.
+HTTP supplies no default document or development sample. The Editor can still open an explicit path or restore tabs under the [session startup contract](editing-session-save-v1.md#tab-navigation-memory-383). Open Folder offers each allowed root and its descendants. Breadcrumbs start at the most specific containing root; Up cannot leave it. The path field still accepts another allowed root. Recent folders are browser preferences: locations outside current roots are hidden without deleting stored preferences, and every actual request is revalidated by the Host. A root name is compact in breadcrumbs; starting places and the path field retain the full locator.
 
-Choose a folder, then a Markdown file in the sidebar. Several opened folders may be kept, each within an allowed root ([ADR-0009](../adr/0009-multiple-opened-folders.md)); remembered ones the roots no longer allow are left out on start. Open, New file/folder, Save, relative images, image paste/drop, image choice and receipt-based rollback use existing shared handlers. Image choice lists only server images within the allowed roots. Switching folders/documents retains existing dirty/draft/in-flight protections. Stale disk revisions still return 409; unsupported canonical writes fail closed. Markdown semantics and relative image source strings do not change.
+Choose a folder, then a Markdown file in the sidebar. Several opened folders may be kept, each within an allowed root ([ADR-0009](../adr/0009-multiple-opened-folders.md)); remembered ones the roots no longer allow are left out on start. Open, New file/folder, Save, relative images, image paste/drop, image choice and receipt-based rollback use existing shared handlers. Image choice lists only server images within the allowed roots. Open/New keeps existing sessions; operation guards and work-loss confirmation follow the [session protection contract](editing-session-save-v1.md#switching-and-recovery). Stale disk revisions still return 409; unsupported canonical writes fail closed. Markdown semantics and relative image source strings do not change.
 
 ## Filesystem boundary
 

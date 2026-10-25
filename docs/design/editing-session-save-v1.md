@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Documentation verification: 2026-10-26 (startup priority and Open/New/close protection compared with ADR-0007/0009, App.tsx, Host handlers and existing regression code; no new Editor/browser/Desktop execution).
 - Last verified: 2026-10-24 (#409: synchronous clean acknowledgement on return to the saved snapshot; same-turn Undo/Reload, browser-tab close, partial Undo and queued-cleanup/new-input regressions; staged Electron close/restart observation).
 - Previous verification: 2026-10-24 (#383 review follow-up: unused default read failure does not block remembered tabs or explicit URL startup; actual fallback failure remains visible; document-tabs regression).
 - Documentation verification: 2026-10-24 (#417 review: current production HTTP explicit-path recovery coverage and Vite start-list coverage compared with test code; no new browser execution).
@@ -372,8 +373,11 @@ content, undo/redo, block property draft values (Equation, Figure, Table and sec
 per-tab window scroll and Visual/Source view. Transient inline link URL and inline-math inputs close
 without applying on outside blur, including a tab switch, just as when clicking elsewhere in the
 same document. Reopening them starts from the applied URL/LaTeX; they are not block property drafts.
-Dirty work alone never blocks switching. Active Save, Open/New/Reload, Source generation and asset
-work still block switching. Inactive editors retain values but mount no property portals or block
+Dirty work alone never blocks Open/New or switching. Open/New and tab switching wait while the
+active session is saving, reloading, generating Source or handling assets, while startup/Open/New is
+pending, or while the tab-close confirmation is active. These operation guards prevent competing
+requests; they are separate from the work-loss confirmation on Close. Inactive editors retain
+values but mount no property portals or block
 handles, run no geometry observers/outline measurements and cannot autofocus. Form IDs are unique
 per mounted view, including identical document-local `sourcePath` values in different files.
 
@@ -394,8 +398,12 @@ the folder tree, display preferences and any Host-provided sample/allowed-root i
 Save, Source, Reload and the outline target the active tab. Reload retains **Keep editing / Discard
 and reload** and replaces only that tab's editor after a successful read; a failed read retains it.
 Browser `beforeunload` checks every tab plus pending Open/New, including hidden dirty tabs. Desktop
-window close retains the native confirmation with wording about all documents. Update restart checks
-aggregate every session's pending work without adding a dialog to the timed handshake.
+window close retains the native **Close without saving / Keep editing** confirmation for unsaved or
+pending work across all documents. Keep editing leaves every session intact; native close adds no
+Save all and keeps existing recovery records. Its warning explains that unapplied drafts and changes
+after the last successful recovery record may be lost. This differs from the single-tab Close dialog
+and its explicit record deletion. Update restart checks aggregate every session's pending work
+without adding a dialog to the timed handshake.
 
 External changes retain the existing revision conflict check. The user can copy applied content from Source, keep editing, or explicitly reload from disk. This does not add automatic merging or an OS-level atomic compare-and-swap to the development adapter.
 
@@ -426,14 +434,20 @@ reports, typing and folder-only actions never write tab preferences. There is no
 synchronization or saved-value cache. Closing all tabs remembers an empty list and retains the start
 screen on Reload rather than reopening the development sample.
 
+Startup document selection follows the order below. Recovery is a protection check within these
+routes, not an instruction to open a recovery record automatically. The Host's pathless response
+and the Editor's final visible tabs are separate: HTTP supplies start/allowed-root information;
+Desktop supplies its accepted launch document or start/sample information; Vite supplies the
+development default. The Editor then applies explicit routing, navigation memory and recovery.
+
 | Startup route | Precedence and result |
 | --- | --- |
 | Non-empty page `?path=…` | Opens only that explicit path through the Host, ahead of navigation memory. This page query is now consumed by the Editor; previously only the Host API accepted a path query. Failure shows the existing startup error, with no remembered fallback. |
 | Desktop `.md` launch argument | The existing first Host response contains that file. Opens only it ahead of memory; a matching recovery record is offered through the existing dialog. A URL path, if present, is explicit in the request and takes precedence over the Host default. |
-| HTTP/Desktop start response; Vite default response | If a valid preference exists, restores its list instead of opening a default. An empty or entirely excluded list leaves the start screen with Host sample/allowed-root information. |
-| No usable preference | Keeps the existing Host start behavior: HTTP/Desktop start screen or Vite development sample. An explicit startup/default document with a matching record keeps the existing recovery offer. |
+| Valid tab navigation preference, without an explicit URL/launch document | Restores its list instead of opening a default, after the recovery check below. An intentionally empty or entirely excluded list leaves the start screen with any Host-supplied sample/allowed-root information; it does not fall back to the Vite default. |
 | Remembered path has a recovery record | Does not automatically open its disk version, even if the record is incompatible. With no clean tabs, the existing start-screen recovery list is visible. If clean tabs restore and hide that list, the newest matching record is offered in the existing review dialog. Not now retains it. Restore uses the existing explicit flow and creates one unsaved tab. Other records remain available on the start screen. |
 | Recovery storage cannot be read | Automatic remembered-tab restoration is deferred for this startup, preserving the existing recovery-unavailable message. Explicit opens remain available. This avoids treating unknown recovery state as clean work. |
+| No usable tab navigation preference and no explicit URL/launch document | Uses the Host fallback: HTTP/Desktop have no default document and show the start screen; Vite opens `apps/editor/document/technical-document.md`. This includes first run and missing, malformed or unavailable navigation storage. A matching recovery record is offered for an opened default, just as for an explicit URL/launch document; it does not suppress that document's opening. |
 
 The pathless Host read retains sample/allowed-root metadata when supplied and identifies a Desktop
 launch document. Its failure does not prevent an explicit URL request, or browser remembered-tab

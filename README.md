@@ -126,23 +126,31 @@ pnpm ieumdoc update-heading document.md --path <inspect에서 얻은 경로> --t
 
 최상위 본문 삽입 명령(`insert-block`, `insert-heading`, `insert-admonition`, `insert-quote`, `insert-divider`, `insert-equation`, `insert-figure`, `insert-table`, `insert-list`, `insert-code-block`, `insert-target`)의 `--at`은 숫자 인덱스 또는 `end`를 받습니다. `end`는 Core가 계산한 본문 끝, 즉 미주 정의 앞입니다. 미주가 없으면 마지막 본문 뒤, 빈 새 문서에서는 1입니다. 표 행·열의 `--at`, 삭제 위치와 이동 명령의 `--to`는 숫자만 받습니다.
 
-여러 변경은 `apply-batch`로 한 번에 적용합니다. 예를 들어 `operations.json`에 다음을 저장합니다(아래 인덱스는 제목만 있는 문서 기준).
+여러 변경은 `apply-batch`로 한 번에 적용합니다. 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
+
+```bash
+pnpm ieumdoc create "<임시 폴더>/document.md"
+pnpm ieumdoc insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
+pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
+```
+
+이 상태의 Core snapshot은 metadata가 인덱스 0, H1 제목이 경로 `[1]`이며 다른 본문은 없습니다. 다음 두 작업은 H2를 끝(인덱스 2)에 삽입한 뒤 그 heading을 수정합니다. 제목은 첫 본문 위치에 유지합니다. 같은 임시 폴더의 `operations.json`에 저장합니다.
 
 ```json
 [
   { "command": "insert-heading", "at": "end", "level": 2, "text": "Method" },
-  { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] },
-  { "command": "move-block", "from": 2, "to": 1 }
+  { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] }
 ]
 ```
 
 배치에서도 수식·표의 새 옵션을 그대로 사용하며, `"at": "end"`는 각 단계의 직전 canonical snapshot을 기준으로 계산합니다.
 
 ```bash
-pnpm ieumdoc apply-batch document.md --operations operations.json --if-revision <inspect에서 얻은 revision> --format json
+pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
+pnpm ieumdoc check "<임시 폴더>/document.md"
 ```
 
-옵션 키는 기존 플래그에서 `--`를 뺀 이름입니다. 스칼라 옵션은 string/number/boolean만, JSON 옵션은 객체/배열/문자열만 허용하며 모든 옵션의 `null` 값은 거부합니다. 모든 단건 변경 명령(`format` 포함)을 사용할 수 있고, 중첩 배치·operation별 `if-revision`·비변경 명령은 거부합니다. 각 경로·인덱스는 직전 단계의 canonical 재파싱 결과를 기준으로 하며 자동 추적하지 않습니다. 최초 원본의 revision을 한 번 확인하고 최종 결과만 한 번 커밋합니다. 실패하면 부분 결과를 쓰지 않고 exit 1을 반환합니다. 각 원소의 입력·옵션·Core 처리·검증·직렬화·재파싱 실패에만 `operation N (command): <오류>; nothing was written`을 출력합니다. 원본 read/parse·revision·최종 커밋 오류는 prefix 없이 단건과 같은 메시지를 출력합니다(예: `revision mismatch; run inspect again; nothing was written`, 커밋 충돌은 `... changed after it was read; nothing was written`). JSON 성공 출력은 `{"ok":true,"command":"apply-batch","applied":3,"revision":"<결과 revision>"}` 한 줄이며 text 모드는 출력이 없습니다. 입력은 비어 있지 않은 JSON 배열 파일이어야 하며 stdin은 지원하지 않습니다. 상세 계약은 [CLI batch application](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)에 있습니다.
+옵션 키는 기존 플래그에서 `--`를 뺀 이름입니다. 스칼라 옵션은 string/number/boolean만, JSON 옵션은 객체/배열/문자열만 허용하며 모든 옵션의 `null` 값은 거부합니다. 모든 단건 변경 명령(`format` 포함)을 사용할 수 있고, 중첩 배치·operation별 `if-revision`·비변경 명령은 거부합니다. 각 경로·인덱스는 직전 단계의 canonical 재파싱 결과를 기준으로 하며 자동 추적하지 않습니다. 최초 원본의 revision을 한 번 확인하고 최종 결과만 한 번 커밋합니다. 실패하면 부분 결과를 쓰지 않고 exit 1을 반환합니다. 각 원소의 입력·옵션·Core 처리·검증·직렬화·재파싱 실패에만 `operation N (command): <오류>; nothing was written`을 출력합니다. 원본 read/parse·revision·최종 커밋 오류는 prefix 없이 단건과 같은 메시지를 출력합니다(예: `revision mismatch; run inspect again; nothing was written`, 커밋 충돌은 `... changed after it was read; nothing was written`). 위 두 작업의 JSON 성공 출력은 `{"ok":true,"command":"apply-batch","applied":2,"revision":"<결과 revision>"}` 한 줄이며 text 모드는 출력이 없습니다. 입력은 비어 있지 않은 JSON 배열 파일이어야 하며 stdin은 지원하지 않습니다. 상세 계약은 [CLI batch application](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)에 있습니다.
 
 ### Visual Editor
 
@@ -150,7 +158,7 @@ pnpm ieumdoc apply-batch document.md --operations operations.json --if-revision 
 pnpm editor
 ```
 
-`pnpm --filter @ieumdoc/editor dev`와 같습니다. `http://127.0.0.1:5173`을 열면 기본 문서는 `apps/editor/document/technical-document.md`입니다. 검증 시에는 [scratch fixture 절차](docs/test/TEST_GUIDE.md#browser-regression)를 사용합니다.
+`pnpm --filter @ieumdoc/editor dev`와 같습니다. `http://127.0.0.1:5173`의 첫 실행처럼 명시적 시작 경로와 유효한 탭 탐색 기억이 없을 때 기본 문서 `apps/editor/document/technical-document.md`를 엽니다. 이후에는 [세션 계약의 시작 우선순위](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)를 따르며, 마지막 탭을 닫아 빈 목록을 기억한 경우에는 시작 화면을 유지합니다. 검증 시에는 [scratch fixture 절차](docs/test/TEST_GUIDE.md#browser-regression)를 사용합니다.
 
 ```bash
 pnpm docs:check
@@ -170,7 +178,7 @@ pnpm --filter @ieumdoc/cli package
 node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\document"
 ```
 
-기본 주소는 `http://127.0.0.1:5180`입니다. `--root`는 서버가 접근을 허용하는 기존 폴더 목록이며, **Open Folder에서 그중 하나 또는 하위 폴더를 선택**합니다. 처음에는 문서를 열지 않습니다. Linux에서도 서버 경로로 같은 명령을 사용합니다.
+기본 주소는 `http://127.0.0.1:5180`입니다. `--root`는 서버가 접근을 허용하는 기존 폴더 목록이며, **Open Folder에서 그중 하나 또는 하위 폴더를 선택**합니다. HTTP Host는 기본 문서를 제공하지 않지만 Editor는 [세션 계약](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)에 따라 명시적 경로나 기억한 탭을 열 수 있습니다. Linux에서도 서버 경로로 같은 명령을 사용합니다.
 
 `packages/cli/dist/*.tgz`를 다른 PC에 복사해 offline 설치할 수 있습니다. 내장 인증은 없으므로 원격 접속에는 접근 제어된 프록시/사설망과 명시적 `--public-origin`이 필요합니다. 설치·프록시 설정·파일 경계·지원 범위는 [HTTP Host contract](docs/design/http-host-v1.md)를 따릅니다. CI/local 산출물이며 npm registry 게시나 NAS 자동 배포는 제공하지 않습니다.
 
@@ -178,7 +186,7 @@ node packages/cli/dist/cli.mjs serve --port 5180 --root "C:\project" --root "C:\
 
 일반 사용자는 [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.1.0-beta.1.exe`를 다운로드하고 실행하면 됩니다. Windows x64에서 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다. 이 Beta 설치 파일은 unsigned이므로 Windows의 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 
-설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. `.md` 실행 인자가 없으면 문서를 열지 않고 시작 화면에서 폴더·최근 폴더·sample을 고릅니다. 일반 문서는 Open folder로 폴더를 열고 Sidebar의 `.md` 파일을 선택하며, New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 편집이나 Draft가 있으면 재시작을 거부하며, 일반 종료는 다운로드한 업데이트를 설치하지 않습니다.
+설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다. `.md` 실행 인자가 없으면 Desktop Host는 기본 문서를 제공하지 않습니다. Editor의 탭 복원 뒤에도 열린 문서가 없으면 시작 화면에서 폴더·최근 폴더·sample을 고릅니다([시작·복구 우선순위](docs/design/editing-session-save-v1.md#tab-navigation-memory-383)). 일반 문서는 Open folder로 폴더를 열고 Sidebar의 `.md` 파일을 선택하며, New file과 Save를 사용합니다. Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널, Check for updates와 Release notes를 확인합니다. Beta 설치본은 첫 실행 시 Beta 채널을 기본 선택하며, 저장된 채널 선택은 유지합니다. 업데이트 확인은 자동이며 **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 편집이나 Draft가 있으면 재시작을 거부하며, 일반 종료는 다운로드한 업데이트를 설치하지 않습니다.
 
 현재 공개 버전은 `0.1.0-beta.1`입니다. Stable 미출시는 **No Stable release has been published yet.**로 안내하며 Beta로 전환해 업데이트를 검색할 수 있습니다. 기존 `0.0.1-beta.4`에서 공개 `0.1.0-beta.1`로 다운로드·저장·설치·재실행과 네이티브 문서·설정·Beta 채널·사용자 데이터 보존을 검증했습니다. beta.4부터 표식 없는 이전 버전 문서는 열리지 않습니다(아래 네이티브 문서 안내 참고). 개발자용 로컬 패키징은 아래 Contributing 절차를 따릅니다.
 
