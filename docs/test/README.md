@@ -77,7 +77,7 @@ finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
 
-`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 확인의 Save 성공 후 전환·Save 실패/충돌 보존·Don't save의 쓰기 없는 전환·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`의 같은 확인과 기존 New 흐름을 검증한다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
+`open-files`는 시작 화면 → 폴더 → Sidebar 파일 선택, 최근 폴더와 명시적 sample, 미저장 상태의 Open에 확인창 없이 기존 세션 보존, 탭 닫기 미저장 확인의 Save 성공 후 탭 닫기·Save 실패/충돌 보존·Don't save의 쓰기 없는 탭 닫기·Cancel/Escape와 focus 복귀·draft 손실 안내, Save 진행 중 전환 거부를 검증한다. `new-document`와 `folder-navigation`은 폴더 `+`에서 미저장 확인 없이 New 폼을 열고 기존 세션을 보존하는 흐름을 검증한다. 상세 보호 규칙은 [편집 세션 계약](../design/editing-session-save-v1.md#switching-and-recovery)을 따른다. `source-view-pending`은 Source 처리 중 Sidebar의 다른 파일을 선택해도 현재 문서가 유지됨을 확인한다. `open-files --screenshots`는 시작 화면과 폴더 메뉴, 1440/375px 탭 닫기 미저장 확인창(draft 유무)의 수동 검토용 캡처를 `tmp/` 아래 저장한다.
 
 `folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
 
@@ -103,7 +103,9 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 ## Real GitHub Beta update
 
-아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다. 후보의 게시·검증 체크리스트는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+2026-10-25 게시된 `0.1.0-beta.1`의 실제 공개 `0.0.1-beta.4 → 0.1.0-beta.1` 업데이트가 통과했다(검증 확인: 2026-10-25/26). 정확한 버전 감지·다운로드 검증, 일반 종료 시 설치 없음, IPC 실패·renderer 오류·dirty 상태의 재시작 거부, Save → 설치 → 재실행, FileVersion과 preferences·Beta 채널·user-data canary·네이티브 Markdown 보존을 확인했다. 첫 시도는 공개 beta.4의 `Ready`를 lowercase `ready`로 기다려 업데이트 전에 실패했고, 한국어 Windows에서 갱신 앱의 한국어 UI도 하네스에 영향을 주었다(#449). #450의 영어 UI 고정·대소문자 무시 대기 후 재실행은 통과했다. 같은 수정으로 한국어 Windows의 로컬 `test:packaged`도 9/9 통과했으며, 테스트 소유 설치·registry·app data·cache·process는 정리했다. 공개 자산과 상세 결과는 [0.1.0-beta.1 릴리즈 기록](../releases/v0.1.0-beta.1.md)에 있다.
+
+아래 명령의 현재 대상은 `0.0.1-beta.4 → 0.1.0-beta.1`이며, 두 버전 공개 후 별도 승인으로 실행한다. 공개 beta.4도 네이티브 문서를 지원하므로 `ieumdoc: 1` 표식이 있는 Markdown으로 저장·보존을 확인한다.
 
 2026-10-15 beta.4 게시 후 실제 `beta.3 → beta.4` 공개 업데이트도 통과했다. 공개 자산과 설치·재실행·문서/설정 보존 결과는 [beta.4 릴리즈 기록](../releases/v0.0.1-beta.4.md)에 있다. 당시 공개 beta.3은 네이티브 문서 이전 버전이라 앞쪽 Frontmatter를 본문 블록처럼 편집하므로, beta.3에서 출발하는 실제 공개 업데이트 경로만 표식 없는 Markdown을 사용했다. 이 beta.3 전용 fixture 예외는 현재 대상에는 적용되지 않는다.
 
