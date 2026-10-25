@@ -2470,20 +2470,22 @@ test("CLI reference templates set partial values, inspect computed text, and res
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-reference-templates-"));
   const file = path.join(dir, "refs.md");
   writeFileSync(file, nativeSource("```{math}\n:label: eq-a\na\n```\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n\n:::{table} Data\n:label: tbl-a\n| a |\n| - |\n| 1 |\n:::\n"));
-  const display = () => {
+  const display = (references: string[], captions: string[]) => {
     const result = run(["inspect", file, "--format", "json"]);
     assert.equal(result.status, 0, result.stderr);
-    return JSON.parse(result.stdout).nodes.filter((node: {referenceText?: string}) => node.referenceText).map((node: {referenceText: string}) => node.referenceText);
+    const nodes = JSON.parse(result.stdout).nodes;
+    assert.deepEqual(nodes.filter((node: {referenceText?: string}) => node.referenceText).map((node: {referenceText: string}) => node.referenceText), references);
+    assert.deepEqual(nodes.filter((node: {captionNumberText?: string}) => node.captionNumberText).map((node: {captionNumberText: string}) => node.captionNumberText), captions);
   };
   try {
-    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
+    display(["(1)", "Figure\u00a01", "Table\u00a01"], ["Figure 1", "Table 1"]);
     const changed = run(["update-reference-templates", file, "--figure", "그림 %s", "--table", "표 %s", "--equation", "식 (%s)"]);
     assert.equal(changed.status, 0, changed.stderr);
-    assert.deepEqual(display(), ["식 (1)", "그림 1", "표 1"]);
+    display(["식 (1)", "그림 1", "표 1"], ["그림 1", "표 1"]);
     assert.match(readFileSync(file, "utf8"), /template: 그림 %s/);
     const partial = run(["update-reference-templates", file, "--reset", "figure"]);
     assert.equal(partial.status, 0, partial.stderr);
-    assert.deepEqual(display(), ["식 (1)", "Figure\u00a01", "표 1"]);
+    display(["식 (1)", "Figure\u00a01", "표 1"], ["Figure 1", "표 1"]);
     const saved = readFileSync(file, "utf8");
     for (const args of [["--figure", "no number"], ["--equation", ""], ["--reset", "other"], ["--reset", "all", "--table", "%s"], []]) {
       assert.notEqual(run(["update-reference-templates", file, ...args]).status, 0);
@@ -2491,7 +2493,7 @@ test("CLI reference templates set partial values, inspect computed text, and res
     }
     const reset = run(["update-reference-templates", file, "--reset", "all"]);
     assert.equal(reset.status, 0, reset.stderr);
-    assert.deepEqual(display(), ["(1)", "Figure\u00a01", "Table\u00a01"]);
+    display(["(1)", "Figure\u00a01", "Table\u00a01"], ["Figure 1", "Table 1"]);
     assert.doesNotMatch(readFileSync(file, "utf8"), /numbering:/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
