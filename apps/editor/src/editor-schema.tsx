@@ -33,7 +33,7 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
-import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, type ReferenceTarget } from "./cross-reference.tsx";
+import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, useCaptionNumberText, type ReferenceTarget } from "./cross-reference.tsx";
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
@@ -462,8 +462,8 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   const rowLayer = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const number = useBlockNumber(editor, getPos, "table");
-  const kind = number === undefined ? i18n.t("Table") : `Table ${number}`;
+  const numbered = useCaptionNumberText(editor, getPos, "table");
+  const kind = numbered ?? i18n.t("Table");
   const label = String(node.attrs.label ?? "");
   const caption = tableCaption(node.toJSON() as TiptapJSON);
   const bibliography = useBibliography();
@@ -503,7 +503,7 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
-    {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={number === undefined ? undefined : kind} contentEditable={false}
+    {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={numbered} contentEditable={false}
       dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[], new Map(JSON.parse(citationLabels ?? "[]")), bibliography) }} /> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error}
@@ -991,9 +991,8 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
 
 function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
   useTranslation();
-  const number = useBlockNumber(editor, getPos, "figure");
-  // The computed number prefixes the caption, as MyST renders it; it is never saved.
-  const numbered = number === undefined ? undefined : `Figure ${number}`;
+  // Core's computed label prefixes the caption; it is never saved.
+  const numbered = useCaptionNumberText(editor, getPos, "figure");
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);

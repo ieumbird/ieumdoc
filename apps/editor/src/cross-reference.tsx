@@ -9,7 +9,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
-import { referenceNumberText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
+import { referenceNumberText, captionNumberText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { toTiptapContent } from "./tiptap-inline.ts";
@@ -54,6 +54,20 @@ export function useBlockNumber(editor: Editor, getPos: () => number | undefined,
     selector: ({ editor: current }) => {
       const pos = getPos();
       return current && typeof pos === "number" ? blockNumberAt(current.state.doc, pos, kind) : undefined;
+    },
+  }) ?? undefined;
+}
+
+/** Core caption text follows both the current number and document template changes. */
+export function useCaptionNumberText(editor: Editor, getPos: () => number | undefined, kind: "figure" | "table"): string | undefined {
+  return useEditorState({
+    editor,
+    selector: ({ editor: current }) => {
+      const pos = getPos();
+      if (!current || typeof pos !== "number") return undefined;
+      const doc = current.state.doc;
+      const number = blockNumberAt(doc, pos, kind);
+      return number === undefined ? undefined : captionNumberText(kind, number, doc.attrs.referenceTemplates);
     },
   }) ?? undefined;
 }

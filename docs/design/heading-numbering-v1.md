@@ -1,7 +1,8 @@
 # Heading numbering v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#445 reference-template Core/CLI/Editor tests and cross-reference browser Save → Reload).
+- Last verified: 2026-10-26 (#462 caption-template Core/CLI/Editor tests and cross-reference browser Undo/Redo, Source and Save → Reload).
+- Reference-template verification: 2026-10-25 (#445 Core/CLI/Editor tests and cross-reference browser Save → Reload).
 - Previous verification: 2026-10-14 (#232 native metadata contract).
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
@@ -18,8 +19,8 @@ Verification covers Core default-policy equivalence to MyST, native metadata wri
 ## Reference templates (#445)
 
 Core owns document reference text through `referenceNumberText(kind, number, templates)`.
-Absent settings use MyST defaults: `Figure %s`, `Table %s`, `(%s)`. Figure/Table defaults use U+00A0 (no-break space) exactly as MyST; defaults are display-only and are never written. Only in-text
-references use these templates; the equation number on the right remains `(N)`.
+Absent settings use MyST defaults: `Figure %s`, `Table %s`, `(%s)`. Figure/Table defaults use U+00A0 (no-break space) exactly as MyST; defaults are display-only and are never written. In-text
+references use these templates; Figure/Table caption labels follow the rule below. The equation number on the right remains `(N)`.
 Section references and target identities are unchanged.
 
 `EditableDocument.referenceTemplates` projects authored values. MyST frontmatter accepts
@@ -63,6 +64,55 @@ to labeled numbered target nodes, computed by the same Core rule. Single command
 `apply-batch` use the existing command/write path; failures leave original bytes unchanged.
 
 Roman numerals, chapter hierarchy, caption substitution and Korean particles remain out of scope.
+
+### Caption number labels (#462)
+
+Owner decision (2026-10-26): Figure and Table caption numbers follow authored
+`numbering.figure.template` / `numbering.table.template`, matching in-text references.
+Core's `captionNumberText(kind, number, templates)` calls the reference display rule when
+that kind has a template, including repeated numeric placeholders and custom text/spaces.
+Without a template for that kind it preserves the existing caption text exactly: `Figure N`
+or `Table N` with U+0020, rather than the reference default's U+00A0. An explicitly authored
+template retains its actual spaces, including U+00A0. The existing caption separator `. `
+still follows the computed text, even if a custom template contains its own punctuation.
+Korean captions therefore start `그림 1. ` / `표 1. `; Table captions remain below the grid.
+
+This intentionally differs from MyST: installed `myst-transforms` 1.3.51 `getCaptionLabel`
+uses `getDefaultNumberedReferenceTemplate(kind)` (for example `Figure %s:`), ignoring the
+document's reference template. IeumDoc follows the document template and retains its own
+existing separator. Equation right-side numbers remain `(N)`.
+
+Implementation scope: Editor caption prefixes, block metadata and numbered properties
+accessible names project this Core text. CLI `inspect --format json` exposes the same
+`captionNumberText` (before the separator) on numbered Figure/Table nodes, including
+unlabeled ones. No new semantic operation or CLI edit command is needed: reference style
+already changes one document attribute through `updateReferenceTemplates`. Captions update
+immediately with that attribute, share its single Undo/Redo step and survive Save → Reload.
+Labels are computed; no generated caption labels are written to Markdown. Source remains
+the canonical Markdown preview, containing authored templates and caption content only.
+
+Verification: Core covers unchanged defaults and Korean/custom/repeated templates. The
+existing reference-template browser flow asserts caption CSS prefixes immediately, single
+Undo/Redo, Source and saved body preservation, Save → Reload and numbered properties
+accessible names. Before implementation its new Korean assertion failed with
+`Figure 1. ` / `Table 1. ` instead of `그림 1. ` / `표 1. `.
+
+Same document, Korean selection and 1280×720 viewport, DPR 1, zoom 1, scroll top,
+no selected/hovered block, loaded Pretendard, through this worktree's persistent Chrome
+profile and Vite server on port 5376:
+[before](assets/caption-label-templates-462/before-1280.png) /
+[after](assets/caption-label-templates-462/after-1280.png).
+The before image is the failed assertion's diagnostic at base `c73b912`; the after image
+is captured at the matching successful assertion. These are manual presentation evidence;
+automated assertions determine behavior. The existing caption typography and `. ` CSS
+separator are unchanged, following the Visual Language's document/metadata separation.
+No new controls, adjustable visual values, numbering policy or persistence format are added.
+
+Local checks for #462: Core suite (260), targeted CLI reference-template test (1), related
+Editor cross-reference/Figure/Table tests (39), full typecheck, Editor production build,
+docs and diff checks; cross-reference, layout-rules and quiet-document browser scenarios.
+Browser runs were sequential with this worktree's persistent profile. No independent review
+or other-platform product execution is claimed by these local results.
 
 ### Verification and visual evidence
 

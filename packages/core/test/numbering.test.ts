@@ -4,11 +4,23 @@ import { enumerateTargetsTransform, ReferenceState } from "myst-transforms";
 import { VFile } from "vfile";
 import { parseDocument } from "yaml";
 import { validateNumbering } from "myst-frontmatter";
-import { headingNumbers, blockTargets, targetNumbers } from "../src/numbering.ts";
+import { headingNumbers, blockTargets, targetNumbers, captionNumberText, referenceNumberText } from "../src/numbering.ts";
 import { updateHeadingNumbering, getHeadingNumbering } from "../src/myst/heading-numbering.ts";
 import { getEditableDocument, insertEquation, moveBlock, parse, removeBlock, serialize, type MystDocument, type MystNode } from "./core-internal.ts";
 
 const numbers = (document: MystDocument) => targetNumbers(getEditableDocument(document).blocks.map(blockTargets));
+
+test("caption numbers preserve legacy defaults and share authored reference templates", () => {
+  for (const kind of ["figure", "table"] as const) {
+    const legacy = kind === "figure" ? "Figure 1" : "Table 1";
+    assert.equal(captionNumberText(kind, 1), legacy);
+    assert.equal(captionNumberText(kind, 1, null), legacy);
+    assert.equal(captionNumberText(kind, 1, { equation: "식 (%s)" }), legacy);
+    for (const template of [kind === "figure" ? "그림 %s" : "표 %s", "Item %s of %s / {number} / {subEnumerator}", "Custom\u00a0%s:"]) {
+      assert.equal(captionNumberText(kind, 3, { [kind]: template }), referenceNumberText(kind, 3, { [kind]: template }));
+    }
+  }
+});
 
 test("native target numbers agree with MyST and follow insertions, moves and removals", () => {
   const document = parse("$$\na\n$$ (eq-a)\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n\n:::{figure} ./b.png\n:::\n\n$$\nb\n$$\n");

@@ -45,7 +45,7 @@ export { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, hea
 export { firstReferenceNumbers } from "./numbering.ts";
 export const updateHeadingNumbering = fence(updateHeadingNumberingTree);
 export const updateReferenceTemplates = fence(updateReferenceTemplatesTree);
-export { referenceNumberText, referenceTemplatesError, DEFAULT_REFERENCE_TEMPLATES, type ReferenceTemplates, type ReferenceTemplateUpdate } from "./numbering.ts";
+export { referenceNumberText, captionNumberText, referenceTemplatesError, DEFAULT_REFERENCE_TEMPLATES, type ReferenceTemplates, type ReferenceTemplateUpdate } from "./numbering.ts";
 
 type Opaque<T> = T extends MystDocument ? Document : T;
 type Fenced<F> = F extends (...args: infer A) => infer R
