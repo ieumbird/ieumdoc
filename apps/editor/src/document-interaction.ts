@@ -4,6 +4,7 @@ import { labelKey } from "@ieumdoc/core/label";
 import { Extension, isMacOS } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
 import { closeHistory } from "@tiptap/pm/history";
+import { GapCursor } from "@tiptap/pm/gapcursor";
 import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as PMNode, type DOMOutputSpec, type Schema } from "@tiptap/pm/model";
 import { AllSelection, NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
@@ -185,10 +186,13 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         "Shift-Tab": () => tab(true),
         "Mod-End": end,
         ...(isMacOS() ? { "Mod-ArrowDown": end } : {}),
-        // A final table, list, quote or caption has no line below it to move to.
+        // Closed final blocks (including the gap after Apply) have no line below them either.
         ArrowDown: () => {
           const { view } = this.editor;
-          if (!atNestedDocumentEnd(view)) return false;
+          const { selection, doc } = view.state;
+          const finalBlock = selection.to === doc.content.size &&
+            (selection instanceof GapCursor || selection instanceof NodeSelection && selection.node.isBlock);
+          if (!finalBlock && !atNestedDocumentEnd(view)) return false;
           view.dispatch(documentEnd(view.state)); return true;
         },
         Enter: () => {

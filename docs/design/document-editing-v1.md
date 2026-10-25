@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
 - Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
 - Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
 - Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
@@ -76,6 +77,8 @@ A changed document recomputes numbering; source semantics and canonical output a
   on macOS) uses the same destination as the click below the document: the end of
   a final paragraph, or a new empty paragraph after any other final block.
   Shift-modified document-end shortcuts retain the engine/browser's selection behavior.
+  ArrowDown on a node-selected final block or the gap cursor after it (including
+  after an Equation Apply) moves to a paragraph below, using the same destination.
   ArrowDown on the last line of a final table
   row, list, quote, admonition or caption moves to a paragraph after it. A click in
   the empty area below the document puts the caret at the end of a final

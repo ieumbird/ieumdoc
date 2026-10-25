@@ -235,6 +235,61 @@ async (page, { openDocument }) => {
   assert(semantic(await doc()) === beforeBreak, 'A heading with a line break must not be pasted');
   assert((await page.locator('body').innerText()).includes('unsupported structure or formatting'), 'A refused heading line break needs a visible reason');
 
-  // Read-only source is never replaced by a lossy cut, including ordinary Markdown images.
-  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true};
+  // #436: use the authoring UI at the document end, without repairing focus or selection after Apply.
+  const continuation = [];
+  const continuationState = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
+    const {state, view} = el.editor;
+    const {selection} = state;
+    return {focus: view.hasFocus(),
+      selection: selection.toJSON(), parent: selection.$from.parent.type.name, end: state.doc.content.size,
+      tail: state.doc.content.content.slice(-2).map(node => node.toJSON())};
+  });
+  for (const mode of ['Enter', 'ArrowDown', 'Control+End', 'typing', 'composition', 'selected Enter', 'selected ArrowDown', 'selected Control+End']) {
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.view.focus());
+    await end();
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('/Equation');
+    await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
+    const latex = `x_{${continuation.length}}`;
+    await page.getByTestId('equation-latex').fill(latex);
+    await page.getByTestId('equation-apply').click();
+    const applied = await continuationState();
+    if (mode.startsWith('selected ')) await page.locator('[data-document-tab][data-active=true] [data-testid="equation-preview"]').last().click();
+    const beforeKey = await continuationState();
+    const key = mode.replace('selected ', '');
+    if (!['typing', 'composition'].includes(key)) await page.keyboard.press(key);
+    const navigated = await continuationState();
+    const text = key === 'composition' ? '한글' : `Continue ${mode}`;
+    if (key === 'composition') {
+      const input = await page.context().newCDPSession(page);
+      try {
+        await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+        await input.send('Input.imeSetComposition', {text:'ㅎ', selectionStart:1, selectionEnd:1});
+        await input.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+        await input.send('Input.insertText', {text});
+        await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+      } finally { await input.detach(); }
+    } else await page.keyboard.type(text);
+    const typed = await continuationState();
+    continuation.push({mode, latex, text, applied, beforeKey, navigated, typed,
+      passed: applied.focus && applied.tail.at(-1)?.type === 'equation' &&
+        applied.selection.type === 'gapcursor' && applied.selection.pos === applied.end &&
+        (!mode.startsWith('selected ') || beforeKey.selection.type === 'node') &&
+        (['typing', 'composition'].includes(key) || (navigated.focus && navigated.parent === 'paragraph' && navigated.selection.type === 'text')) &&
+        typed.focus && typed.parent === 'paragraph' && typed.tail[0]?.type === 'equation' &&
+        typed.tail[0]?.attrs.latex === latex && typed.tail[1]?.type === 'paragraph' &&
+        typed.tail[1]?.content?.map(node => node.text ?? '').join('') === text});
+  }
+  assert(continuation.every(item => item.passed), `Final Equation continuation: ${JSON.stringify(continuation)}`);
+  await save();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
+  const continued = (await doc()).content;
+  for (const {latex, text} of continuation) {
+    const index = continued.findIndex(node => node.type === 'equation' && node.attrs.latex === latex);
+    assert(index >= 0 && continued[index + 1]?.content?.map(node => node.text ?? '').join('') === text,
+      `Final Equation and following input must survive Save/Reload: ${text}`);
+  }
+  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
 }
