@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Caption-label verification: 2026-10-26 (#462 Core template rule, CLI inspect, cross-reference browser immediate update, Undo/Redo, Source and Save → Reload).
 - CLI asset verification: 2026-10-15 (#289 document-relative image-file/stat warnings, directory/junction and stat-failure regressions, Host path parity and dry-run result checks; source CLI and targeted tests).
 - CLI insertion verification: 2026-10-15 (#280 `--at end` before endnotes; Core/CLI tests).
 - Property-focus verification: 2026-10-15 (#275 actual Apply click/Enter/Cancel/Escape reproduction, shared safe caret restoration, unchanged-caption caret/typing and formatted Save/Reload browser regressions).
@@ -16,6 +17,13 @@ Verification covers Core canonical round-trip and fail-closed cases, CLI writes 
 ## Persistent meaning
 
 A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none` or `image`. Existing `imageUrl` and `imageAlt` fields remain available. Unsupported content, including Mermaid and subfigures, rejects native admission.
+
+The computed caption number follows the document's authored Figure reference template,
+with the existing `. ` separator; absent a template, `Figure N. ` stays unchanged.
+Block metadata and numbered properties accessible names use the same Core display text.
+See [Caption number labels](heading-numbering-v1.md#caption-number-labels-462) for the
+intentional MyST difference, spaces, history and CLI inspect contract. Labels are never
+written into caption Markdown.
 
 A pending Figure has no image. Its caption and label are optional: an empty Figure, with no image, caption or label, is a valid place reserved for content to come. Alt text requires an image. An image Figure may have neither caption nor label. Supported captions use the existing InlineContent contract. Connecting or removing an image updates the same container and preserves the label and caption. Removing an image with alt text requires clearing the alt text too.
 

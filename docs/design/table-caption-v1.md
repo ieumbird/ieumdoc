@@ -1,6 +1,7 @@
 # Table caption and label v1
 
 - Status: Implemented
+- Caption-label verification: 2026-10-26 (#462 Core template rule, CLI inspect, cross-reference browser immediate update, Undo/Redo, Source and Save → Reload).
 - CLI insertion verification: 2026-10-15 (#280 caption/label in one write, label-only table, invalid/duplicate label refusal and rich batch caption; Core/CLI tests).
 - Last verified: 2026-10-17 (UX review: Edit moved to the table's action bar; table-authoring and property-drafts browser checks).
 - Previous verification: 2026-10-11 (contract compared with current code and regression coverage; caption inline math and reference display, #165).
@@ -9,6 +10,13 @@
 Issue #94. Core owns `updateTableCaption` and table `updateLabel`. Plain tables become MyST `{table}` directives when caption or label is present, and return to plain Markdown when both are removed. Canonical writing uses the existing Markdown writer for the caption and GFM grid, then verifies the complete semantic round-trip. Cell paths remain logical `[block,row,column]` regardless of the directive wrapper.
 
 Editor uses the existing single document state and shared properties panel. Hover a table and choose Edit (the pencil in its action bar below the table, beside Table actions, which also offers Edit caption and label); Caption and Label apply together. Cancel keeps the applied table, and pending form changes participate in the existing unsaved-state guard. Caption and label make a numbered Table target, including `{numref}` insertion and click navigation. Caption edits reset snapshot numbering defaults so removing both properties immediately removes the number. Grid children and row positions are unchanged.
+
+The caption stays below the table. Its computed number follows the document's authored
+Table reference template, retaining the existing `. ` separator; without a template,
+`Table N. ` stays unchanged. Metadata and numbered properties accessible names share Core's
+display text. [Caption number labels](heading-numbering-v1.md#caption-number-labels-462)
+defines the intentional MyST difference, spaces, Undo/Redo, Save/Reload and CLI inspect.
+The generated label is never written into caption Markdown.
 
 Changing an existing non-empty label also retargets its same-document references through the shared
 [Core-backed label rename](section-references-v1.md#editor) (#374). Caption/label and reference changes

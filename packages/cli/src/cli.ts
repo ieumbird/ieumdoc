@@ -60,6 +60,7 @@ import {
   updateHeadingNumbering,
   updateReferenceTemplates,
   referenceNumberText,
+  captionNumberText,
   type NumberedKind,
   type ReferenceTemplateUpdate,
   updateBibliography,
@@ -1490,6 +1491,8 @@ function machineNodes(document: EditableDocument): MachineNode[] {
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
+      ...((block.block === "figure" || block.block === "table") && numbers[index][block.block] !== undefined
+        ? { captionNumberText: captionNumberText(block.block, numbers[index][block.block]!, document.referenceTemplates) } : {}),
       ...("label" in block && block.label && numbers[index][block.block as NumberedKind] !== undefined
         ? { referenceText: referenceNumberText(block.block as NumberedKind, numbers[index][block.block as NumberedKind]!, document.referenceTemplates) } : {}),
 

@@ -154,3 +154,10 @@ export function referenceTemplatesError(value: unknown, allowReset = false): str
 export function referenceNumberText(kind: NumberedKind, number: number, templates?: ReferenceTemplates | null): string {
   return (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).replace(/%s|\{number\}|\{subEnumerator\}/g, String(number));
 }
+
+/** Caption number text before its separator: authored reference templates, otherwise legacy spaces. */
+export function captionNumberText(kind: "figure" | "table", number: number, templates?: ReferenceTemplates | null): string {
+  return templates?.[kind] === undefined
+    ? `${kind === "figure" ? "Figure" : "Table"} ${number}`
+    : referenceNumberText(kind, number, templates);
+}
