@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { memo, useCallback, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
-import type { Editor } from "@tiptap/core";
+import type { Editor, EditorEvents } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
 import { endnoteLabel } from "./endnotes.ts";
@@ -75,6 +75,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     };
     let pointer: { x: number; y: number } | null = null;
     let typing = false;
+    let handlingKey = false;
     let scrollFrame: number | null = null;
     // The block row includes its gutter controls; selection never supplies a hover extent.
     const updateHovered = (rects?: DOMRect[]) => {
@@ -93,6 +94,9 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     const leave = () => { pointer = null; setHovered(-1); };
     // Keep gutter controls independent; only real pointer movement restores the neutral outline.
     const input = () => { typing = true; setHovered(-1); };
+    // Bracket ProseMirror's keydown listener on this same element, including stopped bubbling.
+    const keydown = () => { handlingKey = true; };
+    const keydownEnd = () => { handlingKey = false; };
     const scroll = () => {
       if (!pointer || drag.current || scrollFrame !== null) return;
       scrollFrame = requestAnimationFrame(() => {
@@ -130,7 +134,8 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
       }) ? previous : next);
       updateHovered(rects);
     };
-    const transaction = () => {
+    const transaction = (event?: EditorEvents["transaction"]) => {
+      if (handlingKey && event?.transaction.docChanged) input();
       update();
       setActive(editor.state.selection.$from.index(0));
     };
@@ -178,6 +183,8 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     resize.observe(editor.view.dom);
     host.addEventListener("mousemove", hover);
     editor.view.dom.addEventListener("beforeinput", input, true);
+    editor.view.dom.addEventListener("keydown", keydown, true);
+    editor.view.dom.addEventListener("keydown", keydownEnd);
     editor.view.dom.addEventListener("compositionstart", input, true);
     host.addEventListener("mouseleave", leave);
     window.addEventListener("blur", leave);
@@ -192,6 +199,8 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
       resize.disconnect();
       host.removeEventListener("mousemove", hover);
       editor.view.dom.removeEventListener("beforeinput", input, true);
+      editor.view.dom.removeEventListener("keydown", keydown, true);
+      editor.view.dom.removeEventListener("keydown", keydownEnd);
       editor.view.dom.removeEventListener("compositionstart", input, true);
       host.removeEventListener("mouseleave", leave);
       window.removeEventListener("blur", leave);

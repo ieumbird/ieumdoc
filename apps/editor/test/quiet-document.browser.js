@@ -209,9 +209,23 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     check(await extent.isVisible(), 'Real pointer movement did not restore the hover outline');
     await page.keyboard.press('Control+z');
     check(await json() === initial, 'Typing probe did not undo to the original document');
-    results.push({typingHover:{hiddenAfterTyping,hiddenAfterLayout},radii});
-    check(hiddenAfterTyping && hiddenAfterLayout && radii.every(r => r.matches),
-      `Typing/outline regression: ${JSON.stringify({hiddenAfterTyping,hiddenAfterLayout,radii})}`);
+    const keyboardChanges = [];
+    for (const key of ['Enter','Shift+Enter']) {
+      await hoverParagraph.click(); await page.keyboard.press('End');
+      await equation.hover(); await extent.waitFor();
+      // Pure navigation is not input; it may leave the existing hover outline visible.
+      await page.keyboard.press('ArrowLeft');
+      check(await extent.isVisible(), 'Navigation unexpectedly hid the hover outline');
+      await page.keyboard.press(key);
+      const changed = await json() !== initial;
+      const hidden = !await extent.isVisible();
+      keyboardChanges.push({key,changed,hidden});
+      await page.keyboard.press('Control+z');
+      check(await json() === initial, `${key}: undo did not restore the document`);
+    }
+    results.push({typingHover:{hiddenAfterTyping,hiddenAfterLayout},keyboardChanges,radii});
+    check(hiddenAfterTyping && hiddenAfterLayout && keyboardChanges.every(k => k.changed && k.hidden) && radii.every(r => r.matches),
+      `Typing/outline regression: ${JSON.stringify({hiddenAfterTyping,hiddenAfterLayout,keyboardChanges,radii})}`);
     results.push({hoverStyle, hoverTextShift:0, gutterHoverRetainsExtent:true, adjacentGaps,
       pointerIndependentOfSelection:true, topLevelCellExtent:true});
     return hoverStyle;

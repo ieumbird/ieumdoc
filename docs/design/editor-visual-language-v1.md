@@ -75,7 +75,7 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | Axis | Expression |
 | --- | --- |
 | Rest | No paragraph input box, persistent Edit button or block extent outline. Gutter tools are hidden except the first `+` in an empty editable document; its drag handle stays hidden. No invisible pointer targets. Figure/Equation/Table authoring metadata is hidden, inert text positioned in the gap above its block, so it takes no space at rest and showing it moves nothing; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
-| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) hides only this neutral outline until the next real pointer movement; selection, transactions, scrolling and resizing alone do not restore it. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
+| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) and document-changing keydown commands hide only this neutral outline until the next real pointer movement; selection, transactions, scrolling and resizing alone do not restore it. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Selected | Block selection outline and visible Edit access; selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain their blue role and existing offset alongside the expanded neutral hover outline. Their outer corner radius matches the hover outline: the element radius is the shared hover radius minus the existing outline offset. Typing hides no selection/editing outline. |
 | Editing | Form and editing outline persist independently of selection. |
@@ -149,8 +149,12 @@ IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new 
 
 ### Typing and outline verification #469
 
-Only the neutral pointer-hover outline is suppressed on document `beforeinput` and IME
-composition start. Gutter controls keep their active/menu rules; typed-block Edit and authoring
+Only the neutral pointer-hover outline is suppressed on document `beforeinput`, IME
+composition start and document-changing keydown commands. Capture and bubble listeners on
+the editor element bracket ProseMirror keymaps; a `docChanged` transaction during keydown
+suppresses the outline without enumerating keys (Enter, Shift+Enter, boundary deletion and
+indentation). Selection-only navigation does not trigger suppression. Gutter controls keep
+their active/menu rules; typed-block Edit and authoring
 metadata retain their CSS hover/focus/selection rules. Selection and editing outlines, drag
 feedback and `(hover: none)` keep their existing behavior. This is Editor interaction only;
 Core/CLI semantics and document layout are unchanged.
