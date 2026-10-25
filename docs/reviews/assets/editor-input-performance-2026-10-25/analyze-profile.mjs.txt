@@ -91,9 +91,9 @@ function analyze(capture) {
     const rows = map => [...map].sort((a, b) => b[1] - a[1]).map(([name, ms]) => ({ name, ms: round(ms), percent: round(ms / windowMs * 100) }));
     return {
       windowMs: round(windowMs), sampleMs: round(sampleMs), uncoveredMs: round(windowMs - sampleMs),
-      namedInclusive: rows(named), self: rows(self).slice(0, 20), inclusive: rows(inclusive).slice(0, 40),
+      namedInclusive: rows(named), self: rows(self).slice(0, 10), inclusive: rows(inclusive).slice(0, 10),
       mainThreadTraceMs: Object.fromEntries(['Layout', 'UpdateLayoutTree', 'PrePaint', 'Paint', 'HitTest'].map(name => [name, round(traceMs.get(name) ?? 0)])),
-      mainThreadTraceTop: rows(traceMs).slice(0, 15),
+      mainThreadTraceTop: rows(traceMs).slice(0, 5),
       reactMountMarkers: events.filter(event => event.name === 'Mount' && event.ph === 'b' && selectedWindows.some(window => event.ts >= window.start && event.ts < window.end)).length,
     };
   }
@@ -102,7 +102,8 @@ function analyze(capture) {
     negativeTimeDeltas: profile.timeDeltas.filter(delta => delta < 0).length,
     windows, aggregate: summarize(windows), perKey: windows.map(window => {
       const { self, inclusive, mainThreadTraceTop, ...summary } = summarize([window]);
-      return { key: window.key, ...summary };
+      // Per-key rows keep sampled named paths only; the aggregate keeps every predicate.
+      return { key: window.key, ...summary, namedInclusive: summary.namedInclusive.filter(row => row.ms > 0) };
     }),
   };
 }
@@ -112,7 +113,9 @@ const result = {
   input,
   captures: (Array.isArray(captures) ? captures : [captures]).map(analyze),
 };
-writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
+// One line per row keeps the derived summary reviewable; the raw profile retains full stacks.
+const text = JSON.stringify(result, null, 2).replace(/\{\n\s+([^{}[\]]*?)\n\s+\}/g, (_, body) => `{ ${body.split(/,\n\s+/).join(', ')} }`);
+writeFileSync(output, text + '\n');
 for (const capture of result.captures) {
   console.log(JSON.stringify({ kind: capture.kind, keyFrameMs: capture.keyFrameMs, windowMs: capture.aggregate.windowMs, sampleMs: capture.aggregate.sampleMs, namedInclusive: capture.aggregate.namedInclusive, mainThreadTraceMs: capture.aggregate.mainThreadTraceMs, reactMountMarkers: capture.aggregate.reactMountMarkers }, null, 2));
 }

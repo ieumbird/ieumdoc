@@ -123,7 +123,10 @@ Trace totals may nest and must not be added to sampled CPU costs as independent 
 [before derived summary](assets/editor-input-performance-2026-10-25/before-profile-summary.json),
 [after raw CPU/timeline](assets/editor-input-performance-2026-10-25/after-profile.json.gz) and
 [after derived summary](assets/editor-input-performance-2026-10-25/after-profile-summary.json)
-retain per-key evidence as well as aggregates.
+retain per-key evidence as well as aggregates. The summaries are compact analyzer output
+(every named path for the four-key aggregate, the ten largest self and inclusive frames, the five largest
+trace events, and sampled named paths per key); rerunning the analyzer on the raw profiles
+reproduces them exactly.
 
 ## Environment, method and limits
 
