@@ -347,6 +347,7 @@ restrictions. The center must be opened while editor content itself has focus; f
 property controls (including their buttons), popovers, node-view controls and other shell
 controls cannot use a retained body selection to insert. Code, Source and non-caret
 selections cannot insert.
+Known limitation ([#416](https://github.com/ieumbird/ieumdoc/issues/416)): the engine may not yet have read a selection made within a few tens of milliseconds of the shortcut.
 The center releases modal focus before opening the form. Escape returns to the same editor
 caret without a document/history change; Apply uses the existing insertion function, returns
 editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
