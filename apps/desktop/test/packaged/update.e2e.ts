@@ -162,10 +162,14 @@ test("installs per user, then updates from Settings only after the open document
     mkdirSync(appData, { recursive: true });
     writeFileSync(canary, "Preserve existing user data.\n");
 
-    let app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
+    let app = await electron.launch({ executablePath: exe, args: ["--lang=en-US", documentFile], timeout: 60_000 });
     let page = await app.firstWindow();
     page.on("dialog", () => {});
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached", timeout: 30_000 });
+    // Public beta.4 uses "Ready"; current builds use the stable lowercase operation ID.
+    await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached", timeout: 30_000 });
+    // The installer relaunches without arguments. Persist the test's language for that launch too;
+    // public beta.4 is English-only, but shares this origin/profile with the updated app.
+    await page.evaluate(() => localStorage.setItem("ieumdoc.uiLanguage", "en"));
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
@@ -188,10 +192,10 @@ test("installs per user, then updates from Settings only after the open document
     const versionAfterQuit = powershell(`(Get-Item -LiteralPath '${exe.replaceAll("'", "''")}').VersionInfo.FileVersion`);
     assert.equal(versionAfterQuit, OLD, "normal quit did not update the installed app");
     writePreferences(preferencesFile, prefs);
-    app = await electron.launch({ executablePath: exe, args: [documentFile], timeout: 60_000 });
+    app = await electron.launch({ executablePath: exe, args: ["--lang=en-US", documentFile], timeout: 60_000 });
     page = await app.firstWindow();
     page.on("dialog", () => {});
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
+    await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
     await page.getByRole("button", { name: "Check for updates" }).click();
@@ -224,7 +228,7 @@ test("installs per user, then updates from Settings only after the open document
     await page.getByTestId("update-problem").waitFor();
     assert.match(await page.getByTestId("update-problem").innerText(), /could not confirm that your work is saved/);
     await page.reload();
-    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
+    await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
 
     // Unsaved work refuses the restart and stays.
     await page.getByText("Alpha.", { exact: true }).click();
