@@ -125,6 +125,27 @@ async (page, { openPath, screenshots }) => {
   await open(wrappingPath);
   await showSource();
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const renderedNumbers = async () => {
+    const session = await page.context().newCDPSession(page);
+    try {
+      const {root} = await session.send('DOM.getDocument');
+      const {nodeId} = await session.send('DOM.querySelector', {nodeId:root.nodeId,
+        selector:'[data-document-tab][data-active=true] [data-testid="source-view"] pre'});
+      const {node:pre} = await session.send('DOM.describeNode', {nodeId, depth:1});
+      const {documents, strings} = await session.send('DOMSnapshot.captureSnapshot', {computedStyles:[]});
+      const {nodes, layout} = documents[0];
+      const pseudos = new Set(nodes.pseudoType.index);
+      // Computed CSS returns counter(...); the layout snapshot contains the actual painted digits.
+      // Each direct element is one SourceLines line, in document order (including blank lines).
+      return pre.children.filter(line => line.nodeType === 1).map(line => {
+        const lineIndex = nodes.backendNodeId.indexOf(line.backendNodeId);
+        return layout.nodeIndex.flatMap((index, position) => {
+          const text = strings[layout.text[position]];
+          return pseudos.has(index) && nodes.parentIndex[index] === lineIndex && text ? [text] : [];
+        });
+      });
+    } finally { await session.detach(); }
+  };
   const wrapping = [];
   for (const width of [1440, 375]) {
     await page.setViewportSize({width, height:900});
@@ -151,16 +172,18 @@ async (page, { openPath, screenshots }) => {
             rows.set(top, Math.min(rows.get(top) ?? Infinity, rect.left));
           }
           const starts = [...rows.values()];
-          return {rows:rows.size, aligned:starts.every(left => Math.abs(left - starts[0]) <= 1),
-            numbered:getComputedStyle(line, '::before').content !== 'none'};
+          return {rows:rows.size, aligned:starts.every(left => Math.abs(left - starts[0]) <= 1)};
         }),
         dpr:devicePixelRatio, scale:visualViewport.scale, zoom:getComputedStyle(document.documentElement).zoom,
       };
     });
-    wrapping.push({width, ...geometry});
+    const numbers = await renderedNumbers();
+    wrapping.push({width, ...geometry, numbers});
+    result[`sourceLineNumbersConsecutive${width}`] = numbers.length === wrappingSource.trimEnd().split('\n').length &&
+      numbers.every((labels, index) => labels.length === 1 && labels[0] === String(index + 1));
     result[`sourceFits${width}`] = geometry.scrollWidth <= geometry.clientWidth && geometry.pageScrollWidth <= geometry.pageWidth;
     result[`wrappedLinesKeepNumberAndTextAxis${width}`] = geometry.lineCount === wrappingSource.trimEnd().split('\n').length &&
-      geometry.longLines.length === 2 && geometry.longLines.every(line => line.rows > 1 && line.aligned && line.numbered);
+      geometry.longLines.length === 2 && geometry.longLines.every(line => line.rows > 1 && line.aligned);
     result[`wrappingPreservesSource${width}`] = await sourceText() === wrappingSource;
     if (screenshots) await page.screenshot({path:`tmp/source-wrap-captures/wrapping-${width}.png`});
     const selected = await sourceView.locator('pre').evaluate(pre => {
