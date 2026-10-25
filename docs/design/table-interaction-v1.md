@@ -1,7 +1,8 @@
 # Table interaction v1
 
 - Status: Implemented
-- Last verified: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
+- Last verified: 2026-10-25 (#430 last-cell Tab, including integration with #431/#433: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 281/281, typecheck/build).
+- Previous verification: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
 - Previous verification: 2026-10-08 (contract compared with table commands and regression coverage).
 - Related: [Continuous editing](document-editing-v1.md), [Table caption and label](table-caption-v1.md).
 
@@ -10,6 +11,7 @@
 - Row/column handles address a specific row/column independently of caret focus. The first row remains the header; the last column cannot be deleted.
 - Menus offer existing add, move, delete and column alignment commands. Table actions include caption/label editing and explicitly named table deletion.
 - Keep the native engine caret, history and Tab navigation. One structural action is one undo step; after adding, focus moves into the new cell.
+- Tab in the last cell of an editable table appends a row and focuses its first cell using the same Add row below command and Core Save path. Shift+Tab in the first cell still enters preceding prose; Enter and final-row ArrowDown still leave the table. Tab does not act during IME composition or add rows in read-only tables.
 - Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices.
 - Excluded: multiple-cell selection, merging, formulas, resizing and new document semantics. Unsupported cells reject native admission.
 - Completion: pointer and keyboard operation; fixed header/last-column restrictions; focus-safe menu targets; Undo/Redo; Save/Reload with content, alignment, captions and labels retained; narrow-layout geometry.

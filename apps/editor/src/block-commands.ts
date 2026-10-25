@@ -97,7 +97,7 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     get label() { return i18n.t("Quote"); },
     get group() { return i18n.t("Blocks"); },
     hint: ">",
-    keywords: ["quote", "blockquote", "citation"],
+    keywords: ["quote", "blockquote"],
     run: insertQuoteAfter,
   },
   {
@@ -305,6 +305,8 @@ export function blockCommandGroup(id: string): string {
 export function filterInsertCommands(query: string): InsertCommand[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return INSERT_COMMANDS.filter(command => !command.onlyWhenSearched);
+  // Reserve /인용 for Citation; /인용문 still finds Quote in either UI language.
+  if (needle === "인용") return [];
   return INSERT_COMMANDS.filter(command =>
     [command.label, command.id, ...command.keywords, ...(KOREAN_SEARCH[command.id] ?? [])].some(word => word.toLowerCase().startsWith(needle)));
 }

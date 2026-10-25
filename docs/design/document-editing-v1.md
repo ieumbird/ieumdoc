@@ -1,7 +1,9 @@
 # Continuous document editing v1
 
 - Status: Implemented
-- Last verified: 2026-10-25 (#429 document-end shortcuts: Editor 280/280, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
+- Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
+- Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
+- Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
 - Previous verification: 2026-10-24 (#387 atom boundary selection: Editor 273/273, typecheck/build, six browser scenarios including the 48-case keyboard matrix, visible selection, deletion, Undo/Redo and disk Save/Reload).
 - Previous verification: 2026-10-23 (source 7a214dcb lookup/handle/display-numbering changes: Editor 271/271, typecheck/build, eight browser regressions and actual 2000/5000-block input plus complete canonical Save/Reload; mixed 2000 input p95 111.7ms remains above 100ms; [evidence and limits](../reviews/editor-guard-performance-2026-10-23.md)).
 - Previous verification: 2026-10-23 (citation scope reconciled with the implemented units A–C [Citations contract](citations-v1.md); documentation comparison only).
@@ -18,6 +20,13 @@ Highlighting is display-only and keeps the existing lowlight common language set
 
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
+
+Whole-document selection followed by Backspace/Delete starts a separate ProseMirror history
+event, even immediately after a property Apply or insertion. One Undo restores the exact
+pre-delete document, including Figure image path, alt text, caption, labels and references;
+it does not also undo the preceding Apply. Asset files are retained through deletion/Undo.
+This is an Editor keyboard/history boundary using the engine's deletion and `closeHistory`,
+not a new semantic operation, so no Core or CLI command is added (#427).
 
 The structure guard uses one path lookup for its fixed opening snapshot; document-local
 groups preserve first appearance and split-part order. Every document-changing transaction
@@ -56,9 +65,13 @@ A changed document recomputes numbering; source semantics and canonical output a
   Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
   H1 keep the heading and focus unchanged. A text selection still uses Tab to
   reach its formatting toolbar; table, list and code Tab behavior is unchanged.
-- Tab/Shift+Tab move between table cells;
-  leaving the first/last cell enters surrounding prose (creating a paragraph at
-  a document edge). Enter leaves a table, a Figure caption or a simple admonition.
+- Tab/Shift+Tab move between table cells. Tab in the last cell of an editable
+  table adds a row below it and moves the caret to the new row's first cell,
+  through the same command, session locators and Core Save operation as Add row
+  below. The row addition is one Undo step. Shift+Tab in the first cell enters
+  preceding prose (creating a paragraph at a document edge). Read-only tables
+  retain the existing navigation without adding a row; Tab does not act during
+  IME composition. Enter leaves a table, a Figure caption or a simple admonition.
 - The document end stays reachable. Control+End (Command+End or Command+ArrowDown
   on macOS) uses the same destination as the click below the document: the end of
   a final paragraph, or a new empty paragraph after any other final block.

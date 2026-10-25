@@ -440,6 +440,26 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   const initial = current ?? preferred ?? options[0];
   const [value, setValue] = useState(initial ? referenceCommandId(initial) : "");
   const bounds = useOverlayBounds<HTMLFormElement>();
+  useEffect(() => {
+    if (!visible) return;
+    // An empty target list has no autofocus control. Dismiss independently of focus/blur,
+    // including clicks on non-focusable surfaces, without taking focus from the clicked target.
+    const outside = (event: PointerEvent) => {
+      if (!bounds.current?.contains(event.target as globalThis.Node)) (onDismiss ?? onClose)();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("keydown", escape, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("keydown", escape, true);
+    };
+  }, [visible, onDismiss, onClose, bounds]);
   const apply = () => {
     const target = referenceOfCommand(value);
     if (target && !("heading" in target)) onApply(target);
@@ -457,11 +477,6 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
       onSubmit={(event) => {
         event.preventDefault();
         apply();
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        onClose();
       }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) (onDismiss ?? onClose)();

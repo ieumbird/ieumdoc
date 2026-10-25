@@ -296,6 +296,45 @@ async (page, { openPath, reloadDocument }) => {
     await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus()) &&
     await page.getByTestId('status').innerText() === status;
 
+  // Last-cell Tab reuses row authoring, including its history boundary and Save mapping.
+  const beforeTab = await grid(tables.last());
+  await tables.last().locator('td').last().click();
+  await page.waitForFunction(() => {
+    const {$from} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
+    return $from.parent.type.name === 'tableCell' && $from.index(1) === $from.node(1).childCount - 1 &&
+      $from.index(2) === $from.node(2).childCount - 1;
+  });
+  await page.keyboard.press('Tab');
+  result.lastTabAddsRow = (await grid(tables.last())).length === beforeTab.length + 1;
+  if (!result.lastTabAddsRow) throw new Error('Last-cell Tab must add a table row');
+  result.lastTabFocus = await page.evaluate(() => {
+    const {view, state} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    const {$from} = state.selection;
+    return view.hasFocus() && $from.parent.type.name === 'tableCell' &&
+      $from.index(1) === $from.node(1).childCount - 1 && $from.index(2) === 0;
+  });
+  await page.keyboard.type('Tab row');
+  result.lastTabTyping = JSON.stringify((await grid(tables.last())).at(-1)) === JSON.stringify(['Tab row', '', '']);
+  await page.keyboard.press('Control+z');
+  result.lastTabOneUndo = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeTab);
+  await page.keyboard.press('Control+Shift+z');
+  const afterTab = await grid(tables.last());
+  result.lastTabRedo = JSON.stringify(afterTab) === JSON.stringify([...beforeTab, ['Tab row', '', '']]);
+  result.lastTabSave = await save();
+  result.lastTabWritten = (await read()).includes('| Tab row |');
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  result.lastTabReload = JSON.stringify(await grid(tables.last())) === JSON.stringify(afterTab);
+  await tables.first().locator('th').first().click();
+  await caretIn('Port');
+  await page.keyboard.press('Shift+Tab');
+  result.firstShiftTabLeavesTable = await page.evaluate(() =>
+    document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.type.name !== 'tableCell');
+  await tables.last().locator('td', {hasText:/^Tab row$/}).click();
+  await caretIn('Tab row');
+  await page.keyboard.press('Enter');
+  result.enterLeavesTable = await caret() === 'paragraph 5/5' && JSON.stringify(await grid(tables.last())) === JSON.stringify(afterTab);
+
   page.off('console', onConsole);
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Table authoring failed: ${JSON.stringify({result, file: await read()})}`);
