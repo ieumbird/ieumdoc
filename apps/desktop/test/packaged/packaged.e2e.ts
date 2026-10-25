@@ -43,7 +43,7 @@ function documentFolder(name: string): { folder: string; file: string } {
 }
 
 async function launch(userData: string, args: string[] = []): Promise<{ app: ElectronApplication; page: Page; requests: string[] }> {
-  const app = await electron.launch({ executablePath: exe, args: [`--user-data-dir=${userData}`, ...args], timeout: 60_000 });
+  const app = await electron.launch({ executablePath: exe, args: ["--lang=en-US", `--user-data-dir=${userData}`, ...args], timeout: 60_000 });
   const page = await app.firstWindow();
   // The app, not Playwright, answers beforeunload (will-prevent-unload); a listener stops Playwright's auto-dismiss.
   page.on("dialog", () => {});
@@ -399,7 +399,7 @@ test("started directly, the app opens no TCP port; start time and memory are mea
   const userData = profile("direct");
   const log = path.join(userData, "logs", "desktop.log");
   const started = Date.now();
-  const child = spawn(exe, [`--user-data-dir=${userData}`], { stdio: "ignore" });
+  const child = spawn(exe, ["--lang=en-US", `--user-data-dir=${userData}`], { stdio: "ignore" });
   try {
     while (!(existsSync(log) && readFileSync(log, "utf8").includes("window shown"))) {
       if (Date.now() - started > 30_000) throw new Error("The window did not show within 30 seconds");

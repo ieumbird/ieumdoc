@@ -51,6 +51,8 @@ HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filte
 
 ## Windows Desktop regression
 
+Packaged 테스트의 모든 직접 실행은 `--lang=en-US`로 Chromium UI 언어를 고정하여 OS 언어와 무관하게 영어 UI를 검증한다(#449). 이 인자는 `.md`가 아니므로 Desktop의 문서 인자 처리에서 무시된다. 업데이트 테스트는 설치기가 인자 없이 재실행해도 영어를 유지하도록 테스트 소유 profile의 `ieumdoc.uiLanguage`도 `en`으로 저장한다. 공개 beta.4는 영어 전용이며, 해당 바이너리의 `Ready`와 현재 `ready` 상태 속성은 대소문자를 무시하여 기다린다.
+
 Windows x64에서 아래 명령 중 변경 영역의 tests/typecheck·browser 회귀를 선택한다. 패키징·설치/업데이트·배포 경계 변경 시 관련 `test:update`·`package`·release 자산 검증·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows Desktop CI에 맡긴다. `package`와 아래 tests는 공개 Release를 만들지 않는다.
 
 ```bash
