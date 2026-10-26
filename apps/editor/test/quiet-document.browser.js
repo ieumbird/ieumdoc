@@ -60,6 +60,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     results.push({label,...result});
   };
   // #506: measure actual glyph lines, not just the declared word-break property.
+  // Typography isolation includes the docked Outline, now available from 1424px.
+  await page.setViewportSize({width:1440,height:1000});
   await open('korean-wrap.md');
   // Code/math keep their contextual rules; document preferences must not reach UI or Source.
   const wrapping = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(host => {
@@ -504,7 +506,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
         await shot(`1440-${kind}-selected-hover`);
       });
     }
-    for(const width of [1440,1024,768,705,704,414,375]) {
+    for(const width of [1440,1424,1423,1280,1279,1024,768,705,704,414,375]) {
       await page.setViewportSize({width,height:1000});
       await rest();
       await shot(`${width}-rest`);
