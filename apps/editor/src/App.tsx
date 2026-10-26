@@ -49,7 +49,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
-const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
+const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
 // At phone widths the sidebar is either closed, leaving the document the whole width (the TopBar
 // opens it), or open over the whole screen; it never leaves the document a sliver of width (#321).
 const SIDEBAR_OVERLAY_LAYOUT = "(width < 40rem)";
@@ -81,6 +81,12 @@ export function App() {
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
+  // Only explicit docked choices survive layout changes; overlays always start closed.
+  const dockedPanelOpen = useRef<boolean | undefined>(undefined);
+  const choosePanelOpen = (open: boolean) => {
+    if (!panelOverlay) dockedPanelOpen.current = open;
+    setPanelOpen(open);
+  };
   const outlineToggle = useRef<HTMLButtonElement>(null);
   const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
@@ -358,12 +364,12 @@ export function App() {
     return () => observer.disconnect();
   }, []);
 
-  // Crossing the docking width starts the panel in that layout's default.
+  // Entering overlay closes it; returning to docked restores the explicit choice or default.
   useEffect(() => {
     const query = matchMedia(PANEL_OVERLAY_LAYOUT);
     const change = () => {
       setPanelOverlay(query.matches);
-      setPanelOpen(!query.matches);
+      setPanelOpen(query.matches ? false : dockedPanelOpen.current ?? true);
     };
     query.addEventListener("change", change);
     return () => query.removeEventListener("change", change);
@@ -677,7 +683,7 @@ export function App() {
     { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
       keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
     { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
-      keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); setPanelOpen(value => !value); } },
+      keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
       run: () => { sidebarFocus.current = sidebarOverlay && sidebarOpen ? "top-bar" : "sidebar"; setSidebarOpen(value => !value); } },
@@ -779,7 +785,7 @@ export function App() {
             onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
             outline={panelOpen}
-            onToggleOutline={() => setPanelOpen((value) => !value)}
+            onToggleOutline={() => choosePanelOpen(!panelOpen)}
             outlineToggleRef={outlineToggle}
           />
           {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
@@ -829,7 +835,7 @@ export function App() {
           outline={document ? outlineStore : undefined}
           onSelectHeading={item => session?.revealHeading(item)}
           onClose={() => {
-            setPanelOpen(false);
+            choosePanelOpen(false);
             // The panel's own controls go away; its toggle keeps the focus.
             outlineToggle.current?.focus();
           }}

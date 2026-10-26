@@ -431,7 +431,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // Commands may hide their invoking control. Hand focus to the toggle that survives.
   await page.setViewportSize({width:1440,height:900});
   const panel = page.getByTestId('document-panel');
-  if (!await panel.isVisible()) await page.getByRole('button',{name:'Outline',exact:true}).click();
+  // No explicit Outline choice yet: wait for the wide-layout default to commit.
+  // An immediate isVisible + toggle can close it as the matchMedia handler opens it.
+  await panel.waitFor();
   await panel.getByRole('button',{name:'Hide outline',exact:true}).focus();
   await run('hide outline');
   await panel.waitFor({state:'detached'});
