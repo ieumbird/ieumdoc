@@ -1,4 +1,4 @@
-import { createContext, useContext, useId, useRef, useState, type CSSProperties } from "react";
+import { createContext, useContext, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import type { BibliographyEntry, BibliographyEvaluation } from "@ieumdoc/core";
 import { Node, type Editor } from "@tiptap/core";
@@ -192,6 +192,12 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
   const [keys, setKeys] = useState<string[]>(current?.keys ?? []);
   const [draft, setDraft] = useState("");
   const [listOpen, setListOpen] = useState(true);
+  const comboboxActions = useRef<Combobox.Root.Actions>(null);
+  useLayoutEffect(() => {
+    // This inline list has no exit animation. Complete closing now, so reopening
+    // cannot discard the arrow key during Base UI's ending transition.
+    if (!listOpen) comboboxActions.current?.unmount();
+  }, [listOpen]);
   const composing = useRef(false);
   const [error, setError] = useMessageState("");
   const bounds = useOverlayBounds<HTMLFormElement>();
@@ -252,7 +258,7 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
         </li>)}
       </ol> : null}
       <label className="form-label" htmlFor={`${id}-key`}>{i18n.t("Citation key")}</label>
-      <Combobox.Root<BibliographyEntry> inline open={listOpen} onOpenChange={setListOpen}
+      <Combobox.Root<BibliographyEntry> inline open={listOpen} onOpenChange={setListOpen} actionsRef={comboboxActions}
         items={choices} filteredItems={choices} value={null} inputValue={draft}
         itemToStringLabel={entry => entry.key} isItemEqualToValue={(a, b) => a.key === b.key}
         onInputValueChange={(value, details) => {

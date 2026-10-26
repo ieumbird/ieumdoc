@@ -6,7 +6,11 @@ async page => {
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = loaded.path.includes('\\') ? '\\' : '/';
   const root = loaded.path.split(sep).slice(0, -4).join(sep);
-  const folder = [root, 'tmp', 'new-document'].join(sep);
+  let folder = [root, 'tmp', 'new-document'].join(sep);
+  // Start with the same Host start response used by Desktop, then exercise real folder/file APIs.
+  await page.route(/\/api\/document$/, route => route.request().method() === 'GET'
+    ? route.fulfill({json:{start:true}}) : route.continue());
+  folder = [folder, 'entry-location'].join(sep);
   const file = [folder, 'new-document.md'].join(sep);
   const check = (value, message) => { if (!value) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -27,11 +31,37 @@ async page => {
 
   await page.reload();
   await ready();
-  await page.getByRole('button', {name:'Open folder…', exact:true}).click();
-  await page.getByTestId('folder-path').fill(folder);
-  await page.getByTestId('folder-open').click();
+  const startNew = page.getByTestId('document-start').getByRole('button', {name:'New document', exact:true});
+  await startNew.click();
+  await page.getByTestId('folder-path').waitFor();
+  await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
-  await create.click();
+  check(await startNew.evaluate(node => node === document.activeElement), 'Cancelled location did not return to New document');
+  check(await page.getByTestId('folder').count() === 0 && await page.getByRole('tab').count() === 0,
+    'Cancelled location opened a folder or document');
+  const filesNew = page.getByTestId('sidebar').getByRole('button', {name:'New document',exact:true});
+  await filesNew.click();
+  await page.getByTestId('folder-path').waitFor();
+  await page.getByRole('dialog').getByRole('button', {name:'Cancel',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await filesNew.evaluate(node => node === document.activeElement), 'Files New lost focus after cancelling location');
+  await startNew.click();
+  await page.getByTestId('folder-path').fill(folder.split(sep).slice(0,-1).join(sep) + sep);
+  const picker = page.getByRole('dialog');
+  await picker.getByRole('button', {name:'New folder', exact:true}).click();
+  await page.getByTestId('new-folder-name').fill('entry-location');
+  await page.getByTestId('new-folder-name').press('Enter');
+  await page.waitForFunction(folder => document.querySelector('[data-testid="folder-path"]').value.replace(/[\\/]+$/, '') === folder, folder);
+  await page.getByTestId('folder-open').click();
+  await page.getByRole('dialog', {name:'New document',exact:true}).waitFor();
+  check(await page.getByTestId('new-file-directory').inputValue() === folder &&
+    await page.getByTestId('folder').getAttribute('data-root') === folder, 'Chosen folder was not the New destination/sidebar root');
+  check(await page.getByTestId('new-file-name').evaluate(node => node === document.activeElement), 'Folder-to-New handoff lost filename focus');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  check(await startNew.evaluate(node => node === document.activeElement), 'Cancelled filename did not return to start New');
+  // The Files text entry now uses the opened folder without asking for a location again.
+  await page.getByTestId('sidebar').getByRole('button', {name:'New document',exact:true}).click();
   await page.getByTestId('new-file-name').fill('new-document');
   await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -156,13 +186,17 @@ async page => {
   await editor.locator('p').last().click();
   await page.keyboard.press('End'); await page.keyboard.type(' Kept across New.');
   const diskBeforeNew = (await read()).source;
-  await create.click();
+  await page.keyboard.press('Control+Slash');
+  await page.getByRole('combobox', {name:'Search documents and commands'}).fill('> 새 문서');
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog', {name:'Command center',exact:true}).waitFor({state:'detached'});
   const newName = page.getByTestId('new-file-name');
   await newName.waitFor();
   await newName.and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
   check(await newName.evaluate(el => el === document.activeElement), 'New did not focus the filename');
+  check(await page.getByTestId('new-file-directory').inputValue() === folder, 'New command did not default to the current document folder');
   await newName.fill('second-document');
-  await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create',exact:true}).click();
+  await page.getByRole('dialog', {name:'New document'}).getByRole('button', {name:'Create',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
   check((await page.getByTestId('current-file').getAttribute('title')).endsWith('second-document.md') && await focused(), 'New did not create/focus its tab');
   // Add a title must reuse the empty starting block, so Enter leaves only one writing paragraph (#437).

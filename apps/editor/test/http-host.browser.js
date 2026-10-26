@@ -116,8 +116,8 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   await folderB.getByRole('treeitem', {name:'created', exact:true}).waitFor();
   await folderB.getByRole('button', {name:'New file in folder', exact:true}).click();
   await page.getByTestId('new-file-name').fill('fresh');
-  await page.getByRole('dialog', {name:'New Markdown file'}).getByRole('button', {name:'Create', exact:true}).click();
-  await ready(); await page.getByRole('dialog', {name:'New Markdown file'}).waitFor({state:'detached'});
+  await page.getByRole('dialog', {name:'New document'}).getByRole('button', {name:'Create', exact:true}).click();
+  await ready(); await page.getByRole('dialog', {name:'New document'}).waitFor({state:'detached'});
   await editor.click(); await page.keyboard.type('Created over HTTP.');
   // Paste a genuine PNG file through the existing asset/insert path, without clipboard permissions.
   await editor.evaluate(async element => {

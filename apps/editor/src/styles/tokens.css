@@ -104,9 +104,9 @@
   /* Gap above Figure and table captions. */
   --space-document-caption: var(--space-2);
   /* Document table text size. */
-  --font-size-document-table: 0.875rem;
+  --font-size-document-table: 0.9375rem;
   /* Document table line spacing. */
-  --line-height-document-table: 1.25rem;
+  --line-height-document-table: 1.375rem;
   /* Vertical padding inside document table cells. */
   --space-document-table-cell-block: var(--space-2);
   /* Horizontal padding inside document table cells. */

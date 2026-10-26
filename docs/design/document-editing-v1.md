@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Code-language verification: 2026-10-26 (#499/#527: shared language menu, free text, Chromium composition commit/cancel and language/body Undo/Redo, exact disk Save/Reload; [evidence and limits](#code-language-input-verification-499527)).
 - Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
 - Selection-race scope: 2026-10-26 (#489: citation-form focus, closing Reload focus and empty-title pointer selection. The separate table selection investigation is #502. Per-scenario evidence and the #421/#416 boundary are recorded in the [test guide](../test/README.md#focus-and-selection-race-investigation-489)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
@@ -22,6 +23,21 @@
 ## Code highlighting
 
 Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.
+
+The code-language field has an adjacent language-menu button (#499). A short, curated list
+of common technical-document languages and Plain text is available by clicking the button
+or reaching it with Tab and pressing Enter/Space. The existing shared DropdownMenu owns
+arrow-key navigation, Enter selection, Escape dismissal and focus return. Unlisted names
+can still be typed directly into the field, and an empty language remains
+valid input; suggestions do not define the supported syntax-highlighting set. The field
+keeps its 28px shared Input geometry and the list uses existing overlay/selection tokens.
+Language edits use the existing Core operation; this Editor-only input interaction adds
+no Core semantics, storage format or CLI command.
+
+The field mirrors input locally before NodeView attributes update (#527). Composition
+updates remain local until commit, so React does not restore a stale attribute value into
+the browser's composing range. Engine-driven language changes (including Undo/Redo) still
+update the field. Code-body composition remains ProseMirror-owned.
 
 ## Continuous editing
 
@@ -347,6 +363,48 @@ command is added; pasting is an editor input interaction.
 Verification covers engine transactions, real clipboard and keyboard input,
 composition events, Undo/Redo across Save, and canonical Save/Reload preservation.
 Automated composition events exercise the browser input lifecycle, not an OS IME.
+
+### Code-language input verification (#499/#527)
+
+On baseline `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`, CDP updates `ㅎ` → `한글`
+and `Input.insertText(한글)` produced `ㅎ한글한글` in the language field. An independent
+native input outside the editor and the code body both produced `한글` once. Tracking
+the field's value setter identified React `restoreStateOfTarget` restoring the old
+NodeView attribute after each input event, followed by the new attribute during React's
+commit. Writing the old value destroyed the browser's composing range; the second update
+started another composition. This confirms the controlled NodeView field's fault under
+the automated lifecycle; it does not claim verification with a native Windows IME.
+
+The existing `code-highlighting` regression now checks keyboard menu selection and
+dismissal, custom/empty names, fence-name filtering, attribute/input Undo/Redo, each
+composition update immediately, commit/cancel, code-body composition and Undo/Redo,
+then exact canonical disk Save and Reload. The code body's existing behavior required
+no change. Editor tests (291/291), workspace typecheck, Editor build, `layout-rules`,
+`quiet-document`, `code-highlighting`, docs and whitespace checks passed locally.
+
+Queue follow-up (2026-10-27, run `40344185308`, with #560): the menu was visible before its
+frame-scheduled focus reached an item. The trace sent End less than 1ms after the visibility
+wait returned and then Enter about 2ms later; both keydowns targeted the trigger, which
+closed the menu without a language transaction. The regression now waits for the first
+item's actual focus, then the intended item's focus before confirmation, and checks both
+the input and engine language together after selection. No retry or timeout increase is
+used, and the composition-update assertions above remain immediate.
+Local probes on master `3a8be3ec509e9c647a913a3e631984fb75434065` integrated into this
+branch selected the language correctly with 50ms and 100ms key holds (three trials each).
+The corrected full `code-highlighting` scenario passed three consecutive runs with the
+same Windows persistent profile, without retries. The integrated Editor suite passed
+291/291; docs and whitespace checks passed. This is a test readiness correction; no
+product code was changed for the queue failure.
+
+Same-state manual captures: English, bundled Pretendard, Windows Chrome 155, DPR/zoom 1,
+900px height, scroll top, code language `js` focused, identical composed body text. The
+menu-only captures show the new disclosure after clicking it. These images do not assert
+native IME behavior. [Protocol, setter evidence, environment and hashes](assets/code-language-499/verification.json).
+
+| Width | Before | After | Language menu |
+| --- | --- | --- | --- |
+| 1440px | [PNG](assets/code-language-499/before-1440.png) | [PNG](assets/code-language-499/after-1440.png) | [PNG](assets/code-language-499/menu-1440.png) |
+| 390px | [PNG](assets/code-language-499/before-390.png) | [PNG](assets/code-language-499/after-390.png) | [PNG](assets/code-language-499/menu-390.png) |
 
 `atom-boundaries` (#387) exercises real Backspace/Delete across six adjacent block
 kinds and four caret block kinds. It checks the first key's selection/document,

@@ -27,6 +27,7 @@ import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
+import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
 import { CrossReference, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
@@ -1521,19 +1522,8 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
       data-block="code"
       data-source-path={String(node.attrs.sourcePath ?? "")}
     >
-      <Input
-        className="code-language"
-        data-testid="code-language"
-        aria-label={i18n.t("Code language")}
-        placeholder={i18n.t("Language")}
-        spellCheck={false}
-        autoComplete="off"
-        contentEditable={false}
-        readOnly={!editor.isEditable}
-        value={String(node.attrs.language ?? "")}
-        // A fence language is one word.
-        onChange={(event) => updateAttributes({ language: event.target.value.replace(/[\s`]/g, "") })}
-      />
+      <CodeLanguageInput language={String(node.attrs.language ?? "")} readOnly={!editor.isEditable}
+        onChange={(language) => updateAttributes({ language })} />
       <pre><NodeViewContent<"code"> as="code" /></pre>
     </NodeViewWrapper>
   );

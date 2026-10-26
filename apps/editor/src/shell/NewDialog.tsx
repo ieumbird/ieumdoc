@@ -10,9 +10,9 @@ export type NewDestination = { path: string; label: string };
 
 const TEXT = {
   file: {
-    get title() { return i18n.t("New Markdown file"); },
-    get description() { return i18n.t("Name your Markdown file. The .md extension is added if omitted."); },
-    get label() { return i18n.t("New Markdown file name"); },
+    get title() { return i18n.t("New document"); },
+    get description() { return i18n.t("Name your document. The .md extension is added if omitted."); },
+    get label() { return i18n.t("New document name"); },
     placeholder: "new-document.md",
     invalid: "Enter a file name without a directory path." as const,
   },
@@ -49,6 +49,7 @@ export function NewDialog({ kind = "file", open, busy, destinations, directory, 
   const [error, setError] = useMessageState("");
   const [pending, setPending] = useState(false);
   const created = useRef(false);
+  const nameField = useRef<HTMLInputElement>(null);
   const text = TEXT[kind];
   const disabled = busy || pending;
   const trimmed = name.trim();
@@ -65,7 +66,7 @@ export function NewDialog({ kind = "file", open, busy, destinations, directory, 
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent showCloseButton={false}
+      <DialogContent showCloseButton={false} initialFocus={nameField}
         finalFocus={() => created.current && createdFocusTarget ? createdFocusTarget() ?? true : returnFocus?.current ?? true}>
         <form
           className="grid gap-3"
@@ -112,6 +113,7 @@ export function NewDialog({ kind = "file", open, busy, destinations, directory, 
           <label className="form-field">
             <span>{i18n.t("Name")}</span>
             <Input
+              ref={nameField}
               id={`new-${kind}-name`}
               data-testid={`new-${kind}-name`}
               aria-label={text.label}

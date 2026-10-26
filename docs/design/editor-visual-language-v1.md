@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Type-scale verification: 2026-10-27 ([#558](https://github.com/ieumbird/ieumdoc/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
 - Accent verification: 2026-10-27 (#559: six local accent presets, shared interaction/selection/number colors and neutral information states; [contract and contrast results](#single-accent-presets-559)).
 - Table handle verification: 2026-10-26 (#517: B2 transparent-rest line handles with S4 neutral current/open states, accessible address names/tooltips, keyboard discovery and touch fallback; [verification and actual Before/After](table-interaction-v1.md#light-handle-verification-and-comparison)).
 - Last verified: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
@@ -42,6 +43,10 @@
 [Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus, selection and generated heading/Outline numbers share one chosen accent and its derivatives (#559); danger and warning retain their state meanings. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
 ## Shared controls and palette (B1 / C1, #514)
+
+The code-language field retains its shared 28px Input and adds a compact ghost disclosure
+inside the same footprint (#499). Its language list reuses the shared DropdownMenu rows,
+overlay and focus rules; [behavior and 1440/390px evidence](document-editing-v1.md#code-language-input-verification-499527).
 
 B1 uses the existing Button/Input and product tokens: standard actions and fields are
 32px (`--size-control`), compact actions/fields 28px (`--size-control-compact`), with
@@ -128,11 +133,14 @@ The shared Settings language selector follows the existing 32px input/control si
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
-| Caption / table | UI stack, 14/20px; caption gap 8px; cells 8px × 12px, 112px minimum width, light visible grid |
-| Callout | UI stack, 14/21px; a 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds; plain variant title |
+| Caption | UI stack, 14/20px; caption gap 8px |
+| Table | UI stack, 15/22px; cells 8px × 12px, 112px minimum width, light visible grid |
+| Callout | Body uses document stack and body size/line spacing (17/28.9px); variant title keeps UI stack, 14/21px and semibold weight. A 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds |
 | Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Each definition is one supported paragraph edited in place; unsupported definitions reject native admission. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
 | Figure / Equation | Transparent at rest; authoring metadata takes no space, hidden at rest and shown on hover/focus/selection/editing at 12/16px in the gap above the block, right-aligned and clear of the hover outline; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
+
+The owner decision in [#558](https://github.com/ieumbird/ieumdoc/issues/558) treats callout content as body prose and raises table content to 15/22px while retaining its UI font for dense columns. Captions remain secondary information at 14/20px; H5/H6 retain their existing sizes. Callout bodies consume the existing document font, size and line-height tokens; table size and line height use the existing document-table tokens. Cell padding, minimum width, grid and table tool reservations are unchanged; reservation design belongs to [#518](https://github.com/ieumbird/ieumdoc/issues/518). This changes presentation only, so no Core operation or CLI surface is needed.
 
 Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. The Editor pins the official `pretendard` package to `1.3.9` and imports its variable dynamic-subset CSS. Vite resolves the relative WOFF2 URLs into app-hosted assets. All upstream subsets remain available for newly entered text; only needed ranges are requested. The upstream `font-display: swap` and weight range are retained, so a system fallback can appear while a font loads or for unsupported characters. No CSS size adjustment or new typography dimensions are introduced. UI and document text use Pretendard's `cv08` variant (capital I with serifs, `--font-feature-sans`), so the product name never reads as "leumDoc" and a capital I stays distinct from l in technical text; KaTeX and code fonts are unaffected.
 
@@ -1013,7 +1021,9 @@ uses that same explicit Apply/Cancel form. See [Continuous editing](document-edi
 Same-state Before/After from `pnpm browser:test quiet-document --screenshots`, using the
 same checkout, Vite origin `127.0.0.1:5358`, persistent Chrome profile, English UI,
 bundled Pretendard, DPR/zoom 1, and the runner's unchanged scroll/selection/viewport setup.
-Before uses master `c3f7153162a6b80ee7a0d795a2bb02cd46a94e58`; After uses this PR.
+Before uses master `c3f7153162a6b80ee7a0d795a2bb02cd46a94e58`; After uses feature commit
+`134558c1aa99c544c3944da59986cf2f5581e9f0`, before integrating newer master typography
+and code-language changes. This pair isolates the #557 property-form change.
 Figure viewport is 768×1000; inline math is 704×650 after the same resize/scroll steps.
 The smaller Figure form retains its body caption, and inline math gains the common explicit
 Cancel/Apply surface. Layout/quiet-document assertions remain automatic; these selected

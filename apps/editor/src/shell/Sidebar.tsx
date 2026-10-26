@@ -18,6 +18,7 @@ type SidebarProps = {
   onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
+  onNewDocument?(returnFocus: HTMLElement): void;
   /** Recently opened folders, offered without an opened folder so one click lists one again. */
   recent?: string[];
   onOpenRecent?(folder: string): void;
@@ -39,7 +40,7 @@ type SidebarProps = {
 
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
-  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, onNewFolder,
+  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings, display,
 }: SidebarProps) {
   useTranslation();
@@ -94,6 +95,9 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: tool switches and collapse retain scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open || tool !== "files"}>
+        {onNewDocument ? <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
+          onClick={event => onNewDocument(event.currentTarget)}>
+          <Plus aria-hidden="true" />{i18n.t("New document")}</Button> : null}
         {folders.length > 0 ? folders.map(tree => (
           <FolderTree
             key={tree.root}
