@@ -29,7 +29,11 @@ function blockReferences(block: ProseMirrorNode): readonly string[] {
   let labels = referencesOf.get(block);
   if (!labels) {
     const found: string[] = [];
-    block.descendants((node) => { if (node.type.name === "footnoteReference") found.push(String(node.attrs.label)); });
+    const visit = (node: ProseMirrorNode) => { if (node.type.name === "footnoteReference") found.push(String(node.attrs.label)); };
+    if (block.type.name === "table") {
+      if (block.lastChild?.type.name === "tableCaption") block.lastChild.descendants(visit);
+      block.forEach(row => { if (row.type.name === "tableRow") row.descendants(visit); });
+    } else block.descendants(visit);
     referencesOf.set(block, labels = found);
   }
   return labels;

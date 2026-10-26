@@ -12,7 +12,7 @@ import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core
 import { referenceNumberText, captionNumberText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
-import { toTiptapContent } from "./tiptap-inline.ts";
+import { tableCaption } from "./tiptap-edits.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
@@ -36,7 +36,7 @@ export function blockNumbers(doc: ProseMirrorNode): readonly Readonly<NumberedTa
   const existing = numbersOf.get(doc);
   if (existing) return existing;
   const blocks: NumberedTargets[] = [];
-  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.attrs.caption })));
+  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.type.name === "table" ? tableCaption(node.toJSON()) : undefined })));
   const numbers = targetNumbers(blocks);
   numbersOf.set(doc, numbers);
   return numbers;
@@ -191,12 +191,6 @@ export function referencesBrokenByDeletion(before: ProseMirrorNode, after: Prose
     }
   };
   after.descendants(visit);
-  // Table captions are Core inline content in attrs, rather than engine child nodes.
-  after.forEach(node => {
-    if (node.type.name === "table" && Array.isArray(node.attrs.caption)) {
-      after.type.schema.nodeFromJSON(toTiptapContent(node.attrs.caption)).descendants(visit);
-    }
-  });
   return broken;
 }
 
@@ -255,13 +249,13 @@ export function referenceCommandItems(doc: ProseMirrorNode, query: string): { id
   const matches = (words: string[]) => needle.length === 0 || ["reference", "ref", "참조", ...words].some((word) => word.toLowerCase().replace(/\s+/g, " ").startsWith(needle));
   const titleWords = (title: string) => [title, ...title.split(/\s+/)];
   // Captions are needed only by this menu, never by the per-chip resolution selectors.
-  // Figure captions are live inline children; table captions use the existing inline projection.
+  // Both caption kinds are live inline children.
   const captions = new Map<string, string>();
   doc.forEach((node) => {
     const label = String(node.attrs.label ?? "");
     if (!label || !["figure", "table"].includes(node.type.name)) return;
-    const content = node.type.name === "table" ? doc.type.schema.nodeFromJSON(toTiptapContent(node.attrs.caption ?? [])) : node;
-    const caption = content.textBetween(0, content.content.size, " ",
+    const content = node.type.name === "table" ? node.lastChild?.type.name === "tableCaption" ? node.lastChild : undefined : node;
+    const caption = content?.textBetween(0, content.content.size, " ",
       leaf => String(leaf.attrs.value ?? leaf.attrs.label ?? " ")).replace(/\s+/g, " ").trim();
     if (caption) captions.set(label, caption);
   });
@@ -315,7 +309,7 @@ export function insertReference(editor: Editor, range: { from: number; to: numbe
   const $to = state.doc.resolve(range.to);
   const parent = $from.parent;
   if (!$from.sameParent($to) || !(parent.type.name === "paragraph" ||
-      parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "admonition")) return false;
+      parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "tableCaption" || parent.type.name === "admonition")) return false;
   const marks = (range.from === range.to ? state.storedMarks ?? $from.marks() : $from.marksAcross($to) ?? [])
     .filter((mark) => mark.type.name !== "link");
   const tr = state.tr;

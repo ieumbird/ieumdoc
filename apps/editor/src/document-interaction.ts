@@ -14,7 +14,7 @@ import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
 
-const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
+const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "tableCaption", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
@@ -199,9 +199,25 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         "Mod-End": end,
         ...(isMacOS() ? { "Mod-ArrowDown": end } : {}),
         // Closed final blocks (including the gap after Apply) have no line below them either.
+        ArrowUp: () => {
+          const { view, state } = this.editor;
+          const { selection } = state;
+          const { $from } = selection;
+          if (!selection.empty || $from.parent.type.name !== "tableCaption" || !view.endOfTextblock("up")) return false;
+          const cell = TextSelection.findFrom(state.doc.resolve($from.before()), -1, true);
+          if (!cell) return false;
+          view.dispatch(state.tr.setSelection(cell).scrollIntoView()); return true;
+        },
         ArrowDown: () => {
           const { view } = this.editor;
           const { selection, doc } = view.state;
+          const { $from } = selection;
+          if (selection.empty && $from.parent.type.name === "tableCell" &&
+              $from.node(1).lastChild?.type.name === "tableCaption" &&
+              $from.index(1) === $from.node(1).childCount - 2 && view.endOfTextblock("down")) {
+            const caption = $from.after(2) + 1;
+            view.dispatch(view.state.tr.setSelection(TextSelection.create(doc, caption)).scrollIntoView()); return true;
+          }
           const finalBlock = selection.to === doc.content.size &&
             (selection instanceof GapCursor || selection instanceof NodeSelection && selection.node.isBlock);
           if (!finalBlock && !atNestedDocumentEnd(view)) return false;
@@ -251,7 +267,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           getAttrs: (element: HTMLElement) => {
             try { return JSON.parse(element.getAttribute("data-ieumdoc-attrs") ?? "{}"); } catch { return false; }
           },
-          ...(type === "table" ? { contentElement: "tbody" } : type === "figure" ? { contentElement: "figcaption" } : {}),
+          ...(type === "table" ? { contentElement: "table" } : type === "figure" ? { contentElement: "figcaption" } : {}),
         })),
         ...PMDOMParser.fromSchema(schema).rules,
       ]);
@@ -370,10 +386,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           if (event.clipboardData?.files.length && !isInternalClipboard(event.clipboardData.getData("text/html"))) return fail(`Add one ${ASSET_FORMATS} image at a time. Your selection and clipboard are kept.`);
           if (!slice.content.content.every(portable)) return fail({ key: "This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept." });
           const target = view.state.selection.$from.parent.type.name;
-          if (target === "heading" || target === "tableCell") {
+          if (target === "heading" || target === "tableCell" || target === "tableCaption") {
             let lineBreak = false;
             slice.content.descendants(node => { if (node.type.name === "hardBreak") lineBreak = true; });
-            if (lineBreak) return fail(`A ${target === "heading" ? "heading" : "table cell"} cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.`);
+            if (lineBreak) return fail(`A ${target === "heading" ? "heading" : target === "tableCaption" ? "table caption" : "table cell"} cannot contain line breaks. Paste into a paragraph to keep them. The clipboard and selection are kept.`);
           }
           const { selection } = view.state;
           const besideEquation = selection instanceof NodeSelection && selection.node.type.name === "equation";

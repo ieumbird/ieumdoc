@@ -35,6 +35,7 @@ export const STABLE_SCENARIOS = [
   "figure-draft-race",
   "table-cell-editing",
   "table-authoring",
+  "table-caption",
   "link-authoring",
   "inline-math-authoring",
   "inline-math-split",
@@ -94,7 +95,7 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["figure-authoring", "source-view", "cross-reference", "command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", "bibliography-connection", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+  if (screenshots && (requested.length !== 1 || !["table-caption", "figure-authoring", "source-view", "cross-reference", "command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", "bibliography-connection", ...HTTP_SCENARIOS].includes(requested[0]!))) {
     throw new Error("Use: pnpm browser:test figure-authoring|source-view|quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|bibliography-connection|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };

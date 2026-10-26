@@ -645,7 +645,7 @@ type TableCellShape = { header: boolean; content: InlineContent[]; align: string
 
 /** The cell grid of a table node; editable cells hold inline content without line breaks. */
 function tableCells(node: TiptapJSON): TableCellShape[][] {
-  return (node.content ?? []).map((row, rowIndex) => {
+  return (node.content ?? []).filter(row => row.type !== "tableCaption").map((row, rowIndex) => {
     if (row.type !== "tableRow") throw new Error(`unsupported Tiptap node ${describeType(row)} in table`);
     return (row.content ?? []).map((cell, column) => {
       try {
@@ -734,9 +734,12 @@ function equationLatex(node: TiptapJSON): string {
 }
 
 export function tableCaption(node: TiptapJSON): InlineContent[] {
-  const caption = node.attrs?.caption ?? [];
-  if (!Array.isArray(caption)) throw new Error("table caption must be InlineContent");
-  return fromTiptapContent(toTiptapContent(caption as InlineContent[]));
+  const children = node.content ?? [];
+  const captions = children.filter(child => child.type === "tableCaption");
+  if (captions.length > 1 || captions.length && children.at(-1) !== captions[0]) throw new Error("a table caption must follow its rows");
+  const caption = captions.length ? paragraphInline(captions[0]) : [];
+  if (hasBreak(caption)) throw new Error("a table caption cannot contain line breaks");
+  return caption;
 }
 
 /** A section label target always has a label; removing it removes the block. */
