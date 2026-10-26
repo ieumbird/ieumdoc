@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open/Close remembers the current tab's list, tree-only updates leave preferences intact; folder-memory browser regression; Host handlers unchanged).
 - Previous verification: 2026-10-24 (#367 review follow-up: user Open/Close wins over same-path restoration, unchanged path preferences are not rewritten; folder-memory browser regression; Host handlers unchanged).
@@ -216,8 +217,9 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | --- | --- |
 | Hierarchical tree UI | 지원. Sidebar가 펼친 folder들의 listing을 page state에 모아 tree로 그린다. |
 | Lazy one-level Host listing | 지원. folder를 펼칠 때 그 folder 하나만 위 API로 list한다. |
+| Explicit folder refresh (#494) | 기존 API로 열린 root와 도달 가능한 이미 로드된 하위 목록만 다시 읽는다. 접힌 캐시도 포함하며 미로드 폴더는 읽지 않는다. 펼침·문서·탭은 유지한다. Editor가 파일·폴더·asset을 생성하거나 asset을 rollback하면 이미 로드된 부모 목록만 다시 읽는다. Host 상태/API·watcher·주기 작업은 추가하지 않는다. |
 | Recursive scan | 지원하지 않음. Host도 Editor도 하위 folder를 미리 읽지 않는다. |
-| Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때만 반영된다. |
+| Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때, 또는 폴더 새로고침으로 반영된다 (#494). |
 | Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 복원 자체는 preference를 다시 쓰지 않는다. 성공한 명시적 사용자 Open/Close는 같은 목록이거나 다른 브라우저 탭이 preference를 바꿨어도 현재 탭의 열린 목록을 기억한다. 복원 중이면 모든 경로의 시도가 끝날 때까지 저장을 미룬다. 같은 Host 정규화 경로의 사용자 Open/Close는 늦은 복원 응답보다 우선한다. 하위 폴더 펼치기·접기·listing 갱신은 preference를 쓰지 않는다. 별도의 섹션 접힘 기억은 origin별 collapsed root 경로만 저장하며, 사용자 Open/Close·섹션 토글·명시적 reveal에서 현재 상태로 쓰고 복원만으로는 쓰지 않는다. Close로 지우며, 유효하지 않은 기록은 다음 사용자 쓰기에서 정리한다. 하위 펼침 상태와 Workspace 파일은 저장하지 않는다. |
 - 일반 directory와 모든 확장자의 일반 파일(확장자 없는 파일 포함)을 넣는다. `.md`는 document, 기존 MEDIA_TYPES의 PNG/JPEG/GIF/WebP/SVG는 image, 나머지는 file이다. 확장자는 대소문자를 구분하지 않는다. 폴더 먼저, 파일 종류와 무관하게 숫자를 인식한 이름순으로 정렬한다. `.`으로 시작하는 항목과 symlink(Windows junction 포함), 비정규 파일은 넣지 않는다. 재귀 scan은 하지 않는다.
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.

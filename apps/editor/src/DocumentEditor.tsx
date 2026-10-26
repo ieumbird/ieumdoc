@@ -101,6 +101,7 @@ type DocumentEditorProps = {
   onNotice?: (message: UiMessage, action?: () => void) => void;
   onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
+  onAssetChange?: (path: string) => void;
   onAssetError?: (reason: string) => void;
   /** Presentation only; reuse the existing document dirty comparison. */
   onDirtyChange?: (dirty: boolean) => void;
@@ -116,7 +117,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
+  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -181,7 +182,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [editorOptions] = useState<UseEditorOptions>(() => {
     const initialDeletedPaths: string[] = [];
     const extensions = createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError,
-      () => activeDrafts.current.size > 0, chooseImage, initialDeletedPaths);
+      () => activeDrafts.current.size > 0, chooseImage, initialDeletedPaths, onAssetChange);
     const restored = initialSnapshot && prepareEditorSnapshot(getSchema(extensions), projection, initialSnapshot);
     if (restored) {
       saved.current = restored.savedDocument;

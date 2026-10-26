@@ -12,7 +12,7 @@ type AssetHost = {
   create(file: File, documentPath: string): Promise<AssetResponse>;
   rollback(created: AssetResponse, documentPath: string): Promise<void>;
 };
-type Options = { documentPath: string; reject(reason: string): void; pending?(active: boolean): void; host?: AssetHost };
+type Options = { documentPath: string; reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost };
 
 const browserHost: AssetHost = {
   async create(file, documentPath) {
@@ -97,6 +97,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
       }
       options.reject(message);
     } finally {
+      if (created) options.changed?.(created.path);
       if (!destroyed) view.dispatch(view.state.tr.setMeta(key, null));
       uploading = false;
       options.pending?.(false);
