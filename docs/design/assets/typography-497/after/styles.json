@@ -1,0 +1,2258 @@
+[
+  {
+    "width": 1440,
+    "dpr": 1,
+    "zoom": 1,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "styles": [
+      {
+        "selector": ".document-editor",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .heading",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "34px",
+            "fontWeight": "700",
+            "lineHeight": "45.9px",
+            "marginTop": "0px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "34px",
+            "fontWeight": "700",
+            "lineHeight": "45.9px",
+            "marginTop": "0px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "20px",
+            "fontWeight": "700",
+            "lineHeight": "27px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "18px",
+            "fontWeight": "700",
+            "lineHeight": "24.3px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "700",
+            "lineHeight": "21.6px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "700",
+            "lineHeight": "18.9px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .paragraph",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .list",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .quote",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "16px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "3px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .admonition",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .code-block pre",
+        "nodes": [
+          {
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "1px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor :not(pre)>code",
+        "nodes": [
+          {
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "fontSize": "15.3px",
+            "fontWeight": "400",
+            "lineHeight": "26.01px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "4px",
+            "paddingRight": "4px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .caption",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .table",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .table td",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .equation",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor [data-footnote-definition]",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "24px",
+            "marginBottom": "8px",
+            "paddingTop": "37px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "8px",
+            "marginBottom": "24px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".footnote-definition",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".sidebar-tree-item",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "24px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "36px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-outline-item",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "24px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "36px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "width": 375,
+    "dpr": 1,
+    "zoom": 1,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "styles": [
+      {
+        "selector": ".document-editor",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .heading",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "34px",
+            "fontWeight": "700",
+            "lineHeight": "45.9px",
+            "marginTop": "0px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "34px",
+            "fontWeight": "700",
+            "lineHeight": "45.9px",
+            "marginTop": "0px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "24px",
+            "fontWeight": "700",
+            "lineHeight": "32.4px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "20px",
+            "fontWeight": "700",
+            "lineHeight": "27px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "18px",
+            "fontWeight": "700",
+            "lineHeight": "24.3px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "700",
+            "lineHeight": "21.6px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "700",
+            "lineHeight": "18.9px",
+            "marginTop": "32px",
+            "marginBottom": "12px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .paragraph",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .list",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .quote",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "16px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "3px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .admonition",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "3px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .code-block pre",
+        "nodes": [
+          {
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "21px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "12px",
+            "paddingBottom": "12px",
+            "paddingLeft": "16px",
+            "paddingRight": "16px",
+            "borderLeftWidth": "1px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor :not(pre)>code",
+        "nodes": [
+          {
+            "fontFamily": "Consolas, \"Courier New\", monospace",
+            "fontSize": "15.3px",
+            "fontWeight": "400",
+            "lineHeight": "26.01px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "4px",
+            "paddingRight": "4px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .caption",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "8px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .table",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .table td",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "1px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor .equation",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "28.9px",
+            "marginTop": "16px",
+            "marginBottom": "16px",
+            "paddingTop": "8px",
+            "paddingBottom": "8px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-editor [data-footnote-definition]",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "24px",
+            "marginBottom": "8px",
+            "paddingTop": "37px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "8px",
+            "marginBottom": "24px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "0px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".footnote-definition",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "16px",
+            "fontWeight": "400",
+            "lineHeight": "24px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "0px",
+            "paddingBottom": "0px",
+            "paddingLeft": "24px",
+            "paddingRight": "0px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".sidebar-tree-item",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "24px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "36px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      },
+      {
+        "selector": ".document-outline-item",
+        "nodes": [
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "12px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "24px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "36px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          },
+          {
+            "fontFamily": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "lineHeight": "20px",
+            "marginTop": "0px",
+            "marginBottom": "0px",
+            "paddingTop": "4px",
+            "paddingBottom": "4px",
+            "paddingLeft": "48px",
+            "paddingRight": "12px",
+            "borderLeftWidth": "0px"
+          }
+        ]
+      }
+    ]
+  }
+]
