@@ -140,9 +140,6 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "empty equation LaTeX cannot be saved");
           }
           if (insert.block === "figure") assertFigureContent(insert);
-          if (insert.block === "table" && insert.rows.flat().every(content => inlineText(content).length === 0)) {
-            throw saveError(node, "empty table cannot be saved");
-          }
           if (insert.block === "list" && hasEmptyListItem(insert.list)) {
             throw saveError(node, EMPTY_LIST_ITEM, "Enter text or remove the item.");
           }

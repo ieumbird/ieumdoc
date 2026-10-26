@@ -144,14 +144,22 @@ docs/whitespace, and `table-caption`, `table-authoring`, `cross-reference`, `lay
 failure state showed the correct `Table 2` after counting the preceding uncaptioned table.
 Updated expectations retain exact source/grid assertions. The added caption-clear/Undo
 checks read the official caption and reference number immediately, without polling.
-The separate #588 empty-table Editor Save restriction remains untouched.
+After integrating master `0e1e30d` (PR #589 / #588), the Editor's new-empty-table Save
+permission is retained. The merged table-authoring checks also verify that a completely
+empty inserted table is saved as a directive, retains its grid on Reload and receives
+`Table 1`, while the following table remains `Table 2`. Repeated Save is byte-identical.
+The removal of Editor/Host empty-table refusals belongs to #588; this work adds only the
+canonical-format and number assertions to that coverage.
+Post-merge checks: Editor targets 110/110, `table-authoring` and `table-caption` browser
+scenarios, workspace typecheck, Editor build and docs/whitespace all passed.
 
 Manual captures compare baseline `586a9b61ac1d06dd0708466faead6717396bb74e` with this
 change through `pnpm browser:test table-caption --screenshots`. Both use the same scratch
 document, open tabs, preferences, scroll, loaded fonts, DPR 1 and 100% zoom on the same
 checkout-owned Windows Chrome profile and Vite origin `http://127.0.0.1:5384`.
 The narrow surface retains the number and input hint without horizontal overflow.
-BadPasswordAttempts was 1 before the first browser launch and 3 thereafter.
+BadPasswordAttempts was 1 before the first browser launch and 3 during the initial checks;
+the later post-merge browser checks started and ended at 0.
 No local Edge or packaged Desktop run; platform coverage belongs to CI.
 
 | Viewport | Before | After |

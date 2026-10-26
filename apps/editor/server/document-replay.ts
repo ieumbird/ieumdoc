@@ -389,9 +389,7 @@ export function saveEdits(
         return;
       }
       if (insert.block === "table") {
-        if (!Array.isArray(insert.rows) || insert.rows.flat().every(content => inlineText(content) === "")) {
-          throw new SaveContentError("empty table cannot be saved", undefined, { action: "Enter content in the table or delete this table." });
-        }
+        // Core validates table structure, including tables with entirely empty cells.
         return;
       }
       if (insert.block === "quote") {

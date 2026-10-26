@@ -290,15 +290,12 @@ captures retain readable text and an unclipped action. No CSS or layout tokens c
 Core accepts a structurally valid table whose cells are all empty, including canonical
 serialization and reparse. Empty cell content alone does not make a document invalid.
 
-The Editor currently treats a newly inserted table whose cells all have empty inline text as
-unfinished session content: Save reports `empty table cannot be saved` until a cell contains
-text or the table is deleted. The table is not silently omitted. Caption or label alone does
-not satisfy this cell-content check. This check applies to insertion relative to the opening
-snapshot; clearing every cell of an existing opening-snapshot table uses normal Core cell/shape
-edits and can be saved, retaining the empty table. A table that has just been saved still has
-its insertion locator until Reload, so clearing it before Reload still meets the insertion check.
+The Editor saves newly inserted and existing tables by the same rule, even when every cell is
+empty, with or without a caption or label (#588). An empty table is authored structure and is
+never silently omitted as a session placeholder. Save followed by Reload retains its rows,
+columns, caption and label. Clearing cells after Save also remains saveable before Reload.
 
-These are the current implementation boundaries, not a permanent product decision to make
-empty tables invalid. Evidence: [Core table tests](../../packages/core/test/table.test.ts),
+Verified on 2026-10-27 with Editor insertion/Save/reopen tests and the table-authoring browser
+Save/Reload regression. Evidence: [Core table tests](../../packages/core/test/table.test.ts),
 [Editor insertion tests](../../apps/editor/test/table-authoring.test.ts) and the insertion versus
 existing-table branches of [Save collection](../../apps/editor/src/tiptap-edits.ts).

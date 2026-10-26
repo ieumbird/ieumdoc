@@ -125,8 +125,37 @@ test("a new table has a header row and two body rows of three columns, and saves
   assert.deepEqual(cellOf(state), { row: 0, column: 0 });
   assert.equal(state.selection.$from.index(0), 1);
 
-  // An empty table is not saved, like an empty paragraph.
-  assert.throws(() => collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON), /empty table cannot be saved/);
+  // Empty tables are authored structure, with or without caption/Label metadata.
+  const empty = state.doc.toJSON() as TiptapJSON;
+  for (const caption of [[], text("Template")]) {
+    for (const label of ["", "tbl-template"]) {
+      const next = structuredClone(empty);
+      const table = next.content![1];
+      table.attrs = { ...table.attrs, label };
+      table.content!.find(node => node.type === "tableCaption")!.content = caption.length ? [{ type: "text", text: "Template" }] : [];
+      const saved = saveEdits(mixed, collectSupportedEdits(document, next));
+      assert.equal(saved.markdown.match(/:::\{table\}/g)?.length, 2,
+        "Both the empty inserted table and existing GFM table use canonical directives");
+      const reopened = editorState(saved.markdown);
+      assert.deepEqual(grid(reopened.state), [["", "", ""], ["", "", ""], ["", "", ""]]);
+      const block = reopened.document.blocks[1];
+      assert.ok(block.block === "table");
+      assert.deepEqual(block.caption ?? [], caption);
+      assert.equal(block.label ?? "", label);
+      // The same empty structure follows the existing-table path after Reload.
+      assert.equal(saveEdits(saved.markdown, collectSupportedEdits(reopened.document, reopened.state.doc.toJSON() as TiptapJSON)).markdown, saved.markdown);
+      // Save filled cells, then clear them while the table still has its insertion locator.
+      const filled = structuredClone(next);
+      filled.content![1].content![0].content![0].content = [{ type: "text", text: "Draft" }];
+      const filledSaved = saveEdits(mixed, collectSupportedEdits(document, filled));
+      assert.equal(saveEdits(mixed, collectSupportedEdits(document, next)).markdown, saved.markdown);
+      // Clearing an opening-snapshot cell must produce the same persisted table.
+      const openedFilled = editorState(filledSaved.markdown);
+      const cleared = openedFilled.state.doc.toJSON() as TiptapJSON;
+      cleared.content![1].content![0].content![0].content = [];
+      assert.equal(saveEdits(filledSaved.markdown, collectSupportedEdits(openedFilled.document, cleared)).markdown, saved.markdown);
+    }
+  }
   state = apply(state, state.tr.insertText("Port"));
   state = apply(state, caretIn(state, 1, 0, 1).tr.insertText("U"));
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
