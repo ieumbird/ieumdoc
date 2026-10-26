@@ -9,7 +9,7 @@ import { DOMParser as PMDOMParser, DOMSerializer, Fragment, Slice, type Node as 
 import { AllSelection, NodeSelection, Plugin, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ASSET_FORMATS } from "../shared/asset-policy.ts";
-import { addTableRowBelow, changeHeadingLevel } from "./block-commands.ts";
+import { addTableRowBelow, changeHeadingLevel, TABLE_DELETE_META } from "./block-commands.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
@@ -151,6 +151,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       };
       const join = (backward: boolean) => {
         const { state, commands } = this.editor;
+        if (state.selection instanceof NodeSelection && state.selection.node.type.name === "table") {
+          this.editor.view.dispatch(closeHistory(state.tr).deleteSelection().setMeta(TABLE_DELETE_META, true).scrollIntoView());
+          return true;
+        }
         // Whole-document deletion must not merge with a just-applied property edit or insertion.
         // Use the engine's deletion and history boundary so one Undo restores the exact document.
         if (state.selection instanceof AllSelection) {

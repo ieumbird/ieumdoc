@@ -46,6 +46,7 @@ export type BlockCommand = {
 
 /** Structural transactions carrying this meta come from an explicit block command. */
 export const BLOCK_COMMAND_META = "blockCommand";
+export const TABLE_DELETE_META = "tableDeleted";
 
 export const INSERT_COMMANDS: InsertCommand[] = [
   {
@@ -878,6 +879,7 @@ export function deleteBlock(state: EditorState, index: number): Transaction {
   for (let i = 0; i < index; i++) pos += state.doc.child(i).nodeSize;
   // The structure guard declares the snapshot blocks removed by this command.
   const tr = closeHistory(state.tr).delete(pos, pos + state.doc.child(index).nodeSize);
+  if (state.doc.child(index).type.name === "table") tr.setMeta(TABLE_DELETE_META, true);
   tr.setSelection(Selection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size))));
   return tr.setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }

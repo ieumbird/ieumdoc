@@ -12,6 +12,7 @@ export type UpdateNotice = { text: string; action: string; onAction(): void; onL
 type MessageAreaProps = {
   error: string;
   notice: string;
+  noticeAction?: (() => void) | null;
   /** Standing condition of the open document (e.g. it cannot be saved); not dismissible. */
   warning?: string;
   draftNotice?: string;
@@ -27,13 +28,13 @@ type MessageAreaProps = {
  * Warnings stay while their condition holds; errors stay until dismissed or resolved;
  * notices expire.
  */
-export function MessageArea({ error, notice, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(onNoticeExpired, NOTICE_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [notice]);
+  }, [notice, noticeAction]);
   if (!error && !notice && !warning && !draftNotice && !documentNotice && !update) return null;
   return (
     <div className="message-area" data-testid="message-area">
@@ -62,6 +63,7 @@ export function MessageArea({ error, notice, warning = "", draftNotice = "", doc
       {notice ? (
         <Notice className="message" data-testid="notice">
           <span className="message-text">{notice}</span>
+          {noticeAction ? <span className="message-actions"><Button variant="ghost" size="sm" onClick={noticeAction}>{i18n.t("Undo")}</Button></span> : null}
         </Notice>
       ) : null}
     </div>
