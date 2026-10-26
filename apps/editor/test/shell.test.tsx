@@ -23,7 +23,7 @@ import { ACCENT_COLORS, ACCENT_COLOR_KEY, readAccentColor, writeAccentColor, rea
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
-import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, UNDO_SHORTCUT, REDO_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, PROPERTY_APPLY_SHORTCUT, SAVE_SHORTCUT, UNDO_SHORTCUT, REDO_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
 import { KeyboardShortcutGroups, keyboardShortcutGroups } from "../src/shell/KeyboardShortcutsDialog.tsx";
 import { SelectionToolbar } from "../src/SelectionToolbar.tsx";
 import { extensions, flattenExtensions, getExtensionField, type Editor } from "@tiptap/core";
@@ -49,7 +49,7 @@ test("displayed shortcuts match existing bindings on Windows and macOS", () => {
       Object.defineProperty(globalThis, "navigator", {configurable:true, value:{platform:mac ? "MacIntel" : "Win32", userAgent:"test"}});
       const registered = registeredBindings();
       // Shell handlers use these shared definitions outside the engine keymap.
-      for (const shortcut of [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT]) registered.add(normalizeBinding(shortcut.binding));
+      for (const shortcut of [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT, PROPERTY_APPLY_SHORTCUT]) registered.add(normalizeBinding(shortcut.binding));
       for (const group of keyboardShortcutGroups()) for (const entry of group.entries) for (const shortcut of entry.shortcuts) {
         assert.equal(shortcut.label, shortcutLabel(shortcut.binding, mac));
         assert.ok(registered.has(normalizeBinding(shortcut.binding)), `Unregistered ${mac ? "macOS" : "Windows"} guide binding: ${shortcut.binding}`);
@@ -62,7 +62,7 @@ test("displayed shortcuts match existing bindings on Windows and macOS", () => {
 
 test("the guide retains the curated IeumDoc editing commands", () => {
   const labels = new Set(keyboardShortcutGroups().flatMap(group => group.entries.map(entry => entry.label)));
-  for (const label of ["Command center", "Save", "Undo", "Redo", "New block", "Line break",
+  for (const label of ["Command center", "Save", "Undo", "Redo", "New block", "Apply properties", "Line break",
     "Heading level / list indent", "Bullet list", "Numbered list", "Code block", "Go to document end",
     "Bold", "Italic", "Strikethrough", "Inline code", "Link", "Subscript", "Superscript", "Next / previous cell"] as const) {
     assert.ok(labels.has(label), `Missing curated command: ${label}`);
@@ -106,6 +106,19 @@ test("shortcut guide and formatting tooltips display shared labels for existing 
   assert.equal(shortcutLabel(EDITOR_SHORTCUTS.undo.binding, false), "Ctrl+Z");
   assert.equal(shortcutLabel(EDITOR_SHORTCUTS.redoAlternative.binding, true), "⌘Shift+Z");
   assert.equal(shortcutLabel("Mod-'", true), "⌘'");
+});
+
+test("property Apply uses the platform modifier and excludes composition and extra modifiers", () => {
+  for (const mac of [false, true]) {
+    const key = (overrides: Partial<KeyboardEvent>) => ({ key: "Enter", ctrlKey: !mac, metaKey: mac,
+      shiftKey: false, altKey: false, isComposing: false, ...overrides }) as KeyboardEvent;
+    assert.equal(PROPERTY_APPLY_SHORTCUT.matches(key({}), mac), true);
+    for (const overrides of [{isComposing:true}, {shiftKey:true}, {altKey:true}, {ctrlKey:mac,metaKey:!mac},
+      {ctrlKey:true,metaKey:true}, {ctrlKey:false,metaKey:false}, {key:"Process"}]) {
+      assert.equal(PROPERTY_APPLY_SHORTCUT.matches(key(overrides), mac), false);
+    }
+    assert.equal(shortcutLabel(PROPERTY_APPLY_SHORTCUT.binding, mac), mac ? "⌘Enter" : "Ctrl+Enter");
+  }
 });
 
 test("shell shortcuts follow characters and preserve layout-specific browser accelerators", () => {

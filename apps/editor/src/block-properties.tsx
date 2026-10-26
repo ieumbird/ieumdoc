@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
 import { Notice } from "./ui/primitives.tsx";
 
 /** Explicit block editing. Selection and outside interaction never apply or discard input. */
@@ -44,8 +45,13 @@ export function BlockProperties({
         <form
           className="block-properties-form"
           data-testid={`${testId}-editor`}
-          onSubmit={(event) => { event.preventDefault(); onApply(); }}
+          onSubmit={(event) => { event.preventDefault(); if (!busy) onApply(); }}
           onKeyDown={(event) => {
+            if (PROPERTY_APPLY_SHORTCUT.matches(event.nativeEvent)) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.currentTarget.requestSubmit();
+            }
             if (event.key === "Escape") { event.preventDefault(); onCancel(); }
           }}
         >

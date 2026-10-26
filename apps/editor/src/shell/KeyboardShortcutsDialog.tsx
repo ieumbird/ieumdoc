@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { i18n, type MessageKey } from "../i18n.ts";
-import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS as keys, LINK_SHORTCUT, SAVE_SHORTCUT } from "../shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS as keys, LINK_SHORTCUT, PROPERTY_APPLY_SHORTCUT, SAVE_SHORTCUT } from "../shortcuts.ts";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
 type Entry = { label: MessageKey; shortcuts: readonly { readonly label: string; binding: string }[] };
@@ -15,6 +15,7 @@ const groups: { label: MessageKey; entries: Entry[] }[] = [
     { label: "Redo", shortcuts: [keys.redo, keys.redoAlternative] },
     { label: "New block", shortcuts: [keys.newBlock] },
     { label: "Edit selected figure, table or math", shortcuts: [keys.newBlock] },
+    { label: "Apply properties", shortcuts: [PROPERTY_APPLY_SHORTCUT] },
     { label: "Line break", shortcuts: [keys.lineBreak] },
     { label: "Heading level / list indent", shortcuts: [keys.tab, keys.shiftTab] },
     { label: "Bullet list", shortcuts: [keys.bulletList] },

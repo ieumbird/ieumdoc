@@ -96,7 +96,7 @@ async (page, { openPath }) => {
       {kind:'table', type:'table', field:'table-label', first:'table-label', value:'tbl-applied', label:'tbl-applied'},
       {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'SECTION-A'},
     ];
-    for (const item of cases) for (const mode of ['click', 'enter']) {
+    for (const item of cases) for (const mode of ['click', 'enter', 'shortcut']) {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.
       await openPath(page, focusFile);
       await page.getByText('Before.', {exact:true}).filter({visible:true}).click();
@@ -110,8 +110,24 @@ async (page, { openPath }) => {
       }
       check(await focused(item.first), `${item.kind}: first field did not receive focus`);
       await page.getByTestId(item.field).fill(item.value);
-      if (mode === 'click') await page.getByTestId(`${item.kind}-apply`).click();
-      else await page.getByTestId(item.field).press('Enter');
+      if (mode === 'shortcut' && item.kind === 'figure') {
+        let release, requested;
+        let validations = 0;
+        const gate = new Promise(resolve => { release = resolve; });
+        const started = new Promise(resolve => { requested = resolve; });
+        const hold = async route => { validations++; requested(); await gate; await route.continue(); };
+        await page.route('**/api/figure-validation', hold);
+        try {
+          await page.getByTestId(item.field).press('Control+Enter');
+          await started;
+          check(await page.getByTestId('figure-apply').isDisabled(), 'Figure Apply is not busy');
+          await page.getByTestId(item.field).press('Control+Enter');
+          check(validations === 1, 'Busy shortcut submitted another validation');
+        } finally { release(); }
+        await page.getByTestId('figure-editor').waitFor({state:'detached'});
+        await page.unroute('**/api/figure-validation', hold);
+      } else if (mode === 'click') await page.getByTestId(`${item.kind}-apply`).click();
+      else await page.getByTestId(item.field).press(mode === 'shortcut' ? 'Control+Enter' : 'Enter');
       // Figure Apply validates asynchronously. Type as soon as its form has closed,
       // with no click or focus command between Apply and keyboard input.
       await page.getByTestId(`${item.kind}-editor`).waitFor({state:'detached'});

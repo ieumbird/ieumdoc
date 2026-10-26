@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Code-language verification: 2026-10-26 (#499/#527: shared language menu, free text, Chromium composition commit/cancel and language/body Undo/Redo, exact disk Save/Reload; [evidence and limits](#code-language-input-verification-499527)).
 - Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
 - Selection-race scope: 2026-10-26 (#489: citation-form focus, closing Reload focus and empty-title pointer selection. The separate table selection investigation is #502. Per-scenario evidence and the #421/#416 boundary are recorded in the [test guide](../test/README.md#focus-and-selection-race-investigation-489)).
@@ -126,6 +127,11 @@ A changed document recomputes numbering; source semantics and canonical output a
   uses the shared BlockProperties form with explicit Apply, Cancel and Escape. Outside
   click, blur and selection movement neither apply nor discard drafts. Save/Source and tab
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
+- In any shared properties form (Equation, inline math, Figure, Table or section label),
+  Ctrl+Enter on Windows/Linux or Cmd+Enter on macOS submits the same Apply path, including
+  validation and errors. Busy forms ignore Apply. Composition and Shift/Alt-modified keys
+  do not Apply; plain textarea Enter and Escape retain their newline/Cancel behavior.
+  The binding is local to the form; prose Mod-Enter keeps its existing hard break behavior.
 - Applying, cancelling or escaping an inline math form immediately restores the editor caret
   just after the formula, preserving its marks and subsequent typing. Remove keeps the existing
   explicit conversion to applied source text. Each inline form registers its own draft even
