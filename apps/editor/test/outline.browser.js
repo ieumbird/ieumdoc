@@ -314,6 +314,14 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.mouse.move(0,0);
   const defaultColors = await numberColors();
   checkNumberColors(defaultColors);
+  // Every preset reaches generated numbers without changing numbering or current-row semantics.
+  for (const preset of ['violet', 'plum', 'teal', 'green', 'graphite']) {
+    await page.evaluate(preset => { document.documentElement.dataset.accent = preset; }, preset);
+    const colors = await numberColors();
+    checkNumberColors(colors);
+    expect(colors.number).not.toBe(defaultColors.number);
+  }
+  await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   // A root override must reach both surfaces, while title text and selected rows stay unchanged.
   await page.evaluate(() => document.documentElement.style.setProperty('--id-color-document-heading-number', 'rebeccapurple'));
   try {

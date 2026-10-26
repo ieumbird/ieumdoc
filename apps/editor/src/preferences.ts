@@ -4,6 +4,26 @@
  */
 export type DocumentWidth = "standard" | "wide";
 
+export const ACCENT_COLORS = ["blue", "violet", "plum", "teal", "green", "graphite"] as const;
+export type AccentColor = typeof ACCENT_COLORS[number];
+export const ACCENT_COLOR_KEY = "ieumdoc.accentColor";
+
+export function readAccentColor(): AccentColor {
+  try {
+    const saved = globalThis.localStorage?.getItem(ACCENT_COLOR_KEY);
+    return ACCENT_COLORS.find(color => color === saved) ?? "blue";
+  } catch { return "blue"; }
+}
+
+/** The live choice still applies when preference persistence is unavailable. */
+export function writeAccentColor(color: AccentColor): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(ACCENT_COLOR_KEY, color);
+    return true;
+  } catch { return false; }
+}
+
 export type UiLanguage = "ko" | "en";
 export const UI_LANGUAGE_KEY = "ieumdoc.uiLanguage";
 
