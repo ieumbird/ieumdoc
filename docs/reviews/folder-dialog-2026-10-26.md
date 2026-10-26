@@ -8,6 +8,14 @@
 - Authority: [Folder picker](../design/folder-picker-v1.md), [Visual Language](../design/editor-visual-language-v1.md), [Layout Rules](../design/editor-layout-rules-v1.md), [ADR-0005](../adr/0005-http-host.md), [ADR-0009](../adr/0009-multiple-opened-folders.md).
 - Related: [디자인 통일 검토](design-consolidation-2026-10-26.md)의 B1/S2/P1 및 [#514](https://github.com/ieumbird/ieumdoc/issues/514), [#515](https://github.com/ieumbird/ieumdoc/issues/515), [#516](https://github.com/ieumbird/ieumdoc/issues/516).
 
+## 소유자 결정 (2026-10-26)
+
+소유자는 **A안(한 열 정리)을 채택**했습니다. 단, 공유 폴더(Root) 줄에서는 현재 Root도 `현재 위치`로 바꾸지 않고 `ieumdoc-doc-ground`, `shared-documents`처럼 **각 Root의 실제 이름을 유지**합니다. 현재 Root는 A1 목록 현재 표시 규칙([#515](https://github.com/ieumbird/ieumdoc/issues/515))에 맞춰 **배경만으로 표시**하며 키보드 포커스는 별도로 유지합니다.
+
+나머지는 A안대로 진행합니다. 제안 문구, 파일 개수와 `시작` label 제거, Root에서 Up 숨김, 새 폴더가 있는 `하위 폴더 · 클릭하여 이동` 줄, 하단 안내 `문서는 폴더를 연 뒤 사이드바에서 선택합니다.`, `“name” 열기` 버튼을 유지합니다. 폴더 클릭은 이동, Enter/열기는 입력 경로 열기이며 **행동 계약 변경은 없습니다**. 이미지 선택기 재사용과 HTTP Root 제한도 그대로입니다.
+
+이 문서는 **Historical**로 유지하며 구현은 [#514](https://github.com/ieumbird/ieumdoc/issues/514) 이후 별도로 진행합니다. 아래 비교·권고·PNG는 결정 전 시안을 보존한 기록입니다. A안 PNG의 `현재 위치` 문구와 이름 반복 2곳이라는 측정은 이번 조정을 반영한 결과가 아니며, 새 캡처는 만들지 않았습니다. 현재 제품·계약은 이 결정 기록만으로 바뀌지 않습니다.
+
 ## 비교 조건과 한계
 
 기준은 master `f1ae47217c04b00f70ec72771640e8eeda1871b8`. 이 작업트리의 Vite(`127.0.0.1:5392`)와 기존 `pnpm browser:test` runner의 checkout별 persistent Chrome profile을 사용했습니다. 문서 시작·폴더·목록·시작 위치 API 응답만 고정한 **HTTP 유사 재현**이며 실제 HTTP Host의 접근 제한을 검증한 것은 아닙니다.
