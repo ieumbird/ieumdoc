@@ -48,17 +48,17 @@ async (page, { openPath }) => {
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check(await page.getByTestId('label-target-input').inputValue() === 'section-draft', 'Reload discarded section draft');
   await beginTable();
-  check(await focused('table-caption-input'), 'Edit did not focus the table caption');
-  await page.getByTestId('table-caption-input').fill('Table draft');
+  check(await focused('table-label'), 'Edit did not focus the table label');
+  await page.getByTestId('table-label').fill('table-draft');
   await activate(page.getByTestId('label-target-cancel'));
   await dirty();
-  check(await page.getByTestId('table-caption-input').inputValue() === 'Table draft', 'Closing one kind lost another');
+  check(await page.getByTestId('table-label').inputValue() === 'table-draft', 'Closing one kind lost another');
   await activate(page.getByTestId('table-cancel'));
   await page.getByTestId('draft-notice').waitFor({state:'detached'});
   check(await json() === baseline && await page.getByTestId('status').innerText() === '', 'Cancel changed document or leaked registration');
   check(await focusedAfter('table'), 'Cancel did not return a caret after the table');
   await beginTable();
-  check(await focused('table-caption-input'), 'Edit did not focus the table caption');
+  check(await focused('table-label'), 'Edit did not focus the table label');
   await page.keyboard.press('Escape');
   await page.getByTestId('table-editor').waitFor({state:'detached'});
   await editor.locator('h2').hover();
@@ -76,7 +76,7 @@ async (page, { openPath }) => {
     const focusFile = file.replace('drafts.md', 'focus.md');
     const cases = [
       {kind:'figure', type:'figure', field:'figure-caption', first:'figure-image-url', value:'Applied caption.', label:'fig-a'},
-      {kind:'table', type:'table', field:'table-caption-input', first:'table-caption-input', value:'Applied values', label:'tbl-a'},
+      {kind:'table', type:'table', field:'table-label', first:'table-label', value:'tbl-applied', label:'tbl-applied'},
       {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'SECTION-A'},
     ];
     for (const item of cases) for (const mode of ['click', 'enter']) {
@@ -110,7 +110,7 @@ async (page, { openPath }) => {
           await page.getByText('TypedProperties275After figure.', {exact:true}).filter({visible:true}).count() === 1, 'Figure caption or following prose was lost');
       } else if (item.type === 'table') {
         check(await target.locator('td').allTextContents().then(cells => cells.join('|')) === 'Value|V' &&
-          await target.getByTestId('table-caption').innerText() === item.value, 'Table grid or applied caption was lost');
+          await target.getByTestId('table-caption').innerText() === 'Values', 'Table grid or existing caption was lost');
         // Unlike outside focus, a caret already in a cell stays there after metadata Apply.
         await target.locator('td').first().click(); await page.keyboard.press('End');
         await page.waitForFunction(() => {
@@ -122,7 +122,7 @@ async (page, { openPath }) => {
         await target.hover({position:{x:4,y:4}});
         await target.getByRole('button', {name:'Edit table', exact:true}).click();
         check(await focused(item.first), 'Table field did not receive focus');
-        await page.getByTestId(item.field).fill('Cell metadata');
+        await page.getByTestId(item.field).fill('cell-metadata');
         await page.getByTestId('table-apply').click();
         const restored = await editor.evaluate(element => ({selection:element.editor.state.selection.toJSON(), focus:element.editor.view.hasFocus()}));
         check(restored.focus && JSON.stringify(restored.selection) === JSON.stringify(cellSelection), 'Table Apply moved the cell caret: ' + JSON.stringify({cellSelection, restored}));

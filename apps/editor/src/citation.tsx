@@ -7,7 +7,7 @@ import { TextSelection } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { canonicalCitation, citationContentError, citationKeys, citationText, type CitationContent, type CitationRole } from "@ieumdoc/core/citation";
+import { canonicalCitation, citationContentError, citationText, type CitationContent, type CitationRole } from "@ieumdoc/core/citation";
 import { endnoteOrder, firstReferenceNumbers } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -44,9 +44,13 @@ export function citationNumbers(doc: ProseMirrorNode): Map<string, number> {
       const block = doc.child(index);
       let found = keysOf.get(block);
       if (!found) {
-        // Core's table directive reads its caption before cells; the caption is an Editor attr.
-        found = block.type.name === "table" ? citationKeys(block.attrs.caption ?? []) : [];
-        block.descendants(node => { if (node.type.name === "citation") found!.push(...node.attrs.keys); });
+        // MyST reads the caption before grid cells, independently of its visual position.
+        found = [];
+        const visit = (node: ProseMirrorNode) => { if (node.type.name === "citation") found!.push(...node.attrs.keys); };
+        if (block.type.name === "table") {
+          block.lastChild?.type.name === "tableCaption" && block.lastChild.descendants(visit);
+          block.forEach(row => { if (row.type.name === "tableRow") row.descendants(visit); });
+        } else block.descendants(visit);
         keysOf.set(block, found);
       }
       keys.push(...found);

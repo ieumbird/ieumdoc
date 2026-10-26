@@ -292,7 +292,7 @@ test("caption and label edits and newly captioned tables save through Core in th
   const source = nativeSource("| A |\n|---|\n| 1 |\n");
   const document = loadEditableDocument(source);
   const next = toTiptapDocument(document);
-  next.content![0].attrs!.caption = text("Values");
+  next.content![0].content!.push({ type: "tableCaption", content: [{ type: "text", text: "Values" }] });
   next.content![0].attrs!.label = "tbl-values";
   const edits = collectSupportedEdits(document, next);
   const saved = saveEdits(source, edits);
@@ -300,4 +300,33 @@ test("caption and label edits and newly captioned tables save through Core in th
   assert.deepEqual(collectSupportedEdits(loadEditableDocument(saved.markdown), toTiptapDocument(loadEditableDocument(saved.markdown))), { headings: [], paragraphs: [] });
   const inserted = saveEdits(nativeSource(""), { order: [{ insert: 0 }], inserts: [{ block: "table", rows: [[text("A")], [text("1")]], caption: text("New"), label: "tbl-new" }] });
   assert.match(inserted.markdown, /:::\{table\} New\n:name: tbl-new/);
+});
+
+test("grid commands preserve a rich caption as part of the table without treating it as a row", () => {
+  const source = nativeSource("Intro.\n\n:::{table} **Results** with {numref}`fig-a` and {cite:p}`Key`\n:name: tbl-a\n\n| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n:::\n\n:::{figure}\n:name: fig-a\n:::\n");
+  let { document, state, rejected } = editorState(source);
+  const caption = state.doc.child(TABLE).lastChild!;
+  for (const operation of [
+    () => addTableRowBelow(state, TABLE),
+    () => addTableColumnRight(state, TABLE, { row: 1, column: 0 }),
+    () => moveTableRow(state, TABLE, 1, { row: 1, column: 0 }),
+    () => moveTableColumn(state, TABLE, 1, { row: 1, column: 0 }),
+    () => alignTableColumn(state, TABLE, "right", { row: 1, column: 0 }),
+    () => removeTableRow(state, TABLE, { row: 1, column: 0 }),
+    () => removeTableColumn(state, TABLE, { row: 1, column: 0 }),
+  ]) {
+    state = apply(state, operation());
+    assert.ok(state.doc.child(TABLE).lastChild!.eq(caption));
+  }
+  assert.deepEqual(rejected, []);
+  const saved = saveEdits(source, collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON));
+  assert.match(saved.markdown, /\*\*Results\*\* with \{numref\}`fig-a` and \{cite:p\}`Key`/);
+  const opened = loadEditableDocument(saved.markdown).blocks[TABLE];
+  assert.ok(opened.block === "table");
+  const original = document.blocks[TABLE];
+  assert.ok(original.block === "table");
+  assert.deepEqual(opened.caption, original.caption);
+  const invalid = state.doc.toJSON() as TiptapJSON;
+  invalid.content![TABLE].content!.push(caption.toJSON());
+  assert.throws(() => collectSupportedEdits(document, invalid), /caption must follow its rows/);
 });

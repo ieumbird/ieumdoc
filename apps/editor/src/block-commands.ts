@@ -637,18 +637,23 @@ export function insertTableAfter(state: EditorState, index: number, slash?: Slas
   return tr.setSelection(TextSelection.create(tr.doc, at + 3)).setMeta(BLOCK_COMMAND_META, true).scrollIntoView();
 }
 
+/** Rows exclude the optional caption, retaining the existing row/cell addresses. */
+export function tableRowCount(table: EditorState["doc"]): number {
+  return table.childCount - (table.lastChild?.type.name === "tableCaption" ? 1 : 0);
+}
+
 /** The caret's cell when it is inside the table at `index`. */
 function tableCellAt(state: EditorState, index: number, target?: TableCellAddress): TableCellAddress | undefined {
   if (target) {
     const table = state.doc.maybeChild(index);
     if (table?.type.name !== "table" || !Number.isInteger(target.row) || !Number.isInteger(target.column) ||
-      target.row < 0 || target.row >= table.childCount || target.column < 0 || target.column >= table.child(target.row).childCount) {
+      target.row < 0 || target.row >= tableRowCount(table) || target.column < 0 || target.column >= table.child(target.row).childCount) {
       throw new Error("invalid table cell target");
     }
     return target;
   }
   const { $from } = state.selection;
-  if ($from.depth < 3 || $from.index(0) !== index) return undefined;
+  if ($from.depth < 3 || $from.index(0) !== index || $from.parent.type.name !== "tableCell") return undefined;
   return { row: $from.index(1), column: $from.index(2) };
 }
 
@@ -668,7 +673,7 @@ export function addTableRowBelow(state: EditorState, index: number, target?: Tab
   if (!isTable(state, index)) throw new Error("invalid table index");
   const table = state.doc.child(index);
   const current = tableCellAt(state, index, target);
-  const row = (current?.row ?? table.childCount - 1) + 1;
+  const row = (current?.row ?? tableRowCount(table) - 1) + 1;
   const cells = Array.from({ length: table.child(0).childCount }, (_, column) => addedCell(state, false, table.child(0).child(column).attrs.align));
   let at = blockPos(state, index) + 1;
   for (let i = 0; i < row; i++) at += table.child(i).nodeSize;
@@ -688,6 +693,7 @@ export function addTableColumnRight(state: EditorState, index: number, target?: 
   let rowPos = blockPos(state, index) + 1;
   let caret = 0;
   table.forEach((row, _offset, rowIndex) => {
+    if (row.type.name !== "tableRow") return;
     let at = rowPos + 1;
     for (let i = 0; i < column; i++) at += row.child(i).nodeSize;
     const mapped = tr.mapping.map(at);
@@ -703,7 +709,7 @@ function caretTable(state: EditorState, index: number, target?: TableCellAddress
   const cell = isTable(state, index) ? tableCellAt(state, index, target) : undefined;
   if (!cell) return undefined;
   const table = state.doc.child(index);
-  return { ...cell, rows: table.childCount, columns: table.child(0).childCount, align: String(table.child(0).child(cell.column).attrs.align ?? "") };
+  return { ...cell, rows: tableRowCount(table), columns: table.child(0).childCount, align: String(table.child(0).child(cell.column).attrs.align ?? "") };
 }
 
 /** The start of each row, and of each cell in each row, of the table at `index`. */
@@ -712,6 +718,7 @@ function tableLayout(doc: EditorState["doc"], index: number) {
   for (let i = 0; i < index; i++) rowPos += doc.child(i).nodeSize;
   const rows: { pos: number; cells: number[] }[] = [];
   doc.child(index).forEach(row => {
+    if (row.type.name !== "tableRow") return;
     const cells: number[] = [];
     let cellPos = rowPos + 1;
     row.forEach(cell => { cells.push(cellPos); cellPos += cell.nodeSize; });
@@ -956,7 +963,7 @@ export function formattableSelection(state: EditorState): { from: number; to: nu
   const { $from, $to } = selection;
   const parent = $from.parent;
   const editableInlineParent = parent.type.name === "paragraph" ||
-    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "admonition";
+    parent.type.name === "quote" || parent.type.name === "footnoteDefinition" || parent.type.name === "heading" || parent.type.name === "tableCell" || parent.type.name === "figure" || parent.type.name === "tableCaption" || parent.type.name === "admonition";
   if (!$from.sameParent($to) || !editableInlineParent) return null;
   return { from: selection.from, to: selection.to };
 }

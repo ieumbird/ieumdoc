@@ -29,14 +29,14 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     const tr = editor.state.tr;
     editor.state.doc.forEach((child,pos) => {
       if (child.type.name === 'equation') tr.setNodeMarkup(pos,undefined,{...child.attrs,latex:'x^2 + y^2 = z^2'});
-      if (child.type.name === 'table') tr.setNodeMarkup(pos,undefined,{...child.attrs,caption:[{kind:'text',text:'Measured results'}]});
+      if (child.type.name === 'table') tr.insert(pos+child.nodeSize-1,editor.schema.nodes.tableCaption.create(null,editor.schema.text('Measured results')));
     });
     const inputs = [];
     editor.state.doc.descendants((child,pos) => {
       if (child.type.name === 'tableCell') inputs.push({pos:pos+1,text:`Cell ${inputs.length+1}`});
       if (child.type.name === 'figure') inputs.push({pos:pos+1,text:'Pending figure caption'});
     });
-    inputs.reverse().forEach(({pos,text})=>tr.insertText(text,pos));
+    inputs.reverse().forEach(({pos,text})=>tr.insertText(text,tr.mapping.map(pos)));
     editor.view.dispatch(tr);
   });
   const file = await page.getByTestId('current-file').getAttribute('title');

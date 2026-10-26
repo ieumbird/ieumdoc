@@ -341,13 +341,17 @@ async (page, { openPath, reloadDocument }) => {
   const table = tables.last();
   await table.hover();
   await table.getByRole('button', {name:'Table actions', exact:true}).click();
-  await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Edit caption and label', exact:true}).click();
-  await page.getByTestId('table-caption-input').fill('Cancelled caption');
+  await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Edit label', exact:true}).click();
+  await page.getByTestId('table-label').fill('cancelled-label');
   await page.getByTestId('table-cancel').click();
   result.captionCancelKeepsTable = await table.getByTestId('table-caption').count() === 0;
   await table.hover();
   await table.getByRole('button', {name:'Edit table'}).click();
-  await page.getByTestId('table-caption-input').fill('Port values');
+  await page.getByTestId('table-cancel').click();
+  await table.getByRole('button',{name:'Add caption',exact:true}).click();
+  await page.keyboard.type('Port values');
+  await table.hover();
+  await table.getByRole('button', {name:'Edit table'}).click();
   await page.getByTestId('table-label').fill('tbl-ports');
   await page.getByTestId('table-apply').click();
   await page.getByTestId('table-editor').waitFor({state:'detached'});
@@ -556,6 +560,9 @@ async (page, { openPath, reloadDocument }) => {
   await tables.last().locator('td', {hasText:/^P$/}).click();
   await caretIn('P');
   await page.keyboard.press('ArrowDown');
+  result.arrowEntersCaption = (await caret()).startsWith('tableCaption ');
+  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowDown');
   result.arrowLeavesFinalTable = await caret() === 'paragraph 5/5';
   await tables.last().locator('td', {hasText:/^U$/}).click();
   await caretIn('U');
@@ -571,7 +578,7 @@ async (page, { openPath, reloadDocument }) => {
   await tables.last().locator('td').last().click();
   await page.waitForFunction(() => {
     const {$from} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
-    return $from.parent.type.name === 'tableCell' && $from.index(1) === $from.node(1).childCount - 1 &&
+    return $from.parent.type.name === 'tableCell' && $from.index(1) === $from.node(1).childCount - ($from.node(1).lastChild.type.name === "tableCaption" ? 2 : 1) &&
       $from.index(2) === $from.node(2).childCount - 1;
   });
   await page.keyboard.press('Tab');
@@ -581,7 +588,7 @@ async (page, { openPath, reloadDocument }) => {
     const {view, state} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     const {$from} = state.selection;
     return view.hasFocus() && $from.parent.type.name === 'tableCell' &&
-      $from.index(1) === $from.node(1).childCount - 1 && $from.index(2) === 0;
+      $from.index(1) === $from.node(1).childCount - ($from.node(1).lastChild.type.name === "tableCaption" ? 2 : 1) && $from.index(2) === 0;
   });
   await page.keyboard.type('Tab row');
   result.lastTabTyping = JSON.stringify((await grid(tables.last())).at(-1)) === JSON.stringify(['Tab row', '', '']);

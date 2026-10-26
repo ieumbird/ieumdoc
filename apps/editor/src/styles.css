@@ -2890,3 +2890,9 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .display-template-choice { display: grid; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--font-size-sm); }
+
+/* The engine table owns its caption; native caption layout keeps it below the grid. */
+.table-grid:has(.table-caption) { padding-bottom: 0; }
+.table > table { width: 100%; border-collapse: collapse; }
+.table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
+.table-add-caption { color: var(--id-color-text-muted); }
