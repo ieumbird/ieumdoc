@@ -4,7 +4,8 @@
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
 
-- Last verified: 2026-10-26 (#473: Display/command-center bibliography connection and conditional References; [verification and product captures](citations-v1.md#conditional-references-verification-473)).
+- Last verified: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](#source-wrapping-476)).
+- Previous verification: 2026-10-26 (#473: Display/command-center bibliography connection and conditional References; [verification and product captures](citations-v1.md#conditional-references-verification-473)).
 - Previous verification: 2026-10-26 (Sidebar summary checked against the file-listing contract and implementation; incoming heading links checked; no Editor/browser/Desktop re-execution).
 
 - Scope: existing Editor interactions. [Visual Language (current v4.7)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
@@ -29,7 +30,7 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
-General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only, one numbered line per Markdown line (the numbers are never copied); it does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 Opening another document or the folder heading's `+` opens a new tab after Host success; an already-open
 normalized path activates its tab without a Host GET when the requested path matches exactly. Other
@@ -849,3 +850,48 @@ it does not claim a speed improvement over the earlier bounded pagination run. A
 captures at [1280px](assets/command-center-384/limited-1280.png) and
 [375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
 paged captures, with existing footer typography/spacing and no new adjustable style value.
+
+### Source wrapping (#476)
+
+Source soft wrapping is a CSS-only presentation change. The existing source-line spans, literal
+newlines and generated gutter numbers remain; no Core/CLI semantic operation is needed.
+`pre-wrap` preserves source whitespace, `overflow-wrap: anywhere` wraps unbroken text, and the
+existing gutter width is reserved outside the wrapping text. Numbers remain on each source
+line's first row. There is no clipping or document write.
+
+Same-state captures use base `c232915` in this worktree at 1440×900 and 375×900, on the same
+checkout-owned persistent headless Windows Chrome profile and Vite origin (`127.0.0.1:5177`).
+Both show clean `wrapping.md` in Source, scroll top, no selection/focus, pointer at the top right,
+after `document.fonts.ready`. DPR, visual viewport scale and CSS zoom are 1. Source retains its
+existing Consolas / Courier New / monospace stack, 14px/20px; the shell retains bundled Pretendard.
+After uses the base plus this CSS change; [Before evidence](assets/source-wrap-476/before.json)
+and [After results](assets/source-wrap-476/after.json) record the measurements and source hashes.
+
+| Viewport | Before | After | Source scrollWidth / clientWidth, Before → After |
+| --- | --- | --- | --- |
+| 1440×900 | [Before](assets/source-wrap-476/before-1440.png) | [After](assets/source-wrap-476/after-1440.png) | 5160 / 800 → 800 / 800 |
+| 375×900 | [Before](assets/source-wrap-476/before-375.png) | [After](assets/source-wrap-476/after-375.png) | 5131 / 311 → 311 / 311 |
+
+Direct visual review: the paragraph and unbroken URL now continue vertically within the paper.
+The first and continuation rows share the original text axis, leaving the number gutter clear;
+the next source line receives the next number. The phone view uses normal vertical scrolling.
+Controls, monospace typography, paper and document insets retain their previous appearance.
+Captures are manual-review evidence only.
+The unchanged Visual view's Quiet Document 1440px rest captures are byte-identical:
+[Before](assets/source-wrap-476/quiet-before-1440.png) /
+[After](assets/source-wrap-476/quiet-after-1440.png).
+
+The extended `source-view` assertions fail with the original CSS at both widths, then pass after
+the change. There are still 13 source lines; the paragraph occupies 6/16 visual rows and the URL
+7/19 rows at 1440/375px. Whole-source DOM text, native selection and native clipboard preserve the
+same source characters and indentation with no numbered text or inserted wrap newlines.
+Chromium's existing native selection/Copy omission of the terminal newline is unchanged.
+Disk contents and clean status remain unchanged. Existing canonical Source/Save/Reload,
+unapplied drafts and Visual history checks also pass.
+
+Editor tests (286/286), workspace typecheck, Editor build, visual-token and documentation checks
+pass, alongside `source-view`, `source-view-pending`, `layout-rules` and `quiet-document`.
+The build retains its existing large-chunk advisory. The existing 2000/5000-block
+[performance fixture and measurement](../reviews/editor-input-performance-2026-10-25.md)
+measure typing/Save rather than Source rendering; this change adds no Source timing gate or
+performance claim.
