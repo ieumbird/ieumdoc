@@ -38,8 +38,9 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions", ()
   // Primary actions share the interaction blue; red stays distinct for danger.
   assert.equal(values.get("--id-color-accent"), "var(--id-color-interaction)");
   assert.notEqual(values.get("--id-color-danger"), values.get("--id-color-interaction"));
-  assert.equal(values.get("--font-family-document"), "var(--font-family-sans)");
-  assert.equal(values.get("--id-color-document-heading-number"), "#0e7c86");
+  for (const name of ["--font-family-document", "--id-color-document-heading-number"]) {
+    assert.ok(values.has(name), `missing document token: ${name}`);
+  }
   assert.equal(values.get("--color-primary"), "var(--primary)");
   assert.doesNotMatch(tokens + adapters, /!important/);
 });
@@ -78,9 +79,10 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
         if (file === "styles.css" && ((mechanism === "mask-image" && literal === "#000") ||
           (mechanism === "--tw-ring-shadow" && literal === "#0000"))) continue;
         // SVG data URLs cannot inherit CSS variables. Pin its single neutral stroke to the token.
-        if (file === "styles.css" && mechanism === "background-image" && literal === "%23545c68") {
+        if (file === "styles.css" && mechanism === "background-image" && /^%23[\da-f]{6}$/i.test(literal)) {
           const tokens = readFileSync(new URL("styles/tokens.css", root), "utf8");
-          assert.match(tokens, /--id-color-text-muted:\s*#545c68;/, "update the encoded select chevron with text-muted");
+          const muted = tokens.match(/--id-color-text-muted:\s*([^;]+);/)?.[1].trim();
+          assert.equal(decodeURIComponent(literal), muted, "update the encoded select chevron with text-muted");
           continue;
         }
         failures.push(`${file}: literal UI color ${literal}`);

@@ -61,78 +61,56 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   };
   // #506: measure actual glyph lines, not just the declared word-break property.
   await open('korean-wrap.md');
-  const readWrapComparison=async()=>{
-    await page.setViewportSize({width:1440,height:1000});
-    await page.evaluate(async()=>{await document.fonts.ready;});
-    const visual=await page.evaluate(()=>{
-      const host=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-      const breaks=(n,pseudo=null)=>{const s=getComputedStyle(n,pseudo);return {wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};};
-      const required=selector=>{const n=document.querySelector(selector);if(!n)throw Error(`Missing baseline target: ${selector}`);return n;};
-      const excluded=[...host.querySelectorAll('code,.katex')].map(n=>({
-        kind:n.matches('code')?'code':'math',
-        context:n.closest('.heading,.paragraph,.quote-body,.caption,[data-table-cell],.footnote-definition-body,pre')?.className||n.parentElement.tagName,
-        ...breaks(n),
-      }));
-      const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number','.code-language','.figure-edit','.table-column-handle']
-        .map(selector=>({selector,...breaks(required(selector))}));
-      const table=[...host.querySelectorAll('.table')].at(-1);
-      const properties=(n,names)=>Object.fromEntries(names.map(name=>[name,getComputedStyle(n).getPropertyValue(name)]));
-      const type=['box-sizing','font-family','font-size','font-weight','font-style','font-feature-settings','line-height','letter-spacing','white-space','word-break','overflow-wrap','text-align','text-indent','text-transform'];
-      const tableModel={
-        table:properties(table,[...type,'width','table-layout','border-collapse','border-spacing']),
-        th:properties(table.querySelector('th'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
-        td:properties(table.querySelector('td'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
-      };
-      const numbered=[...host.querySelectorAll('.heading[data-heading-number]')].map(n=>({
-        number:n.dataset.headingNumber,...breaks(n),before:breaks(n,'::before'),color:getComputedStyle(n,'::before').color,
-      }));
-      return {excluded,ui,numbered,tableModel,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
+  // Code/math keep their contextual rules; document preferences must not reach UI or Source.
+  const wrapping = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(host => {
+    const contexts=['.heading','.paragraph','.list','.quote-body','.admonition-body','.caption','[data-table-cell]','pre','.footnote-definition-body'];
+    return [...host.querySelectorAll('code,.katex')].map(n=>{
+      const s=getComputedStyle(n);
+      return {kind:n.matches('code')?'code':'math',heading:!!n.closest('.heading'),contexts:contexts.filter(selector=>n.closest(selector)),
+        wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};
     });
-    await page.getByRole('button',{name:'Source',exact:true}).click();
-    await page.getByTestId('source-view').waitFor();
-    const source=await page.getByTestId('source-view').evaluate(n=>['.source-view-text','.source-line'].map(selector=>{
-      const target=n.querySelector(selector);if(!target)throw Error(`Missing Source target: ${selector}`);
-      const s=getComputedStyle(target);return {selector,wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};
-    }));
-    await page.getByRole('button',{name:'Visual',exact:true}).click();
-    await page.locator('[data-document-tab][data-active=true] .document-editor').waitFor();
-    return {...visual,source};
-  };
-  const comparison=await readWrapComparison();
-  // Review images only; the assertions below use computed styles and Range geometry.
-  if(screenshots)for(const width of [1440,375]) {
-    await page.setViewportSize({width,height:1000});
-    await rest();
-    await page.locator('[data-document-tab][data-active=true] .heading').filter({has:page.locator('code')})
-      .screenshot({path:`tmp/visual-refinement/after-korean-inline-code-${width}.png`});
-  }
-  // MASTER_COMPARISON: the capture helper also records this same probe against master CSS.
-  const masterResponse=await page.request.get(`${origin}/test/browser/fixtures/quiet-document-wrap-master.json`);
-  check(masterResponse.ok(),'Master typography baseline missing');
-  const master=await masterResponse.json();
-  check(JSON.stringify(comparison.excluded)===JSON.stringify(master.visual.excluded),
-    `Inline code/math differ from master: ${JSON.stringify({actual:comparison.excluded,master:master.visual.excluded})}`);
-  check(JSON.stringify(comparison.ui)===JSON.stringify(master.visual.ui)&&JSON.stringify(comparison.source)===JSON.stringify(master.visual.source),
-    `UI/Source wrapping differs from master: ${JSON.stringify(comparison)}`);
-  check(comparison.numbered.length>0&&JSON.stringify(comparison.numbered)===JSON.stringify(master.visual.numbered),
-    `Numbered heading wrapping/color differ from master: ${JSON.stringify(comparison.numbered)}`);
-  // Reflow the actual table with master-computed geometry/type in an isolated shadow root.
-  // This retains a strict comparison without treating Windows/Linux glyph rounding as a change.
-  const referenceColumns=await page.evaluate(model=>{
-    const table=[...document.querySelectorAll('[data-document-tab][data-active=true] .table')].at(-1);
-    const host=document.createElement('div');
-    host.style.cssText=`position:fixed;left:0;top:0;width:${model.table.width};visibility:hidden;pointer-events:none`;
-    const shadow=host.attachShadow({mode:'closed'}),reference=table.cloneNode(true);
-    const apply=(n,values)=>{n.removeAttribute('style');for(const [name,value] of Object.entries(values))n.style.setProperty(name,value);};
-    apply(reference,model.table);
-    for(const cell of reference.querySelectorAll('th,td'))apply(cell,model[cell.tagName.toLowerCase()]);
-    shadow.append(reference);document.body.append(host);
-    try { return [...reference.rows[0].cells].map(cell=>cell.getBoundingClientRect().width); }
-    finally { host.remove(); }
-  },master.visual.tableModel);
-  check(comparison.columns.length===referenceColumns.length&&comparison.columns.every((width,i)=>Math.abs(width-referenceColumns[i])<0.1),
-    `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:referenceColumns})}`);
-  results.push({masterComparison:{master:master.revision,...comparison,referenceColumns}});
+  });
+  check(['.heading','.paragraph','.list','.quote-body','.admonition-body','.caption','[data-table-cell]','pre','.footnote-definition-body']
+    .every(context=>wrapping.some(n=>n.kind==='code'&&n.contexts.includes(context)))&&
+    ['code','math'].every(kind=>[true,false].every(heading=>wrapping.some(n=>n.kind===kind&&n.heading===heading)))&&
+    wrapping.every(n=>n.wordBreak===(n.heading?'keep-all':'normal')&&n.overflowWrap==='break-word'),
+    `Code/math lost contextual wrapping: ${JSON.stringify(wrapping)}`);
+  const checkUIIsolation = async selectors => page.evaluate(selectors => {
+    const root=document.documentElement;
+    const read=()=>selectors.map(selector=>{
+      const nodes=[...document.querySelectorAll(selector)];
+      if(!nodes.length)throw Error(`Missing typography target: ${selector}`);
+      return nodes.map(n=>{const s=getComputedStyle(n);return [s.fontFamily,s.fontSize,s.lineHeight,s.wordBreak,s.overflowWrap];});
+    });
+    const before=read();
+    const probe=document.createElement('span');
+    probe.style.fontFamily='var(--font-family-document)';probe.style.fontSize='var(--font-size-document)';
+    probe.style.lineHeight='var(--line-height-document)';document.body.append(probe);
+    const current=getComputedStyle(probe);
+    const overrides={'--font-family-document':current.fontFamily.includes('monospace')?'serif':'monospace',
+      '--font-size-document':`calc(${current.fontSize} * 1.25)`,
+      '--line-height-document':`calc(${current.lineHeight} * 1.25)`,'--word-break-document':'break-all'};
+    probe.remove();
+    const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
+    try {
+      for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
+      return {selectors,before,after:read()};
+    } finally {
+      for(const [name,value,priority] of saved)value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
+    }
+  },selectors);
+  const uiIsolation=await checkUIIsolation(['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number',
+    '.code-language','.figure-edit','.table-column-handle']);
+  check(JSON.stringify(uiIsolation.before)===JSON.stringify(uiIsolation.after),
+    `Document typography leaked into UI: ${JSON.stringify(uiIsolation)}`);
+  await page.getByRole('button',{name:'Source',exact:true}).click();
+  await page.getByTestId('source-view').waitFor();
+  const sourceIsolation=await checkUIIsolation(['.source-view-text','.source-line']);
+  check(JSON.stringify(sourceIsolation.before)===JSON.stringify(sourceIsolation.after),
+    `Document typography leaked into Source: ${JSON.stringify(sourceIsolation)}`);
+  await page.getByRole('button',{name:'Visual',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] .document-editor').waitFor();
+  results.push({wrapping,uiIsolation,sourceIsolation});
   const wrapResults = [];
   const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   const wrapDocument = await json();
@@ -204,7 +182,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
         environment:{userAgent:navigator.userAgent,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(paragraph).fontFamily}};
     },width));
   }
-  // Both same-state review captures are preserved even when the baseline fails here.
+  // Glyph geometry checks behavior without freezing a particular font size or line count.
   check(wrapResults.every(r=>r.coverage.every(c=>c.count>0)&&r.lines.length>1), 'Missing Korean wrapping coverage');
   check(wrapResults.every(r=>!r.splitWords.length&&!r.brokenEdges.length&&!r.strandedPunctuation.length),
     `Korean words split across lines: ${JSON.stringify(wrapResults)}`);
@@ -298,7 +276,10 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     for (const selector of ['[data-document-tab][data-active=true] .document-editor h1', '[data-document-tab][data-active=true] .document-editor .paragraph', '[data-testid="save"]']) {
       const {nodeId} = await fontSession.send('DOM.querySelector', {nodeId:root.nodeId, selector});
       const {fonts} = await fontSession.send('CSS.getPlatformFontsForNode', {nodeId});
-      check(fonts.length > 0 && fonts.every(font => font.isCustomFont && font.familyName.includes('Pretendard')),
+      // A chosen document family may differ from the bundled UI font. When it uses
+      // Pretendard, still require real custom glyphs rather than a system fallback.
+      const bundled=await page.locator(selector).first().evaluate(n=>getComputedStyle(n).fontFamily.includes('Pretendard'));
+      check(fonts.length > 0 && (!bundled || fonts.every(font => font.isCustomFont && font.familyName.includes('Pretendard'))),
         `${selector}: bundled Pretendard glyphs required: ${JSON.stringify(fonts)}`);
       results.push({selector, fonts});
     }
@@ -753,21 +734,25 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
 
   // Long content stays scrollable inside its block; the whole document never clips it.
   await open('아주-긴-파일명-very-long-technical-document-name-for-visual-review.md');
-  for(const width of [1440,1024,768]) {
+  for(const width of [1440,1024,768,375]) {
     await page.setViewportSize({width,height:1000});
     await rest();
     const local=await page.evaluate(()=>{
       const required=s=>{const n=document.querySelector('[data-document-tab][data-active=true] '+s) ?? document.querySelector(s);if(!n)throw Error(`Missing ${s}`);return n;};
       const math=required('.equation-math'),content=required('.equation-content'),table=required('.table-scroll');
       const text=required('.document-path-name'),path=required('.document-path');
-      return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:text.getBoundingClientRect().width>100,pathTitle:path.title};
+      const paper=required('.document-editor').getBoundingClientRect();
+      const contained=[math,table].every(n=>{const r=n.getBoundingClientRect();return r.left>=paper.left-1&&r.right<=paper.right+1&&['auto','scroll'].includes(getComputedStyle(n).overflowX);});
+      return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,contained,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:text.getBoundingClientRect().width>100,pathTitle:path.title};
     });
     check(local.math[1]>local.math[0]&&local.table[1]>local.table[0],`Long fixture did not exercise scrolling ${JSON.stringify(local)}`);
-    check(local.formulaLeft>=-1&&!local.docOverflow&&local.filenameVisible&&local.pathTitle===scratch('아주-긴-파일명-very-long-technical-document-name-for-visual-review.md'),`Long content clipped ${JSON.stringify(local)}`);
+    check(local.contained&&local.formulaLeft>=-1&&!local.docOverflow&&local.filenameVisible&&local.pathTitle===scratch('아주-긴-파일명-very-long-technical-document-name-for-visual-review.md'),`Long content clipped ${JSON.stringify(local)}`);
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=n.scrollWidth);
     check(await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft>0),'Formula not scrollable to end');
     await page.locator('[data-document-tab][data-active=true] .equation-math').evaluate(n=>n.scrollLeft=0);
     await shot(`${width}-long-content`);
+    await page.locator('[data-document-tab][data-active=true] .table-scroll').evaluate(n=>n.scrollLeft=n.scrollWidth);
+    check(await page.locator('[data-document-tab][data-active=true] .table-scroll').evaluate(n=>n.scrollLeft>0),'Table not scrollable to end');
     // A table wider than the column keeps its table actions reachable before it is scrolled.
     const wide=page.locator('[data-document-tab][data-active=true] .table-block');
     await wide.locator('.table-scroll').evaluate(n=>n.scrollLeft=0);
@@ -783,6 +768,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await rest();
     results.push({width,...local});
   }
+  await page.setViewportSize({width:768,height:1000});
   for(const [button,label] of [['Open folder…','Folder']]) {
     await page.getByRole('button',{name:button,exact:true}).click();
     await bounds(page.getByRole('dialog'),`${label} dialog`);
