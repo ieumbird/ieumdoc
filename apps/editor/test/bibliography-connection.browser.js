@@ -61,10 +61,15 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     try { button.click(); } finally { window.requestAnimationFrame = schedule; }
   });
   if (await references().count()) regressions.push('Removing the last citation with no declaration must hide References');
-  const focusReturned = waitForEditorFocus(page);
-  assert(await page.evaluate(() => window.citationRemoveFrames.length > 0 && document.activeElement === document.body), 'Remove still owes the editor its focus');
-  await page.evaluate(() => { for (const frame of window.citationRemoveFrames.splice(0)) frame(performance.now()); });
-  await focusReturned;
+  let focusWaitResolved = false;
+  const focusReturned = waitForEditorFocus(page).then(() => { focusWaitResolved = true; });
+  try {
+    assert(await page.evaluate(() => window.citationRemoveFrames.length > 0 && document.activeElement === document.body), 'Remove still owes the editor its focus');
+    assert(!focusWaitResolved, 'The focus helper must remain pending while BODY has focus');
+  } finally {
+    await page.evaluate(() => { for (const frame of window.citationRemoveFrames.splice(0)) frame(performance.now()); });
+    await focusReturned;
+  }
   await page.keyboard.press('Control+z');
   assert(await references().count() === 1, 'Undo restores the citation and References');
   assert(regressions.length === 0, regressions.join('\n'));

@@ -38,6 +38,10 @@ also requires an **open** popup (`data-open`); a closing popup may still contain
 buttons before its final focus handoff. `citations` holds that handoff and verifies the helper
 remains pending before checking the unchanged canonical-byte assertion (#489).
 
+The citation-Remove gate explicitly checks that the focus helper's promise is still pending while
+BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
+this same assertion; releasing focus before Undo alone does not prove that the helper waited.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ### Scenario coverage
