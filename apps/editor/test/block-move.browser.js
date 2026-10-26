@@ -2,7 +2,8 @@
 // Drags real block handles in a scratch copy of technical-document.md: while dragging, the moved
 // block is tinted and one line marks the gap it will land in (none where it would stay in place);
 // a moved Equation or Figure is not opened for editing; undo/redo keep that; and a block with an
-// unapplied draft cannot be moved, so the draft is not lost. Nothing is saved. Scratch files live
+// unapplied draft cannot be moved, so the draft is not lost. Menu moves use the same path,
+// with boundary protection, one-step Undo and Save/Reload. Scratch files live
 // under the repository's ignored tmp/ directory.
 async (page, { openPath, withBlockHover }) => {
   await page.unrouteAll();
@@ -49,6 +50,28 @@ async (page, { openPath, withBlockHover }) => {
   };
   const original = await order();
   const result = {};
+  const openBlockMenu = async index => {
+    const handle = page.locator('[data-document-tab][data-active=true] .block-handle').nth(index);
+    await handle.focus();
+    await page.keyboard.press('Enter');
+    return page.getByRole('menu', {name:'Block actions', exact:true});
+  };
+  const titleMenu = await openBlockMenu(0);
+  for (const name of ['Move up', 'Move down']) {
+    const item = titleMenu.getByRole('menuitem', {name, exact:true});
+    if (!await item.count() || !await item.isDisabled()) throw new Error(`Title menu must disable ${name}`);
+  }
+  await page.keyboard.press('Escape');
+  const firstBody = await openBlockMenu(1);
+  if (!await firstBody.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled()) throw new Error('Nothing moves above the title');
+  await page.keyboard.press('Escape');
+  const lastIndex = await editor.evaluate(node => node.editor.state.doc.childCount - 1);
+  const lastMenu = await openBlockMenu(lastIndex);
+  if (!await lastMenu.getByRole('menuitem', {name:'Move down', exact:true}).isDisabled()) throw new Error('Last block cannot move down');
+  // Keyboard arrows skip disabled rows but retain the menu role/focus owner.
+  await page.keyboard.press('ArrowDown');
+  if (!await lastMenu.evaluate(menu => menu.contains(document.activeElement) && !document.activeElement.disabled)) throw new Error('Menu navigation focused a disabled action');
+  await page.keyboard.press('Escape');
 
   const menuOffset = async () => {
     await equation.hover({position:{x:4, y:4}});
@@ -142,6 +165,12 @@ async (page, { openPath, withBlockHover }) => {
   await page.locator('.block-handle[draggable="false"][aria-label^="Move equation block"]').waitFor({state:'attached'});
   result.draftHandleExplains = await handle.getAttribute('draggable') === 'false' &&
     await handle.getAttribute('title') === 'Apply or Cancel the Equation edit before moving it.';
+  const draftMenu = await openBlockMenu(await editor.evaluate(node => {
+    let found; node.editor.state.doc.forEach((child, _, index) => { if (child.type.name === 'equation') found = index; }); return found;
+  }));
+  result.draftMenuProtected = await draftMenu.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled() &&
+    await draftMenu.getByRole('menuitem', {name:'Move down', exact:true}).isDisabled();
+  await page.keyboard.press('Escape');
   await grab(equation, /^Move equation block \d+$/);
   await pointAt(first.y + 2);
   await page.mouse.up();
@@ -153,6 +182,34 @@ async (page, { openPath, withBlockHover }) => {
     await handle.getAttribute('title') === 'Drag to move, click for block actions';
 
   result.fileUnchanged = await read() === before;
+  // Menu movement uses the drag reorder bridge: exactly one adjacent swap, one Undo,
+  // and real Save/Reload. Heading content must stay put when just its block moves.
+  const snapshot = () => editor.evaluate(node => {
+    const blocks = []; node.editor.state.doc.forEach(child => blocks.push(child.toJSON())); return blocks;
+  });
+  const beforeMenuMove = await snapshot();
+  const bodyHeading = beforeMenuMove.findIndex((node, index) => index > 0 && node.type === 'heading');
+  for (const [from, by, name] of [[1, 1, 'Move down'], [2, -1, 'Move up'], [bodyHeading, 1, 'Move down']]) {
+    const menu = await openBlockMenu(from);
+    await menu.getByRole('menuitem', {name, exact:true}).click();
+    const expected = [...beforeMenuMove];
+    [expected[from], expected[from + by]] = [expected[from + by], expected[from]];
+    if (JSON.stringify(await snapshot()) !== JSON.stringify(expected)) throw new Error(`${name} must swap one block`);
+    await page.keyboard.press('ControlOrMeta+z');
+    if (JSON.stringify(await snapshot()) !== JSON.stringify(beforeMenuMove)) throw new Error(`${name} needs one-step Undo`);
+  }
+  await (await openBlockMenu(1)).getByRole('menuitem', {name:'Move down', exact:true}).click();
+  const persistedOrder = await order();
+  const contentOrder = () => editor.evaluate(node => {
+    const blocks = []; node.editor.state.doc.forEach(child => blocks.push([child.type.name, child.textContent])); return blocks;
+  });
+  const persistedContent = await contentOrder();
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
+  if (await page.getByTestId('status').getAttribute('data-operation') !== 'saved') throw new Error('Moved blocks failed Save');
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  result.menuOrderReloaded = await order() === persistedOrder && JSON.stringify(await contentOrder()) === JSON.stringify(persistedContent);
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Block move failed: ${JSON.stringify(result)}`);
   return result;

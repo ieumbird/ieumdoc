@@ -249,6 +249,9 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(await page.locator('.block-insert').count() === 4, 'An endnote offers Insert block below');
   await editor.locator('[data-testid="footnote-definition"][data-label="b"]').hover();
   await page.getByRole('button', {name:/^Actions for endnote block \d+$/}).first().click();
+  for (const name of ['Move up', 'Move down']) {
+    assert(await page.getByRole('menuitem', {name, exact:true}).isDisabled(), `Endnote menu enables ${name}`);
+  }
   const actions = await page.getByRole('menuitem').allInnerTexts();
   assert(actions.length > 0 && actions.every(item => !/미주로 모으기|Insert/.test(item)), `Endnote actions: ${actions}`);
   await page.keyboard.press('Escape');

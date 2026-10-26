@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Menu verification: 2026-10-26 (#516: unified action icons/row metrics, destructive token colors, layout-rules/quiet-document regressions and [1440px manual pairs](editor-ux-shell-v1.md#unified-action-menus-516)).
 - Last verified: 2026-10-26 (#511: generated heading/Outline number color; Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and [1440px manual comparison](heading-numbering-v1.md#generated-number-color-511--503)).
 - Previous verification: 2026-10-26 (#497: document presentation token refactor; Editor tests, typecheck/build, layout-rules/quiet-document/footnotes and [byte-identical 1440px/375px comparisons](#document-presentation-token-verification-497)).
 - Previous verification: 2026-10-26 (#480: bounded active-image picker preview, layout-rules/quiet-document, same-state 1440px/375px [captures](folder-picker-v1.md#active-image-preview-480) and byte-identical quiet-document rest pairs).
@@ -91,6 +92,22 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | No hover device | Gutter and Edit remain visible; the block extent outline is hidden under `(hover: none)`. |
 
 These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel never removes a Figure.
+
+## Action menu rows (#516)
+
+The owner-approved D2/M1 format uses the existing CommandMenu for block, `+`, slash
+and table menus: action-specific 16px lucide line icons, label, optional actual hint,
+and existing group separators. Rows retain 28px minimum height, 4px/12px padding,
+8px gap, 6px radius and 14px UI type. Base UI File actions/folder rows share those
+metrics while retaining their primitive's neutral highlight and focus ownership.
+Slash keeps its controlled highlight with editor focus. No new menu engine is added.
+
+Destructive rows use `--id-color-danger` for text and icon, and
+`--id-color-surface-danger` on enabled hover. Disabled rows remain announced and
+skipped by arrow navigation, with no hover fill; title/endnote/draft move reasons
+are accessible descriptions/tooltips. Current body heading level is omitted; the
+title retains its disabled current-level row. Markdown-input hints remain key chips;
+no unbound action shortcut is invented. See [menu behavior and same-state evidence](editor-ux-shell-v1.md#unified-action-menus-516).
 
 ## Document title (#255)
 

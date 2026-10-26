@@ -92,6 +92,11 @@ async (page, { openDocument }) => {
 
   await heading.hover();
   await page.getByRole('button', {name:'Insert block after heading block 3'}).click();
+  if (!await page.getByRole('menu', {name:'Insert block'}).evaluate(menu =>
+    [...menu.querySelectorAll('[role="menuitem"]')].every(item => {
+      const icon = item.querySelector('svg');
+      return icon && icon.getBoundingClientRect().width === 16;
+    }))) throw new Error('Insert menu is missing its 16px action icons');
   if (await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count()) throw new Error('Body insert menu offers H1');
   await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Warning', exact:true}).click();
   const warning = editor.locator('aside[data-block="admonition"][data-variant="warning"]');
@@ -103,6 +108,18 @@ async (page, { openDocument }) => {
   await existingHeading.waitFor({state:'visible'});
   await existingHeading.hover();
   await page.getByRole('button', {name:'Move heading block 3'}).click();
+  const blockFormat = await page.getByRole('menu', {name:'Block actions'}).evaluate(menu => {
+    const items = [...menu.querySelectorAll('[role="menuitem"]')];
+    const danger = document.createElement('span');
+    danger.style.color = 'var(--id-color-danger)';
+    menu.append(danger);
+    const color = getComputedStyle(danger).color;
+    danger.remove();
+    return items.every(item => item.querySelector('svg')?.getBoundingClientRect().width === 16) &&
+      items.filter(item => item.getAttribute('aria-label').startsWith('Delete')).every(item => getComputedStyle(item).color === color);
+  });
+  if (!blockFormat) throw new Error('Block menu needs action icons and token-colored destructive rows');
+  if (await page.getByRole('menuitem', {name:'Change to Heading 2', exact:true}).count()) throw new Error('Current heading level must not be offered');
   if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Body heading menu offers H1');
   await page.getByRole('menuitem', {name:'Change to Heading 4', exact:true}).click();
   const changedHeading = editor.locator('h4').filter({hasText:'Existing heading'});

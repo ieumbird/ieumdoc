@@ -23,7 +23,7 @@ import {
 import { BlockHandles } from "./BlockHandles.tsx";
 import { addTitle, editorTitleIndex } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
-import { insertCommandIcon } from "./command-icons.ts";
+import { insertCommandIcon, blockCommandAppearance } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm, referencesBrokenByDeletion, referenceTargets, isResolved, type ReferenceTarget } from "./cross-reference.tsx";
 import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
@@ -489,6 +489,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     const command = BLOCK_COMMANDS.find(command => command.id === id);
     setBlockMenu(null);
     if (!command?.enabled(editor.state, index)) return;
+    if (id.startsWith("move-") && moveBlockedHint(index)) return;
     const rejection = command.rejection?.(editor.state, index);
     if (rejection) {
       onStructuralReject(rejection);
@@ -656,11 +657,17 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CommandMenu
           key={`block-${blockMenu.index}`}
           label={i18n.t("Block actions")}
-          items={BLOCK_COMMANDS.filter(command => command.applies?.(editor.state, blockMenu.index) ?? true).map(command => ({
+          items={BLOCK_COMMANDS.filter(command => (command.applies?.(editor.state, blockMenu.index) ?? true) &&
+            (editorTitleIndex(editor.state.doc) === blockMenu.index ||
+              command.id !== `heading-level-${editor.state.doc.child(blockMenu.index).attrs.level}`)).map(command => ({
             id: command.id,
             label: command.label,
             group: blockCommandGroup(command.id),
-            disabled: !command.enabled(editor.state, blockMenu.index),
+            ...blockCommandAppearance(command.id),
+            disabled: !command.enabled(editor.state, blockMenu.index) ||
+              (command.id.startsWith("move-") && !!moveBlockedHint(blockMenu.index)),
+            disabledReason: command.id.startsWith("move-")
+              ? command.rejection?.(editor.state, blockMenu.index) ?? moveBlockedHint(blockMenu.index) : undefined,
           }))}
           focusOnOpen
           style={blockMenuStyle}

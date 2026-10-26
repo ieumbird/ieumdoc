@@ -11,6 +11,7 @@ import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
 import { editorTitleIndex } from "./document-title.ts";
+import { blockMoveTarget, blockMoveBlockedHint, reorderBlock } from "./block-reorder.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -290,6 +291,17 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     rejection: sectionDeleteRejection,
     run: deleteSection,
   },
+  ...([-1, 1] as const).map((by): BlockCommand => ({
+    id: by < 0 ? "move-up" : "move-down",
+    get label() { return by < 0 ? i18n.t("Move up") : i18n.t("Move down"); },
+    enabled: (state, index) => blockMoveTarget(state, index, by) !== undefined,
+    rejection: blockMoveBlockedHint,
+    run: (state, index) => {
+      const to = blockMoveTarget(state, index, by);
+      if (to === undefined) throw new Error("invalid block move");
+      return reorderBlock(state, index, to);
+    },
+  })),
   {
     id: "delete",
     get label() { return i18n.t("Delete"); },
@@ -301,9 +313,10 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
 
 /** Block menu group of a block command, by what it acts on. */
 export function blockCommandGroup(id: string): string {
+  if (id === "delete" || id.endsWith("-delete")) return i18n.t("Delete");
   if (id.startsWith("table-")) return i18n.t("Table");
   if (id.startsWith("section-")) return i18n.t("Section");
-  return id === "delete" ? i18n.t("Block") : i18n.t("Turn into");
+  return id.startsWith("move-") ? i18n.t("Block") : i18n.t("Turn into");
 }
 
 export function filterInsertCommands(query: string): InsertCommand[] {
