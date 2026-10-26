@@ -1,5 +1,5 @@
 // Deferred grammars are display-only; delayed/failed loading must preserve input and engine history.
-async (page, { openPath, reloadDocument, assertSavedSource }) => {
+async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -91,15 +91,24 @@ async (page, { openPath, reloadDocument, assertSavedSource }) => {
     const editor = element.closest('.document-editor').editor;
     return editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language;
   });
+  const expectLanguage = value => expect.poll(() => code.evaluate(element => ({
+    input: element.querySelector('[data-testid="code-language"]').value,
+    engine: element.closest('.document-editor').editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language,
+  })), {message:'Language input and document must reflect the selected language'}).toEqual({input:value,engine:value});
   await language.focus(); await page.keyboard.press('Tab');
   check(await picker.evaluate(element => element === document.activeElement), 'Tab did not reach the language list');
   await page.keyboard.press('Enter');
   const menu = page.getByRole('menu', {name:'Choose code language',exact:true});
   await menu.waitFor();
-  await page.keyboard.press('End'); await page.keyboard.press('Enter');
+  // Visibility precedes Base UI's frame-scheduled initial focus. Send keys only once
+  // the menu owns them, then wait for the intended item before confirming it.
+  await expect(menu.getByRole('menuitem',{name:'Plain text',exact:true})).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(menu.getByRole('menuitem',{name:'rust',exact:true})).toBeFocused();
+  await page.keyboard.press('Enter');
   await menu.waitFor({state:'detached'});
-  check(await language.inputValue() === 'rust' && await engineLanguage() === 'rust', 'Keyboard language selection failed');
-  check(await picker.evaluate(element => element === document.activeElement), 'Selection did not restore the menu button');
+  await expectLanguage('rust');
+  await expect(picker).toBeFocused();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
   check(await language.inputValue() === await engineLanguage() && await engineLanguage() !== 'rust', 'Language Undo did not synchronize the input');
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
@@ -113,7 +122,7 @@ async (page, { openPath, reloadDocument, assertSavedSource }) => {
   check(await language.inputValue() === 'xyz' && await engineLanguage() === 'xyz', 'Fence-name filtering changed');
   await picker.click(); await menu.waitFor(); await page.getByRole('menuitem',{name:'Plain text',exact:true}).click();
   await menu.waitFor({state:'detached'});
-  check(await language.inputValue() === '' && await engineLanguage() === '', 'Plain text did not clear the language');
+  await expectLanguage('');
 
   // Chromium creates real composing ranges. Assert each update immediately, so a later
   // commit, poll or reload cannot mask the stale controlled-value restoration from #527.

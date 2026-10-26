@@ -369,6 +369,20 @@ then exact canonical disk Save and Reload. The code body's existing behavior req
 no change. Editor tests (291/291), workspace typecheck, Editor build, `layout-rules`,
 `quiet-document`, `code-highlighting`, docs and whitespace checks passed locally.
 
+Queue follow-up (2026-10-27, run `40344185308`, with #560): the menu was visible before its
+frame-scheduled focus reached an item. The trace sent End about 4ms after the visibility
+wait returned and then Enter about 2ms later; both keydowns targeted the trigger, which
+closed the menu without a language transaction. The regression now waits for the first
+item's actual focus, then the intended item's focus before confirmation, and checks both
+the input and engine language together after selection. No retry or timeout increase is
+used, and the composition-update assertions above remain immediate.
+Local probes on master `3a8be3ec509e9c647a913a3e631984fb75434065` integrated into this
+branch selected the language correctly with 50ms and 100ms key holds (three trials each).
+The corrected full `code-highlighting` scenario passed three consecutive runs with the
+same Windows persistent profile, without retries. The integrated Editor suite passed
+291/291; docs and whitespace checks passed. This is a test readiness correction; no
+product code was changed for the queue failure.
+
 Same-state manual captures: English, bundled Pretendard, Windows Chrome 155, DPR/zoom 1,
 900px height, scroll top, code language `js` focused, identical composed body text. The
 menu-only captures show the new disclosure after clicking it. These images do not assert
