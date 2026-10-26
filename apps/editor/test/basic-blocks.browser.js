@@ -94,6 +94,44 @@ async (page, { openDocument }) => {
 
   // H5 and a divider from the slash menu.
   await page.keyboard.press('Enter');
+  // The unfiltered menu exposes every body heading at desktop and narrow widths.
+  const headingMenus = [];
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.keyboard.type('/');
+    const menu = page.getByRole('menu', {name:'Insert block'});
+    await menu.waitFor();
+    headingMenus.push(await menu.getByRole('menuitem').allTextContents());
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Backspace');
+  }
+  for (const labels of headingMenus) {
+    for (const level of [2, 3, 4, 5, 6]) {
+      if (!labels.some(label => label.startsWith(`Heading ${level}`))) throw new Error(`Default menu missing Heading ${level}`);
+    }
+  }
+  // Traverse the complete menu while the editor retains focus.
+  await page.keyboard.type('/');
+  const menu = page.getByRole('menu', {name:'Insert block'});
+  await menu.waitFor();
+  const labels = await menu.getByRole('menuitem').evaluateAll(items => items.map(item => item.getAttribute('aria-label')));
+  const count = labels.length;
+  for (let index = 0; index < count; index++) {
+    const active = menu.locator('.active');
+    await active.waitFor();
+    if (await active.getAttribute('aria-label') !== labels[index]) throw new Error('Slash navigation skipped an item');
+    if (!await active.evaluate(item => {
+      const bounds = item.getBoundingClientRect(), parent = item.closest('[role="menu"]').getBoundingClientRect();
+      return bounds.top >= parent.top && bounds.bottom <= parent.bottom && bounds.left >= 0 && bounds.right <= innerWidth;
+    })) throw new Error('Active slash choice is clipped during keyboard navigation');
+    await page.keyboard.press('ArrowDown');
+  }
+  if (!await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.view.hasFocus())) throw new Error('Slash navigation lost editor focus');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowDown');
+  if (await menu.locator('.active').getAttribute('aria-label') !== 'Paragraph') throw new Error('Slash navigation did not wrap');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Backspace');
   await page.keyboard.type('/h5');
   await page.getByRole('menu', {name:'Insert block'}).waitFor();
   if (!await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element =>

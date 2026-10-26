@@ -137,9 +137,9 @@ test("shared insert commands include structural blocks and select their new atom
   // The menu lists each group once under its heading, so a group's commands are consecutive.
   const groups = INSERT_COMMANDS.map(command => command.group);
   assert.deepEqual(groups.filter((group, index) => group !== groups[index - 1]), ["Text", "Lists", "Blocks", "Technical"]);
-  // Heading 4-6 are listed only for a matching query, keeping the full menu short.
+  // All body heading levels are discoverable without a search query.
   assert.deepEqual(filterInsertCommands("").filter(command => command.id.startsWith("heading-")).map(command => command.id),
-    ["heading-2", "heading-3"]);
+    ["heading-2", "heading-3", "heading-4", "heading-5", "heading-6"]);
   assert.deepEqual(filterInsertCommands("h5").map(command => command.id), ["heading-5"]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
@@ -268,7 +268,7 @@ test("slash command removes its query and shares the insert command list", () =>
   assert.deepEqual({ query: slash.query, index: slash.index }, { query: "par", index: 0 });
   assert.deepEqual(filterInsertCommands("par").map(command => command.id), ["paragraph"]);
   assert.deepEqual(filterInsertCommands("zzz"), []);
-  assert.deepEqual(filterInsertCommands(""), INSERT_COMMANDS.filter(command => !command.onlyWhenSearched));
+  assert.deepEqual(filterInsertCommands(""), INSERT_COMMANDS);
   const next = state.apply(INSERT_COMMANDS[0].run(state, slash.index, slash));
   assert.equal(next.doc.child(0).textContent, "AB ");
   assert.equal(next.doc.childCount, 2);
