@@ -227,7 +227,8 @@ Figure content, caption and label may all be absent (a pending Figure). Pending/
 transitions preserve the container, label and caption; pending Figures participate in the
 same editing state and history. See [Figure authoring](figure-authoring-v1.md) for
 the persistence boundary and insertion behavior.
-A Table caption is an optional last child of its Editor table, edited directly below
+A Table caption is a required last child of its Editor table; its authored content may be
+empty (Save omits an empty caption). It is edited directly below
 the grid with the shared rich-inline controls. Properties contain only Label. The caption
 input surface is always present without an Add caption step; clearing it removes saved
 caption content.
