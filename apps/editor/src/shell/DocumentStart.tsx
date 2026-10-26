@@ -14,6 +14,7 @@ type DocumentStartProps = {
   /** A writable sample the Host offers, opened only when the user asks. */
   sample?: string;
   busy: boolean;
+  onNewDocument(returnFocus: HTMLElement): void;
   onOpenFolder(returnFocus: HTMLElement): void;
   onOpenRecent(folder: string): void;
   onOpenSample(sample: string): void;
@@ -24,7 +25,7 @@ type DocumentStartProps = {
  * canvas with the product mark rather than on a document's paper, so it never reads as an open
  * document (#298). The sample is a separate choice, never opened for them.
  */
-export function DocumentStart({ mark, recovery, recent, sample, busy, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
+export function DocumentStart({ mark, recovery, recent, sample, busy, onNewDocument, onOpenFolder, onOpenRecent, onOpenSample }: DocumentStartProps) {
   useTranslation();
   return (
     <section className="document-start" aria-labelledby="document-start-title" data-testid="document-start">
@@ -32,10 +33,11 @@ export function DocumentStart({ mark, recovery, recent, sample, busy, onOpenFold
         {mark ? <img className="document-start-mark" src={mark} alt="" /> : null}
         IeumDoc
       </p>
-      <h1 id="document-start-title" className="document-start-title">{i18n.t("Open your Markdown")}</h1>
-      <p className="document-start-text">{i18n.t("Open a folder, then choose a Markdown file from the sidebar or create a new one.")}</p>
+      <h1 id="document-start-title" className="document-start-title">{i18n.t("Start an IeumDoc document")}</h1>
+      <p className="document-start-text">{i18n.t("Create a document, or open a folder to continue working on an IeumDoc document.")}</p>
       <div className="document-start-actions">
-        <Button size="sm" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>
+        <Button size="sm" disabled={busy} onClick={event => onNewDocument(event.currentTarget)}>{i18n.t("New document")}</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>
           <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
       </div>
       {recent.length > 0 ? (

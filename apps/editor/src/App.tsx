@@ -61,7 +61,7 @@ const desktop = typeof window === "undefined" ? undefined : window.ieumdocDeskto
 
 export function App() {
   useTranslation();
-  const newFileButton = useRef<HTMLButtonElement>(null);
+  const newFileButton = useRef<HTMLElement | null>(null);
   const newFolderButton = useRef<HTMLButtonElement>(null);
   // Open folder… returns focus to the control that opened it.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
@@ -87,6 +87,8 @@ export function App() {
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
+  const [newAfterFolder, setNewAfterFolder] = useState(false);
+  const folderNewReady = useRef(false);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -433,6 +435,17 @@ export function App() {
     setNewDirectory(newDirectoryIn(root));
     setNewDialog(true);
   }
+  function newDocument(returnFocus: HTMLElement | null): void {
+    if (busy || continuation) return;
+    newFileButton.current = returnFocus;
+    const root = folders.rootOf(openedPath) ?? folders.roots[0];
+    if (root) newFile(root);
+    else {
+      dialogReturnFocus.current = returnFocus;
+      setNewAfterFolder(true);
+      setFolderDialog(true);
+    }
+  }
   async function continueSession(shouldSave: boolean): Promise<void> {
     if (!continuation || continuationRunning.current || busy) return;
     const owner = sessions.current.get(continuation.id);
@@ -460,7 +473,7 @@ export function App() {
   }
 
   /** Lists the folder the user chose; it becomes the sidebar folder on success. */
-  async function openFolder(path: string): Promise<string> {
+  async function openFolder(path: string, createAfterOpen = false): Promise<string> {
     const root = unquotePath(path);
     if (!root) return i18n.t("Enter a folder path.");
     try {
@@ -469,6 +482,10 @@ export function App() {
       // Responses can overlap; advance the list before another completion or render.
       recentFoldersRef.current = rememberRecentFolder(listed.root, recentFoldersRef.current);
       setRecentFolders(recentFoldersRef.current);
+      if (createAfterOpen) {
+        setNewDirectory(listed.root);
+        folderNewReady.current = true;
+      }
       return "";
     } catch (cause) {
       return messageOf(cause);
@@ -644,6 +661,9 @@ export function App() {
         void openFolderDocument(entry.path).then(opened => { if (opened) setCommandFileFocus(entry.path); });
       },
     })),
+    { id: "new-document", kind: "command", label: i18n.t("New document…"), icon: FileText, takesFocus: true,
+      disabled: busy || Boolean(continuation), keywords: ["new document", "new file", "새 문서", "새 파일"],
+      run: () => newDocument(commandReturnFocus.current) },
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
@@ -713,6 +733,7 @@ export function App() {
           setFolderDialog(true);
         }}
         recent={visibleRecent}
+        onNewDocument={newDocument}
         onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
         onNew={(root, button) => {
           newFileButton.current = button;
@@ -788,6 +809,7 @@ export function App() {
               recent={visibleRecent}
               sample={start.sample}
               busy={busy}
+              onNewDocument={newDocument}
               onOpenFolder={(returnFocus) => {
                 dialogReturnFocus.current = returnFocus;
                 setFolderDialog(true);
@@ -838,7 +860,11 @@ export function App() {
         restricted={allowedRoots !== undefined}
         browse={browseHostFolder}
         places={folderPlaces}
-        onOpen={openFolder}
+        onOpen={path => openFolder(path, newAfterFolder)}
+        onClosed={() => {
+          if (!folderNewReady.current) return;
+          setNewDialog(true);
+        }}
         onCreateFolder={async (parent, name) => {
           const message = await createFolder(parent, name);
           // Creating while choosing changes no expansion; an already listed folder shows it.
@@ -846,7 +872,8 @@ export function App() {
           return message;
         }}
         returnFocus={dialogReturnFocus}
-        onClose={() => setFolderDialog(false)}
+        finalFocus={() => folderNewReady.current ? false : dialogReturnFocus.current ?? true}
+        onClose={() => { setFolderDialog(false); setNewAfterFolder(false); }}
       />
       <FolderDialog
         open={imageChoice !== null}
@@ -868,7 +895,7 @@ export function App() {
         onCreate={(directory, name) => createFile(childPath(directory, name))}
         createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
         returnFocus={newFileButton}
-        onClose={() => { if (!switching) setNewDialog(false); }}
+        onClose={() => { if (!switching) { setNewDialog(false); folderNewReady.current = false; } }}
       />
       <UnsavedChangesDialog
         open={continuation !== null}

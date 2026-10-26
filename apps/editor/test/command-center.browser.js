@@ -192,6 +192,18 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Escape');
   await center().waitFor({state:'detached'});
 
+  // Both language aliases dispatch New before any folder/document exists, then cancel safely.
+  for (const query of ['new document', '새 문서']) {
+    const returnTarget = await page.evaluateHandle(() => document.activeElement);
+    await run(query);
+    await page.getByTestId('folder-path').waitFor();
+    check(await page.getByTestId('new-file-name').count() === 0, 'New skipped location choice without an opened folder');
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    check(await page.evaluate(target => target === document.activeElement, returnTarget), 'New command did not return focus after location cancellation');
+    await returnTarget.dispose();
+  }
+
   await openPath(page, file('technical-1.md'));
   // Search only listings already held by the sidebar, including collapsed cached children.
   const openFolder = async path => {

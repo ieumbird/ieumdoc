@@ -26,7 +26,11 @@ type FolderDialogProps = {
   onCreateFolder?(parent: string, name: string): Promise<string>;
   /** The control that opened the dialog, which gets focus back when it closes. */
   returnFocus?: RefObject<HTMLElement | null>;
+  /** A chained dialog can suppress return focus while it takes ownership. */
+  finalFocus?(): HTMLElement | boolean;
   onClose(): void;
+  /** Runs after focus/inertness is released, so a following dialog can own focus. */
+  onClosed?(): void;
 };
 
 type Listing = { directory: string; result?: FolderBrowseResponse; error?: string };
@@ -44,7 +48,7 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * source: the list shows the folder up to its last separator, filtered by typed text after it; Open
  * opens exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, onClose }: FolderDialogProps) {
+export function FolderDialog({ open, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, finalFocus, onClose, onClosed }: FolderDialogProps) {
   useTranslation();
   const [input, setInput] = useState("");
   const [pathFromClick, setPathFromClick] = useState(false);
@@ -232,9 +236,9 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
       // Escape leaves the name row first, then the dialog.
       if (creating && details.reason === "escape-key") cancelCreate();
       else onClose();
-    }}>
+    }} onOpenChangeComplete={next => { if (!next) onClosed?.(); }}>
       <DialogContent className={`folder-picker ${image ? "" : "folder-picker-folder"} sm:max-w-[var(--layout-folder-picker-width)]`} showCloseButton={!pending}
-        finalFocus={() => returnFocus?.current ?? true}>
+        finalFocus={finalFocus ?? (() => returnFocus?.current ?? true)}>
         <DialogHeader>
           <DialogTitle>{image ? i18n.t("Choose image") : i18n.t("Open folder")}</DialogTitle>
           <DialogDescription>{image
