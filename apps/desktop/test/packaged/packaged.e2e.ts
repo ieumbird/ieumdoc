@@ -11,6 +11,7 @@ import { test } from "node:test";
 import { _electron as electron, expect, type ElectronApplication, type Page } from "@playwright/test";
 import { openDocument, reloadDocument } from "../../../editor/test/browser/navigation.ts";
 import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
+import { processTree } from "./process-tree.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -384,17 +385,6 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
   }
 });
 
-/** The process tree of a directly started app (no automation flags), with its listening TCP ports and memory. */
-function processTree(pid: number): { processes: number; listening: string[]; workingSetMb: number } {
-  const script = `$all = Get-CimInstance Win32_Process; $ids = @(${pid}); do { $before = $ids.Count; ` +
-    `$ids = @($ids + ($all | Where-Object { $ids -contains $_.ParentProcessId } | ForEach-Object ProcessId) | Select-Object -Unique) } while ($ids.Count -ne $before); ` +
-    `$listen = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.OwningProcess } | ForEach-Object { $_.LocalAddress + ':' + $_.LocalPort }); ` +
-    `$ws = ($all | Where-Object { $ids -contains $_.ProcessId } | Measure-Object -Property WorkingSetSize -Sum).Sum; ` +
-    `ConvertTo-Json -Compress @{ processes = $ids.Count; listening = $listen; ws = $ws }`;
-  const result = JSON.parse(execFileSync("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8" })) as { processes: number; listening: string[] | null; ws: number };
-  return { processes: result.processes, listening: result.listening ?? [], workingSetMb: Math.round(result.ws / 1024 / 1024) };
-}
-
 test("started directly, the app opens no TCP port; start time and memory are measured", async () => {
   const userData = profile("direct");
   const log = path.join(userData, "logs", "desktop.log");
@@ -406,8 +396,11 @@ test("started directly, the app opens no TCP port; start time and memory are mea
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     const shown = Date.now() - started;
+    const initial = await processTree(child, exe);
+    assert.deepEqual(initial.listening, []);
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    const tree = processTree(child.pid!);
+    const tree = await processTree(child, exe, initial.identities);
+    console.log(`direct start identities: ${JSON.stringify(tree.identities)}`);
     console.log(`direct start: window shown after ${shown} ms; ${tree.processes} processes; ${tree.workingSetMb} MB working set; listening: ${JSON.stringify(tree.listening)}`);
     assert.deepEqual(tree.listening, []);
   } finally {
