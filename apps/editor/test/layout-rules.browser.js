@@ -53,7 +53,9 @@ async (page, { openPath, withBlockHover, expect }) => {
     // The narrow layout deliberately unmounts the closed Outline; its desktop coverage stays required.
     const selectors=[...(innerWidth>=1280?['.document-outline-item']:[]),'.sidebar-tree-item','[data-testid="save"]','.figure-edit','.equation-edit','.folder-picker-crumb',
       '.table-row-handle','.table-column-handle','.table-extend','.table-action-bar button',
-      '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]'];
+      '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]',
+      // Caption/table families stay UI-owned; their sizes have separate document tokens.
+      '.caption','.table'];
     const type=n=>{
       const s=getComputedStyle(n);
       // Reference edit icons have a fixed SVG size; their em offsets deliberately follow
@@ -205,7 +207,8 @@ async (page, { openPath, withBlockHover, expect }) => {
           const documentFont=getComputedStyle(fontProbe).fontFamily;
           fontProbe.style.fontFamily='var(--font-family-sans)';
           const uiFont=getComputedStyle(fontProbe).fontFamily;fontProbe.remove();
-          if([body,...headings,caption,table].some(t=>t.font!==documentFont)||getComputedStyle(document.body).fontFamily!==uiFont)
+          if([body,...headings].some(t=>t.font!==documentFont)||
+            [caption,table].some(t=>t.font!==uiFont)||getComputedStyle(document.body).fontFamily!==uiFont)
             throw Error('Document/UI font must follow its own token');
           const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
