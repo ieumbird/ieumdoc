@@ -732,6 +732,10 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await dialog.getByTitle(folder, {exact:true}).first().waitFor();
   for (const width of [1440, 375]) {
     await page.setViewportSize({width, height:667});
+    // A same-value fill does not dispatch a user edit, so explicitly reset the active entry.
+    await field.fill('');
+    await field.fill(folder + sep);
+    await option(browseEntries[0].name).waitFor();
     await dialog.evaluate(async element => { await document.fonts.ready; await Promise.all(element.getAnimations().map(animation => animation.finished)); });
     const bounds = await dialog.evaluate(element => {
       const list = element.querySelector('[role=listbox]');
@@ -751,7 +755,6 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
       return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
     });
     assert(reachable, 'Open stays reachable by dialog scrolling with long shortcut names');
-    await field.fill(folder + sep);
   }
   await field.press('Escape');
   await dialog.waitFor({state:'detached'});
