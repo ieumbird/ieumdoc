@@ -320,19 +320,19 @@ where master inherited `keep-all`. The new computed-style comparison fails again
 The fix restores inheritance only inside headings; all other excluded surfaces remain
 `normal`. No overflow-wrap value is changed.
 
-The [master baseline](../../apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
-records actual computed values from `325704e73871303b70aa4c73fc930eb2f975b8c1` in this
+The [historical master baseline](https://github.com/ieumbird/ieumdoc/blob/dfddc2ae799f7de407dd582b1fbad8842968335b/apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
+recorded actual computed values from `325704e73871303b70aa4c73fc930eb2f975b8c1` in this
 worktree with that revision's complete styles.css/tokens.css and the expanded real fixture.
-This is not a synthetic CSS override. `quiet-document` compares code in heading, paragraph,
+This was not a synthetic CSS override. At that review, `quiet-document` compared code in heading, paragraph,
 list, quote, admonition, caption, table cell, code block and endnote contexts, plus inline
 math, UI controls, the Outline number span and Source text/lines. Document code/math compute
 to `overflow-wrap: break-word`; Source computes to `anywhere`. Both match master.
 
 At 1440px the three table columns are 217.84375 / 217.84375 / 267.3125px on the measured
 Windows Chrome/Pretendard environment. Master-computed table/cell typography, padding,
-borders and table width are also recorded. The regression reflows a clone of the same
+borders and table width are also recorded. The former regression reflowed a clone of the same
 table with those recorded styles in an isolated shadow root in the current browser,
-then compares every column within 0.1px. The reference has no current application CSS.
+then compared every column within 0.1px. The reference has no current application CSS.
 This keeps platform glyph-rounding differences out of the comparison without widening
 the tolerance or copying current cell styles into the reference. A one-off negative
 control increased the first column's padding; the comparison failed with widths
@@ -449,6 +449,7 @@ pixel-diff assertions or a substitute for user visual approval.
 Values meant to be tuned by hand, or that change with a user's taste, are shared variables, never numbers repeated in rules or scripts.
 
 - They live at the top of `styles/tokens.css` under **Adjustable values**, each with a comment saying what it controls. Changing one value there changes the Editor; tests read the variable instead of pinning its number.
+- Regression coverage (#536) checks token ownership, consumers and resolved relationships, not historical computed values. `quiet-document` uses Range geometry for Korean word boundaries and oversized-token fallback in prose/cells, contextual code/math wrapping, local table/formula scrolling, and document-independent UI/Source typography. The #506 master baseline and its shadow-table comparison were removed; the review evidence above remains historical. `layout-rules` reads the current document font and control radius tokens, and still enforces 28/32px controls and unmoved text. `visual-states` computes the generated-number contrast from current tokens (at least 4.5:1 on paper and the Outline panel).
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The Wide document checkbox in Sidebar Display chooses between them.
 - Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. These are hand-tuned values, without a new preference control or theme.

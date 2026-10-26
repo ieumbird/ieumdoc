@@ -286,7 +286,7 @@ async (page, { withBlockHover }) => {
     };
     const lum = rgb => rgb.map(v => {v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;})
       .reduce((sum,v,i) => sum + v * [.2126,.7152,.0722][i],0);
-    const pairs = [];
+    const pairs = [['document-heading-number','surface',4.5],['document-heading-number','surface-subtle',4.5]];
     for (const bg of ['surface','surface-subtle','surface-hover','surface-pressed'])
       for (const fg of ['text','text-muted','text-subtle']) pairs.push([fg,bg,4.5]);
     for (const bg of ['surface-selected','surface-selected-hover']) pairs.push(['text-selected',bg,4.5]);
