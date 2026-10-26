@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Menu verification: 2026-10-26 (#516: unified action icons/row metrics, destructive token colors, layout-rules/quiet-document regressions and [1440px manual pairs](editor-ux-shell-v1.md#unified-action-menus-516)).
 - Last verified: 2026-10-26 (#514: B1/C1 shared controls and deliberate exceptions; consumer guard with three rejected mutations, bilingual 1440/390px computed styles, affected interaction regressions and [manual Before/After](#shared-control-verification-514)).
 - Previous verification: 2026-10-26 (#506: Korean eojeol wrapping with oversized-token fallback; [verification and same-state 1440px/375px captures](#korean-document-wrapping-506)).
 - Previous verification: 2026-10-26 (#511: generated heading/Outline number color; Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and [1440px manual comparison](heading-numbering-v1.md#generated-number-color-511--503)).
@@ -54,8 +55,9 @@ C1 retains one interaction blue (`--id-color-interaction`, `#315fd4`) and its ex
 hover/selected text and surface tints. Primary actions, focus, selection, current and
 drag consume that palette. Existing neutral, info/content-link, warning and danger
 roles retain their meanings. New UI color literals outside `styles/tokens.css` are
-prohibited; `index.css` is a one-way adapter, not a second palette. This does not change
-selection indicators (#515), menu design (#516) or table-handle discoverability (#517).
+prohibited; `index.css` is a one-way adapter, not a second palette. Selection indicators
+(#515) and table-handle discoverability (#517) remain separate. Menu geometry and behavior
+follow the implemented [action menu rows](#action-menu-rows-516) contract.
 
 The expanded Sidebar Collapse control retains `aria-expanded`, with a transparent rest
 and neutral hover like its header siblings. Expansion describes a disclosure, rather
@@ -70,7 +72,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Inline reference/citation edit and citation-key remove | Retain the existing 18px corner edit / 16px chip remove targets, 12px icons, zero icon line box and 4px radius. Enlarged invisible targets could cover neighboring document text or keys; preserving selection, wrapping and line height is safer. Accessible names and keyboard focus rings remain. This is a deliberate tiny-target exception, not permission for new toolbar actions. |
 | Table address labels | 12/16px metadata in 28px targets; letters/numbers identify data addresses, not icons. Column target width follows its actual column; row targets remain 28px wide and vertically centered. Ordinary action UI uses 14/20px. |
 | Breadcrumbs and wrapping list/menu rows | At least 28px; actionable paths and translated multi-line content may grow rather than truncate or overflow. Breadcrumbs use 4px inline padding to keep long paths reachable. |
-| File tree, Outline, recent-folder/picker options and menu primitives | Retain their navigation/selection/focus owners and token-backed row geometry. They are not generic fixed-height action buttons. Command center results retain 36/56px and 4px radius for one/two-line result navigation pending the separate selection/menu work. |
+| File tree, Outline, recent-folder/picker options and menu primitives | Retain their navigation/selection/focus owners and token-backed row geometry. They are not generic fixed-height action buttons. Command center results retain 36/56px and 4px radius for one/two-line result navigation; CommandMenu rows follow the shared 6px menu rule. |
 | Document tabs and close slot | Retain the 40px navigation row, 37px activation area, square tab/28px close slot and roving keyboard owner pending #515; do not change the row layout in this control migration. |
 | Visual/Source | The documented 24px inner segment sits inside a 28px track; measure the whole segmented control. |
 | Native checkboxes | 16px OS checkbox inside an associated label target of at least 28px; retain native accessibility, accent and focus behavior. |
@@ -163,6 +165,33 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | No hover device | Gutter and Edit remain visible; the block extent outline is hidden under `(hover: none)`. |
 
 These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel never removes a Figure.
+
+## Action menu rows (#516)
+
+The owner-approved D2/M1 format uses the existing CommandMenu for block, `+`, slash
+and table menus: action-specific 16px lucide line icons, label, optional actual hint,
+and existing group separators. Rows retain 28px minimum height, 4px/12px padding,
+8px gap, 6px radius and 14px UI type. Base UI File actions/folder rows share those
+metrics while retaining their primitive's neutral highlight and focus ownership.
+Slash keeps its controlled highlight with editor focus. No new menu engine is added.
+
+Destructive rows use `--id-color-danger` for text and icon, and
+`--id-color-surface-danger` on enabled hover. Disabled rows remain announced and
+skipped by arrow navigation, with no hover fill; boundary/title/endnote/draft move reasons
+are accessible descriptions/tooltips. Current body heading level is omitted; the
+title retains its disabled current-level row. Markdown-input hints remain key chips;
+no unbound action shortcut is invented. See [menu behavior and same-state evidence](editor-ux-shell-v1.md#unified-action-menus-516).
+
+Review correction (#523): one shared list-row rule owns CommandMenu's 6px
+`--id-radius-md` control radius; the duplicate local declaration has been removed.
+On `842965f`, that common rule already overrode the stale small-radius declaration,
+producing 6px in the real browser. The existing insert/block menu computed-style checks now
+assert that shared radius too; they passed on that baseline. Row height and padding
+are unchanged. Actual 1440×900 English `tables.md` captures with the `+` menu opened
+by keyboard, first-row focus and pointer away are byte-identical:
+[before](assets/unified-menus-516-review/before-radius.png) /
+[after](assets/unified-menus-516-review/after-radius.png). These are manual review
+evidence; no screenshot assertion is added.
 
 ## Document title (#255)
 
@@ -538,6 +567,16 @@ Merged-tree verification passed once: Editor tests 291/291 (including both visua
 checks), workspace typecheck, docs/whitespace checks, and layout-rules, table-authoring,
 table-cell-editing and quiet-document in one persistent-profile browser run. The guard
 is unchanged and needed no new exception for the merged CSS or tokens.
+
+Menu integration: master `d7830ed72a3e5ac8d3562417c1084e7b380df812` adds #516's
+shared 6px CommandMenu row rule, action icons/grouping and danger rows alongside B1/C1.
+The duplicate small row-radius declaration stays removed; danger text/icon/hover use
+the existing tokens. Table menu metadata and B1's shared table Buttons, explicit targets
+and anchors coexist. Only verification metadata conflicted; both menu and B1/C1 records
+are retained. Guard code is unchanged and needed no new token fix or allowlist entry.
+Editor tests 291/291 (including both visual-token checks), workspace typecheck and
+docs/whitespace checks passed. One persistent-profile browser run passed layout-rules,
+block-move, structural-block-authoring, table-authoring and table-cell-editing (5/5).
 
 ### Document presentation token verification (#497)
 

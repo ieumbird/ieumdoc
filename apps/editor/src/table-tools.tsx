@@ -10,8 +10,9 @@ import { createPortal } from "react-dom";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
-import { BLOCK_COMMANDS, type TableCellAddress } from "./block-commands.ts";
-import { CommandMenu } from "./CommandMenu.tsx";
+import { BLOCK_COMMANDS, blockCommandGroup, type TableCellAddress } from "./block-commands.ts";
+import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
+import { blockCommandAppearance } from "./command-icons.ts";
 
 /** A presentation-only decoration; the engine selection remains the native caret. */
 export const TableCellFocus = Extension.create({
@@ -106,9 +107,10 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
   const column = menu?.kind === "column" ? target.column : current?.column;
   const actions = BLOCK_COMMANDS.filter(command => menu?.kind === "row" ? command.id.startsWith("table-row")
     : menu?.kind === "column" ? command.id.startsWith("table-column") || command.id.startsWith("table-align") : command.id === "delete");
-  const items = actions.map(command => ({ id: command.id, label: command.id === "delete" ? i18n.t("Delete table") : command.label,
+  const items: CommandMenuItem[] = actions.map(command => ({ id: command.id, label: command.id === "delete" ? i18n.t("Delete table") : command.label,
+    ...blockCommandAppearance(command.id), group: blockCommandGroup(command.id),
     disabled: !command.enabled(editor.state, index, target) }));
-  if (menu?.kind === "table") items.unshift({ id: "properties", label: i18n.t("Edit caption and label"), disabled: false });
+  if (menu?.kind === "table") items.unshift({ id: "properties", label: i18n.t("Edit caption and label"), ...blockCommandAppearance("properties"), group: i18n.t("Table") });
   return <div className="table-tools" data-active={current ? "true" : "false"} data-menu-open={menu ? "true" : "false"} contentEditable={false}>
     {geometry.columns.map((cell, i) => <Button variant="table-handle" size="sm" key={i} type="button" className="table-column-handle"
       aria-label={i18n.t("Column {{column}} actions", { column: columnName(i) })} aria-pressed={column === i} aria-haspopup="menu"

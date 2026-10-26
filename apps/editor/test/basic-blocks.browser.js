@@ -95,6 +95,12 @@ async (page, { openDocument }) => {
   // H5 and a divider from the slash menu.
   await page.keyboard.press('Enter');
   await page.keyboard.type('/h5');
+  await page.getByRole('menu', {name:'Insert block'}).waitFor();
+  if (!await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element =>
+    element.editor.view.hasFocus() && element.contains(document.activeElement))) throw new Error('Slash menu took focus from the editor');
+  await page.keyboard.press('ArrowDown');
+  if (!await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element =>
+    element.editor.view.hasFocus())) throw new Error('Slash navigation took focus from the editor');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Deep heading');
   await editor.locator('h5').filter({hasText:'Deep heading'}).waitFor({state:'visible'});
