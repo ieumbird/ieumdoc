@@ -4,7 +4,8 @@
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
 
-- Last verified: 2026-10-26 (#471 and #485 review follow-up after merging master d3cfd58: Editor tests, workspace typecheck, Editor build, command-center/layout-rules/quiet-document/continuous-editing/markdown-input browser regressions, input-rule parity and complete keymap audit; [verification](#shortcut-guide-verification-471)).
+- Last verified: 2026-10-26 (#496: curated shortcut guide, Windows/macOS binding validity, desktop single-line rows and phone overflow; [verification and Before/After](#curated-shortcut-guide-496)).
+- Previous verification: 2026-10-26 (#471 and #485 review follow-up after merging master d3cfd58: Editor tests, workspace typecheck, Editor build, command-center/layout-rules/quiet-document/continuous-editing/markdown-input browser regressions, input-rule parity and complete keymap audit; [verification](#shortcut-guide-verification-471)).
 - Source wrapping verification: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](#source-wrapping-476)).
 - Table deletion verification: 2026-10-26 (#474 / PR #486 review: transient table deletion/Undo through MessageArea, including revocation when Source starts; table-authoring, source-view-pending and bilingual cross-reference browser regressions, typecheck/build and [captures](table-interaction-v1.md#table-deletion-notice-verification-474)).
 - Previous verification: 2026-10-26 (#473: Display/command-center bibliography connection and conditional References; [verification and product captures](citations-v1.md#conditional-references-verification-473)).
@@ -265,40 +266,31 @@ The Save, Undo and Redo rows show their shared platform labels (Ctrl+S/Z/Y, or �
 The guide also shows the existing Ctrl/Cmd+Shift+Z redo alternative.
 
 `Keyboard shortcuts` / `키보드 단축키` opens a read-only shared Dialog after the center
-closes. General, Editing, Formatting, Code blocks, Tables and Navigation and dialogs groups
-list existing bindings only:
+closes. The guide is a curated list of useful IeumDoc editing shortcuts (#496), with short
+English/Korean names and shared platform labels, rather than an inventory of every binding:
 
-- General: command center Ctrl/Cmd+/, Save Ctrl/Cmd+S, slash insertion, supported Copy/Cut
-  Ctrl/Cmd+C/X and browser Paste/Plain-text paste Ctrl/Cmd+V/Shift+V.
-- Editing: Undo/Redo above; Enter starts a new block; Shift+Enter or Ctrl/Cmd+Enter inserts
-  a line break in a paragraph, quote, endnote or admonition body (headings cannot hold breaks);
+- General: Command center Ctrl/Cmd+/, Save Ctrl/Cmd+S.
+- Editing: Undo Ctrl/Cmd+Z; Redo Ctrl/Cmd+Y and Ctrl/Cmd+Shift+Z; New block Enter;
+  Line break Shift+Enter (supported prose blocks, not headings);
   Tab/Shift+Tab increases/decreases heading level at a caret or indents/outdents a list item;
-  Ctrl/Cmd+Shift+8 and Ctrl/Cmd+Shift+7 toggle bullet/numbered lists. Select all is Ctrl/Cmd+A.
-  The guide also includes the engine's Russian-layout Undo/Redo aliases (Ctrl/Cmd+Я and
-  Ctrl/Cmd+Shift+Я), backward/forward deletion and block/list boundary joining keys,
-  Ctrl/Cmd+End and macOS Cmd+ArrowDown document-end movement, and ArrowDown below a final
-  closed block. macOS-only text-block movement and deletion aliases appear only on macOS;
-  their literal Ctrl modifier remains Ctrl, while Mod bindings use Cmd (⌘) and Alt uses Option.
+  Ctrl/Cmd+Shift+8 and Ctrl/Cmd+Shift+7 toggle Bullet list / Numbered list;
+  Code block Ctrl/Cmd+Alt+C; Go to document end Ctrl/Cmd+End.
 - Formatting: bold Ctrl/Cmd+B, italic Ctrl/Cmd+I, strikethrough Ctrl/Cmd+Shift+S,
   inline code Ctrl/Cmd+E, link Ctrl/Cmd+', subscript Ctrl/Cmd+, and superscript Ctrl/Cmd+.
-- Code blocks: Ctrl/Cmd+Alt+C toggles code; Tab/Shift+Tab indents/outdents; Enter adds a code
-  line (three Enters at the end exit). ArrowUp at document start or ArrowDown at code end leaves
-  the code block. These descriptions retain the actual context and do not claim every arrow exits.
-- Tables: Tab/Shift+Tab moves to the next/previous cell; Tab at the last cell adds a row;
-  Enter leaves the table for a new block.
-- Navigation and dialogs: menu/folder-suggestion arrows, Enter activation and Escape dismissal;
-  selection-toolbar Tab/Shift+Tab/Escape focus; Files/Outline arrows, Home/End, Enter/Space;
-  tab navigation and Delete-to-close; folder-path completion/parent navigation; single-line form
-  submission and cancellation (Citation Enter adds a pending key first).
+- Tables: Next / previous cell Tab/Shift+Tab.
+
+Keyboard-layout aliases, separate macOS-only variants, basic OS editing/navigation keys and
+menu/dialog navigation are omitted from the guide. Their registered behavior is unchanged.
 
 Labels use `shortcuts.ts`, also consumed by the existing shell matchers and formatting tooltips;
-Tiptap retains ownership of its keymaps. Editor unit coverage compares **every registered binding**
-from enabled Core, Tiptap and application extensions against the visible guide entries, separately
-on Windows and macOS; it normalizes modifier order and case aliases without pinning item counts
-or markup. The reverse check rejects invented engine bindings. English/Korean descriptions explain context without changing
-the bindings. Escape, outside dismissal or Close returns focus to the center's original opener
+Tiptap retains ownership of its keymaps. Editor unit coverage checks every displayed binding
+against enabled Core, Tiptap and application keymaps or the existing shell handlers, on Windows
+and macOS. A focused presence check protects the curated commands above, without requiring every
+registered binding, layout alias, item count or markup. Escape, outside dismissal or Close returns focus to the center's original opener
 (editor when opened there, otherwise the invoking control). The shared dialog surface, compact
-Close control, spacing, typography and viewport-bounded scroll are reused; no new visual token.
+Close control, spacing, typography and viewport-bounded scroll are reused. The guide reuses the
+existing wide Folder dialog width token. At 1280/1440px each entry has its name left and keys
+right on one line; at 375px rows may wrap within the viewport without horizontal overflow.
 It creates no document/history change and has no opening shortcut. These are Editor history,
 focus and help interactions, so they introduce no Core operation or CLI command. Desktop Hangul
 IME delivery of Ctrl+Y/Ctrl+Z reuses the guarded matcher integrated from [#481](https://github.com/ieumbird/ieumdoc/pull/481).
@@ -912,6 +904,40 @@ captures at [1280px](assets/command-center-384/limited-1280.png) and
 [375px](assets/command-center-384/limited-375.png) retain the same query/first selection as the earlier
 paged captures, with existing footer typography/spacing and no new adjustable style value.
 
+### Curated shortcut guide (#496)
+
+The owner corrected #485's complete-list requirement: keep useful editing commands concise,
+reuse existing bindings/platform labels and a wide Dialog, and replace exhaustive omission
+coverage with displayed-binding validity plus curated-command presence. Scope is help content,
+presentation, translations and existing tests; no new shortcuts or Core/CLI semantics.
+
+Before changing product code, the extended `command-center` assertions failed on base
+`6352fa661b5e4583db75597e70c146cd4e815646`: English/Korean 1440px rows wrapped (including
+Redo and heading/list entries) and the Russian-layout alias appeared in both languages at
+1440/375px. The existing phone overflow assertion already passed; it remains protected.
+After the change, `command-center --screenshots` passes: English entries stay one line at
+1280/1440px, Korean entries at 1440px, the alias is absent, and both languages fit at 375px.
+Every row is measured against its label's single-line height, without a fixed row count.
+Editor tests (290), workspace typecheck, Editor build, docs/whitespace checks and the existing
+`layout-rules quiet-document` browser regressions also pass. Windows/macOS keymap
+validity and shared labels are unit checks; no native macOS keyboard run is claimed.
+
+Manual visual review only: same worktree/server (`127.0.0.1:5206`), installed Chrome with
+the checkout-owned persistent profile, DPR 1, 100% zoom and bundled Pretendard. Each pair
+uses the same document, language, viewport, guide scroll 0 and keyboard-focused Close control.
+The 1440px guide widens from the default 384px to the existing 672px Folder dialog token;
+labels and multiple key hints now share a row. At 375px the 343px popup retains its viewport
+inset, shows the shorter list and keeps Close reachable. Surface, font, spacing and focus
+treatment follow the existing [Visual Language](editor-visual-language-v1.md#reviewing-a-visual-change).
+Captures are review evidence, not screenshot-based automated assertions.
+
+| Language / viewport | Before | After |
+| --- | --- | --- |
+| English, 1440×900 | [Before](assets/shortcut-guide-496/before-en-1440.png) | [After](assets/shortcut-guide-496/after-en-1440.png) |
+| English, 375×900 | [Before](assets/shortcut-guide-496/before-en-375.png) | [After](assets/shortcut-guide-496/after-en-375.png) |
+| Korean, 1440×900 | [Before](assets/shortcut-guide-496/before-ko-1440.png) | [After](assets/shortcut-guide-496/after-ko-1440.png) |
+| Korean, 375×900 | [Before](assets/shortcut-guide-496/before-ko-375.png) | [After](assets/shortcut-guide-496/after-ko-375.png) |
+
 ### Shortcut guide verification (#471)
 
 The extended `command-center` scenario failed against the baseline with `Undo command and
@@ -955,7 +981,10 @@ The corrected `command-center` and existing `markdown-input` (opaque-IME input-r
 pass. `continuous-editing` initially stopped at an unrelated ambiguous Equation Apply locator,
 before reaching its history probes; its next unchanged run passed, including the #481 history probes.
 
-#### Review follow-up: complete keymap audit
+#### Review follow-up: complete keymap audit (historical, superseded by #496)
+
+The following records #485's earlier full inventory and omission test. The curated contract
+above replaces that display requirement; registered key behavior remains unchanged.
 
 The omission check failed against the earlier guide with `Undocumented Windows bindings`, including
 the list toggles, code toggle, document end and the other previously unlisted editing keys. It now

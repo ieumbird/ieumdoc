@@ -109,12 +109,12 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     } else await run('keyboard shortcuts');
     const guide = page.getByRole('dialog', {name:'Keyboard shortcuts',exact:true});
     await guide.waitFor();
-    check((await guide.innerText()).includes('Line break inside a block') &&
+    check((await guide.innerText()).includes('Line break') &&
       (await guide.innerText()).includes('Shift+Enter'), 'Line-break shortcut is missing from the guide');
     check((await guide.innerText()).includes('Ctrl+/') && (await guide.innerText()).includes('Ctrl+S'), 'General shortcut hints missing');
     if (dismissal === 'Escape') for (const [label, hint] of [
-      ['Toggle bullet list','Ctrl+Shift+8'], ['Toggle numbered list','Ctrl+Shift+7'],
-      ['Toggle code block','Ctrl+Alt+C'], ['Move to the document end','Ctrl+End'],
+      ['Bullet list','Ctrl+Shift+8'], ['Numbered list','Ctrl+Shift+7'],
+      ['Code block','Ctrl+Alt+C'], ['Go to document end','Ctrl+End'],
     ]) {
       await guide.getByText(label,{exact:true}).scrollIntoViewIfNeeded();
       check(await guide.getByText(hint,{exact:true}).isVisible(), `${label} shortcut is missing or unreachable`);
@@ -517,8 +517,26 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'technical-1.md');
   result.viewAndDuplicateNames = true;
 
+  // Collect both desktop regressions before reporting so phone captures use the same state.
+  const guideFailures = [];
+  const inspectGuide = async (guide, width, language) => {
+    const geometry = await guide.evaluate(n => {
+      const labels = [...n.querySelectorAll('dt')];
+      return {
+        rows: labels.length,
+        wrapped: labels.filter(label => label.parentElement.getBoundingClientRect().height >
+          parseFloat(getComputedStyle(label).lineHeight) + 1).map(label => label.textContent),
+        alias: /я/i.test(n.textContent),
+        overflow: n.scrollWidth > n.clientWidth || document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    check(geometry.rows > 0, 'Shortcut guide has no entries');
+    if (width >= 1280 && geometry.wrapped.length) guideFailures.push(`${language} ${width}: wrapped entries: ${geometry.wrapped.join(', ')}`);
+    if (geometry.alias) guideFailures.push(`${language} ${width}: Russian layout alias is shown`);
+    if (geometry.overflow) guideFailures.push(`${language} ${width}: horizontal overflow`);
+  };
   // The top-center entry and popup stay usable with panels and at phone width.
-  for (const width of [1440,1024,768,375]) {
+  for (const width of [1440,1280,1024,768,375]) {
     await page.setViewportSize({width,height:900});
     const trigger = page.getByRole('button',{name:'Command center',exact:true});
     const box = await trigger.boundingBox();
@@ -531,7 +549,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check(popup.x>=0 && popup.x+popup.width<=width && popup.y>=0 && popup.y+popup.height<=900, `Popup clipped at ${width}`);
     if (screenshots) await page.screenshot({path:`tmp/command-center/search-${width}.png`});
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
-    if (width === 1440 || width === 375) {
+    if (width === 1440 || width === 1280 || width === 375) {
       await run('keyboard shortcuts');
       const guide = page.getByRole('dialog',{name:'Keyboard shortcuts',exact:true});
       await guide.waitFor();
@@ -540,10 +558,11 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
         `Shortcut guide clipped at ${width}`);
       check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Shortcut guide overflows at ${width}`);
       if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-${width}-471.png`});
-      await guide.getByText('Toggle code block',{exact:true}).scrollIntoViewIfNeeded();
+      await inspectGuide(guide, width, 'en');
+      await guide.getByText('Code block',{exact:true}).scrollIntoViewIfNeeded();
       check(await guide.getByText('Ctrl+Alt+C',{exact:true}).isVisible(), `Code shortcut unreachable at ${width}`);
       if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-code-${width}-471.png`});
-      await guide.getByText('Submit a single-line form / cancel; in Citation, Enter first adds the typed key',{exact:true}).scrollIntoViewIfNeeded();
+      await guide.getByText('Next / previous cell',{exact:true}).scrollIntoViewIfNeeded();
       check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Lower shortcut groups overflow at ${width}`);
       await page.keyboard.press('Escape'); await guide.waitFor({state:'detached'});
     }
@@ -572,10 +591,16 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Enter'); await korean.waitFor({state:'detached'});
   const koreanGuide = page.getByRole('dialog',{name:'키보드 단축키',exact:true});
   await koreanGuide.waitFor();
-  check((await koreanGuide.innerText()).includes('블록 안 줄바꿈') && (await koreanGuide.innerText()).includes('Shift+Enter'),
+  check((await koreanGuide.innerText()).includes('줄바꿈') && (await koreanGuide.innerText()).includes('Shift+Enter'),
     'Korean shortcut guide is missing the line-break entry');
   check(await koreanGuide.evaluate(n => n.scrollWidth <= n.clientWidth), 'Korean guide overflows on phone');
   if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-375-471.png'});
+  await inspectGuide(koreanGuide, 375, 'ko');
+  await page.setViewportSize({width:1440,height:900});
+  await koreanGuide.evaluate(n => n.scrollTop = 0);
+  if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-1440-496.png'});
+  await inspectGuide(koreanGuide, 1440, 'ko');
+  await page.setViewportSize({width:375,height:900});
   await page.keyboard.press('Escape'); await koreanGuide.waitFor({state:'detached'});
   await page.getByRole('button',{name:'커맨드 센터',exact:true}).click(); await waitForInput();
   await korean.getByRole('combobox').fill('> settings');
@@ -583,6 +608,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   result.bilingualSearch = true;
+  check(guideFailures.length === 0, guideFailures.join('\n'));
 
   // A large Host listing stays fully searchable without mounting every match. Keep timing out
   // of regression assertions; protect bounded rows, live counts, narrowing and keyboard access.
