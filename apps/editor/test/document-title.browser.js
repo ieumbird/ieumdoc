@@ -30,6 +30,14 @@ async (page, { openPath }) => {
   await title.hover({position:{x:4, y:4}});
   const handle = page.getByRole('button', {name:'Move heading block 1', exact:true});
   result.handleFixed = await handle.getAttribute('draggable') === 'false' && (await handle.getAttribute('title')).includes('title stays at the top');
+  await handle.click();
+  const titleLevel = page.getByRole('menuitem', {name:'Change to Heading 1', exact:true});
+  result.titleMenuKeepsH1 = await titleLevel.count() === 1 && await titleLevel.isDisabled();
+  await page.getByRole('menuitem', {name:'Change to Heading 2', exact:true}).click();
+  check((await blocks())[0] === 'heading2:Converter Control', 'Explicit title level change was refused');
+  await editor.evaluate(node => node.editor.view.focus());
+  await page.keyboard.press('Control+z');
+  check(JSON.stringify(await blocks()) === JSON.stringify(original), 'Undo did not restore the explicitly changed title');
 
   // An engine change that would put a block above the title, or move the title, is refused.
   for (const change of ['insert', 'move']) {

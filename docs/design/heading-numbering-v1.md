@@ -1,12 +1,18 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
 - Last verified: 2026-10-26 (#462 caption-template Core/CLI/Editor tests and cross-reference browser Undo/Redo, Source and Save → Reload).
 - Reference-template verification: 2026-10-25 (#445 Core/CLI/Editor tests and cross-reference browser Save → Reload).
 - Previous verification: 2026-10-14 (#232 native metadata contract).
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
-Core persists `numbering.headings: boolean` and `numbering.title: false` alongside the mandatory `ieumdoc: 1` marker. Omitted numbering means off. H1 remains a document title (the leading one is [the document title](document-editing-v1.md#document-title-255), which stays first); H2–H6 use the default section counter policy. Heading text never contains generated numbers. Custom heading starts, prefixes and per-level settings are rejected at admission. Numbered reference templates follow the separate contract below.
+Core persists `numbering.headings: boolean` and `numbering.title: false` alongside the mandatory `ieumdoc: 1` marker. Omitted numbering means off. H1 is unnumbered (the leading one is [the document title](document-editing-v1.md#document-title-255), which stays first); H2–H6 use the default section counter policy. Heading text never contains generated numbers. Custom heading starts, prefixes and per-level settings are rejected at admission. Numbered reference templates follow the separate contract below.
+
+The Editor offers only H2–H6 for body heading insertion/conversion and stops
+Shift+Tab promotion at H2 (#472). This authoring choice leaves numbering, the
+title flow, existing body H1 content and Core/CLI's valid H1 support unchanged;
+see [document title and body authoring](document-editing-v1.md#document-title-255).
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 

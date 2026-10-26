@@ -18,7 +18,7 @@ async (page, { openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '---\nieumdoc: 1\n---\n\n# Structural authoring\n\nIntro paragraph.\n\n## Existing heading\n\nKeep this paragraph.\n\n## Demote me\n\nSome **bold** text.\n\nLine one\\\nline two.\n';
+  const fresh = '---\nieumdoc: 1\n---\n\n# Structural authoring\n\nIntro paragraph.\n\n## Existing heading\n\nKeep this paragraph.\n\n## Demote me\n\nSome **bold** text.\n\nLine one\\\nline two.\n\n# Existing body H1\n';
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh structural authoring fixture');
 
   const openScratch = async () => {
@@ -30,6 +30,7 @@ async (page, { openDocument }) => {
 
   await openScratch();
   const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
+  if (await markdown() !== fresh || await page.getByTestId('status').getAttribute('data-operation') !== 'ready') throw new Error('Opening legacy body H1 rewrote or dirtied the file');
   const heading = editor.locator('h2').filter({hasText:'Existing heading'});
   await heading.waitFor({state:'visible'});
   if (await heading.innerText() !== 'Existing heading') throw new Error('Expected the existing H2 before editing');
@@ -67,23 +68,31 @@ async (page, { openDocument }) => {
   await expectHeadingCaret('Existing heading', 3);
   await page.keyboard.press('Shift+Tab');
   await expectHeadingCaret('Existing heading', 2);
+  await page.keyboard.press('Shift+Tab');
+  await expectHeadingCaret('Existing heading', 2);
 
   await selectHeading('Structural authoring');
   await page.keyboard.press('Shift+Tab');
   await expectHeadingCaret('Structural authoring', 1);
-  for (let level = 2; level <= 6; level++) {
+  await page.keyboard.press('Tab');
+  await expectHeadingCaret('Structural authoring', 2);
+  await page.keyboard.press('Control+z');
+  await expectHeadingCaret('Structural authoring', 1);
+  await selectHeading('Existing heading');
+  for (let level = 3; level <= 6; level++) {
     await page.keyboard.press('Tab');
-    await expectHeadingCaret('Structural authoring', level);
+    await expectHeadingCaret('Existing heading', level);
   }
   await page.keyboard.press('Tab');
-  await expectHeadingCaret('Structural authoring', 6);
-  for (let level = 5; level >= 1; level--) {
+  await expectHeadingCaret('Existing heading', 6);
+  for (let level = 5; level >= 2; level--) {
     await page.keyboard.press('Shift+Tab');
-    await expectHeadingCaret('Structural authoring', level);
+    await expectHeadingCaret('Existing heading', level);
   }
 
   await heading.hover();
   await page.getByRole('button', {name:'Insert block after heading block 3'}).click();
+  if (await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count()) throw new Error('Body insert menu offers H1');
   await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Warning', exact:true}).click();
   const warning = editor.locator('aside[data-block="admonition"][data-variant="warning"]');
   const warningBody = warning.getByTestId('admonition-body');
@@ -94,6 +103,7 @@ async (page, { openDocument }) => {
   await existingHeading.waitFor({state:'visible'});
   await existingHeading.hover();
   await page.getByRole('button', {name:'Move heading block 3'}).click();
+  if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Body heading menu offers H1');
   await page.getByRole('menuitem', {name:'Change to Heading 4', exact:true}).click();
   const changedHeading = editor.locator('h4').filter({hasText:'Existing heading'});
   await changedHeading.waitFor({state:'visible'});
@@ -104,6 +114,7 @@ async (page, { openDocument }) => {
   const blockAction = async (block, name, action) => {
     await block.hover();
     await page.getByRole('button', {name}).click();
+    if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Body block menu offers H1');
     await page.getByRole('menuitem', {name:action, exact:true}).click();
   };
   const intro = editor.locator('p').filter({hasText:'Intro paragraph.'});
@@ -155,6 +166,21 @@ async (page, { openDocument }) => {
   await page.getByTestId('notice').filter({hasText:'line breaks'}).waitFor({state:'visible'});
   const lineBreakConversionRejected = await twoLines.count() === 1 && await twoLines.locator('br').count() === 1;
 
+  // Legacy body H1 remains editable; inspect its normal conversions, then leave its level intact.
+  await selectHeading('Existing body H1');
+  await page.keyboard.press('Shift+Tab');
+  await expectHeadingCaret('Existing body H1', 1);
+  const legacy = editor.locator('h1').filter({hasText:'Existing body H1'});
+  await legacy.hover();
+  await page.getByRole('button', {name:'Move heading block 9', exact:true}).click();
+  if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Legacy body H1 menu offers H1');
+  for (const level of [2, 3, 4, 5, 6]) await page.getByRole('menuitem', {name:`Change to Heading ${level}`, exact:true}).waitFor();
+  await page.getByRole('menuitem', {name:'Change to Paragraph', exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  await selectHeading('Existing body H1', 'Existing body H1'.length);
+  await page.keyboard.type('!');
+  await page.keyboard.press('Backspace');
+
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor({state:'attached'});
   if (await page.getByTestId('status').getAttribute('data-operation') !== 'saved') {
@@ -182,6 +208,8 @@ async (page, { openDocument }) => {
     'Line one\\',
     'line two.',
     '',
+    '# Existing body H1',
+    '',
   ].join('\n');
   if (saved !== expected) throw new Error(`Unexpected canonical Markdown after Save:\n${saved}`);
 
@@ -196,6 +224,7 @@ async (page, { openDocument }) => {
   await reloadedWarning.waitFor({state:'visible'});
   const result = {
     existingH2WasConfirmed: true,
+    existingBodyH1Reloaded: await reloadedEditor.locator('h1').filter({hasText:'Existing body H1'}).innerText() === 'Existing body H1',
     warningSavedAsCanonicalMarkdown: saved === expected,
     saveCompleted: savedStatus === 'saved',
     reloadReady: await page.getByTestId('status').getAttribute('data-operation') === 'ready',

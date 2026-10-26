@@ -662,6 +662,9 @@ export function App() {
     { id: "insert-citation", kind: "command", label: i18n.t("Insert citation…"), icon: Quote,
       disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert citation", "인용 삽입"],
       run: () => editorRef.current?.openInlineInsertion("citation") },
+    { id: "connect-bibliography", kind: "command", label: i18n.t("Connect bibliography…"), icon: Quote,
+      disabled: !document || busy || view !== "visual", takesFocus: true, keywords: ["connect bibliography", "참고문헌 파일 연결"],
+      run: () => editorRef.current?.openBibliographyConnection(commandReturnFocus.current) },
     { id: "insert-reference", kind: "command", label: i18n.t("Insert cross-reference…"), icon: Bookmark,
       disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert cross-reference", "상호 참조 삽입"],
       run: () => editorRef.current?.openInlineInsertion("reference") },
@@ -677,6 +680,7 @@ export function App() {
           referenceTemplates,
           onReferenceStyleChange: (style) => editorRef.current?.setReferenceStyle(style),
           onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
+          onConnectBibliography: (returnFocus) => editorRef.current?.openBibliographyConnection(returnFocus),
           numberingDisabled: !document || busy || view !== "visual",
           numberingHint: !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")
             : view !== "visual" ? i18n.t("Switch to Visual to change heading numbering.") : undefined,

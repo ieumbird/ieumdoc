@@ -39,6 +39,52 @@ async (page, { openDocument }) => {
   const disk = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json());
   const model = data => JSON.stringify(data.document.blocks.map(({path, original, ...block}) => block), (key, value) => key === 'path' ? undefined : value);
 
+  // Hangul IME can hide Ctrl+Y/Z as Process/229. Exercise the actual DOM handler,
+  // with two distinct history steps so a shortcut cannot silently apply both.
+  const snapshot = async () => JSON.stringify(await doc());
+  const historyKey = async overrides => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((el, overrides) => {
+    const event = new KeyboardEvent('keydown', {key:'Process', code:'KeyY', keyCode:229, ctrlKey:true, bubbles:true, cancelable:true, ...overrides});
+    el.dispatchEvent(event);
+    return event.defaultPrevented;
+  }, overrides);
+  const original = await snapshot();
+  await select(['Heading', 7]);
+  await page.keyboard.type(' first');
+  const first = await snapshot();
+  await select(['End paragraph.', 14]);
+  await page.keyboard.type(' second');
+  const second = await snapshot();
+  await page.keyboard.press('Control+z');
+  assert(await snapshot() === first, 'Native Undo must undo only the second typing step');
+  for (const code of ['KeyY', 'KeyZ']) {
+    for (const guard of [
+      {key:'q', keyCode:81}, {key:'q'}, {keyCode:81}, {code:'KeyQ'},
+      {isComposing:true}, {altKey:true}, {shiftKey:true}, {ctrlKey:false}, {metaKey:true},
+    ]) {
+      await historyKey({code, ...guard});
+      assert(await snapshot() === first, `IME history fallback must ignore ${code} ${JSON.stringify(guard)}`);
+    }
+  }
+  await page.getByRole('button', {name:'File actions', exact:true}).dispatchEvent('keydown',
+    {key:'Process', code:'KeyY', keyCode:229, ctrlKey:true, bubbles:true, cancelable:true});
+  assert(await snapshot() === first, 'Opaque history shortcuts outside the editor must not change the document');
+  for (const key of ['Process', 'Unidentified']) {
+    for (const keyCode of [229, 0]) {
+      assert(await historyKey({key, keyCode}), 'Opaque Ctrl+Y must consume the key event');
+      assert(await snapshot() === second, 'Opaque Ctrl+Y must redo exactly one step without inserting text');
+      assert(await historyKey({key, keyCode, code:'KeyZ'}), 'Opaque Ctrl+Z must consume the key event');
+      assert(await snapshot() === first, 'Opaque Ctrl+Z must undo exactly one step');
+    }
+  }
+  for (const shortcut of ['Control+y', 'Control+Shift+z']) {
+    await page.keyboard.press(shortcut);
+    assert(await snapshot() === second, `${shortcut} must retain normal Redo`);
+    await page.keyboard.press('Control+z');
+    assert(await snapshot() === first, 'Native Undo must retain the first step');
+  }
+  await page.keyboard.press('Control+z');
+  assert(await snapshot() === original, 'The first typing step must remain independently undoable');
+
   await select(['Heading', 3]);
   await page.keyboard.press('Enter');
   assert((await doc()).content.filter(node => node.type === 'heading').map(node => node.content?.[0]?.text).join('|') === 'Boundaries|Hea|ding', 'Enter inside a heading must retain its two parts');
