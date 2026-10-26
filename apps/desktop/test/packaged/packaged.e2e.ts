@@ -396,8 +396,10 @@ test("started directly, the app opens no TCP port; start time and memory are mea
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     const shown = Date.now() - started;
+    const initial = await processTree(child, exe);
+    assert.deepEqual(initial.listening, []);
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    const tree = await processTree(child, exe);
+    const tree = await processTree(child, exe, initial.identities);
     console.log(`direct start identities: ${JSON.stringify(tree.identities)}`);
     console.log(`direct start: window shown after ${shown} ms; ${tree.processes} processes; ${tree.workingSetMb} MB working set; listening: ${JSON.stringify(tree.listening)}`);
     assert.deepEqual(tree.listening, []);

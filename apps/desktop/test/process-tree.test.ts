@@ -36,6 +36,22 @@ test("missing/reused root identities fail instead of producing an empty passing 
   assert.throws(() => ownedProcessTree([{ ...root, created: "2026-10-26T01:08:29.6520001Z" }], root), /exited or its PID was reused/);
 });
 
+test("an already owned orphan listener survives its helper exiting and the helper PID being reused", () => {
+  const root = record(100, 50, "2026-10-26T01:08:29.0000000Z");
+  const helper = record(200, 100, "2026-10-26T01:08:30.0000000Z");
+  const listener = record(300, 200, "2026-10-26T01:08:31.0000000Z");
+  const oldOwned = ownedProcessTree([root, helper, listener], root);
+  const newHelper = { ...helper, created: "2026-10-26T01:08:32.0000000Z" };
+  for (const current of [[root, newHelper, listener], [root, listener]]) {
+    const newOwned = ownedProcessTree(current, root, oldOwned);
+    assert.deepEqual(ownedListeners(newOwned, current, [{ pid: 300, address: "127.0.0.1:1234" }]), ["127.0.0.1:1234"]);
+    assert.ok(newOwned.some(p => p.pid === listener.pid && p.created === listener.created));
+  }
+  // Confirmation belongs to a process identity, never just its recycled PID.
+  const replacement = { ...listener, parentPid: 999, created: "2026-10-26T01:08:33.0000000Z" };
+  assert.ok(!ownedProcessTree([root, newHelper, replacement], root, oldOwned).some(p => p.pid === replacement.pid));
+});
+
 test("PID reuse during TCP enumeration fails rather than attributing an unrelated listener", () => {
   const root = record(100, 50, "2026-10-26T01:08:29.6520000Z");
   const listeners = [{ pid: 100, address: "0.0.0.0:3389" }];

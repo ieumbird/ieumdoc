@@ -15,17 +15,23 @@ export interface ProcessRecord {
 }
 
 /** Windows retains a dead parent's PID, which may now name a younger process. */
-export function ownedProcessTree(all: ProcessRecord[], root: ProcessRecord): ProcessRecord[] {
+export function ownedProcessTree(all: ProcessRecord[], root: ProcessRecord, previous: ProcessRecord[] = []): ProcessRecord[] {
   assert.ok(all.some(p => p.pid === root.pid && p.created === root.created), "The launched process exited or its PID was reused");
   const owned = new Map([[root.pid, root]]);
-  let previous: number;
+  // A confirmed child stays owned while the same identity is alive, even if its
+  // parent has exited or that parent's PID now names a younger process.
+  const confirmed = new Map(previous.map(p => [p.pid, p.created]));
+  for (const process of all) {
+    if (confirmed.get(process.pid) === process.created) owned.set(process.pid, process);
+  }
+  let before: number;
   do {
-    previous = owned.size;
+    before = owned.size;
     for (const process of all) {
       const parent = owned.get(process.parentPid);
       if (parent && process.created >= parent.created) owned.set(process.pid, process);
     }
-  } while (owned.size !== previous);
+  } while (owned.size !== before);
   return [...owned.values()];
 }
 
@@ -42,8 +48,8 @@ export function ownedListeners(owned: ProcessRecord[], after: ProcessRecord[], l
   }).map(listener => listener.address);
 }
 
-/** One frozen process enumeration, with identity confirmation after querying ports. */
-export async function processTree(child: ChildProcess, exe: string) {
+/** Retain confirmed live identities across enumerations; sampling is not atomic. */
+export async function processTree(child: ChildProcess, exe: string, previous: ProcessRecord[] = []) {
   const alive = () => assert.ok(child.pid && child.exitCode === null && child.signalCode === null && !child.killed,
     "The launched process exited; its PID cannot identify a live root");
   alive();
@@ -66,11 +72,12 @@ export async function processTree(child: ChildProcess, exe: string) {
   assert.ok(root, "The launched process is missing from the snapshot");
   assert.equal(root.image?.toLowerCase(), path.resolve(exe).toLowerCase(), "The root PID does not name the launched executable");
   assert.ok(snapshot.after.some(p => p.pid === root.pid && p.created === root.created), "The launched process exited during sampling");
-  const owned = ownedProcessTree(snapshot.all, root);
+  const owned = ownedProcessTree(snapshot.all, root, previous);
+  const current = ownedProcessTree(snapshot.after, root, owned);
   return {
-    processes: owned.length,
+    processes: current.length,
     listening: ownedListeners(owned, snapshot.after, snapshot.listeners),
-    workingSetMb: Math.round(owned.reduce((sum, p) => sum + p.workingSet, 0) / 1024 / 1024),
-    identities: owned,
+    workingSetMb: Math.round(current.reduce((sum, p) => sum + p.workingSet, 0) / 1024 / 1024),
+    identities: current,
   };
 }
