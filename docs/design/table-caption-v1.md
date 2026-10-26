@@ -111,3 +111,20 @@ reopening; neither helper changes product state or waits for a failed assertion 
 The browser stop threshold was changed by the orchestrator from 2 to 6 during the work;
 every actual launch checked a value below 6. Profile and account policy were preserved.
 Figure/equation property entry and Apply/Cancel unification remain outside this PR.
+
+The initial HTTP CI run on both Windows and Linux failed because its synthetic
+`insertContentAt` fixture still supplied the former caption attribute; the caption
+was absent before crash/restore. The fixture now supplies the caption child and keeps
+all existing preservation assertions. A separate headless regression passes an actual
+old-schema `RecoveryRecord` through `prepareRecovery`: restore throws
+`Incompatible editor snapshot`, the entire rich record remains unchanged, and its
+plaintext copy includes the unsaved caption, reference label, citation key and cells.
+`App.restoreRecovery` calls this validation before any storage replacement, so the
+failed restore retains the record. This is explicit refusal with readable salvage,
+not automatic structural migration or silent caption loss.
+
+The attempted additional local production-HTTP browser run was stopped before launch
+at `BadPasswordAttempts=6`; its temporary Host was shut down. The subsequent owner
+rule waits at two-minute intervals for a value below 3 (maximum 20 minutes) when the
+counter is at least 5. No local Edge or packaged Desktop run is used. HTTP CI validates
+the corrected fixture on both operating systems.
