@@ -87,21 +87,17 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('Backspace');
   await open();
 
-  await page.getByRole('button', {name:'Display', exact:true}).click();
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
   if (screenshots) {
     for (const width of [1280, 375]) {
       await page.setViewportSize({width, height:720});
-      if (width < 640) {
-        await page.getByRole('button', {name:'Expand sidebar', exact:true}).waitFor();
-        await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
-      }
-      await page.getByRole('button', {name:'Display', exact:true}).click();
       await page.screenshot({path:`tmp/reference-templates-${width}.png`});
     }
     await page.setViewportSize({width:1280, height:720});
   }
   expect(await page.getByRole('combobox', {name:'Reference style', exact:true}).count()).toBe(1);
-  await page.getByRole('button', {name:'Files', exact:true}).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
 
   // A. Reference paragraphs are editable; resolved and unresolved references look different.
   result.referenceParagraphsEditable = await page.locator('[data-readonly-paragraph]').count() === 0 &&
@@ -297,10 +293,12 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   const originalCaptionBody = captionBody(await sourceText());
   expect(await readReferences()).toEqual(['Figure\u00a01', 'Table\u00a01', '(1)']);
   expect(await readCaptionLabels()).toEqual(['Figure 1. ', 'Table 1. ']);
-  await page.getByRole('button', {name:'Display', exact:true}).click();
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
   if (screenshots) await page.screenshot({path:'tmp/reference-templates-display.png'});
   const templates = page.getByRole('combobox', {name:'Reference style', exact:true});
   await templates.selectOption('korean');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
   expect(await readReferences()).toEqual(['그림 1', '표 1', '식 (1)']);
   expect(await readCaptionLabels()).toEqual(['그림 1. ', '표 1. ']);
   if (screenshots) await page.screenshot({path:'tmp/caption-label-templates-462-after-1280.png', caret:'initial'});
@@ -330,12 +328,13 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await active.getByRole('button', {name:'Edit table', exact:true}).click();
   await expect(page.getByRole('dialog', {name:'표 1 properties', exact:true})).toBeVisible();
   await page.getByTestId('table-cancel').click();
-  await page.getByRole('button', {name:'Display', exact:true}).click();
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
   expect(await templates.inputValue()).toBe('korean');
   await templates.selectOption('default');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
-  await page.getByRole('button', {name:'Files', exact:true}).click();
   for (const [kind, label, normal] of [['equation', 'eq-a', '(1)'], ['figure', 'fig-a', 'Figure\u00a01'], ['table', 'tbl-a', 'Table\u00a01']]) {
     const reference = active.locator(`[data-testid="cross-reference"][data-label="${label}"] .cross-reference-chip`);
     if (await reference.innerText() !== normal) throw new Error(`Normal ${kind} reference changed`);

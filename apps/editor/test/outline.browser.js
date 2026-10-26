@@ -36,7 +36,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   const expected = ['Outline guide', 'Section 1', 'Section 2', 'Detail 2', 'Section 3', 'Section 4', 'Detail 4', 'Section 5', 'Section 6', 'Detail 6'];
   await page.waitForFunction(count => document.querySelectorAll('[data-testid="outline"] button').length === count, expected.length);
   const listsHeadings = JSON.stringify(await texts()) === JSON.stringify(expected);
-  // The outline is document navigation on the right; the sidebar switches Files/Display independently.
+  // The outline is document navigation on the right; the sidebar browses files independently.
   const inDocumentPanel = await page.getByTestId('document-panel').getByTestId('outline').count() === 1 &&
     await page.getByTestId('sidebar').getByTestId('outline').count() === 0;
   const indentsByLevel = await items.nth(3).evaluate(element => getComputedStyle(element).paddingLeft) !==
@@ -262,11 +262,13 @@ async (page, { openDocument, reloadDocument, expect }) => {
   const result = { listsHeadings, inDocumentPanel, indentsByLevel, clickNavigates, arrowsMoveFocus, keyboardNavigates, scrollFollowsSection, scrollKeepsEditor, currentStaysInView, visibleSectionStaysPut, resizeRestoresCurrent, arrowsDoNotSnapToCurrent, focusExitRestoresCurrent, trackingPreservesDocument, editsUpdate, sourceReturnsToVisual,
     sectionMoves, sectionUndo, sectionRedo, sectionDeleted, sectionSaved };
   // Numbering is a document setting and uses the same counters in the page and outline.
-  await page.getByRole('button', {name:'Display', exact:true}).click();
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
   const toggle = page.getByRole('checkbox', {name:'Number headings', exact:true});
   await toggle.click();
   await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor h2')?.getAttribute('data-heading-number') === '1' &&
     document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
   result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
     (await texts())[1].startsWith('1 ');
   await items.nth(1).click();
@@ -336,11 +338,13 @@ async (page, { openDocument, reloadDocument, expect }) => {
   result.headingNumberingSaved = numbered.source.includes('headings: true') && !numbered.source.includes('## 1');
   await reloadDocument(page);
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await page.getByRole('button', {name:'Display', exact:true}).click();
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
   result.headingNumberingReloaded = await toggle.isChecked() &&
     await editor.locator('h2').first().getAttribute('data-heading-number') === '1';
   await toggle.click();
   result.headingNumberingDisabled = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
   const offAck = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await offAck;

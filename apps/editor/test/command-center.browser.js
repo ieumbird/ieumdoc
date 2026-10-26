@@ -426,12 +426,18 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
   await run('show outline');
   await panel.waitFor();
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
   await run('collapse sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
   await run('expand sidebar');
-  await page.getByRole('button',{name:'Files',exact:true}).click();
+  // Both aliases open the document dialog and return focus after dismissal.
+  for (const query of ['document settings', '문서 설정']) {
+    await run(query);
+    await page.getByRole('dialog',{name:'Document settings',exact:true}).waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog',{name:'Document settings',exact:true}).waitFor({state:'detached'});
+    check(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command lost its return target');
+  }
   result.panelCommandsRetainFocus = true;
 
   // Existing tabs retain their editor, unapplied property draft, and native history.
@@ -578,8 +584,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   result.responsiveCenter = true;
   await run('expand sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
   await run('collapse sidebar');
   await page.waitForFunction(() => document.querySelector('.top-bar-sidebar')===document.activeElement, null, {timeout:5000});
   result.phoneSidebarFocus = true;

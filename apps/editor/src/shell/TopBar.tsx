@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import type { Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw, Search } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw, Search, SlidersHorizontal, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -16,6 +16,12 @@ type TopBarProps = {
   openSidebarRef?: Ref<HTMLButtonElement>;
   onOpenCommandCenter?(): void;
   documentPath: string;
+  onDocumentSettings?(): void;
+  documentSettingsRef?: Ref<HTMLButtonElement>;
+  documentSettingsDisabled?: boolean;
+  documentSettingsHint?: string;
+  wide?: boolean;
+  onToggleWide?(): void;
   /** The folders holding the document, shown before its name; the tab row already names it. */
   location?: string[];
   status: Operation;
@@ -40,12 +46,14 @@ type TopBarProps = {
 /**
  * The centered document/location button opens the command center. Status has its own left cell,
  * so an unsaved/saved notice never moves the center or actions.
- * On the right: Visual/Source and Outline, then Save and the File actions menu. Only Save with unsaved
- * changes takes the accent. Spaced groups separate view and file actions; Visual/Source is a
- * segmented control and Outline a pressed toggle, so the blue marker belongs to tabs alone.
+ * Document settings stays in the document area. On the right: Visual/Source, Wide document and
+ * Outline, then Save and File actions. Only Save with unsaved changes takes the accent.
+ * Spaced groups separate view and file actions; Visual/Source is segmented and width/Outline
+ * are pressed toggles.
  */
 export function TopBar({
-  onOpenSidebar, openSidebarRef, onOpenCommandCenter, documentPath, location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
+  onOpenSidebar, openSidebarRef, onOpenCommandCenter, documentPath, onDocumentSettings, documentSettingsRef, documentSettingsDisabled, documentSettingsHint, wide, onToggleWide,
+  location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
@@ -81,6 +89,9 @@ export function TopBar({
             <PanelLeftOpen aria-hidden="true" />
           </Button>
         ) : null}
+        {onDocumentSettings ? <Button ref={documentSettingsRef} type="button" variant="ghost" size="sm" className="top-bar-document-settings"
+          aria-haspopup="dialog" disabled={documentSettingsDisabled} title={documentSettingsHint}
+          onClick={onDocumentSettings}><SlidersHorizontal aria-hidden="true" />{i18n.t("Document settings")}</Button> : null}
         <p className="status" data-testid="status" data-operation={status} role="status">
           {displayStatus}
         </p>
@@ -115,6 +126,11 @@ export function TopBar({
             >{i18n.t("Visual")}</Button>
             <Button {...sourceProps}>{i18n.t("Source")}</Button>
           </div>
+          {onToggleWide ? <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle"
+            aria-label={i18n.t("Wide document")} aria-pressed={wide} onClick={onToggleWide}
+            title={`${i18n.t("Wide document")} — ${i18n.t("Remembered here; never saved in the document.")}`}>
+            <StretchHorizontal aria-hidden="true" />
+          </Button> : null}
           {onToggleOutline ? (
             <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Outline")}
               title={i18n.t("Outline")} aria-pressed={outline} onClick={onToggleOutline}>

@@ -23,7 +23,7 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
 ## Behavior
 
 - The expanded Sidebar header has one Open folder… icon button in a fixed position with any
-  number of opened folders, also while Display is selected. Empty Files has no duplicate entry;
+  number of opened folders. Empty Files has no duplicate entry;
   per-folder menus contain only Close folder. Start-screen and command-center Open folder remain.
   All use the existing picker/handler. The Sidebar button's accessible name and tooltip use the
   existing English/Korean translation; Open, Cancel and Escape return focus to that button.

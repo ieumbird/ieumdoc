@@ -94,24 +94,6 @@ button {
   justify-content: center;
 }
 
-/* Tools share the existing sidebar width; the collapsed rail keeps both entry points. */
-.sidebar-tools {
-  display: flex;
-  gap: var(--space-1);
-  border-radius: var(--id-radius-md);
-  background: var(--id-color-surface-pressed);
-}
-
-.sidebar-tools .sidebar-tool {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  padding-inline: var(--space-1);
-}
-
-.sidebar--collapsed .sidebar-tools { flex-direction: column; }
-.sidebar--collapsed .sidebar-tool { flex: none; }
-
 .sidebar-content {
   display: flex;
   flex: 1;
@@ -128,11 +110,8 @@ button {
   flex-direction: column;
   gap: var(--space-6);
   min-height: 0;
-  padding: 0 var(--space-3) var(--space-3);
-  overflow-y: auto;
 }
 
-.display-title,
 .display-scope {
   margin: 0 0 var(--space-2);
   font-size: var(--font-size-sm);
@@ -715,7 +694,8 @@ button {
 
 /* Panel widths change the available header independently of viewport width. Keep a real
  * center at wide widths; on narrow headers the search gets a centered row of its own. */
-@container (width < 56rem) {
+/* Include the added width toggle in the action group's clearance beside the centered trigger. */
+@container (width < 68rem) {
   .top-bar {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-2) var(--space-3);
@@ -729,7 +709,9 @@ button {
 @container (width < 27rem) {
   .top-bar-identity { display: contents; }
   .top-bar-sidebar { grid-column: 1; grid-row: 2; }
-  .top-bar-identity .status { grid-column: 1 / -1; grid-row: 3; }
+  .top-bar-document-settings { grid-column: 2; grid-row: 2; justify-self: start; }
+  .top-bar-actions { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; min-width: 0; }
+  .top-bar-identity .status { grid-column: 1 / -1; grid-row: 4; }
   .command-center-trigger kbd { display: none; }
 }
 
@@ -2749,22 +2731,6 @@ ol.list { list-style: decimal; }
 
 /* ---- UI polish spike -------------------------------------------------------------------- */
 
-/* Tab groups share raised current segments and an independent keyboard focus ring.
- * Painting the track and edge changes no control size or text position, including in the rail. */
-.sidebar-tools .sidebar-tool {
-  border-color: transparent;
-  background: transparent;
-  color: var(--id-color-text-muted);
-}
-.sidebar-tools .sidebar-tool:hover:not(:disabled, [aria-disabled="true"]) {
-  color: var(--id-color-text);
-}
-.sidebar-tools .sidebar-tool[aria-pressed="true"],
-.sidebar-tools .sidebar-tool[aria-pressed="true"]:hover {
-  background: var(--id-color-surface);
-  color: var(--id-color-text);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
-}
 /* Expanded is disclosure semantics, not a persistent pressed action in the header. */
 .sidebar-collapse[aria-expanded="true"] { background: transparent; }
 .sidebar-collapse[aria-expanded="true"]:hover { background: var(--id-color-surface-hover); }
@@ -2772,12 +2738,11 @@ ol.list { list-style: decimal; }
 .top-bar-toggle:not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--id-color-surface-hover);
 }
-:is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):focus-visible {
+:is(.top-bar-toggle, .view-toggle-option):focus-visible {
   border-color: transparent;
   box-shadow: var(--focus-ring-inset);
   --tw-ring-shadow: 0 0 #0000;
 }
-.sidebar-tools .sidebar-tool[aria-pressed="true"]:focus-visible,
 .view-toggle .view-toggle-option[aria-pressed="true"]:focus-visible {
   box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }

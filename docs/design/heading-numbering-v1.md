@@ -17,7 +17,7 @@ see [document title and body authoring](document-editing-v1.md#document-title-25
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 
-In the sidebar's Display panel, Number headings belongs to Saved in document. It is disabled without a document, during pending work and in Source. Wide document is a local preference with a separate scope. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
+In the Document settings dialog, opened from the TopBar document area or command center, Number headings belongs to Saved in this document. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
 
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
@@ -86,7 +86,7 @@ form `{ template: "…" }`, edit existing template scalars in place to retain ma
 the existing canonical round-trip guard. A numbering map emptied by removal is removed. Heading and
 reference edits preserve one another. Setting an existing object-form template to the same value leaves source metadata untouched; shorthand is converted to object form with its comments retained.
 
-Display's Saved in document section offers **Reference style** beside Number headings,
+The Document settings dialog offers **Reference style** beside Number headings,
 with the same unavailable states. Each choice is one undoable document attribute change;
 Save replays the Core operation. The file stores templates, never a choice name. Effective
 values matching a choice select it (including explicitly authored default values); unmatched
