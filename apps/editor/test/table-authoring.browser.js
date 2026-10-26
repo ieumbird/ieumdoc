@@ -274,9 +274,18 @@ async (page, { openPath, reloadDocument }) => {
   const editorFocused = () => page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
   const notice = page.getByTestId('notice');
   const assertDeletionNotice = async () => {
-    if (await notice.count() !== 1 || !(await notice.innerText()).includes('Table deleted') ||
-        await notice.getByRole('button', {name:'Undo', exact:true}).count() !== 1 || !await editorFocused()) {
-      throw new Error('Table deletion must show Table deleted / Undo without taking editor focus');
+    const noticeCount = await notice.count();
+    const text = noticeCount === 1 ? await notice.innerText() : '';
+    const undoCount = await notice.getByRole('button', {name:'Undo', exact:true}).count();
+    const focused = await editorFocused();
+    if (noticeCount !== 1 || !text.includes('Table deleted') || undoCount !== 1 || !focused) {
+      const caret = await page.evaluate(() => {
+        const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+        return {selection:editor.state.selection.toJSON(), parent:editor.state.selection.$from.parent.type.name,
+          tableCount:document.querySelectorAll('[data-document-tab][data-active=true] [data-block="table"]').length};
+      });
+      throw new Error('Table deletion must show Table deleted / Undo without taking editor focus: '+
+        JSON.stringify({noticeCount,text,undoCount,focused,...caret}));
     }
     result.deleteNoticePolite = await notice.getAttribute('role') === 'status';
   };
