@@ -1,0 +1,288 @@
+{
+  "issue": 507,
+  "status": "Historical review / proposal; no product adoption",
+  "base": "48aabb312a0c8cb71c620747d5d25f370f2b7817",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "scale": 1,
+    "hover": true,
+    "anyHover": true,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "origin": "http://127.0.0.1:5307",
+    "actualParagraphFonts": [
+      {
+        "familyName": "Pretendard Variable",
+        "postScriptName": "PretendardVariable",
+        "isCustomFont": true,
+        "glyphCount": 144
+      },
+      {
+        "familyName": "Pretendard Variable",
+        "postScriptName": "PretendardVariable-Bold",
+        "isCustomFont": true,
+        "glyphCount": 5
+      }
+    ]
+  },
+  "commands": [
+    "pnpm browser:test design-consolidation-507",
+    "pnpm browser:test design-consolidation-507-extra"
+  ],
+  "runner": "apps/editor/test/browser/run.ts; one worker, checkout-hashed persistent Chrome profile; checkout-owned Vite :5307",
+  "sourceHashes": {
+    "apps/editor/src/styles/tokens.css": "bc67a438d6f1384f887098bf0743b65933f8f93ec62160c13f7569d979e8435c",
+    "apps/editor/src/styles.css": "a417a26973312616b526f57898c5cde57490f166a54c7c857e4a3c89636400c9",
+    "apps/editor/src/index.css": "cc5b02ba6f7678214b7602e392c4204f9029b8f21657711a6c846e570adbb783",
+    "apps/editor/src/components/ui/button.tsx": "1081ae990ab6dafb356fa1505c6172e3648c5961ddf31f92feb9a9e02a4666e9",
+    "apps/editor/src/components/ui/dialog.tsx": "b5c27755f61d367959c925d1c45f490b14ce4ebbcb4b820815755a9f3c16db21",
+    "apps/editor/src/components/ui/dropdown-menu.tsx": "1f9e4fa9796797eac200cb4f29933751dba9677cde6f008daa02e41e714c20a8",
+    "apps/editor/src/components/ui/input.tsx": "95b3630f69cf617fef1cba19b2b64e2221fb64cb523a40e9f4e87ac2c6db25cd",
+    "apps/editor/src/components/ui/popover.tsx": "278386e95393da907129a4f0fbe0529c28a9ef1a6d6e919423e1ec8cfc0fb3fc",
+    "apps/editor/src/components/ui/tooltip.tsx": "cb64952a6f68248b2d1c3baf40c86506e31bb3144858e2a1a2b97ad47f7b5934"
+  },
+  "fixtureHashes": {
+    "review.md": "90d203c4ca6bbf841d7daf7a3a864444c040ff04407d6960f0e1947675bbc57a",
+    "notes.md": "d0b91051bb6dab767e6e99f4776f37815a066ee138066433556dc0ce462d518c",
+    "diagram.svg": "286a8cfcee4cd7485a873a0cc5a1367cd25e8a22cf625d7bda854c04662f614c",
+    "refs.bib": "88728ce6fc75b041373bf30358c36b894d14321b09a05cbfee08273ad117b831",
+    "titleless.md": "82bcecee4c04574e7fcff8f9ad8e6b824488a7a666828a93b82bf4cfeef7c8e3"
+  },
+  "fixtureDescription": "Synthetic Korean control-design document, same local diagram and two tabs. Engineering values are illustrative. Native Markdown and host APIs, no mock UI renderer. Titleless auxiliary file is used only for the title-slot inventory, not mockup captures.",
+  "inventory": {
+    "file": "inventory.json",
+    "sha256": "004b548377e163f366a58d2bdc63b2b74ffae2384dbbb5729a837e9791bcac68",
+    "observations": 842,
+    "surfaceVisits": 212,
+    "styleSignatures": 384
+  },
+  "sameState": {
+    "A": "1440x900 ko; top; same selected Figure; pointer away; Files tool/current file, second document tab and current Outline retained",
+    "B": "1440x900 ko; same table/caret in body row 1, column B; same scrollY for all three options; pointer away",
+    "C": "1440x900 ko; fullPage PNG; top; TextSelection collapsed at 1 then blurred; headings/UI/table/caption unchanged; only document font-size differs",
+    "D": "1440x900 ko; same first paragraph block-menu anchor and scroll; first row focus; added rows are inert DOM illustration; no new shortcuts"
+  },
+  "patches": {
+    "a-segmented": {
+      "sha256": "434b05c74ecbba1ff8a0d8545715fadebb6f18470b86f4ee768ca968983bbe54",
+      "selectors": [
+        ".sidebar-tools",
+        ".sidebar-tool[aria-pressed=true]",
+        ".sidebar-tool::after",
+        ".document-tabs",
+        ".document-tab[data-selected=true]",
+        ".document-outline-item[aria-current],.sidebar-tree-item[aria-current]",
+        ".document-outline-item::before,.sidebar-tree-item[aria-current]::before",
+        ".figure[data-selected=true]"
+      ]
+    },
+    "a-marker": {
+      "sha256": "a2bc64f255074d922e1f9f900877c145f0ff1ce2c1a0bb7756095360d6b6fc8d",
+      "selectors": [
+        ".sidebar-tool[aria-pressed=true]",
+        ".document-tab[data-selected=true]",
+        ".document-outline-item[aria-current],.sidebar-tree-item[aria-current]",
+        ".figure[data-selected=true]",
+        ".figure[data-selected=true]::after"
+      ]
+    },
+    "a-background": {
+      "sha256": "89eb60da54f09f5524cc03b8a250fda2024d229bd3fbb310ddee972fe92f6eb0",
+      "selectors": [
+        ".sidebar-tool[aria-pressed=true],.document-tab[data-selected=true],.document-outline-item[aria-current],.sidebar-tree-item[aria-current]",
+        ".sidebar-tool::after,.document-outline-item::before,.sidebar-tree-item[aria-current]::before",
+        ".figure[data-selected=true]"
+      ]
+    },
+    "b-handles": {
+      "sha256": "8949d5a479a61fb83cb2015f430bdc5619634d99ce219dbaf231be1a8dabdec9",
+      "selectors": [
+        ".table-tools button",
+        ".table-column-handle,.table-row-handle",
+        ".table-column-handle::before",
+        ".table-row-handle::before",
+        ".table-tools button[aria-pressed=true]::before"
+      ]
+    },
+    "b-toolbar": {
+      "sha256": "d1fb0ab9ae2ba58aaae3647fee27c454e36cfb6dea6d4f5ab8e408afc4525606",
+      "selectors": [
+        ".table-column-handle,.table-row-handle,.table-extend",
+        ".table-action-bar",
+        ".table-action-bar button"
+      ]
+    },
+    "c-17": {
+      "sha256": "bfafe34a31f8285218c8e60179067a67c74ea98fb6965ca9697affeadcfefca5",
+      "selectors": [
+        ":root"
+      ]
+    },
+    "c-16": {
+      "sha256": "10c7e88a8e2e69b8d15dcff5a0b90c303ed7dda7733463ee38c5e90f429244c8",
+      "selectors": [
+        ":root"
+      ]
+    },
+    "d-unified": {
+      "sha256": "cbb26f2d0056276b88e0c3f69e3a486ed369ac0677e92fbfe8a83a06b6ba1ecb",
+      "selectors": [
+        ".command-menu-item",
+        ".audit-destructive",
+        ".audit-menu-icon",
+        ".audit-menu-shortcut"
+      ]
+    }
+  },
+  "domMockups": {
+    "b-toolbar": "Two inert row/column buttons prepended; original DOM restored after capture. No table/document geometry or target state changed.",
+    "d-unified": "Replace only menu row contents with inert conversion/duplicate/move/Delete rows, generic 16px line SVG slots and separators; preserve outer anchor; original contents restored. No handler or shortcut registration."
+  },
+  "captures": [
+    {
+      "name": "baseline-1440.png",
+      "viewport": "1440x900",
+      "language": "en",
+      "note": "hover-capable rest; two tabs; sidebar open only on desktop",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 135323,
+      "sha256": "1f5d137bfefd23f210190536aad73c2d2d9c7c18d1f6243d36ff36d9dfbe67e3"
+    },
+    {
+      "name": "baseline-390.png",
+      "viewport": "390x844",
+      "language": "en",
+      "note": "hover-capable rest; two tabs; sidebar open only on desktop",
+      "pixels": [
+        390,
+        844
+      ],
+      "bytes": 66207,
+      "sha256": "e90c945eac473829be839800e579a44d4254812ed87b5b40a1d75474eed01730"
+    },
+    {
+      "name": "a-segmented.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same selected Figure, current sidebar/files tab and Outline; pointer away",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 137115,
+      "sha256": "941b13a193a6aaa9dae6bb6d4abca0d4c286545b39521ebc15ff0d3fdb5d273e"
+    },
+    {
+      "name": "a-marker.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same selected Figure, current sidebar/files tab and Outline; pointer away",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 135339,
+      "sha256": "d6f057e6241ebaa6593da4f8f8303c079b7e21ee5f959b2aef375827ad01446d"
+    },
+    {
+      "name": "a-background.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same selected Figure, current sidebar/files tab and Outline; pointer away",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 135694,
+      "sha256": "894a0fdd5b298fd6eae95476c04b3cec8cc30818a938f4cce4efef0a763de44a"
+    },
+    {
+      "name": "b-current.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same cell caret, row/column current; existing handles",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 134173,
+      "sha256": "836b6d1a5edb77743374eef0dac4bb9b7ab4e84249a1c577fce24e8b6b391c2a"
+    },
+    {
+      "name": "b-handles.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same current cell and scroll; proposed controls are inert appearance only",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 132340,
+      "sha256": "354295b535fbe4acf28a90dc3d14950df6bc87b412592440f4a3a633df2bbf7f"
+    },
+    {
+      "name": "b-toolbar.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same current cell and scroll; proposed controls are inert appearance only",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 132448,
+      "sha256": "5297359d58605d606fdf04400f451b3790bbd91dde84fd3945a95a2262828ecb"
+    },
+    {
+      "name": "c-17.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same Korean technical document; 1440x900, top, no focus/selection",
+      "pixels": [
+        1440,
+        2674
+      ],
+      "bytes": 323974,
+      "sha256": "daa49c6a419ced1862f1af5471823ab60ea27e10dac8bc86d0d4bcbb968aef11"
+    },
+    {
+      "name": "c-16.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same Korean technical document; 1440x900, top, no focus/selection",
+      "pixels": [
+        1440,
+        2629
+      ],
+      "bytes": 316551,
+      "sha256": "f011b0712026682300591256dbb35d176aad83f3229c40a13e802aaa2a8d1212"
+    },
+    {
+      "name": "d-current.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same first paragraph block menu, keyboard first-item focus",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 142259,
+      "sha256": "2416f07ca6c04c861db3551fa9d09dc6a593d6872514b57ed27851e4ad86b008"
+    },
+    {
+      "name": "d-unified.png",
+      "viewport": "1440x900",
+      "language": "ko",
+      "note": "same paragraph and menu anchor; proposed action rows are inert, no new shortcuts registered",
+      "pixels": [
+        1440,
+        900
+      ],
+      "bytes": 142375,
+      "sha256": "39d7868f4ca75657d577d79db0c8f949852157efeed19acaa5c74a1386b5d815"
+    }
+  ],
+  "limits": "CSS pseudo-state samples are visual measurements, not behavioral tests. No real touchscreen, OS select-popup, Korean IME or native Desktop update claim. withBlockHover removes/restores only inactive hover:none rules on this reported hover:true environment. Temporary collector and patches are not committed."
+}
