@@ -295,7 +295,10 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     id: by < 0 ? "move-up" : "move-down",
     get label() { return by < 0 ? i18n.t("Move up") : i18n.t("Move down"); },
     enabled: (state, index) => blockMoveTarget(state, index, by) !== undefined,
-    rejection: blockMoveBlockedHint,
+    rejection: (state, index) => blockMoveBlockedHint(state, index) ??
+      (blockMoveTarget(state, index, by) === undefined
+        ? by < 0 ? i18n.t("There is no body block above this one.") : i18n.t("There is no body block below this one.")
+        : undefined),
     run: (state, index) => {
       const to = blockMoveTarget(state, index, by);
       if (to === undefined) throw new Error("invalid block move");

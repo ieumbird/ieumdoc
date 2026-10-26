@@ -50,11 +50,11 @@ async (page, { openPath, withBlockHover }) => {
   };
   const original = await order();
   const result = {};
-  const openBlockMenu = async index => {
+  const openBlockMenu = async (index, label = 'Block actions') => {
     const handle = page.locator('[data-document-tab][data-active=true] .block-handle').nth(index);
     await handle.focus();
     await page.keyboard.press('Enter');
-    return page.getByRole('menu', {name:'Block actions', exact:true});
+    return page.getByRole('menu', {name:label, exact:true});
   };
   const titleMenu = await openBlockMenu(0);
   for (const name of ['Move up', 'Move down']) {
@@ -64,14 +64,40 @@ async (page, { openPath, withBlockHover }) => {
   await page.keyboard.press('Escape');
   const firstBody = await openBlockMenu(1);
   if (!await firstBody.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled()) throw new Error('Nothing moves above the title');
+  const boundaryReason = async item => ({ tooltip: await item.getAttribute('title'), description: await item.getAttribute('aria-description') });
+  const firstReason = await boundaryReason(firstBody.getByRole('menuitem', {name:'Move up', exact:true}));
   await page.keyboard.press('Escape');
   const lastIndex = await editor.evaluate(node => node.editor.state.doc.childCount - 1);
   const lastMenu = await openBlockMenu(lastIndex);
   if (!await lastMenu.getByRole('menuitem', {name:'Move down', exact:true}).isDisabled()) throw new Error('Last block cannot move down');
+  const lastReason = await boundaryReason(lastMenu.getByRole('menuitem', {name:'Move down', exact:true}));
+  if (firstReason.tooltip !== 'There is no body block above this one.' || firstReason.description !== firstReason.tooltip ||
+      lastReason.tooltip !== 'There is no body block below this one.' || lastReason.description !== lastReason.tooltip) {
+    throw new Error(`Boundary moves need direction-specific tooltip and accessible reasons: ${JSON.stringify({firstReason, lastReason})}`);
+  }
   // Keyboard arrows skip disabled rows but retain the menu role/focus owner.
   await page.keyboard.press('ArrowDown');
   if (!await lastMenu.evaluate(menu => menu.contains(document.activeElement) && !document.activeElement.disabled)) throw new Error('Menu navigation focused a disabled action');
   await page.keyboard.press('Escape');
+  // The same disabled reasons are available in Korean without changing document state.
+  await page.getByRole('button', {name:'Settings', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  for (const [index, name, expected] of [[1, '위로 이동', '위로 이동할 본문 블록이 없습니다.'],
+    [lastIndex, '아래로 이동', '아래로 이동할 본문 블록이 없습니다.']]) {
+    const menu = await openBlockMenu(index, '블록 작업');
+    const item = menu.getByRole('menuitem', {name, exact:true});
+    const reason = await boundaryReason(item);
+    if (!await item.isDisabled() || reason.tooltip !== expected || reason.description !== expected) {
+      throw new Error(`Korean boundary move needs its direction-specific reason: ${JSON.stringify(reason)}`);
+    }
+    await page.keyboard.press('Escape');
+  }
+  await page.getByRole('button', {name:'설정', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
 
   const menuOffset = async () => {
     await equation.hover({position:{x:4, y:4}});

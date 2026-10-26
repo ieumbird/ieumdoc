@@ -460,7 +460,10 @@ separators. `+`/slash retain their Markdown-input hints as key chips; block acti
 gain no invented keyboard shortcuts. Delete, Delete section, Delete table and
 Delete row/column use the danger text/icon token and danger hover surface. Disabled
 rows keep native disabled semantics and are skipped by arrow navigation; fixed-block
-and draft reasons are exposed as accessible descriptions and tooltips.
+and draft reasons are exposed as accessible descriptions and tooltips. Boundary moves
+also explain their direction: `There is no body block above this one.` /
+`There is no body block below this one.` (Korean: `위로 이동할 본문 블록이 없습니다.` /
+`아래로 이동할 본문 블록이 없습니다.`), using both tooltip and accessible description.
 
 Body Paragraph/Heading conversions offer H2–H6 and Paragraph for headings, excluding
 the current level. The title retains its existing explicit conversions and disabled
@@ -501,6 +504,12 @@ content order. Editor tests (290/290), workspace typecheck, Editor build, docume
 and whitespace checks passed. The final block-move/editor-shell/folder-navigation
 run passed, including Base UI menu keyboard behavior. The `+` before/after PNGs
 are byte-identical. The temporary manual capture scenario was removed.
+
+Review correction (#523): on `842965f`, new boundary tooltip/accessible-description
+assertions failed for both first-body Move up and last-body Move down (both values
+were absent). The corrected browser scenario checks both English and Korean reasons,
+then retains the existing move/Undo/Save→Reload coverage. Movement semantics are
+unchanged; the existing command rejection metadata supplies the missing explanation.
 
 ### Nested inline slash menu (#377)
 
