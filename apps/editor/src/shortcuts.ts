@@ -1,10 +1,10 @@
 /** Characters own the bindings; physical positions are an opaque-IME fallback only.
  * Labels and ARIA tokens derive from the same definition as the event matcher. */
-const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+export const isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** Tiptap notation also describes existing engine bindings; this does not register a key. */
 export function shortcutLabel(binding: string, mac = isMac()): string {
-  return binding.split("-").map(key => key === "Mod" ? (mac ? "⌘" : "Ctrl")
+  return binding.split("-").map(key => key === "Mod" ? (mac ? "⌘" : "Ctrl") : key === "Alt" && mac ? "Option"
     : key.length === 1 ? key.toUpperCase() : key).join("+").replace("⌘+", "⌘");
 }
 
@@ -16,8 +16,10 @@ function editorShortcut(binding: string) {
 }
 
 function shortcut(code: string, key: string, virtualKey: number) {
+  const definition = editorShortcut(`Mod-${key}`);
   return {
-    ...editorShortcut(`Mod-${key}`),
+    ...definition,
+    get label() { return definition.label; },
     key: key.toLowerCase(),
     matches: (event: KeyboardEvent, { opaqueOnly = false }: { opaqueOnly?: boolean } = {}) => {
       if (event.isComposing || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
@@ -56,4 +58,37 @@ export const EDITOR_SHORTCUTS = {
   lineBreakAlternative: editorShortcut("Mod-Enter"),
   tab: editorShortcut("Tab"),
   shiftTab: editorShortcut("Shift-Tab"),
+  bulletList: editorShortcut("Mod-Shift-8"),
+  orderedList: editorShortcut("Mod-Shift-7"),
+  codeBlock: editorShortcut("Mod-Alt-c"),
+  documentEnd: editorShortcut("Mod-End"),
+  documentEndMac: editorShortcut("Mod-ArrowDown"),
+  undoRussian: editorShortcut("Mod-я"),
+  redoRussian: editorShortcut("Mod-Shift-я"),
+  selectAll: editorShortcut("Mod-a"),
+  copy: editorShortcut("Mod-c"),
+  cut: editorShortcut("Mod-x"),
+  backspace: editorShortcut("Backspace"),
+  shiftBackspace: editorShortcut("Shift-Backspace"),
+  delete: editorShortcut("Delete"),
+  joinBackward: editorShortcut("Mod-Backspace"),
+  joinForward: editorShortcut("Mod-Delete"),
+  up: editorShortcut("ArrowUp"),
+  down: editorShortcut("ArrowDown"),
+  macBackspace: editorShortcut("Ctrl-h"),
+  macDelete: editorShortcut("Ctrl-d"),
+  macAltBackspace: editorShortcut("Alt-Backspace"),
+  macCtrlAltBackspace: editorShortcut("Ctrl-Alt-Backspace"),
+  macAltDelete: editorShortcut("Alt-Delete"),
+  macAltD: editorShortcut("Alt-d"),
+  macLineStart: editorShortcut("Ctrl-a"),
+  macLineEnd: editorShortcut("Ctrl-e"),
+};
+
+// Existing application navigation handlers and native clipboard keys, not new keymaps.
+export const INTERACTION_SHORTCUTS = {
+  slash: editorShortcut("/"), escape: editorShortcut("Escape"),
+  left: editorShortcut("ArrowLeft"), right: editorShortcut("ArrowRight"),
+  home: editorShortcut("Home"), end: editorShortcut("End"), space: editorShortcut("Space"),
+  paste: editorShortcut("Mod-v"), pastePlain: editorShortcut("Mod-Shift-v"),
 };

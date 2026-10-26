@@ -112,6 +112,13 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check((await guide.innerText()).includes('Line break inside a block') &&
       (await guide.innerText()).includes('Shift+Enter'), 'Line-break shortcut is missing from the guide');
     check((await guide.innerText()).includes('Ctrl+/') && (await guide.innerText()).includes('Ctrl+S'), 'General shortcut hints missing');
+    if (dismissal === 'Escape') for (const [label, hint] of [
+      ['Toggle bullet list','Ctrl+Shift+8'], ['Toggle numbered list','Ctrl+Shift+7'],
+      ['Toggle code block','Ctrl+Alt+C'], ['Move to the document end','Ctrl+End'],
+    ]) {
+      await guide.getByText(label,{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.getByText(hint,{exact:true}).isVisible(), `${label} shortcut is missing or unreachable`);
+    }
     if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-471.png'});
     if (dismissal === 'Escape') await page.keyboard.press('Escape');
     else if (dismissal === 'outside click') await page.locator('[data-slot="dialog-overlay"]').click({position:{x:8,y:8}});
@@ -533,6 +540,11 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
         `Shortcut guide clipped at ${width}`);
       check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Shortcut guide overflows at ${width}`);
       if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-${width}-471.png`});
+      await guide.getByText('Toggle code block',{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.getByText('Ctrl+Alt+C',{exact:true}).isVisible(), `Code shortcut unreachable at ${width}`);
+      if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-code-${width}-471.png`});
+      await guide.getByText('Submit a single-line form / cancel; in Citation, Enter first adds the typed key',{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Lower shortcut groups overflow at ${width}`);
       await page.keyboard.press('Escape'); await guide.waitFor({state:'detached'});
     }
   }
