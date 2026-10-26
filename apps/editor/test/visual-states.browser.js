@@ -1,5 +1,5 @@
 // Computed state combinations on the real UI; screenshot-only review stays outside this test.
-async page => {
+async (page, { withBlockHover }) => {
   const check = (value, message) => { if (!value) throw Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -24,9 +24,18 @@ async page => {
       .filter(s => s.spread > 0).sort((a, b) => b.spread - a.spread)[0];
     const base = surface(n);
     const ringContrast = inset ? ratio(over(rgba(inset.color), base), base) : 0, ringWidth = inset ? inset.spread : 0;
+    const resolve = (property, value) => { const probe = document.createElement('span'); probe.style.setProperty(property, value); n.append(probe);
+      const result = getComputedStyle(probe).getPropertyValue(property); probe.remove(); return result; };
+    const textRects = []; const walker = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+    for (let t; t = walker.nextNode();) if (t.textContent.trim()) { const range = document.createRange(); range.selectNodeContents(t); const r = range.getBoundingClientRect(); textRects.push([r.x,r.y,r.width,r.height]); }
     return { background: c.backgroundColor, color: c.color, border: c.borderColor, radius: c.borderRadius, opacity: c.opacity,
       outline: c.outlineStyle, outlineColor: c.outlineColor, outlineOffset: c.outlineOffset, ring: c.boxShadow,
       marker: marker.content, markerColor: marker.backgroundColor, markerWidth: parseFloat(marker.width),
+      textRects, textContrast: ratio(rgba(c.color), base),
+      selected: resolve('background-color','var(--id-color-surface-selected)'), selectedHover: resolve('background-color','var(--id-color-surface-selected-hover)'),
+      selectedText: resolve('color','var(--id-color-text-selected)'), surface: resolve('background-color','var(--id-color-surface)'),
+      track: resolve('background-color','var(--id-color-surface-pressed)'), text: resolve('color','var(--id-color-text)'), muted: resolve('color','var(--id-color-text-muted)'),
+      segment: resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment)'),
       rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: inset?.color, active: document.activeElement === n };
   });
   await page.setViewportSize({width:1440, height:1000});
@@ -53,7 +62,7 @@ async page => {
   const currentFile = page.getByRole('treeitem', {name:'quiet-document.md', exact:true});
   await currentFile.click();
   // The previous document's Outline stays current while this file is still opening.
-  // Wait for this row's state before measuring its marker; missing CSS must still fail below.
+  // Wait for this row's state before measuring its surface; missing CSS must still fail below.
   await currentFile.and(page.locator('[aria-current="page"]')).waitFor();
   await page.locator('.document-outline-item[aria-current="location"]').waitFor();
   await page.evaluate(async () => {await document.fonts.ready; document.activeElement?.blur();});
@@ -66,9 +75,10 @@ async page => {
     const rest = await state(current), otherRest = await state(other);
     await other.hover(); const hover = await state(other);
     check(rest.background !== hover.background, `${label}: current and ordinary hover share a surface`);
-    check(rest.marker === '""' && rest.markerWidth > 0, `${label}: current needs a non-color marker`);
+    check(rest.background === rest.selected && rest.color === rest.selectedText && rest.textContrast >= 4.5 && rest.marker === 'none' && rest.ring === 'none',
+      `${label}: current needs only selected background/text, without a marker ${JSON.stringify(rest)}`);
     await current.hover(); const currentHover = await state(current);
-    check(currentHover.background !== hover.background && currentHover.color === rest.color && currentHover.marker === rest.marker,
+    check(currentHover.background === rest.selectedHover && currentHover.background !== rest.background && currentHover.background !== hover.background && currentHover.color === rest.color && currentHover.marker === 'none' && currentHover.textContrast >= 4.5,
       `${label}: hover must preserve the current treatment`);
     await current.focus(); await page.keyboard.press(direction); await page.mouse.move(0,0);
     const focus = await state(other);
@@ -77,7 +87,8 @@ async page => {
     check(await current.getAttribute('aria-current') !== null && await other.getAttribute('aria-current') === null,
       `${label}: moving focus changed current`);
     check(JSON.stringify(rest.rect) === JSON.stringify((await state(current)).rect) &&
-      JSON.stringify(otherRest.rect) === JSON.stringify(focus.rect), `${label}: states shifted row geometry`);
+      JSON.stringify(otherRest.rect) === JSON.stringify(focus.rect) && JSON.stringify(rest.textRects) === JSON.stringify(currentHover.textRects) &&
+      JSON.stringify(otherRest.textRects) === JSON.stringify(focus.textRects), `${label}: states shifted row or text geometry`);
     await page.keyboard.press(direction === 'ArrowUp' ? 'ArrowDown' : 'ArrowUp');
     const currentFocus = await state(current);
     check(currentFocus.focused && currentFocus.active && currentFocus.ringWidth >= 2 && currentFocus.ringContrast >= 3 && currentFocus.marker === rest.marker,
@@ -103,7 +114,7 @@ async page => {
   await outline.click();
   await outline.hover(); await settle(); const toggleHover = await state(outline);
   await outline.click(); await page.mouse.move(0,0); await settle(); const pressed = await state(outline);
-  // The blue marker means "current place" only; TopBar toggles carry no marker.
+  // TopBar boolean toggles keep the selected face; tab groups use raised segments.
   const marker = locator => locator.evaluate(n => getComputedStyle(n, '::after').content);
   // An on Outline is a pressed toggle: the selected face, distinct from rest and from neutral hover, kept on hover.
   const rest = await state(page.getByRole('button', {name:'File actions', exact:true}));
@@ -126,6 +137,21 @@ async page => {
     'Inactive view hover needs restrained feedback distinct from the chosen view');
   await visual.hover(); await settle();
   check(JSON.stringify((await state(visual)).background) === JSON.stringify(active.background), 'Hover changes the chosen view');
+  const files = page.getByRole('button', {name:'Files',exact:true}), display = page.getByRole('button', {name:'Display',exact:true});
+  await page.mouse.move(0,0);
+  const filesRest = await state(files), displayRest = await state(display), track = await state(page.getByRole('group',{name:'Sidebar tools'}));
+  check(track.background === filesRest.track && filesRest.background === filesRest.surface && filesRest.color === filesRest.text && filesRest.ring === filesRest.segment &&
+    displayRest.color === displayRest.muted && await marker(files) === 'none', 'Sidebar tools must reuse the raised segment tokens');
+  await display.hover(); const displayHover = await state(display);
+  check(displayHover.background === displayRest.background && displayHover.color === displayHover.text, 'Inactive Sidebar tool hover must only darken text');
+  await files.hover(); const filesHover = await state(files);
+  check(filesHover.background === filesRest.background && filesHover.color === filesRest.color && filesHover.ring === filesRest.ring &&
+    JSON.stringify(filesHover.textRects) === JSON.stringify(filesRest.textRects), 'Hover must preserve the raised current tool and text position');
+  await files.focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+  const filesFocus = await state(files);
+  check(filesFocus.focused && filesFocus.ringWidth >= 2 && filesFocus.ringContrast >= 3 && filesFocus.ring.includes(filesRest.ring) && filesFocus.background === filesRest.background &&
+    JSON.stringify(filesFocus.textRects) === JSON.stringify(filesRest.textRects), 'Sidebar current and keyboard focus must coexist without text movement');
+  await page.evaluate(() => document.activeElement.blur());
   await page.mouse.move(0,0); await settle();
   // A clean Save is an ordinary available ghost action, like File actions beside it.
   const cleanSave = await state(page.getByTestId('save')), actionsRest = await state(page.getByRole('button', {name:'File actions', exact:true}));
@@ -155,6 +181,31 @@ async page => {
   check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.ringColor),
     `Focused primary action hides its ring: ${JSON.stringify(primaryFocus)}`);
   await page.keyboard.press('Escape');
+
+  // Both + and slash use this command menu; active is independent of keyboard focus.
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => {
+    n.editor.commands.setTextSelection(n.editor.state.doc.firstChild.nodeSize+1); n.editor.view.focus();
+  });
+  await page.keyboard.type('/');
+  const choice = page.locator('.command-menu-item.active'); await choice.waitFor();
+  await page.mouse.move(0,0); const choiceRest = await state(choice);
+  check(choiceRest.background === choiceRest.selected && choiceRest.color === choiceRest.selectedText && choiceRest.ring === 'none' && choiceRest.textContrast >= 4.5,
+    'Command active choice must use only selected background/text');
+  await choice.hover(); const choiceHover = await state(choice);
+  check(choiceHover.background === choiceRest.selectedHover && choiceHover.color === choiceRest.color && choiceHover.textContrast >= 4.5 &&
+    JSON.stringify(choiceHover.textRects) === JSON.stringify(choiceRest.textRects), 'Command active hover must preserve text and its selected-hover distinction');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => n.editor.commands.undo());
+  // Slash deliberately keeps editor focus; + opens the same rows with actual menu focus.
+  let choiceFocus;
+  await withBlockHover(page, async () => {
+    await page.locator('[data-document-tab][data-active=true] .heading').first().hover();
+    await page.getByRole('button',{name:'Insert block after heading block 1',exact:true}).click();
+    await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowUp');
+    choiceFocus = await state(page.locator('.command-menu-item').first());
+    check(choiceFocus.focused && choiceFocus.ringWidth >= 2 && choiceFocus.ringContrast >= 3, 'Command choice needs independent keyboard focus');
+    await page.keyboard.press('Escape');
+  });
   await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-image').click();
   await page.getByRole('button', {name:'Edit figure', exact:true}).click();
   const nativeCancel = page.getByTestId('figure-cancel');
@@ -229,5 +280,5 @@ async page => {
     return pairs.map(([fg,bg,min]) => {const a=lum(rgb(fg)),b=lum(rgb(bg)); return {fg,bg,min,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
   });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
-  return {navigation:results, ghostHover, menuOpen, pressed, field, contrasts};
+  return {navigation:results, filesRest, filesFocus, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts};
 }

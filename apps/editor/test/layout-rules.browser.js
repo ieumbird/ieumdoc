@@ -342,6 +342,19 @@ async (page, { openPath, withBlockHover }) => {
       throw Error(`Display controls outside sidebar: ${JSON.stringify({width,display})}`);
     await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
     if(await toggle.isVisible())throw Error('Collapsed Display still exposes controls');
+    if(width>=640) {
+      const rail=await page.getByRole('button',{name:'Display',exact:true}).evaluate(n=>{
+        const probe=document.createElement('span');n.append(probe);
+        probe.style.background='var(--id-color-surface)';probe.style.color='var(--id-color-text)';
+        probe.style.boxShadow='0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment)';
+        const c=getComputedStyle(n),p=getComputedStyle(probe),r=n.getBoundingClientRect();
+        const result={current:n.getAttribute('aria-pressed'),expanded:n.getAttribute('aria-expanded'),name:n.getAttribute('aria-label'),
+          face:c.backgroundColor===p.backgroundColor&&c.color===p.color&&c.boxShadow===p.boxShadow,
+          marker:getComputedStyle(n,'::after').content,width:r.width,height:r.height};probe.remove();return result;
+      });
+      if(!rail.face||rail.marker!=='none'||rail.current!=='true'||rail.expanded!=='false'||rail.name!=='Display')
+        throw Error(`Collapsed rail must keep its named icon-only raised current face: ${JSON.stringify({width,rail})}`);
+    }
     // Without a rail (phone widths) the TopBar reopens the sidebar, which keeps Display selected.
     if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     else await page.getByRole('button',{name:'Display',exact:true}).click();

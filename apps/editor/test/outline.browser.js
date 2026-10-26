@@ -290,7 +290,9 @@ async (page, { openDocument, reloadDocument, expect }) => {
       number: resolve('--id-color-document-heading-number'),
       text: resolve('--id-color-text'), outlineText: resolve('--id-color-text-muted'), selected: resolve('--id-color-text-selected'),
       headings: headings.map(heading => ({ number: getComputedStyle(heading, '::before').color, text: getComputedStyle(heading).color })),
-      outline: numbered.map(row => ({ current: row.hasAttribute('aria-current'), number: getComputedStyle(row.querySelector('.document-outline-number')).color, text: getComputedStyle(row).color })),
+      selectedSurface: resolve('--id-color-surface-selected'),
+      outline: numbered.map(row => ({ current: row.hasAttribute('aria-current'), number: getComputedStyle(row.querySelector('.document-outline-number')).color, text: getComputedStyle(row).color,
+        background:getComputedStyle(row).backgroundColor,marker:getComputedStyle(row,'::before').content })),
     };
   });
   const checkNumberColors = colors => {
@@ -303,8 +305,10 @@ async (page, { openDocument, reloadDocument, expect }) => {
     for (const row of colors.outline) {
       expect(row.number).toBe(row.current ? colors.selected : colors.number);
       expect(row.text).toBe(row.current ? colors.selected : colors.outlineText);
+      if(row.current) { expect(row.background).toBe(colors.selectedSurface); expect(row.marker).toBe('none'); }
     }
   };
+  await page.mouse.move(0,0);
   const defaultColors = await numberColors();
   checkNumberColors(defaultColors);
   // A root override must reach both surfaces, while title text and selected rows stay unchanged.
