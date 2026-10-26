@@ -1,7 +1,8 @@
 # Table interaction v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](editor-visual-language-v1.md#shared-control-verification-514)).
+- Last verified: 2026-10-26 (#517: light line handles, localized names/tooltips, keyboard discovery, no-hover visibility and independent targets; Editor tests/typecheck/build and table-authoring/table-cell-editing/continuous-editing/layout-rules/quiet-document browser regressions; [comparison and evidence](#light-handle-verification-and-comparison)).
+- Previous verification: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](editor-visual-language-v1.md#shared-control-verification-514)).
 - Previous verification: 2026-10-26 (#474 / PR #486 review: table-authoring and source-view-pending browser regressions for explicit deletion notices, guarded one-step Undo, focus, typing, Save/Reload, Source request start, tab switching and expiry; appended endnote placement in the document-session harness; footnotes and bilingual cross-reference browser regressions, typecheck/build).
 - Previous verification: 2026-10-25 (#430 last-cell Tab, including integration with #431/#433: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 281/281, typecheck/build).
 - Previous verification: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
@@ -17,11 +18,196 @@
 - The deletion notice and action expire on the next document change (including typing, keyboard Undo/Redo or an appended transaction such as deferred endnote placement), Save, Reload, Source preview request start, tab switch or the existing five-second temporary-notice timeout. Source revokes the action before its request is pending, so it cannot change a hidden Visual document or outlive the Markdown snapshot; returning to Visual does not revive it. A stale action cannot undo a newer edit or another tab. Further typing starts a separate history step. Deleting a referenced table uses this deletion notice; the existing unresolved reference display remains until Undo restores the table. Other block deletion notices are unchanged.
 - Keep the native engine caret, history and Tab navigation. One structural action is one undo step; after adding, focus moves into the new cell.
 - Tab in the last cell of an editable table appends a row and focuses its first cell using the same Add row below command and Core Save path. Shift+Tab in the first cell still enters preceding prose; Enter and final-row ArrowDown still leave the table. Tab does not act during IME composition or add rows in read-only tables.
-- Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices. Under B1 (#514), row/column/append/caption-edit/actions/delete use shared Button with token-backed 28px targets and 6px control radii. Columns follow measured cell widths, rows stay centered, address letters/numbers remain 12/16px metadata text. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged; handle redesign belongs to #517.
+- Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices. B2 (#517) replaces visible address letters/numbers with 16px horizontal column / vertical row line icons in the existing shared Buttons, with transparent neutral rest and the existing neutral current/open faces. The address remains in the localized accessible name and matching tooltip (including the header-row qualifier). All targets retain token-backed 28px height and 6px radii; columns follow measured cell widths and rows stay centered at 28px wide. Row/column entry points stay in native Tab order while visually hidden; Tab from preceding prose reveals them on focus, Enter opens their menu, and Escape returns to the invoking handle. Hidden handles reject pointer input until hover/focus/selection; append and table-level tools retain their previous visibility rules. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged.
 - Excluded: multiple-cell selection, merging, formulas, resizing and new document semantics. Unsupported cells reject native admission.
 - Completion: pointer and keyboard operation; fixed header/last-column restrictions; focus-safe menu targets; Undo/Redo; Save/Reload with content, alignment, captions and labels retained; narrow-layout geometry.
 - Verification: existing table command/unit tests, extended table-authoring browser regression, typecheck, production build and required CI.
 - CLI: no new semantic operation; existing Core/CLI table commands already cover these actions. Handles and focus are Editor-only.
+
+## Light handle work record (#517)
+
+Implementation plan (2026-10-26, owner decision B2): replace visible column letters
+and row numbers with short horizontal/vertical line handles in the existing shared
+Buttons. Keep the measured column widths, centered 28px row targets, explicit command
+addresses and portal anchors. Use neutral transparent rest and supporting neutral
+current/open states, accessible address names/tooltips, hover/focus discovery and
+the existing no-hover fallback.
+
+Excluded: B3 toolbar redesign, #502 selection-root-cause work, new table commands,
+resizing, merging, formulas and persistence changes. No Core/CLI change is needed:
+this is Editor presentation and interaction over existing semantic operations.
+
+Completion/verification: extend the existing table-authoring regression and show the
+new light-handle assertion failing before product edits, then passing with explicit
+targets, keyboard menus, header/last-column restrictions, narrow scroll geometry,
+engine caret/history and actual Save/Reload preserved. Run Editor tests, typecheck,
+build, layout-rules, quiet-document, table-cell-editing and continuous-editing plus
+docs/whitespace checks; all required CI must pass on the PR head. Capture comparable
+real Before/After states in English/Korean at wide/narrow widths separately from
+automated assertions. Preserve the historical B2 mockup. Stop own test processes,
+publish the issue-linked PR and retain this worktree for independent review; no merge.
+
+### Light handle verification and comparison
+
+The existing `table-authoring` regression's new light-handle assertion failed against
+unchanged product `93636fac231a8a305138b211fa87ac96dad7de51`: buttons still displayed
+`A/B/1/2`, lacked icons/tooltips and had opaque rest faces. The complete
+[first run log](assets/table-handles-517/fail-first.txt) also preserves an earlier,
+separate manual-capture interruption: its English-only file-opening helper could not
+open Files after switching to Korean. The live trace identified that pending click;
+only the owned browser was stopped. The corrected manual script opens the document
+in English before switching language; its [capture run passed](assets/table-handles-517/before-capture.txt).
+The original Before files remain under `assets/table-handles-517/original-before/`.
+That capture preparation failure is not the fail-first product assertion or a CI result.
+
+Final comparison isolates #517 from #524's inherited shell changes. Its product Before
+is master `b28541f373d301fad4da5605ce67808bbcda0b39`; the test/capture harness and final
+product are from `f8f1865e25f69325d5eff318a4b85fa834262441`. Only `table-tools.tsx` and
+`styles.css` were temporarily read from the baseline in this same checkout. Exact final
+byte copies were restored in `finally`, with matching SHA-256 and no product Git diff;
+all other product files already matched that master. The
+[baseline/harness metadata](assets/table-handles-517/integrated-baseline.json) and
+[comparison manifest](assets/table-handles-517/comparison.json) record source hashes,
+environment, screenshot names and pair hashes. The historical B2 mockup is unchanged.
+
+The final [four-scenario run](assets/table-handles-517/final-browser.txt) passes the
+unchanged fail-first criterion plus native Tab discovery from prose, Enter/Escape
+focus return, actual no-hover media, explicit row targeting while the caret is in the
+header and column targeting while it is elsewhere, header/last-column restrictions,
+centered row targets and measured columns after horizontal scrolling, portaled menus,
+caret/history, last-cell Tab and actual Save/Reload. The existing bilingual
+`layout-rules` loop checks handle icon/name/tooltip agreement at 1440/390px alongside
+28px/6px geometry, UI typography isolation and #514/#515 controls.
+[Table-authoring results](assets/table-handles-517/table-authoring-pass.json) retain
+the existing behavioral outcomes. Editor tests (291), workspace typecheck, Editor
+build and docs/whitespace checks pass. Packaging/HTTP/platform coverage belongs to
+required CI; no Host, Core or CLI boundary changed. #502 is untouched.
+
+Manual captures use this checkout's persistent Windows Chrome 155 profile, its own
+Vite server on 5317, DPR 1, 100% zoom, loaded bundled Pretendard and scroll top.
+Table captures are English/Korean at 1440×900 and 390×900, with the same current U
+cell. The manual narrow captures have `scrollLeft=0`; nonzero horizontal-scroll
+coverage comes from the existing table-authoring regression. The delivered `blurred-current`
+images retain that current-cell indicator after blur (the script originally named
+them `rest`); they are not evidence of table tools being hidden at rest. The separate
+Quiet Document 1440×1000/375×1000 pointer-away pairs are byte-identical but retain
+the script's Equation selection, blue outline and Edit control. The original `rest`
+filenames are preserved; these are blurred states with selection, not completely
+unselected document rest. Capture-only traversal
+is separate from automated assertions; images require visual review.
+
+| Comparable state | Before | After |
+| --- | --- | --- |
+| English active cell, 1440px | [PNG](assets/table-handles-517/before/en-1440-active.png) | [PNG](assets/table-handles-517/after/en-1440-active.png) |
+| English active cell, 390px | [PNG](assets/table-handles-517/before/en-390-active.png) | [PNG](assets/table-handles-517/after/en-390-active.png) |
+| Korean active cell, 1440px | [PNG](assets/table-handles-517/before/ko-1440-active.png) | [PNG](assets/table-handles-517/after/ko-1440-active.png) |
+| Korean active cell, 390px | [PNG](assets/table-handles-517/before/ko-390-active.png) | [PNG](assets/table-handles-517/after/ko-390-active.png) |
+| English keyboard menu, 1440px | [PNG](assets/table-handles-517/before/en-1440-keyboard-menu.png) | [PNG](assets/table-handles-517/after/en-1440-keyboard-menu.png) |
+| Korean keyboard menu, 390px | [PNG](assets/table-handles-517/before/ko-390-keyboard-menu.png) | [PNG](assets/table-handles-517/after/ko-390-keyboard-menu.png) |
+| Quiet Document blurred, Equation selected, 1440px | [PNG](assets/table-handles-517/before/quiet-1440-rest.png) | [PNG](assets/table-handles-517/after/quiet-1440-rest.png) |
+| Quiet Document blurred, Equation selected, 375px | [PNG](assets/table-handles-517/before/quiet-375-rest.png) | [PNG](assets/table-handles-517/after/quiet-375-rest.png) |
+
+[Final manual capture](assets/table-handles-517/after-capture.txt) and
+[Quiet Document](assets/table-handles-517/after-quiet.txt) passed. Both baseline and
+final servers and their owned children were stopped; the final
+[cleanup record](assets/table-handles-517/cleanup.json) reports no 5317 listener or
+checkout-profile Chrome process and `BadPasswordAttempts=0`. The profile is retained
+and account policy unchanged. Independent review and owner merge approval remain
+required; local verification and manual inspection do not supply that approval.
+
+### P2 review: actual handle visibility
+
+Review correction plan (2026-10-26): extend the existing table-authoring scenario
+to inspect each actual row/column button and its relevant ancestors, target geometry
+and pointer state in verified no-hover/no-current-cell and keyboard Tab/Escape states.
+The previous container/focus-only predicates are insufficient. Independently disable
+touch and keyboard reveal with temporary CSS mutations, prove the former scenario
+misses them and the extended assertions reject them, then restore exact product
+bytes and run the restored scenario. No product change or new capture-only run is
+planned. Keep the existing target/history/Save/Reload assertions and correct only
+the descriptions of the already-preserved captures.
+
+Completed: the extended scenario checks every row/column button with browser
+`checkVisibility`, its own and ancestor display/visibility/opacity, actual pointer
+events and at least 28px geometry. The no-hover setup independently requires the
+pointer and focus outside the table, no current cell and no active table tools.
+Tab and Escape inspect the actual handles immediately, with exactly one focused
+handle; no polling, reload or delay was added to these assertions.
+
+| Temporary negative control | Previous scenario | Extended scenario |
+| --- | --- | --- |
+| Remove only the no-hover button reveal override | [Pass](assets/table-handles-517/review-touch-reveal-legacy.txt) | [Fails at actual no-hover handles](assets/table-handles-517/review-touch-reveal-updated.txt): opacity 0, pointer-events none despite visible containers |
+| Remove only focus-within from the row/column reveal selector | [Pass](assets/table-handles-517/review-keyboard-reveal-legacy.txt) | [Fails immediately after Tab](assets/table-handles-517/review-keyboard-reveal-updated.txt): focused handle opacity 0 |
+
+Both mutations were separately tested and restored in `finally`. The
+[mutation record](assets/table-handles-517/review-mutations.json) preserves the
+mutation/source hashes, exit codes and actual button/ancestor failure measurements.
+Restored product hashes match the reviewed implementation exactly (styles
+`EC6078F18BDD24E47B96F070A06BAC82B74290AB38E479C643BDB4E4A2BC2811`, TableTools
+`D5B1788DEAAC4793C44C8827082B89806FCCBDAB7EB2034ADFE8BAD291F431DF`), with no product
+Git diff. The [restored table-authoring run](assets/table-handles-517/review-restored-pass.txt)
+passes, including [actual touch/Tab/Escape visibility results](assets/table-handles-517/review-table-authoring-pass.json)
+and all existing targeting/history/Save/Reload checks. Relevant
+[table and visual-token tests](assets/table-handles-517/review-unit.txt) pass 19/19.
+No product defect or product change was found. No capture-only run was added and
+all existing PNG bytes are preserved; only their state descriptions were corrected.
+The [review cleanup](assets/table-handles-517/review-cleanup.json) confirms the owned
+server/port/profile processes are gone and BadPasswordAttempts remains 0.
+
+### CI prose precondition investigation
+
+Run 40292844193's Linux shard 2 failed at the single-Tab discovery assertion.
+The downloaded screenshot, DOM, input log and trace show native Intro offset 16
+but engine title position 1 at Tab keydown; Tab changed H1 to H2 and increased Undo
+depth before selectionchange arrived. This establishes an unmet engine-prose
+precondition, not a failed handle reveal or a diagnosis of #502.
+
+Correction plan: register selectionUpdate before the real prose click, require
+the actual native caret and acknowledged engine positions to match without a
+document change, then retain one Tab and the immediate actual-handle checks.
+Use a temporary observer-acknowledgement hold as a deterministic negative control,
+retain both reveal mutations, restore the uninstrumented scenario and run it on
+Windows. Preserve the original Linux artifact and distinguish its observed failure
+from the controlled Windows experiment. No forced selection, product change,
+polling, reload, fixed sleep, increased timeout or extra Tab is intended. This
+does not claim to fix rapid click-to-Tab product behavior.
+
+Completed evidence: the [original Linux failure bundle](assets/table-handles-517/ci-selection/linux-original-artifacts.zip)
+preserves the actual screenshot, DOM/ARIA, input events, trace and shard log from
+[run 40292844193 / job 121471910574](https://github.com/ieumbird/ieumdoc/actions/runs/40292844193/job/121471910574).
+The [timeline and original-file hashes](assets/table-handles-517/ci-selection/investigation.json)
+record event 19 (native Intro offset 16, engine position 1), event 20 (H2, document
+change, Undo depth 1) and event 22 (selectionchange), plus the actual click/Tab trace
+calls. The failed [screenshot](assets/table-handles-517/ci-selection/linux-failure.png)
+is retained unchanged. No blind retry or intervening push replaced that result.
+
+On Windows Chrome 155, the temporary native-observer gate made the
+[previous harness fail at the same assertion](assets/table-handles-517/ci-selection/old-held.txt);
+its [raw diagnostics](assets/table-handles-517/ci-selection/windows-old-held-artifacts.zip)
+also retain the heading change. With the fence registered before clicking, the
+[controlled scenario passes](assets/table-handles-517/ci-selection/fence-held.txt):
+the [measured gate state](assets/table-handles-517/ci-selection/windows-held-pass.json)
+has native positions 25/25, engine 1/1 and a pending acknowledgement before release,
+then engine 25/25 after the original observer reads the native selection. The actual
+intercepted-call count was zero before that release; the gate was armed but the
+asynchronous read had not arrived yet. This controlled Windows experiment is not a
+local Linux reproduction or a product fix.
+
+The committed scenario installs no observer gate or release hook. Its listener is
+registered before the click and cleaned in `finally`, including failures; a missing
+acknowledgement fails at the existing selection-fence pattern's 1000ms deadline,
+without increasing the scenario timeout. Native/engine positions and document
+identity must match before the existing single Tab. Both
+[touch](assets/table-handles-517/ci-selection/touch-reveal.txt) and
+[keyboard](assets/table-handles-517/ci-selection/keyboard-reveal.txt) reveal mutations
+still fail at their immediate actual-handle checks. After exact CSS/test restoration,
+the [uninstrumented Windows run](assets/table-handles-517/ci-selection/restored-pass.txt)
+passes with [prose readiness and unchanged-document outcomes](assets/table-handles-517/ci-selection/windows-restored-pass.json).
+The [mutation/restore record](assets/table-handles-517/ci-selection/reveal-controls.json)
+reports no product diff; [relevant unit tests](assets/table-handles-517/ci-selection/unit.txt)
+pass 19/19. New-head Linux CI must be evaluated separately. The
+[cleanup record](assets/table-handles-517/ci-selection/cleanup.json) reports no owned
+server, 5317 listener or profile Chrome process, with BadPasswordAttempts 0.
 
 ## Table deletion notice verification (#474)
 

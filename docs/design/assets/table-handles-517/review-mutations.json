@@ -1,0 +1,810 @@
+{
+  "productHead": "327325827ff646270919634511075a4f0fd3bdae",
+  "stylesSHA256": "EC6078F18BDD24E47B96F070A06BAC82B74290AB38E479C643BDB4E4A2BC2811",
+  "tableToolsSHA256": "D5B1788DEAAC4793C44C8827082B89806FCCBDAB7EB2034ADFE8BAD291F431DF",
+  "runs": [
+    {
+      "mutation": "touch-reveal",
+      "exitCode": 0,
+      "mutatedStyleSHA256": "5B9BDBC022F785B068D54B3CA51C5BE9E73A6E6854ED81220A97492E86172EAA",
+      "harness": "legacy",
+      "expectedFailure": "No-hover fallback: actual row/column handles must be visible"
+    },
+    {
+      "mutation": "touch-reveal",
+      "exitCode": 1,
+      "mutatedStyleSHA256": "5B9BDBC022F785B068D54B3CA51C5BE9E73A6E6854ED81220A97492E86172EAA",
+      "harness": "updated",
+      "expectedFailure": "No-hover fallback: actual row/column handles must be visible"
+    },
+    {
+      "mutation": "keyboard-reveal",
+      "exitCode": 0,
+      "mutatedStyleSHA256": "A5CE1790A2BBFC5B508E3EC3C2F94F055B76F941C0AC0BB69DB0A7211062343F",
+      "harness": "legacy",
+      "expectedFailure": "Keyboard Tab discovery: actual row/column handles must be visible"
+    },
+    {
+      "mutation": "keyboard-reveal",
+      "exitCode": 1,
+      "mutatedStyleSHA256": "A5CE1790A2BBFC5B508E3EC3C2F94F055B76F941C0AC0BB69DB0A7211062343F",
+      "harness": "updated",
+      "expectedFailure": "Keyboard Tab discovery: actual row/column handles must be visible"
+    }
+  ],
+  "restoredPassExit": 0,
+  "productDiffClean": true,
+  "legacyHarnessHead": "327325827ff646270919634511075a4f0fd3bdae",
+  "updatedScenarioSHA256": "b3ddb8d1a14630f5f44c32a63e06d350b6109e65533aaa68935340384832c032",
+  "mutations": [
+    {
+      "name": "touch-reveal",
+      "removed": "@media (hover: none) button override: .table-tools :is(.table-row-handle, .table-column-handle) { opacity: 1; pointer-events: auto; }"
+    },
+    {
+      "name": "keyboard-reveal",
+      "removed": ":focus-within from only the row/column .table-block reveal selector; hover, selection, active and menu-open rules retained"
+    }
+  ],
+  "assertionTiming": "Each button and ancestors inspected immediately after pointer-away touch setup, Tab and Escape; no new poll, reload or delay.",
+  "failureSamples": [
+    {
+      "mutation": "touch-reveal",
+      "handles": [
+        {
+          "name": "Column A actions",
+          "row": false,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 279.5,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Column B actions",
+          "row": false,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 279.5,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Row 1 actions (header)",
+          "row": true,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 28,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Row 2 actions",
+          "row": true,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 28,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mutation": "keyboard-reveal",
+      "handles": [
+        {
+          "name": "Column A actions",
+          "row": false,
+          "focused": true,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 279.5,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Column B actions",
+          "row": false,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 279.5,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Row 1 actions (header)",
+          "row": true,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 28,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        },
+        {
+          "name": "Row 2 actions",
+          "row": true,
+          "focused": false,
+          "visible": false,
+          "pointerEvents": "none",
+          "width": 28,
+          "height": 28,
+          "ancestorStyles": [
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "0"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "flex",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "grid",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            },
+            {
+              "display": "block",
+              "visibility": "visible",
+              "opacity": "1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

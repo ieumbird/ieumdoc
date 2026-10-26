@@ -1,0 +1,54 @@
+$ tsx apps/editor/test/browser/run.ts "table-authoring"
+
+Running 1 test using 1 worker
+
+(node:44508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring (4.6s)
+
+
+  1) apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring ────────────────────────────
+
+    Error: Tab from preceding prose must discover a table handle without hovering the table
+        at evalmachine.<anonymous>:122:31
+        at runNextTicks (node:internal/process/task_queues:65:5)
+        at processImmediate (node:internal/timers:541:9)
+        at file:///C:/Users/swBaek/.paseo/worktrees/3icu9gjp/feat-light-table-handles/apps/editor/test/browser/scenarios.spec.ts:148:20
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1654:9
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1134:11
+        at TimeoutManager.withRunnable (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:403:14)
+        at TestInfoImpl._runWithTimeout (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1132:7)
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1652:7
+        at WorkerMain._runTest (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1625:5)
+
+    attachment #1: input-events.json (application/json) ────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\input-events-json-8562237ef4dc0f1f282e4fcf9dc77596620590aa.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-state.json (application/json) ───────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\browser-state-json-9338aeeb079a6d3a4b3031f092f6c475d60c7e3a.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: console-errors.json (application/json) ──────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\console-errors-json-e257880a3626c3464709637ac79fe41efeeeae52.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: error-context.md (text/markdown) ────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\error-context-md-5183762b6f1ac59d18216cc74e8c9c73d8085d5f.md
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: screenshot (image/png) ──────────────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\screenshot-76ee178036a50b5322a75c15b1f681ade5f901a3.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #6: trace (application/zip) ─────────────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\trace-4a7ced63f521edf9072c9b988954e794d2e8cdbd.zip
+    Usage:
+
+        pnpm exec playwright show-trace tmp\browser-results\scenarios-table-authoring\attachments\trace-4a7ced63f521edf9072c9b988954e794d2e8cdbd.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring ─────────────────────────────
+[ELIFECYCLE] Command failed with exit code 1.

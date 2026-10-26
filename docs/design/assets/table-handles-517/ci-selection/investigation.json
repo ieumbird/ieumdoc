@@ -1,0 +1,252 @@
+{
+  "failedRun": 40292844193,
+  "failedJob": 121471910574,
+  "artifactId": 12637805937,
+  "failedHead": "ef29a111c2d6e3126e471abc1bcd3d6915ebd319",
+  "integratedBase": "50bd672effe60066c10cd4fcfa874485d800058f",
+  "productUnchangedFromLocalHead": "901a8f521bca00830c7bced59191871c047a165c",
+  "linuxContext": {
+    "version": 10,
+    "type": "context-options",
+    "origin": "library",
+    "browserName": "chromium",
+    "playwrightVersion": "1.64.0-alpha-1789764292000",
+    "options": {
+      "ignoreAllDefaultArgs": false,
+      "handleSIGINT": false,
+      "headless": true,
+      "tracesDir": "/home/runner/work/ieumdoc/ieumdoc/tmp/browser-results/.playwright-artifacts-0/traces",
+      "artifactsDir": "/home/runner/work/ieumdoc/ieumdoc/tmp/browser-results/.playwright-artifacts-0",
+      "noDefaultViewport": false,
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "ignoreHTTPSErrors": false,
+      "javaScriptEnabled": true,
+      "bypassCSP": false,
+      "locale": "en-US",
+      "offline": false,
+      "isMobile": false,
+      "hasTouch": false,
+      "colorScheme": "light",
+      "reducedMotion": "no-preference",
+      "forcedColors": "none",
+      "acceptDownloads": "accept",
+      "contrast": "no-preference",
+      "serviceWorkers": "allow",
+      "selectorEngines": [],
+      "testIdAttributeName": "data-testid",
+      "userDataDir": "/tmp/ieumdoc-browser-profile/9dc63d1fda01df57"
+    },
+    "platform": "linux",
+    "wallTime": 1793003736724,
+    "monotonicTime": 180385.73,
+    "sdkLanguage": "javascript",
+    "testIdAttributeName": "data-testid"
+  },
+  "linuxEvents": [
+    {
+      "sequence": 16,
+      "type": "focusout",
+      "domTag": "BODY",
+      "domOffset": 5,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0
+    },
+    {
+      "sequence": 17,
+      "type": "transaction",
+      "domTag": "BODY",
+      "domOffset": 5,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0,
+      "docChanged": false
+    },
+    {
+      "sequence": 18,
+      "type": "focusin",
+      "domTag": "BODY",
+      "domOffset": 5,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0
+    },
+    {
+      "sequence": 19,
+      "type": "keydown",
+      "key": "Tab",
+      "domTag": "P",
+      "domOffset": 16,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0
+    },
+    {
+      "sequence": 20,
+      "type": "transaction",
+      "domTag": "H2",
+      "domOffset": 0,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 1,
+      "docChanged": true
+    },
+    {
+      "sequence": 21,
+      "type": "keyup",
+      "key": "Tab",
+      "domTag": "H2",
+      "domOffset": 0,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 1
+    },
+    {
+      "sequence": 22,
+      "type": "selectionchange",
+      "domTag": "H2",
+      "domOffset": 0,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 1
+    }
+  ],
+  "linuxActions": [
+    {
+      "id": "uzhn@13346",
+      "method": "close",
+      "startTime": 184619.699,
+      "endTime": 184620.871
+    },
+    {
+      "id": "uzhn@13348",
+      "method": "click",
+      "startTime": 184621.762,
+      "endTime": 184651.581,
+      "selector": "internal:text=\"Intro paragraph.\"s >> visible=true"
+    },
+    {
+      "id": "uzhn@13350",
+      "method": "mouseMove",
+      "startTime": 184652.392,
+      "endTime": 184657.822
+    },
+    {
+      "id": "uzhn@13352",
+      "method": "keyboardPress",
+      "startTime": 184658.475,
+      "endTime": 184697.239,
+      "key": "Tab"
+    },
+    {
+      "id": "uzhn@13354",
+      "method": "queryCount",
+      "startTime": 184698.243,
+      "endTime": 184702.97,
+      "selector": "[data-document-tab][data-active=true] [data-block=\"table\"] >> nth=0 >> .table-row-handle:focus, .table-column-handle:focus"
+    }
+  ],
+  "originalFileHashes": [
+    {
+      "name": "browser-state.json",
+      "sha256": "c2e6731873b7e5f8e0dbf549ef34c8a572cedfe9707ddccd806512d8e8d0a312"
+    },
+    {
+      "name": "console-errors.json",
+      "sha256": "bf2c1d814ab479c3677f10a5108cb0fe426fcb84bb3754bc61b5692fe6b7ffcd"
+    },
+    {
+      "name": "error-context.md",
+      "sha256": "c360994359ad0be0da9e3a84de99e383921d15054fa048011e2c30b514cf280a"
+    },
+    {
+      "name": "input-events.json",
+      "sha256": "485415de1c5cc2d6a0757eedc07ca61454e37595906abcc90dd10480b5078d97"
+    },
+    {
+      "name": "test-failed.png",
+      "sha256": "ad66ddb66c2de38e571f42870d1525b80ee9ff622da6a80cd6f44dae324b97ff"
+    },
+    {
+      "name": "trace.zip",
+      "sha256": "6ec772d282b7f5254223931b68f03a3ab44b1300679e32ed028d383a618c7d8c"
+    }
+  ],
+  "windowsOldHeldEvents": [
+    {
+      "sequence": 17,
+      "type": "transaction",
+      "domTag": "BODY",
+      "domOffset": 5,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0,
+      "docChanged": false
+    },
+    {
+      "sequence": 20,
+      "type": "keydown",
+      "key": "Tab",
+      "domTag": "P",
+      "domOffset": 16,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 0
+    },
+    {
+      "sequence": 21,
+      "type": "transaction",
+      "domTag": "H2",
+      "domOffset": 0,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 1,
+      "docChanged": true
+    },
+    {
+      "sequence": 22,
+      "type": "keyup",
+      "key": "Tab",
+      "domTag": "H2",
+      "domOffset": 0,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "undoDepth": 1
+    }
+  ],
+  "windowsHeldPass": {
+    "heldCalls": 0,
+    "beforeRelease": {
+      "nativeFrom": 25,
+      "nativeTo": 25,
+      "engineFrom": 1,
+      "engineTo": 1,
+      "pending": true,
+      "heldCalls": 0
+    },
+    "afterRelease": {
+      "engineFrom": 25,
+      "engineTo": 25
+    }
+  },
+  "negativeControl": {
+    "method": "Temporary diagnostic wrapper holds native DOM-observer flush reads until release calls the original observer, without assigning engine selection or changing product source.",
+    "sourceVariants": [
+      "old-held.js",
+      "fence-held.js"
+    ],
+    "heldCallsBeforeRelease": 0,
+    "releaseHookPresentInCommittedScenario": false
+  },
+  "notes": [
+    "Original Linux occurrence proves native Intro offset16 versus engine title position1 at Tab; the heading command then produced H2 and undoDepth1 before selectionchange. It does not identify a handle-reveal defect.",
+    "Windows installed Chrome155.0.8059.85 uses the same checkout persistent profile; the Linux CI uses the pinned Playwright Chromium on Linux. OS and browser channel differ; this evidence does not isolate either as the cause.",
+    "The Windows gate was armed as a deterministic negative control; zero observer calls had arrived before release in the actual successful held run. The native25/engine1 mismatch and pending fence are preserved rather than substituting a more favorable attempt.",
+    "The old harness failed under the armed gate. The corrected harness was pending until the original observer read the native caret, then retained one real Tab and immediate actual-handle assertions. No sleep, poll, reload or forced engine selection is in the committed correction.",
+    "No Linux run was performed locally. New-head Linux CI is required separately. No claim is made that rapid click-to-Tab product behavior or #502 is fixed.",
+    "Both reveal mutations still fail and exact current product bytes were restored before the uninstrumented Windows pass. Failure screenshots were created by the normal test diagnostics, not capture-only traversal."
+  ]
+}

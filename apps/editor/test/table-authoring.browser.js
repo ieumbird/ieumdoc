@@ -54,6 +54,110 @@ async (page, { openPath, reloadDocument }) => {
   // Direct handles/append buttons preserve the native caret and history. The menu can
   // target B while the caret remains in A; its portal must not be clipped by local scroll.
   const initial = tables.first();
+  await initial.hover();
+  const lightHandles = await initial.locator('.table-row-handle, .table-column-handle').evaluateAll(handles => handles.map(button => {
+    const rect = button.getBoundingClientRect();
+    return { name: button.getAttribute('aria-label'), title: button.title, text: button.textContent.trim(),
+      icon: !!button.querySelector('svg[aria-hidden="true"]'), width: rect.width, height: rect.height,
+      background: getComputedStyle(button).backgroundColor };
+  }));
+  if (!lightHandles.length || lightHandles.some(handle => handle.text || !handle.icon || handle.title !== handle.name || handle.width < 28 || handle.height !== 28 || handle.background !== 'rgba(0, 0, 0, 0)')) {
+    throw new Error(`Light table handles need an icon without visible address text, matching localized name/tooltip, transparent rest and 28px targets: ${JSON.stringify(lightHandles)}`);
+  }
+  const handleVisibility = handles => handles.map(button => {
+    const rect = button.getBoundingClientRect(), ancestors = [];
+    for (let node = button; node; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      ancestors.push({element:node.className || node.tagName, display:style.display, visibility:style.visibility, opacity:style.opacity});
+    }
+    return {name:button.getAttribute('aria-label'), row:button.matches('.table-row-handle'), focused:document.activeElement === button,
+      width:rect.width, height:rect.height, pointerEvents:getComputedStyle(button).pointerEvents, ancestors,
+      visible:button.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}) &&
+        ancestors.every(style => style.display !== 'none' && style.visibility === 'visible' && style.opacity === '1')};
+  });
+  const assertVisibleHandles = async (table, state, focused = false) => {
+    const handles = await table.locator('.table-row-handle, .table-column-handle').evaluateAll(handleVisibility);
+    if (!handles.some(handle => handle.row) || !handles.some(handle => !handle.row) ||
+      handles.some(handle => !handle.visible || handle.width < 28 || handle.height < 28 || handle.pointerEvents !== 'auto') ||
+      focused && handles.filter(handle => handle.focused).length !== 1) {
+      throw new Error(`${state}: actual row/column handles must be visible and usable, with opaque visible ancestors and nonzero 28px targets: ${JSON.stringify(handles)}`);
+    }
+  };
+  const noHoverPage = await page.context().newPage();
+  try {
+    await noHoverPage.goto(page.url());
+    await noHoverPage.locator('[data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(noHoverPage, file);
+    await noHoverPage.locator('[data-document-tab][data-active=true] .table-row-handle').first().waitFor({state:'attached'});
+    const touch = await page.context().newCDPSession(noHoverPage);
+    await touch.send('Emulation.setTouchEmulationEnabled', {enabled:true});
+    await noHoverPage.mouse.move(0,0);
+    const touchTable = noHoverPage.locator('[data-document-tab][data-active=true] .table-block').first();
+    const touchState = await touchTable.evaluate(block => {
+      const tools = [...block.querySelectorAll('.table-tools')];
+      return {noHover:matchMedia('(hover: none)').matches, pointerAway:!block.matches(':hover'),
+        focusOutside:!block.contains(document.activeElement), noCurrentCell:!block.querySelector('[data-current-cell="true"]'),
+        noActiveTools:!block.querySelector('.table-tools[data-active="true"]'), containersVisible:tools.length > 0 && tools.every(n => {
+        const s = getComputedStyle(n);
+        return s.visibility === 'visible' && s.opacity === '1';
+      })};
+    });
+    if (Object.values(touchState).some(value => !value)) throw new Error(`No-hover probe must be pointer-away, unfocused and without a current table cell: ${JSON.stringify(touchState)}`);
+    await assertVisibleHandles(touchTable, 'No-hover fallback');
+    result.touchHandlesVisible = true;
+  } finally { await noHoverPage.close(); }
+  // From prose, Tab discovers the table's native button stops without pointer hover.
+  // Tab inside a cell is still the engine's cell navigation (covered below).
+  const prose = page.getByText('Intro paragraph.', {exact:true}).filter({visible:true});
+  // Click completion can precede ProseMirror's native selectionchange acknowledgement.
+  // Subscribe before clicking, then verify the actual native and engine prose caret.
+  await prose.evaluate(n => {
+    const editor = n.closest('.document-editor').editor, start = editor.view.posAtDOM(n, 0);
+    let accept;
+    const ready = new Promise(resolve => { accept = resolve; });
+    const updated = () => {
+      const {selection} = editor.state;
+      if (editor.view.hasFocus() && selection.empty && selection.$from.parent.type.name === 'paragraph' && selection.$from.start() === start) accept();
+    };
+    editor.on('selectionUpdate', updated);
+    n.tableProseSelection = {ready, document:editor.state.doc, cleanup:() => editor.off('selectionUpdate', updated)};
+  });
+  let keyboardDocument;
+  try {
+    await prose.click();
+    keyboardDocument = await prose.evaluate(async n => {
+      const editor = n.closest('.document-editor').editor, gate = n.tableProseSelection;
+      const native = window.getSelection(), {anchorNode, anchorOffset, focusNode, focusOffset} = native;
+      if (!native.isCollapsed || !n.contains(anchorNode) || !n.contains(focusNode)) throw new Error('Keyboard discovery needs the native caret in Intro prose');
+      const from = editor.view.posAtDOM(anchorNode, anchorOffset), to = editor.view.posAtDOM(focusNode, focusOffset);
+      let timeout;
+      try {
+        await Promise.race([gate.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Intro prose selectionUpdate missing')), 1000); })]);
+      } finally { clearTimeout(timeout); }
+      const {selection} = editor.state;
+      if (!editor.view.hasFocus() || selection.from !== from || selection.to !== to || selection.$from.parent.type.name !== 'paragraph' ||
+        editor.state.doc !== gate.document || native.anchorNode !== anchorNode || native.anchorOffset !== anchorOffset || native.focusNode !== focusNode || native.focusOffset !== focusOffset) {
+        throw new Error(`Intro native/engine caret must converge without changing the document: ${JSON.stringify({from,to,engine:selection.toJSON()})}`);
+      }
+      return JSON.stringify(editor.getJSON());
+    });
+    result.keyboardProseSelectionReady = true;
+  } finally {
+    await prose.evaluate(n => { n.tableProseSelection?.cleanup(); delete n.tableProseSelection; });
+  }
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('Tab');
+  const discovered = await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count();
+  if (discovered !== 1) throw new Error('Tab from preceding prose must discover a table handle without hovering the table');
+  await assertVisibleHandles(initial, 'Keyboard Tab discovery', true);
+  result.keyboardHandlesVisible = true;
+  await page.keyboard.press('Enter');
+  await page.getByRole('menu').waitFor();
+  await page.keyboard.press('Escape');
+  if (await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count() !== 1) throw new Error('Escape must return keyboard focus to the discovered handle');
+  await assertVisibleHandles(initial, 'Keyboard Escape return', true);
+  result.keyboardReturnHandlesVisible = true;
+  result.keyboardDiscoveryKeepsDocument = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => JSON.stringify(n.editor.getJSON())) === keyboardDocument;
   await initial.locator('td', {hasText:/^U$/}).click();
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
@@ -68,6 +172,11 @@ async (page, { openPath, reloadDocument }) => {
     return edit.top >= table.bottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
       (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
   });
+  await initial.locator('th').first().click();
+  await initial.getByRole('button', {name:'Row 2 actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Row 2 actions', exact:true}).getByRole('menuitem', {name:'Add row below', exact:true}).click();
+  result.handleTargetsRow = JSON.stringify(await grid(initial)) === JSON.stringify([['#Name', '#Value'], ['U', 'AC'], ['', '']]);
+  await page.keyboard.press('Control+z');
   await initial.getByRole('button', {name:'Append row', exact:true}).click();
   result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
@@ -135,6 +244,11 @@ async (page, { openPath, reloadDocument }) => {
     const handles = [...block.querySelectorAll('.table-column-handle')];
     return block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
       handles.every((handle, i) => Math.abs(handle.getBoundingClientRect().left - table.rows[0].cells[i].getBoundingClientRect().left) < 1) &&
+      [...block.querySelectorAll('.table-row-handle')].every((handle, i) => {
+        const r = handle.getBoundingClientRect(), row = table.rows[i].getBoundingClientRect();
+        return r.width === 28 && r.height === 28 && r.right <= block.getBoundingClientRect().left &&
+          Math.abs(r.top + r.height / 2 - row.top - row.height / 2) < 1;
+      }) &&
       document.documentElement.scrollWidth <= innerWidth;
   });
   result.menuWithinViewport = await page.getByRole('menu', {name:'Column G actions', exact:true}).evaluate(menu => {

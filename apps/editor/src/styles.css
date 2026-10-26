@@ -1476,7 +1476,11 @@ ol.list { list-style: decimal; }
 .table-block:is(:hover, :focus-within, [data-selected="true"]) .table-tools,
 .table-tools[data-menu-open="true"], .table-tools[data-active="true"] { visibility: visible; }
 .table-tools button { height: var(--size-control-compact); padding: 0; border: 0; border-radius: var(--id-radius-md); background: var(--id-color-surface-subtle); color: var(--id-color-text-muted); font-family: var(--font-family-sans); font-size: var(--font-size-sm); line-height: var(--line-height-label); font-weight: 400; cursor: pointer; }
-.table-tools :is(.table-row-handle, .table-column-handle) { font-size: var(--font-size-xs); line-height: var(--line-height-meta); }
+/* Keep only the row/column entry points in native keyboard order at rest. Focus reveals
+ * the tools; pointer input stays disabled until the same hover/focus/selection states. */
+.table-tools :is(.table-row-handle, .table-column-handle) { visibility: visible; opacity: 0; pointer-events: none; background: transparent; }
+.table-block:is(:hover, :focus-within, [data-selected="true"]) :is(.table-row-handle, .table-column-handle),
+.table-tools:is([data-menu-open="true"], [data-active="true"]) :is(.table-row-handle, .table-column-handle) { opacity: 1; pointer-events: auto; }
 .table-tools button:hover { background: var(--id-color-surface-hover); }
 .table-tools svg { pointer-events: none; }
 .table-tools button:is([aria-pressed="true"], [aria-expanded="true"]) { background: var(--id-color-surface-pressed); color: var(--id-color-text); box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-control); }
@@ -1493,7 +1497,10 @@ ol.list { list-style: decimal; }
 .table-action-bar button { width: var(--size-control-compact); pointer-events: auto; }
 .table-command-popover { padding: 0; width: auto; gap: 0; border: 0; box-shadow: none; }
 .table [data-current-cell="true"] { outline: 2px solid var(--id-color-interaction); outline-offset: -2px; }
-@media (hover: none) { .table-tools { visibility: visible; } }
+@media (hover: none) {
+  .table-tools { visibility: visible; }
+  .table-tools :is(.table-row-handle, .table-column-handle) { opacity: 1; pointer-events: auto; }
+}
 
 .table {
   width: 100%;
