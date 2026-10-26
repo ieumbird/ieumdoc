@@ -2868,7 +2868,14 @@ ol.list { list-style: decimal; }
 .table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
 .table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
-.table-add-caption { color: var(--id-color-text-muted); }
+.table-caption .caption [data-placeholder] { display: inline-block; min-width: 8em; }
+.table-caption [data-placeholder]::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--id-color-text-muted);
+  pointer-events: none;
+}
 
 /* The Table metadata is its object-selection surface; cells retain text editing. */
 .table-block:is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata { pointer-events: auto; }

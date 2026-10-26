@@ -129,7 +129,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "document-title": { files: [...technical,
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
-  "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring"] },
+  "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "section-reference": {
     files: [{ name: "sections.md", create: () => nativeSource("# Guide\n\n## Install\n\nRun the installer.\n\n## Use\n\nSee the install section.\n\n## 개요\n\nKorean heading.\n") }],

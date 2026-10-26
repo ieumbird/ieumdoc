@@ -38,7 +38,7 @@ function setCell(projection: TiptapJSON, row: number, cell: number, text: string
 
 test("editable, empty and formatted cells round-trip through the single Tiptap schema", () => {
   const projection = toTiptapDocument(loadEditableDocument(mixed));
-  const rows = tableOf(projection).content!;
+  const rows = tableOf(projection).content!.filter(node => node.type === "tableRow");
   assert.deepEqual(rows.map((row) => row.content!.map((cell) => cell.type)), [
     ["tableCell", "tableCell"],
     ["tableCell", "tableCell"],

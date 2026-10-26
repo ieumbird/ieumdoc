@@ -228,8 +228,9 @@ transitions preserve the container, label and caption; pending Figures participa
 same editing state and history. See [Figure authoring](figure-authoring-v1.md) for
 the persistence boundary and insertion behavior.
 A Table caption is an optional last child of its Editor table, edited directly below
-the grid with the shared rich-inline controls. Properties contain only Label. Add caption
-creates and focuses the missing caret surface; clearing it removes saved caption content.
+the grid with the shared rich-inline controls. Properties contain only Label. The caption
+input surface is always present without an Add caption step; clearing it removes saved
+caption content.
 Rows/cells keep their existing coordinates. ArrowDown from the final row enters the
 caption, ArrowUp returns to the last cell, and Enter leaves the table. Whole-table move,
 delete and history include the caption. Core `updateTableCaption` and canonical MyST stay

@@ -68,6 +68,13 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
     });
     const normalized = node.toJSON() as TiptapJSON;
     assertRetained(json, normalized);
+    // Older valid snapshots may omit the empty caret surface. Prepare both checkpoints
+    // like a freshly opened table, after lossless validation and without a transaction.
+    for (const block of normalized.content ?? []) {
+      if (block.type === "table" && block.content?.at(-1)?.type !== "tableCaption") {
+        block.content = [...(block.content ?? []), { type: "tableCaption" }];
+      }
+    }
     const seen = new Set<string>();
     for (const block of normalized.content ?? []) {
       const path = block.attrs?.sourcePath;

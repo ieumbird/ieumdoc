@@ -13,7 +13,6 @@ import { Superscript } from "@tiptap/extension-superscript";
 import { codeHighlightingPlugin, lowlight } from "./code-highlight.ts";
 import { type DOMOutputSpec, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { closeHistory } from "@tiptap/pm/history";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
@@ -475,11 +474,19 @@ const TableCaption = Node.create({
   },
 });
 
-function TableCaptionView({ editor, getPos }: ReactNodeViewProps) {
+function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   useTranslation();
   const numbered = useCaptionNumberText(editor, getPos, "table");
-  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered}>
-    <NodeViewContent as="div" aria-label={i18n.t("Table caption")} />
+  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} onMouseDown={(event: ReactMouseEvent) => {
+    if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
+    const position = getPos();
+    if (typeof position !== "number") return;
+    event.preventDefault();
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1)));
+    editor.view.focus();
+  }}>
+    <NodeViewContent as="div" aria-label={i18n.t("Table caption")}
+      data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Table caption") : undefined} />
   </NodeViewWrapper>;
 }
 
@@ -518,15 +525,6 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
   };
-  const addCaption = () => {
-    const position = getPos();
-    if (typeof position !== "number" || !editor.isEditable) return;
-    const caption = node.lastChild?.type.name === "tableCaption" ? node.lastChild : undefined;
-    const at = position + node.nodeSize - 1 - (caption?.nodeSize ?? 0);
-    const tr = caption ? editor.state.tr : closeHistory(editor.state.tr).insert(at, editor.schema.nodes.tableCaption.create());
-    editor.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, at + 1)).scrollIntoView());
-    editor.view.focus();
-  };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
     data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false} onMouseDown={event => {
@@ -541,8 +539,6 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
-    {editor.isEditable && (node.lastChild?.type.name !== "tableCaption" || node.lastChild.content.size === 0) ?
-      <Button variant="ghost" size="sm" className="table-add-caption" contentEditable={false} onClick={addCaption}>{i18n.t("Add caption")}</Button> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
       error={error} onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
