@@ -11,6 +11,7 @@ import { useEditorVisible } from "./editor-visibility.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
+  TABLE_DELETE_META,
   blockCommandGroup,
   filterInsertCommands,
   formattableSelection,
@@ -96,7 +97,7 @@ type DocumentEditorProps = {
   initialSnapshot?: EditorSnapshot;
   documentPath: string;
   onStructuralReject: (reason?: UiMessage) => void;
-  onNotice?: (message: UiMessage) => void;
+  onNotice?: (message: UiMessage, action?: () => void) => void;
   onDraftChange?: (active: boolean) => void;
   onAssetPendingChange?: (active: boolean) => void;
   onAssetError?: (reason: string) => void;
@@ -126,6 +127,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   });
   const pending = useRef<TiptapJSON | null>(null);
   const brokenReferences = useRef(new Map<string, ReferenceTarget>());
+  const tableDeletionDocument = useRef<Editor["state"]["doc"] | null>(null);
   const saved = useRef<TiptapJSON | null>(null);
   const onDraftChangeRef = useRef(onDraftChange);
   onDraftChangeRef.current = onDraftChange;
@@ -207,7 +209,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       content: restored?.editorDocument ?? projection,
       // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
       enableInputRules: [MARKDOWN_INPUT_RULES],
-      onTransaction({ transaction }) {
+      onTransaction({ editor, transaction }) {
+        // The final state includes appended transactions even when the root changed no content.
+        if (tableDeletionDocument.current && tableDeletionDocument.current !== editor.state.doc) {
+          tableDeletionDocument.current = null;
+          onNotice?.("");
+        }
         // Block indexes are snapshot positions; a document change invalidates an open menu.
         if (transaction.docChanged) {
           setBlockMenu(null);
@@ -230,6 +237,17 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
               }
               if (!brokenReferences.current.size) onNotice?.("");
             }
+          }
+          if (transaction.getMeta(TABLE_DELETE_META)) {
+            const deletedDocument = editor.state.doc;
+            tableDeletionDocument.current = deletedDocument;
+            // Subsequent typing must be a different history step, even at the deletion caret.
+            editor.view.dispatch(closeHistory(editor.state.tr));
+            onNotice?.({ key: "Table deleted" }, () => {
+              if (editor.isDestroyed || editor.state.doc !== deletedDocument) return;
+              editor.commands.undo();
+              editor.view.focus();
+            });
           }
         }
       },
