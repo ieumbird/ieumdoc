@@ -16,5 +16,11 @@
     "exitCode": 1,
     "rejected": true,
     "expected": "native action button outside allowlist"
+  },
+  {
+    "name": "named-control-30px",
+    "exitCode": 1,
+    "rejected": true,
+    "expected": "literal control size .figure-edit"
   }
 ]

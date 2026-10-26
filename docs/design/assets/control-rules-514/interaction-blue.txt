@@ -1,5 +1,5 @@
-✔ product tokens and Tailwind adapters have unique, acyclic definitions (2.2939ms)
-✖ UI consumers use shared colors, control geometry and reasoned native-button exceptions (634.4056ms)
+✔ product tokens and Tailwind adapters have unique, acyclic definitions (3.3674ms)
+✖ UI consumers use shared colors, control geometry and reasoned native-button exceptions (589.4217ms)
 ℹ tests 2
 ℹ suites 0
 ℹ pass 1
@@ -7,12 +7,12 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 951.0744
+ℹ duration_ms 838.8202
 
 ✖ failing tests:
 
 test at apps\editor\test\visual-tokens.test.ts:64:1
-✖ UI consumers use shared colors, control geometry and reasoned native-button exceptions (634.4056ms)
+✖ UI consumers use shared colors, control geometry and reasoned native-button exceptions (589.4217ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   + actual - expected
   
@@ -21,7 +21,7 @@ test at apps\editor\test\visual-tokens.test.ts:64:1
   + ]
   - []
   
-      at TestContext.<anonymous> (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\refactor-shared-control-rules\apps\editor\test\visual-tokens.test.ts:148:10)
+      at TestContext.<anonymous> (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\refactor-shared-control-rules\apps\editor\test\visual-tokens.test.ts:156:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1402:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:974:18)

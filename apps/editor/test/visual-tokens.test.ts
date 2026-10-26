@@ -65,6 +65,7 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
   const root = new URL("../src/", import.meta.url);
   const failures: string[] = [];
   const seenNative = new Set<string>();
+  const controlClasses = new Set<string>();
   const api = new API();
   try {
     using snapshot = api.updateSnapshot({ openProjects: [fileURLToPath(new URL("../tsconfig.json", import.meta.url))] });
@@ -89,8 +90,13 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
       [".equation-input|min-height|5rem", "Multiline LaTeX field minimum, not a single-line control."],
       [".selection-toolbar.inline-math-form|width|22rem", "Overlay width, not action geometry."],
       [".selection-toolbar.cross-reference-form|width|22rem", "Overlay width, not action geometry."],
+      [".message-dismiss|min-width|1.5rem", "Existing 24px floor beneath the shared Button's actual 28px target."],
+      [".message-dismiss|min-height|1.5rem", "Existing 24px floor beneath the shared Button's actual 28px target."],
     ]);
-    for (const name of readdirSync(root, { recursive: true, encoding: "utf8" }).sort()) {
+    // Gather actual JSX control classes before scanning CSS, including names without "button".
+    const files = readdirSync(root, { recursive: true, encoding: "utf8" }).sort((a, b) =>
+      Number(a.endsWith(".css")) - Number(b.endsWith(".css")) || a.localeCompare(b));
+    for (const name of files) {
       const file = name.replaceAll("\\", "/");
       if (!/\.(css|tsx?)$/.test(file) || file === "styles/tokens.css") continue;
       const source = readFileSync(new URL(file, root), "utf8");
@@ -102,7 +108,8 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
             const value = raw.trim();
             checkColors(file, value, property);
             // Only control consumers; document/layout dimensions and multiline surfaces have other contracts.
-            if (!/button|input|select|\.form-|\.code-language|\.folder-picker-crumb|\.block-(?:handle|insert)|\.table-(?:row-handle|column-handle|extend)/.test(selector) ||
+            const hasControlClass = [...selector.matchAll(/\.([\w-]+)/g)].some(([, name]) => controlClasses.has(name));
+            if ((!hasControlClass && !/button|input|select|\.form-|\.folder-picker-field/.test(selector)) ||
               !/^(?:(?:min-|max-)?(?:height|width)|border-radius)$/.test(property)) continue;
             if (/(?<![\w-])(?:[1-9]\d*(?:\.\d+)?|0?\.\d+)(?:px|rem)\b/.test(value) &&
               !cssExceptions.has(`${selector}|${property}|${value}`)) failures.push(`${file}: literal control size ${selector} { ${property}: ${value} }`);
@@ -131,11 +138,12 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
             seenNative.add(key);
           }
           if (["button", "Button", "input", "Input", "select"].includes(tag)) {
+            for (const name of attribute("className").split(/\s+/)) if (/^[\w-]+$/.test(name)) controlClasses.add(name);
             // Check inline numeric geometry as well as arbitrary/fixed Tailwind control dimensions.
             for (const attr of node.attributes.properties) {
               if (!ts.isJsxAttribute(attr)) continue;
               const key = attr.name.getText(ast), text = attr.initializer?.getText(ast) ?? "";
-              if (key === "style" && /\b(?:height|minHeight|maxHeight|borderRadius)\s*:\s*(?:\d|["'`]\d+(?:px|rem))/.test(text)) failures.push(`${file}: literal inline control size ${text}`);
+              if (key === "style" && /\b(?:height|minHeight|maxHeight|width|minWidth|maxWidth|borderRadius)\s*:\s*(?:\d|["'`]\d+(?:px|rem))/.test(text)) failures.push(`${file}: literal inline control size ${text}`);
               if (key === "className" && /\b(?:h|min-h|max-h|size|rounded)-(?:\d+(?:\.\d+)?\b|\[[^\]]*\d+(?:px|rem)\b)/.test(text)) failures.push(`${file}: literal Tailwind control size ${text}`);
             }
           }

@@ -81,7 +81,10 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 
 `visual-tokens.test.ts` scans UI consumers for literal colors/control geometry and native
 action buttons outside source-and-role exceptions with reasons. It uses the installed
-TypeScript AST, not a new JSX parser. `layout-rules` checks real 32/28px controls, 6px
+TypeScript AST, including actual control classes whose names do not contain `button`,
+not a new JSX parser. The existing MessageArea dismiss rule's 24px minimum is a guard
+exception beneath its shared Button's actual 28px target; it does not change B1's rendered
+geometry or introduce a smaller action. `layout-rules` checks real 32/28px controls, 6px
 control radii, UI typography isolation and token-resolved selected/focus colors in both
 locales at 1440/390px. Captures are manual visual evidence, not screenshot assertions.
 
@@ -396,6 +399,9 @@ the reasoned allowlist. All three mutations were reverted; the restored guard pa
 Failure output: [30px table](assets/control-rules-514/table-30px.txt),
 [literal blue](assets/control-rules-514/interaction-blue.txt),
 [native action](assets/control-rules-514/native-action.txt).
+An additional [30px `.figure-edit` mutation](assets/control-rules-514/named-control-30px.txt)
+also fails, proving that JSX-owned control classes are covered even without `button`
+in their CSS selector. It too was reverted before the passing guard run.
 `layout-rules` checks computed geometry/radii, UI-font isolation (including changed
 controls), and token-resolved selected/focus colors in both locales at 1440/390px.
 The existing citation-authoring scenario additionally fixes the deliberate 18px/16px
