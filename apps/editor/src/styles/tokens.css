@@ -30,6 +30,7 @@
   /* Folder/image picker: width, list scroll cap and active-image preview height. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
+  --layout-folder-picker-folder-list-height: 16rem;
   --layout-folder-picker-preview-height: 10rem;
   /* Read-only file preview: preferred dialog width and image height cap within the viewport. */
   --layout-file-preview-width: 48rem;

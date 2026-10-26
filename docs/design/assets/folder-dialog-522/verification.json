@@ -1,0 +1,639 @@
+{
+  "issue": 522,
+  "beforeCommit": "93636fac231a8a305138b211fa87ac96dad7de51",
+  "purpose": "Actual product manual presentation comparisons; no screenshot assertions.",
+  "capture": {
+    "runner": "pnpm browser:test with checkout persistent installed Chrome profile",
+    "origin": "http://127.0.0.1:5393",
+    "profileSuffix": "e7fc600ac1c91314",
+    "browserLocale": "en-US",
+    "folderUiLanguages": [
+      "ko",
+      "en"
+    ],
+    "folderViewports": [
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "folderState": {
+      "root": "/workspace/ieumdoc-doc-ground/",
+      "otherRoot": "/workspace/shared-documents",
+      "folders": [
+        "artifacts",
+        "assets",
+        "docs",
+        "examples",
+        "notes",
+        "references",
+        "scripts",
+        "templates"
+      ],
+      "documentCountInBrowseResponse": 8,
+      "recent": [],
+      "openedDocument": false,
+      "newFolderRow": false,
+      "focus": "folder-path, caret at end",
+      "activeOption": null,
+      "pointer": [
+        0,
+        0
+      ],
+      "dialogScroll": 0,
+      "listScroll": 0
+    },
+    "font": "bundled Pretendard; document.fonts.ready awaited",
+    "scale": "default persistent worker DPR 1 and unchanged zoom; no emulation/zoom modification",
+    "folderHostFixture": "Read-only API routes simulate two HTTP roots and the same local starting places; actual product components. Real HTTP security is checked separately by http-host.",
+    "manualScriptSha256": "b9b628e2f3fef932a6d952e53140106f5ed36b98dc0e4fb21c46b7c6d552ffb1",
+    "imageCapture": "Unchanged figure-authoring --screenshots scenario, selected diagram.svg, English; two desktop/phone sizes plus compact and 1366x768 states.",
+    "documentCapture": "Unchanged quiet-document --screenshots rest at 1440x1000 and 375x1000."
+  },
+  "failFirst": {
+    "command": "IEUMDOC_BROWSER_URL=http://127.0.0.1:5393 pnpm browser:test folder-navigation",
+    "productUnchanged": true,
+    "message": "Folder picker must not count documents absent from its folder-only list",
+    "location": "folder-navigation.browser.js:136",
+    "artifacts": "tmp/folder-dialog-522-evidence/fail-first (DOM, screenshot, trace preserved locally)",
+    "secondaryFailure": "The early assertion also prevents later expected HTTP refusal events; teardown reports those missing events. The primary fail-first message is preserved in the trace and command output."
+  },
+  "baseline": {
+    "figureAuthoring": "passed",
+    "quietDocument": "passed",
+    "badPasswordAttemptsBefore": 0,
+    "badPasswordAttemptsAfter": 1,
+    "cleanup": "Vite PID9392 stopped; port5393 no listener; no Chrome process for checkout profile; account policy unchanged; persistent profile retained"
+  },
+  "images": [
+    {
+      "file": "after-document-1440.png",
+      "sha256": "1c29b22210196258215a412014aad977a1f301c032056bef7855c34b8715440f",
+      "size": [
+        1440,
+        1000
+      ]
+    },
+    {
+      "file": "after-document-375.png",
+      "sha256": "d557824fbc3096c7a79306f2bbce65d5157498a53be18a78145cab4d9d1bd590",
+      "size": [
+        375,
+        1000
+      ]
+    },
+    {
+      "file": "after-http-en-1440.png",
+      "sha256": "fb498043d3a173f5fe18e10a7524a006adc685edc5673b524bb39c3e55b5b966",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "after-http-en-390.png",
+      "sha256": "f2f0c8841815ac9289ce4b95587193bfe6aa264ec47d638e36e5f3414be6b965",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "after-http-ko-1440.png",
+      "sha256": "cbcc580673b83a3f35bde71ffd81537947c15bdcb92ba6d2e5549af37a44a4bd",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "after-http-ko-390.png",
+      "sha256": "5e66e15004e12b18139512e1279808efebea78cca2a03cdd41510d977ad98913",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "after-image-compact-375-667.png",
+      "sha256": "28415968e2e81cc3bba8106f74a224bc6a71663c5d6f271cdce4351fb4505554",
+      "size": [
+        343,
+        601
+      ]
+    },
+    {
+      "file": "after-image-desktop-1366-768.png",
+      "sha256": "6f6fb6bc3869bd09afff25f61e49cd0fc8eaee212c0f437b1644779bf21936ac",
+      "size": [
+        672,
+        682
+      ]
+    },
+    {
+      "file": "after-image-selected-1440.png",
+      "sha256": "d155b052e694187f364a0fdf619dd8d1d5499d7054815e039c4b149e34908257",
+      "size": [
+        672,
+        682
+      ]
+    },
+    {
+      "file": "after-image-selected-375.png",
+      "sha256": "225f8bd81d2df70b142614fd7a28c2c5ebc2cfb1c0c203abc8f4903861e1fe07",
+      "size": [
+        343,
+        642
+      ]
+    },
+    {
+      "file": "after-local-en-1440.png",
+      "sha256": "ff07fbd86cba7b377ecfb7d96339de048b19c78ab34ad65b44d342bf7c0e5e78",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "after-local-en-390.png",
+      "sha256": "c77331668ca9b4ce9ffd6a1ae5650b91a0e43719f9ea42f894a4877ce07581e2",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "after-local-ko-1440.png",
+      "sha256": "42e0a9a3a633fea2bab5990d4510024b9d5436fdb21d52eec31901292e3adad4",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "after-local-ko-390.png",
+      "sha256": "b9e307237b1300ce741a93c6661ef8c6ccfa01e1c53a9258317398e4c164f166",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "before-document-1440.png",
+      "sha256": "4f637dc51382a7f6a47ac9596094b5268d7b348865f4bee5d70fe5e6fe412503",
+      "size": [
+        1440,
+        1000
+      ]
+    },
+    {
+      "file": "before-document-375.png",
+      "sha256": "b40a1d366da40ee6c2c2a830da49d383b3c106f37f5b59482cd3dbeaa68a7975",
+      "size": [
+        375,
+        1000
+      ]
+    },
+    {
+      "file": "before-http-en-1440.png",
+      "sha256": "4c0d4a7b7cc0338a1d2e39525ba77d8f4e83988a1fe5a24867a27a49c14666dc",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "before-http-en-390.png",
+      "sha256": "76483b018fd891ff3e2c8d161447fde11334090c78cc3a0e985f4621fc7e1f7c",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "before-http-ko-1440.png",
+      "sha256": "b1152479b2f3e2bdf9d5ab9fccbdf208a2d216bd2f7426406aa64ff84437b19c",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "before-http-ko-390.png",
+      "sha256": "b84e09978849074828b87da2c946cff1c990488352e2e9db4e9ed60c8d971db3",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "before-image-compact-375-667.png",
+      "sha256": "007e92b616c7016a435623b0699306c589ae43b1b4396f89e6648d303c91f344",
+      "size": [
+        343,
+        601
+      ]
+    },
+    {
+      "file": "before-image-desktop-1366-768.png",
+      "sha256": "36972a43eec8f2eb8ed45887cc6718a8cf50beb26a0b5ea52caec8111bad4a75",
+      "size": [
+        672,
+        682
+      ]
+    },
+    {
+      "file": "before-image-selected-1440.png",
+      "sha256": "d155b052e694187f364a0fdf619dd8d1d5499d7054815e039c4b149e34908257",
+      "size": [
+        672,
+        682
+      ]
+    },
+    {
+      "file": "before-image-selected-375.png",
+      "sha256": "225f8bd81d2df70b142614fd7a28c2c5ebc2cfb1c0c203abc8f4903861e1fe07",
+      "size": [
+        343,
+        642
+      ]
+    },
+    {
+      "file": "before-local-en-1440.png",
+      "sha256": "7e2d5185b597e5fbfe4e3fb5ed4fcc372dc28b829889b7cdaf246165a7ad0057",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "before-local-en-390.png",
+      "sha256": "1a359075e00da393a150bf64ae946ead045573802b2893f4dd6712a501984729",
+      "size": [
+        390,
+        844
+      ]
+    },
+    {
+      "file": "before-local-ko-1440.png",
+      "sha256": "0bd853e4e2d6e7451a2faa6c27936686ebffc396639a745df34974a97344fe97",
+      "size": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "before-local-ko-390.png",
+      "sha256": "3e8dc936ad403beffeb9913f1ac4868998c8f55658477fca8452f3e11593531d",
+      "size": [
+        390,
+        844
+      ]
+    }
+  ],
+  "afterProductCommit": "2ac8534a1c2f8207c1b46b1d4aac08136b296c5e",
+  "integratedMaster": "b28541f373d301fad4da5605ce67808bbcda0b39",
+  "afterEnvironment": [
+    {
+      "host": "http",
+      "width": 1440,
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "ko",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 575
+    },
+    {
+      "host": "http",
+      "width": 390,
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "ko",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 611
+    },
+    {
+      "host": "http",
+      "width": 1440,
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "en",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 575
+    },
+    {
+      "host": "http",
+      "width": 390,
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "en",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 627
+    },
+    {
+      "host": "local",
+      "width": 1440,
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "ko",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 575
+    },
+    {
+      "host": "local",
+      "width": 390,
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "ko",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 611
+    },
+    {
+      "host": "local",
+      "width": 1440,
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "en",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 575
+    },
+    {
+      "host": "local",
+      "width": 390,
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "zoom": 1,
+      "language": "en",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "focused": "folder-path",
+      "scroll": 0,
+      "listScroll": 0,
+      "height": 627
+    }
+  ],
+  "attempts": [
+    {
+      "run": "after-vite-initial",
+      "passed": [
+        "folder-memory",
+        "image-assets",
+        "file-preview",
+        "ui-language",
+        "visual-states"
+      ],
+      "failed": [
+        {
+          "scenario": "folder-navigation",
+          "reason": "At second viewport, same-value fill did not dispatch a user edit; active entry stayed 29 and ArrowUp moved to 28.",
+          "change": "Explicit empty then path user edits per viewport; last-entry and scroll assertions retained.",
+          "artifact": "tmp/folder-dialog-522-evidence/after-long-list-initialization-failure"
+        },
+        {
+          "scenario": "layout-rules",
+          "reason": "Wait referenced current-folder breadcrumb removed by approved presentation.",
+          "change": "Only readiness wait replaced by enabled New folder; all typography, geometry and existence assertions retained.",
+          "artifact": "tmp/folder-dialog-522-evidence/after-current-crumb-wait-failure"
+        }
+      ]
+    },
+    {
+      "run": "after-folder-layout-capture",
+      "passed": [
+        "folder-navigation",
+        "layout-rules",
+        "folder-dialog-capture (manual only)"
+      ],
+      "log": "tmp/folder-dialog-522-evidence/after-folder-layout-capture.log"
+    },
+    {
+      "run": "after-figure",
+      "passed": [
+        "figure-authoring"
+      ],
+      "log": "tmp/folder-dialog-522-evidence/after-figure.log"
+    },
+    {
+      "run": "after-quiet",
+      "passed": [
+        "quiet-document"
+      ],
+      "log": "tmp/folder-dialog-522-evidence/after-quiet.log"
+    },
+    {
+      "run": "after-http",
+      "passed": [
+        "http-host",
+        "HTTP owned-browser-crash recovery, Save/Reload and conflict"
+      ],
+      "log": "tmp/folder-dialog-522-evidence/after-http.log"
+    }
+  ],
+  "localChecks": {
+    "editorTests": 291,
+    "typecheck": "passed across all packages",
+    "editorBuild": "passed, including integrated CLI production build",
+    "docs": "passed",
+    "diffWhitespace": "passed"
+  },
+  "cleanup": {
+    "vitePID": 39500,
+    "httpPID": 24428,
+    "port": 5393,
+    "listenerRemaining": false,
+    "checkoutChromeRemaining": false,
+    "badPasswordAttemptsBeforeAfterBatch": 0,
+    "badPasswordAttemptsAfterBatch": 0,
+    "policyChanged": false,
+    "temporaryManualScenarioRemoved": true,
+    "browserSlotReleasedBeforePRWork": true
+  },
+  "pixelObservations": [
+    {
+      "pair": "document-1440.png",
+      "differenceBounds": [
+        10,
+        11,
+        1388,
+        95
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "document-375.png",
+      "differenceBounds": [
+        0,
+        51,
+        375,
+        129
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "http-en-1440.png",
+      "differenceBounds": [
+        1,
+        1,
+        1080,
+        780
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "http-en-390.png",
+      "differenceBounds": [
+        0,
+        41,
+        390,
+        802
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "http-ko-1440.png",
+      "differenceBounds": [
+        1,
+        1,
+        1080,
+        780
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "http-ko-390.png",
+      "differenceBounds": [
+        0,
+        39,
+        390,
+        792
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "image-compact-375-667.png",
+      "differenceBounds": [
+        0,
+        73,
+        1,
+        130
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "image-desktop-1366-768.png",
+      "differenceBounds": [
+        465,
+        0,
+        536,
+        1
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "image-selected-1440.png",
+      "differenceBounds": null,
+      "manualOnly": true
+    },
+    {
+      "pair": "image-selected-375.png",
+      "differenceBounds": null,
+      "manualOnly": true
+    },
+    {
+      "pair": "local-en-1440.png",
+      "differenceBounds": [
+        1,
+        1,
+        1080,
+        780
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "local-en-390.png",
+      "differenceBounds": [
+        0,
+        41,
+        390,
+        792
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "local-ko-1440.png",
+      "differenceBounds": [
+        1,
+        1,
+        1080,
+        780
+      ],
+      "manualOnly": true
+    },
+    {
+      "pair": "local-ko-390.png",
+      "differenceBounds": [
+        0,
+        39,
+        390,
+        792
+      ],
+      "manualOnly": true
+    }
+  ],
+  "comparisonLimits": "Before uses93636fac; After includes #524 master b28541f. Quiet-document shell/tab/Outline changes are that base delta, not #522. The 1440/375 selected image dialog pairs are pixel-identical. Compact/1366 image differences occupy only one pixel at a clipped outer edge. No screenshot equality is an automated assertion. HTTP-like folder captures are not security proof; real HTTP tests supply that boundary evidence."
+}
