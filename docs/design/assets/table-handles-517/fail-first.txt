@@ -1,0 +1,105 @@
+$ tsx apps/editor/test/browser/run.ts "table-handles-capture" "table-authoring"
+
+Running 2 tests using 1 worker
+
+(node:38552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Failure diagnostics incomplete: [
+  'screenshot: Error: page.screenshot: Target page, context or browser has been closed',
+  'trace: Error: tracing.stop: Target page, context or browser has been closed'
+]
+  x  1 apps\editor\test\browser\scenarios.spec.ts:136:3 › table-handles-capture (2.1m)
+(node:34620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  2 apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring (2.9s)
+
+
+  1) apps\editor\test\browser\scenarios.spec.ts:136:3 › table-handles-capture ──────────────────────
+
+    Error: locator.click: Target page, context or browser has been closed
+    Call log:
+      - waiting for getByTestId('sidebar').getByRole('button', { name: 'Files', exact: true })
+
+
+       at navigation.ts:11
+
+       9 |   const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
+      10 |   if (await expand.isVisible()) await expand.click();
+    > 11 |   await sidebar.getByRole("button", { name: "Files", exact: true }).click();
+         |                                                                     ^
+      12 |   await sidebar.getByRole("button", { name: "Open folder…", exact: true }).click();
+      13 |   await page.getByTestId("folder-path").fill(path.dirname(file));
+      14 |   await page.getByTestId("folder-open").click();
+        at openDocument (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\apps\editor\test\browser\navigation.ts:11:69)
+        at openPath (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\apps\editor\test\browser\navigation.ts:52:3)
+        at evalmachine.<anonymous>:16:5
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\apps\editor\test\browser\scenarios.spec.ts:148:20
+
+    attachment #1: input-events.json (application/json) ────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-handles-capture\attachments\input-events-json-7d1c333d0a31dc08db0fb540fd43776c27f04945.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-state.json (application/json) ───────────────────────────────────────────
+    tmp\browser-results\scenarios-table-handles-capture\attachments\browser-state-json-a311ba3466d23f995fbff3717d38cec9676121ac.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: console-errors.json (application/json) ──────────────────────────────────────────
+    tmp\browser-results\scenarios-table-handles-capture\attachments\console-errors-json-59d9c7daacb60d1231d8c293739f10fabd41e0c5.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: error-context.md (text/markdown) ────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-handles-capture\attachments\error-context-md-43c11756537eb31fce76e215e073a9934e909c07.md
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: diagnostic-errors.json (application/json) ───────────────────────────────────────
+    tmp\browser-results\scenarios-table-handles-capture\attachments\diagnostic-errors-json-4791dfc987d52fcff89de5cf5b299e714a63ac1f.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: tmp\browser-results\scenarios-table-handles-capture\error-context.md
+
+  2) apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring ────────────────────────────
+
+    Error: Light table handles need an icon without visible address text, matching localized name/tooltip, transparent rest and 28px targets: [{"name":"Column A actions","title":"","text":"A","icon":false,"width":279.5,"height":28,"background":"rgb(246, 247, 249)"},{"name":"Column B actions","title":"","text":"B","icon":false,"width":279.5,"height":28,"background":"rgb(246, 247, 249)"},{"name":"Row 1 actions (header)","title":"","text":"1","icon":false,"width":28,"height":28,"background":"rgb(246, 247, 249)"},{"name":"Row 2 actions","title":"","text":"2","icon":false,"width":28,"height":28,"background":"rgb(246, 247, 249)"}]
+        at evalmachine.<anonymous>:65:11
+        at file:///C:/Users/swBaek/.paseo/worktrees/3icu9gjp/feat-light-table-handles/apps/editor/test/browser/scenarios.spec.ts:148:20
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1654:9
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1134:11
+        at TimeoutManager.withRunnable (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:403:14)
+        at TestInfoImpl._runWithTimeout (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1132:7)
+        at C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1652:7
+        at WorkerMain._runTest (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1625:5)
+        at WorkerMain.runTestGroup (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\worker\workerProcessEntry.js:1520:9)
+        at process.<anonymous> (C:\Users\swBaek\.paseo\worktrees\3icu9gjp\feat-light-table-handles\node_modules\.pnpm\playwright@1.64.0-alpha-1789764292000\node_modules\playwright\lib\common\index.js:1944:25)
+
+    attachment #1: input-events.json (application/json) ────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\input-events-json-8562237ef4dc0f1f282e4fcf9dc77596620590aa.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: browser-state.json (application/json) ───────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\browser-state-json-9338aeeb079a6d3a4b3031f092f6c475d60c7e3a.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: console-errors.json (application/json) ──────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\console-errors-json-e257880a3626c3464709637ac79fe41efeeeae52.json
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #4: error-context.md (text/markdown) ────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\error-context-md-5183762b6f1ac59d18216cc74e8c9c73d8085d5f.md
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #5: screenshot (image/png) ──────────────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\screenshot-76ee178036a50b5322a75c15b1f681ade5f901a3.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #6: trace (application/zip) ─────────────────────────────────────────────────────────
+    tmp\browser-results\scenarios-table-authoring\attachments\trace-4a7ced63f521edf9072c9b988954e794d2e8cdbd.zip
+    Usage:
+
+        pnpm exec playwright show-trace tmp\browser-results\scenarios-table-authoring\attachments\trace-4a7ced63f521edf9072c9b988954e794d2e8cdbd.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    apps\editor\test\browser\scenarios.spec.ts:136:3 › table-handles-capture ───────────────────────
+    apps\editor\test\browser\scenarios.spec.ts:136:3 › table-authoring ─────────────────────────────
+[ELIFECYCLE] Command failed with exit code 1.
