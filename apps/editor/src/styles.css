@@ -2446,6 +2446,45 @@ ol.list { list-style: decimal; }
   gap: var(--space-3);
 }
 
+/* #522: folder-only presentation; image choice retains its existing layout. */
+.folder-picker-folder .folder-picker-list { max-height: var(--layout-folder-picker-folder-list-height); }
+
+.folder-picker-shortcuts,
+.folder-picker-children-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.folder-picker-shortcuts .folder-picker-places {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.folder-picker-place {
+  height: auto;
+  min-height: var(--size-control-compact);
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  font-weight: 400;
+}
+
+.folder-picker-place span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Owner decision: actual Root name, background only; Button keeps its separate focus ring. */
+.folder-picker-place[aria-current="location"] { background: var(--id-color-surface-selected); }
+.folder-picker-place[aria-current="location"]:hover { background: var(--id-color-surface-selected-hover); }
+
+.folder-picker-children-heading { justify-content: space-between; }
+.folder-picker-folder .folder-picker-label { font-weight: 400; }
+.folder-picker-recent-section { display: grid; gap: var(--space-1); }
+.folder-picker-folder .folder-picker-meta:empty { display: none; }
+.folder-picker-folder .folder-picker-footer { justify-content: flex-end; }
+
 .folder-picker-field {
   display: flex;
   min-width: 0;

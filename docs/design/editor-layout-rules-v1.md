@@ -45,6 +45,8 @@
 
 ## Controls and spacing
 
+- The [folder dialog](folder-picker-v1.md#folder-presentation-522) keeps one column at wide and phone widths. Its folder-only child list has a 16rem maximum (eight standard 32px rows); longer lists scroll and the enclosing dialog remains scrollable for short viewports. The shared image mode retains its 15rem bound. Starting-place names wrap inside the column, retaining the whole name and path description; New folder shares the child-list heading row. Ancestor breadcrumbs retain wrapping and disappear with Up at the Root.
+
 - B1 (#514): standard controls/inputs 32px; compact controls/actions/fields 28px; control radius 6px; UI text 14/20px; line icons 16px. Use Button/Input and existing size/radius/UI tokens; do not derive control metrics from document type. Measure actual rendered height after transitions complete. Role-specific exceptions and reasons are in [Visual Language](editor-visual-language-v1.md#deliberate-control-exceptions): document-sized title/inline/backlinks, metadata, tab/close slots, native checkbox and wrapper-owned path field, 24px inner view segment, multiline fields, wrapping breadcrumbs/list rows and content/surface radii.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable top block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
 - Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.8).

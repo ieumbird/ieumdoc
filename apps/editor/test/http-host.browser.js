@@ -21,11 +21,40 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
     await picker.waitFor();
   };
   await openPicker();
-  await picker.getByRole('region', {name:'Start from'}).getByTitle(a, {exact:true}).click();
+  const places = picker.getByRole('region', {name:'Server shared folders', exact:true});
+  await places.getByTitle(a, {exact:true}).click();
   await picker.getByRole('option', {name:'fixture', exact:true}).waitFor();
-  check(await picker.getByRole('button', {name:'Up', exact:true}).isDisabled(), 'Up is disabled at an allowed root');
-  check(await picker.getByRole('navigation', {name:'Folder location'}).getByRole('button').count() === 1, 'Breadcrumb begins at the allowed root');
-  check(await picker.getByRole('region', {name:'Start from'}).getByRole('button').count() === 2, 'Only allowed roots are starting places');
+  check(await picker.getByRole('button', {name:'Up', exact:true}).count() === 0, 'Up is absent at an allowed root');
+  check(await picker.getByRole('navigation', {name:'Folder location'}).count() === 0, 'At a root the path and actual root button supply location without duplicate breadcrumbs');
+  check(await places.getByRole('button').count() === start.allowedRoots.length, 'Only allowed roots are starting places');
+  for (const path of start.allowedRoots) {
+    const button = places.getByTitle(path, {exact:true});
+    check(await button.innerText() === path.split(sep).pop() && await button.getAttribute('aria-description') === path,
+      'Every shared root retains its actual name and accessible full path');
+  }
+  const currentRoot = places.getByTitle(a, {exact:true});
+  const otherRoot = places.getByTitle(b, {exact:true});
+  const rootStyle = button => button.evaluate(element => {
+    const style = getComputedStyle(element);
+    return {background:style.backgroundColor, color:style.color, weight:style.fontWeight, shadow:style.boxShadow};
+  });
+  await page.mouse.move(0, 0);
+  const activeStyle = await rootStyle(currentRoot), inactiveStyle = await rootStyle(otherRoot);
+  check(await currentRoot.getAttribute('aria-current') === 'location' && !await otherRoot.getAttribute('aria-current') &&
+    activeStyle.background !== inactiveStyle.background && activeStyle.color === inactiveStyle.color && activeStyle.weight === inactiveStyle.weight && activeStyle.shadow === inactiveStyle.shadow,
+    'Current root uses only background, with semantic location announced');
+  await page.getByTestId('folder-path').focus();
+  // The current root is the next shortcut in reverse Tab order; its focus stays independent of current state.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
+  check(await currentRoot.evaluate(element => element === document.activeElement && element.matches(':focus-visible')) &&
+    (await rootStyle(currentRoot)).shadow !== activeStyle.shadow, 'Keyboard focus remains visible on the current root');
+  await otherRoot.click();
+  await picker.getByRole('option', {name:'fixture', exact:true}).waitFor();
+  check(await otherRoot.getAttribute('aria-current') === 'location' && !await currentRoot.getAttribute('aria-current') &&
+    await sidebar.getByTestId('folder').count() === 0, 'Switching roots navigates without opening a folder');
+  await currentRoot.click();
+  await picker.getByRole('option', {name:'fixture', exact:true}).waitFor();
   await page.setViewportSize({width:1440, height:900});
   if (screenshots) await page.screenshot({path:'tmp/http-host-capture/roots-wide.png'});
   await page.setViewportSize({width:375, height:812});
@@ -36,7 +65,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   // A typed outside path reaches the real Host and leaves the current selection intact.
   await page.getByTestId('folder-path').fill(stale + sep);
   await page.getByTestId('folder-picker-meta').getByText('Path is outside the allowed folders.', {exact:true}).waitFor();
-  await picker.getByRole('region', {name:'Start from'}).getByTitle(a, {exact:true}).click();
+  await places.getByTitle(a, {exact:true}).click();
   await picker.getByRole('option', {name:'fixture', exact:true}).click();
   await page.getByTestId('folder-open').click(); await picker.waitFor({state:'detached'});
   // Folder preview works before a document exists, using the production Host's selected root.
