@@ -125,7 +125,8 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   const nestedFile = [root, 'chapters', 'nested.md'].join(sep);
   await openPath(page, nestedFile);
   // #542: real code click -> immediate shortcut -> Escape -> typing, including a
-  // held engine post-focus check. Only the initial click's caret is awaited.
+  // held engine post-focus check. Observe restoration within the focus event,
+  // before a later selectionchange or timer could hide a missing synchronous write.
   const codeFocusCases = [];
   for (const holdCheck of [false, true]) {
     await editor.evaluate(element => {
@@ -146,6 +147,26 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
     await page.keyboard.press('ControlOrMeta+/');
     const codeCenter = page.getByRole('dialog', { name: 'Command center', exact: true });
     await codeCenter.getByRole('combobox').waitFor();
+    await editor.evaluate(element => {
+      const view = element.editor.view, probe = window.codeFocusProbe;
+      const snapshot = () => {
+        const native = getSelection(), selection = view.state.selection;
+        return { from: selection.from, to: selection.to, parent: selection.$from.parent.type.name,
+          native: native.isCollapsed && view.dom.contains(native.anchorNode)
+            ? view.posAtDOM(native.anchorNode, native.anchorOffset) : null };
+      };
+      let focusEvent;
+      // ProseMirror registered its non-capture listener when creating this view.
+      // Capture precedes it; our later non-capture listener follows it at the same target.
+      view.dom.addEventListener('focus', event => {
+        focusEvent = event;
+        probe.beforeFocus = snapshot();
+      }, { capture: true, once: true, signal: probe.events.signal });
+      view.dom.addEventListener('focus', event => {
+        probe.sameFocusEvent = event === focusEvent;
+        probe.afterFocus = snapshot();
+      }, { once: true, signal: probe.events.signal });
+    });
     if (holdCheck) await page.evaluate(() => {
       const schedule = window.setTimeout;
       window.codeFocusProbe.restore = () => { window.setTimeout = schedule; };
@@ -163,7 +184,9 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
       await waitForEditorFocus(page);
       const returned = await editor.evaluate((element, clickedCaret) => {
         const e = element.editor, native = getSelection();
-        return { openClickAge: window.codeFocusProbe.openClickAge,
+        const probe = window.codeFocusProbe;
+        return { openClickAge: probe.openClickAge, clickedCaret,
+          beforeFocus: probe.beforeFocus, afterFocus: probe.afterFocus, sameFocusEvent: probe.sameFocusEvent,
           retained: e.state.selection.from === clickedCaret && native.isCollapsed &&
             e.view.dom.contains(native.anchorNode) && e.view.posAtDOM(native.anchorNode, native.anchorOffset) === clickedCaret,
           checkHeld: typeof window.codeFocusProbe.check === 'function' };
@@ -191,6 +214,12 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
     assert(Number.isFinite(openClickAge) && openClickAge < 300,
       `Code focus regression missed the upstream 300ms click window: pointerdown -> Ctrl+/ took ${openClickAge}ms (held check: ${holdCheck})`);
   }
+  assert(codeFocusCases.every(c => c.sameFocusEvent && c.beforeFocus?.native === 1 &&
+    c.beforeFocus.parent === 'codeBlock' && c.beforeFocus.from === c.clickedCaret && c.beforeFocus.to === c.clickedCaret),
+    'Focus must actually encounter a native document-start reset with the retained code caret: ' + JSON.stringify(codeFocusCases));
+  assert(codeFocusCases.every(c => c.afterFocus?.native === c.clickedCaret &&
+    c.afterFocus.parent === 'codeBlock' && c.afterFocus.from === c.clickedCaret && c.afterFocus.to === c.clickedCaret),
+    'The same focus event must synchronously restore native/engine code-caret agreement: ' + JSON.stringify(codeFocusCases));
   assert(codeFocusCases.every(c => c.retained && c.parent === 'codeBlock' && c.text === 'Code. /' &&
     c.menus === 0 && (!c.holdCheck || c.checkHeld)),
     'A recent real code click survives Command center Escape: ' + JSON.stringify(codeFocusCases));

@@ -76,14 +76,31 @@ counters and #495 later-pointer/touch guard remain unchanged.
 
 `citation-authoring` uses an actual code click, awaits only the initial click's native/engine
 caret agreement (#416 is separate), opens the center immediately, escapes, and types ` /`.
-Both cases must record pointerdown-to-shortcut age strictly below the upstream 300ms window;
-a missing age or age at/above 300ms fails explicitly instead of passing outside the regression
-condition. It requires selection retention **before** input, literal `Code. /` in the code block and no
-slash menu. The second case holds the engine's real 20ms check until after typing; the new
-focus synchronization must work without that callback. There is no post-Escape caret polling,
-selection assignment, sleep, retry or timeout increase. Both cases failed with the master
-product patch (shortcut 91ms/64ms after the real click; title input and one menu), and passed
-with the focus change (100ms/49ms; retained code selection and literal text).
+Both cases require pointerdown-to-shortcut age strictly below 300ms, but that alone does not
+prove synchronous restoration: a slow dialog can move the later observer flush outside the
+upstream click window, where its old heuristic can restore the caret. The test therefore
+records selection snapshots within the **same root focus event**. Its capture listener must
+observe a native document-start caret while the engine still retains the clicked code caret;
+its non-capture listener must observe native/engine agreement at that code caret. ProseMirror
+registers its non-capture listener at view creation, before this test's listener; capture runs
+before it at the target and registration order puts the second snapshot after it. Later
+selectionchange/flush or timers cannot repair the recorded snapshots.
+
+The test also requires selection retention **before** input, literal `Code. /` in the code block
+and no slash menu. The second case holds the engine's real 20ms check until after typing;
+this does not hold the observer's direct start-caret heuristic or DOM-selection adoption.
+There is no post-Escape caret polling, selection assignment, sleep, retry or timeout increase.
+The earlier master/fix comparisons (shortcut 91ms/64ms versus 100ms/49ms) remain historical
+evidence of the user-path defect, not proof that shortcut age bounds the later flush.
+
+With only the synchronous focus write removed, fresh fast and delayed-dialog controls both
+passed the capture precondition (engine code position 143, native position 1), then failed the
+same-event post snapshot (native still 1). A temporary 400ms dialog delay exposed the old
+test's gap: shortcuts at 69ms/58ms, direct heuristic flush at click age 575ms/547ms (focus age
+8ms), and all later code-text/menu assertions passed, including with the 20ms check held.
+Restoring the write passed both fast and delayed controls with native/engine position 143
+inside that same event. Diagnostic delay, runtime markers and logging were removed afterward;
+the committed regression observes the real fast path without injecting timing or selection.
 
 `focus-caret` records the browser's initial focus caret in capture phase, before the engine
 synchronizes it. Its existing caret-key, modifier and delayed-restore assertions stay intact.
