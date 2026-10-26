@@ -16,24 +16,45 @@ async (page, { openPath, withBlockHover }) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   await page.getByTestId('folder').getByRole('treeitem',{name:'quiet-document.md',exact:true}).waitFor();
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
+  // Include native controls absent from the layout fixture, without changing its saved source
+  // or the document used by the geometry checks below.
+  const isolationDocument=await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element=>{
+    const editor=element.editor, original=editor.getJSON();
+    editor.commands.insertContentAt(editor.state.doc.content.size,[
+      {type:'codeBlock',attrs:{language:'js'},content:[{type:'text',text:'const value = 1;'}]},
+      {type:'labelTarget',attrs:{label:'isolation-label'}},
+    ]);
+    return original;
+  });
   // Document preferences must not resize or restyle navigation, controls or dialog text.
   await page.getByTestId('sidebar').getByRole('button',{name:'Open folder…',exact:true}).click();
   const isolation = await page.evaluate(() => {
     const root=document.documentElement;
-    const selectors=['.sidebar-tree-item','[data-testid="save"]','.document-outline-item','.figure-edit','.equation-edit','[role="dialog"]'];
-    const type=n=>{const s=getComputedStyle(n);return [s.fontFamily,s.fontSize,s.lineHeight,s.fontWeight];};
+    const selectors=['.sidebar-tree-item','[data-testid="save"]','.document-outline-item','.figure-edit','.equation-edit',
+      '.table-row-handle','.table-column-handle','.table-extend','.table-action-bar button',
+      '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]'];
+    const type=n=>{
+      const s=getComputedStyle(n);
+      // Reference edit icons have a fixed SVG size; their em offsets deliberately follow
+      // the reference text. Inspect the visible icon size rather than that anchor's em.
+      const size=n.matches('.cross-reference-edit')?getComputedStyle(n.querySelector('svg')).width:s.fontSize;
+      return [s.fontFamily,size,s.lineHeight,s.fontWeight];
+    };
     const ui=()=>selectors.map(selector=>{
       const nodes=[...document.querySelectorAll(selector)];
       if(!nodes.length)throw Error(`Missing UI isolation target: ${selector}`);
       return nodes.map(type);
     });
     const before=ui(), body=document.querySelector('.document-editor'), original=type(body);
-    const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':'var(--font-family-mono)'};
+    const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':'var(--font-family-mono)',
+      '--line-height-document':'2'};
     const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
     try {
       for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
       const after=ui();
-      return {uiUnchanged:JSON.stringify(before)===JSON.stringify(after),before,after,documentChanged:type(body)[0]!==original[0]&&parseFloat(type(body)[1])>parseFloat(original[1])};
+      return {uiUnchanged:JSON.stringify(before)===JSON.stringify(after),
+        changes:selectors.flatMap((selector,i)=>JSON.stringify(before[i])===JSON.stringify(after[i])?[]:[{selector,before:before[i],after:after[i]}]),
+        documentChanged:type(body)[0]!==original[0]&&parseFloat(type(body)[1])>parseFloat(original[1])&&type(body)[2]!==original[2]};
     } finally {
       for(const [name,value,priority] of saved) value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
     }
@@ -41,6 +62,7 @@ async (page, { openPath, withBlockHover }) => {
   if(!isolation.uiUnchanged||!isolation.documentChanged)throw Error(`Document typography leaked into UI: ${JSON.stringify(isolation)}`);
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element,original)=>element.editor.commands.setContent(original),isolationDocument);
   const results=[];
   await withBlockHover(page, async () => {
     for(const width of [1440,1280,1279,1025,1024,768,705,704]) {

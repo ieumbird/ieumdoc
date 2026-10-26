@@ -203,6 +203,8 @@ pixel-diff assertions or a substitute for user visual approval.
   values exactly. Changing them does not change Sidebar, button or dialog typography.
   Embedded UI buttons explicitly retain the UI font stack; the start-screen title uses
   separate `--font-size-start-title` / `--line-height-start-title` UI tokens.
+  Native table tools use the UI stack and `--line-height-table-tool`, retaining their
+  original 20.4px line box independently of document preferences.
 
   | Controls | Adjustable variables |
   | --- | --- |
@@ -334,6 +336,21 @@ document size/family to verify that Sidebar, Outline, Save, embedded Figure/Equa
 buttons and dialog typography stay unchanged. `footnotes` reads endnote variables for
 type, spacing and number inset. Editor tests (289), typecheck, Editor build and the
 layout-rules/quiet-document/footnotes browser regressions pass.
+
+PR #500 P2 follow-up: the expanded isolation check also covers native table row/column
+handles, Append row/column, the table action bar, code-language input, Figure/Equation/
+table metadata, section-label controls and reference-edit icons. With the original
+`d1b8717` styles, overriding the document family to monospace and line-height to 2
+reproduces the table tools changing from Pretendard / 20.4px to monospace / 24px.
+The fixed styles retain the UI family and original line box; layout-rules and
+quiet-document pass. Code-language and block metadata already have explicit UI family
+and line-height. Section-label controls inherit fixed monospace metadata typography;
+property inputs, equation LaTeX, reference/citation forms and menu buttons inherit their
+UI dialog/toolbar typography (LaTeX stays monospace). Reference-edit icons now explicitly
+use the UI family and keep their zero-height icon line box; their em positioning still
+follows the reference text, while the visible SVG size is independent of document type.
+The title slot, equation numbering, inline reference text and endnote numbers remain
+document presentation rather than UI controls.
 
 [Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) preserves that refinement's baseline, measurements and limits.
 
