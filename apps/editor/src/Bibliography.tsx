@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { closeHistory } from "@tiptap/pm/history";
 import { Button } from "@/components/ui/button.tsx";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
@@ -18,9 +19,11 @@ export function useBibliographyEntries(bibliography: DocumentFileResponse["bibli
 }
 
 /** References and connection controls sit outside editable content, after canonical endnotes. */
-export function BibliographyContent({ editor, bibliography, documentPath, children }: {
+export type BibliographyHandle = { connect(returnFocus: HTMLElement | null): void };
+
+export const BibliographyContent = forwardRef<BibliographyHandle, {
   editor: Editor; bibliography: DocumentFileResponse["bibliography"]; documentPath: string; children: ReactNode;
-}) {
+}>(function BibliographyContent({ editor, bibliography, documentPath, children }, ref) {
   useTranslation();
   const paths = useEditorState({ editor, selector: ({ editor: current }) => current.state.doc.attrs.bibliography as string[] | null });
   const declared = paths ?? bibliography?.declarations ?? [];
@@ -28,12 +31,21 @@ export function BibliographyContent({ editor, bibliography, documentPath, childr
   const [candidates, setCandidates] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const connectButton = useRef<HTMLButtonElement>(null);
   const change = (next: string[]) => {
     editor.view.dispatch(closeHistory(editor.state.tr).setDocAttribute("bibliography", next));
     editor.view.dispatch(closeHistory(editor.state.tr));
-    connectButton.current?.focus();
+    if (!connectOpen) connectButton.current?.focus();
   };
+  const connect = (target: HTMLElement | null) => {
+    returnFocus.current = target;
+    setCandidates(null);
+    setConnectOpen(true);
+    void list();
+  };
+  useImperativeHandle(ref, () => ({ connect }));
   const list = async () => {
     setLoading(true); setError(false);
     try {
@@ -56,23 +68,17 @@ export function BibliographyContent({ editor, bibliography, documentPath, childr
       path: [], role: "cite", keys: [key], numbers: [number], text: `[${number}]`,
     })) }, bibliography?.sources ?? []);
   }, [bibliography, numbering]);
-  const shown = (evaluation?.references.length ?? 0) > 0 || (bibliography?.declarations.length ?? 0) > 0 || declared.length > 0 || candidates !== null || loading || error;
+  const shown = declared.length > 0 || JSON.parse(numbering).length > 0;
   return <BibliographyContext value={evaluation}>
     {children}
-    <section className={shown ? "bibliography-region" : "bibliography-connect"} aria-label={i18n.t("Bibliography references")} data-testid="bibliography">
-      {shown ? <h2>{i18n.t("Bibliography references")}</h2> : null}
-      <Button ref={connectButton} variant="ghost" size="sm" disabled={loading} aria-expanded={candidates !== null} onClick={() => candidates === null ? void list() : setCandidates(null)}>{i18n.t("Connect bibliography…")}</Button>
+    {shown ? <section className="bibliography-region" aria-label={i18n.t("Bibliography references")} data-testid="bibliography">
+      <h2>{i18n.t("Bibliography references")}</h2>
+      <Button ref={connectButton} variant="ghost" size="sm" onClick={event => connect(event.currentTarget)}>{i18n.t("Connect bibliography…")}</Button>
       {declared.length ? <ul className="bibliography-files">{declared.map(source => <li key={source}>
         <span>{source}</span><Button variant="ghost" size="sm" aria-label={i18n.t("Disconnect {{file}}", { file: source })} onClick={() => change(declared.filter(path => path !== source))}>{i18n.t("Disconnect")}</Button>
       </li>)}</ul> : null}
-      {candidates !== null ? <div className="bibliography-choices" role="group" aria-label={i18n.t("Bibliography files in this folder")}>
-        <p className="bibliography-status">{i18n.t("Bibliography files in this folder")}</p>
-        {available.map(source => <Button key={source} variant="outline" size="sm" title={source} aria-label={i18n.t("Connect {{file}}", { file: source })} onClick={() => { change([...declared, source]); setCandidates(null); }}><span>{source}</span></Button>)}
-        {!available.length ? <p className="bibliography-status">{i18n.t("No more .bib files in this folder.")}</p> : null}
-      </div> : null}
-      {error ? <p className="bibliography-status" role="alert">{i18n.t("The bibliography files could not be listed. Try again.")}</p> : null}
       {pending ? <p className="bibliography-status" role="status">{i18n.t("Save this document to load the connected bibliography files.")}</p> : null}
-      {shown ? <p className="bibliography-status">{i18n.t("If you edit a .bib file in another app, save your document, then choose Reload to update its references.")}</p> : null}
+      <p className="bibliography-status">{i18n.t("If you edit a .bib file in another app, save your document, then choose Reload to update its references.")}</p>
       {evaluation && !evaluation.readiness.complete ? <p className="bibliography-status" role="status">{i18n.t("References are incomplete. You can still save this document.")}</p> : null}
       <ol className="bibliography-list">
         {evaluation?.references.map(reference => <li key={reference.key} data-key={reference.key} data-readiness={reference.status}>
@@ -85,6 +91,17 @@ export function BibliographyContent({ editor, bibliography, documentPath, childr
       {evaluation?.readiness.diagnostics.some(d => d.source && !d.key) ? <ul className="bibliography-status bibliography-resources">
         {evaluation.readiness.diagnostics.filter(d => d.source && !d.key).map((d, index) => <li key={index}>{d.source}: {i18n.t("Bibliography could not be verified")}</li>)}
       </ul> : null}
-    </section>
+    </section> : null}
+    <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
+      <DialogContent finalFocus={() => returnFocus.current ?? true} aria-busy={loading}>
+        <DialogTitle>{i18n.t("Connect bibliography…")}</DialogTitle>
+        {candidates !== null ? <div className="bibliography-choices min-w-0" role="group" aria-label={i18n.t("Bibliography files in this folder")}>
+          <p className="bibliography-status">{i18n.t("Bibliography files in this folder")}</p>
+          {available.map(source => <Button key={source} variant="outline" size="sm" title={source} aria-label={i18n.t("Connect {{file}}", { file: source })} onClick={() => { change([...declared, source]); setConnectOpen(false); }}><span>{source}</span></Button>)}
+          {!available.length ? <p className="bibliography-status">{i18n.t("No more .bib files in this folder.")}</p> : null}
+        </div> : null}
+        {error ? <p className="bibliography-status" role="alert">{i18n.t("The bibliography files could not be listed. Try again.")}</p> : null}
+      </DialogContent>
+    </Dialog>
   </BibliographyContext>;
-}
+});

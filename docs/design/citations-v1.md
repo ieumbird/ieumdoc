@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Nested authoring verification: 2026-10-24 (#377: Editor slash tests and `citation-authoring` menu/insertion/Save → Reload on lists, quotes, simple admonitions, endnote definitions, cells, Figure captions and headings, including a citation-only list item).
-- Last verified: 2026-10-25 (#438: Editor bibliography connections apply on Save; verification below).
+- Last verified: 2026-10-26 (#473: conditional References and shared Display/command-center connections; verification below).
+- Previous verification: 2026-10-25 (#438: Editor bibliography connections apply on Save; verification below).
 - Previous verification: 2026-10-23 (units A, B and C; execution results recorded below).
 - Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A, B and C, under [Native document support](document-support-v1.md). Unit D extensions remain separate decisions.
 
@@ -132,8 +133,22 @@ Owner decision (2026-10-25): connections apply on Save. The existing Host read c
 continues to accept only declarations from an admitted, saved document; the Editor cannot
 ask it to read arbitrary resource targets. No Host read capability or persistence is added.
 
-The trailing References area offers **Connect bibliography…**, including when the document has
-no declaration or citations. The existing folder listing offers `.bib` files in the document's
+Owner decision (2026-10-26, [#473](https://github.com/ieumbird/ieumdoc/issues/473)) supersedes
+the earlier #438 sentence “including when the document has no declaration or citations.”
+The trailing References area exists only while the current document has a bibliography
+declaration (saved or staged) or at least one citation. Removing the last citation or staging
+removal of the last declaration hides it when neither remains; connecting a file or inserting
+a citation shows it immediately.
+
+**Connect bibliography…** is available under **Saved in document** in the Display panel and
+as a command-center item. Both share the Saved-in-document availability rules: disabled without
+a document, during pending work or in Source, with Display's existing disabled reason.
+The connect action also remains inside a visible References area, alongside the existing
+declaration list and Disconnect actions. All entry points open the same candidate UI in the
+shared Dialog, which returns focus to its opener on close. Merely opening it does not show
+an unused References area or change document history.
+
+The existing folder listing offers `.bib` files in the document's
 own folder. Candidates use the same browser-safe Core `bibliographyError` validation and lexical
 normalization as admission and `updateBibliography`: adding the candidate must leave the full
 staged declaration valid. Equivalent existing paths (including `./` and cancellable `..` segments)
@@ -460,3 +475,38 @@ no text selection/hover/focus. The Before image extends horizontally because of 
 | Open candidate list, 375px | Before | After |
 | --- | --- | --- |
 | Valid long name and Core-rejected name | [Overflow and invalid choice](assets/bibliography-438/candidates-before-375.png) | [Contained choices](assets/bibliography-438/candidates-after-375.png) |
+
+### Conditional References verification (#473)
+
+The extended `bibliography-connection` scenario failed against unchanged product code at
+`c2329159016cdae6183885bd24de2bd8a8046e1e` for all four #473 regressions: an unused document
+had a References area, Display and the command center lacked Connect bibliography, and removing
+the only citation left the area behind. The passing scenario checks both entry points staging
+without writes, declaration-only Save → Reload, Disconnect and its persistence, first-citation
+insertion, last-citation removal and Undo, plus Source/pending-Save restrictions. Existing
+connection Undo, loaded snapshots, Core-invalid/equivalent candidates, Korean notices and
+long-filename Save → Reload checks remain.
+
+The References connect action stays to avoid a second flow: all three entry points use the same
+candidate controls in the shared Dialog. Core operations, CLI parity and Host contracts are
+unchanged. The Display button uses the existing compact Button and spacing token; the Dialog
+uses shared typography/surface/focus handling and the existing candidate ellipsis treatment.
+The phone check also measures the Dialog's own scroll/client width and candidate bounds:
+it failed with 1242px of content in a 341px popup before allowing its candidate grid item
+to shrink, and passes with the existing long-filename buttons contained and ellipsized.
+
+Editor tests (286), repository typecheck, Editor production build, documentation checks and
+`git diff --check` passed. The targeted browser scenarios `citations`, `bibliography`,
+`citation-authoring`, `command-center`, `editor-shell`, `layout-rules` and `quiet-document`
+passed sequentially in this worktree with its persistent profile. Packaged Desktop and other
+platform checks remain CI work.
+
+Same-worktree Windows Chrome captures use its persistent profile, 1280×720 viewport, DPR 1,
+default 100% zoom and bundled Pretendard, the same `unused.md` fixture, no citation/declaration
+and scroll top. The phone capture uses 375×812 and the existing long-name fixture.
+
+| State | Before | After |
+| --- | --- | --- |
+| Unused document, Files | [Before](assets/references-473/before-unused-1280.png) | [After](assets/references-473/after-unused-1280.png) |
+| Unused document, Display | [Before](assets/references-473/before-display-1280.png) | [After](assets/references-473/after-display-1280.png) |
+| Shared connection Dialog, phone | — | [Candidates](assets/references-473/candidates-375.png) |

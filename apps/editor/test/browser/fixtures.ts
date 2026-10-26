@@ -112,6 +112,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "References-" + "unbroken".repeat(18) + ".bib", create: bibliography },
     ...["./refs.bib", "sub/../refs.bib"].map((source, index) => ({ name: `connected-${index}.md`, create: () => `---\nieumdoc: 1\nbibliography: [${source}]\n---\n\n# Connected bibliography\n\n{cite:p}\`article\`\n` })),
     { name: "connect.md", create: () => nativeSource("# Connect bibliography\n\nExisting {cite:p}`article`.\n\nWrite here.\n") },
+    { name: "unused.md", create: () => nativeSource("# No bibliography\n\nWrite here.\n") },
     { name: "chapters/authoring.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Citation authoring\n\nFirst claim {cite:p}`article`.\n\nWrite here.\n' },
     { name: "chapters/nested.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.\n' },
   ], scenarios: ["bibliography", "citation-authoring", "bibliography-connection"] },
@@ -182,6 +183,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       // Source View must equal the canonical Markdown `ieumdoc format` writes, i.e. Core serialize.
       { name: "expected.md", create: () => serialize(parse(readFileSync(path.join(DOCUMENT_DIR, "technical-document.md"), "utf8"))) },
       fixture("writable.md"),
+      { name: "wrapping.md", create: () => serialize(parse(nativeSource("# Source wrapping\n\n" +
+        "A long paragraph stays on one source line. ".repeat(12) + "\n\n" +
+        "<https://example.com/" + "unbroken".repeat(80) + ">\n\n```text\n    indented source stays exact\n```\n"))) },
     ],
     scenarios: ["source-view", "source-view-pending", "document-session"],
   },

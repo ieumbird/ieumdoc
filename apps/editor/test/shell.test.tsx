@@ -23,7 +23,7 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
-import { COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT } from "../src/shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, LINK_SHORTCUT, REDO_SHORTCUT, UNDO_SHORTCUT } from "../src/shortcuts.ts";
 
 test("shell shortcuts follow characters and preserve layout-specific browser accelerators", () => {
   const key = (overrides: Partial<KeyboardEvent>) => ({ code: "Slash", key: "/", keyCode: 191, ctrlKey: true,
@@ -57,6 +57,20 @@ test("shell shortcuts follow characters and preserve layout-specific browser acc
       }
       assert.equal(shortcut.matches(key({ code: "KeyL", key: opaque, keyCode: 229 })), false);
     }
+  }
+  for (const [shortcut, code, character, virtualKey] of [
+    [REDO_SHORTCUT, "KeyY", "y", 89], [UNDO_SHORTCUT, "KeyZ", "z", 90],
+  ] as const) {
+    const matches = (overrides: Partial<KeyboardEvent>) => shortcut.matches(
+      key({ code, key: "Process", keyCode: 229, ...overrides }), { opaqueOnly: true });
+    for (const opaque of ["Process", "Unidentified"]) {
+      for (const keyCode of [0, 229]) assert.equal(matches({ key: opaque, keyCode }), true);
+    }
+    for (const guard of [
+      { key: character }, { key: "q" }, { keyCode: virtualKey }, { keyCode: 81 },
+      { code: "KeyQ" }, { isComposing: true }, { altKey: true }, { shiftKey: true },
+      { ctrlKey: false },
+    ]) assert.equal(matches(guard), false, JSON.stringify(guard));
   }
 });
 
@@ -408,6 +422,7 @@ test("Display distinguishes document numbering from local width and respects una
   assert.match(html, /guide\.md/);
   assert.match(html, /Saved in document/);
   assert.match(html, /Reference style/);
+  assert.match(html, /Connect bibliography…/);
   assert.match(html, /<option value="default" selected="">Default<\/option>/);
   assert.match(html, /Local view/);
   assert.match(html, /aria-describedby="display-numbering-hint"[^>]*checked/);
@@ -417,6 +432,7 @@ test("Display distinguishes document numbering from local width and respects una
   const blocked = renderToStaticMarkup(<DisplaySettings {...display} documentPath="" numberingDisabled numberingHint="Open a document to change numbering." />);
   assert.match(blocked, /No document open/);
   assert.match(blocked, /<select\b[^>]*disabled/);
+  assert.match(blocked, /<button\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>Connect bibliography…<\/button>/);
   assert.match(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>/);
   assert.doesNotMatch(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-width-hint")[^>]*>/);
 });

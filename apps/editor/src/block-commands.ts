@@ -10,6 +10,7 @@ import { referenceNumberText, NUMBERED_KINDS, type ReferenceTemplates } from "@i
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
+import { editorTitleIndex } from "./document-title.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
 // transaction; Save maps the result to Core insertParagraph/insertHeading/insertEquation/
@@ -55,14 +56,14 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["text", "p"],
     run: insertParagraphAfter,
   },
-  ...Array.from({ length: 6 }, (_, index): InsertCommand => ({
-    id: `heading-${index + 1}`,
-    get label() { return i18n.t("Heading {{level}}", { level: index + 1 }); },
+  ...Array.from({ length: 5 }, (_, index): InsertCommand => ({
+    id: `heading-${index + 2}`,
+    get label() { return i18n.t("Heading {{level}}", { level: index + 2 }); },
     get group() { return i18n.t("Text"); },
-    hint: "#".repeat(index + 1),
-    ...(index >= 3 ? { onlyWhenSearched: true } : {}),
-    keywords: ["heading", `h${index + 1}`],
-    run: (state, block, slash) => insertHeadingAfter(state, block, index + 1, slash),
+    hint: "#".repeat(index + 2),
+    ...(index >= 2 ? { onlyWhenSearched: true } : {}),
+    keywords: ["heading", `h${index + 2}`],
+    run: (state, block, slash) => insertHeadingAfter(state, block, index + 2, slash),
   })),
   {
     id: "bulleted-list",
@@ -177,7 +178,8 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     return {
       id: `heading-level-${level}`,
       get label() { return i18n.t("Change to Heading {{level}}", { level: level }); },
-      applies: isTextBlock,
+      applies: (state: EditorState, block: number) =>
+        isTextBlock(state, block) && (level !== 1 || editorTitleIndex(state.doc) === block),
       enabled: (state: EditorState, block: number) =>
         isParagraph(state, block) || (isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level),
       rejection: (state: EditorState, block: number) =>
@@ -316,7 +318,7 @@ export function filterInsertCommands(query: string): InsertCommand[] {
 /** Search aliases remain available in both display languages. */
 const KOREAN_SEARCH: Record<string, string[]> = {
   paragraph: ["문단", "텍스트"], "bulleted-list": ["목록", "글머리"], "numbered-list": ["번호", "목록"],
-  ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`heading-${i + 1}`, ["제목", `제목 ${i + 1}`]])),
+  ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`heading-${i + 2}`, ["제목", `제목 ${i + 2}`]])),
   note: ["참고"], warning: ["경고"], quote: ["인용", "인용문"], divider: ["구분선"],
   code: ["코드"], equation: ["수식"], figure: ["그림", "이미지"], table: ["표"],
   tip: ["팁"], hint: ["힌트"], important: ["중요"], seealso: ["관련"], attention: ["주의"],

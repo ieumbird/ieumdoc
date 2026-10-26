@@ -48,7 +48,8 @@ async (page, { openDocument }) => {
   await page.keyboard.type('## ');
   const heading = editor.locator('h2').filter({hasText:'Heading target'});
   await heading.waitFor({state:'visible'});
-  await page.keyboard.press('Control+z');
+  // The Hangul IME fallback must reach this same input-rule Undo, including its caret restore.
+  await editor.locator('.document-editor').dispatchEvent('keydown', {key:'Process', code:'KeyZ', keyCode:229, ctrlKey:true, bubbles:true, cancelable:true});
   await paragraph('## Heading target').waitFor({state:'visible'});
   const undoRestoredPrefix = await heading.count() === 0 &&
     await paragraph('Heading target').innerText() === '## Heading target';

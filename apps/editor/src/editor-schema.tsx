@@ -1031,6 +1031,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {
+    if (!editableFigure || editing) return;
     captionChanged.current = false;
     setDraft(applied);
     setLabelDraft(label);
@@ -1160,7 +1161,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     </label>
   );
 
-  // The image and the no-content frame select the Figure, which shows its properties.
+  // Image surfaces select the Figure; double-click uses the explicit Edit path.
   const selectFigure = (event: ReactMouseEvent) => {
     const position = getPos();
     if (typeof position !== "number") return;
@@ -1181,13 +1182,13 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
-      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure}
+      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}
         onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
       {imageFailed ? (
-        <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
+        <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
       ) : null}
       {editableFigure && !src ? (
-        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure}>{i18n.t("No content yet")}</div>
+        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
       <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
       {editableFigure && !editing ? (
@@ -1328,7 +1329,7 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {
-    if (!view.editable) return;
+    if (!view.editable || editing) return;
     setDraft(latex);
     setLabelDraft(label);
     setError("");
@@ -1388,7 +1389,7 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
       ) : null}
       {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
       <div className="equation-row">
-        <EquationFormula className="equation-math" latex={latex} testId="equation-preview" />
+        <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />
         {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
       </div>
       {view.editable && !editing ? (
@@ -1435,12 +1436,12 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
   );
 }
 
-function EquationFormula({ className, latex, testId }: { className: string; latex: string; testId: string }) {
+function EquationFormula({ className, latex, testId, onDoubleClick }: { className: string; latex: string; testId: string; onDoubleClick?: () => void }) {
   useTranslation();
   const result = renderEquation(latex);
   if (result.error) {
     return (
-      <Notice className={`${className} equation-preview-error`} tone="error" data-testid={`${testId}-error`}>{i18n.t("Equation preview unavailable:")}{result.error}
+      <Notice className={`${className} equation-preview-error`} tone="error" data-testid={`${testId}-error`} onDoubleClick={onDoubleClick}>{i18n.t("Equation preview unavailable:")}{result.error}
       </Notice>
     );
   }
@@ -1448,6 +1449,7 @@ function EquationFormula({ className, latex, testId }: { className: string; late
     <div
       className={className}
       data-testid={testId}
+      onDoubleClick={onDoubleClick}
     >
       <div className="equation-content" dangerouslySetInnerHTML={{ __html: result.html ?? "" }} />
     </div>
