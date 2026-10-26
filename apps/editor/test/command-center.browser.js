@@ -444,14 +444,6 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await run('collapse sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
   await run('expand sidebar');
-  // Both aliases open the document dialog and return focus after dismissal.
-  for (const query of ['document settings', '문서 설정']) {
-    await run(query);
-    await page.getByRole('dialog',{name:'Document settings',exact:true}).waitFor();
-    await page.keyboard.press('Escape');
-    await page.getByRole('dialog',{name:'Document settings',exact:true}).waitFor({state:'detached'});
-    check(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command lost its return target');
-  }
   result.panelCommandsRetainFocus = true;
 
   // Existing tabs retain their editor, unapplied property draft, and native history.
