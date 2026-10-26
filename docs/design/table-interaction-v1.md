@@ -47,6 +47,26 @@ changed, but `Table deleted` and its action remained. The regression now checks 
 and immediate notice/action revocation after that transaction, using the final editor doc identity.
 These review fixes change invalidation only; the captures below retain their original #474 provenance.
 
+PR #478 integration investigation (2026-10-26, head `4cb4805`): the
+[failed Linux browser job](https://github.com/ieumbird/ieumdoc/actions/runs/40250078219/job/121339875529)
+failed in the selected-table Backspace check. Its downloaded screenshot/ARIA snapshot had no
+deletion notice or Undo button, but `browser-state.json` had `editorFocused=true` and both
+tables were still present. The input recorder showed table NodeSelection 59–102 (event 674),
+then a native DOM selection in H1 (676), then an editor TextSelection at position 1 (677),
+all before Backspace keydown (678). The following transactions (679–680) had `docChanged=false`.
+Thus this occurrence did not delete a table and then discard its notice: Backspace arrived at
+the start of H1 and performed no document change. Focus had not left the editor at failure.
+
+The unchanged `table-authoring` scenario passed once on `4cb4805` and once on detached master
+`9dfd724`, in the same Windows checkout and persistent profile against its own verified 5179
+server, then the PR branch was restored. A separate 4× CPU-delay diagnostic on `4cb4805` also
+passed; its temporary instrumentation was removed. These runs do not identify the source of
+the pre-keydown native selection change or prove that a timing interaction is absent. No
+product change or flake classification is justified by these observations. The existing
+assertion now retains the original locator/accessibility checks and reports notice count/text,
+Undo count and editor focus separately, with an immediate selection/parent/table-count snapshot
+on failure. Required behavior is unchanged and no polling or delay is added.
+
 The existing `cross-reference --screenshots` and `quiet-document --screenshots` runs captured the
 real product on Windows/installed headless Chrome using this worktree's persistent profile,
 DPR 1, 100% zoom and bundled Pretendard. Before is base HEAD

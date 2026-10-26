@@ -20,8 +20,13 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions", ()
     };
     visit(name, []);
   }
-  for (const [, , value] of tokens.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
-    assert.doesNotMatch(value, /var\(--(?:primary|border|ring|radius-|color-)/, "product values cannot depend on adapters");
+  const productDefinitions = [...tokens.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)];
+  const productNames = new Set(productDefinitions.map(([, name]) => name));
+  for (const [, , value] of productDefinitions) {
+    for (const [, reference] of value.matchAll(/var\((--[\w-]+)/g)) {
+      // Check actual ownership: the product's --border-width is not the --border adapter.
+      assert.ok(productNames.has(reference), `product values cannot depend on adapters: ${reference}`);
+    }
   }
   assert.equal(values.get("--primary"), "var(--id-color-accent)");
   assert.equal(values.get("--id-color-border-focus"), "var(--id-color-interaction)");
