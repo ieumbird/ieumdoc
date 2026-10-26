@@ -155,6 +155,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
+    container:
+      # The image supplies OS dependencies; the locked alpha browser is installed below.
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host --init
+      env:
+        PLAYWRIGHT_BROWSERS_PATH: /github/home/.cache/ms-playwright
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -182,14 +188,17 @@ jobs:
       - name: Cache Playwright browsers
         uses: actions/cache@v6
         with:
-          path: ~/.cache/ms-playwright
+          path: /github/home/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install pinned Chromium and Linux dependencies
-        run: pnpm exec playwright install chromium --with-deps
+      - name: Install pinned Chromium
+        timeout-minutes: 2
+        run: |
+          pnpm exec playwright install chromium
+          fc-match :lang=ko
 
       - name: Run Editor browser regressions
         env:
@@ -212,11 +221,19 @@ jobs:
     needs: changes
     if: needs.changes.outputs.http == 'true'
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            container:
+              image: mcr.microsoft.com/playwright:v1.64.0-noble
+              options: --ipc=host --init
+              env:
+                PLAYWRIGHT_BROWSERS_PATH: /github/home/.cache/ms-playwright
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -233,9 +250,18 @@ jobs:
       - name: Check Windows filesystem and HTTP boundaries
         if: runner.os == 'Windows'
         run: pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts
-      - name: Install pinned Chromium and Linux dependencies
+      - name: Cache Playwright browsers
         if: runner.os == 'Linux'
-        run: pnpm exec playwright install chromium --with-deps
+        uses: actions/cache@v6
+        with:
+          path: /github/home/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install pinned Chromium
+        if: runner.os == 'Linux'
+        timeout-minutes: 2
+        run: |
+          pnpm exec playwright install chromium
+          fc-match :lang=ko
       - run: pnpm browser:test http-host --screenshots
       - uses: actions/upload-artifact@v6
         with:

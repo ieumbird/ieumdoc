@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
-import { load } from 'js-yaml';
+import { load, loadAll } from 'js-yaml';
 import { isDocumentationOnly } from './ci-quality-mode.mjs';
 
 test('only explicit documentation paths skip product quality on PRs', () => {
@@ -89,6 +89,20 @@ test('CI keeps policy checks in both modes and gates only product quality steps'
   assert.equal(provenance.run, 'node scripts/commit-provenance.mjs event "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH"');
   assert.equal(workflow.jobs['quality-and-browser'].name, 'Core, CLI, Editor, and browser regressions');
   assert.ok(workflow.jobs['quality-and-browser'].needs.includes('quality'));
+});
+
+test('Linux browser container tags match the locked Playwright base version', () => {
+  const workflow = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+  const lockfile = loadAll(readFileSync(new URL('../pnpm-lock.yaml', import.meta.url), 'utf8'))
+    .find(doc => doc?.importers?.['.']?.devDependencies?.['@playwright/test']);
+  const version = lockfile?.importers['.'].devDependencies['@playwright/test'].version;
+  const baseVersion = /^(\d+\.\d+\.\d+)(?:-|$)/.exec(version)?.[1];
+  assert.ok(baseVersion, `Unrecognized locked Playwright version: ${version}`);
+  const httpLinux = workflow.jobs.http.strategy.matrix.include.find(entry => entry.os === 'ubuntu-latest');
+  for (const [name, container] of [['browser', workflow.jobs.browser.container], ['http Linux', httpLinux?.container]]) {
+    assert.equal(container?.image, `mcr.microsoft.com/playwright:v${baseVersion}-noble`,
+      `${name}: image OS dependencies must match locked Playwright base ${baseVersion} (${version})`);
+  }
 });
 
 // These expressions use the JS-compatible subset of Actions expressions.
