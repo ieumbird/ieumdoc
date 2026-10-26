@@ -36,6 +36,9 @@ their previous behavior. Core/CLI are unchanged: this adds only Editor interacti
 PR #486 review added a Source regression: hold the preview request after deleting a table, check
 that the notice/action are absent while pending and in Source, then return to Visual and check
 that neither revives. All three checks failed on `40671f6` before the request-start invalidation fix.
+Only the actionable table-deletion notice is revoked on Source; ordinary notices such as HTML
+paste normalization keep their existing lifetime. The existing `external-html-paste` CI regression
+caught an initial overbroad clear at `8cc6824` (Word normalization notice was absent after Source).
 
 The existing `document-session` hook/editor harness covers appended changes without the shell:
 an unapplied Equation draft postpones endnote placement, a table is deleted, then cancelling the

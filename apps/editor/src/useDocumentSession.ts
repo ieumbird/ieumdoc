@@ -223,7 +223,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   async function showSource(): Promise<void> {
     if (!isCurrent() || !document || !editorRef.current || !openedPath || !sessionBase.current || busy) return;
     setError("");
-    setNotice("");
+    if (noticeActionRef.current) setNotice("");
     setSourcePending(true);
     try {
       const payload = collectSupportedEdits(document, editorRef.current.getDocument());
