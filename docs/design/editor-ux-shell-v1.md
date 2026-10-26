@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
 
@@ -449,6 +450,73 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Display Equation formula and Figure image surfaces also offer double-click through that same Edit path (#470); other blocks gain no double-click action, and inline math keeps its single-click editor. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Opening properties and focus restoration change neither document nor history; double-click while already editing leaves the existing form untouched. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
 - Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Display optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
+
+### Unified action menus (#516)
+
+Owner decision D2/M1 (2026-10-26, [#507](https://github.com/ieumbird/ieumdoc/issues/507)):
+block `⠿`, `+`, slash and table row/column/table menus reuse `CommandMenu` with
+action-specific 16px pinned lucide line icons, labels, optional real hints and group
+separators. `+`/slash retain their Markdown-input hints as key chips; block actions
+gain no invented keyboard shortcuts. Delete, Delete section, Delete table and
+Delete row/column use the danger text/icon token and danger hover surface. Disabled
+rows keep native disabled semantics and are skipped by arrow navigation; fixed-block
+and draft reasons are exposed as accessible descriptions and tooltips. Boundary moves
+also explain their direction: `There is no body block above this one.` /
+`There is no body block below this one.` (Korean: `위로 이동할 본문 블록이 없습니다.` /
+`아래로 이동할 본문 블록이 없습니다.`), using both tooltip and accessible description.
+Fixed title/endnote reasons retain their priority. Otherwise an active properties
+draft's Apply or Cancel reason precedes the boundary reason, so the menu explains
+the user action needed before movement can become available.
+
+Body Paragraph/Heading conversions offer H2–H6 and Paragraph for headings, excluding
+the current level. The title retains its existing explicit conversions and disabled
+current level. No body H1, Duplicate or list conversion is added.
+
+Move up / Move down swap the block with its adjacent body block through the same
+reorder transaction as drag, with one-step Undo. They are disabled at boundaries,
+for the title and its preceding label targets, for endnotes, and while that block
+has an active properties draft, using the drag restriction reasons. Nothing moves
+above the title or into endnotes. A heading moves as one block; the existing separately
+named Move section up/down and Delete section retain their section meaning. Save
+uses the existing Core `moveBlock` replay (CLI `move-block`); no new Core operation
+or CLI command is needed. Delete paths, reference warnings and the table deletion
+notice/Undo stay unchanged.
+
+Gutter/table menus focus their first enabled row; Escape restores their opener.
+Slash highlight/navigation and pointer selection keep focus in the editor.
+Base UI File actions/folder menus share the 28px minimum row height, 4px/12px padding,
+8px gap, 6px radius and 16px icon slot; their existing focus/highlight owner remains.
+
+Manual same-state evidence at 1440×900, English, fresh `tables.md`, first-row focus,
+pointer away: block [before](assets/unified-menus-516/before-block.png) /
+[after](assets/unified-menus-516/after-block.png), `+`
+[before](assets/unified-menus-516/before-insert.png) /
+[after](assets/unified-menus-516/after-insert.png), table
+[before](assets/unified-menus-516/before-table.png) /
+[after](assets/unified-menus-516/after-table.png). These captures are manual visual
+review evidence, not automated screenshot assertions. Baseline: master
+`325704e73871303b70aa4c73fc930eb2f975b8c1`.
+
+Verification: new block-move, structural-block-authoring and table-authoring browser
+assertions failed on that unchanged master (missing moves, missing block icons/danger,
+missing table icons respectively). After implementation, those scenarios plus
+basic-blocks, document-title, footnotes, layout-rules and quiet-document passed in
+one serial persistent Chrome run in this worktree. The final block-move run also
+checks that moving a heading swaps only that block and compares saved/reloaded
+content order. Editor tests (290/290), workspace typecheck, Editor build, documentation
+and whitespace checks passed. The final block-move/editor-shell/folder-navigation
+run passed, including Base UI menu keyboard behavior. The `+` before/after PNGs
+are byte-identical. The temporary manual capture scenario was removed.
+
+Review correction (#523): on `842965f`, new boundary tooltip/accessible-description
+assertions failed for both first-body Move up and last-body Move down (both values
+were absent). The corrected browser scenario checks both English and Korean reasons,
+then retains the existing move/Undo/Save→Reload coverage. Movement semantics are
+unchanged; the existing command rejection metadata supplies the missing explanation.
+The re-review regression on `7284bd6` also reproduced boundary reasons hiding an
+open Equation draft's reason at both body edges. `block-move` now opens real drafts
+in the first and last body Equations and checks the draft reason in both tooltip
+and accessible description before retaining the existing boundary/Undo/Save coverage.
 
 ### Nested inline slash menu (#377)
 
