@@ -352,6 +352,24 @@ follows the reference text, while the visible SVG size is independent of documen
 The title slot, equation numbering, inline reference text and endnote numbers remain
 document presentation rather than UI controls.
 
+After incorporating master `288375d` (#498 Keyboard shortcuts dialog), the P2 fix keeps
+the 1440×1000 hovered table and Figure states byte-identical to `d1b8717` (0 changed
+pixels), including visible row/column handles, the table action bar and authoring
+metadata. The collected control styles are also identical; table-tool line-height is
+exactly 20.4px. The [P2 comparison manifest](assets/typography-497/p2/comparison.json)
+contains hashes, viewport/state, style inputs and merge base. Manual review pairs:
+[table before](assets/typography-497/p2/before/table-block-1440.png) /
+[after](assets/typography-497/p2/after/table-block-1440.png),
+[Figure before](assets/typography-497/p2/before/figure-1440.png) /
+[after](assets/typography-497/p2/after/figure-1440.png).
+The [baseline isolation failure](assets/typography-497/p2/baseline-isolation-failure.json)
+records the regression using the final expanded test against `d1b8717` styles.
+After restoring those baseline files for the negative control, the Vite server was
+restarted to remove a stale imported-token compilation; the served CSS was checked for
+the UI token before the final successful isolation/capture run.
+Post-merge local verification: Editor tests (290), typecheck, Editor build, docs check,
+layout-rules, quiet-document, editor-shell and command-center browser regressions pass.
+
 [Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) preserves that refinement's baseline, measurements and limits.
 
 [Review record and actual Before/After](editor-visual-refinement-v1-review.md). `quiet-document-reference.png` is the mockup; `quiet-document-before-*` / `quiet-document-after-*` are original v1 Editor captures, and `quiet-document-final-*` are the final polish captures.

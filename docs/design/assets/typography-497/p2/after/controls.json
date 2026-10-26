@@ -1,0 +1,98 @@
+[
+  {
+    "kind": "table-block",
+    "scrollY": 1605,
+    "controls": [
+      {
+        "class": "block-kind block-metadata",
+        "text": "Table 1 · tbl-test",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "16px"
+      },
+      {
+        "class": "table-column-handle",
+        "text": "A",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "table-column-handle",
+        "text": "B",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "table-extend",
+        "text": "",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "",
+        "text": "",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "",
+        "text": "",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "",
+        "text": "",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "table-row-handle",
+        "text": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "table-row-handle",
+        "text": "2",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      },
+      {
+        "class": "table-extend",
+        "text": "",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "20.4px"
+      }
+    ]
+  },
+  {
+    "kind": "figure",
+    "scrollY": 238,
+    "controls": [
+      {
+        "class": "block-kind block-metadata",
+        "text": "Figure 1 · fig-control",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "12px",
+        "line": "16px"
+      },
+      {
+        "class": "group/button inline-flex shrink-0 items-center justify-center border bg-clip-padding font-medium whitespace-nowrap outline-none select-none focus-visible:ring-2 focus-visible:ring-[var(--id-color-border-focus)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:bg-muted aria-disabled:text-muted-foreground aria-disabled:border-border aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 border-input bg-background hover:bg-accent hover:text-foreground aria-expanded:bg-[var(--id-color-surface-pressed)] aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-[var(--size-control-compact)] gap-[var(--space-2)] rounded-[min(var(--radius-md),12px)] px-[var(--space-3)] text-sm leading-[var(--line-height-label)] [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)] figure-edit",
+        "text": "Edit",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "size": "14px",
+        "line": "20px"
+      }
+    ]
+  }
+]
