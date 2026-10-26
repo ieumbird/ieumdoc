@@ -1,4 +1,4 @@
-// Runtime language changes preserve the existing editor, drafts, selection and real Save path.
+// Runtime display preferences preserve the editor, drafts, selection and real Save path.
 async (page, { openPath, screenshots }) => {
   page.setDefaultTimeout(15000);
   const check = (ok, reason) => { if (!ok) throw Error(reason); };
@@ -20,6 +20,17 @@ async (page, { openPath, screenshots }) => {
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
   };
+  // Observe the first mounted UI, before a preference could be repaired by a later effect.
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('#root')?.childElementCount) {
+        window.accentAtFirstUi = document.documentElement.dataset.accent;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  const accentResults = [];
   try {
     await editor.evaluate(async node => {
       const { INSERT_COMMANDS } = await import('/src/block-commands.ts');
@@ -38,6 +49,36 @@ async (page, { openPath, screenshots }) => {
     const before = await snapshot();
     const tabCount = await page.getByRole('tab').count();
     await settings('en');
+    const picker = page.getByRole('combobox', { name: 'Accent color', exact: true });
+    const presets = await picker.locator('option').evaluateAll(options => options.map(option => option.value));
+    check(presets.join(',') === 'blue,violet,plum,teal,green,graphite', 'Settings must expose the six validated presets');
+    for (const preset of presets) {
+      await picker.selectOption(preset);
+      await picker.focus();
+      const colors = await page.evaluate(() => {
+        const root = document.documentElement;
+        const resolve = name => {
+          const probe = document.createElement('span'); probe.style.color = `var(--id-color-${name})`; document.body.append(probe);
+          const value = getComputedStyle(probe).color; probe.remove(); return value;
+        };
+        const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor');
+        const picker = document.querySelector('[data-testid="accent-color"]');
+        const selection = getComputedStyle(editor.querySelector('.paragraph'), '::selection');
+        return { preset: root.dataset.accent, interaction: resolve('interaction'), selected: resolve('text-selected'),
+          selectedSurface: resolve('surface-selected'), focus: getComputedStyle(picker).borderColor,
+          save: getComputedStyle(document.querySelector('[data-testid="save"]')).backgroundColor,
+          selectionText: selection.color, selectionBackground: selection.backgroundColor,
+          link: getComputedStyle(editor.querySelector('a')).color,
+          reference: getComputedStyle(editor.querySelector('.cross-reference-chip')).color };
+      });
+      check(colors.preset === preset && colors.focus === colors.interaction && colors.save === colors.interaction &&
+        colors.link === colors.interaction && colors.reference === colors.interaction &&
+        colors.selectionText === colors.selected && colors.selectionBackground === colors.selectedSurface,
+        `Accent consumers did not update: ${JSON.stringify(colors)}`);
+      accentResults.push(colors);
+    }
+    check(new Set(accentResults.map(result => result.interaction)).size === presets.length, 'Presets must produce distinct colors');
+    await picker.selectOption('teal');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-en.png' });
     await page.getByTestId('ui-language').selectOption('ko');
     await page.getByRole('heading', { name: '표시 언어', exact: true }).waitFor();
@@ -111,7 +152,8 @@ async (page, { openPath, screenshots }) => {
     await page.reload();
     await ready();
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Language preference was not restored');
-    check(!disk.source.includes('uiLanguage'), 'Language preference leaked into document');
+    check(await page.evaluate(() => window.accentAtFirstUi === 'teal' && document.documentElement.dataset.accent === 'teal'), 'Saved accent must apply at the first mounted UI');
+    check(!disk.source.includes('uiLanguage') && !disk.source.includes('accentColor'), 'Display preference leaked into document');
     await settings('ko');
     if (screenshots) {
       await page.setViewportSize({ width: 375, height: 812 });
@@ -120,10 +162,29 @@ async (page, { openPath, screenshots }) => {
     }
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();
-    return { editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
+    // Malformed and disabled storage fall back safely on startup. The live choice still works.
+    await page.evaluate(() => localStorage.setItem('ieumdoc.accentColor', 'unknown'));
+    await page.reload(); await ready();
+    check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Invalid accent must fall back to blue before mounting');
+    await page.addInitScript(() => {
+      const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
+      Storage.prototype.getItem = function(key) { if (key === 'ieumdoc.accentColor') throw Error('blocked'); return get.call(this, key); };
+      Storage.prototype.setItem = function(key, value) { if (key === 'ieumdoc.accentColor') throw Error('blocked'); return set.call(this, key, value); };
+    });
+    await page.reload(); await ready();
+    check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Unavailable accent store must not block startup');
+    await settings('en');
+    await page.getByTestId('accent-color').selectOption('plum');
+    check(await page.evaluate(() => document.documentElement.dataset.accent === 'plum'), 'Live accent must work without storage');
+    await page.getByRole('alert').filter({ hasText: 'Accent color could not be saved.' }).waitFor();
+    await closeSettings();
+    await settings('en');
+    check(await page.getByTestId('accent-color').inputValue() === 'plum', 'Reopening Settings lost the live choice');
+    await closeSettings();
+    return { accentResults, firstUiAccent: true, invalidAndUnavailableStorage: true, editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
   } finally {
     await original.dispose();
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+    await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); document.documentElement.dataset.accent = 'blue'; });
     await page.setViewportSize({ width: 1280, height: 720 });
   }
 }

@@ -277,7 +277,7 @@ test("reference chip selector stays unchanged by caption edits while menus read 
     const edited = clone(projection);
     const block = edited.content!.find(node => node.type === kind)!;
     if (kind === "figure") block.content = [{ type: "text", text: "Updated figure." }];
-    else block.attrs!.caption = [{ kind: "text", text: "Updated table" }];
+    else block.content!.at(-1)!.content = [{ type: "text", text: "Updated table" }];
     assert.equal(selectorValue(edited), before, `${kind} caption changed the chip selector`);
     assert.equal(referenceCommandItems(schema.nodeFromJSON(edited), "Updated")[0]?.label,
       kind === "figure" ? "Figure\u00a01 · Updated figure." : "Table\u00a01 · Updated table");

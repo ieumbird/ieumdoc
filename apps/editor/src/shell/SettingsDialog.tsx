@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
-import { writeUiLanguage, type UiLanguage } from "../preferences.ts";
+import { ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, type AccentColor, type UiLanguage } from "../preferences.ts";
+
+const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
 
 const CHANNELS: { value: ReleaseChannel; label: string; hint: string }[] = [
   { value: "stable", get label() { return i18n.t("Stable"); }, get hint() { return i18n.t("Tested releases."); } },
@@ -70,6 +72,8 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
   const [recoveryProblem, setRecoveryProblem] = useMessageState("");
   const [problem, setProblem] = useMessageState("");
   const [languageProblem, setLanguageProblem] = useState(false);
+  const [accent, setAccent] = useState(readAccentColor);
+  const [accentProblem, setAccentProblem] = useState(false);
   const state = info?.update;
   const offered = state && "version" in state ? state : state?.phase === "error" ? state.update : undefined;
   const busy = state?.phase === "downloading" || state?.phase === "installing";
@@ -83,7 +87,7 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
       <DialogContent className="settings-dialog" data-testid="settings-dialog" finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
           <DialogTitle>{i18n.t("Settings")}</DialogTitle>
-          <DialogDescription>{i18n.t("Local recovery and application information.")}</DialogDescription>
+          <DialogDescription>{i18n.t("Appearance, local recovery and application information.")}</DialogDescription>
         </DialogHeader>
         <section className="settings-section" aria-labelledby="settings-language">
           <h3 id="settings-language" className="settings-heading">{i18n.t("Display language")}</h3>
@@ -97,6 +101,19 @@ export function SettingsDialog({ open, desktop, info, onInfo, onInstall, returnF
             <option value="en" lang="en">English</option>
           </select>
           {languageProblem ? <p role="alert">{i18n.t("Language preference could not be saved. This choice applies until you close this page.")}</p> : null}
+        </section>
+        <section className="settings-section" aria-labelledby="settings-accent">
+          <h3 id="settings-accent" className="settings-heading">{i18n.t("Accent color")}</h3>
+          <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-accent" data-testid="accent-color"
+            value={accent} onChange={event => {
+              const color = event.target.value as AccentColor;
+              document.documentElement.dataset.accent = color;
+              setAccent(color);
+              setAccentProblem(!writeAccentColor(color));
+            }}>
+            {ACCENT_COLORS.map(color => <option key={color} value={color}>{i18n.t(ACCENT_LABELS[color])}</option>)}
+          </select>
+          {accentProblem ? <p role="alert">{i18n.t("Accent color could not be saved. This choice applies until you close this page.")}</p> : null}
         </section>
         <section className="settings-section" aria-labelledby="settings-recovery">
           <h3 id="settings-recovery" className="settings-heading">{i18n.t("Local recovery")}</h3>

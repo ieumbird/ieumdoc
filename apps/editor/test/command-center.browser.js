@@ -192,6 +192,18 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Escape');
   await center().waitFor({state:'detached'});
 
+  // Both language aliases dispatch New before any folder/document exists, then cancel safely.
+  for (const query of ['new document', '새 문서']) {
+    const returnTarget = await page.evaluateHandle(() => document.activeElement);
+    await run(query);
+    await page.getByTestId('folder-path').waitFor();
+    check(await page.getByTestId('new-file-name').count() === 0, 'New skipped location choice without an opened folder');
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    check(await page.evaluate(target => target === document.activeElement, returnTarget), 'New command did not return focus after location cancellation');
+    await returnTarget.dispose();
+  }
+
   await openPath(page, file('technical-1.md'));
   // Search only listings already held by the sidebar, including collapsed cached children.
   const openFolder = async path => {
@@ -342,7 +354,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await open();
   await page.keyboard.type('> s');
   await page.keyboard.press('ArrowDown');
-  const visual = center().getByRole('option',{name:'Visual',exact:true});
+  const visual = center().locator('[role=option]:not([aria-disabled=true])').nth(1);
   check(await visual.getAttribute('data-highlighted') !== null, 'First Down after typing did not move to the next result');
   const highlighted = await visual.evaluate(n => {
     const probe=document.createElement('span');n.append(probe);
@@ -419,7 +431,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // Commands may hide their invoking control. Hand focus to the toggle that survives.
   await page.setViewportSize({width:1440,height:900});
   const panel = page.getByTestId('document-panel');
-  if (!await panel.isVisible()) await page.getByRole('button',{name:'Outline',exact:true}).click();
+  // No explicit Outline choice yet: wait for the wide-layout default to commit.
+  // An immediate isVisible + toggle can close it as the matchMedia handler opens it.
+  await panel.waitFor();
   await panel.getByRole('button',{name:'Hide outline',exact:true}).focus();
   await run('hide outline');
   await panel.waitFor({state:'detached'});

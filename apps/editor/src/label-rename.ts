@@ -1,4 +1,4 @@
-import { planLabelRename, type InlineContent, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
+import { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
@@ -26,15 +26,6 @@ export function updateLabelProperties(state: EditorState, position: number, attr
     const add = (reference: LabelRenameReference, change: (reference: LabelRenameReference) => void) => {
       references.push(reference); apply.push(change);
     };
-    const captions = new Map<number, InlineContent[]>();
-    const visitCaption = (content: InlineContent[], pos: number, root = content) => {
-      for (const item of content) {
-        if (item.kind === "reference" || item.kind === "link") {
-          add(item, reference => { Object.assign(item, reference); captions.set(pos, root); });
-        }
-        if ("children" in item) visitCaption(item.children, pos, root);
-      }
-    };
     tr.doc.descendants((node, pos) => {
       if (node.type.name === "crossReference") {
         add({ kind: "reference", role: node.attrs.role, label: node.attrs.label }, reference => {
@@ -46,14 +37,9 @@ export function updateLabelProperties(state: EditorState, position: number, attr
           if (reference.kind === "link") tr.addMark(pos, pos + node.nodeSize, mark.type.create({ ...mark.attrs, href: reference.url }));
         });
       }
-      if (node.type.name === "table") {
-        const content = structuredClone(node.attrs.caption as InlineContent[]);
-        visitCaption(content, pos);
-      }
     });
     const plan = planLabelRename(blocks, tr.doc.resolve(position).index(0), String(label), references);
     for (const edit of plan) apply[edit.index](edit.reference);
-    for (const [pos, content] of captions) tr.setNodeMarkup(pos, undefined, { ...tr.doc.nodeAt(pos)!.attrs, caption: content });
   }
   return tr.setNodeMarkup(position, undefined, { ...tr.doc.nodeAt(position)!.attrs, label });
 }

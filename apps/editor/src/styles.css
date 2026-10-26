@@ -1135,8 +1135,9 @@ button {
   caret-color: var(--id-color-interaction);
 }
 
-.document-editor ::selection {
+::selection {
   background: var(--id-color-interaction-soft);
+  color: var(--id-color-text-selected);
 }
 
 /* Text surfaces only: retain the editor's existing emergency fallback for long tokens.
@@ -2086,7 +2087,7 @@ ol.list { list-style: decimal; }
 
 .cross-reference-chip {
   border-radius: var(--id-radius-sm);
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2187,6 +2188,23 @@ ol.list { list-style: decimal; }
   flex: 1 1 12rem;
 }
 
+.citation-candidates {
+  flex-basis: 100%;
+  min-width: 0;
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface);
+}
+
+.citation-candidates .command-center-results {
+  max-height: min(var(--layout-folder-picker-list-height), 25dvh);
+}
+
+.citation-candidates .command-center-result-detail {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .citation-keys {
   display: flex;
   flex-basis: 100%;
@@ -2231,7 +2249,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor a {
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   text-decoration: underline;
   cursor: text;
 }
@@ -2332,9 +2350,9 @@ ol.list { list-style: decimal; }
 .inline-math-form { padding: var(--space-3); }
 
 /* The Document panel docks only where the document keeps a readable width beside both panels
- * (1280 - 240 - 256 = 784px). Below it the panel never narrows the document; opened, it overlays.
+ * (1424 - 240 - 256 = 928px, the Standard column). Below it the panel never narrows the document; opened, it overlays.
  * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
-@media (width < 80rem) {
+@media (width < 89rem) {
   .app-shell { --shell-panel: 0px; }
   /* Media styles apply before the matchMedia handler closes the docked panel.
    * Do not let its padding/header overflow the now zero-width grid column. */
@@ -2857,7 +2875,7 @@ ol.list { list-style: decimal; }
 .bibliography-list > li > div { min-width: 0; }
 .bibliography-number { flex-shrink: 0; }
 .bibliography-resources { padding-left: var(--space-4); }
-.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-info); text-decoration: none; }
+.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-interaction); text-decoration: none; }
 
 /* Read-only folder preview uses the shared modal surface and existing spacing/type roles. */
 .file-preview[data-slot="dialog-content"] { width: min(var(--layout-file-preview-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
@@ -2875,3 +2893,9 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .display-template-choice { display: grid; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--font-size-sm); }
+
+/* The engine table owns its caption; native caption layout keeps it below the grid. */
+.table-grid:has(.table-caption) { padding-bottom: 0; }
+.table > table { width: 100%; border-collapse: collapse; }
+.table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
+.table-add-caption { color: var(--id-color-text-muted); }

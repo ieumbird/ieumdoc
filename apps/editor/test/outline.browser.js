@@ -5,6 +5,8 @@
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
 async (page, { openDocument, reloadDocument, expect }) => {
+  // This scenario exercises docked navigation, above the 1424px docking boundary.
+  await page.setViewportSize({width:1440,height:900});
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
@@ -312,6 +314,14 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.mouse.move(0,0);
   const defaultColors = await numberColors();
   checkNumberColors(defaultColors);
+  // Every preset reaches generated numbers without changing numbering or current-row semantics.
+  for (const preset of ['violet', 'plum', 'teal', 'green', 'graphite']) {
+    await page.evaluate(preset => { document.documentElement.dataset.accent = preset; }, preset);
+    const colors = await numberColors();
+    checkNumberColors(colors);
+    expect(colors.number).not.toBe(defaultColors.number);
+  }
+  await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   // A root override must reach both surfaces, while title text and selected rows stay unchanged.
   await page.evaluate(() => document.documentElement.style.setProperty('--id-color-document-heading-number', 'rebeccapurple'));
   try {

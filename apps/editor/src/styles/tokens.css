@@ -84,7 +84,7 @@
   /* Document heading and title-slot line spacing. */
   --line-height-document-heading: 1.35;
   /* Generated heading and non-current Outline numbers; heading text keeps its own color. */
-  --id-color-document-heading-number: #0e7c86;
+  --id-color-document-heading-number: var(--id-color-interaction);
   /* Space above document headings, except the first block. */
   --space-document-heading-before: var(--space-8);
   /* Space below document headings and the title slot. */
@@ -140,18 +140,18 @@
   --id-color-surface-pressed: #e3e7ee;
   --id-color-surface-selected: #e9f0ff;
   --id-color-surface-selected-hover: #e1eaff;
-  --id-color-surface-info: #f5f7fa;
+  --id-color-surface-info: var(--id-color-surface-subtle);
   --id-color-surface-danger: #fff1f0;
   --id-color-surface-warning: #fff8ed;
   --id-color-text: #20242c;
   --id-color-text-muted: #545c68;
   --id-color-text-subtle: #606874;
-  --id-color-text-selected: #2449a6;
+  --id-color-text-selected: var(--id-color-accent-hover);
   --id-color-text-readonly: var(--id-color-text-muted);
   --id-color-text-on-accent: #ffffff;
-  /* Two blue axes. Interaction: primary actions, focus, selection, the current item and drag.
-   * Content (info): links, references and informational callouts. Chrome recedes in neutrals;
-   * red (danger) means only errors and destructive meaning. */
+  /* Adjustable accent values: Blue is the default. The preset scopes below override only
+   * these four values. Actions, focus, selection, links and generated numbers share them;
+   * informational states stay neutral; danger and warning keep their separate meanings. */
   --id-color-interaction: #315fd4;
   --id-color-accent: var(--id-color-interaction);
   --id-color-accent-hover: #2449a6;
@@ -163,7 +163,7 @@
   --id-color-border-control: #7b8390;
   --id-color-border-focus: var(--id-color-interaction);
   --id-color-danger: #a12b32;
-  --id-color-info: #365f85;
+  --id-color-info: var(--id-color-text-muted);
   --id-color-warning: #875717;
 
   --font-family-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
@@ -196,7 +196,7 @@
   --border-width: 1px;
   /* Keyboard focus is a solid 2px ring (outer) or inset ring, never a box left behind by a
    * mouse click; only :focus-visible draws it. Solid --id-color-border-focus keeps >=3:1
-   * against every surface (white 5.65:1, hover/pressed/selected tints >=4.55:1). */
+   * against every surface in all presets (Blue: white 5.65:1, other surfaces >=4.55:1). */
   --focus-ring: 0 0 0 2px var(--id-color-border-focus);
   --focus-ring-inset: inset 0 0 0 2px var(--id-color-border-focus);
   --shadow-overlay: 0 8px 24px rgb(32 36 44 / 10%), 0 2px 6px rgb(32 36 44 / 6%);
@@ -223,4 +223,41 @@
   --size-drop-indicator: 2px;
   /* Non-color cue shared by current navigation and the active menu/list choice. */
   --size-current-marker: 3px;
+}
+
+/* Adjustable values: validated accent presets. Keep all palette numbers here, never in
+ * consumers or preference scripts. Text/number/focus/primary adapters above stay shared. */
+:root[data-accent="violet"] {
+  --id-color-interaction: #7041bd;
+  --id-color-accent-hover: #552c98;
+  --id-color-surface-selected: #f0eafa;
+  --id-color-surface-selected-hover: #ebe3f7;
+}
+
+:root[data-accent="plum"] {
+  --id-color-interaction: #8a3f85;
+  --id-color-accent-hover: #6d2c69;
+  --id-color-surface-selected: #f6eaf5;
+  --id-color-surface-selected-hover: #f0e2ee;
+}
+
+:root[data-accent="teal"] {
+  --id-color-interaction: #076f65;
+  --id-color-accent-hover: #075b53;
+  --id-color-surface-selected: #e4f3f0;
+  --id-color-surface-selected-hover: #d5ebe7;
+}
+
+:root[data-accent="green"] {
+  --id-color-interaction: #346d38;
+  --id-color-accent-hover: #27542b;
+  --id-color-surface-selected: #e9f2e7;
+  --id-color-surface-selected-hover: #dfeadb;
+}
+
+:root[data-accent="graphite"] {
+  --id-color-interaction: #52616b;
+  --id-color-accent-hover: #3d4a53;
+  --id-color-surface-selected: #eaf0f3;
+  --id-color-surface-selected-hover: #dfe8ed;
 }

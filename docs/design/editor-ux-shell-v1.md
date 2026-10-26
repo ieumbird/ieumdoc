@@ -1,6 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
+- Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
 - Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
@@ -28,9 +30,9 @@ The shell has three responsibilities: the Sidebar on the left switches between F
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; then Files / Display tool buttons. Files is initially selected. Each tool opens the same panel space; choosing it from the collapsed rail also expands the sidebar. Collapse/expand retains the selected tool. Both buttons remain keyboard reachable and report selected/expanded state. Expanded tools use the Visual/Source segmented expression; the icon-only collapsed rail retains accessible names and the same raised white current face with a contrast-qualified border-control boundary, without an underline (#515). Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New file in folder), New folder and a `⋯` menu containing only Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders, including while Display is selected; the empty Files panel has no duplicate button (#385). Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion and tool choice are page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Switching tools or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
+| Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; then Files / Display tool buttons. Files is initially selected. Each tool opens the same panel space; choosing it from the collapsed rail also expands the sidebar. Collapse/expand retains the selected tool. Both buttons remain keyboard reachable and report selected/expanded state. Expanded tools use the Visual/Source segmented expression; the icon-only collapsed rail retains accessible names and the same raised white current face with a contrast-qualified border-control boundary, without an underline (#515). Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New file in folder), New folder and a `⋯` menu containing Refresh (re-reads loaded listings, #494) and Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders, including while Display is selected; the empty Files panel has no duplicate button (#385). Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion and tool choice are page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Switching tools or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Display | Identifies the current document by filename (full path in title). Saved in document contains Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) and Connect bibliography… (#473). Numbering and reference style share document history and Save behavior under the [numbering contract](heading-numbering-v1.md); bibliography uses the existing [staged connection and Save flow](citations-v1.md#connect-and-disconnect-bibliography-files-438). It is disabled without a document, during pending work and in Source, with a reason shown. Local view contains Wide document, remembered here and never written to Markdown or included in document history/dirty state. It remains available without a document and in Source. Tab enters the selected content; Escape in Display returns focus to its opening tool button. Tool changes do not remount the editor or discard its selection, history or drafts. This is separate from Desktop Settings/About. |
-| Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1280px and wider the panel is docked and starts open; below 1280px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Crossing 1280px starts the panel in that layout's default. Open/closed is page state only. |
+| Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | At phone widths with the sidebar closed, Expand sidebar first; actual status on the left; the centered command-center button contains the document's location and filename (full path in title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
@@ -65,9 +67,69 @@ New asks for a filename, adds `.md` if omitted and uses the existing creation ch
 opens the document in a new tab and lists its folder again. When the modal closes after successful creation,
 focus moves to the first paragraph for immediate typing. Cancel/Escape, including after a
 rejected creation, returns focus to the New button.
-It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
+The start screen, Files area and command center also enter this same creation flow (#553).
+See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
 The heading's New folder uses the same Location and starting destination for a folder name;
 success shows the folder in the tree and returns focus to New folder. See [New folder](folder-picker-v1.md#new-folder).
+
+### New document entry (#553)
+
+The start screen says **Start an IeumDoc document / 이음독 문서 시작하기**, with purpose-focused
+guidance about creating or continuing an IeumDoc document. **New document / 새 문서** is the
+primary text button, followed by the secondary **Open folder… / 폴더 열기…**. Files has a quiet
+text New document button above its existing folder/empty content; the Sidebar header, tool switch
+and per-folder controls retain their structure. The command center offers **New document… / 새 문서…**
+with Korean and English document/file aliases, available without an open document and disabled
+during pending work or a close confirmation.
+
+With no opened folder, New document opens the existing FolderDialog, including New folder.
+Successful Open adds the Host-normalized folder to the Sidebar and recent/opened preferences,
+then, after the picker closes, opens the existing filename form in that exact folder. Cancelling
+the picker opens nothing. Cancelling the filename leaves the selected folder open and creates
+no document. Both cancellations return focus to the invoking control. A failed location stays
+in the picker; a failed creation stays in the filename form.
+
+With opened folders, the common entry defaults to the current document's containing folder in
+its opened tree, or the first opened folder if none contains that document. The per-folder `+`
+retains its section-specific default. The form is titled **New document / 새 문서** and explains
+the `.md` suffix once. All entries reuse Host/Core creation and the existing tab/focus protections;
+no temporary untitled document, autosave, new semantic operation or CLI command is introduced.
+
+#### New document visual comparison
+
+Before is clean base `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`; After is that base plus #553.
+Both use the same checkout-owned persistent headless Windows Chrome profile and Vite origin
+`127.0.0.1:5173`, bundled Pretendard, DPR/viewport scale/CSS zoom 1, scroll top, no focused control
+and pointer at the top right. A Host start response with no sample/recent/recovery is used for
+both. These are manual product captures, separate from automated assertions; the temporary
+capture-only walk is removed before commit. Shared Button sizes, spacing and surfaces follow
+[Layout Rules](editor-layout-rules-v1.md#controls-and-spacing) and
+[Visual Language](editor-visual-language-v1.md#reviewing-a-visual-change); no new token or CSS is needed.
+
+| Language / viewport | Before | After |
+| --- | --- | --- |
+| English / 1440×900 | [PNG](assets/new-document-553/new-entry-before-en-1440.png) | [PNG](assets/new-document-553/new-entry-after-en-1440.png) |
+| English / 390×900 | [PNG](assets/new-document-553/new-entry-before-en-390.png) | [PNG](assets/new-document-553/new-entry-after-en-390.png) |
+| Korean / 1440×900 | [PNG](assets/new-document-553/new-entry-before-ko-1440.png) | [PNG](assets/new-document-553/new-entry-after-ko-1440.png) |
+| Korean / 390×900 | [PNG](assets/new-document-553/new-entry-before-ko-390.png) | [PNG](assets/new-document-553/new-entry-after-ko-390.png) |
+
+Direct review confirms reachable primary/secondary text actions and readable Korean/English guidance
+at both widths, with the existing Sidebar header unchanged. The browser assertions cover the three
+entries, Korean/English command aliases, location cancellation, New folder → filename handoff,
+Host-normalized Sidebar/destination agreement, filename cancellation and immediate focus, real-file
+Save/Reload, and preservation of an existing unsaved tab. The initial chained-dialog attempt failed
+the direct filename-focus assertion: the outgoing picker restored focus to the start button.
+The handoff now waits for closing completion, suppresses that return only during handoff, and uses
+the filename field as explicit initial focus. No timeout, retry or polling allowance was increased.
+Windows BadPasswordAttempts was 0 before the first profile launch, 3 at subsequent pre-run checks,
+and 5 before the final integrated run; the persistent profile was reused. Traces and capture-only
+scripts remain uncommitted. After integrating master `3a8be3e` (#552), Editor 291 tests,
+workspace typecheck, Editor build, docs/whitespace and new-document/command-center/layout-rules/
+quiet-document passed again. Its docking change leaves the captured 1440/390px states unchanged.
+The later master `425eab7` (#494) integration retains the Refresh callback and its shared
+folder-creation refresh, alongside New document. Editor tests/typecheck/build/docs are rechecked;
+browser integration coverage is left to PR CI because the final local account counter reached 6.
+No Edge, packaged Desktop or alternate-profile probe is run locally.
 
 The folder-tree hook owns the live opened list and the preference derived from it. User Open/Close
 remembers the latest reduced list; if startup restoration is pending, writing waits until every
@@ -105,13 +167,61 @@ Application messages retain translation keys and parameters when stored. Save fa
 
 Verification and implementation scope are recorded in the [#256 plan](ui-language-256-plan.md).
 
+## Local accent color (#559)
+
+Settings offers six named presets: Blue (default), Violet, Plum, Teal, Green and Graphite.
+There is no free color picker. The choice applies immediately to interactions, selection
+background/text, focus, primary actions, links/references and generated heading/Outline numbers.
+Information states are neutral; danger and warning retain their meanings. Values and contrast
+requirements belong to [Visual Language](editor-visual-language-v1.md#single-accent-presets-559).
+
+The existing browser/origin preference path stores only a preset ID in
+`ieumdoc.accentColor`, independent of documents and the Host. Vite, HTTP and Desktop
+profiles/origins do not share it. Startup applies a valid stored choice before mounting
+the first UI. Missing, unknown or unreadable preferences use Blue. A storage failure
+keeps the live choice and Settings explains that it lasts for the current page.
+Changes preserve the mounted editor, tabs, content, selection, history and property drafts.
+This display preference needs no Core operation or CLI command.
+
+## Folder refresh (#494)
+
+Each opened folder's More actions menu offers Refresh before Close folder. Refresh reuses the
+one-level Host listing path for that root and its reachable, already loaded child listings,
+including cached collapsed children. Never-loaded folders are not read. The command center has
+one Refresh folder command per opened root, identified by its full path and using the same handler.
+Refresh keeps section/child expansion, current document selection, tabs, editor state and preferences.
+Removed entries disappear and new entries appear in the refreshed listings; existing Host errors
+remain explicit and late responses retain the newest-request guard. No watcher, periodic refresh,
+Host API or Core/CLI semantic operation is added.
+
+When IeumDoc creates a file/folder or creates/rolls back an image asset (paste/drop or Choose…),
+its already loaded parent listings are refreshed through the same loader without expanding folders.
+This includes the document directory when a new assets directory appears. Unloaded asset listings
+remain lazy.
+
+Actual 1280×720 English menu comparison: [Before](assets/folder-refresh-494/before.png) /
+[After](assets/folder-refresh-494/after.png). Both use this checkout, the same persistent Windows
+Chrome profile, dedicated Vite origin (127.0.0.1:5194), default DPR 1 and the same document/folder
+state. Before restores only Sidebar.tsx from base ff37a32; After uses this change. Direct review
+confirms the added shared menu row/icon fits without moving surrounding chrome. Large regenerated
+traces, full scenario captures and logs remain under ignored tmp/.
+
+The extended folder-navigation fails with the base Sidebar's Close-only menu and passes after the
+change. It checks root/loaded-child additions and removals, no unread-folder requests, document
+selection/editor content/selection/tabs, preference preservation and command refresh while the
+section is collapsed. image-assets now starts in a directory with no assets folder, checks that
+paste reveals it and that later drop updates its loaded listing, retaining existing real-file
+Save/Reload/rollback coverage. The existing reducer test also covers expansion retained on refresh
+failure; command-center's navigation check follows the second enabled match rather than a fixed
+command's old result position.
+
 ## Collapsible folder sections (#425)
 
 An opened folder without remembered section collapse starts expanded. The chevron beside its name is a native compact ghost button,
 with localized `Collapse folder <name>` / `Expand folder <name>` labels and tooltips, `aria-expanded`
 and `aria-controls` naming that section's tree. The name remains the section/tree title and its
 full path remains in `title`. The chevron points right when collapsed and down when expanded,
-like subfolder chevrons. New file (`+`), New folder and More actions (`⋯`, Close folder only)
+like subfolder chevrons. New file (`+`), New folder and More actions (`⋯`, Refresh and Close folder)
 remain visible and usable when the section is collapsed. Empty-folder help is hidden with the tree.
 Tab order within a section follows its existing actions, then the new toggle, then the tree's single
 retained keyboard stop when expanded. Enter/Space toggle; collapsed tree items are outside Tab and
@@ -446,8 +556,8 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 - Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; template-based forms such as `Figure 2`, `식 (3)` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
 - `/ref`, `/reference` and `/참조` list all reference kinds, including unlabeled headings. Figure and Table kind keywords (`figure` / `그림`, `table` / `표`) match their respective kinds. Empty queries retain labeled targets only, and unrelated queries do not list references unless their labels, captions or heading words match.
 - Body Paragraph/Heading block menus convert between prose and H2–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Existing body H1 blocks retain their level on open/edit/Save → Reload and offer H2–H6 and Paragraph. The title's own block menu and explicit title changes remain unchanged. Heading Shift+Tab stops at body H2 (and leaves existing H1 unchanged); the Markdown `# ` input rule still creates H1. This is an Editor authoring choice; Core/CLI H1 support is unchanged. See [document title](document-editing-v1.md#document-title-255). Admonition menus change among the standard kinds.
-- Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (caption and label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
-- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
+- Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
+- Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure/Table captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
 - Figure selection shows the selection outline only. Explicit Edit or double-click on its image surface (including the pending frame and image-load error) opens Image/Alt text/Label fields and a Caption field for plain captions; caption double-click keeps normal text selection, and rich captions are edited in the document. Metadata Apply preserves rich caption content. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Display Equation formula and Figure image surfaces also offer double-click through that same Edit path (#470); other blocks gain no double-click action, and inline math keeps its single-click editor. Edit focuses the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Opening properties and focus restoration change neither document nor history; double-click while already editing leaves the existing form untouched. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
@@ -542,8 +652,9 @@ list item (#366), plus Editor tests, typecheck/build and documentation checks.
 | Endnote definition | Yes; inline menu only | No | `updateFootnoteDefinition` permits citations/references and refuses footnote references |
 | Table header/body cell | Yes; inline menu only | Yes | `updateTableCell` |
 | Figure caption | Yes; inline menu only | Yes | `updateFigure` with inline caption content |
+| Table caption | Yes; inline menu only | Yes | `updateTableCaption` with inline caption content |
 | Heading, including document title | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
-| Table caption / code / property fields | No menu | No menu | Table caption is not a caret surface in the editor document; code and fields keep literal input |
+| Code / property fields | No menu | No menu | Code and fields keep literal input |
 
 The Editor schema mirrors these existing Core inline contracts (in particular, a definition
 excludes `footnoteReference`). Menu eligibility and the existing endnote insertion guard use
@@ -1154,3 +1265,40 @@ The build retains its existing large-chunk advisory. The existing 2000/5000-bloc
 [performance fixture and measurement](../reviews/editor-input-performance-2026-10-25.md)
 measure typing/Save rather than Source rendering; this change adds no Source timing gate or
 performance claim.
+
+## Outline docking verification #552
+
+The docking boundary is 89rem (1424px): 240px Sidebar + 256px Outline + 928px Standard
+column. At 1280–1423px the Outline starts closed and opens as an overlay. Explicit docked
+open/closed choices survive resizing in page memory; entering overlay closes it without
+replacing that choice. Reload restores the default. This is Editor interaction only;
+Core/CLI semantics and persistent preferences do not change.
+
+`layout-rules` measures the boundary with the Sidebar expanded and collapsed: the Standard
+column remains 928px at 1279/1280/1423/1424/1440px and the TopBar stays 48px at
+1280/1423/1424px. It checks docked closure from both Hide outline and the TopBar toggle,
+explicit reopening, overlay dismissal, return to docked, and reload default restoration.
+`outline` retains docked keyboard/navigation coverage at 1440px; `command-center` retains
+Show/Hide outline and focus coverage. The endnote Outline-exclusion check explicitly opens
+and closes the 1280px overlay. `quiet-document --screenshots` retains typography,
+editing and visual checks with its Outline isolation explicitly above the docking boundary.
+The initial outline/quiet-document failures assumed a default-open Outline at 1280px;
+artifacts showed loaded documents and no console errors. Their setup now uses 1440px,
+without removing their Outline assertions. CI also exposed a Command Center setup race:
+after resizing into docked layout, the test now waits for its default-open panel rather
+than conditionally toggling while the media-query update is pending.
+
+Same-state captures below use the real Windows installed Chrome persistent profile,
+English UI with mixed Korean/English fixture text, bundled Pretendard (font assertions pass),
+100% browser zoom, DPR 1, viewport height 1000px, expanded Sidebar with no open folder,
+Standard column, scroll at top, and the same selected Equation with no pointer hover.
+Before product source: `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`; After: this PR's source.
+Only representative PNG pairs are retained; generated traces, full captures and logs stay in `tmp/`.
+Manual comparison confirms the wider text at 1280px, single-row header and closed Outline
+below 1424px, and the preserved Standard column with docked Outline at 1424px.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1280 × 1000 | [Before](assets/toc-docking-552/before-1280.png) | [After](assets/toc-docking-552/after-1280.png) |
+| 1423 × 1000 | [Before](assets/toc-docking-552/before-1423.png) | [After](assets/toc-docking-552/after-1423.png) |
+| 1424 × 1000 | [Before](assets/toc-docking-552/before-1424.png) | [After](assets/toc-docking-552/after-1424.png) |

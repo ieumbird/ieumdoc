@@ -1,6 +1,7 @@
 import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
-import { recoveryText } from "../src/recovery-storage.ts";
+import { recoveryText, type RecoveryRecord } from "../src/recovery-storage.ts";
+import { prepareRecovery } from "../src/recovery-restore.ts";
 import type { DocumentSessionSnapshot } from "../src/useDocumentSession.ts";
 import { editorDocumentJSON, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { deleteBlock, insertFigureAfter } from "../src/block-commands.ts";
@@ -2311,6 +2312,37 @@ test("legacy empty deletion sentinel is ignored in both checkpoints, without acc
     snapshot[key].content!.pop();
     assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Missing editor deletion metadata/);
   }
+});
+
+test("legacy caption-attribute recovery is refused without changing the record or losing its readable caption", () => {
+  const source = nativeSource("# Recovery\n\n:::{table} Saved caption\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell |\n:::\n");
+  const model = loadEditableDocument(source);
+  const opening = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  const state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, () => assert.fail("unexpected change"))] });
+  const savedDocument = editorDocumentJSON(state);
+  const savedTable = savedDocument.content!.find(node => node.type === "table")!;
+  // The previous shipped Editor schema stored all caption content in this attribute.
+  savedTable.attrs!.caption = [{ kind: "text", text: "Saved caption" }];
+  savedTable.content = savedTable.content!.filter(node => node.type !== "tableCaption");
+  const editorDocument = structuredClone(savedDocument);
+  editorDocument.content!.find(node => node.type === "table")!.attrs!.caption = [
+    { kind: "strong", children: [{ kind: "text", text: "Unsent results" }] },
+    { kind: "text", text: " with " }, { kind: "reference", role: "numref", label: "fig-a" },
+    { kind: "text", text: " and " }, { kind: "citation", role: "cite:p", keys: ["Key"] },
+  ];
+  const filePath = path.join(tmpdir(), "legacy-caption.md");
+  const record: RecoveryRecord = {
+    id: "legacy-caption", version: 1, path: filePath, recordedAt: Date.now(), recoveryText: "",
+    snapshot: { file: { path: filePath, source, document: model, revision: "a".repeat(64), endnotesInPlace: true },
+      editor: { editorDocument, savedDocument } },
+  };
+  record.recoveryText = recoveryText(record.snapshot);
+  const persisted = structuredClone(record); // IndexedDB records use the structured clone algorithm.
+  const original = structuredClone(persisted);
+  assert.throws(() => prepareRecovery(persisted), /Incompatible editor snapshot/);
+  assert.deepEqual(persisted, original, "refusing restore must keep the complete recorded rich caption");
+  for (const text of ["Unsent results", "fig-a", "Key", "Header", "Cell"]) assert.ok(persisted.recoveryText.includes(text), text);
 });
 
 test("plaintext salvage keeps readable content without dumping internal attributes", () => {

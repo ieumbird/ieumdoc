@@ -67,9 +67,10 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
       const editor = (element as HTMLElement & {editor: Editor}).editor;
       editor.commands.insertContentAt(editor.state.doc.content.size, [
         {type:"equation",attrs:{latex:"x^2 + y^2 = z^2"}},
-        {type:"table",attrs:{caption:[{kind:"text",text:"HTTP table caption"}]},content:[
+        {type:"table",content:[
           {type:"tableRow",content:[{type:"tableCell",attrs:{header:true},content:[{type:"text",text:"Header"}]}]},
           {type:"tableRow",content:[{type:"tableCell",attrs:{header:false},content:[{type:"text",text:"Measured cell"}]}]},
+          {type:"tableCaption",content:[{type:"text",text:"HTTP table caption"}]},
         ]},
         {type:"figure",content:[{type:"text",text:"HTTP pending figure caption"}]},
       ]);
