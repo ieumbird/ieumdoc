@@ -1,0 +1,654 @@
+{
+  "masterRevision": "325704e73871303b70aa4c73fc930eb2f975b8c1",
+  "masterBaseline": "apps/editor/test/browser/fixtures/quiet-document-wrap-master.json",
+  "failingStylesRevision": "587877e6301b793444648b18405f29b66e870fa7",
+  "failure": {
+    "actual": [
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "quote-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "DIV",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "caption",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "TD",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "PRE",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "heading",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "heading",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "footnote-definition-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "master": [
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "quote-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "DIV",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "caption",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "TD",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "PRE",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "footnote-definition-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ]
+  },
+  "finalComparison": {
+    "master": "325704e73871303b70aa4c73fc930eb2f975b8c1",
+    "excluded": [
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "quote-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "DIV",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "caption",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "TD",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "PRE",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "footnote-definition-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "ui": [
+      {
+        "selector": "[data-testid=\"save\"]",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".sidebar-tool",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".document-outline-item",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".document-outline-number",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".code-language",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".figure-edit",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".table-column-handle",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "numbered": [
+      {
+        "number": "1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
+      },
+      {
+        "number": "2",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
+      }
+    ],
+    "tableModel": {
+      "table": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "400",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "normal",
+        "overflow-wrap": "break-word",
+        "text-align": "start",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "width": "704px",
+        "table-layout": "auto",
+        "border-collapse": "collapse",
+        "border-spacing": "2px"
+      },
+      "th": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "600",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "keep-all",
+        "overflow-wrap": "break-word",
+        "text-align": "left",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "min-width": "112px",
+        "padding": "8px 12px",
+        "border-top": "1px solid rgb(217, 221, 228)",
+        "border-right": "1px solid rgb(217, 221, 228)",
+        "border-bottom": "1px solid rgb(217, 221, 228)",
+        "border-left": "1px solid rgb(217, 221, 228)"
+      },
+      "td": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "400",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "keep-all",
+        "overflow-wrap": "break-word",
+        "text-align": "left",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "min-width": "112px",
+        "padding": "8px 12px",
+        "border-top": "1px solid rgb(217, 221, 228)",
+        "border-right": "1px solid rgb(217, 221, 228)",
+        "border-bottom": "1px solid rgb(217, 221, 228)",
+        "border-left": "1px solid rgb(217, 221, 228)"
+      }
+    },
+    "columns": [
+      217.84375,
+      217.84375,
+      267.3125
+    ],
+    "source": [
+      {
+        "selector": ".source-view-text",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".source-line",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      }
+    ],
+    "referenceColumns": [
+      217.84375,
+      217.84375,
+      267.3125
+    ]
+  },
+  "wrapping": {
+    "koreanWrapping": [
+      {
+        "width": 1440,
+        "coverage": [
+          {
+            "selector": ".heading",
+            "count": 3
+          },
+          {
+            "selector": ".paragraph",
+            "count": 7
+          },
+          {
+            "selector": ".list .paragraph",
+            "count": 1
+          },
+          {
+            "selector": ".quote-body",
+            "count": 1
+          },
+          {
+            "selector": ".admonition-body",
+            "count": 1
+          },
+          {
+            "selector": ".caption",
+            "count": 1
+          },
+          {
+            "selector": "[data-table-cell]",
+            "count": 14
+          },
+          {
+            "selector": ".footnote-definition-body",
+            "count": 1
+          }
+        ],
+        "splitWords": [],
+        "lines": [
+          {
+            "y": 203,
+            "start": 0,
+            "end": 56
+          },
+          {
+            "y": 232,
+            "start": 58,
+            "end": 119
+          }
+        ],
+        "brokenEdges": [],
+        "strandedPunctuation": [],
+        "urls": [
+          {
+            "cell": true,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "inside": true,
+            "scrollWidth": 736,
+            "clientWidth": 736
+          }
+        ],
+        "compounds": [
+          {
+            "cell": true,
+            "wraps": false,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "wraps": true,
+            "inside": true,
+            "scrollWidth": 736,
+            "clientWidth": 736
+          }
+        ],
+        "mixedTokens": [
+          {
+            "token": "11 kW",
+            "lines": 1
+          },
+          {
+            "token": "(1)",
+            "lines": 1
+          },
+          {
+            "token": "(2)",
+            "lines": 1
+          }
+        ],
+        "pageOverflow": false,
+        "paperOverflow": false,
+        "environment": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+          "dpr": 1,
+          "zoom": 1,
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+        }
+      },
+      {
+        "width": 375,
+        "coverage": [
+          {
+            "selector": ".heading",
+            "count": 3
+          },
+          {
+            "selector": ".paragraph",
+            "count": 7
+          },
+          {
+            "selector": ".list .paragraph",
+            "count": 1
+          },
+          {
+            "selector": ".quote-body",
+            "count": 1
+          },
+          {
+            "selector": ".admonition-body",
+            "count": 1
+          },
+          {
+            "selector": ".caption",
+            "count": 1
+          },
+          {
+            "selector": "[data-table-cell]",
+            "count": 14
+          },
+          {
+            "selector": ".footnote-definition-body",
+            "count": 1
+          }
+        ],
+        "splitWords": [],
+        "lines": [
+          {
+            "y": 320,
+            "start": 0,
+            "end": 14
+          },
+          {
+            "y": 349,
+            "start": 16,
+            "end": 29
+          },
+          {
+            "y": 377,
+            "start": 31,
+            "end": 44
+          },
+          {
+            "y": 406,
+            "start": 46,
+            "end": 62
+          },
+          {
+            "y": 435,
+            "start": 64,
+            "end": 77
+          },
+          {
+            "y": 464,
+            "start": 79,
+            "end": 92
+          },
+          {
+            "y": 493,
+            "start": 94,
+            "end": 113
+          },
+          {
+            "y": 522,
+            "start": 115,
+            "end": 119
+          }
+        ],
+        "brokenEdges": [],
+        "strandedPunctuation": [],
+        "urls": [
+          {
+            "cell": true,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "inside": true,
+            "scrollWidth": 247,
+            "clientWidth": 247
+          }
+        ],
+        "compounds": [
+          {
+            "cell": true,
+            "wraps": false,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "wraps": true,
+            "inside": true,
+            "scrollWidth": 247,
+            "clientWidth": 247
+          }
+        ],
+        "mixedTokens": [
+          {
+            "token": "11 kW",
+            "lines": 1
+          },
+          {
+            "token": "(1)",
+            "lines": 1
+          },
+          {
+            "token": "(2)",
+            "lines": 1
+          }
+        ],
+        "pageOverflow": false,
+        "paperOverflow": false,
+        "environment": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+          "dpr": 1,
+          "zoom": 1,
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+        }
+      }
+    ],
+    "constrainedTokens": [
+      {
+        "kind": "URL",
+        "wraps": true,
+        "inside": true,
+        "width": 412.625,
+        "scrollWidth": 412,
+        "clientWidth": 412
+      },
+      {
+        "kind": "Korean compound",
+        "wraps": true,
+        "inside": true,
+        "width": 412.625,
+        "scrollWidth": 412,
+        "clientWidth": 412
+      }
+    ],
+    "wrappedCaretSelection": true,
+    "wrappedCompositionUndo": true
+  },
+  "captureState": "heading-only; 1440x1000 and 375x1000; DPR1/zoom1; no hover/selection; numbered headings enabled; both sides have merged teal number styling; Before removes only heading inheritance fix",
+  "captures": [
+    {
+      "file": "review-after-heading-1440.png",
+      "sha256": "E6FBEA3FB97737347615CB27E0E27F0919A7F429A8F818C0093631EA446A6868"
+    },
+    {
+      "file": "review-after-heading-375.png",
+      "sha256": "EFEAFA50369EEABBE74057684D05D522AED39736FFFD0322D3284F2D66A99F5A"
+    },
+    {
+      "file": "review-before-heading-1440.png",
+      "sha256": "E6FBEA3FB97737347615CB27E0E27F0919A7F429A8F818C0093631EA446A6868"
+    },
+    {
+      "file": "review-before-heading-375.png",
+      "sha256": "9D10883FAA5027A863ECE03B6561BD283B77E48D9D13CE6E30DF43E5FF38DEF9"
+    }
+  ],
+  "columnPaddingNegativeControl": {
+    "actual": [
+      224.734375,
+      214.75,
+      263.515625
+    ],
+    "master": [
+      217.84375,
+      217.84375,
+      267.3125
+    ]
+  }
+}
