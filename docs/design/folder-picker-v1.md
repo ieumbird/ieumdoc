@@ -1,6 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
+- Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-26 (#522 option A: Editor 291 tests, typecheck/build, folder/navigation-memory/image/preview/layout/language/state regressions, real HTTP and crash recovery; [fail-first and manual comparisons](#option-a-verification-522)).
 - Previous verification: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
 - Previous verification: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
@@ -24,7 +25,7 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
 
 - The expanded Sidebar header has one Open folder… icon button in a fixed position with any
   number of opened folders, also while Display is selected. Empty Files has no duplicate entry;
-  per-folder menus contain only Close folder. Start-screen and command-center Open folder remain.
+  per-folder menus contain Refresh and Close folder (#494). Start-screen and command-center Open folder remain.
   All use the existing picker/handler. The Sidebar button's accessible name and tooltip use the
   existing English/Korean translation; Open, Cancel and Escape return focus to that button.
   See the [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385)
@@ -257,7 +258,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 
 ## New document in a sidebar folder
 
-- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Close folder only). General Open folder… stays in the Sidebar header.
+- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Refresh and Close folder). General Open folder… stays in the Sidebar header.
 - `+` opens the filename form without an unsaved-work confirmation. Success adds a new tab; existing
   sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
   save / Cancel** confirmation belongs to closing a dirty tab. See

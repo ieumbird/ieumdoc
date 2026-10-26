@@ -5,6 +5,8 @@
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
 async (page, { openDocument, reloadDocument, expect }) => {
+  // This scenario exercises docked navigation, above the 1424px docking boundary.
+  await page.setViewportSize({width:1440,height:900});
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');

@@ -122,9 +122,9 @@ The shared Settings language selector follows the existing 32px input/control si
 
 | Role | Actual values / treatment |
 | --- | --- |
-| Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
+| Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1424px; below, an overlay with the overlay shadow under the header) |
 | Document | White continuous writing surface on the adjustable `canvas` (`#eceef2`), with a 1px inset `border-subtle` edge, adjustable 6px paper radius and gentle paper shadow (`0 2px 8px rgb(32 36 44 / 6%)`). Paper elevation is quieter than the overlay shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
-| Narrow document | Below 1280px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps. Below 640px the sidebar starts closed and the document uses the whole width; opened, the sidebar covers the screen. Otherwise it remains user controlled. |
+| Narrow document | Below 1424px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps. Below 640px the sidebar starts closed and the document uses the whole width; opened, the sidebar covers the screen. Otherwise it remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
@@ -481,6 +481,12 @@ not screenshot gates or owner visual approval.
 | Numbered document and Outline | [PNG](assets/accent-559/before-document-1440.png) | [PNG](assets/accent-559/blue-document-1440.png) | [PNG](assets/accent-559/violet-document-1440.png) | [PNG](assets/accent-559/teal-document-1440.png) |
 | Settings | — | [PNG](assets/accent-559/blue-settings-1440.png) | — | — |
 
+Integration: master `425eab7` adds the folder Refresh action and the 1424px Outline
+docking boundary. The only conflict was adjacent new UX Shell documentation sections;
+both the accent and folder-refresh contracts are retained. The original 1440px captures
+above precede this integration; at that width the Outline remains docked. Merged-tree
+verification reruns the Editor tests, typecheck/build/docs and the six targeted browser flows.
+
 ## Adjustable values and preferences
 
 - Accent values (#559): the four palette entries per preset above, shared heading-number,
@@ -578,7 +584,7 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
 | Block properties (Figure, Equation, Table, section label) | Actions read Cancel, then Apply (primary last), like dialogs. Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
 | Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. New folder always returns focus to its button. Open folder… returns focus to its opening control: the Sidebar header button, start-screen button, or the prior focus target when dispatched through the command center (trigger for a click, original focused element for a shortcut). Folder menus contain no Open folder entry (#385). |
-| Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
+| Document panel (overlay below 1424px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Full-screen sidebar (below 640px) | Opened from the TopBar's Expand sidebar, it covers the screen without a focus trap and focuses Collapse sidebar. Escape inside it (after Display's own Escape) or Collapse sidebar closes it and focuses the TopBar's Expand sidebar; opening or creating a document from it closes it. Portaled menus and dialogs keep their own Escape. |
 | Sidebar Display | Files/Display remain reachable collapsed. Selecting a tool keeps focus on its button; Tab enters its content. Escape from Display returns to its button without changing the tool, values or document. |
 | Command center | Shared Dialog near the top center, max 36rem wide and bounded by the viewport. Base UI Combobox owns highlighting, arrows, Enter and IME; Escape/outside dismissal returns to the opener without editing. A command opening another modal hands off focus after close. The search and results use existing input/control/type/surface tokens; results scroll within the popup. |
