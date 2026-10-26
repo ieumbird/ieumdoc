@@ -9,7 +9,7 @@ async (page, { openDocument, screenshots }) => {
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const root = [...initial.path.split(sep).slice(0, -4), 'tmp', 'file-preview'].join(sep);
   await openDocument(page, root + sep + 'document.md');
-  await page.getByTestId('current-file').filter({hasText:'document.md'}).waitFor();
+  await page.getByRole('tab', {name:'document.md', exact:true, selected:true}).waitFor();
   const row = name => page.getByTestId('sidebar').getByRole('treeitem', { name, exact: true });
   const clickRow = name => row(name).click({position:{x:8,y:14}});
   const dialog = () => page.locator('[data-slot="dialog-content"]');

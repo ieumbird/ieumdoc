@@ -1,7 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
-- Command find verification: 2026-10-27 (#556: Editor 295 tests, typecheck/build/docs, command-center/editor-shell/layout-rules; [scope and captures](#action-and-search-scope-556)).
+- Command find verification: 2026-10-27 (#556: Editor 295 tests, typecheck/build/docs, command-center/editor-shell/layout-rules/quiet-document/file-preview; [scope and captures](#action-and-search-scope-556)).
 - Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](#document-settings-placement-554)).
 - New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
@@ -441,6 +441,13 @@ artifacts remain in ignored `tmp/layout-failure-556`; no assertion or timeout wa
 Local Editor tests (295/295), workspace typecheck, Editor build, docs/whitespace checks and
 command-center, editor-shell and corrected layout-rules browser scenarios passed. Chrome's
 checkout-owned persistent profile was reused; Edge and packaged Desktop are left to PR CI.
+The first PR CI run (`40387087410`, head `e5aceb0`) exposed two old visibility assumptions:
+file-preview waited for the now-optional TopBar filename, and quiet-document required that filename
+to remain over 100px. Both now inspect the visible selected document tab. Quiet-document retains
+the full-path tooltip, filename-width, content containment and end-scroll assertions; file-preview
+retains active-file identity and all preview state/focus checks. These are contract-aligned selector
+updates, not reduced assertions. Downloaded CI artifacts are kept under ignored `tmp/ci-556-shard3`
+and `tmp/ci-556-shard4`. The corrected file-preview and quiet-document scenarios both passed locally.
 
 ### History commands and keyboard shortcut guide (#471)
 

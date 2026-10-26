@@ -766,7 +766,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     const local=await page.evaluate(()=>{
       const required=s=>{const n=document.querySelector('[data-document-tab][data-active=true] '+s) ?? document.querySelector(s);if(!n)throw Error(`Missing ${s}`);return n;};
       const math=required('.equation-math'),content=required('.equation-content'),table=required('.table-scroll');
-      const text=required('.document-path-name'),path=required('.document-path');
+      // The tab owns visible file identity; TopBar location is optional secondary information.
+      const text=required('[role="tab"][aria-selected="true"] .document-tab-name'),path=text.closest('.document-tab');
       const paper=required('.document-editor').getBoundingClientRect();
       const contained=[math,table].every(n=>{const r=n.getBoundingClientRect();return r.left>=paper.left-1&&r.right<=paper.right+1&&['auto','scroll'].includes(getComputedStyle(n).overflowX);});
       return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,contained,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:text.getBoundingClientRect().width>100,pathTitle:path.title};
