@@ -51,14 +51,27 @@ export function validatePullRequestEvent(event, cwd = process.cwd()) {
   return validateRange(event.pull_request?.base?.sha, event.pull_request?.head?.sha, cwd);
 }
 
+export function validateEvent(eventName, event, cwd = process.cwd()) {
+  // PR-unique commits were checked before enqueueing. GitHub owns queue merges;
+  // do not require AI trailers on those platform-generated commits.
+  if (eventName === 'merge_group') return null;
+  if (eventName === 'pull_request') return validatePullRequestEvent(event, cwd);
+  throw new Error(`Unsupported provenance event: ${eventName}`);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const [command, file] = process.argv.slice(2);
+    const [command, file, eventPath] = process.argv.slice(2);
     if (command === 'message' && file) validateMessage(readFileSync(file, 'utf8'));
     else if (command === 'pr-event' && file) {
       const commits = validatePullRequestEvent(JSON.parse(readFileSync(file, 'utf8')));
       console.log(`AI provenance: checked ${commits.length} PR-only commits (including authored merges).`);
-    } else throw new Error('Usage: commit-provenance.mjs message <file> | pr-event <event.json>');
+    } else if (command === 'event' && file && eventPath) {
+      const commits = validateEvent(file, JSON.parse(readFileSync(eventPath, 'utf8')));
+      console.log(commits === null
+        ? 'AI provenance: merge_group uses PR-validated commits; skipping GitHub-generated queue merges.'
+        : `AI provenance: checked ${commits.length} PR-only commits (including authored merges).`);
+    } else throw new Error('Usage: commit-provenance.mjs message <file> | pr-event <event.json> | event <event-name> <event.json>');
   } catch (error) {
     console.error(`AI provenance: ${error.message}`);
     process.exitCode = 1;

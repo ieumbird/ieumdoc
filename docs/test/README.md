@@ -19,7 +19,9 @@ git diff --check
 
 `pnpm test`는 Core, File commit, CLI, Editor, Desktop suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. Authenticode의 실제 검사는 Windows job에서 실행한다.
 
-CI quality는 문서 전용 PR에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·PR commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. 문서 allowlist와 전체 실행 조건은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. `node --test scripts/ci-quality-mode.test.mjs`는 문서 전용·혼합·미분류·master push와 실제 Git diff/rename, whitespace 거부 및 workflow 조건을 검증하는 docs-only probe다. 별도 임시 PR은 필요하지 않다.
+CI quality는 문서 전용 PR에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·PR commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. 문서 allowlist와 전체 실행 조건은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. `node --test scripts/ci-quality-mode.test.mjs`는 문서 전용·혼합·미분류·master push와 실제 Git diff/rename, whitespace 거부 및 workflow 조건을 검증한다. `merge_group`이 docs-only를 선택하지 않고 paths-filter 없이 browser 4개 shard·HTTP 양쪽 OS·Desktop 설치/업데이트를 모두 선택하며, queue head별 CI가 서로 취소되지 않는지도 검사한다. 별도 임시 PR은 필요하지 않다.
+
+병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)를 따른다. Queue는 최신 master와 합친 결과를 전체 검증하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. 실제 `merge_group` 이벤트와 queue 병합은 workflow 병합 후 통합 담당자가 ruleset을 활성화해야 검증할 수 있다. 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
 
 ## Browser regression
 
