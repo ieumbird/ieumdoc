@@ -370,7 +370,7 @@ no change. Editor tests (291/291), workspace typecheck, Editor build, `layout-ru
 `quiet-document`, `code-highlighting`, docs and whitespace checks passed locally.
 
 Queue follow-up (2026-10-27, run `40344185308`, with #560): the menu was visible before its
-frame-scheduled focus reached an item. The trace sent End about 4ms after the visibility
+frame-scheduled focus reached an item. The trace sent End less than 1ms after the visibility
 wait returned and then Enter about 2ms later; both keydowns targeted the trigger, which
 closed the menu without a language transaction. The regression now waits for the first
 item's actual focus, then the intended item's focus before confirmation, and checks both
