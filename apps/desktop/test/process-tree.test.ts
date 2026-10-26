@@ -44,19 +44,21 @@ test("PID reuse during TCP enumeration fails rather than attributing an unrelate
 });
 
 test("the Windows collector reports a launched process's real TCP listener", { skip: process.platform !== "win32" }, async () => {
-  const started = Date.now();
   const child = spawn(process.execPath, ["-e", "const s = require('node:net').createServer(); s.listen(0, '127.0.0.1', () => process.send(s.address().port));"],
     { stdio: ["ignore", "ignore", "inherit", "ipc"] });
-  const spawned = Date.now();
   const exited = new Promise(resolve => child.once("exit", resolve));
   try {
     const [port] = await once(child, "message");
-    const tree = processTree(child.pid!, process.execPath, started, spawned);
+    const tree = await processTree(child, process.execPath);
     assert.ok(tree.identities.some(p => p.pid === child.pid));
     assert.ok(tree.workingSetMb > 0);
     assert.ok(tree.listening.includes(`127.0.0.1:${port}`), "a real app-owned listener must fail the packaged no-listener assertion");
+    const sampling = processTree(child, process.execPath);
+    child.kill();
+    await assert.rejects(sampling, /The launched process exited/);
   } finally {
     child.kill();
     await exited;
   }
+  await assert.rejects(processTree(child, process.execPath), /The launched process exited/);
 });

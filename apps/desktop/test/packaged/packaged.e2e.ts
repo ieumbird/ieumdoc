@@ -390,7 +390,6 @@ test("started directly, the app opens no TCP port; start time and memory are mea
   const log = path.join(userData, "logs", "desktop.log");
   const started = Date.now();
   const child = spawn(exe, ["--lang=en-US", `--user-data-dir=${userData}`], { stdio: "ignore" });
-  const spawned = Date.now();
   try {
     while (!(existsSync(log) && readFileSync(log, "utf8").includes("window shown"))) {
       if (Date.now() - started > 30_000) throw new Error("The window did not show within 30 seconds");
@@ -398,7 +397,7 @@ test("started directly, the app opens no TCP port; start time and memory are mea
     }
     const shown = Date.now() - started;
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    const tree = processTree(child.pid!, exe, started, spawned);
+    const tree = await processTree(child, exe);
     console.log(`direct start identities: ${JSON.stringify(tree.identities)}`);
     console.log(`direct start: window shown after ${shown} ms; ${tree.processes} processes; ${tree.workingSetMb} MB working set; listening: ${JSON.stringify(tree.listening)}`);
     assert.deepEqual(tree.listening, []);

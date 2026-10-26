@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, type ChildProcess } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
 
 export interface ProcessRecord {
   pid: number;
@@ -40,7 +43,10 @@ export function ownedListeners(owned: ProcessRecord[], after: ProcessRecord[], l
 }
 
 /** One frozen process enumeration, with identity confirmation after querying ports. */
-export function processTree(pid: number, exe: string, started: number, spawned: number) {
+export async function processTree(child: ChildProcess, exe: string) {
+  const alive = () => assert.ok(child.pid && child.exitCode === null && child.signalCode === null && !child.killed,
+    "The launched process exited; its PID cannot identify a live root");
+  alive();
   const script = `$ErrorActionPreference = 'Stop'; ` +
     `function Snapshot { @(Get-CimInstance Win32_Process | ForEach-Object { ` +
     `@{ pid = [int]$_.ProcessId; parentPid = [int]$_.ParentProcessId; ` +
@@ -49,13 +55,16 @@ export function processTree(pid: number, exe: string, started: number, spawned: 
     `$listeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | ForEach-Object { ` +
     `@{ pid = [int]$_.OwningProcess; address = $_.LocalAddress + ':' + $_.LocalPort } }); ` +
     `$after = @(Snapshot); ConvertTo-Json -Depth 4 -Compress @{ all = $all; after = $after; listeners = $listeners }`;
-  const snapshot = JSON.parse(execFileSync("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8" })) as {
+  // Keep the event loop running so ChildProcess observes the original process handle's exit,
+  // even if its PID is reused for the same executable while PowerShell is collecting data.
+  const { stdout } = await run("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8" });
+  alive();
+  const snapshot = JSON.parse(stdout) as {
     all: ProcessRecord[]; after: ProcessRecord[]; listeners: Listener[];
   };
-  const root = snapshot.all.find(p => p.pid === pid);
+  const root = snapshot.all.find(p => p.pid === child.pid);
   assert.ok(root, "The launched process is missing from the snapshot");
   assert.equal(root.image?.toLowerCase(), path.resolve(exe).toLowerCase(), "The root PID does not name the launched executable");
-  assert.ok(Date.parse(root.created) >= started && Date.parse(root.created) <= spawned, "The root PID was reused after launch");
   assert.ok(snapshot.after.some(p => p.pid === root.pid && p.created === root.created), "The launched process exited during sampling");
   const owned = ownedProcessTree(snapshot.all, root);
   return {

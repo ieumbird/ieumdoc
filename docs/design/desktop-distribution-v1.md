@@ -76,7 +76,7 @@ The [client recovery contract](editing-session-save-v1.md#local-recovery-records
 
 ## Verification and signing
 
-The direct-start packaged check identifies its root by launch time and executable, then follows parent PID edges only when creation times are consistent. PID identities are confirmed after TCP enumeration; missing/reused identities fail measurement. The no-TCP-listener assertion is unchanged. See [Windows Desktop regression](../test/README.md#windows-desktop-regression) for the #491 ownership regression and diagnostic fields.
+The direct-start packaged check identifies its root through the live launched ChildProcess and executable, then follows parent PID edges only when creation times are consistent. Collection is asynchronous so the original process handle's exit remains observable. PID identities are confirmed after TCP enumeration; missing/reused identities fail measurement. The no-TCP-listener assertion is unchanged. See [Windows Desktop regression](../test/README.md#windows-desktop-regression) for the #491 ownership regression and diagnostic fields.
 
 The updater uses its own SHA-512 download verification. A signed release build additionally uses the public `NsisUpdater.verifyUpdateCodeSignature` hook for strict Windows Authenticode verification: status must be Valid and the publisher must match `app-update.yml`; missing tools/errors refuse the update. It repeats that check before marking the download installable, including cache reuse (6.x skips the fresh-download signature hook for a cached file). Unsigned Betas do not enable this publisher-signature check. Code-signing secrets are supplied only by the release environment, never source/logs.
 
