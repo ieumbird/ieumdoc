@@ -68,6 +68,7 @@ export function Sidebar({
           </Button> : null}
           <Button
             ref={toggleRef}
+            className="sidebar-collapse"
             variant="ghost"
             size="icon-sm"
             aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}

@@ -8,6 +8,7 @@ import { useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMANDS, blockCommandGroup, type TableCellAddress } from "./block-commands.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
@@ -111,27 +112,27 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
     disabled: !command.enabled(editor.state, index, target) }));
   if (menu?.kind === "table") items.unshift({ id: "properties", label: i18n.t("Edit caption and label"), ...blockCommandAppearance("properties"), group: i18n.t("Table") });
   return <div className="table-tools" data-active={current ? "true" : "false"} data-menu-open={menu ? "true" : "false"} contentEditable={false}>
-    {geometry.columns.map((cell, i) => <button key={i} type="button" className="table-column-handle"
+    {geometry.columns.map((cell, i) => <Button variant="table-handle" size="sm" key={i} type="button" className="table-column-handle"
       aria-label={i18n.t("Column {{column}} actions", { column: columnName(i) })} aria-pressed={column === i} aria-haspopup="menu"
       aria-expanded={menu?.kind === "column" && target.column === i}
-      style={{ left: cell.left, width: cell.width }} onClick={event => open(event.currentTarget, "column", { row: current?.row ?? 0, column: i })}>{columnName(i)}</button>)}
-    <button type="button" className="table-extend" aria-label={i18n.t("Append column")} style={{ left: geometry.right + 4, top: 0 }}
-      onClick={() => run("table-column", { row: current?.row ?? 0, column: node.child(0).childCount - 1 })}><Plus size={16} /></button>
+      style={{ left: cell.left, width: cell.width }} onClick={event => open(event.currentTarget, "column", { row: current?.row ?? 0, column: i })}>{columnName(i)}</Button>)}
+    <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append column")} style={{ left: geometry.right + 4, top: 0 }}
+      onClick={() => run("table-column", { row: current?.row ?? 0, column: node.child(0).childCount - 1 })}><Plus size={16} /></Button>
     {createPortal(<div className="table-tools" data-active={current ? "true" : "false"} data-menu-open={menu ? "true" : "false"} contentEditable={false}>
-      {geometry.rows.map((cell, i) => <button key={i} type="button" className="table-row-handle"
+      {geometry.rows.map((cell, i) => <Button variant="table-handle" size="sm" key={i} type="button" className="table-row-handle"
         aria-label={i18n.t("Row {{row}} actions{{header}}", { row: i + 1, header: i === 0 ? i18n.t(" (header)") : "" })} aria-pressed={row === i} aria-haspopup="menu"
         aria-expanded={menu?.kind === "row" && target.row === i}
-        style={{ top: cell.top + (cell.height - 28) / 2 }} onClick={event => open(event.currentTarget, "row", { row: i, column: current?.column ?? 0 })}>{i + 1}</button>)}
-      <button type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: geometry.bottom + 8 }}
-        onClick={() => run("table-row", { row: node.childCount - 1, column: current?.column ?? 0 })}><Plus size={16} /></button>
+        style={{ top: `calc(${cell.top + cell.height / 2}px - var(--size-control-compact) / 2)` }} onClick={event => open(event.currentTarget, "row", { row: i, column: current?.column ?? 0 })}>{i + 1}</Button>)}
+      <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: geometry.bottom + 8 }}
+        onClick={() => run("table-row", { row: node.childCount - 1, column: current?.column ?? 0 })}><Plus size={16} /></Button>
     </div>, rowLayer.current)}
     <div className="table-action-bar" style={{ top: geometry.bottom + 8, left: 0, width: geometry.right }}>
       {/* Caption and label: with the other table-level actions, below the table rather than above it. */}
-      <button type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit caption and label")} onClick={onEdit}><Pencil size={16} /></button>
-      <button type="button" aria-label={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
-        onClick={event => open(event.currentTarget, "table", current ?? { row: 0, column: 0 })}><MoreHorizontal size={16} /></button>
-      <button type="button" aria-label={i18n.t("Delete table")} disabled={!BLOCK_COMMANDS.find(command => command.id === "delete")?.enabled(editor.state, index)}
-        onClick={() => run("delete", target)}><Trash2 size={16} /></button>
+      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit caption and label")} onClick={onEdit}><Pencil size={16} /></Button>
+      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
+        onClick={event => open(event.currentTarget, "table", current ?? { row: 0, column: 0 })}><MoreHorizontal size={16} /></Button>
+      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Delete table")} disabled={!BLOCK_COMMANDS.find(command => command.id === "delete")?.enabled(editor.state, index)}
+        onClick={() => run("delete", target)}><Trash2 size={16} /></Button>
     </div>
     <Popover open={menu !== null} onOpenChange={open => { if (!open) setMenu(null); }}>
       <PopoverContent anchor={anchor} side="bottom" align="start" sideOffset={4} initialFocus={false} finalFocus={false} className="table-command-popover">

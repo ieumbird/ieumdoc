@@ -1,0 +1,26 @@
+[
+  {
+    "name": "table-30px",
+    "exitCode": 1,
+    "rejected": true,
+    "expected": "literal control size"
+  },
+  {
+    "name": "interaction-blue",
+    "exitCode": 1,
+    "rejected": true,
+    "expected": "literal UI color #2f6fed"
+  },
+  {
+    "name": "native-action",
+    "exitCode": 1,
+    "rejected": true,
+    "expected": "native action button outside allowlist"
+  },
+  {
+    "name": "named-control-30px",
+    "exitCode": 1,
+    "rejected": true,
+    "expected": "literal control size .figure-edit"
+  }
+]

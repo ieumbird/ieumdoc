@@ -80,6 +80,15 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
 
   // Cancel changes nothing; Apply replaces role and keys; Remove deletes the atom only.
   await edit(['article']);
+  // B1's retained inline exception: no enlarged invisible target over adjacent text/keys.
+  const tiny = await page.locator('[data-citation] .cross-reference-edit').first().evaluate(edit => {
+    const remove=document.querySelector('.citation-key-remove');
+    if(!remove)throw Error('Missing citation key remove control');
+    return [edit,remove].map(n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);
+      return {width:r.width,height:r.height,line:s.lineHeight,radius:s.borderRadius};});
+  });
+  assert(tiny.every((m,i)=>m.width===(i?16:18)&&m.height===(i?16:18)&&m.line==='0px'&&m.radius==='4px'),
+    `Inline control exception changed: ${JSON.stringify(tiny)}`);
   await page.getByTestId('citation-role').selectOption('cite:t');
   await page.keyboard.press('Escape');
   await form.waitFor({ state: 'detached' });

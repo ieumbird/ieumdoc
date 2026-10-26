@@ -3,7 +3,7 @@ import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import type { Editor } from "@tiptap/core";
-import { Bookmark, Code, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
+import { Bold, Bookmark, Code, Italic, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
 import { useState, type CSSProperties, type RefObject } from "react";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -49,7 +49,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "bold", onReject)}
       >
-        <strong aria-hidden="true">B</strong>
+        <Bold aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
         aria-label={i18n.t("Italic")} title={tip(i18n.t("Italic"), EDITOR_SHORTCUTS.italic)} aria-keyshortcuts={EDITOR_SHORTCUTS.italic.aria}
@@ -57,7 +57,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => toggleMark(editor, "italic", onReject)}
       >
-        <em aria-hidden="true">I</em>
+        <Italic aria-hidden="true" size={16} />
       </Button>
       <Button variant="ghost" size="icon-sm"
         aria-label={i18n.t("Strikethrough")} title={tip(i18n.t("Strikethrough"), EDITOR_SHORTCUTS.strike)} aria-keyshortcuts={EDITOR_SHORTCUTS.strike.aria}
