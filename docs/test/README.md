@@ -87,6 +87,36 @@ synchronizes it. Its existing caret-key, modifier and delayed-restore assertions
 also checks that the shortcut-guide dialog's Escape, Close and outside dismissal preserve
 the retained engine selection as well as the existing focus/content checks.
 
+#### Focus audit and product judgement
+
+The retained engine selection is authoritative when focus returns. A real pointer focuses
+contenteditable before placing its new native caret; later pointer/touch selection is still
+protected by #495. Assigning a native range in an unfocused editor is a test setup operation,
+not that pointer path. `figure-authoring` now clicks its Copy source and uses the shared focus
+helper before assigning the range. CI run 40318255136 had assigned the range at
+11:54:46.238 while the file tree had focus; the editor focused at 46.253 and correctly restored
+its engine selection, so the old selected-text wait hung. A helper alone cannot create focus
+when the file tree retains it; the real click is required. All rich Copy/Paste assertions remain.
+
+The audit searched all 59 browser-scenario files for native Selection writes and dependent keys
+around admission, dialog/form close and tab switches. `citation-authoring` also now waits for
+Citation Remove's queued Tiptap focus before Undo (#421's separate Redo cause is not claimed).
+The other native-range Copy setup, `table-cell-editing`, already edits a focused cell before
+assigning its Copy range. Source/footnotes PRE selection is read-only and outside the engine;
+quiet-document/visual-states ranges only measure geometry; focus-caret writes are intentional
+restore probes. The remaining reads and native-key setups already use real clicks, synchronous
+engine focus, or observable caret readiness. Immediate handoff regressions in new-document,
+command-center, property-drafts and continuous-editing remain immediate. Toolbar pointer
+buttons prevent mousedown focus loss; keyboard return checks already wait for editor focus.
+
+Electron removes its application menu and has no `findInPage`/`stopFindInPage` integration.
+The authorized headless Chrome runner did not open native find UI for Ctrl+F (typing edited
+the scratch document), so native Chrome find-bar compatibility is **not verified**. A separate
+`window.find()` API probe from an unfocused shell control returned a match and focused the
+editor, but focus restoration retained the engine caret instead of that programmatic range.
+This is a non-pointer selection-before-focus producer; it is not a verified native find-bar
+user path. No browser/Electron find feature or compatibility guarantee is introduced here.
+
 **#502 remains open.** Reference navigation already dispatches a table NodeSelection and calls
 `view.focus()`. The #502 report records resets 382ms/866.5ms after focus; this change acts only
 on a real focus event and does not filter later native selection changes. Passing the existing

@@ -2,7 +2,7 @@
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument, expect, screenshots }) => {
+async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
   const problems = [];
   const onConsole = message => {
     if (message.type() === 'error' || message.type() === 'warning') problems.push(`${message.type()}: ${message.text()}`);
@@ -606,7 +606,11 @@ async (page, { openDocument, expect, screenshots }) => {
     await openScratch();
     result.captionRemovalReloaded = await caption.locator('strong').count() === 0;
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.locator('[data-document-tab][data-active=true] .document-editor strong', {hasText:'DC-link voltage'}).evaluate(element => {
+    const copySource = page.locator('[data-document-tab][data-active=true] .document-editor strong', {hasText:'DC-link voltage'});
+    // Match user selection: focus the editable source before assigning its native range.
+    await copySource.click();
+    await waitForEditorFocus(page);
+    await copySource.evaluate(element => {
       const range = document.createRange(); range.selectNodeContents(element);
       getSelection().removeAllRanges(); getSelection().addRange(range);
     });

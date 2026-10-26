@@ -107,6 +107,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   const removed = JSON.stringify(['cite:p:standard', 'cite:t:missing-key,book']);
   assert(await citations() === removed, 'Remove deletes the citation atom');
   assert((await editor.innerText()).includes('Write here.'), 'Surrounding text remains');
+  await waitForEditorFocus(page);
 
   await page.keyboard.press('Control+z');
   assert(JSON.parse(await citations()).includes('cite:p:conference'), 'Undo restores the removed citation');
