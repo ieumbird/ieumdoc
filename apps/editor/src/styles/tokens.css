@@ -45,7 +45,7 @@
   /* Document panel (outline) beside the document; in the narrow layout it overlays at this width. */
   --layout-document-panel-width: 16rem;
   /* Document tabs: compact row height and maximum label width before ellipsis. */
-  --layout-document-tab-height: 2.5rem;
+  --layout-document-tab-height: 2rem;
   --layout-document-tab-max-width: 16rem;
   /* Pretendard glyph variants for UI and document text. `cv08` gives capital I its serifs, so
    * "IeumDoc" never reads as "leumDoc" and a variable I stays distinct from l. */

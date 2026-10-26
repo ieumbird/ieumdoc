@@ -550,7 +550,7 @@ button {
   display: flex;
   overflow-x: auto;
   min-width: 0;
-  background: var(--id-color-surface-pressed);
+  background: var(--id-color-surface);
   border-bottom: var(--border-width) solid var(--id-color-border);
   padding-inline: var(--layout-ui-inset);
 }
@@ -562,18 +562,15 @@ button {
   max-width: min(var(--layout-document-tab-max-width), 100%);
   min-height: var(--layout-document-tab-height);
   position: relative;
-  border-radius: var(--id-radius-md);
   color: var(--id-color-text-muted);
 }
 
-.document-tab[data-selected="true"],
-.document-tab[data-selected="true"]:hover {
+.document-tab[data-selected="true"] {
   color: var(--id-color-text);
-  background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
+  box-shadow: inset 0 calc(-1 * var(--size-current-marker)) var(--id-color-interaction);
 }
 
-.document-tab:hover { color: var(--id-color-text); }
+.document-tab:hover { background: var(--id-color-surface-hover); }
 .document-tab > button {
   display: flex;
   align-items: center;
@@ -588,7 +585,7 @@ button {
   font-size: var(--font-size-sm);
   cursor: pointer;
 }
-.document-tab > [role="tab"] { padding: var(--space-2); }
+.document-tab > [role="tab"] { align-self: stretch; padding-inline: var(--space-2); padding-block: 0; }
 .document-tab > button:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring-inset);
