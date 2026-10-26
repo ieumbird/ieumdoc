@@ -17,10 +17,20 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     await waitForInput();
     if (query) await input().fill(query);
   };
-  const run = async query => {
+  const run = async (name, query = name) => {
     await open(`> ${query}`);
+    const command = center().getByRole('option', {name, exact:true});
+    check(await command.count() === 1 && await command.getAttribute('aria-disabled') !== 'true', `Command unavailable: ${name}`);
+    const matches = await center().getByRole('option').evaluateAll(nodes => nodes.map(n => n.getAttribute('aria-label')));
+    // Folder paths also match the query. Navigate to the named command before Enter.
+    for (let step = 0; step < matches.length && await command.getAttribute('data-highlighted') === null; step++) {
+      await page.keyboard.press('ArrowDown');
+    }
+    check(await command.getAttribute('data-highlighted') !== null &&
+      await input().getAttribute('aria-activedescendant') === await command.getAttribute('id'), `Command not selected: ${name}`);
     await page.keyboard.press('Enter');
     await center().waitFor({state:'detached'});
+    return matches;
   };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const result = {};
@@ -37,7 +47,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     await page.keyboard.type('## ');
     check(await editor().evaluate(n => n.editor.state.selection.$from.parent.type.name === 'heading'), 'Heading input rule did not apply');
     if (route === 'keyboard') await page.keyboard.press('Control+z');
-    else await run('undo');
+    else await run('Undo');
     const undone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON(),
       text:n.editor.state.selection.$from.parent.textContent, canRedo:n.editor.can().redo() }));
     check(undone.text.startsWith('## '), `${route} Undo lost the input-rule space: ${undone.text}`);
@@ -46,11 +56,11 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     await page.keyboard.press('Control+z');
     check(await editor().evaluate(n => n.editor.can().redo()), 'Missing history step for Redo comparison');
     if (route === 'keyboard') await page.keyboard.press('Control+y');
-    else await run('redo');
+    else await run('Redo');
     const redone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON() }));
     check(await editor().evaluate(n => n === document.activeElement), `${route} Redo lost editor focus`);
     inputRuleResults.push({undone, redone});
-    await run('reload');
+    await run('Reload');
     await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
     await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
   }
@@ -82,7 +92,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await undo471.click(); await center().waitFor({state:'detached'});
   check(await snapshot() === first471, 'Undo did not apply exactly one history step');
   check(await editor().evaluate(n => n === document.activeElement), 'Undo did not return editor focus');
-  await run('undo');
+  await run('Undo');
   check(await snapshot() === baseline471, 'Second Undo did not reach the original document');
   await open('> undo');
   check(await undo471.getAttribute('aria-disabled') === 'true', 'Undo available with empty history');
@@ -91,12 +101,12 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
   check(await snapshot() === first471, 'Redo did not apply exactly one history step');
   check(await editor().evaluate(n => n === document.activeElement), 'Redo did not return editor focus');
-  await run('redo');
+  await run('Redo');
   check(await snapshot() === second471, 'Second Redo did not restore formatting');
   await open('> redo');
   check(await center().getByRole('option', {name:'Redo',exact:true}).getAttribute('aria-disabled') === 'true', 'Redo available with empty future history');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
-  await run('undo'); await run('undo');
+  await run('Undo'); await run('Undo');
 
   for (const dismissal of ['Escape', 'Close', 'outside click']) {
     const guideSelection = await editor().evaluate(n => JSON.stringify(n.editor.state.selection.toJSON()));
@@ -107,7 +117,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
       await waitForInput();
       await input().fill('> keyboard shortcuts');
       await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
-    } else await run('keyboard shortcuts');
+    } else await run('Keyboard shortcuts');
     const guide = page.getByRole('dialog', {name:'Keyboard shortcuts',exact:true});
     await guide.waitFor();
     check((await guide.innerText()).includes('Line break') &&
@@ -195,7 +205,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // Both language aliases dispatch New before any folder/document exists, then cancel safely.
   for (const query of ['new document', '새 문서']) {
     const returnTarget = await page.evaluateHandle(() => document.activeElement);
-    await run(query);
+    await run('New document…', query);
     await page.getByTestId('folder-path').waitFor();
     check(await page.getByTestId('new-file-name').count() === 0, 'New skipped location choice without an opened folder');
     await page.keyboard.press('Escape');
@@ -207,7 +217,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await openPath(page, file('technical-1.md'));
   // Search only listings already held by the sidebar, including collapsed cached children.
   const openFolder = async path => {
-    await run('open folder');
+    await run('Open folder…');
     await page.getByTestId('folder-path').fill(path + sep);
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});
@@ -278,6 +288,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await open('guide.md');
   check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Overlapping roots duplicated a document');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+
+  // Ensure settings search matches a Refresh folder path on every checkout and OS.
+  await openFolder([root, 'tmp', 'command-center-settings'].join(sep));
 
   // Existing dirty content is retained; opening a file must hand focus to its mounted editor.
   await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
@@ -409,7 +422,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   result.shortcutAndImeOwnership = true;
 
   // A command opening another modal hands focus to it; shortcuts cannot open a second modal.
-  await run('settings');
+  const settingsMatches = await run('Settings');
+  check(settingsMatches.includes('Refresh folder'), 'Settings search did not exercise a matching folder path');
   await page.getByTestId('settings-dialog').waitFor();
   await page.waitForFunction(() => document.querySelector('[data-testid="settings-dialog"]')?.contains(document.activeElement), null, {timeout:5000});
   await page.keyboard.press('Control+Slash');
@@ -419,7 +433,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   const folderReturnTarget = await page.evaluateHandle(() => document.activeElement);
-  await run('open folder');
+  await run('Open folder…');
   await page.getByTestId('folder-path').waitFor();
   await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid')==='folder-path', null, {timeout:5000});
   await page.keyboard.press('Escape');
@@ -435,16 +449,37 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // An immediate isVisible + toggle can close it as the matchMedia handler opens it.
   await panel.waitFor();
   await panel.getByRole('button',{name:'Hide outline',exact:true}).focus();
-  await run('hide outline');
+  await run('Hide outline');
   await panel.waitFor({state:'detached'});
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
-  await run('show outline');
+  await run('Show outline');
   await panel.waitFor();
   await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
-  await run('collapse sidebar');
+  await run('Collapse sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
-  await run('expand sidebar');
+  await run('Expand sidebar');
   result.panelCommandsRetainFocus = true;
+
+  // Resolve the exact named command even when folder paths match the same search words.
+  const documentSettings = page.getByRole('dialog',{name:'Document settings',exact:true});
+  for (const query of ['document settings', '문서 설정']) {
+    await run('Document settings…', query);
+    await documentSettings.waitFor();
+    await page.keyboard.press('Escape');
+    await documentSettings.waitFor({state:'detached'});
+    check(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command lost its return target');
+  }
+  result.documentSettingsCommands = true;
+  const wideToggle = page.getByRole('button',{name:'Wide document',exact:true});
+  const wasWide = await wideToggle.getAttribute('aria-pressed') === 'true';
+  const beforeWidthCommand = {document:await snapshot(),status:await page.getByTestId('status').innerText()};
+  await run(wasWide ? 'Standard document width' : 'Wide document');
+  check((await wideToggle.getAttribute('aria-pressed') === 'true') !== wasWide, 'Width command did not toggle the TopBar control');
+  await run(wasWide ? 'Wide document' : 'Standard document width');
+  check((await wideToggle.getAttribute('aria-pressed') === 'true') === wasWide &&
+    await snapshot() === beforeWidthCommand.document && await page.getByTestId('status').innerText() === beforeWidthCommand.status,
+    'Width commands changed the document or failed to restore the device view');
+  result.documentWidthCommands = true;
 
   // Existing tabs retain their editor, unapplied property draft, and native history.
   await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
@@ -464,9 +499,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await editor().evaluate(n => n.editor === window.commandCenterEditor && JSON.stringify(n.editor.getJSON())) === dirty, 'Tab search replaced the editor or dirty content');
   check(await page.getByTestId('equation-latex').inputValue() === 'command center draft', 'Tab search lost property draft');
   await page.getByTestId('equation-cancel').click();
-  await run('undo');
+  await run('Undo');
   check(!(await editor().innerText()).includes('command center edit'), 'Tab search lost undo');
-  await run('redo');
+  await run('Redo');
   // Hold the actual Save response to observe the same disabled actions and tab restrictions.
   let releaseSave;
   const saveGate = new Promise(resolve => { releaseSave = resolve; });
@@ -476,7 +511,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   };
   await page.route('**/api/document', holdSave);
   try {
-    await run('save');
+    await run('Save');
     await page.locator('[data-testid="status"][data-operation="saving"]').waitFor();
     await open('> save');
     check(await center().getByRole('option',{name:'Save',exact:true}).getAttribute('aria-disabled')==='true', 'Save was available while saving');
@@ -503,7 +538,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // Reload starts after the center closes; the preceding ready state is not completion.
   const reloadResponse = page.waitForResponse(response => response.request().method()==='GET' &&
     response.url()===`${origin}/api/document?path=${encodeURIComponent(file('technical-1.md'))}`);
-  await run('reload');
+  await run('Reload');
   const reloaded = await reloadResponse;
   check(reloaded.ok(), 'Reload request failed');
   await reloaded.finished();
@@ -511,7 +546,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await ready();
   check((await editor().innerText()).includes('command center edit'), 'Reload lost the saved content');
   result.tabStateAndSaveReload = true;
-  await run('source');
+  await run('Source');
   await activeDocument(page).getByTestId('source-view').waitFor();
   await open('> undo');
   check(await center().getByRole('option',{name:'Undo',exact:true}).getAttribute('aria-disabled')==='true', 'History available in Source view');
@@ -523,7 +558,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await activeDocument(page).getByTestId('source-view').waitFor();
   check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).evaluate(n => n===document.activeElement),
     'Selecting a Source tab lost its view or focused the hidden editor');
-  await run('visual');
+  await run('Visual');
   await editor().waitFor();
   check(await page.getByTestId('view-visual').evaluate(n => n===document.activeElement), 'View command left focus in hidden content');
 
@@ -570,7 +605,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     if (screenshots) await page.screenshot({path:`tmp/command-center/search-${width}.png`});
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
     if (width === 1440 || width === 1280 || width === 375) {
-      await run('keyboard shortcuts');
+      await run('Keyboard shortcuts');
       const guide = page.getByRole('dialog',{name:'Keyboard shortcuts',exact:true});
       await guide.waitFor();
       const bounds = await guide.boundingBox();
@@ -588,13 +623,13 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     }
   }
   result.responsiveCenter = true;
-  await run('expand sidebar');
+  await run('Expand sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
   await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
-  await run('collapse sidebar');
+  await run('Collapse sidebar');
   await page.waitForFunction(() => document.querySelector('.top-bar-sidebar')===document.activeElement, null, {timeout:5000});
   result.phoneSidebarFocus = true;
-  await run('settings');
+  await run('Settings');
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   await page.getByRole('button',{name:'커맨드 센터',exact:true}).click();
@@ -623,7 +658,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Escape'); await koreanGuide.waitFor({state:'detached'});
   await page.getByRole('button',{name:'커맨드 센터',exact:true}).click(); await waitForInput();
   await korean.getByRole('combobox').fill('> settings');
-  await page.keyboard.press('Enter');
+  await korean.getByRole('option',{name:'설정',exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   result.bilingualSearch = true;

@@ -44,17 +44,20 @@ Local verification: Editor **295/295**, workspace typecheck, Editor build, docs 
 whitespace check passed. Fourteen targeted browser scenarios passed across the integrated run
 and focused follow-ups: editor-shell, layout-rules, quiet-document, source-view-pending,
 bibliography-connection, cross-reference, outline, folder-navigation, visual-states, open-files,
-ui-language, bibliography, citation-authoring and new-document. The shell scenario independently
-checks both document-settings command aliases and focus return. The layout scenario checks 32
+ui-language, bibliography, citation-authoring and new-document. After integrating #571, the
+command-center scenario checks both document-settings aliases, focus return and both width
+commands using exact command names; the shell scenario retains its dialog/editor-state checks.
+The layout scenario checks 32
 English/Korean combinations of 1280/1423/1424/1440px, expanded/collapsed Sidebar and open/closed
 Outline (docked from 1424px, overlay below it): 48px TopBar, centered button of at least 160px,
 visible controls without overlap, and the folder/shortcut/filename reduction order.
 
-Known separate failure: `command-center` times out opening app Settings after its synthetic IME
-sequence (`run('settings')`, line 413). It reproduced identically on clean master
+Earlier separate failure: `command-center` timed out opening app Settings after its synthetic
+IME sequence (`run('settings')`, then line 413), including on clean master
 `34436c7cf0240fd2ebf0dcdaa74b3c5a226f7066` with the same checkout, origin and persistent profile.
-No timeout, immediate assertion or product behavior was weakened here. The owner assigned its
-fix separately; PR CI remains the final integration check. Edge and packaged Desktop run in CI.
+PR #571 resolved the test-helper ambiguity: folder paths also match settings, so the helper
+selects the exact named command before Enter. Its dedicated settings-path fixture is retained.
+No timeout, immediate assertion or IME criterion was weakened. Edge and packaged Desktop run in CI.
 
 Same-state manual comparison (Korean UI, the default technical document, clean loaded state):
 

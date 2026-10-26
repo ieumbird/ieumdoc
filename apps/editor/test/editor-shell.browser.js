@@ -58,18 +58,6 @@ async page => {
     result.documentSettingsKeyboardEntry = await isFocused(page.getByRole('checkbox', {name:'Number headings', exact:true}));
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
     result.documentSettingsEscapeReturnsFocus = await isFocused(settings);
-    // Both aliases dispatch the same dialog from the command center and retain its return target.
-    for (const query of ['document settings', '문서 설정']) {
-      await page.keyboard.press('Control+Slash');
-      const center = page.getByRole('dialog', {name:'Command center', exact:true});
-      await center.getByRole('combobox').fill(`> ${query}`);
-      await page.keyboard.press('Enter');
-      await center.waitFor({state:'detached'});
-      await settingsDialog.waitFor();
-      await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
-      if (!await isFocused(settings)) throw Error('Document settings command lost its return target');
-    }
-    result.documentSettingsCommands = true;
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     result.railOnlyReopensFiles = await page.getByTestId('sidebar').getByRole('button').count() === 1;
     await page.getByRole('button',{name:'Expand sidebar'}).click();
