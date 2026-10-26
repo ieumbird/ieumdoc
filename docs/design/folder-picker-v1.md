@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
+- Last verified: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
+- Previous verification: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
 - Previous verification: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and [same-state desktop/phone evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
@@ -96,6 +97,71 @@ Use, or Enter, chooses it. Use is available only for an image the listing
 shows; a typed folder path, with or without a trailing separator, only navigates, and Enter enters it. The Host then links
 or copies the image as the [Asset Host Contract](filesystem-host-boundary-v1.md#image-choice-v1-208)
 describes. An error, such as an unsupported or missing file, keeps the picker open with the path.
+
+### Active image preview (#480)
+
+Owner decision (2026-10-26): preview the currently keyboard-active or clicked image before Use.
+Only that entry loads, through the existing read-only `/api/file-preview` Host capability,
+using the listed folder as root. No thumbnails, new Host endpoint, persistence or document
+semantic operation is added; this interface-only preview needs no Core/CLI operation.
+
+The preview sits below the list with a bounded height and aspect ratio preserved. Below the
+existing phone breakpoint (`width < 40rem`, 640px), its region is collapsed so it consumes no
+list or footer space. Phone path/breadcrumb/place/footer wrapping varies with content; this
+conservative width boundary reuses the shell's phone layout instead of adding a new height
+threshold or measurement logic. At 1366×768 and 1440px the preview remains available.
+It has the accessible label `Read-only image preview` and no focusable
+controls. A folder or no active image shows no preview. Loading and failure use quiet text;
+unavailable, damaged or unsupported images do not block choosing a path. Changing the active
+entry replaces the preview and its load state, so an older response cannot appear for the new
+entry. Previewing never changes the typed/chosen path, focus, filtering, completion or active
+descendant behavior.
+
+The compact follow-up extends the same Figure scenario at 375×667. A root-bounded listing
+with a folder active supplies the pre-preview layout: list height must not decrease when an
+image becomes active, and Cancel/Use must remain visible at dialog scroll position zero when
+they were visible before. The fixture explicitly establishes that both actions fit before the
+preview. Before the CSS fix, `Cancel stays visible without scrolling` failed on `1511568`;
+afterward the scenario passed, retaining the strict overflow, desktop aspect/race and keyboard
+checks. It also verifies that 1366×768 and 1440px retain the preview.
+
+The dialog uses one `minmax(0, 1fr)` grid column and a shrinkable path-input row. A Linux CI
+375px run exposed an intrinsic column wider than the dialog's padded content area (17px of
+horizontal overflow); these bounds keep every section inside the available column without
+clipping the dialog or weakening the overflow assertion.
+
+The existing Figure browser scenario checks active-entry changes, out-of-order responses,
+non-image and broken-image states, unchanged path/focus/active descendant and 375px overflow.
+Its new clicked-preview assertion first failed on base `c232915` because no preview existed.
+The extended scenario then passed with the implementation, including its original Apply/Save/Reload
+and #461/#466 filtering, sibling selection and Tab/Right checks. The controlled delayed requests
+use an equivalent trailing-separator root spelling so previously decoded images cannot bypass
+the response-order test. Editor tests (286), typecheck, build and the folder-navigation,
+image-assets, file-preview, layout-rules and quiet-document browser regressions passed. The
+1440px/375px Quiet Document rest captures are byte-identical before and after.
+
+Manual visual comparison uses this worktree's Vite Host on port 5380 and persistent Chrome
+profile, English UI, Pretendard loaded, DPR/zoom 1, 1440×1000 and 375×1000 viewports. Both
+states have `diagram.svg` clicked, siblings visible, path input focused, pointer outside the
+dialog and dialog scroll at the top. Before captures are from base `c232915`; after captures
+use the same fixture and state. Desktop adds the bounded preview below the list; phone widths
+collapse it to preserve the pre-preview list/action space. These
+dialog captures are manual presentation evidence, separate from automated overflow assertions.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440px | ![Picker before at 1440px](assets/image-picker-preview-480/before-1440.png) | ![Active image preview at 1440px](assets/image-picker-preview-480/after-1440.png) |
+| 375px | ![Picker before at 375px](assets/image-picker-preview-480/before-375.png) | ![Phone picker with collapsed preview](assets/image-picker-preview-480/after-375.png) |
+
+The following same-state 375×667 follow-up uses the root-bounded listing described above,
+`diagram-v2.svg` keyboard-active, the unchanged directory path focused, and dialog scroll zero.
+Before is `1511568`; after collapses only the preview. Both retain the full four-row list
+(128px in this fixture); Cancel/Use now fit without scrolling, as they did without an active
+image. Manual review also confirmed the retained preview at 1366×768.
+
+| Before compact fix | After compact fix |
+| --- | --- |
+| ![375 by 667 preview crowds out actions](assets/image-picker-preview-480/compact-before-375-667.png) | ![375 by 667 list and actions without preview](assets/image-picker-preview-480/compact-after-375-667.png) |
 
 ## Exclusions
 

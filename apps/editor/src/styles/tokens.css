@@ -26,9 +26,10 @@
   /* Blank paper after the last line, and how far above the window bottom writing keeps the
    * caret, so the line being written can sit near the middle instead of the bottom edge. */
   --layout-document-end-space: 35dvh;
-  /* Open folder dialog: its width, and how tall its folder list grows before it scrolls. */
+  /* Folder/image picker: width, list scroll cap and active-image preview height. */
   --layout-folder-picker-width: 42rem;
   --layout-folder-picker-list-height: 15rem;
+  --layout-folder-picker-preview-height: 10rem;
   /* Read-only file preview: preferred dialog width and image height cap within the viewport. */
   --layout-file-preview-width: 48rem;
   --layout-file-preview-image-max-height: 60dvh;
