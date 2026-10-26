@@ -1,0 +1,19 @@
+{
+  "controls": [
+    {
+      "mutatedStyleSHA256": "1CDD13E52DA27FADAFB49A4EF252705C593669061D3CA1902C68556A4EAFA5E6",
+      "expectedFailure": "No-hover fallback: actual row/column handles must be visible",
+      "exitCode": 1,
+      "name": "touch"
+    },
+    {
+      "mutatedStyleSHA256": "0A1A8A996B5AA6D776E09D115627E9A007EC89D5E292392729DE8B9190C70AF3",
+      "expectedFailure": "Keyboard Tab discovery: actual row/column handles must be visible",
+      "exitCode": 1,
+      "name": "keyboard"
+    }
+  ],
+  "restoredStyleSHA256": "618BA4F48C80DED9BD08D94266E390A136D96AA83A733F85279216585B93BA70",
+  "productDiffClean": true,
+  "restoredPassExit": 0
+}

@@ -1,0 +1,27 @@
+✔ handle targets reuse commands outside the table, preserving formatted cells and one-step undo (54.9526ms)
+✔ Table is an insert command; row and column commands are offered for tables only (9.8489ms)
+✔ a new table has a header row and two body rows of three columns, and saves through Core insertTable (22.3362ms)
+✔ a table inserted from a transient empty paragraph replaces it (4.3358ms)
+✔ rows and columns are added next to the caret's cell, or at the end, and save through Core (43.5721ms)
+✔ adding a row or column is one undo step and leaves nothing to save once undone (4.7374ms)
+✔ rows and columns are added, removed and moved only whole, and the header row stays first (4.4416ms)
+✔ rows and columns move and are removed at the caret, columns are realigned, and Core saves the same grid (37.989ms)
+✔ Host rejects table edits that do not match the snapshot table (21.4547ms)
+✔ aligned table insertion keeps the displayed grid consistent with Core Save (13.1665ms)
+✔ caption and label edits and newly captioned tables save through Core in the same session (40.0291ms)
+✔ editable, empty and formatted cells round-trip through the single Tiptap schema (17.035ms)
+✔ changed header and body cells become Core cell edits; unchanged tables send none (19.1581ms)
+✔ table structure, formatted cells and line breaks cannot change (4.0089ms)
+✔ typing in a cell is allowed and undoable; Enter cannot change the table (7.4015ms)
+✔ Host Save writes edited header and body cells and keeps everything else (57.4567ms)
+✔ Host rejects malformed and unpreservable cell edits without writing (16.7258ms)
+✔ product tokens and Tailwind adapters have unique, acyclic definitions (4.0747ms)
+✔ UI consumers use shared colors, control geometry and reasoned native-button exceptions (636.8611ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2635.659

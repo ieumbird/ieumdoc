@@ -154,6 +154,61 @@ all existing PNG bytes are preserved; only their state descriptions were correct
 The [review cleanup](assets/table-handles-517/review-cleanup.json) confirms the owned
 server/port/profile processes are gone and BadPasswordAttempts remains 0.
 
+### CI prose precondition investigation
+
+Run 40292844193's Linux shard 2 failed at the single-Tab discovery assertion.
+The downloaded screenshot, DOM, input log and trace show native Intro offset 16
+but engine title position 1 at Tab keydown; Tab changed H1 to H2 and increased Undo
+depth before selectionchange arrived. This establishes an unmet engine-prose
+precondition, not a failed handle reveal or a diagnosis of #502.
+
+Correction plan: register selectionUpdate before the real prose click, require
+the actual native caret and acknowledged engine positions to match without a
+document change, then retain one Tab and the immediate actual-handle checks.
+Use a temporary observer-acknowledgement hold as a deterministic negative control,
+retain both reveal mutations, restore the uninstrumented scenario and run it on
+Windows. Preserve the original Linux artifact and distinguish its observed failure
+from the controlled Windows experiment. No forced selection, product change,
+polling, reload, fixed sleep, increased timeout or extra Tab is intended. This
+does not claim to fix rapid click-to-Tab product behavior.
+
+Completed evidence: the [original Linux failure bundle](assets/table-handles-517/ci-selection/linux-original-artifacts.zip)
+preserves the actual screenshot, DOM/ARIA, input events, trace and shard log from
+[run 40292844193 / job 121471910574](https://github.com/ieumbird/ieumdoc/actions/runs/40292844193/job/121471910574).
+The [timeline and original-file hashes](assets/table-handles-517/ci-selection/investigation.json)
+record event 19 (native Intro offset 16, engine position 1), event 20 (H2, document
+change, Undo depth 1) and event 22 (selectionchange), plus the actual click/Tab trace
+calls. The failed [screenshot](assets/table-handles-517/ci-selection/linux-failure.png)
+is retained unchanged. No blind retry or intervening push replaced that result.
+
+On Windows Chrome 155, the temporary native-observer gate made the
+[previous harness fail at the same assertion](assets/table-handles-517/ci-selection/old-held.txt);
+its [raw diagnostics](assets/table-handles-517/ci-selection/windows-old-held-artifacts.zip)
+also retain the heading change. With the fence registered before clicking, the
+[controlled scenario passes](assets/table-handles-517/ci-selection/fence-held.txt):
+the [measured gate state](assets/table-handles-517/ci-selection/windows-held-pass.json)
+has native positions 25/25, engine 1/1 and a pending acknowledgement before release,
+then engine 25/25 after the original observer reads the native selection. The actual
+intercepted-call count was zero before that release; the gate was armed but the
+asynchronous read had not arrived yet. This controlled Windows experiment is not a
+local Linux reproduction or a product fix.
+
+The committed scenario installs no observer gate or release hook. Its listener is
+registered before the click and cleaned in `finally`, including failures; a missing
+acknowledgement fails at the existing selection-fence pattern's 1000ms deadline,
+without increasing the scenario timeout. Native/engine positions and document
+identity must match before the existing single Tab. Both
+[touch](assets/table-handles-517/ci-selection/touch-reveal.txt) and
+[keyboard](assets/table-handles-517/ci-selection/keyboard-reveal.txt) reveal mutations
+still fail at their immediate actual-handle checks. After exact CSS/test restoration,
+the [uninstrumented Windows run](assets/table-handles-517/ci-selection/restored-pass.txt)
+passes with [prose readiness and unchanged-document outcomes](assets/table-handles-517/ci-selection/windows-restored-pass.json).
+The [mutation/restore record](assets/table-handles-517/ci-selection/reveal-controls.json)
+reports no product diff; [relevant unit tests](assets/table-handles-517/ci-selection/unit.txt)
+pass 19/19. New-head Linux CI must be evaluated separately. The
+[cleanup record](assets/table-handles-517/ci-selection/cleanup.json) reports no owned
+server, 5317 listener or profile Chrome process, with BadPasswordAttempts 0.
+
 ## Table deletion notice verification (#474)
 
 The extended `table-authoring` scenario first failed on the unchanged implementation with

@@ -108,7 +108,43 @@ async (page, { openPath, reloadDocument }) => {
   } finally { await noHoverPage.close(); }
   // From prose, Tab discovers the table's native button stops without pointer hover.
   // Tab inside a cell is still the engine's cell navigation (covered below).
-  await page.getByText('Intro paragraph.', {exact:true}).filter({visible:true}).click();
+  const prose = page.getByText('Intro paragraph.', {exact:true}).filter({visible:true});
+  // Click completion can precede ProseMirror's native selectionchange acknowledgement.
+  // Subscribe before clicking, then verify the actual native and engine prose caret.
+  await prose.evaluate(n => {
+    const editor = n.closest('.document-editor').editor, start = editor.view.posAtDOM(n, 0);
+    let accept;
+    const ready = new Promise(resolve => { accept = resolve; });
+    const updated = () => {
+      const {selection} = editor.state;
+      if (editor.view.hasFocus() && selection.empty && selection.$from.parent.type.name === 'paragraph' && selection.$from.start() === start) accept();
+    };
+    editor.on('selectionUpdate', updated);
+    n.tableProseSelection = {ready, document:editor.state.doc, cleanup:() => editor.off('selectionUpdate', updated)};
+  });
+  let keyboardDocument;
+  try {
+    await prose.click();
+    keyboardDocument = await prose.evaluate(async n => {
+      const editor = n.closest('.document-editor').editor, gate = n.tableProseSelection;
+      const native = window.getSelection(), {anchorNode, anchorOffset, focusNode, focusOffset} = native;
+      if (!native.isCollapsed || !n.contains(anchorNode) || !n.contains(focusNode)) throw new Error('Keyboard discovery needs the native caret in Intro prose');
+      const from = editor.view.posAtDOM(anchorNode, anchorOffset), to = editor.view.posAtDOM(focusNode, focusOffset);
+      let timeout;
+      try {
+        await Promise.race([gate.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Intro prose selectionUpdate missing')), 1000); })]);
+      } finally { clearTimeout(timeout); }
+      const {selection} = editor.state;
+      if (!editor.view.hasFocus() || selection.from !== from || selection.to !== to || selection.$from.parent.type.name !== 'paragraph' ||
+        editor.state.doc !== gate.document || native.anchorNode !== anchorNode || native.anchorOffset !== anchorOffset || native.focusNode !== focusNode || native.focusOffset !== focusOffset) {
+        throw new Error(`Intro native/engine caret must converge without changing the document: ${JSON.stringify({from,to,engine:selection.toJSON()})}`);
+      }
+      return JSON.stringify(editor.getJSON());
+    });
+    result.keyboardProseSelectionReady = true;
+  } finally {
+    await prose.evaluate(n => { n.tableProseSelection?.cleanup(); delete n.tableProseSelection; });
+  }
   await page.mouse.move(0, 0);
   await page.keyboard.press('Tab');
   const discovered = await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count();
@@ -121,6 +157,7 @@ async (page, { openPath, reloadDocument }) => {
   if (await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count() !== 1) throw new Error('Escape must return keyboard focus to the discovered handle');
   await assertVisibleHandles(initial, 'Keyboard Escape return', true);
   result.keyboardReturnHandlesVisible = true;
+  result.keyboardDiscoveryKeepsDocument = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => JSON.stringify(n.editor.getJSON())) === keyboardDocument;
   await initial.locator('td', {hasText:/^U$/}).click();
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
