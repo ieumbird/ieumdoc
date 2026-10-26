@@ -31,6 +31,17 @@ runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 
 
 The shared `reloadDocument` helper waits for the File actions menu to detach and the loading dialog to close with focus returned to File actions before callers focus the editor (#422). For a dirty tab it instead waits for the interactive discard confirmation to receive focus; the caller still chooses the answer. Tests that hold a Reload response must release it before awaiting the helper's completion.
 
+`waitForEditorFocus(page)` waits for the active EditorView's actual focus after a form disappears.
+`bibliography-connection` uses it before Undo after citation Remove: removing the form and updating
+References does not mean Tiptap's queued focus callback has run. Reload's interactive-prompt branch
+also requires an **open** popup (`data-open`); a closing popup may still contain focus and enabled
+buttons before its final focus handoff. `citations` holds that handoff and verifies the helper
+remains pending before checking the unchanged canonical-byte assertion (#489).
+
+The citation-Remove gate explicitly checks that the focus helper's promise is still pending while
+BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
+this same assertion; releasing focus before Undo alone does not prove that the helper waited.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ### Scenario coverage
@@ -173,6 +184,32 @@ profile removal and another origin/device are outside that proof. The 500ms inte
 Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
 
 ## Evidence and history
+
+### Focus and selection race investigation (#489)
+
+The downloaded run artifacts (input events, browser state, trace and console errors) distinguish
+test readiness from product selection handling in the three fixed paths. Console/page errors
+were empty in these preserved failures.
+
+| Scenario / artifact | Cause and classification | Regression boundary |
+| --- | --- | --- |
+| `bibliography-connection`, run 40248680852 / job 121335724273 | Test wait: Remove unmounted the citation form, leaving BODY focused. Ctrl+Z at 3392.4ms (event 142) preceded editor focus at 3393.6ms (145), so no Undo transaction ran. | Hold Remove's queued animation-frame callbacks; wait for actual editor focus before Undo. References and Undo assertions are unchanged. |
+| `document-title`, run 40252460131 / first attempt | Product/engine defect: after Add a title focused H1, the delayed 20ms focus check could overwrite the paragraph's native caret before selectionchange read it. The retained state stayed at H1 position 1 (133–138). | Hold that actual engine callback and release it at paragraph mouseup. The check must respect the later pointer; the original empty-title removal and clean-document assertions remain. |
+| `citations`, run 40246268525 / job 121328398849 | Test wait: the #448 helper could mistake the closing Reload modal's enabled buttons and retained focus for an interactive discard prompt. It returned before final focus reached File actions (134); Backspace went to that button (135). | A prompt must still have `data-open`. Hold the final File actions focus and assert Reload has not returned, then retain the exact canonical-byte comparison. |
+
+The table selection reset is tracked separately in [#502](https://github.com/ieumbird/ieumdoc/issues/502).
+`table-authoring` remains identical to master, including its failure-only diagnostics. No wait is
+added to conceal that reset, and this PR does not claim to fix it.
+
+The final bibliography proof checks that the helper remains pending while BODY has focus: the
+same test fails with an immediate-return helper and passes with the real focus wait. The title
+scenario holds the actual post-focus callback until paragraph mouseup, and citations holds the
+closing Reload focus handoff. These checks retain the original assertions and existing timeouts.
+
+Run 40076829146 for #421 has no input-events recording. Its trace confirms Undo succeeded and
+Redo left the citation present, but cannot establish the key target or history transaction at
+failure. Citation authoring's Redo assertions remain unchanged. #421 and the separate fast text-caret synchronization issue #416 are
+not claimed fixed by #489.
 
 ### Cross-reference regression history (#407)
 

@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Selection-race scope: 2026-10-26 (#489: citation-form focus, closing Reload focus and empty-title pointer selection. The separate table selection investigation is #502. Per-scenario evidence and the #421/#416 boundary are recorded in the [test guide](../test/README.md#focus-and-selection-race-investigation-489)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
 - Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
@@ -149,6 +150,12 @@ A changed document recomputes numbering; source semantics and canonical output a
   still restores its own caret when focus arrives without a key (Tab, or a DOM `focus()`
   after which the browser resets the caret), also when only a modifier is pressed. A pinned
   `prosemirror-view` patch provides this ([cause and removal condition](../reviews/prosemirror-focus-caret-2026-10-09.md)).
+- A post-focus selection check must also preserve a later pointer or touch destination (#489).
+  The same pinned engine patch snapshots pointer/touch activity when focus arrives; its delayed
+  check only restores the old caret if neither has changed. It must not move a paragraph click
+  back into an empty title before the native `selectionchange` is read.
+  Remove this addition when the pinned upstream post-focus check respects later pointer/touch
+  destinations under the forced callback order in `document-title`.
 
 Core `insertParagraph` accepts InlineContent directly (CLI `insert-block --content`)
 so rich content is never staged as flattened text. Core `insertTable` accepts optional

@@ -95,8 +95,33 @@ async (page, { openPath }) => {
   // A title left empty goes away once the caret leaves it, leaving the document unchanged.
   await openPath(page, scratch('untitled-empty.md'));
   const addEmpty = page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title', exact:true});
+  // #489: hold the engine's post-focus check until the user has clicked the paragraph,
+  // before selectionchange reads that native caret. A busy renderer can deliver this order.
+  await editor.evaluate(node => {
+    const view = node.editor.view;
+    const focus = view.focus;
+    view.focus = function (...args) {
+      const schedule = window.setTimeout;
+      window.setTimeout = (callback, ms, ...rest) => {
+        if (ms === 20) { window.titleFocusCheck = callback; return 0; }
+        return schedule(callback, ms, ...rest);
+      };
+      try { return focus.apply(this, args); }
+      finally { window.setTimeout = schedule; view.focus = focus; }
+    };
+  });
   await addEmpty.click();
   await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').waitFor();
+  await editor.evaluate(node => {
+    if (!window.titleFocusCheck) throw Error('Expected the post-focus selection check');
+    const release = event => {
+      if (!node.contains(event.target) || !event.target.closest('.paragraph')) return;
+      document.removeEventListener('mouseup', release, true);
+      window.titleFocusCheck();
+      window.titleFocusCheck = null;
+    };
+    document.addEventListener('mouseup', release, true);
+  });
   // Clicking the paragraph, where it now sits below the new title, moves the caret out of it.
   const lead = await page.locator('[data-document-tab][data-active=true] .paragraph').first().boundingBox();
   await page.mouse.click(lead.x + 20, lead.y + lead.height / 2);
