@@ -6,6 +6,70 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   const initial = await (await page.request.get(origin + '/api/document')).json();
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const file = [...initial.path.split(sep).slice(0, -4), 'tmp', 'bibliography', 'connect.md'].join(sep);
+  const unused = file.replace('connect.md', 'unused.md');
+  const regressions = [];
+  const references = () => page.locator('[data-document-tab][data-active=true]').getByRole('region', { name: 'References', exact: true, includeHidden: true });
+  const save = async () => {
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  };
+  await openPath(page, unused);
+  if (await references().count()) regressions.push('Unused document must have no References area');
+  if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/references-unused-1280.png', fullPage: true });
+  await page.getByRole('button', { name: 'Display', exact: true }).click();
+  const display = page.getByRole('region', { name: 'Saved in document', exact: true });
+  if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/references-display-1280.png', fullPage: true });
+  for (const entry of ['Display', 'command center']) {
+    await page.getByRole('button', { name: 'Display', exact: true }).click();
+    let connect;
+    if (entry === 'Display') connect = display.getByRole('button', { name: 'Connect bibliography…', exact: true });
+    else {
+      await page.keyboard.press('Control+/');
+      await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
+      connect = page.getByRole('option', { name: 'Connect bibliography…', exact: true });
+    }
+    if (!await connect.count()) {
+      regressions.push(`${entry} must offer Connect bibliography`);
+      if (entry === 'command center') await page.keyboard.press('Escape');
+      continue;
+    }
+    await connect.click();
+    await page.getByRole('group', { name: 'Bibliography files in this folder', exact: true }).waitFor();
+    assert(await references().count() === 0, 'Opening the connection UI alone leaves an unused document without References');
+    await page.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
+    assert(await references().count() === 1, `${entry} connection shows References before Save`);
+    assert(!(await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(unused)}`)).json()).source.includes('bibliography:'), `${entry} stages without writing`);
+    await save(); await reloadDocument(page);
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
+    assert(await references().count() === 1, `${entry} declaration survives Save and Reload without citations`);
+    await references().getByRole('button', { name: 'Disconnect refs.bib', exact: true }).click();
+    assert(await references().count() === 0, 'Staged removal of the only declaration hides unused References');
+    await save(); await reloadDocument(page);
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
+    assert(await references().count() === 0, 'Disconnection survives Save and Reload');
+  }
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
+  await openPath(page, file);
+  assert(await references().count() === 1, 'A citation alone shows References');
+  await page.locator('[data-citation]').hover();
+  await page.getByTestId('citation-edit').click();
+  await page.getByTestId('citation-remove').click();
+  if (await references().count()) regressions.push('Removing the last citation with no declaration must hide References');
+  await page.keyboard.press('Control+z');
+  assert(await references().count() === 1, 'Undo restores the citation and References');
+  assert(regressions.length === 0, regressions.join('\n'));
+  // Inserting into an unused document shows the region without a declaration or resource read.
+  await openPath(page, unused);
+  const unusedEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  await unusedEditor.evaluate(el => { const e = el.editor; e.commands.setTextSelection(e.state.doc.content.size - 1); e.view.focus(); });
+  await page.keyboard.type(' /citation'); await page.keyboard.press('Enter');
+  await page.getByTestId('citation-key').fill('article');
+  await page.getByTestId('citation-apply').click();
+  assert(await references().count() === 1, 'Inserting the first citation shows References');
+  await unusedEditor.locator('[data-citation]').hover();
+  await unusedEditor.getByTestId('citation-edit').click(); await page.getByTestId('citation-remove').click();
+  assert(await references().count() === 0, 'Removing the inserted citation hides References again');
+  await save();
   await openPath(page, file);
   const tab = page.locator('[data-document-tab][data-active=true]');
   const editor = tab.locator('.document-editor');
@@ -17,7 +81,7 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   };
   await type(' Unsaved before connection.');
   await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
-  await tab.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
+  await page.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
   const pending = tab.getByText('Save this document to load the connected bibliography files.', { exact: true });
   await pending.waitFor();
   assert((await editor.innerText()).includes('Unsaved before connection.'), 'Connecting preserves unsaved edits');
@@ -49,6 +113,14 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await tab.getByTestId('source-view').waitFor();
   assert((await tab.getByTestId('source-view').innerText()).includes('refs.bib'), 'Source previews the staged Core operation');
+  await page.getByRole('button', { name: 'Display', exact: true }).click();
+  assert(await display.getByRole('button', { name: 'Connect bibliography…', exact: true }).isDisabled(), 'Display cannot connect from Source');
+  await page.keyboard.press('Control+/');
+  await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
+  assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect from Source');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: 'Command center', exact: true }).waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await page.getByRole('button', { name: 'Visual', exact: true }).click();
   // Hold the successful response after disk commit to exercise edits after the submitted snapshot.
   let release;
@@ -60,6 +132,14 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
     const response = await route.fetch(); committed(); await held; await route.fulfill({ response });
   });
   await page.getByRole('button', { name: 'Save', exact: true }).click(); await disk;
+  await page.getByRole('button', { name: 'Display', exact: true }).click();
+  assert(await display.getByRole('button', { name: 'Connect bibliography…', exact: true }).isDisabled(), 'Display cannot connect during Save');
+  await page.keyboard.press('Control+/');
+  await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
+  assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect during Save');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: 'Command center', exact: true }).waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await type(' Typed during Save.'); release();
   await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor();
   await page.unroute('**/api/document');
@@ -96,28 +176,35 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
     const connected = file.replace('connect.md', `connected-${index}.md`);
     await openPath(page, connected);
     await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
-    const choices = tab.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
+    const choices = page.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
     await choices.waitFor();
     if (await choices.getByRole('button', { name: 'Connect refs.bib', exact: true }).count()) failures.push(`P1: connected-${index} offers an equivalent refs.bib declaration`);
     if (await choices.getByRole('button', { name: 'Connect References [2024].bib', exact: true }).count()) failures.push(`P1: connected-${index} offers a Core-invalid filename`);
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog', { name: 'Connect bibliography…', exact: true }).waitFor({ state: 'detached' });
   }
   await openPath(page, file);
   await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
-  const choices = tab.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
+  const choices = page.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
   const longName = 'References-' + 'unbroken'.repeat(18) + '.bib';
   const longCandidate = choices.getByRole('button', { name: `Connect ${longName}`, exact: true });
   await longCandidate.waitFor();
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.getByRole('button', { name: 'Expand sidebar', exact: true }).waitFor();
+  // The shared modal now owns accessibility/focus; measure its candidates directly.
   await choices.scrollIntoViewIfNeeded();
   const geometry = await choices.evaluate(el => {
     const panel = el.getBoundingClientRect();
-    return { width: innerWidth, scrollWidth: document.documentElement.scrollWidth, buttons: [...el.querySelectorAll('button')].map(button => {
+    const dialog = el.closest('[role="dialog"]');
+    const popup = dialog.getBoundingClientRect();
+    return { width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
+      dialogWidth: dialog.clientWidth, dialogScrollWidth: dialog.scrollWidth,
+      panelInsideDialog: panel.left >= popup.left && panel.right <= popup.right,
+      buttons: [...el.querySelectorAll('button')].map(button => {
       const bounds = button.getBoundingClientRect();
       return { left: bounds.left, right: bounds.right, inside: bounds.left >= panel.left && bounds.right <= panel.right };
     }) };
   });
-  if (geometry.scrollWidth > geometry.width || geometry.buttons.some(button => !button.inside)) failures.push(`P2: candidate list overflows at 375px: ${JSON.stringify(geometry)}`);
+  if (geometry.scrollWidth > geometry.width || geometry.dialogScrollWidth > geometry.dialogWidth || !geometry.panelInsideDialog || geometry.buttons.some(button => !button.inside)) failures.push(`P2: candidate list overflows at 375px: ${JSON.stringify(geometry)}`);
   if (screenshots) {
     await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); }); await page.mouse.move(0, 0);
     await page.screenshot({ path: 'tmp/visual-refinement/bibliography-candidates-375.png', fullPage: true });

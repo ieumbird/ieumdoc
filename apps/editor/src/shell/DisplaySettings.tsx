@@ -3,6 +3,7 @@ import type { ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { splitDocumentPath } from "./document-path.ts";
+import { Button } from "@/components/ui/button.tsx";
 
 export type DisplaySettingsProps = {
   documentPath: string;
@@ -10,6 +11,7 @@ export type DisplaySettingsProps = {
   referenceTemplates?: ReferenceTemplates | null;
   onReferenceStyleChange?(style: ReferenceStyle): void;
   onToggleHeadingNumbering(): void;
+  onConnectBibliography?(returnFocus: HTMLElement): void;
   numberingDisabled: boolean;
   numberingHint?: string;
   wide: boolean;
@@ -18,7 +20,7 @@ export type DisplaySettingsProps = {
 
 /** Placement only: numbering stays in the document's history; width stays a local preference. */
 export function DisplaySettings({
-  documentPath, headingNumbering, referenceTemplates, onReferenceStyleChange, onToggleHeadingNumbering, numberingDisabled, numberingHint, wide, onToggleWide,
+  documentPath, headingNumbering, referenceTemplates, onReferenceStyleChange, onToggleHeadingNumbering, onConnectBibliography, numberingDisabled, numberingHint, wide, onToggleWide,
 }: DisplaySettingsProps) {
   useTranslation();
   return (
@@ -48,6 +50,8 @@ export function DisplaySettings({
             {referenceStyle(referenceTemplates) === "custom" ? <option value="custom" disabled>{i18n.t("Custom")}</option> : null}
           </select>
         </label>
+        <Button variant="outline" size="sm" className="mt-[var(--space-3)]" disabled={numberingDisabled} aria-describedby="display-numbering-hint"
+          onClick={event => onConnectBibliography?.(event.currentTarget)}>{i18n.t("Connect bibliography…")}</Button>
       </section>
       <section aria-labelledby="display-local-title">
         <h3 id="display-local-title" className="display-scope">{i18n.t("Local view")}</h3>
