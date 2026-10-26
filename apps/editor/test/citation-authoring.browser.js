@@ -187,6 +187,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
     await page.keyboard.press('Backspace');
     await page.keyboard.press('Backspace');
   }
+  for (const { holdCheck, openClickAge } of codeFocusCases) {
+    assert(Number.isFinite(openClickAge) && openClickAge < 300,
+      `Code focus regression missed the upstream 300ms click window: pointerdown -> Ctrl+/ took ${openClickAge}ms (held check: ${holdCheck})`);
+  }
   assert(codeFocusCases.every(c => c.retained && c.parent === 'codeBlock' && c.text === 'Code. /' &&
     c.menus === 0 && (!c.holdCheck || c.checkHeld)),
     'A recent real code click survives Command center Escape: ' + JSON.stringify(codeFocusCases));

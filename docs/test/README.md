@@ -69,12 +69,16 @@ native caret at the document start. ProseMirror's existing start-of-document heu
 resets within 300ms of a pointer/touch, including a click **before** the dialog opened. This
 age condition is upstream, not an addition from #495. If the observer accepts the reset first,
 the later 20ms check only restores the now-wrong H1 selection. The pinned engine patch now
-writes its retained selection synchronously on focus, before `DOMObserver.stop()` can flush
-the browser caret. The #144 key counters and #495 later-pointer/touch guard remain unchanged.
+writes its retained selection synchronously in the focus handler, before a later
+`selectionchange` invokes `DOMObserver.flush()` and can adopt the browser caret. `stop()`
+itself takes queued records, disconnects, and may schedule a flush after 20ms. The #144 key
+counters and #495 later-pointer/touch guard remain unchanged.
 
 `citation-authoring` uses an actual code click, awaits only the initial click's native/engine
 caret agreement (#416 is separate), opens the center immediately, escapes, and types ` /`.
-It requires selection retention **before** input, literal `Code. /` in the code block and no
+Both cases must record pointerdown-to-shortcut age strictly below the upstream 300ms window;
+a missing age or age at/above 300ms fails explicitly instead of passing outside the regression
+condition. It requires selection retention **before** input, literal `Code. /` in the code block and no
 slash menu. The second case holds the engine's real 20ms check until after typing; the new
 focus synchronization must work without that callback. There is no post-Escape caret polling,
 selection assignment, sleep, retry or timeout increase. Both cases failed with the master
