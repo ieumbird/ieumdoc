@@ -66,7 +66,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
     { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },
   ], scenarios: ["open-files"] },
-  "image-assets": { files: [{ name: "images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") },
+  "image-assets": { files: [{ name: "fresh/images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") }, { name: "images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") },
+    { name: "fresh/figures/diagram.svg", create: () => document("diagram.svg").create() },
     { name: "figures/diagram.svg", create: () => document("diagram.svg").create() },
     { name: "assets/diagram.svg", create: () => document("diagram.svg").create() },
     { name: "paths.md", create: () => nativeSource("# Image paths\n\n" +

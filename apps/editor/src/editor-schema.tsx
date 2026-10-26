@@ -881,9 +881,10 @@ export function createEditorExtensions(
   hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
   initialDeletedPaths: readonly string[] = [],
+  onAssetChange?: (path: string) => void,
 ): Extensions {
   return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
-    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
+    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 

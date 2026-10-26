@@ -342,7 +342,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await open();
   await page.keyboard.type('> s');
   await page.keyboard.press('ArrowDown');
-  const visual = center().getByRole('option',{name:'Visual',exact:true});
+  const visual = center().locator('[role=option]:not([aria-disabled=true])').nth(1);
   check(await visual.getAttribute('data-highlighted') !== null, 'First Down after typing did not move to the next result');
   const highlighted = await visual.evaluate(n => {
     const probe=document.createElement('span');n.append(probe);

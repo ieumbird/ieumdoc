@@ -7,16 +7,17 @@ import { EditorVisibility } from "./editor-visibility.ts";
 import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
 /** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ id, file, restored, recoveryId, active, report }: {
+export const DocumentTab = memo(function DocumentTab({ id, file, restored, recoveryId, active, report, onAssetChange }: {
   id: string;
   file: DocumentFileResponse;
   restored?: DocumentSessionSnapshot;
   recoveryId: string;
   active: boolean;
   report(id: string, session: DocumentSession | null): void;
+  onAssetChange(documentPath: string, assetPath: string): void;
 }) {
   useTranslation();
-  const session = useDocumentSession(file, restored, recoveryId);
+  const session = useDocumentSession(file, restored, recoveryId, onAssetChange);
   useLayoutEffect(() => { if (!active && session.noticeAction) session.setNotice(""); }, [active]);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);

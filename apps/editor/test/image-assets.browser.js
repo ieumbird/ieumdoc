@@ -8,10 +8,18 @@ async (page, { openPath, openDocument }) => {
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const separator = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(separator).slice(0, -4).join(separator);
-  const file = [root, 'tmp', 'image-assets', 'images.md'].join(separator);
+  const file = [root, 'tmp', 'image-assets', 'fresh', 'images.md'].join(separator);
+  const imageFolder = [root, 'tmp', 'image-assets', 'fresh'].join(separator);
   await openPath(page, file);
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const result = {};
+  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+  await page.getByTestId('folder-path').fill(imageFolder);
+  await page.getByTestId('folder-open').click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  const imageSection = page.getByTestId('folder');
+  const assetsRow = imageSection.getByRole('treeitem', {name:'assets', exact:true});
+  assert(await assetsRow.count() === 0, 'Fresh document starts without assets');
   const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   const documentJSON = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => el.editor.getJSON());
   const select = async text => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((el, text) => {
@@ -56,6 +64,11 @@ async (page, { openPath, openDocument }) => {
   assert(await figures.count() === 0 && (await documentJSON()).content.some(node => node.content?.[0]?.text === 'typed Alpha.'), 'One Undo removes Figure only');
   await page.keyboard.press('Control+Shift+z'); await figures.first().waitFor();
   result.nativePasteAndUndo = true;
+  await assetsRow.waitFor();
+  await assetsRow.click();
+  await imageSection.getByRole('treeitem', {name:pasted.split('/').pop(), exact:true}).waitFor();
+  result.pasteRefreshesParent = true;
+
 
   // #427: an unsaved local asset stays in the engine document and on disk across whole-document deletion.
   const beforeDelete = JSON.stringify(await documentJSON());
@@ -83,6 +96,9 @@ async (page, { openPath, openDocument }) => {
   const droppedFigure = dropped[dropped.findIndex(node => node.content?.[0]?.text === 'Beta.') + 1];
   assert(droppedFigure?.type === 'figure', 'Drop lands after the pointer block');
   assert(/^\.\/assets\/image-[a-f0-9-]+\.jpg$/.test(droppedFigure.attrs.imageUrl), 'JPEG keeps its extension');
+  await imageSection.getByRole('treeitem', {name:droppedFigure.attrs.imageUrl.split('/').pop(), exact:true}).waitFor();
+  assert(await assetsRow.getAttribute('aria-expanded') === 'true', 'Asset creation refreshes loaded assets without changing expansion');
+  result.dropRefreshesLoadedAssets = true;
   assert((await page.request.get(media(droppedFigure.attrs.imageUrl))).headers()['content-type'] === 'image/jpeg', 'Host serves the saved JPEG');
   result.fileDrop = true;
 
@@ -181,7 +197,7 @@ async (page, { openPath, openDocument }) => {
   assert(await imageField.inputValue() === before, 'Cancelling the picker keeps the Image field');
   await page.getByRole('button', {name:'Choose…', exact:true}).click();
   // A typed folder path is a place to look, never a choice; Enter enters it.
-  await pathField.fill([root, 'tmp', 'image-assets', 'figures'].join(separator));
+  await pathField.fill([root, 'tmp', 'image-assets', 'fresh', 'figures'].join(separator));
   await picker.getByRole('option', {name:'figures', exact:true}).waitFor();
   assert(await picker.getByTestId('folder-open').isDisabled(), 'A folder path cannot be used as the image');
   await pathField.press('Enter');
