@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-26",
+  "baseHead": "c2329159016cdae6183885bd24de2bd8a8046e1e",
+  "after": "Base HEAD plus implementation identified by sourceSha256",
+  "platform": "Microsoft Windows 11 Pro, installed headless Chrome 155.0.8059.85, checkout-owned persistent profile",
+  "dpr": 1,
+  "zoom": "100%",
+  "font": "Bundled Pretendard Variable, document.fonts.ready",
+  "restViewports": [
+    "1440x1000",
+    "375x1000"
+  ],
+  "noticeViewports": [
+    "1280x720",
+    "375x900"
+  ],
+  "restState": "scroll top, pointer outside document, focus blurred",
+  "beforeOrigin": "http://127.0.0.1:5173",
+  "afterOrigin": "http://127.0.0.1:5194",
+  "sourceSha256": {
+    "apps/editor/src/App.tsx": "ac13ea576a33856d28c8f6dafdbd2fd9ae7f1c00fda0d949605d396c33546060",
+    "apps/editor/src/DocumentEditor.tsx": "213c9d16ad9127c5b79db9c32ac61ce25ba138ec2babc71a361ce53f8c2eac17",
+    "apps/editor/src/DocumentTab.tsx": "fe59c31418eaced8be81065a6c93be926d9bba6a48f8d912292e4a31ab3468c9",
+    "apps/editor/src/block-commands.ts": "18d47642a50a00dea8b02f6d59356e39144e2d655316796e25a9cf2af39f85a6",
+    "apps/editor/src/document-interaction.ts": "f0fef158a1eb94ee90a64fc1779d079b648f823296a2c80372f6eb537be6620d",
+    "apps/editor/src/locales.ts": "b19ccfe0c47e1d8a465c1c623941b3c582e70221a42dd401cf2044f5ff636bc6",
+    "apps/editor/src/shell/MessageArea.tsx": "c3a3954316d36f763b23ed0b683cb104e892da74c667f0a6ea21a8bcf1713bbb",
+    "apps/editor/src/useDocumentSession.ts": "50980c9da87fe24b2d64e10306c2f0d51ca4347e57e3685c09e29eb4aa4a0fc7"
+  }
+}

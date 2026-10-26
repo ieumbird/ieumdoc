@@ -1,6 +1,7 @@
 // Actual hook/editor integration. The shell's pending-operation refusal is tested by open-files
 // and source-view-pending; this harness directly replaces the session to test late attribution.
 async page => {
+  page.setDefaultTimeout(15000);
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
   const separator = loaded.path.includes('\\') ? '\\' : '/';
@@ -98,6 +99,56 @@ async page => {
         await page.unroute('**/api/document');
       }
     }
+  } finally {
+    await page.evaluate(() => window.sessionHarness.destroy());
+  }
+  // A metadata-only root transaction can still change the final document via endnote placement.
+  // Use the existing hook/editor harness: the notice owner is mounted, without shell UI or new fixtures.
+  await page.evaluate(async () => {
+    const { mountDocumentSessionHarness } = await import('/test/helpers/document-session-harness.ts');
+    const { requestDocument } = await import('/src/document-session.ts');
+    const { nativeSource, loadEditableDocument } = await import('/test/helpers/document.ts');
+    const { toTiptapDocument } = await import('/src/tiptap-document.ts');
+    const source = nativeSource('Claim[^a].\n\n$$\nx = y\n$$\n\n| Name | Value |\n| --- | --- |\n| U | AC |\n\n[^a]: Note.\n');
+    const file = { ...await requestDocument('GET'), source, document: loadEditableDocument(source), endnotesInPlace: true };
+    const projection = toTiptapDocument(file.document);
+    projection.attrs = { ...projection.attrs, deletedPaths: [] };
+    window.sessionHarness = await mountDocumentSessionHarness({ file, editor: { editorDocument: projection, savedDocument: projection } });
+  });
+  try {
+    await ready();
+    const harness = page.locator('.document-editor').last();
+    const equation = harness.locator('[data-block="equation"]');
+    await equation.hover();
+    await equation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-latex').fill('Unapplied draft');
+    await page.waitForFunction(() => window.sessionHarness.current.draftActive);
+    const deferred = await page.evaluate(async () => {
+      const { deleteBlock } = await import('/src/block-commands.ts');
+      const { ENDNOTE_DRAFT_CLOSED } = await import('/src/endnotes.ts');
+      const editor = window.sessionHarness.host.querySelector('.document-editor').editor;
+      editor.commands.insertContentAt(editor.state.doc.content.size, {type:'paragraph', content:[{type:'text', text:'Deferred body.'}]});
+      let table;
+      editor.state.doc.forEach((node, _pos, index) => { if (node.type.name === 'table') table = index; });
+      editor.view.dispatch(deleteBlock(editor.state, table));
+      editor.on('transaction', ({transaction}) => {
+        if (transaction.getMeta(ENDNOTE_DRAFT_CLOSED)) window.draftClosedTransaction = {
+          rootChanged: transaction.docChanged, finalChanged: transaction.before !== editor.state.doc,
+          lastType: editor.state.doc.lastChild.type.name,
+        };
+      });
+      return editor.state.doc.lastChild.type.name === 'paragraph';
+    });
+    await page.waitForFunction(() => window.sessionHarness.current.notice === 'Table deleted');
+    if (!deferred) throw new Error('Draft must postpone endnote placement');
+    await page.getByTestId('equation-cancel').click();
+    await page.waitForFunction(() => window.draftClosedTransaction);
+    const afterDraft = await page.evaluate(() => ({ ...window.draftClosedTransaction,
+      notice: window.sessionHarness.current.notice, action: Boolean(window.sessionHarness.current.noticeAction) }));
+    if (afterDraft.rootChanged || !afterDraft.finalChanged || afterDraft.lastType !== 'footnoteDefinition' || afterDraft.notice || afterDraft.action) {
+      throw new Error(`Appended endnote placement must revoke table deletion Undo: ${JSON.stringify(afterDraft)}`);
+    }
+    result.appendedChangeRevokesTableUndo = true;
   } finally {
     await page.evaluate(() => window.sessionHarness.destroy());
   }
