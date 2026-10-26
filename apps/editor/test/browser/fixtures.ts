@@ -99,7 +99,9 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     scenarios: ["save-session"],
   },
   "quiet-document": {
-    files: [fixture("quiet-document.md"), fixture("quiet-document-long.md"), fixture("quiet-document-wrap.md"), document("diagram.svg"),
+    files: [fixture("quiet-document.md"), fixture("quiet-document-long.md"), document("diagram.svg"),
+      // Keep the existing quiet-document-long.md -> quiet-document.md keyboard neighbors.
+      { name: "korean-wrap.md", create: () => fixture("quiet-document-wrap.md").create() },
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
     scenarios: ["layout-rules", "quiet-document", "visual-states"],
   },

@@ -60,7 +60,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     results.push({label,...result});
   };
   // #506: measure actual glyph lines, not just the declared word-break property.
-  await open('quiet-document-wrap.md');
+  await open('korean-wrap.md');
   const wrapResults = [];
   const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   const wrapDocument = await json();
@@ -148,7 +148,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     throw Error('Paragraph did not wrap');
   });
   await page.mouse.click(caret.x,caret.y);
-  check(await prose.evaluate((n,pos)=>n.closest('.document-editor').editor.state.selection.from===pos,caret.pos), 'Wrapped-line click placed the caret incorrectly');
+  check(await prose.evaluate(async(n,{pos,offset})=>{
+    const selection=window.getSelection(), editor=n.closest('.document-editor').editor;
+    // Native caret placement is synchronous; ProseMirror observes selectionchange later.
+    if(!selection.isCollapsed||selection.anchorNode!==n.firstChild||selection.anchorOffset!==offset)return false;
+    if(editor.state.selection.from!==pos)await new Promise((resolve,reject)=>{
+      const updated=()=>{clearTimeout(timeout);editor.off('selectionUpdate',updated);resolve();};
+      const timeout=setTimeout(()=>{editor.off('selectionUpdate',updated);reject(Error('Click selectionUpdate missing'));},1000);
+      editor.on('selectionUpdate',updated);
+    });
+    return editor.state.selection.empty&&editor.state.selection.from===pos;
+  },caret), 'Wrapped-line click placed the caret incorrectly');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Shift+ArrowUp');
   check(await prose.evaluate((n,{pos})=>{

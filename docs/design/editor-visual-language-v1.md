@@ -176,7 +176,8 @@ The scenario measures each Korean word's Range rects across all supported prose 
 and the technical paragraph's individual characters, requiring line starts/ends at spaces.
 It also checks closing CJK punctuation, URL bounds in a paragraph and table cell, a
 constrained real table cell that forces the URL to wrap, caret placement by clicking a
-wrapped-line start, keyboard selection across lines, native Chromium composition at the
+wrapped-line start (DOM caret immediately, engine state after its `selectionUpdate` event),
+keyboard selection across lines, native Chromium composition at the
 preceding line end, and exact document restoration by Undo.
 
 Same-state product captures below are **manual review only**, not screenshot assertions.
