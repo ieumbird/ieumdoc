@@ -1,5 +1,5 @@
 // Deferred grammars are display-only; delayed/failed loading must preserve input and engine history.
-async (page, { openPath }) => {
+async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -83,5 +83,87 @@ async (page, { openPath }) => {
     await page.keyboard.press('ControlOrMeta+z');
     check(!(await code.locator('pre').innerText()).endsWith(' plain'), 'Load failure lost Undo');
   } finally { await page.unroute('**/src/code-languages.ts*'); }
-  return {deferred:true,languageSet:true,unknownFallback:true,failedFallback:true,history:true};
+
+  // The existing field remains free text; its adjacent shared menu is keyboard reachable.
+  const language = code.getByTestId('code-language');
+  const picker = code.getByRole('button', {name:'Choose code language', exact:true});
+  const engineLanguage = () => code.evaluate(element => {
+    const editor = element.closest('.document-editor').editor;
+    return editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language;
+  });
+  const expectLanguage = value => expect.poll(() => code.evaluate(element => ({
+    input: element.querySelector('[data-testid="code-language"]').value,
+    engine: element.closest('.document-editor').editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language,
+  })), {message:'Language input and document must reflect the selected language'}).toEqual({input:value,engine:value});
+  await language.focus(); await page.keyboard.press('Tab');
+  check(await picker.evaluate(element => element === document.activeElement), 'Tab did not reach the language list');
+  await page.keyboard.press('Enter');
+  const menu = page.getByRole('menu', {name:'Choose code language',exact:true});
+  await menu.waitFor();
+  // Visibility precedes Base UI's frame-scheduled initial focus. Send keys only once
+  // the menu owns them, then wait for the intended item before confirming it.
+  await expect(menu.getByRole('menuitem',{name:'Plain text',exact:true})).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(menu.getByRole('menuitem',{name:'rust',exact:true})).toBeFocused();
+  await page.keyboard.press('Enter');
+  await menu.waitFor({state:'detached'});
+  await expectLanguage('rust');
+  await expect(picker).toBeFocused();
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
+  check(await language.inputValue() === await engineLanguage() && await engineLanguage() !== 'rust', 'Language Undo did not synchronize the input');
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
+  check(await language.inputValue() === 'rust', 'Language Redo did not synchronize the input');
+  await picker.click(); await menu.waitFor(); await page.keyboard.press('Escape');
+  await menu.waitFor({state:'detached'});
+  check(await menu.count() === 0 && await language.inputValue() === 'rust', 'Escape changed the language');
+  await language.fill('custom-language');
+  check(await engineLanguage() === 'custom-language', 'Unlisted language was rejected');
+  await language.fill(' x y`z ');
+  check(await language.inputValue() === 'xyz' && await engineLanguage() === 'xyz', 'Fence-name filtering changed');
+  await picker.click(); await menu.waitFor(); await page.getByRole('menuitem',{name:'Plain text',exact:true}).click();
+  await menu.waitFor({state:'detached'});
+  await expectLanguage('');
+
+  // Chromium creates real composing ranges. Assert each update immediately, so a later
+  // commit, poll or reload cannot mask the stale controlled-value restoration from #527.
+  const cdp = await page.context().newCDPSession(page);
+  const compose = text => cdp.send('Input.imeSetComposition',{text,selectionStart:text.length,selectionEnd:text.length});
+  try {
+    await language.focus();
+    for (const text of ['ㅎ','한','한글']) {
+      await compose(text);
+      check(await language.inputValue() === text, 'Language composition duplicated or lost '+text);
+      check(await engineLanguage() === '', 'Intermediate composition changed the document language');
+    }
+    // IME confirmation must not open or select from the adjacent menu.
+    await language.dispatchEvent('keydown',{key:'Enter',keyCode:229,isComposing:true,bubbles:true});
+    await cdp.send('Input.insertText',{text:'한글'});
+    check(await language.inputValue() === '한글' && await engineLanguage() === '한글', 'Language composition commit duplicated input');
+    check(await menu.count() === 0, 'IME confirmation opened the language menu');
+    await compose('취소'); await compose('');
+    check(await language.inputValue() === '한글' && await engineLanguage() === '한글', 'Cancelled composition changed the language');
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
+    check(await language.inputValue() === await engineLanguage() && await engineLanguage() !== '한글', 'Language composition Undo failed');
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
+    check(await language.inputValue() === '한글', 'Language composition Redo failed');
+
+    await code.locator('pre').click(); await page.keyboard.press('End');
+    const beforeComposition = await code.locator('pre').textContent();
+    await compose('ㅎ'); await compose('한글'); await cdp.send('Input.insertText',{text:'한글'});
+    check(await code.locator('pre').textContent() === beforeComposition+'한글', 'Code body composition duplicated input');
+    await page.keyboard.press('ControlOrMeta+z');
+    check(await code.locator('pre').textContent() === beforeComposition, 'Code body composition Undo failed');
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    check(await code.locator('pre').textContent() === beforeComposition+'한글', 'Code body composition Redo failed');
+  } finally { await cdp.detach(); }
+  const originalSource = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor();
+  check(await page.getByTestId('status').getAttribute('data-operation') === 'saved', 'Code composition Save failed');
+  const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
+  check(disk.source.includes('```한글\nconst value = 1;한글\n```'), 'Save did not preserve the composed language and code');
+  await assertSavedSource(disk.source, originalSource.replace('```js\nconst value = 1;', '```한글\nconst value = 1;한글'), 'Composition Save changed other document content');
+  await reloadDocument(page); await ready();
+  check(await language.inputValue() === '한글' && await code.locator('pre').textContent() === 'const value = 1;한글', 'Reload lost composed input');
+  return {deferred:true,languageSet:true,unknownFallback:true,failedFallback:true,history:true,languageMenu:true,customLanguage:true,compositionCommitCancel:true,bodyCompositionUndoRedo:true,compositionSaveReload:true};
 }

@@ -1,0 +1,118 @@
+{
+  "baseline": "ff37a32e273dfad90bde84a9c30e2a28ec5e3af3",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "zoom": 1,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+  },
+  "viewports": [
+    "1440x900",
+    "390x900"
+  ],
+  "state": "English; js language; code body const value = 1;한글; language field focused; scroll top. Menu captures click the adjacent disclosure.",
+  "protocol": [
+    "Input.imeSetComposition: ㅎ",
+    "Input.imeSetComposition: 한글",
+    "Input.insertText: 한글"
+  ],
+  "before": {
+    "language": "ㅎ한글한글",
+    "native": "한글",
+    "body": "const value = 1;한글",
+    "languageCompositionStarts": 2,
+    "writes": [
+      {
+        "before": "",
+        "after": "js",
+        "caller": "    at restoreStateOfTarget (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:2117:7)"
+      },
+      {
+        "before": "js",
+        "after": "",
+        "caller": "    at updateProperties (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:10756:6)"
+      },
+      {
+        "before": "ㅎ",
+        "after": "",
+        "caller": "    at restoreStateOfTarget (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:2117:7)"
+      },
+      {
+        "before": "",
+        "after": "ㅎ",
+        "caller": "    at updateProperties (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:10756:6)"
+      },
+      {
+        "before": "ㅎ한글",
+        "after": "ㅎ",
+        "caller": "    at restoreStateOfTarget (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:2117:7)"
+      },
+      {
+        "before": "ㅎ",
+        "after": "ㅎ한글",
+        "caller": "    at updateProperties (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:10756:6)"
+      },
+      {
+        "before": "ㅎ한글한글",
+        "after": "ㅎ한글",
+        "caller": "    at restoreStateOfTarget (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:2117:7)"
+      },
+      {
+        "before": "ㅎ한글",
+        "after": "ㅎ한글한글",
+        "caller": "    at updateProperties (http://127.0.0.1:5499/node_modules/.vite/deps/react-dom_client.js?v=cc7a982f:10756:6)"
+      }
+    ]
+  },
+  "after": {
+    "language": "한글",
+    "native": "한글",
+    "body": "const value = 1;한글",
+    "regression": "code-highlighting: keyboard/custom language; immediate composition updates, commit/cancel, Undo/Redo, exact canonical disk Save and Reload"
+  },
+  "limitations": "Native Windows IME/candidate window not tested. PNGs are manual review evidence, not screenshot assertions.",
+  "images": [
+    {
+      "name": "after-1440.png",
+      "sha256": "a37a9cf8546212b1bfabefca88c80e33a440e5ec9bb5136d0dd9b9bf9e107aaf"
+    },
+    {
+      "name": "after-390.png",
+      "sha256": "12d90d1a7d69cd4157f8daa2b9305949453a70a59bbc389e1c8eeee05723c4a1"
+    },
+    {
+      "name": "before-1440.png",
+      "sha256": "73a36f575dde053306e2e6569395fd036ad091f27d5ded78e41ef338e3fab823"
+    },
+    {
+      "name": "before-390.png",
+      "sha256": "bbfa05b568e92c602841ab8341d5b271d688f3ce5703bfa697efaeab30e625b4"
+    },
+    {
+      "name": "menu-1440.png",
+      "sha256": "bae8bc4a65ca7602511085c7fe88a12e2351f0cb7d513419aa169bbf824f74a2"
+    },
+    {
+      "name": "menu-390.png",
+      "sha256": "24c1f8a75c5e0c51fa1db58127f66a346e3f09c350681a99f3b0154f28499712"
+    }
+  ],
+  "implementation": [
+    {
+      "file": "apps/editor/src/code-language-input.tsx",
+      "sha256": "07e00229722160fd3a01d617ae00dd87e6ac9132e796272bf47a645d0660f3d8"
+    },
+    {
+      "file": "apps/editor/src/editor-schema.tsx",
+      "sha256": "ac274dbd227b9ca71b7606605135b09c920131b7aaa490da5449ee41655632ac"
+    },
+    {
+      "file": "apps/editor/src/styles.css",
+      "sha256": "9181e1a4cfc92d1da20f250f2e594f4cc14433b279b9dd0bf14663907740b6de"
+    },
+    {
+      "file": "apps/editor/src/locales.ts",
+      "sha256": "67473bd28e9ea432d24d2dddc5341430a9288188da697fdd6892ee272c21a305"
+    }
+  ]
+}

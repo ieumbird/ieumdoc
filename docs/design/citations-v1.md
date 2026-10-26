@@ -123,6 +123,8 @@ notice when more match. The command center's Base UI combobox and list styles ar
 Up/Down highlights a candidate while focus stays in the input; Enter or a pointer selection adds it
 to the key group without applying the form. Without a highlighted candidate, Enter adds the typed
 key. Tab proceeds to Add. Escape first closes an open candidate list without changing the draft;
+closing completes immediately because this inline list has no exit animation. Up/Down reopens
+the list with a matching candidate highlighted, including immediately after Escape.
 Escape with the list closed cancels the form. Native composition keys (including legacy keyCode 229)
 do not navigate, select, apply or cancel. Typed keys absent from the bibliography remain citable
 and show as unresolved; keys Core refuses are rejected in the form. Apply uses Core's canonical
@@ -554,3 +556,26 @@ near-white edge pixels (335,630 and 335,845), with no document layout change.
 | --- | --- | --- |
 | Citation form, 1280px | [Browser datalist input](assets/citation-key-list-463/before-1280.png) | [Visible candidates](assets/citation-key-list-463/after-1280.png) |
 | Citation form, 375px | — | [Wrapped candidates](assets/citation-key-list-463/after-375.png) |
+
+Escape/reopen correction (2026-10-27): merge queue run
+[40348049812](https://github.com/ieumbird/ieumdoc/actions/runs/40348049812)
+showed a visible list without an active descendant after Escape → Down. Base UI's inline
+navigation stays open internally, but its popup close lifecycle temporarily rejects navigation
+while the transition is `ending`. Reopening during that lifecycle loses the key, rather than
+delaying its result. On unchanged product code at `8b67c36`, the original scenario reproduced;
+a timing probe also lost the highlight with a 50ms key gap and still had none 250ms later.
+This is a product defect, not an assertion that needs polling.
+
+The form now uses Base UI's public close-completion action in a layout effect: its inline list
+has no exit animation to await. Closing clears the internal highlight before another arrow.
+The existing browser regression retains immediate assertions, checks Down and Up reopening
+against the actual option id, and confirms Enter adds `unicode`, not the Korean search text.
+Temporary timing instrumentation passed all 24 combinations: normal/6× CPU slowdown,
+0/50/100/200ms key gaps, three repetitions each, with an immediate active descendant retained
+250ms later. This instrumentation and its experimental delays are not part of the regression.
+Core semantics and CLI commands are unchanged.
+
+Final local checks passed: Editor 291 tests, repository typecheck, Editor production build,
+`citation-authoring`, `bibliography-connection`, `citations`, documentation and diff checks.
+The production build retains its existing large-chunk warning. PR CI covers the remaining
+platform and packaging checks.

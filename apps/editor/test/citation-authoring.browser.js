@@ -109,11 +109,17 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   assert(await form.getByTestId('citation-keys').count() === 0 && await form.isVisible(), 'Legacy IME Enter cannot add a highlighted candidate or submit');
   await keyInput.fill('한글');
   assert(await choices.getByRole('option', { name: /unicode.*한글/ }).count() === 1, 'Committed Korean text filters candidates');
-  await keyInput.press('Escape');
-  assert(await keyInput.getAttribute('aria-expanded') === 'false' && await form.isVisible() && await keyInput.inputValue() === '한글', 'Escape closes suggestions and preserves the draft');
-  await keyInput.press('ArrowDown');
-  assert(await choices.isVisible() && await keyInput.getAttribute('aria-activedescendant'), 'Down reopens the list after Escape');
-  await keyInput.press('Escape');
+  for (const arrow of ['ArrowDown', 'ArrowUp']) {
+    await keyInput.press('Escape');
+    assert(await keyInput.getAttribute('aria-expanded') === 'false' && await form.isVisible() && await keyInput.inputValue() === '한글', 'Escape closes suggestions and preserves the draft');
+    assert(!await choices.isVisible() && !await keyInput.getAttribute('aria-activedescendant'), 'A dismissed list exposes no active candidate');
+    await keyInput.press(arrow);
+    const reopened = await keyInput.getAttribute('aria-activedescendant');
+    assert(await choices.isVisible() && reopened && reopened === await choices.getByRole('option').getAttribute('id'), `${arrow} reopens the list with the matching candidate active`);
+  }
+  await keyInput.press('Enter');
+  assert(await form.getByTestId('citation-keys').locator('[data-key="unicode"]').count() === 1, 'Enter after reopening adds the candidate key, not the search text');
+  await form.getByRole('button', { name: 'Remove key unicode', exact: true }).click();
   await page.getByTestId('citation-key').fill('bad key');
   await page.getByTestId('citation-add').click();
   assert(await form.getByRole('alert').isVisible(), 'An invalid key is refused in the form');

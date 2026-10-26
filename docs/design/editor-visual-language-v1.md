@@ -43,6 +43,10 @@
 
 ## Shared controls and palette (B1 / C1, #514)
 
+The code-language field retains its shared 28px Input and adds a compact ghost disclosure
+inside the same footprint (#499). Its language list reuses the shared DropdownMenu rows,
+overlay and focus rules; [behavior and 1440/390px evidence](document-editing-v1.md#code-language-input-verification-499527).
+
 B1 uses the existing Button/Input and product tokens: standard actions and fields are
 32px (`--size-control`), compact actions/fields 28px (`--size-control-compact`), with
 a 6px control radius (`--id-radius-md`), UI sans 14/20px text, 12px horizontal text-button
