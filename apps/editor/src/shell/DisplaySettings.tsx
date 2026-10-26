@@ -14,25 +14,22 @@ export type DisplaySettingsProps = {
   onConnectBibliography?(returnFocus: HTMLElement): void;
   numberingDisabled: boolean;
   numberingHint?: string;
-  wide: boolean;
-  onToggleWide(): void;
 };
 
-/** Placement only: numbering stays in the document's history; width stays a local preference. */
+/** Existing document settings: operations, history and Save stay owned by the editor/Core. */
 export function DisplaySettings({
-  documentPath, headingNumbering, referenceTemplates, onReferenceStyleChange, onToggleHeadingNumbering, onConnectBibliography, numberingDisabled, numberingHint, wide, onToggleWide,
+  documentPath, headingNumbering, referenceTemplates, onReferenceStyleChange, onToggleHeadingNumbering, onConnectBibliography, numberingDisabled, numberingHint,
 }: DisplaySettingsProps) {
   useTranslation();
   return (
     <div className="display-settings">
       <div>
-        <h2 className="display-title">{i18n.t("Document display")}</h2>
         <p className="display-file" title={documentPath || undefined}>
           {documentPath ? splitDocumentPath(documentPath).name : i18n.t("No document open")}
         </p>
       </div>
       <section aria-labelledby="display-document-title">
-        <h3 id="display-document-title" className="display-scope">{i18n.t("Saved in document")}</h3>
+        <h3 id="display-document-title" className="display-scope">{i18n.t("Saved in this document")}</h3>
         <label className="display-choice">
           <input type="checkbox" checked={headingNumbering} disabled={numberingDisabled}
             aria-describedby="display-numbering-hint" onChange={onToggleHeadingNumbering} />
@@ -52,14 +49,6 @@ export function DisplaySettings({
         </label>
         <Button variant="outline" size="sm" className="mt-[var(--space-3)]" disabled={numberingDisabled} aria-describedby="display-numbering-hint"
           onClick={event => onConnectBibliography?.(event.currentTarget)}>{i18n.t("Connect bibliography…")}</Button>
-      </section>
-      <section aria-labelledby="display-local-title">
-        <h3 id="display-local-title" className="display-scope">{i18n.t("Local view")}</h3>
-        <label className="display-choice">
-          <input type="checkbox" checked={wide} aria-describedby="display-width-hint" onChange={onToggleWide} />
-          <span>{i18n.t("Wide document")}</span>
-        </label>
-        <p id="display-width-hint" className="display-hint">{i18n.t("Remembered here; never saved in the document.")}</p>
       </section>
     </div>
   );

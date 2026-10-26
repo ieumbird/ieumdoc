@@ -178,6 +178,11 @@ async (page, { openPath, withBlockHover, expect }) => {
         if(controlsBox.x+controlsBox.width>=contentExtent.x)throw Error('Expanded extent covers the gutter');
         if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
         const after=(await paragraph.boundingBox()).x;
+        const headerOverlap=await page.locator('.top-bar').evaluate(header=>{
+          const controls=[...header.querySelectorAll('button,.status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
+          return controls.flatMap((a,i)=>controls.slice(i+1).filter(b=>Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>0.5&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>0.5).map(b=>`${a.name} / ${b.name}`));
+        });
+        if(headerOverlap.length)throw Error(`TopBar controls overlap at ${width}px: ${headerOverlap.join(', ')}`);
         const result=await page.evaluate(({collapsed,width})=>{
           const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
           const rect=s=>required(s).getBoundingClientRect();
@@ -186,7 +191,7 @@ async (page, { openPath, withBlockHover, expect }) => {
           const starts=selectors.map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
           const controls=rect('.block-controls.visible');
           const standard=rect('[data-testid="save"]').height;
-          const compactSelectors=['.sidebar-header button','.sidebar-tool','[data-document-tab][data-active=true] .figure-edit','[data-document-tab][data-active=true] .equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
+          const compactSelectors=['.sidebar-header button','.top-bar-document-settings','[data-document-tab][data-active=true] .figure-edit','[data-document-tab][data-active=true] .equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
           const compact=compactSelectors.flatMap(selector=>{
             const nodes=[...document.querySelectorAll(selector)];
             if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
@@ -276,7 +281,7 @@ async (page, { openPath, withBlockHover, expect }) => {
       if(!collapsed){
         if(width===375){
           // Escape inside the full-screen sidebar closes it and focuses the TopBar control that reopens it.
-          await page.getByRole('button',{name:'Files',exact:true}).focus();
+          await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
           await page.keyboard.press('Escape');
           const expand=page.getByRole('button',{name:'Expand sidebar',exact:true});
           if(!await expand.evaluate(n=>n===document.activeElement))throw Error('Escape did not close the full-screen sidebar');
@@ -423,8 +428,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     document.body.append(probe);const wide=probe.getBoundingClientRect().width;probe.remove();
     return {width:column.width,available:main.width,wide,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),textInset:doc.left-column.left};
   });
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  const toggle=page.getByRole('checkbox',{name:'Wide document',exact:true});
+  const toggle=page.getByRole('button',{name:'Wide document',exact:true});
   const unchanged=()=>page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>JSON.stringify({doc:n.editor.getJSON(),dirty:document.querySelector('[data-testid="status"]').textContent}));
   const beforeWidth=await unchanged();
   const standard=await column();
@@ -433,56 +437,70 @@ async (page, { openPath, withBlockHover, expect }) => {
   const wide=await column();
   const after=await controls();
   if(!(wide.wide>0)||Math.abs(wide.width-Math.min(wide.wide,wide.available))>1||wide.width<=standard.width||wide.centerDelta>1||wide.blockDelta>1||
-    Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||!await toggle.isChecked()||await unchanged()!==beforeWidth)
+    Math.abs(wide.textInset-standard.textInset)>0.5||JSON.stringify(before)!==JSON.stringify(after)||await toggle.getAttribute('aria-pressed')!=='true'||await unchanged()!==beforeWidth)
     throw Error(`Wide document layout: ${JSON.stringify({standard,wide,before,after})}`);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  const remembered=await toggle.isChecked()&&await page.locator('.app-shell--wide').count()===1;
+  const remembered=await toggle.getAttribute('aria-pressed')==='true'&&await page.locator('.app-shell--wide').count()===1;
   await toggle.click();
   if(!remembered||await page.locator('.app-shell--wide').count()!==0)throw Error('Wide document preference was not remembered or cleared');
   results.push({wide:{standard:standard.width,wide:wide.width}});
-  // Display fits the same sidebar at every target width; labels, controls and reopening tools stay reachable.
-  for(const width of [1920,1440,1280,1024,768,375]) {
+  // The settings dialog fits the viewport independently of Sidebar width/state.
+  for(const width of [1920,1440,1280,1024,768,390,375]) {
     await page.setViewportSize({width,height:800});
-    // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
     await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
-    // Crossing 640px closes the sidebar; at phone widths it has no rail, so the TopBar opens it before Display.
-    // Like the panel above, wait for the committed layout: the matchMedia handler closes it a frame later.
-    if(width<640)await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
-    if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()){
-      if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
-      await page.getByRole('button',{name:'Display',exact:true}).click();
-    }
-    const display=await page.locator('#sidebar-display').evaluate(n=>{
-      const rect=n.getBoundingClientRect();
-      const controls=[...n.querySelectorAll('input')].map(control=>{
-        const r=control.closest('label').getBoundingClientRect();
-        return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height};
-      });
-      return {left:rect.left,right:rect.right,controls,overflow:n.scrollWidth>n.clientWidth,pageOverflow:document.documentElement.scrollWidth>innerWidth};
+    const opener=page.getByRole('button',{name:'Document settings',exact:true});
+    await opener.click();
+    const dialog=page.getByRole('dialog',{name:'Document settings',exact:true});
+    await dialog.waitFor();
+    const bounds=await dialog.evaluate(n=>{
+      const r=n.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,overflow:n.scrollWidth>n.clientWidth,
+        controls:[...n.querySelectorAll('input,select,button')].map(c=>{const b=c.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom};})};
     });
-    if(display.overflow||display.pageOverflow||!display.controls.length||display.controls.some(c=>c.left<display.left||c.right>display.right+0.5||c.top<0||c.bottom>800||c.height<28))
-      throw Error(`Display controls outside sidebar: ${JSON.stringify({width,display})}`);
-    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-    if(await toggle.isVisible())throw Error('Collapsed Display still exposes controls');
-    if(width>=640) {
-      const rail=await page.getByRole('button',{name:'Display',exact:true}).evaluate(n=>{
-        const probe=document.createElement('span');n.append(probe);
-        probe.style.background='var(--id-color-surface)';probe.style.color='var(--id-color-text)';
-        probe.style.boxShadow='0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment)';
-        const c=getComputedStyle(n),p=getComputedStyle(probe),r=n.getBoundingClientRect();
-        const result={current:n.getAttribute('aria-pressed'),expanded:n.getAttribute('aria-expanded'),name:n.getAttribute('aria-label'),
-          face:c.backgroundColor===p.backgroundColor&&c.color===p.color&&c.boxShadow===p.boxShadow,
-          marker:getComputedStyle(n,'::after').content,width:r.width,height:r.height};probe.remove();return result;
-      });
-      if(!rail.face||rail.marker!=='none'||rail.current!=='true'||rail.expanded!=='false'||rail.name!=='Display')
-        throw Error(`Collapsed rail must keep its named icon-only raised current face: ${JSON.stringify({width,rail})}`);
-    }
-    // Without a rail (phone widths) the TopBar reopens the sidebar, which keeps Display selected.
-    if(!await page.getByRole('button',{name:'Display',exact:true}).isVisible())await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
-    else await page.getByRole('button',{name:'Display',exact:true}).click();
-    if(!await toggle.isVisible())throw Error('Collapsed Display entry failed to reopen it');
+    if(bounds.left<0||bounds.right>width||bounds.top<0||bounds.bottom>800||bounds.overflow||!bounds.controls.length||bounds.controls.some(c=>c.left<bounds.left||c.right>bounds.right||c.top<bounds.top||c.bottom>bounds.bottom))
+      throw Error(`Document settings leaves viewport: ${JSON.stringify({width,bounds})}`);
+    await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+    if(!await opener.evaluate(n=>n===document.activeElement))throw Error('Settings did not restore opener focus');
+    if(await page.getByTestId('sidebar').locator('.sidebar-tools').count())throw Error('Sidebar still switches tools');
   }
+  // Preserve #552's one-row shell while the centered command button yields to the new toggle.
+  const headerMatrix=[];
+  await page.setViewportSize({width:1920,height:900});
+  for(const lang of ['en','ko']) {
+    await language(lang);
+    for(const width of [1440,1424,1423,1280]) {
+      await page.setViewportSize({width,height:900});
+      for(const collapsed of [false,true]) {
+        const sidebarCollapsed=await page.locator('.sidebar--collapsed').count()>0;
+        if(sidebarCollapsed!==collapsed)await page.getByRole('button',{name:lang==='ko'?(collapsed?'사이드바 접기':'사이드바 펼치기'):(collapsed?'Collapse sidebar':'Expand sidebar'),exact:true}).click();
+        for(const panel of [true,false]) {
+          const outline=page.getByRole('button',{name:lang==='ko'?'개요':'Outline',exact:true});
+          if((await outline.getAttribute('aria-pressed')==='true')!==panel)await outline.click();
+          await page.getByTestId('document-panel').waitFor({state:panel?'visible':'detached'});
+          // ResizeObserver commits the responsive details before the measured paint.
+          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          const geometry=await page.locator('.top-bar').evaluate(header=>{
+            const box=header.getBoundingClientRect(),center=header.querySelector('.command-center-trigger'),r=center.getBoundingClientRect();
+            const controls=[...header.querySelectorAll('button,.status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
+            const overlap=controls.flatMap((a,i)=>controls.slice(i+1).filter(b=>Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>0.5&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>0.5).map(b=>`${a.name}/${b.name}`));
+            const name=center.querySelector('[data-testid="current-file"]'),shortcut=center.querySelector('kbd');
+            const folders=[...center.querySelectorAll('.document-path-folder')].some(n=>getComputedStyle(n).display!=='none');
+            const shortcutShown=getComputedStyle(shortcut).display!=='none'&&getComputedStyle(shortcut).visibility!=='hidden';
+            return {height:box.height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
+              outside:controls.filter(({r})=>r.left<box.left||r.right>box.right||r.top<box.top||r.bottom>box.bottom).map(({name})=>name),
+              folders,shortcutShown,filenameClipped:name.scrollWidth>name.clientWidth+1,
+              wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};
+          });
+          if(geometry.height!==48||geometry.centerWidth<160||geometry.centerDelta>1||geometry.overlap.length||geometry.outside.length||!geometry.wideVisible||
+            (geometry.filenameClipped&&(geometry.folders||geometry.shortcutShown))||(!geometry.shortcutShown&&geometry.folders))
+            throw Error(`Responsive TopBar: ${JSON.stringify({lang,width,collapsed,panel,geometry})}`);
+          headerMatrix.push({lang,width,collapsed,panel,centerWidth:geometry.centerWidth});
+        }
+      }
+    }
+  }
+  await language('en');
+  results.push({headerMatrix});
   return results;
 }

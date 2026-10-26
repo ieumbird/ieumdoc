@@ -146,21 +146,12 @@ async (page, { withBlockHover }) => {
     'Inactive view hover needs restrained feedback distinct from the chosen view');
   await visual.hover(); await settle();
   check(JSON.stringify((await state(visual)).background) === JSON.stringify(active.background), 'Hover changes the chosen view');
-  const files = page.getByRole('button', {name:'Files',exact:true}), display = page.getByRole('button', {name:'Display',exact:true});
-  await page.mouse.move(0,0);
-  const filesRest = await state(files), displayRest = await state(display), track = await state(page.getByRole('group',{name:'Sidebar tools'}));
-  check(filesRest.edgeContrasts.length === 3 && filesRest.edgeContrasts.every(r => r >= 3), `Sidebar segment border needs 3:1 contrast ${JSON.stringify(filesRest.edgeContrasts)}`);
-  check(track.background === filesRest.track && filesRest.background === filesRest.surface && filesRest.color === filesRest.text && filesRest.ring === filesRest.segment &&
-    displayRest.color === displayRest.muted && await marker(files) === 'none', 'Sidebar tools must reuse the raised segment tokens');
-  await display.hover(); const displayHover = await state(display);
-  check(displayHover.background === displayRest.background && displayHover.color === displayHover.text, 'Inactive Sidebar tool hover must only darken text');
-  await files.hover(); const filesHover = await state(files);
-  check(filesHover.background === filesRest.background && filesHover.color === filesRest.color && filesHover.ring === filesRest.ring &&
-    JSON.stringify(filesHover.textRects) === JSON.stringify(filesRest.textRects), 'Hover must preserve the raised current tool and text position');
-  await files.focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
-  const filesFocus = await state(files);
-  check(filesFocus.focused && filesFocus.ringWidth >= 2 && filesFocus.ringContrast >= 3 && filesFocus.ring.includes(filesRest.ring) && filesFocus.background === filesRest.background &&
-    JSON.stringify(filesFocus.textRects) === JSON.stringify(filesRest.textRects), 'Sidebar current and keyboard focus must coexist without text movement');
+  const wide=page.getByRole('button',{name:'Wide document',exact:true});
+  await wide.click(); await page.mouse.move(0,0); await settle();
+  const wideOn=await state(wide);
+  check(await wide.getAttribute('aria-pressed')==='true' && wideOn.background===wideOn.selected && await marker(wide)==='none', 'Wide document must use the existing pressed toggle');
+  await wide.click();
+  check(await page.getByTestId('sidebar').locator('.sidebar-tools').count()===0, 'Sidebar must remain file navigation');
   await page.evaluate(() => document.activeElement.blur());
   await page.mouse.move(0,0); await settle();
   // A clean Save is an ordinary available ghost action, like File actions beside it.
@@ -332,5 +323,5 @@ async (page, { withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.commands.undo());
     weightGeometry.push({width,files,outline,menu});
   }
-  return {navigation:results, filesRest, filesFocus, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry};
+  return {navigation:results, wideOn, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry};
 }

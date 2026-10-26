@@ -6,7 +6,7 @@ async (page, { screenshots = false, openPath }) => {
   page.setDefaultTimeout(15000);
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  check(await page.getByRole('button', {name:'Settings'}).count() === 1, 'Common recovery Settings is missing');
+  check(await page.getByRole('button', {name:'Settings', exact:true}).count() === 1, 'Common recovery Settings is missing');
   await page.getByRole('button', {name:'Settings',exact:true}).click();
   check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
   await page.keyboard.press('Escape');

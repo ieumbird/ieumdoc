@@ -402,16 +402,17 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     'Expanding section must retain child expansion, current marker, scroll and keyboard stop without relisting');
   await page.keyboard.press('Tab');
   assert(await tree.locator('[tabindex="0"]').evaluate(node => node === document.activeElement), 'Tab enters the retained tree stop');
-  await page.getByRole('button', {name:'Display', exact:true}).click();
-  assert(!await tree.isVisible(), 'Files must not remain exposed under Display');
-  await page.getByRole('button', {name:'Files', exact:true}).click();
-  assert(JSON.stringify(await treeState()) === JSON.stringify(retained), 'Tool switch reset tree scroll or keyboard stop');
+  await page.getByRole('button', {name:'Document settings', exact:true}).click();
+  assert(await section.locator('[role="tree"]').isVisible(), 'Document settings must retain the mounted file navigation behind its modal');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
+  assert(JSON.stringify(await treeState()) === JSON.stringify(retained), 'Settings reset tree scroll or keyboard stop');
   await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
-  await page.getByRole('button', {name:'Files', exact:true}).click();
+  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
   assert(JSON.stringify(await treeState()) === JSON.stringify(retained) && await row('guides').getAttribute('aria-expanded') === 'true' &&
     folderRequests.length === requestsBeforeSwitch, 'Reopening Files reset the tree or reloaded its folder');
   await page.setViewportSize(viewport);
-  result.toolSwitchPreservesTree = true;
+  result.settingsPreservesTree = true;
 
   // #494: manual refresh updates cached children without scanning unknown folders or touching tabs.
   const tabsBeforeRefresh = await page.getByRole('tab').allTextContents();

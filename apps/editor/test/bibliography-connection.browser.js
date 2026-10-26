@@ -16,13 +16,15 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   await openPath(page, unused);
   if (await references().count()) regressions.push('Unused document must have no References area');
   if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/references-unused-1280.png', fullPage: true });
-  await page.getByRole('button', { name: 'Display', exact: true }).click();
-  const display = page.getByRole('region', { name: 'Saved in document', exact: true });
-  if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/references-display-1280.png', fullPage: true });
-  for (const entry of ['Display', 'command center']) {
-    await page.getByRole('button', { name: 'Display', exact: true }).click();
+  const settings = page.getByRole('button', { name: 'Document settings', exact: true });
+  const settingsDialog = page.getByRole('dialog', {name:'Document settings',exact:true});
+  for (const entry of ['Document settings', 'command center']) {
+    if (entry === 'Document settings') {
+      await settings.click(); await settingsDialog.waitFor();
+      if (screenshots) await page.screenshot({path:'tmp/visual-refinement/references-document-settings-1280.png'});
+    }
     let connect;
-    if (entry === 'Display') connect = display.getByRole('button', { name: 'Connect bibliography…', exact: true });
+    if (entry === 'Document settings') connect = settingsDialog.getByRole('button', { name: 'Connect bibliography…', exact: true });
     else {
       await page.keyboard.press('Control+/');
       await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
@@ -37,6 +39,8 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     await page.getByRole('group', { name: 'Bibliography files in this folder', exact: true }).waitFor();
     assert(await references().count() === 0, 'Opening the connection UI alone leaves an unused document without References');
     await page.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
+    await page.getByRole('dialog', {name:'Connect bibliography…',exact:true}).waitFor({state:'detached'});
+    if(entry==='Document settings') assert(await settings.evaluate(n=>n===document.activeElement),'Bibliography must return focus to the document settings opener');
     assert(await references().count() === 1, `${entry} connection shows References before Save`);
     assert(!(await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(unused)}`)).json()).source.includes('bibliography:'), `${entry} stages without writing`);
     await save(); await reloadDocument(page);
@@ -48,7 +52,6 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
     assert(await references().count() === 0, 'Disconnection survives Save and Reload');
   }
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await openPath(page, file);
   assert(await references().count() === 1, 'A citation alone shows References');
   await page.locator('[data-citation]').hover();
@@ -128,14 +131,12 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await tab.getByTestId('source-view').waitFor();
   assert((await tab.getByTestId('source-view').innerText()).includes('refs.bib'), 'Source previews the staged Core operation');
-  await page.getByRole('button', { name: 'Display', exact: true }).click();
-  assert(await display.getByRole('button', { name: 'Connect bibliography…', exact: true }).isDisabled(), 'Display cannot connect from Source');
+  assert(await settings.isDisabled(), 'Document settings cannot open from Source');
   await page.keyboard.press('Control+/');
   await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
   assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect from Source');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog', { name: 'Command center', exact: true }).waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await page.getByRole('button', { name: 'Visual', exact: true }).click();
   // Hold the successful response after disk commit to exercise edits after the submitted snapshot.
   let release;
@@ -147,14 +148,12 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     const response = await route.fetch(); committed(); await held; await route.fulfill({ response });
   });
   await page.getByRole('button', { name: 'Save', exact: true }).click(); await disk;
-  await page.getByRole('button', { name: 'Display', exact: true }).click();
-  assert(await display.getByRole('button', { name: 'Connect bibliography…', exact: true }).isDisabled(), 'Display cannot connect during Save');
+  assert(await settings.isDisabled(), 'Document settings cannot open during Save');
   await page.keyboard.press('Control+/');
   await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
   assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect during Save');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog', { name: 'Command center', exact: true }).waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Files', exact: true }).click();
   await type(' Typed during Save.'); release();
   await page.locator('[data-testid="status"][data-operation="saved-pending"]').waitFor();
   await page.unroute('**/api/document');

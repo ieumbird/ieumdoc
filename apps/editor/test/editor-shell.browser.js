@@ -34,9 +34,6 @@ async page => {
     await openFolder.focus();
     await page.keyboard.press('Tab');
     result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse sidebar', exact:true}));
-    await page.keyboard.press('Tab');
-    result.headerTabToFiles = await isFocused(page.getByRole('button', {name:'Files', exact:true}));
-    await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Shift+Tab');
     result.headerReverseTab = await isFocused(openFolder);
     await openFolder.focus();
@@ -51,28 +48,20 @@ async page => {
     await dialog.waitFor({state:'detached'});
     result.folderCancelReturnsFocus = await isFocused(openFolder);
 
-    // Both tools reopen from the collapsed rail. Tab reaches the selected content; Escape returns.
-    const files = page.getByRole('button', {name:'Files', exact:true});
-    const display = page.getByRole('button', {name:'Display', exact:true});
-    const numbering = page.getByRole('checkbox', {name:'Number headings', exact:true});
+    // Document settings is modal, retains the editor, and returns focus to its opener.
+    const settings = page.getByRole('button', {name:'Document settings', exact:true});
+    const settingsDialog = page.getByRole('dialog', {name:'Document settings', exact:true});
     const editorHandle = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluateHandle(n => n.editor);
+    await settings.focus(); await page.keyboard.press('Enter');
+    await settingsDialog.waitFor();
+    result.documentSettingsTarget = await settingsDialog.locator('.display-file').textContent() === 'technical-document.md';
+    result.documentSettingsKeyboardEntry = await isFocused(page.getByRole('checkbox', {name:'Number headings', exact:true}));
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    result.documentSettingsEscapeReturnsFocus = await isFocused(settings);
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    await display.focus();
-    await page.keyboard.press('Enter');
-    result.openFolderInDisplay = await openFolder.isVisible();
-    result.displayReopens = await numbering.isVisible() && await isFocused(display) &&
-      await page.locator('.display-file').textContent() === 'technical-document.md';
-    await page.keyboard.press('Tab');
-    result.displayKeyboardEntry = await isFocused(numbering);
-    await page.keyboard.press('Escape');
-    result.displayEscapeReturnsFocus = await isFocused(display);
-    await page.getByRole('button',{name:'Collapse sidebar'}).click();
+    result.railOnlyReopensFiles = await page.getByTestId('sidebar').getByRole('button').count() === 1;
     await page.getByRole('button',{name:'Expand sidebar'}).click();
-    result.collapseKeepsTool = await numbering.isVisible();
-    await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    await files.click();
-    result.filesReopens = await openFolder.isVisible() && !await numbering.isVisible();
-    result.toolsKeepEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((n, original) => n.editor === original, editorHandle);
+    result.settingsKeepsEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((n, original) => n.editor === original, editorHandle);
     await editorHandle.dispose();
 
     const fileActions = page.getByRole('button', {name:'File actions', exact:true});
@@ -129,9 +118,9 @@ async page => {
       document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.from === 'The current reference is calculated from the active power command.'.length);
     await page.getByTestId('selection-toolbar').waitFor();
     const keyboardSelection = await editorState();
-    await display.click();
-    await files.click();
-    result.toolSwitchKeepsSelectionAndHistory = await editorState() === keyboardSelection;
+    await settings.click();
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    result.settingsKeepsSelectionAndHistory = await editorState() === keyboardSelection;
     await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
     await page.keyboard.press('Tab');
     result.toolbarTabEnters = await isFocused(toolbarButton('Bold')) && await editorState() === keyboardSelection;
@@ -156,9 +145,9 @@ async page => {
     result.equationDraftInBlock = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').isVisible();
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
     result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
-    await display.click();
-    await files.click();
-    result.toolSwitchKeepsEquationDraft = await page.getByTestId('equation-latex').inputValue() === 'x + 1' &&
+    await settings.click();
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    result.settingsKeepsEquationDraft = await page.getByTestId('equation-latex').inputValue() === 'x + 1' &&
       await page.getByTestId('draft-notice').isVisible();
     await fileActions.click();
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
@@ -176,9 +165,9 @@ async page => {
       await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').getAttribute('data-selected') === 'true';
     await page.getByRole('button', {name:'Edit figure'}).click();
     result.figurePopover = await page.getByTestId('figure-editor').isVisible();
-    await display.click();
-    await files.click();
-    result.toolSwitchKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
+    await settings.click();
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    result.settingsKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
     await page.getByTestId('figure-cancel').click();
 
     // `+` inserts through the shared insert menu.

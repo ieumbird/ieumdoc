@@ -123,7 +123,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       for(const [name,value,priority] of saved)value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
     }
   },selectors);
-  const uiIsolation=await checkUIIsolation(['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number',
+  const uiIsolation=await checkUIIsolation(['[data-testid="save"]','.top-bar-document-settings','.document-outline-item','.document-outline-number',
     '.code-language','.figure-edit','.table-column-handle']);
   check(JSON.stringify(uiIsolation.before)===JSON.stringify(uiIsolation.after),
     `Document typography leaked into UI: ${JSON.stringify(uiIsolation)}`);
@@ -547,13 +547,15 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
         await shot(`${width}-collapsed`);
         await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       }
-      await page.getByRole('button',{name:'Display',exact:true}).click();
+      if(width<640) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await page.getByRole('button',{name:'Document settings',exact:true}).click();
       await rest();
       await shot(`${width}-display`);
-      await page.getByRole('button',{name:'Files',exact:true}).click();
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
       // A phone sidebar covers the document. Leave it closed before the next phone width's
       // rest/hover captures; crossing 414 → 375 does not cross the responsive breakpoint.
-      if (width < 640) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+
     }
   }
   for(const width of [1440,1024,768]) {

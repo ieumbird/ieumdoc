@@ -214,7 +214,7 @@ No broad `nodeReset` guard or #502 resolution is claimed.
 
 `folder-memory`는 열린 폴더 기억과 함께 root 섹션 접힘의 Reload/현재 문서 복원, Close/reopen, 복원만으로 쓰기 0회, 유효하지 않은 기록의 다음 사용자 쓰기 정리, 복원 중 사용자 접기·펼치기·Close 경합, 두 탭의 마지막 동작과 reveal 기억을 검증한다(#425, #370). 하위 펼침과 listing은 저장하지 않는다.
 
-`editor-shell`은 Files/Display 전환·접힌 도구에서 다시 열기·키보드 포커스·편집기/selection/history/draft 보존과 File actions → Reload 취소를 검증한다. `folder-navigation`은 도구 전환 전후 트리 펼침·스크롤·키보드 위치와 여러 폴더 추가·새로고침 후 순서 복원·폴더별 닫기를, `outline`은 Display의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 Display의 너비 설정이 문서를 바꾸지 않는지와 로컬 유지, 1920/1440/1280/1024/768/375px의 표시 설정·접기·재진입을 확인한다. 문서 없음·저장 진행·Source에서의 설정 제한은 해당 기존 시나리오에서 확인한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 Display 화면을 함께 촬영한다.
+`editor-shell`은 문서 설정 대화상자의 TopBar 키보드 진입·닫기·포커스 복귀와 편집기/selection/history/draft 보존, 접힌 탐색 rail, File actions → Reload 취소를 검증한다. `folder-navigation`은 설정 열기와 접기 전후 트리 펼침·스크롤·키보드 위치를, `outline`은 문서 설정의 제목 번호 변경·Undo/Redo·실제 Save/Reload를 검증한다. `layout-rules`는 TopBar 넓게 보기의 문서/dirty 상태 불변과 기기별 유지, 1920/1440/1280/1024/768/390/375px 문서 설정 dialog 경계와 포커스 복귀를 확인한다. 문서 없음·저장 진행·Source에서 문서 설정 진입 제한은 기존 시나리오에서 확인한다. `command-center`는 정확한 명령 이름을 선택해 문서 설정의 양 언어 별칭·modal 전환과 넓게 보기 전환·복원·문서 상태 불변을, `bibliography-connection`은 기존 연결·Save/Reload와 원래 설정 진입점으로의 포커스 복귀를 검증한다. `quiet-document --screenshots`는 기존 동일 상태 비교와 문서 설정을 함께 촬영한다.
 
 `visual-states`는 연 파일 행의 `aria-current="page"`를 기다린 뒤 파일·Outline의 현재 표식과 hover·keyboard focus·geometry를 측정한다. 파일 GET이 진행 중일 때 이전 문서의 Outline 표식은 남아 있을 수 있으므로 새 파일의 준비 신호가 아니다. 현재 상태를 기다린 뒤에도 비색상 표식의 실제 CSS와 너비를 별도로 검사한다.
 

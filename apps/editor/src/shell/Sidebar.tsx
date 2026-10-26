@@ -2,12 +2,11 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
-import { DisplaySettings, type DisplaySettingsProps } from "./DisplaySettings.tsx";
 
 type SidebarProps = {
   open: boolean;
@@ -33,27 +32,19 @@ type SidebarProps = {
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
-  /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
+  /** App Settings, separate from document settings. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
-  display: Omit<DisplaySettingsProps, "documentPath">;
 };
 
-/** One sidebar switches between Files and Display. Outline remains independent on the right. */
+/** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings, display,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings,
 }: SidebarProps) {
   useTranslation();
-  const [tool, setTool] = useState<"files" | "display">("files");
-  const displayButton = useRef<HTMLButtonElement>(null);
-  const selectTool = (next: typeof tool) => {
-    setTool(next);
-    if (!open) onToggle();
-  };
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar"
       onKeyDown={event => {
-        // Display's own Escape returns to its button first (it prevents the default).
         // Portaled menus and dialogs bubble through React; they keep their own Escape.
         if (event.key !== "Escape" || event.defaultPrevented || !open || !onDismiss ||
           !event.currentTarget.contains(event.target as Node)) return;
@@ -81,20 +72,8 @@ export function Sidebar({
           </Button>
         </div>
       </div>
-      <div className="sidebar-tools" role="group" aria-label={i18n.t("Sidebar tools")}>
-        <Button type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
-          aria-label={i18n.t("Files")} title={open ? undefined : i18n.t("Files")} aria-pressed={tool === "files"}
-          aria-expanded={open && tool === "files"} aria-controls="sidebar-files" onClick={() => selectTool("files")}>
-          <FileText aria-hidden="true" />{open ? i18n.t("Files") : null}
-        </Button>
-        <Button ref={displayButton} type="button" size={open ? "sm" : "icon-sm"} variant="ghost" className="sidebar-tool"
-          aria-label={i18n.t("Display")} title={open ? undefined : i18n.t("Display")} aria-pressed={tool === "display"}
-          aria-expanded={open && tool === "display"} aria-controls="sidebar-display" onClick={() => selectTool("display")}>
-          <SlidersHorizontal aria-hidden="true" />{open ? i18n.t("Display") : null}
-        </Button>
-      </div>
-      {/* Keep the tree mounted: tool switches and collapse retain scroll and keyboard position. */}
-      <div id="sidebar-files" className="sidebar-content" hidden={!open || tool !== "files"}>
+      {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
+      <div id="sidebar-files" className="sidebar-content" hidden={!open}>
         {onNewDocument ? <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
           onClick={event => onNewDocument(event.currentTarget)}>
           <Plus aria-hidden="true" />{i18n.t("New document")}</Button> : null}
@@ -132,24 +111,10 @@ export function Sidebar({
           </section>
         )}
       </div>
-      <div id="sidebar-display" className="sidebar-content" hidden={!open || tool !== "display"}
-        onKeyDown={event => {
-          if (event.key !== "Escape") return;
-          event.preventDefault();
-          displayButton.current?.focus();
-        }}>
-        <DisplaySettings documentPath={documentPath} {...display} />
-      </div>
-      {onSettings ? (
+      {onSettings && open ? (
         <div className="sidebar-footer">
-          {open ? (
-            <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
-              <Settings aria-hidden="true" />{i18n.t("Settings")}</Button>
-          ) : (
-            <Button variant="ghost" size="icon-sm" aria-label={i18n.t("Settings")} title={i18n.t("Settings")} onClick={event => onSettings(event.currentTarget)}>
-              <Settings />
-            </Button>
-          )}
+          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
+            <Settings aria-hidden="true" />{i18n.t("Settings")}</Button>
         </div>
       ) : null}
     </nav>

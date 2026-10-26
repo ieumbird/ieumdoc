@@ -303,7 +303,7 @@ test("translated messages and commands follow language changes while operation i
 
 const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
-const display = { headingNumbering: false, numberingDisabled: false, onToggleHeadingNumbering: noop, wide: false, onToggleWide: noop };
+const display = { headingNumbering: false, numberingDisabled: false, onToggleHeadingNumbering: noop };
 
 test("tabs use Host paths, choose the right then left neighbour, and leave an inactive close alone", () => {
   const tabs = [{ id: "a", path: "C:/a/guide.md" }, { id: "b", path: "C:/b/guide.md" }, { id: "c", path: "C:/c/readme.md" }];
@@ -400,7 +400,7 @@ test("document path splits for display without changing the address", () => {
 });
 
 test("sidebar without a folder offers only Open folder, and collapses", () => {
-  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} />);
+  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
   assert.match(open, /IeumDoc/);
   assert.match(open, /<button\b(?=[^>]*aria-label="Open folder…")(?=[^>]*title="Open folder…")/);
   assert.doesNotMatch(open, /Open file…/);
@@ -408,14 +408,13 @@ test("sidebar without a folder offers only Open folder, and collapses", () => {
   // No app-level full-path New and no second listing of the open document; TopBar names it.
   assert.doesNotMatch(open, />New</);
   assert.doesNotMatch(open, /aria-current/);
-  assert.match(open, /id="sidebar-display"[^>]*hidden/);
+  assert.doesNotMatch(open, /sidebar-tools|sidebar-display|aria-label="Display"/);
   assert.match(open, /aria-label="Collapse sidebar"/);
-  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} />);
+  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(collapsed, /Open file…|IeumDoc/);
   assert.match(collapsed, /id="sidebar-files"[^>]*hidden/);
-  assert.match(collapsed, /id="sidebar-display"[^>]*hidden/);
-  for (const label of ["Files", "Display"]) assert.match(collapsed, new RegExp(`aria-label="${label}"`));
+  assert.doesNotMatch(collapsed, /sidebar-tools|sidebar-display|aria-label="Display"|aria-label="Settings"/);
 });
 
 test("sidebar folder is a tree under the chosen folder that marks the open document once", () => {
@@ -436,7 +435,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} display={display} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
@@ -458,12 +457,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);
   const top = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }]}
+    <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No files or folders/);
   const collapsed = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, sectionExpanded: false }]}
+    <Sidebar open documentPath={PATH} folders={[{ ...folder, sectionExpanded: false }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(collapsed, /<ul\b(?=[^>]*role="tree")(?=[^>]*hidden)/);
@@ -475,7 +474,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },
   ]);
   const marked = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
+    <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
@@ -483,7 +482,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   try {
     void i18n.changeLanguage("ko");
     const localized = renderToStaticMarkup(
-      <Sidebar open documentPath={PATH} display={display} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
+      <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
         onToggle={noop} onOpenFolder={noop} />,
     );
     assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);
@@ -495,12 +494,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
 test("without a chosen folder, recent folders list again with one click", () => {
   const recent = [String.raw`C:\work\docs`, "/srv/notes/"];
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} recent={recent} onOpenRecent={noop} />,
+    <Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} onOpenRecent={noop} />,
   );
   assert.match(html, /<button\b(?=[^>]*title="C:\\work\\docs")[^>]*>.*?>docs</);
   assert.match(html, /<button\b(?=[^>]*title="\/srv\/notes\/")[^>]*>.*?>notes</);
   // No recent list without a way to open one.
-  assert.doesNotMatch(renderToStaticMarkup(<Sidebar open documentPath={PATH} display={display} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
+  assert.doesNotMatch(renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
 });
 
 test("document panel holds only the outline, and the TopBar Outline toggle shows whether it is open", () => {
@@ -525,16 +524,15 @@ test("document panel holds only the outline, and the TopBar Outline toggle shows
   }
 });
 
-test("Display distinguishes document numbering from local width and respects unavailable numbering", () => {
-  const html = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} headingNumbering wide />);
+test("document settings reuses numbering, reference and bibliography controls and unavailable states", () => {
+  const html = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} headingNumbering />);
   assert.match(html, /guide\.md/);
-  assert.match(html, /Saved in document/);
+  assert.match(html, /Saved in this document/);
   assert.match(html, /Reference style/);
   assert.match(html, /Connect bibliography…/);
   assert.match(html, /<option value="default" selected="">Default<\/option>/);
-  assert.match(html, /Local view/);
+  assert.doesNotMatch(html, /Wide document|Local view/);
   assert.match(html, /aria-describedby="display-numbering-hint"[^>]*checked/);
-  assert.match(html, /aria-describedby="display-width-hint"[^>]*checked/);
   const custom = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} referenceTemplates={{figure: "Illustration %s"}} />);
   assert.match(custom, /<option value="custom" disabled="" selected="">Custom<\/option>/);
   const blocked = renderToStaticMarkup(<DisplaySettings {...display} documentPath="" numberingDisabled numberingHint="Open a document to change numbering." />);
@@ -542,7 +540,6 @@ test("Display distinguishes document numbering from local width and respects una
   assert.match(blocked, /<select\b[^>]*disabled/);
   assert.match(blocked, /<button\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>Connect bibliography…<\/button>/);
   assert.match(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>/);
-  assert.doesNotMatch(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-width-hint")[^>]*>/);
 });
 
 test("top bar shows filename while keeping the complete path in its title", () => {
