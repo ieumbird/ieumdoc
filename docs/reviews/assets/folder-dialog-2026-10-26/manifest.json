@@ -1,0 +1,1064 @@
+{
+  "issue": "https://github.com/ieumbird/ieumdoc/issues/522",
+  "date": "2026-10-26",
+  "baseSha": "f1ae47217c04b00f70ec72771640e8eeda1871b8",
+  "baseRef": "origin/master",
+  "purpose": "Historical owner-decision proposal; six manual presentation captures, not adopted product behavior.",
+  "sourceBoundary": {
+    "ownerScreenshotAvailable": false,
+    "fixtureIsRepresentative": true,
+    "note": "Issue body provides the root, approximate folder count, Markdown count and two starting places, but no attached screenshot or actual entry names. These names are representative, not recovered originals."
+  },
+  "fixture": {
+    "allowedRoots": [
+      "/workspace/ieumdoc-doc-ground",
+      "/workspace/shared-documents"
+    ],
+    "entries": [
+      {
+        "name": "artifacts",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/artifacts"
+      },
+      {
+        "name": "assets",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/assets"
+      },
+      {
+        "name": "docs",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/docs"
+      },
+      {
+        "name": "examples",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/examples"
+      },
+      {
+        "name": "notes",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/notes"
+      },
+      {
+        "name": "references",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/references"
+      },
+      {
+        "name": "scripts",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/scripts"
+      },
+      {
+        "name": "templates",
+        "kind": "folder",
+        "path": "/workspace/ieumdoc-doc-ground/templates"
+      },
+      {
+        "name": "README.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/README.md",
+        "native": true
+      },
+      {
+        "name": "architecture.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/architecture.md",
+        "native": true
+      },
+      {
+        "name": "changelog.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/changelog.md",
+        "native": true
+      },
+      {
+        "name": "design.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/design.md",
+        "native": true
+      },
+      {
+        "name": "guide.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/guide.md",
+        "native": true
+      },
+      {
+        "name": "index.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/index.md",
+        "native": true
+      },
+      {
+        "name": "notes.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/notes.md",
+        "native": true
+      },
+      {
+        "name": "review.md",
+        "kind": "document",
+        "path": "/workspace/ieumdoc-doc-ground/review.md",
+        "native": true
+      }
+    ]
+  },
+  "state": {
+    "currentFolder": "/workspace/ieumdoc-doc-ground/",
+    "recentFolders": [],
+    "openedFolders": [
+      "/workspace/ieumdoc-doc-ground"
+    ],
+    "openDocument": null,
+    "newFolderForm": false,
+    "keyboardActiveOption": null,
+    "pointer": [
+      0,
+      0
+    ],
+    "focusedControl": "folder-path",
+    "selection": "caret at end",
+    "dialogScroll": [
+      0,
+      0
+    ],
+    "listScroll": 0,
+    "uiLanguage": "ko"
+  },
+  "captureMethod": {
+    "command": "$env:IEUMDOC_BROWSER_URL='http://127.0.0.1:5392'; pnpm browser:test folder-dialog-mockups",
+    "runner": "apps/editor/test/browser/run.ts and its unchanged scenarios.spec.ts worker fixture",
+    "browser": "installed Chrome, headless, checkout-owned persistent profile; one session at a time",
+    "server": "this worktree Vite, 127.0.0.1:5392; caller-owned PID 8720 stopped after captures",
+    "hostSimulation": "page routes for document startup, folder listing, browse and places; two HTTP-like allowed roots, not a production HTTP server",
+    "screenshotOptions": {
+      "animations": "disabled",
+      "caret": "hide",
+      "fullPage": false
+    },
+    "temporaryScenarioCommitted": false,
+    "temporaryProductPatchesCommitted": false,
+    "workflow": [
+      "Capture unmodified base with fixed API fixture at both sizes.",
+      "Apply option A only to FolderDialog.tsx/styles.css, capture at both sizes, save metadata.",
+      "Replace with option B from the same base, capture at both sizes, save metadata.",
+      "Restore both product files, remove temporary scenario, verify no product diff before staging docs."
+    ],
+    "iterations": "Two exploratory captures per proposal were replaced by the final versions; only six final PNGs retained.",
+    "limitations": [
+      "No original owner screenshot comparison.",
+      "No image picker, real HTTP security, touch device, IME or assistive technology validation.",
+      "ArrowDown/Right, Up and Escape sanity observations are not full regression coverage."
+    ]
+  },
+  "baseProductGitBlobs": {
+    "apps/editor/src/shell/FolderDialog.tsx": "38b04ec7d2ffb30333050646aebbe8ab3d269ef5",
+    "apps/editor/src/styles.css": "fb944dd0f1cd7f8a8ab2960cc94b029f80c4adf8"
+  },
+  "variants": {
+    "current": {
+      "throwawayPatchSha256": null,
+      "productFilesChangedForCapture": [],
+      "contractBehaviorChange": false,
+      "sanityObservation": "ArrowDown active descendant, ArrowRight enters folder, Up returns inside root, Escape closes; no file writes",
+      "captures": [
+        {
+          "file": "current-1440.png",
+          "viewport": [
+            1440,
+            900
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 384,
+            "y": 152,
+            "width": 672,
+            "height": 596,
+            "bottom": 748
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 401,
+            "y": 333,
+            "width": 638,
+            "height": 240,
+            "bottom": 573
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 401,
+              "y": 333,
+              "width": 638,
+              "height": 32,
+              "bottom": 365
+            },
+            {
+              "x": 401,
+              "y": 365,
+              "width": 638,
+              "height": 32,
+              "bottom": 397
+            },
+            {
+              "x": 401,
+              "y": 397,
+              "width": 638,
+              "height": 32,
+              "bottom": 429
+            },
+            {
+              "x": 401,
+              "y": 429,
+              "width": 638,
+              "height": 32,
+              "bottom": 461
+            },
+            {
+              "x": 401,
+              "y": 461,
+              "width": 638,
+              "height": 32,
+              "bottom": 493
+            },
+            {
+              "x": 401,
+              "y": 493,
+              "width": 638,
+              "height": 32,
+              "bottom": 525
+            },
+            {
+              "x": 401,
+              "y": 525,
+              "width": 638,
+              "height": 32,
+              "bottom": 557
+            },
+            {
+              "x": 401,
+              "y": 557,
+              "width": 638,
+              "height": 32,
+              "bottom": 589
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 836.078125,
+            "y": 703,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 731
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "ieumdoc-doc-ground",
+              "height": 28,
+              "radius": "4px"
+            },
+            {
+              "text": "상위 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "ieumdoc-doc-ground",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "열기 “ieumdoc-doc-ground”",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "1f4886982b3da93e8da81bdc58cf9e4cbfa08637339ae2feae3f1f3a7505caf6",
+          "bytes": 126076,
+          "fullyVisibleRows": 7
+        },
+        {
+          "file": "current-390.png",
+          "viewport": [
+            390,
+            844
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 16,
+            "y": 84,
+            "width": 358,
+            "height": 676,
+            "bottom": 760
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 33,
+            "y": 285,
+            "width": 324,
+            "height": 240,
+            "bottom": 525
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 33,
+              "y": 285,
+              "width": 324,
+              "height": 32,
+              "bottom": 317
+            },
+            {
+              "x": 33,
+              "y": 317,
+              "width": 324,
+              "height": 32,
+              "bottom": 349
+            },
+            {
+              "x": 33,
+              "y": 349,
+              "width": 324,
+              "height": 32,
+              "bottom": 381
+            },
+            {
+              "x": 33,
+              "y": 381,
+              "width": 324,
+              "height": 32,
+              "bottom": 413
+            },
+            {
+              "x": 33,
+              "y": 413,
+              "width": 324,
+              "height": 32,
+              "bottom": 445
+            },
+            {
+              "x": 33,
+              "y": 445,
+              "width": 324,
+              "height": 32,
+              "bottom": 477
+            },
+            {
+              "x": 33,
+              "y": 477,
+              "width": 324,
+              "height": 32,
+              "bottom": 509
+            },
+            {
+              "x": 33,
+              "y": 509,
+              "width": 324,
+              "height": 32,
+              "bottom": 541
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 91.203125,
+            "y": 715,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 743
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "ieumdoc-doc-ground",
+              "height": 48,
+              "radius": "4px"
+            },
+            {
+              "text": "상위 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "ieumdoc-doc-ground",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "열기 “ieumdoc-doc-ground”",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "a1f6fcda7bdca525997ddb80307a748ed54cda6adf94b93ca696fa8eb3a8c05e",
+          "bytes": 55200,
+          "fullyVisibleRows": 7
+        }
+      ]
+    },
+    "option-a": {
+      "throwawayPatchSha256": "4cca180a8bf1f2ea80848b2fd77bf2d1d94073052c6b0e36a64aae98c2e8330c",
+      "productFilesChangedForCapture": [
+        "apps/editor/src/shell/FolderDialog.tsx",
+        "apps/editor/src/styles.css"
+      ],
+      "contractBehaviorChange": false,
+      "sanityObservation": "ArrowDown active descendant, ArrowRight enters folder, Up returns inside root, Escape closes; no file writes",
+      "captures": [
+        {
+          "file": "option-a-1440.png",
+          "viewport": [
+            1440,
+            900
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 384,
+            "y": 162.5,
+            "width": 672,
+            "height": 575,
+            "bottom": 737.5
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 401,
+            "y": 383.5,
+            "width": 638,
+            "height": 256,
+            "bottom": 639.5
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 401,
+              "y": 383.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 415.5
+            },
+            {
+              "x": 401,
+              "y": 415.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 447.5
+            },
+            {
+              "x": 401,
+              "y": 447.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 479.5
+            },
+            {
+              "x": 401,
+              "y": 479.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 511.5
+            },
+            {
+              "x": 401,
+              "y": 511.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 543.5
+            },
+            {
+              "x": 401,
+              "y": 543.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 575.5
+            },
+            {
+              "x": 401,
+              "y": 575.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 607.5
+            },
+            {
+              "x": 401,
+              "y": 607.5,
+              "width": 638,
+              "height": 32,
+              "bottom": 639.5
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 836.078125,
+            "y": 692.5,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 720.5
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "현재 위치",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "“ieumdoc-doc-ground” 열기",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "d3ed2d65bb85bf37dbcb5d88bfc704c4f6f7a64df546a223d05dd0313caabbef",
+          "bytes": 123972,
+          "fullyVisibleRows": 8
+        },
+        {
+          "file": "option-a-390.png",
+          "viewport": [
+            390,
+            844
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 16,
+            "y": 130.5,
+            "width": 358,
+            "height": 583,
+            "bottom": 713.5
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 33,
+            "y": 363.5,
+            "width": 324,
+            "height": 256,
+            "bottom": 619.5
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 33,
+              "y": 363.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 395.5
+            },
+            {
+              "x": 33,
+              "y": 395.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 427.5
+            },
+            {
+              "x": 33,
+              "y": 427.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 459.5
+            },
+            {
+              "x": 33,
+              "y": 459.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 491.5
+            },
+            {
+              "x": 33,
+              "y": 491.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 523.5
+            },
+            {
+              "x": 33,
+              "y": 523.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 555.5
+            },
+            {
+              "x": 33,
+              "y": 555.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 587.5
+            },
+            {
+              "x": 33,
+              "y": 587.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 619.5
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 154.078125,
+            "y": 668.5,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 696.5
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "현재 위치",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "“ieumdoc-doc-ground” 열기",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "d530af4b21cd6430b62e003c032f0615ac82507c048cdf514e608e70515135a8",
+          "bytes": 51692,
+          "fullyVisibleRows": 8
+        }
+      ]
+    },
+    "option-b": {
+      "throwawayPatchSha256": "657fc80404cf1f41a9e6c38b23ed23095712ad02654b3d27b5ec1c4720dc49b4",
+      "productFilesChangedForCapture": [
+        "apps/editor/src/shell/FolderDialog.tsx",
+        "apps/editor/src/styles.css"
+      ],
+      "contractBehaviorChange": false,
+      "sanityObservation": "ArrowDown active descendant, ArrowRight enters folder, Up returns inside root, Escape closes; no file writes",
+      "captures": [
+        {
+          "file": "option-b-1440.png",
+          "viewport": [
+            1440,
+            900
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 384,
+            "y": 184.5,
+            "width": 672,
+            "height": 531,
+            "bottom": 715.5
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 609,
+            "y": 361.5,
+            "width": 430,
+            "height": 256,
+            "bottom": 617.5
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 609,
+              "y": 361.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 393.5
+            },
+            {
+              "x": 609,
+              "y": 393.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 425.5
+            },
+            {
+              "x": 609,
+              "y": 425.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 457.5
+            },
+            {
+              "x": 609,
+              "y": 457.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 489.5
+            },
+            {
+              "x": 609,
+              "y": 489.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 521.5
+            },
+            {
+              "x": 609,
+              "y": 521.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 553.5
+            },
+            {
+              "x": 609,
+              "y": 553.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 585.5
+            },
+            {
+              "x": 609,
+              "y": 585.5,
+              "width": 430,
+              "height": 32,
+              "bottom": 617.5
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 836.078125,
+            "y": 670.5,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 698.5
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "현재 위치",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "“ieumdoc-doc-ground” 열기",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "ca85b95c06c72f022729f55bca5ce138ae31a490998a270205f591953215f9ff",
+          "bytes": 128513,
+          "fullyVisibleRows": 8
+        },
+        {
+          "file": "option-b-390.png",
+          "viewport": [
+            390,
+            844
+          ],
+          "language": "ko",
+          "dpr": 1,
+          "zoom": 1,
+          "cssZoom": "1",
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "fontLoaded": true,
+          "dialog": {
+            "x": 16,
+            "y": 128.5,
+            "width": 358,
+            "height": 587,
+            "bottom": 715.5
+          },
+          "dialogScroll": [
+            0,
+            0
+          ],
+          "list": {
+            "x": 33,
+            "y": 365.5,
+            "width": 324,
+            "height": 256,
+            "bottom": 621.5
+          },
+          "listScroll": 0,
+          "rows": [
+            {
+              "x": 33,
+              "y": 365.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 397.5
+            },
+            {
+              "x": 33,
+              "y": 397.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 429.5
+            },
+            {
+              "x": 33,
+              "y": 429.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 461.5
+            },
+            {
+              "x": 33,
+              "y": 461.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 493.5
+            },
+            {
+              "x": 33,
+              "y": 493.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 525.5
+            },
+            {
+              "x": 33,
+              "y": 525.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 557.5
+            },
+            {
+              "x": 33,
+              "y": 557.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 589.5
+            },
+            {
+              "x": 33,
+              "y": 589.5,
+              "width": 324,
+              "height": 32,
+              "bottom": 621.5
+            }
+          ],
+          "fieldValue": "/workspace/ieumdoc-doc-ground/",
+          "activeDescendant": null,
+          "focus": "folder-path",
+          "open": {
+            "x": 154.078125,
+            "y": 670.5,
+            "width": 202.921875,
+            "height": 28,
+            "bottom": 698.5
+          },
+          "horizontalOverflow": false,
+          "controlMetrics": [
+            {
+              "text": "현재 위치",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "shared-documents",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "",
+              "height": 32,
+              "radius": "6px"
+            },
+            {
+              "text": "새 폴더",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "취소",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "“ieumdoc-doc-ground” 열기",
+              "height": 28,
+              "radius": "6px"
+            },
+            {
+              "text": "닫기",
+              "height": 28,
+              "radius": "6px"
+            }
+          ],
+          "sha256": "c891e37f887946404aa7588b7db6ecfbfcd8e124ec5669433656ebb21abfea43",
+          "bytes": 51762,
+          "fullyVisibleRows": 8
+        }
+      ]
+    }
+  },
+  "cleanup": {
+    "productDiffAfterRestore": false,
+    "temporaryScenarioRemoved": true,
+    "ownedServerPort5392Listening": false,
+    "ownedBrowserSessionRemaining": false
+  }
+}
