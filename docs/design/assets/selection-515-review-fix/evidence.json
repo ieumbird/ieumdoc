@@ -1,10 +1,10 @@
 {
   "beforeHead": "b7e2b58f6d4fed33f09c7caa7d7f7066552233ae",
-  "afterBase": "3d5e8d3a7099fdd5caaa738b69238a8132f06345",
-  "mergedMaster": "8d4136bc30cc5fd695bea7f0bc9370f0c9e074bc",
+  "afterBase": "39bd57f1d63f05f6819bb5712923837da5529cfd",
+  "mergedMaster": "d7830ed72a3e5ac8d3562417c1084e7b380df812",
   "cssSha256": {
     "before": "2d0e3e8b5e2690c244956150787fa1592002500d9a4cf55b9826ac09094d6fb1",
-    "after": "dc95f4c19f74cea92bda2e53c17d552efb87c78c1d8ad61d8e5d545ec98ba957"
+    "after": "20f883ceee27844c0f58d9db97be83dcde40e7674cab7aeed36fd91b74850566"
   },
   "browser": "155.0.8059.85",
   "environment": "Windows, headless installed Chrome, same checkout-owned persistent profile, own Vite 5295, bundled Pretendard; DPR/zoom/scale 1; 1440x1000 and 390x1000; pointer/scroll (0,0); fonts/images ready",

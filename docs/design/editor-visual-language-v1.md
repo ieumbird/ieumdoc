@@ -730,6 +730,9 @@ ea4197f32a4f92f4228d6bb8535f0b9970319b35, retaining both branches without confli
 The subsequent master 8d4136bc30cc5fd695bea7f0bc9370f0c9e074bc (#508 Korean wrapping)
 was merged as 3d5e8d3a7099fdd5caaa738b69238a8132f06345. The only conflict was this
 document's verification header; both records and both product changes were retained.
+Master d7830ed72a3e5ac8d3562417c1084e7b380df812 (#516 unified menus) was then merged as
+39bd57f1d63f05f6819bb5712923837da5529cfd. Again only the verification header conflicted;
+both records, the menu changes and the selection cues are retained and reverified together.
 
 The Before images below use b7e2b58; After uses that merged base plus this review correction.
 Same worktree-owned server (5295), persistent installed Chrome 155.0.8059.85 headless on Windows,
